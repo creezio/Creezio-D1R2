@@ -10,7 +10,7 @@ Un module ou extension Creezio possède ses données, sa logique métier, ses AP
 
 ## Implémentation en cours
 
-Le GO complet a été reçu le 26 septembre 2026. [P0](docs/IMPLEMENTATION-P0.md) est intégré sur GitHub après reprise d'Actions ; les [contrats SDK](docs/IMPLEMENTATION-T02.md) et le [Worker commun](docs/IMPLEMENTATION-T03.md) ont leurs qualifications locales. [T-04](docs/IMPLEMENTATION-T04.md) ajoute les comptes et sessions D1, sans parcours HTTP ni interface encore exposés. Le produit complet n'est pas implémenté et la sonde hébergée garde sa portée limitée.
+Le GO complet a été reçu le 26 septembre 2026. [P0](docs/IMPLEMENTATION-P0.md), les [contrats SDK](docs/IMPLEMENTATION-T02.md), le [Worker commun](docs/IMPLEMENTATION-T03.md) et la tranche [comptes/sessions D1](docs/IMPLEMENTATION-T04.md) sont intégrés sur GitHub avec CI vérifiée après chaque squash. L'agrégat actuel compte 343 tests locaux et CI réussis. T-04 reste en cours : aucun parcours HTTP ni interface de connexion encore exposé. Le produit complet n'est pas implémenté et la sonde hébergée garde sa portée limitée.
 
 Avec Node 24, installer une fois les dépendances verrouillées par `npm ci --ignore-scripts`, puis lancer `npm run dev`. Le développement utilise D1/R2 locaux persistants et ne demande aucune clé fournisseur. `npm run build` prépare le Worker et les assets ; `npm start` exécute ce build localement. La composition de départ ne contient pas encore les modules natifs : sa page vérifie uniquement la présence des bindings et la réponse du socle. L'authentification native, les données métier et le workspace suivent dans les lots du backlog.
 

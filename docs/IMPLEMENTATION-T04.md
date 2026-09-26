@@ -40,6 +40,8 @@ Le dispatcher protège toujours ses routes par refus. Les services de comptes d�
 
 ## Contrôles et impact
 
+La [PR #4](https://github.com/creezio/Creezio-D1R2/pull/4) regroupe les fondations et la tranche de stockage : 343 tests locaux au checkpoint `75d08da`, revues croisées, correction documentaire `2e1c863`, puis tête synchronisée `a57433c`. Le [run de PR](https://github.com/creezio/Creezio-D1R2/actions/runs/36265948258) réussit aussi 343/343 sous Linux, sans skip/todo et avec types/build/artefact courant. Squash `485f5ad16a546d31211f6b30474afa24e5b1b0cf`, puis [run du nouveau main](https://github.com/creezio/Creezio-D1R2/actions/runs/36266046012) réussi. T-04 reste en cours pour les parcours explicitement absents.
+
 `npm run test:identity` exécute les tests ciblés ; la suite identity est requise par l'agrégateur, et son absence ne peut réduire silencieusement la couverture. Les preuves finales se rattachent à une révision et aux artefacts exacts hors du commit source. Une qualification de primitive sur la sonde ne qualifie pas le futur parcours de connexion complet.
 
 Le harnais local workerd exécute aussi les **vraies primitives du cœur** : création PHC, vérification correcte/incorrecte, refus d'un coût modifié, émission et empreinte de token, décision positive puis refus sur un instantané serveur désactivé. Il vérifie le graphe sans imports Node et ferme son runtime en fin de test. Aucun stockage de comptes factice ni middleware de connexion n'est présenté comme qualifié.

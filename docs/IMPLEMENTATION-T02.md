@@ -1,6 +1,6 @@
 # T-02 — Contrats SDK et dépendances
 
-Contrôles statiques réalisés localement sur `core/t02-contracts`, depuis le checkpoint P0 `3767c43`. Les exigences sont suivies dans [T-02](TODO.md#T-02), avec le [standard module](STANDARD-MODULE.md), le [contrat des dépendances](DEPENDANCES-MODULES.md) et les [interactions des widgets](INTERACTIONS-WIDGETS.md). La facturation Actions reste un blocage de fusion ; le responsable autorise la poursuite locale.
+Contrôles statiques réalisés sur `core/t02-contracts`, depuis le checkpoint P0 `3767c43`, puis intégrés par la [PR #2](https://github.com/creezio/Creezio-D1R2/pull/2) après reprise d'Actions. Les exigences sont suivies dans [T-02](TODO.md#T-02), avec le [standard module](STANDARD-MODULE.md), le [contrat des dépendances](DEPENDANCES-MODULES.md) et les [interactions des widgets](INTERACTIONS-WIDGETS.md).
 
 ## Réalisation
 
@@ -20,8 +20,8 @@ Le dossier produit comporte désormais 89 exigences, toujours réparties dans 39
 
 ## Validation et limites
 
-Commandes : `npm run test:contracts` pour les contrats ; `npm run check` pour les contrats, les contrôleurs P0 et le dossier documentaire. Le rapport `.quality/latest.json` porte le SHA/tree et les empreintes des sources réellement testées ; une modification invalide la preuve précédente. L’agrégat local a réussi, sans suite ignorée ; les derniers cas de régression et le nouveau commit repassent la même commande. Les résultats finaux et la revue sont consignés avec le checkpoint, hors de son contenu source. T-02 garde sa qualification CI en attente ; ce livrable local ne coche pas les futurs exécuteurs.
+Commandes : `npm run test:contracts` pour les contrats ; `npm run check` pour l'agrégat du dépôt. Le rapport `.quality/latest.json` porte le SHA/tree et les empreintes des sources réellement testées ; une modification invalide la preuve précédente. L’agrégat local a réussi sans suite ignorée. Les 195 tests ont aussi réussi dans le [run de PR](https://github.com/creezio/Creezio-D1R2/actions/runs/36265616619) sur la tête synchronisée `0d672e5`, de même arbre que le checkpoint revu `72c7f3f`. Squash `61c70fd925ce6e444dd2676012d84b56b7389787`, puis [CI du nouveau main](https://github.com/creezio/Creezio-D1R2/actions/runs/36265701280) réussie. Cette qualification ne coche pas les futurs exécuteurs.
 
 Une composition déclarative acceptée **n'est pas une installation autorisée ou exécutée**. T-11 reste responsable du résolveur de paquets, du gestionnaire visible, de la configuration effective, des gardes d'exécution et des transitions persistantes. T-30 vérifie les vrais octets des archives, signatures/provenances et références transitives de code ; T-38 exerce les mises à jour sur les déploiements du fork. Les valeurs d'intégrité des fixtures ne sont pas des preuves de paquet réel. Les capacités déclarées de l'hôte et les politiques doivent être confrontées à une autorité approuvée par les exécuteurs.
 
-Aucun compte, base D1, fichier R2, module applicatif, Site ou déploiement n'est créé par ces contrôleurs. La parité UI, le chat OpenAI et la compatibilité réelle ChatGPT restent des recettes ultérieures. La validation locale ne remplace pas la CI distante, actuellement indisponible.
+Aucun compte, base D1, fichier R2, module applicatif, Site ou déploiement n'est créé par ces contrôleurs. La parité UI, le chat OpenAI et la compatibilité réelle ChatGPT restent des recettes ultérieures. La validation locale et la CI sont toutes deux acquises pour ce livrable déclaratif.

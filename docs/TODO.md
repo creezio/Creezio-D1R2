@@ -1,5 +1,5 @@
 # Backlog de réalisation
-Révision 5 — 26 septembre 2026. **GO complet reçu ; T-01 à T-04 en cours selon leurs qualifications.** Ce fichier est la liste de travail canonique du produit ; le plan et les PRD de modules y renvoient. Actions fonctionne de nouveau après régularisation par le responsable : P0 est intégré via PR #1, CI du nouveau main réussie ; réintégration des checkpoints suivants dans l'ordre, avec revue et contrôles distants. L'[état P0](IMPLEMENTATION-P0.md) distingue contrôleurs et gouvernance. Le dossier documentaire est audité séparément dans [AUDIT-AVANT-DEVELOPPEMENT.md](AUDIT-AVANT-DEVELOPPEMENT.md) ; il ne coche aucune fonctionnalité.
+Révision 6 — 26 septembre 2026. **GO complet reçu ; T-01 à T-04 en cours selon leurs qualifications.** Ce fichier est la liste de travail canonique du produit ; le plan et les PRD de modules y renvoient. Après régularisation Actions, P0, T-02, T-03 et la tranche persistante T-04 sont intégrés par les PR #1 à #4 ; chaque nouveau main a réussi sa CI. Main `485f5ad` passe 343 tests. La PR #5 consigne le refus d'un candidat volontairement invalide, puis retire son unique test témoin. L'[état P0](IMPLEMENTATION-P0.md) distingue contrôleurs et gouvernance. Le dossier documentaire est audité séparément dans [AUDIT-AVANT-DEVELOPPEMENT.md](AUDIT-AVANT-DEVELOPPEMENT.md) ; il ne coche aucune fonctionnalité.
 ## Règles de suivi
 États autorisés : à faire, en cours, bloqué (raison/prérequis), en revue, vérifié, livré. Enregistrer responsable réel, branche/issue ou tâche locale, PR, SHA, tests/profils et preuves à chaque transition. « Livré » exige version et livraison vérifiée ; fusionner ne suffit pas. Une dépendance fournisseur manquante bloque sa recette, pas toutes les tâches indépendantes.
 Après GO, commencer P0 puis la tranche P1/P2 nécessaire au premier Site ; les dépendances ci-dessous priment sur le numéro du lot. Qualifier Cloudflare tôt dès disponibilité, mais ne pas bloquer le travail local sur son accès. P3/P4 peuvent avancer par tranches couplées : installer un module témoin d’abord, finaliser le starter après widgets/front. Le socle complet et les preuves restent requis avant P7.
@@ -10,7 +10,7 @@ Une dépendance consomme un **livrable précis et testé**, pas automatiquement 
 
 | Prérequis consommable | Ce qui autorise la suite | Ce qui reste à qualifier et où |
 |---|---|---|
-| T-01 → T-02/T-03 | Contrôleurs locaux testés/revus et protections appliquées ; poursuite locale autorisée le 26 septembre malgré Actions bloqué pour facturation, selon GIT-FLOW | Contrôles fonctionnels ajoutés par T-02 puis modules ; la preuve de SHA/artefact est d’abord un test du contrôleur, pas une release de CMS. |
+| T-01 → T-02/T-03 | Contrôleurs locaux testés/revus, protections appliquées et CI des PR puis de main réussies après régularisation Actions | Contrôles fonctionnels ajoutés par T-02 puis modules ; la preuve de SHA/artefact est d’abord un test du contrôleur, pas une release de CMS. |
 | T-02 → T-03/T-11 | Schémas/validateurs SDK exécutés sur fixtures valides/invalides ; aucun runtime applicatif prétendument testé | Six suites de vrais modules et intégration hôte en T-11/T-30 ; répétition pertinente sur les modules ultérieurs. |
 | T-04/T-05/T-06/T-07 → T-08/T-09/T-31 | Comptes, modèles, fichiers, opérations et workspace construits et testés localement | T-09 teste la tranche sur Sites ; T-32 sur Cloudflare. Les fonctions ajoutées ensuite repassent la recette hôte avant T-36. |
 | T-10 à T-29 → lots consommateurs | Contrats et code testés sur l’environnement disponible, avec refus ; aucune intégration fournisseur annoncée réelle sans accès | Compléter tous les profils et fournisseurs déclarés avant T-36 ; leurs preuves peuvent avancer en parallèle des tâches indépendantes. |
@@ -72,7 +72,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Travail/livrables : Politique et revue technique approuvées, premiers validateurs documentaires et de gouvernance construits puis qualifiés, règles distantes et propriétaires réels activés, tests de refus. T-02 ajoute ensuite les schémas métier et critères de modules.
 - Besoin : [US-01](USER-STORIES.md#US-01). Acceptation : [REQ-0101](EXIGENCES.md#REQ-0101), [REQ-0102](EXIGENCES.md#REQ-0102), [REQ-0103](EXIGENCES.md#REQ-0103), [REQ-0104](EXIGENCES.md#REQ-0104).
 - Validation : implémenter puis exécuter les recettes liées, sur **GitHub et local selon le profil** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : [réalisation P0](IMPLEMENTATION-P0.md), contrôleurs et protections relus, CI de PR #1 (run 36258186574, tentative 2) et nouveau main `7b585c1` réussis. Le refus initial dû à la facturation est historique ; les protections n'ont pas été contournées. La recette négative d'un candidat fonctionnellement invalide reste distincte du refus pour contrôle absent.
+- Preuves : [réalisation P0](IMPLEMENTATION-P0.md), contrôleurs et protections relus, CI de PR #1 (run 36258186574, tentative 2) et nouveau main `7b585c1` réussis. PR #5 : candidat `920d635`, un test volontairement invalide, run 36266145749 en échec (343 réussites, un échec), contrôle requis rouge et état GitHub `blocked`, sans tentative de fusion ni bypass. Le test témoin est retiré du candidat final ; aucun assouplissement des contrôles. Les futurs profils de livraison de CMS restent à qualifier lors de leur construction.
 
 <a id="T-02"></a>
 ## T-02 — Contrats exécutables et contrôle commun
@@ -82,7 +82,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Travail/livrables : Schémas et validateur SDK sur fixtures positives/négatives, graphes intermodules de toutes origines, références publiques, versions, optional et transitions de composition ; branche locale core/t02-contracts depuis 3767c43. Suites applicatives avec vrais modules ensuite en T-11/T-30 ; ne pas confondre fixtures et runtime.
 - Besoin : [US-02](USER-STORIES.md#US-02). Acceptation : [REQ-0201](EXIGENCES.md#REQ-0201), [REQ-0202](EXIGENCES.md#REQ-0202), [REQ-0203](EXIGENCES.md#REQ-0203), [REQ-0204](EXIGENCES.md#REQ-0204).
 - Validation : implémenter puis exécuter les recettes liées, sur **local et CI, puis intégration des modules** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : [réalisation T-02](IMPLEMENTATION-T02.md), agrégat local réussi et corrections relues ; checkpoint et preuve exacte conservés hors sources. Livrable statique consommable localement après la revue finale ; CI distante en attente. Pas d’installation ou de runtime module qualifié par ces fixtures.
+- Preuves : [réalisation T-02](IMPLEMENTATION-T02.md), checkpoint/revue exacte conservés hors sources ; PR #2 intégrée en `61c70fd`, 195 tests distants réussis et CI du nouveau main verte. Livrable statique consommable, sans installation ou runtime module qualifié par ces fixtures.
 
 <a id="T-03"></a>
 ## T-03 — Runtime commun et démarrage local
@@ -92,7 +92,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Travail/livrables : Versions figées, lockfile, profils de build, installation sur base neuve et module témoin ; mesures initiales.
 - Besoin : [US-03](USER-STORIES.md#US-03). Acceptation : [REQ-0301](EXIGENCES.md#REQ-0301), [REQ-0302](EXIGENCES.md#REQ-0302), [REQ-0303](EXIGENCES.md#REQ-0303).
 - Validation : implémenter puis exécuter les recettes liées, sur **local workerd/Miniflare** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : [réalisation T-03](IMPLEMENTATION-T03.md), branche locale `core/t03-runtime` depuis le checkpoint T-02 `72c7f3f`. Build/types et agrégat local réussis, incluant workerd et persistance D1/R2 après redémarrage ; checkpoint et revue exacte conservés hors sources. Ce livrable permet T-04 localement après revue. CI distante en attente ; aucune qualification Sites/Cloudflare ni CMS complet acquise.
+- Preuves : [réalisation T-03](IMPLEMENTATION-T03.md), checkpoint local `4d97e9e` et revue exacte conservés hors sources. Build/types, workerd et persistance D1/R2 après redémarrage vérifiés ; PR #3 intégrée en `b14cef7`, 245 tests distants réussis et CI du nouveau main verte. Ce livrable permet T-04 ; aucune qualification Sites/Cloudflare ni CMS complet acquise.
 
 <a id="T-04"></a>
 ## T-04 — Identités, comptes et droits
@@ -103,7 +103,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Tranches : [fondations, persistance, comptes, enforcement et interfaces](IMPLEMENTATION-T04.md). Le SQL central minimal nécessaire aux comptes est avancé avec T-04 ; le reste de T-05 demeure distinct, sans ajouter un cycle au backlog.
 - Besoin : [US-04](USER-STORIES.md#US-04). Acceptation : [REQ-0401](EXIGENCES.md#REQ-0401), [REQ-0402](EXIGENCES.md#REQ-0402), [REQ-0403](EXIGENCES.md#REQ-0403).
 - Validation : implémenter puis exécuter les recettes liées, sur **local, puis Sites/Cloudflare** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : `core/t04-identity` depuis le runtime qualifié `4d97e9e`. Fondations puis huit modèles access, SQL central et services D1 : bootstrap à usage unique, sessions fraîches/révocables, admission, tests concurrents et redémarrage. Les six suites access vérifient la tranche présente ; HTTP/UI/rôles persistants/invitations/reset restent à construire. La [sonde Sites](QUALIFICATION-SITES.md) qualifie les KDF, pas les parcours de comptes ; voir [réalisation T-04](IMPLEMENTATION-T04.md).
+- Preuves : `core/t04-identity` depuis le runtime qualifié `4d97e9e`. Fondations puis huit modèles access, SQL central et services D1 : bootstrap à usage unique, sessions fraîches/révocables, admission, tests concurrents et redémarrage. PR #4 intégrée en `485f5ad`, 343 tests locaux/distants réussis et CI du nouveau main verte. Les six suites access vérifient la tranche présente ; HTTP/UI/rôles persistants/invitations/reset restent à construire. La [sonde Sites](QUALIFICATION-SITES.md) qualifie les KDF, pas les parcours de comptes ; voir [réalisation T-04](IMPLEMENTATION-T04.md).
 
 <a id="T-05"></a>
 ## T-05 — Données, fichiers, recherche et coffre
