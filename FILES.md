@@ -60,7 +60,9 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 
 ## Fondations de l'identité T-04
 
-- [core/identity](core/identity/) : credentials opaques et primitives de l'identité ; persistance des comptes encore à construire.
+- [core/identity](core/identity/) : credentials opaques, cryptographie, stockage D1 et services natifs bootstrap/login/session ; transports et droits persistants restent à raccorder.
+- [extensions/native/access](extensions/native/access/) : huit modèles privés, contrat de module, documentation et six suites ; aucune exposition HTTP/UI/MCP dans cette tranche.
+- [scripts/data](scripts/data/) et [data/schema/access.sql](data/schema/access.sql) : génération centrale inspectable et contrôle de dérive, sans application automatique à une base.
 - [core/authorization](core/authorization/) : décision pure sur l'identité et les politiques résolues côté serveur ; aucune authentification implicite de son entrée.
 - [tests/identity](tests/identity/) : tokens, droits et qualification cryptographique ; données exclusivement synthétiques.
 - [État T-04](docs/IMPLEMENTATION-T04.md) : tranches, portée des contrôles et garanties restant à raccorder.

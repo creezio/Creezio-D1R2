@@ -36,6 +36,12 @@ Les réglages ont été appliqués et relus : main exige une PR, `creezio/qualit
 
 Le [premier run distant](https://github.com/creezio/Creezio-D1R2/actions/runs/36257911219) sur `77ad0fabbfec8f6571ce95ba6cb9e8b6489515db` a été refusé avant toute étape : compte GitHub Actions verrouillé pour facturation. Il ne s'agit pas d'un échec des tests. GitHub signale la PR `BLOCKED`, ce qui confirme le refus de fusion en l'absence du contrôle réussi ; aucune tentative de contournement ou fusion effectuée. La régularisation a été demandée au responsable.
 
+## Reprise après régularisation
+
+Le responsable a payé la facture et demandé la reprise de publication le 26 septembre. La [tentative 2 du run de la tête finale](https://github.com/creezio/Creezio-D1R2/actions/runs/36258186574) `3767c435cc506c34994f5a9e6c7032b80067968e` a exécuté 120 tests réussis, sans skip/todo, puis le check requis. L'origine et le contenu du workflow ont été rapprochés de la source ; le commit de test fusionné `2439709` et la tête ont le même arbre `8fdf4f6`. Revue technique finale et relecture indépendante du contrôleur de gouvernance acceptées ; zéro approbation GitHub fabriquée.
+
+La [PR #1](https://github.com/creezio/Creezio-D1R2/pull/1) a été intégrée par squash en `7b585c1eed65d91489404fa9fee88a035a0e35c2`, sans bypass, après relecture des protections. Le [run du nouveau main](https://github.com/creezio/Creezio-D1R2/actions/runs/36265163034) réussit également. Cette intégration ne qualifie ni le CMS ni les lots suivants : leurs checkpoints locaux sont repris dans l'ordre par PR et revalidation. Le refus d'un candidat fonctionnellement invalide reste à exercer séparément ; le blocage historique pour absence de contrôle n'en constitue pas la preuve.
+
 La revue technique des contrôleurs/tests/workflow sur cette tête et la base `82241ffade8fb2686d3ad646935ae5a01385dbdc` a été acceptée par un autre agent. Les modifications documentaires sont relues par l'orchestrateur. Toute nouvelle tête exige rapprochement des preuves et de la revue avant fusion. Le développement des contrats peut être préparé localement, mais ni la gouvernance distante complète ni le runtime ne sont déclarés qualifiés tant que la CI n'a pas exécuté les tests.
 
 ## Continuité autorisée en local

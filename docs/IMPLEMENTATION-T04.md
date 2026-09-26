@@ -1,6 +1,6 @@
 # T-04 — Identités et droits natifs
 
-Travail local sur `core/t04-identity`, depuis le runtime T-03 accepté `4d97e9e`. Le lot [T-04](TODO.md#T-04) reste **en cours** : les premières primitives ne constituent pas encore une authentification utilisable. [REQ-0401](EXIGENCES.md#REQ-0401), [REQ-0402](EXIGENCES.md#REQ-0402) et [REQ-0403](EXIGENCES.md#REQ-0403) restent partiellement ou non qualifiées selon leurs parcours.
+Travail sur `core/t04-identity`, depuis le runtime T-03 accepté `4d97e9e`. Le lot [T-04](TODO.md#T-04) reste **en cours** : fondations, persistance D1 et services de comptes sont présents ; HTTP, droits persistants et interfaces restent à construire. [REQ-0401](EXIGENCES.md#REQ-0401), [REQ-0402](EXIGENCES.md#REQ-0402) et [REQ-0403](EXIGENCES.md#REQ-0403) restent partiellement ou non qualifiées selon leurs parcours.
 
 ## Tranches et critères
 
@@ -36,7 +36,7 @@ Un batch D1 est atomique mais un UPDATE sans ligne modifiée n'annule pas ses au
 
 Une décision pure ou un contrôle avant lecture ne remplace pas la garde fraîche au commit. Les droits/credentials et l'écriture concernée doivent être revalidés dans le même stockage transactionnel. Aucun batch ne promet une transaction entre deux D1, R2 et un fournisseur externe ; ces cas restent des protocoles d'opérations à qualifier dans leurs lots.
 
-À ce stade, aucune session de compte réel, route de connexion, table access, impersonation ou UI de gestion n'est annoncée opérationnelle. Le dispatcher protège toujours ses routes par refus. Les outils de qualification et leurs données synthétiques n'entrent pas dans le Worker produit.
+Le dispatcher protège toujours ses routes par refus. Les services de comptes décrits ci-dessous n'ont pas encore de transport HTTP, cookie ni interface. Les harnais de qualification et leurs données synthétiques n'entrent pas dans le Worker produit. L'impersonation, les rôles persistants et leurs mutations protégées restent à construire.
 
 ## Contrôles et impact
 
@@ -44,4 +44,16 @@ Une décision pure ou un contrôle avant lecture ne remplace pas la garde fraîc
 
 Le harnais local workerd exécute aussi les **vraies primitives du cœur** : création PHC, vérification correcte/incorrecte, refus d'un coût modifié, émission et empreinte de token, décision positive puis refus sur un instantané serveur désactivé. Il vérifie le graphe sans imports Node et ferme son runtime en fin de test. Aucun stockage de comptes factice ni middleware de connexion n'est présenté comme qualifié.
 
-PRD, exigences et stories inchangés : il s'agit d'implémenter les capacités approuvées. TODO, repères de fichiers, changelog, contrôleurs et qualification Sites reflètent la tranche effective. Le module access et ses contrats/docs/CI seront livrés avec sa persistance et ses interfaces, sans présenter ces primitives de cœur comme un module complet.
+PRD, exigences et stories inchangés : il s'agit d'implémenter les capacités approuvées. TODO, repères de fichiers, changelog et contrôleurs reflètent la tranche effective. Le module access possède maintenant son contrat, ses docs et ses six suites ; ses surfaces absentes sont contrôlées et restent explicitement incomplètes.
+
+## Persistance et services de comptes
+
+Le [module natif access](../extensions/native/access/README.md) possède huit modèles privés : principals, human_accounts, password_credentials, sessions, bootstrap, authorization_state, access_audit et auth_throttles. Tous leurs champs sont protégés. `module/models.json` est canonique ; `npm run data:access` régénère explicitement le manifeste et [le SQL central](../data/schema/access.sql). `npm run check:data` refuse toute dérive de ces artefacts sans réécriture. Le [générateur](../scripts/data/README.md) impose clés, types stockés, contraintes et relations prises en charge ; son inspection D1 en lecture seule refuse les définitions absentes, différentes ou supplémentaires. Il ne répare rien et ne constitue pas encore le journal d'évolution de T-05.
+
+`core/identity/d1-store.ts` utilise uniquement des requêtes paramétrées et des batches D1. Le provisionnement est une action du responsable qui détient le binding ; aucun compte par défaut, endpoint anonyme ou effet de démarrage. La capacité bootstrap est opaque, limitée dans le temps et stockée sous empreinte. L'acquisition d'un nonce unique conditionne tous les effets : compte, credential, repère d'installation et audit. Un échec tardif annule le batch ; une acquisition à zéro ne produit aucun de ces effets. Un challenge expiré peut être explicitement remplacé avant consommation ; le marqueur consommé ferme durablement ce parcours. Le premier compte est désigné pour l'installation, sans owner fallback ni droit implicite tant que les rôles ne sont pas construits.
+
+`core/identity/accounts.ts` applique le protocole natif : identifiant ASCII de 3 à 254 caractères, casse normalisée, mot de passe d'au moins 15 points de code et au plus 1 024 octets UTF-8. Le mot de passe n'est ni rogné ni normalisé ; une liste de mots de passe compromis n'est pas encore intégrée. Une fenêtre D1 limite les essais globaux et par identifiant pseudonymisé avant calcul. Le sixième essai sur un même identifiant dans la minute est refusé, même si le mot de passe est correct. Pour un compte absent, un vérificateur synthétique réalise le même coût KDF ; cela ne promet pas un temps réseau constant. La purge retire au maximum 32 fenêtres expirées par admission, sans scheduler.
+
+Après vérification cryptographique, l'insertion de session recontrôle le compte, son identifiant, les versions, le PHC exact et l'expiration avec l'heure D1. Le token n'est retourné qu'après insertion et lecture fraîche réussies. Seule son empreinte est conservée ; la projection de session n'inclut ni digest ni PHC. Les audiences admin/app sont distinctes ; l'authentification sur une audience ne donne aucun droit de module. Déconnexion, statut désactivé, expiration ou version modifiée invalident les lectures suivantes. Le snapshot de session n'est pas une autorisation au commit.
+
+Les tests indépendants utilisent de vrais D1 Miniflare : concurrence bootstrap, UPDATE zéro, rollback sur contrainte tardive, modifications entre KDF et émission, révocation, expiration, throttling concurrent, purge bornée et conservation après redémarrage. Le service est aussi exercé de bout en bout dans un harnais interne (provisionnement, bootstrap, login, logout), sans route produit ni cookie. Les six suites du module sont exécutées par l'agrégat ; backend/package/docs contrôlent modèles et sources, UI/API-MCP/widgets prouvent leur absence dans cette tranche. Les parcours correspondants restent à implémenter puis à qualifier sur Sites et Cloudflare.

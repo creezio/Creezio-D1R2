@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {manifest,read} from '../helpers.mjs';
+test('storage slice exposes no anonymous provisioning or undeclared API/MCP',()=>{assert.deepEqual(manifest.contracts.operations,[]);assert.deepEqual(manifest.contracts.api,[]);for(const list of Object.values(manifest.contracts.mcp))assert.deepEqual(list,[]);assert.deepEqual(JSON.parse(read('plugin/mcp.json')),{mcpServers:{}});assert.deepEqual(manifest.contracts.publicContracts,[]);});

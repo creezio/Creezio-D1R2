@@ -39,6 +39,14 @@ function parse(record: unknown): { salt: Uint8Array; hash: Uint8Array } | null {
   return { salt, hash };
 }
 
+/** Validate stored parameters without performing a KDF or retaining decoded buffers. */
+export function isApprovedPasswordRecord(record: unknown): boolean {
+  const parsed = parse(record);
+  if (!parsed) return false;
+  parsed.salt.fill(0); parsed.hash.fill(0);
+  return true;
+}
+
 /**
  * Synchronous, bounded parameters; blocks this isolate until completion.
  * The caller must apply request admission and revalidate account state before writing.

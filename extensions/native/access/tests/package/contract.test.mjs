@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {lstatSync} from 'node:fs';import {manifest,moduleRoot} from '../helpers.mjs';
+import {validateModule} from '../../../../../sdk/contracts/validate.mjs';
+test('access descriptor and declared source files are valid without claiming an archive',()=>{assert.deepEqual(validateModule(manifest).errors,[]);for(const artifact of ['runtime','validation'])for(const name of manifest.packaging[artifact].files){const s=lstatSync(new URL(name,moduleRoot));assert.ok(s.isFile()&&!s.isSymbolicLink(),name);}assert.ok(manifest.packaging.runtime.files.every(name=>!name.startsWith('ci/')&&!name.startsWith('tests/')));assert.equal(manifest.identity.license.expression,'NOASSERTION');});

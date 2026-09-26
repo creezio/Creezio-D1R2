@@ -1,0 +1,111 @@
+-- Creezio D1 current-model creation v1
+-- Module: creezio.access
+-- Inspect before applying to a new database. No automatic repair.
+
+CREATE TABLE "cz_637265657a696f2e616363657373_6163636573735f6175646974" (
+  "action" TEXT NOT NULL CHECK ("action" IS NOT NULL AND (typeof("action") = 'text' AND instr("action", char(0)) = 0 AND "action" IN ('bootstrap-completed', 'session-created', 'session-revoked'))),
+  "claim_nonce" TEXT NOT NULL CHECK ("claim_nonce" IS NOT NULL AND (typeof("claim_nonce") = 'text' AND instr("claim_nonce", char(0)) = 0 AND length("claim_nonce") >= 1 AND length("claim_nonce") <= 128)),
+  "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
+  "principal_id" TEXT NOT NULL CHECK ("principal_id" IS NOT NULL AND (typeof("principal_id") = 'text' AND instr("principal_id", char(0)) = 0 AND length("principal_id") >= 1 AND length("principal_id") <= 128)),
+  "session_id" TEXT CHECK ("session_id" IS NULL OR (typeof("session_id") = 'text' AND instr("session_id", char(0)) = 0 AND length("session_id") >= 1 AND length("session_id") <= 128)),
+  PRIMARY KEY ("id"),
+  FOREIGN KEY ("principal_id") REFERENCES "cz_637265657a696f2e616363657373_7072696e636970616c73" ("id") ON DELETE RESTRICT,
+  FOREIGN KEY ("session_id") REFERENCES "cz_637265657a696f2e616363657373_73657373696f6e73" ("id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e616363657373_617574685f7468726f74746c6573" (
+  "attempts" INTEGER NOT NULL CHECK ("attempts" IS NOT NULL AND (typeof("attempts") = 'integer' AND "attempts" BETWEEN -9007199254740991 AND 9007199254740991 AND "attempts" >= 1 AND "attempts" <= 9007199254740991)),
+  "expires_at_ms" INTEGER NOT NULL CHECK ("expires_at_ms" IS NOT NULL AND (typeof("expires_at_ms") = 'integer' AND "expires_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "expires_at_ms" >= 0 AND "expires_at_ms" <= 9007199254740991)),
+  "key" TEXT NOT NULL CHECK ("key" IS NOT NULL AND (typeof("key") = 'text' AND instr("key", char(0)) = 0 AND length("key") >= 1 AND length("key") <= 71)),
+  "window_start_ms" INTEGER NOT NULL CHECK ("window_start_ms" IS NOT NULL AND (typeof("window_start_ms") = 'integer' AND "window_start_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "window_start_ms" >= 0 AND "window_start_ms" <= 9007199254740991)),
+  PRIMARY KEY ("key")
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e616363657373_617574686f72697a6174696f6e5f7374617465" (
+  "bootstrap_principal_id" TEXT NOT NULL CHECK ("bootstrap_principal_id" IS NOT NULL AND (typeof("bootstrap_principal_id") = 'text' AND instr("bootstrap_principal_id", char(0)) = 0 AND length("bootstrap_principal_id") >= 1 AND length("bootstrap_principal_id") <= 128)),
+  "epoch" INTEGER NOT NULL CHECK ("epoch" IS NOT NULL AND (typeof("epoch") = 'integer' AND "epoch" BETWEEN -9007199254740991 AND 9007199254740991 AND "epoch" >= 1 AND "epoch" <= 9007199254740991)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND "id" IN ('application'))),
+  "updated_at_ms" INTEGER NOT NULL CHECK ("updated_at_ms" IS NOT NULL AND (typeof("updated_at_ms") = 'integer' AND "updated_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "updated_at_ms" >= 0 AND "updated_at_ms" <= 9007199254740991)),
+  PRIMARY KEY ("id"),
+  FOREIGN KEY ("bootstrap_principal_id") REFERENCES "cz_637265657a696f2e616363657373_7072696e636970616c73" ("id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e616363657373_626f6f747374726170" (
+  "capability_digest" TEXT NOT NULL CHECK ("capability_digest" IS NOT NULL AND (typeof("capability_digest") = 'text' AND instr("capability_digest", char(0)) = 0 AND length("capability_digest") >= 1 AND length("capability_digest") <= 71)),
+  "claim_nonce" TEXT CHECK ("claim_nonce" IS NULL OR (typeof("claim_nonce") = 'text' AND instr("claim_nonce", char(0)) = 0 AND length("claim_nonce") >= 1 AND length("claim_nonce") <= 128)),
+  "claimed_at_ms" INTEGER CHECK ("claimed_at_ms" IS NULL OR (typeof("claimed_at_ms") = 'integer' AND "claimed_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "claimed_at_ms" >= 0 AND "claimed_at_ms" <= 9007199254740991)),
+  "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
+  "expires_at_ms" INTEGER NOT NULL CHECK ("expires_at_ms" IS NOT NULL AND (typeof("expires_at_ms") = 'integer' AND "expires_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "expires_at_ms" >= 0 AND "expires_at_ms" <= 9007199254740991)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND "id" IN ('installation'))),
+  "principal_id" TEXT CHECK ("principal_id" IS NULL OR (typeof("principal_id") = 'text' AND instr("principal_id", char(0)) = 0 AND length("principal_id") >= 1 AND length("principal_id") <= 128)),
+  PRIMARY KEY ("id"),
+  FOREIGN KEY ("principal_id") REFERENCES "cz_637265657a696f2e616363657373_7072696e636970616c73" ("id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e616363657373_68756d616e5f6163636f756e7473" (
+  "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
+  "login_identifier" TEXT NOT NULL CHECK ("login_identifier" IS NOT NULL AND (typeof("login_identifier") = 'text' AND instr("login_identifier", char(0)) = 0 AND length("login_identifier") >= 1 AND length("login_identifier") <= 254)),
+  "principal_id" TEXT NOT NULL CHECK ("principal_id" IS NOT NULL AND (typeof("principal_id") = 'text' AND instr("principal_id", char(0)) = 0 AND length("principal_id") >= 1 AND length("principal_id") <= 128)),
+  "status" TEXT NOT NULL CHECK ("status" IS NOT NULL AND (typeof("status") = 'text' AND instr("status", char(0)) = 0 AND "status" IN ('active', 'pending', 'disabled'))),
+  "updated_at_ms" INTEGER NOT NULL CHECK ("updated_at_ms" IS NOT NULL AND (typeof("updated_at_ms") = 'integer' AND "updated_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "updated_at_ms" >= 0 AND "updated_at_ms" <= 9007199254740991)),
+  "version" INTEGER NOT NULL CHECK ("version" IS NOT NULL AND (typeof("version") = 'integer' AND "version" BETWEEN -9007199254740991 AND 9007199254740991 AND "version" >= 1 AND "version" <= 9007199254740991)),
+  PRIMARY KEY ("principal_id"),
+  FOREIGN KEY ("principal_id") REFERENCES "cz_637265657a696f2e616363657373_7072696e636970616c73" ("id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e616363657373_70617373776f72645f63726564656e7469616c73" (
+  "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
+  "expires_at_ms" INTEGER CHECK ("expires_at_ms" IS NULL OR (typeof("expires_at_ms") = 'integer' AND "expires_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "expires_at_ms" >= 0 AND "expires_at_ms" <= 9007199254740991)),
+  "password_record" TEXT NOT NULL CHECK ("password_record" IS NOT NULL AND (typeof("password_record") = 'text' AND instr("password_record", char(0)) = 0 AND length("password_record") >= 1 AND length("password_record") <= 128)),
+  "principal_id" TEXT NOT NULL CHECK ("principal_id" IS NOT NULL AND (typeof("principal_id") = 'text' AND instr("principal_id", char(0)) = 0 AND length("principal_id") >= 1 AND length("principal_id") <= 128)),
+  "updated_at_ms" INTEGER NOT NULL CHECK ("updated_at_ms" IS NOT NULL AND (typeof("updated_at_ms") = 'integer' AND "updated_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "updated_at_ms" >= 0 AND "updated_at_ms" <= 9007199254740991)),
+  "version" INTEGER NOT NULL CHECK ("version" IS NOT NULL AND (typeof("version") = 'integer' AND "version" BETWEEN -9007199254740991 AND 9007199254740991 AND "version" >= 1 AND "version" <= 9007199254740991)),
+  PRIMARY KEY ("principal_id"),
+  FOREIGN KEY ("principal_id") REFERENCES "cz_637265657a696f2e616363657373_7072696e636970616c73" ("id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e616363657373_7072696e636970616c73" (
+  "auth_version" INTEGER NOT NULL CHECK ("auth_version" IS NOT NULL AND (typeof("auth_version") = 'integer' AND "auth_version" BETWEEN -9007199254740991 AND 9007199254740991 AND "auth_version" >= 1 AND "auth_version" <= 9007199254740991)),
+  "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
+  "display_name" TEXT NOT NULL CHECK ("display_name" IS NOT NULL AND (typeof("display_name") = 'text' AND instr("display_name", char(0)) = 0 AND length("display_name") >= 1 AND length("display_name") <= 200)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
+  "kind" TEXT NOT NULL CHECK ("kind" IS NOT NULL AND (typeof("kind") = 'text' AND instr("kind", char(0)) = 0 AND "kind" IN ('human', 'service'))),
+  "status" TEXT NOT NULL CHECK ("status" IS NOT NULL AND (typeof("status") = 'text' AND instr("status", char(0)) = 0 AND "status" IN ('active', 'disabled'))),
+  "updated_at_ms" INTEGER NOT NULL CHECK ("updated_at_ms" IS NOT NULL AND (typeof("updated_at_ms") = 'integer' AND "updated_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "updated_at_ms" >= 0 AND "updated_at_ms" <= 9007199254740991)),
+  PRIMARY KEY ("id")
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e616363657373_73657373696f6e73" (
+  "account_version" INTEGER NOT NULL CHECK ("account_version" IS NOT NULL AND (typeof("account_version") = 'integer' AND "account_version" BETWEEN -9007199254740991 AND 9007199254740991 AND "account_version" >= 1 AND "account_version" <= 9007199254740991)),
+  "audience" TEXT NOT NULL CHECK ("audience" IS NOT NULL AND (typeof("audience") = 'text' AND instr("audience", char(0)) = 0 AND "audience" IN ('admin', 'app'))),
+  "auth_version" INTEGER NOT NULL CHECK ("auth_version" IS NOT NULL AND (typeof("auth_version") = 'integer' AND "auth_version" BETWEEN -9007199254740991 AND 9007199254740991 AND "auth_version" >= 1 AND "auth_version" <= 9007199254740991)),
+  "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
+  "credential_version" INTEGER NOT NULL CHECK ("credential_version" IS NOT NULL AND (typeof("credential_version") = 'integer' AND "credential_version" BETWEEN -9007199254740991 AND 9007199254740991 AND "credential_version" >= 1 AND "credential_version" <= 9007199254740991)),
+  "expires_at_ms" INTEGER NOT NULL CHECK ("expires_at_ms" IS NOT NULL AND (typeof("expires_at_ms") = 'integer' AND "expires_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "expires_at_ms" >= 0 AND "expires_at_ms" <= 9007199254740991)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
+  "principal_id" TEXT NOT NULL CHECK ("principal_id" IS NOT NULL AND (typeof("principal_id") = 'text' AND instr("principal_id", char(0)) = 0 AND length("principal_id") >= 1 AND length("principal_id") <= 128)),
+  "revocation_nonce" TEXT CHECK ("revocation_nonce" IS NULL OR (typeof("revocation_nonce") = 'text' AND instr("revocation_nonce", char(0)) = 0 AND length("revocation_nonce") >= 1 AND length("revocation_nonce") <= 128)),
+  "revoked_at_ms" INTEGER CHECK ("revoked_at_ms" IS NULL OR (typeof("revoked_at_ms") = 'integer' AND "revoked_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "revoked_at_ms" >= 0 AND "revoked_at_ms" <= 9007199254740991)),
+  "secret_hash" TEXT NOT NULL CHECK ("secret_hash" IS NOT NULL AND (typeof("secret_hash") = 'text' AND instr("secret_hash", char(0)) = 0 AND length("secret_hash") >= 1 AND length("secret_hash") <= 71)),
+  PRIMARY KEY ("id"),
+  FOREIGN KEY ("principal_id") REFERENCES "cz_637265657a696f2e616363657373_7072696e636970616c73" ("id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE UNIQUE INDEX "cz_637265657a696f2e616363657373_6163636573735f6175646974_idx_636c61696d" ON "cz_637265657a696f2e616363657373_6163636573735f6175646974" ("claim_nonce");
+
+CREATE INDEX "cz_637265657a696f2e616363657373_6163636573735f6175646974_idx_7072696e636970616c" ON "cz_637265657a696f2e616363657373_6163636573735f6175646974" ("principal_id");
+
+CREATE INDEX "cz_637265657a696f2e616363657373_617574685f7468726f74746c6573_idx_657870697279" ON "cz_637265657a696f2e616363657373_617574685f7468726f74746c6573" ("expires_at_ms");
+
+CREATE UNIQUE INDEX "cz_637265657a696f2e616363657373_626f6f747374726170_idx_6361706162696c697479" ON "cz_637265657a696f2e616363657373_626f6f747374726170" ("capability_digest");
+
+CREATE UNIQUE INDEX "cz_637265657a696f2e616363657373_626f6f747374726170_idx_636c61696d" ON "cz_637265657a696f2e616363657373_626f6f747374726170" ("claim_nonce");
+
+CREATE UNIQUE INDEX "cz_637265657a696f2e616363657373_68756d616e5f6163636f756e7473_idx_6c6f67696e2d6964656e746966696572" ON "cz_637265657a696f2e616363657373_68756d616e5f6163636f756e7473" ("login_identifier");
+
+CREATE INDEX "cz_637265657a696f2e616363657373_73657373696f6e73_idx_657870697279" ON "cz_637265657a696f2e616363657373_73657373696f6e73" ("expires_at_ms");
+
+CREATE INDEX "cz_637265657a696f2e616363657373_73657373696f6e73_idx_7072696e636970616c" ON "cz_637265657a696f2e616363657373_73657373696f6e73" ("principal_id");
+
+CREATE UNIQUE INDEX "cz_637265657a696f2e616363657373_73657373696f6e73_idx_7365637265742d68617368" ON "cz_637265657a696f2e616363657373_73657373696f6e73" ("secret_hash");

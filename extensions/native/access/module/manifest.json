@@ -1,0 +1,1248 @@
+{
+  "schemaVersion": "1.0.0",
+  "identity": {
+    "id": "creezio.access",
+    "title": "Comptes et accès natifs",
+    "publisher": "creezio",
+    "origin": "https://github.com/creezio/Creezio-D1R2",
+    "version": "0.0.0",
+    "source": {
+      "kind": "snapshot",
+      "revision": "t04-access-models-v1",
+      "integrity": "sha256-9906b679df547869c457c93082e4a396d5686e9ada060bf5fa6e00cd7cbc4bc4"
+    },
+    "license": {
+      "expression": "NOASSERTION",
+      "file": "LICENSE"
+    }
+  },
+  "compatibility": {
+    "core": "^0.0.0",
+    "sdk": "^1.0.0",
+    "requiredCapabilities": [
+      "runtime.worker",
+      "data.d1.shared"
+    ],
+    "optionalCapabilities": []
+  },
+  "entrypoints": {
+    "server": {
+      "path": "module/entry.server.ts",
+      "export": "access"
+    },
+    "plugin": {
+      "manifest": "plugin/plugin.json",
+      "mcp": "plugin/mcp.json",
+      "contributions": {
+        "path": "plugin/contributions.ts",
+        "export": "contributions"
+      }
+    }
+  },
+  "dependencies": [],
+  "contracts": {
+    "schemas": [],
+    "models": [
+      {
+        "id": "principals",
+        "title": "Identity principals",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "kind",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "human",
+                "service"
+              ]
+            }
+          },
+          {
+            "id": "status",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "active",
+                "disabled"
+              ]
+            }
+          },
+          {
+            "id": "auth_version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "display_name",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "id": "created_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "updated_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "id"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
+      },
+      {
+        "id": "human_accounts",
+        "title": "Native human accounts",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "principal_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "login_identifier",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 254
+            }
+          },
+          {
+            "id": "status",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "active",
+                "pending",
+                "disabled"
+              ]
+            }
+          },
+          {
+            "id": "version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "created_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "updated_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "principal_id"
+        ],
+        "indexes": [
+          {
+            "id": "login-identifier",
+            "fields": [
+              "login_identifier"
+            ],
+            "unique": true
+          }
+        ],
+        "relations": [
+          {
+            "id": "principal",
+            "fields": [
+              "principal_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principals"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
+      },
+      {
+        "id": "password_credentials",
+        "title": "Native password credentials",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "principal_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "password_record",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "expires_at_ms",
+            "type": "integer",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "created_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "updated_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "principal_id"
+        ],
+        "indexes": [],
+        "relations": [
+          {
+            "id": "principal",
+            "fields": [
+              "principal_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principals"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
+      },
+      {
+        "id": "sessions",
+        "title": "Revocable native sessions",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "secret_hash",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "principal_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "audience",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "admin",
+                "app"
+              ]
+            }
+          },
+          {
+            "id": "auth_version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "account_version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "credential_version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "created_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "expires_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "revoked_at_ms",
+            "type": "integer",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "revocation_nonce",
+            "type": "string",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "primaryKey": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "secret-hash",
+            "fields": [
+              "secret_hash"
+            ],
+            "unique": true
+          },
+          {
+            "id": "principal",
+            "fields": [
+              "principal_id"
+            ],
+            "unique": false
+          },
+          {
+            "id": "expiry",
+            "fields": [
+              "expires_at_ms"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [
+          {
+            "id": "principal",
+            "fields": [
+              "principal_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principals"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
+      },
+      {
+        "id": "bootstrap",
+        "title": "Explicit installation capability",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "installation"
+              ]
+            }
+          },
+          {
+            "id": "capability_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "created_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "expires_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "claim_nonce",
+            "type": "string",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "claimed_at_ms",
+            "type": "integer",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "principal_id",
+            "type": "string",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "primaryKey": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "capability",
+            "fields": [
+              "capability_digest"
+            ],
+            "unique": true
+          },
+          {
+            "id": "claim",
+            "fields": [
+              "claim_nonce"
+            ],
+            "unique": true
+          }
+        ],
+        "relations": [
+          {
+            "id": "principal",
+            "fields": [
+              "principal_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principals"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
+      },
+      {
+        "id": "authorization_state",
+        "title": "Authorization epoch",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "application"
+              ]
+            }
+          },
+          {
+            "id": "epoch",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "bootstrap_principal_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "updated_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "id"
+        ],
+        "indexes": [],
+        "relations": [
+          {
+            "id": "bootstrap-principal",
+            "fields": [
+              "bootstrap_principal_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principals"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
+      },
+      {
+        "id": "access_audit",
+        "title": "Access operation audit",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "action",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "bootstrap-completed",
+                "session-created",
+                "session-revoked"
+              ]
+            }
+          },
+          {
+            "id": "principal_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "session_id",
+            "type": "string",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "claim_nonce",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "created_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "claim",
+            "fields": [
+              "claim_nonce"
+            ],
+            "unique": true
+          },
+          {
+            "id": "principal",
+            "fields": [
+              "principal_id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [
+          {
+            "id": "principal",
+            "fields": [
+              "principal_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principals"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          },
+          {
+            "id": "session",
+            "fields": [
+              "session_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "sessions"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
+      },
+      {
+        "id": "auth_throttles",
+        "title": "Persistent authentication admission windows",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "key",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "window_start_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "attempts",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "expires_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "key"
+        ],
+        "indexes": [
+          {
+            "id": "expiry",
+            "fields": [
+              "expires_at_ms"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
+      }
+    ],
+    "files": [],
+    "permissions": [
+      {
+        "id": "manage",
+        "title": "Administrer les comptes et accès",
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "machine",
+          "delegated-user"
+        ],
+        "scopes": [
+          "access.manage"
+        ],
+        "context": "application",
+        "default": "deny",
+        "resources": [],
+        "actions": [
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      }
+    ],
+    "operations": [],
+    "api": [],
+    "mcp": {
+      "tools": [],
+      "resources": [],
+      "prompts": [],
+      "skills": []
+    },
+    "events": [],
+    "settings": [],
+    "search": [],
+    "ui": {
+      "views": [],
+      "navigation": [],
+      "slots": [],
+      "front": {
+        "mode": "absent",
+        "justification": {
+          "reason": "Storage slice only; user interfaces remain to implement in T-04.",
+          "policyRule": "access.storage-only.ui"
+        }
+      },
+      "styles": []
+    },
+    "widgets": [],
+    "publicContracts": []
+  },
+  "documentation": {
+    "installed": {
+      "readme": {
+        "path": "README.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "prd": {
+        "path": "prd.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "changelog": {
+        "path": "CHANGELOG.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      }
+    },
+    "development": {
+      "agents": {
+        "path": "AGENTS.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "files": {
+        "path": "FILES.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "interview": {
+        "path": "interview.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "todo": {
+        "path": "TODO.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      }
+    },
+    "versionBinding": {
+      "moduleVersion": "0.0.0",
+      "sourceRevision": "t04-access-models-v1"
+    },
+    "localRevisions": {
+      "installedVersionDistinct": true,
+      "approvedImmutable": true
+    },
+    "installationHistory": {
+      "distinctFromPackageChangelog": true
+    }
+  },
+  "validation": {
+    "gate": "gate.mjs",
+    "suites": {
+      "backend": {
+        "mode": "required",
+        "script": "ci/backend.mjs",
+        "tests": [
+          "tests/backend/contract.test.mjs"
+        ]
+      },
+      "ui": {
+        "mode": "not-applicable",
+        "script": "ci/ui.mjs",
+        "tests": [
+          "tests/ui/contract.test.mjs"
+        ],
+        "justification": {
+          "reason": "Storage slice only; no interface, transport or conversational contribution is exposed. Absence is tested; complete access module remains unfinished.",
+          "policyRule": "access.storage-only.ui"
+        }
+      },
+      "api-mcp": {
+        "mode": "not-applicable",
+        "script": "ci/api-mcp.mjs",
+        "tests": [
+          "tests/api-mcp/contract.test.mjs"
+        ],
+        "justification": {
+          "reason": "Storage slice only; no interface, transport or conversational contribution is exposed. Absence is tested; complete access module remains unfinished.",
+          "policyRule": "access.storage-only.api-mcp"
+        }
+      },
+      "widgets": {
+        "mode": "not-applicable",
+        "script": "ci/widgets.mjs",
+        "tests": [
+          "tests/widgets/contract.test.mjs"
+        ],
+        "justification": {
+          "reason": "Storage slice only; no interface, transport or conversational contribution is exposed. Absence is tested; complete access module remains unfinished.",
+          "policyRule": "access.storage-only.widgets"
+        }
+      },
+      "package": {
+        "mode": "required",
+        "script": "ci/package.mjs",
+        "tests": [
+          "tests/package/contract.test.mjs"
+        ]
+      },
+      "docs": {
+        "mode": "required",
+        "script": "ci/docs.mjs",
+        "tests": [
+          "tests/docs/contract.test.mjs"
+        ]
+      }
+    },
+    "policy": {
+      "id": "creezio.local-contracts",
+      "version": "1.0.0",
+      "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
+    },
+    "isolation": {
+      "productionSecrets": false,
+      "publicationRights": false
+    },
+    "evidence": {
+      "sourceIntegrity": true,
+      "artifactIntegrity": true,
+      "profile": true,
+      "executedSuites": true
+    }
+  },
+  "packaging": {
+    "runtime": {
+      "files": [
+        "module/manifest.json",
+        "module/models.json",
+        "module/entry.server.ts",
+        "README.md",
+        "prd.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "plugin/plugin.json",
+        "plugin/mcp.json",
+        "plugin/contributions.ts"
+      ],
+      "references": []
+    },
+    "validation": {
+      "files": [
+        "AGENTS.md",
+        "FILES.md",
+        "interview.md",
+        "TODO.md",
+        "gate.mjs",
+        "ci/backend.mjs",
+        "tests/backend/contract.test.mjs",
+        "ci/ui.mjs",
+        "tests/ui/contract.test.mjs",
+        "ci/api-mcp.mjs",
+        "tests/api-mcp/contract.test.mjs",
+        "ci/widgets.mjs",
+        "tests/widgets/contract.test.mjs",
+        "ci/package.mjs",
+        "tests/package/contract.test.mjs",
+        "ci/docs.mjs",
+        "tests/docs/contract.test.mjs",
+        "ci/run-suite.mjs",
+        "tests/helpers.mjs"
+      ],
+      "references": []
+    },
+    "validationBinding": {
+      "moduleId": "creezio.access",
+      "moduleVersion": "0.0.0",
+      "sourceRevision": "t04-access-models-v1"
+    },
+    "noRuntimeTests": true,
+    "installation": "build-and-publish",
+    "providerInstallation": false
+  },
+  "lifecycle": {
+    "deactivation": "preserve-data",
+    "configuration": "explicit-state",
+    "uninstall": "explicit-approved-action",
+    "activationRequirements": [],
+    "absent": {
+      "files": {
+        "reason": "Identity storage has no owned binary files.",
+        "policyRule": "access.no-files"
+      },
+      "widgets": {
+        "reason": "Conversation projection is not yet exposed in this storage slice.",
+        "policyRule": "access.storage-only.widgets"
+      }
+    },
+    "dependencyChanges": {
+      "install": "resolve-explicit-consumer-selection",
+      "activate": "require-active-dependencies",
+      "update": "validate-dependent-contracts",
+      "deactivate": "block-or-explicit-dependent-plan",
+      "uninstall": "block-or-explicit-dependent-plan",
+      "data": "preserve"
+    }
+  }
+}

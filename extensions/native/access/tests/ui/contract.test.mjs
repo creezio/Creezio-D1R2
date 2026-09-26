@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {manifest} from '../helpers.mjs';
+test('storage slice has no UI exposure, not a completed login interface',()=>{assert.equal(manifest.entrypoints.ui,undefined);assert.deepEqual(manifest.contracts.ui.views,[]);assert.deepEqual(manifest.contracts.ui.navigation,[]);assert.deepEqual(manifest.contracts.ui.slots,[]);assert.equal(manifest.validation.suites.ui.mode,'not-applicable');});
