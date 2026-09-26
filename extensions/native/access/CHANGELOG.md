@@ -10,4 +10,6 @@ Ajout du modèle privé `account_capabilities` pour invitation, activation et re
 
 Ajout des credentials API privés et de leurs scopes relationnels par contexte/audience/permission. Parseur strict partagé pour déclarations et projections D1, sans fusion silencieuse ni produit cartésien. L'audit accepte création/statut de service et émission/rotation/révocation de jeton, avec identifiant de credential historique. Les services machine et leurs guards se qualifient séparément ; aucun rôle natif implicite ni validation humaine par token.
 
+Administration humaine : actions `human-status-updated`, `human-sessions-revoked` et `human-session-revoked`, cible historique de session séparée de la session de l'acteur, et quatre index pour pagination/invalidation bornées. Le modèle conserve dix-neuf tables privées. Les services distinguent statut du principal et état du compte humain, incrémentent la version pour l'invalidation globale et ne suppriment aucun historique. Refus de l'auto-désactivation ; auto-révocation explicite permise. Impersonation et transports restent distincts de ce lot.
+
 Connexion HTTP, gestion visuelle des droits et interfaces encore à construire ; aucune publication produit ni version de paquet distribuée annoncée.

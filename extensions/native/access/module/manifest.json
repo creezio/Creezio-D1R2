@@ -9,7 +9,7 @@
     "source": {
       "kind": "snapshot",
       "revision": "t04-access-models-v1",
-      "integrity": "sha256-252804074b73595ba121184ac5c59af20aa65fe54fb9487ea2b1f5248c5fd933"
+      "integrity": "sha256-184756db3b440e0a0738eaebeb85a72577d7ebe24b0fc882bd027244202b30ab"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -133,7 +133,16 @@
         "primaryKey": [
           "id"
         ],
-        "indexes": [],
+        "indexes": [
+          {
+            "id": "kind-id",
+            "fields": [
+              "kind",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
         "relations": [],
         "permissions": [
           {
@@ -533,6 +542,24 @@
               "expires_at_ms"
             ],
             "unique": false
+          },
+          {
+            "id": "principal-id",
+            "fields": [
+              "principal_id",
+              "id"
+            ],
+            "unique": false
+          },
+          {
+            "id": "live-principal-version",
+            "fields": [
+              "principal_id",
+              "auth_version",
+              "revoked_at_ms",
+              "expires_at_ms"
+            ],
+            "unique": false
           }
         ],
         "relations": [
@@ -819,7 +846,10 @@
                 "service-status-updated",
                 "api-token-issued",
                 "api-token-rotated",
-                "api-token-revoked"
+                "api-token-revoked",
+                "human-status-updated",
+                "human-sessions-revoked",
+                "human-session-revoked"
               ]
             }
           },
@@ -891,6 +921,17 @@
           },
           {
             "id": "credential_id",
+            "type": "string",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "target_session_id",
             "type": "string",
             "nullable": true,
             "protected": true,
@@ -1861,6 +1902,17 @@
           {
             "id": "outstanding",
             "fields": [
+              "revoked_at_ms",
+              "consumed_at_ms",
+              "expires_at_ms"
+            ],
+            "unique": false
+          },
+          {
+            "id": "outstanding-principal-version",
+            "fields": [
+              "principal_id",
+              "auth_version",
               "revoked_at_ms",
               "consumed_at_ms",
               "expires_at_ms"

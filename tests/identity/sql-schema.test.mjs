@@ -265,6 +265,37 @@ test('machine credential scope keys preserve exact context/audience/permission r
   assert.deepEqual(await inspectD1Schema(db,'creezio.access',models),{ok:true,errors:[]});
 });
 
+test('human administration schema keeps audit target sessions historical and bounded queries indexed in real D1', { timeout: 30000 }, async t => {
+  const db = await database(t);
+  const models = JSON.parse(readFileSync(new URL('../../extensions/native/access/module/models.json', import.meta.url), 'utf8'));
+  const schema = generateD1Schema('creezio.access', models), table = id => quote(schema.tables[id]);
+  await apply(db, schema);
+  await db.prepare(`INSERT INTO ${table('principals')} (id,kind,status,auth_version,display_name,created_at_ms,updated_at_ms) VALUES ('actor','human','active',1,'Synthetic administrator',0,0)`).run();
+  for (const [index,action] of ['human-status-updated','human-sessions-revoked','human-session-revoked'].entries()) {
+    await db.prepare(`INSERT INTO ${table('access_audit')} (id,action,principal_id,claim_nonce,created_at_ms,target_principal_id,target_session_id) VALUES (?,?, 'actor',?,0,'actor',?)`)
+      .bind(`audit-${index}`,action,`audit-claim-${index}`,index===2?'removed-target-session':null).run();
+  }
+  const audit = await db.prepare(`SELECT session_id,target_session_id FROM ${table('access_audit')} WHERE id='audit-2'`).first();
+  assert.deepEqual(audit,{session_id:null,target_session_id:'removed-target-session'},'target history does not require an existing session row');
+  for (const invalid of ['', 's'.repeat(129)])
+    await assert.rejects(db.prepare(`UPDATE ${table('access_audit')} SET target_session_id=? WHERE id='audit-2'`).bind(invalid).run(),/CHECK constraint failed/);
+  await assert.rejects(db.prepare(`UPDATE ${table('access_audit')} SET action='admin-session-revoked' WHERE id='audit-2'`).run(),/CHECK constraint failed/);
+  const queries = [
+    [`SELECT id FROM ${table('principals')} WHERE kind='human' AND id>'actor' ORDER BY id LIMIT 51`,['kind','id']],
+    [`SELECT id FROM ${table('sessions')} WHERE principal_id='actor' AND id>'first' ORDER BY id LIMIT 51`,['principal_id','id']],
+    [`SELECT id FROM ${table('sessions')} WHERE principal_id='actor' AND auth_version=1 AND revoked_at_ms IS NULL AND expires_at_ms>0 LIMIT 32`,['principal_id','auth_version','revoked_at_ms','expires_at_ms']],
+    [`SELECT id FROM ${table('account_capabilities')} WHERE principal_id='actor' AND auth_version=1 AND revoked_at_ms IS NULL AND consumed_at_ms IS NULL AND expires_at_ms>0 LIMIT 8`,['principal_id','auth_version','revoked_at_ms','consumed_at_ms','expires_at_ms']],
+  ];
+  for (const [query,fields] of queries) {
+    const plan = (await db.prepare(`EXPLAIN QUERY PLAN ${query}`).all()).results;
+    const searches = plan.filter(row=>/SEARCH .* USING (?:COVERING )?INDEX /.test(row.detail));
+    assert.ok(searches.length>0,JSON.stringify(plan));
+    assert.ok(searches.some(row=>fields.every(field=>row.detail.includes(`${field}=`)||row.detail.includes(`${field}>`))),JSON.stringify(plan));
+    assert.equal(plan.some(row=>/SCAN |TEMP B-TREE/.test(row.detail)),false,'bounded seek must not sort or scan history');
+  }
+  assert.deepEqual(await inspectD1Schema(db,'creezio.access',models),{ok:true,errors:[]});
+});
+
 test('read-only schema inspection refuses missing, changed and extra module objects, not other modules', { timeout: 30000 }, async t => {
   const db = await database(t), models = [model()];
   const generated = generateD1Schema(moduleId, models), table = quote(generated.tables.items);

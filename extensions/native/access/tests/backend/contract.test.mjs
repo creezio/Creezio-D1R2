@@ -88,3 +88,21 @@ test('machine credentials persist hashes and exact scope tuples without implicit
  for(const action of ['service-created','service-status-updated','api-token-issued','api-token-rotated','api-token-revoked'])
   assert.ok(audit.fields.find(field=>field.id==='action').constraints.enum.includes(action));
 });
+
+test('human administration keeps session targets historical and indexes bounded projections and invalidation',()=>{
+ const models=JSON.parse(read('module/models.json')), byId=new Map(models.map(model=>[model.id,model]));
+ const audit=byId.get('access_audit'), target=audit.fields.find(field=>field.id==='target_session_id');
+ assert.equal(target.nullable,true);assert.equal(target.protected,true);
+ assert.deepEqual(target.constraints,{minLength:1,maxLength:128});
+ assert.equal(audit.relations.some(relation=>relation.fields.includes('target_session_id')),false,'a target session identifier is retained independently of session retention');
+ assert.ok(audit.relations.some(relation=>relation.fields.includes('session_id')&&relation.target.id==='sessions'),'the actor session remains distinct from the target');
+ for(const action of ['human-status-updated','human-sessions-revoked','human-session-revoked'])
+  assert.ok(audit.fields.find(field=>field.id==='action').constraints.enum.includes(action));
+ for(const [id,fields] of [
+  ['principals',['kind','id']],['sessions',['principal_id','id']],
+  ['sessions',['principal_id','auth_version','revoked_at_ms','expires_at_ms']],
+  ['account_capabilities',['principal_id','auth_version','revoked_at_ms','consumed_at_ms','expires_at_ms']],
+ ]) assert.ok(byId.get(id).indexes.some(index=>!index.unique&&JSON.stringify(index.fields)===JSON.stringify(fields)),`${id}: ${fields.join(',')}`);
+ assert.deepEqual(byId.get('principals').fields.find(field=>field.id==='status').constraints.enum,['active','disabled']);
+ assert.deepEqual(byId.get('human_accounts').fields.find(field=>field.id==='status').constraints.enum,['active','pending','disabled']);
+});
