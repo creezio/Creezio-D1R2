@@ -29,3 +29,11 @@ Limite explicite : GitHub ne distingue pas à lui seul deux workflows homonymes 
 Contrôleurs autonomes sans dépendance npm tierce ; Node est un outil de développement, pas une dépendance de runtime Creezio. Aucun changement de modèle D1, fichier R2, opération métier, UI ou widget. Les contrats produit et les 83 exigences restent conservés. Les politiques de licence/offres restent différées ; aucun composant premium distribué par ce travail local.
 
 La qualification T-01 reste partielle jusqu’à activation, relecture des réglages et validation du parcours distant avec refus. T-02 et le runtime ne sont pas annoncés livrés ; leurs jalons seront consommés selon le [backlog](TODO.md). Le résultat exact des tests figure dans la preuve locale, avec limites et empreintes.
+
+## Relevé distant du 26 septembre 2026
+
+Les réglages ont été appliqués et relus : main exige une PR, `creezio/quality-gate` depuis GitHub Actions (App ID 15368), une branche à jour et les conversations résolues ; enforcement administrateur actif, zéro approbation GitHub requise, force-push/suppression refusés. Le dépôt n'autorise que squash. Le ruleset de tags `24045719` protège les familles core/module/app/registry contre mise à jour, suppression et réécriture, sans acteur exempté.
+
+Le [premier run distant](https://github.com/creezio/Creezio-D1R2/actions/runs/36257911219) sur `77ad0fabbfec8f6571ce95ba6cb9e8b6489515db` a été refusé avant toute étape : compte GitHub Actions verrouillé pour facturation. Il ne s'agit pas d'un échec des tests. GitHub signale la PR `BLOCKED`, ce qui confirme le refus de fusion en l'absence du contrôle réussi ; aucune tentative de contournement ou fusion effectuée. La régularisation a été demandée au responsable.
+
+La revue technique des contrôleurs/tests/workflow sur cette tête et la base `82241ffade8fb2686d3ad646935ae5a01385dbdc` a été acceptée par un autre agent. Les modifications documentaires sont relues par l'orchestrateur. Toute nouvelle tête exige rapprochement des preuves et de la revue avant fusion. Le développement des contrats peut être préparé localement, mais ni la gouvernance distante complète ni le runtime ne sont déclarés qualifiés tant que la CI n'a pas exécuté les tests.

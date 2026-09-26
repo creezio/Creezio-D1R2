@@ -1,6 +1,6 @@
 # Standard de développement Creezio
 
-Ce document est le contrat commun du cœur, des modules, du SDK, des thèmes, des applications dérivées et des services séparés de l'écosystème. Les contrôles exécutables restent à construire et à activer. Avant le développement runtime, la phase P0 doit qualifier la gouvernance effective et ses chemins de validation ; écrire une règle dans un fichier ne l'active pas sur GitHub ou dans un outil d'IA.
+Ce document est le contrat commun du cœur, des modules, du SDK, des thèmes, des applications dérivées et des services séparés de l'écosystème. Les contrôles exécutables sont construits et qualifiés par lots. Avant le développement runtime, la phase P0 doit qualifier la gouvernance effective et ses chemins de validation ; écrire une règle dans un fichier ne l'active pas sur GitHub ou dans un outil d'IA.
 
 Les comportements produit sont définis par le [PRD](PRD.md), les [exigences](EXIGENCES.md), les [user stories](USER-STORIES.md), la [matrice des capacités](MATRICE-CAPACITES.md) et le [plan](PLAN-IMPLEMENTATION.md). Le [backlog](TODO.md) centralise les travaux et leurs preuves. Le [standard des modules](STANDARD-MODULE.md) et le [cycle Git](GIT-FLOW.md) s'appliquent sans méthode parallèle par contributeur.
 
