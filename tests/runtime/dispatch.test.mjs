@@ -112,7 +112,7 @@ test('runtime configuration rejects public writes, undeclared handlers, reserved
     [()=>runtime([moduleOf([operation(),operation()])]),'operation.invalid'],
     [()=>runtime([moduleOf(),moduleOf()]),'module.invalid'],
     [()=>runtime([moduleOf([operation({id:'first',path:'/api/items/{id}'}),operation({id:'second',path:'/api/items/{other}'})])]),'route.conflict'],
-    [()=>runtime([moduleOf([operation({id:'first',path:'/api/{name}/details'}),operation({id:'second',path:'/api/fixed/{part}'})])]),'route.conflict'],
+    [()=>runtime([moduleOf([operation({id:'first',path:'/api/business/{name}/details'}),operation({id:'second',path:'/api/business/fixed/{part}'})])]),'route.conflict'],
     [()=>createRuntime({modules:[],compositionDigest:'not-a-digest'}),'composition.invalid'],
   ];
   for(const [create,code] of cases)assert.throws(create,error=>error instanceof RuntimeConfigurationError&&error.code===code);

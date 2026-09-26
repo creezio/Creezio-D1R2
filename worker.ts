@@ -1,8 +1,8 @@
 import renderer from 'vinext/server/fetch-handler';
 import { createRuntime } from './core/runtime/dispatch';
-import { modules, compositionDigest } from './.creezio/generated/server';
+import { modules, compositionDigest, nativeAccess } from './.creezio/generated/server';
 
-const runtime = createRuntime({ modules, compositionDigest });
+const runtime = createRuntime({ modules, compositionDigest, nativeAccess });
 
 export default {
   async fetch(request: Request, env: unknown, ctx: ExecutionContext): Promise<Response> {

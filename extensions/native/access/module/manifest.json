@@ -2690,8 +2690,8 @@
       "front": {
         "mode": "absent",
         "justification": {
-          "reason": "Storage slice only; user interfaces remain to implement in T-04.",
-          "policyRule": "access.storage-only.ui"
+          "reason": "No module interface is contributed yet; the native HTTP handshake is qualified separately by the core.",
+          "policyRule": "access.no-module-ui"
         }
       },
       "styles": []
@@ -2768,8 +2768,8 @@
           "tests/ui/contract.test.mjs"
         ],
         "justification": {
-          "reason": "Storage slice only; no interface, transport or conversational contribution is exposed. Absence is tested; complete access module remains unfinished.",
-          "policyRule": "access.storage-only.ui"
+          "reason": "No module interface is contributed. Absence is tested; the native HTTP handshake does not provide an access screen.",
+          "policyRule": "access.no-module-ui"
         }
       },
       "api-mcp": {
@@ -2779,8 +2779,8 @@
           "tests/api-mcp/contract.test.mjs"
         ],
         "justification": {
-          "reason": "Storage slice only; no interface, transport or conversational contribution is exposed. Absence is tested; complete access module remains unfinished.",
-          "policyRule": "access.storage-only.api-mcp"
+          "reason": "No module business API or MCP contribution is declared. Absence is tested; native login/session/logout transport is qualified separately by the core.",
+          "policyRule": "access.no-module-api-mcp"
         }
       },
       "widgets": {
@@ -2790,8 +2790,8 @@
           "tests/widgets/contract.test.mjs"
         ],
         "justification": {
-          "reason": "Storage slice only; no interface, transport or conversational contribution is exposed. Absence is tested; complete access module remains unfinished.",
-          "policyRule": "access.storage-only.widgets"
+          "reason": "No conversational widget is contributed. Absence is tested; native HTTP transport does not provide chat UI.",
+          "policyRule": "access.no-module-widgets"
         }
       },
       "package": {
@@ -2885,8 +2885,8 @@
         "policyRule": "access.no-files"
       },
       "widgets": {
-        "reason": "Conversation projection is not yet exposed in this storage slice.",
-        "policyRule": "access.storage-only.widgets"
+        "reason": "No conversational widget contribution is declared.",
+        "policyRule": "access.no-module-widgets"
       }
     },
     "dependencyChanges": {

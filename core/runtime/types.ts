@@ -31,9 +31,12 @@ export interface RuntimeModule {
   readonly version: string;
   readonly operations: readonly RuntimeOperation[];
 }
+/** Explicit native access transport audiences; absence means both are disabled. */
+export type RuntimeNativeAccess = Readonly<{ admin: boolean; app: boolean }>;
 export interface RuntimeDefinition {
   readonly modules: readonly RuntimeModule[];
   readonly compositionDigest: string;
+  readonly nativeAccess?: RuntimeNativeAccess;
 }
 export interface RuntimeExecutionContext {
   waitUntil(promise: Promise<unknown>): void;

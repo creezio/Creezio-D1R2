@@ -27,16 +27,33 @@
       "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
     }
   },
-  "modules": [],
+  "modules": [
+    {
+      "moduleId": "creezio.access",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/native/access"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
+    }
+  ],
   "front": {
     "kind": "workspace"
   },
   "exposure": {
     "admin": {
-      "moduleIds": []
+      "moduleIds": [
+        "creezio.access"
+      ]
     },
     "app": {
-      "moduleIds": []
+      "moduleIds": [
+        "creezio.access"
+      ]
     }
   }
 }

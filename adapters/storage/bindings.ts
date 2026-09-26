@@ -1,8 +1,8 @@
 /** Structural recognition only: it does not prove a database/bucket is reachable or authorize data access. */
 type BindingMethod = (...args: never[]) => unknown;
 export interface StructuralD1Binding {
-  prepare: BindingMethod;
-  batch: BindingMethod;
+  prepare: D1Database['prepare'];
+  batch: D1Database['batch'];
 }
 export interface StructuralR2Binding {
   get: BindingMethod;

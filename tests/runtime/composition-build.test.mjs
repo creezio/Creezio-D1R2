@@ -9,21 +9,37 @@ import { temporaryDirectory } from '../quality/temporary.mjs';
 
 const repository = fileURLToPath(new URL('../../', import.meta.url));
 const witnessPath = 'tests/runtime/fixtures/module-witness';
+const accessPath = 'extensions/native/access';
 const read = file => JSON.parse(readFileSync(file, 'utf8'));
 const write = (file, value) => writeFileSync(file, JSON.stringify(value, null, 2) + '\n');
 function fixture(t, witness = true) {
   const root = temporaryDirectory(t, 'creezio-compose-');
   write(path.join(root, 'package.json'), { type: 'module' });
   mkdirSync(path.join(root, 'configuration'));
-  if (witness) cpSync(path.join(repository, witnessPath), path.join(root, witnessPath), { recursive: true });
-  const suffix = witness ? '.witness' : '';
+  if (witness === true) cpSync(path.join(repository, witnessPath), path.join(root, witnessPath), { recursive: true });
+  if (witness === 'access') {
+    const descriptor = read(path.join(repository, accessPath, 'module/manifest.json'));
+    // Copy only the declared runtime inventory, never dependencies or a checkout.
+    for (const file of descriptor.packaging.runtime.files) {
+      const destination = path.join(root, accessPath, file);
+      mkdirSync(path.dirname(destination), { recursive: true });
+      cpSync(path.join(repository, accessPath, file), destination);
+    }
+  }
+  const suffix = witness === true ? '.witness' : '';
   const composition = read(path.join(repository, `configuration/composition${suffix}.json`));
   const lock = read(path.join(repository, `configuration/composition${suffix}.lock.json`));
+  if (witness === false) {
+    composition.modules = []; lock.modules = [];
+    composition.exposure.admin.moduleIds = []; composition.exposure.app.moduleIds = [];
+    lock.compositionIntegrity = contractIntegrity(composition);
+  }
   write(path.join(root, 'configuration/composition.json'), composition);
   write(path.join(root, 'configuration/composition.lock.json'), lock);
-  const module = witness ? read(path.join(root, witnessPath, 'module/manifest.json')) : undefined;
+  const modulePath = witness === true ? witnessPath : accessPath;
+  const module = witness ? read(path.join(root, modulePath, 'module/manifest.json')) : undefined;
   const save = () => {
-    if (module) { write(path.join(root, witnessPath, 'module/manifest.json'), module); lock.modules[0].contractIntegrity = contractIntegrity(module); }
+    if (module) { write(path.join(root, modulePath, 'module/manifest.json'), module); lock.modules[0].contractIntegrity = contractIntegrity(module); }
     lock.compositionIntegrity = contractIntegrity(composition);
     write(path.join(root, 'configuration/composition.json'), composition);
     write(path.join(root, 'configuration/composition.lock.json'), lock);
@@ -32,11 +48,44 @@ function fixture(t, witness = true) {
 }
 const generated = (root, name) => path.join(root, '.creezio/generated', name);
 
-test('default composition builds no module, view or witness import', async t => {
+test('an explicitly empty composition builds no module, view, native access or witness import', async t => {
   const f = fixture(t, false), result = await composeRuntime({ root: f.root });
   assert.equal(result.moduleCount, 0); assert.equal(result.viewCount, 0);
+  assert.deepEqual(result.nativeAccess, {admin:false,app:false});
+  assert.deepEqual(read(generated(f.root,'composition.json')).nativeAccess, {admin:false,app:false});
   assert.doesNotMatch(readFileSync(generated(f.root, 'server.ts'), 'utf8'), /example\.witness|fixtures\/module-witness/);
   assert.doesNotMatch(readFileSync(generated(f.root, 'client.tsx'), 'utf8'), /fixtures\/module-witness/);
+});
+
+test('default native access composition explicitly enables both audiences without synthetic module APIs', async t => {
+  const f=fixture(t,'access'), result=await composeRuntime({root:f.root});
+  assert.equal(result.moduleCount,1);assert.equal(result.viewCount,0);
+  assert.deepEqual(f.composition.modules.map(module=>module.moduleId),['creezio.access']);
+  assert.deepEqual(f.module.contracts.api,[]);assert.deepEqual(f.module.contracts.operations,[]);
+  const registry=await import(pathToFileURL(generated(f.root,'server.ts')).href);
+  assert.deepEqual(registry.nativeAccess,{admin:true,app:true});assert.ok(Object.isFrozen(registry.nativeAccess));
+  assert.throws(()=>{registry.nativeAccess.admin=false;},TypeError);
+  assert.deepEqual(registry.modules,[{id:'creezio.access',version:'0.0.0',operations:[]}]);
+  assert.deepEqual(result.nativeAccess,registry.nativeAccess);assert.ok(Object.isFrozen(result.nativeAccess));
+  assert.deepEqual(read(generated(f.root,'composition.json')).nativeAccess,registry.nativeAccess);
+  assert.doesNotMatch(readFileSync(generated(f.root,'server.ts'),'utf8'),/module\/entry\.server|example\.witness|fixtures\/module-witness/);
+});
+
+test('native access audiences require independent explicit exposures and an active access module', async t => {
+  const f=fixture(t,'access');
+  for(const [admin,app] of [[false,false],[true,false],[false,true],[true,true]]) {
+    f.composition.exposure.admin.moduleIds=admin?['creezio.access']:[];
+    f.composition.exposure.app.moduleIds=app?['creezio.access']:[];f.save();
+    await composeRuntime({root:f.root});
+    assert.deepEqual(read(generated(f.root,'composition.json')).nativeAccess,{admin,app});
+  }
+  f.composition.modules[0].enabled=false;
+  f.composition.exposure.admin.moduleIds=[];f.composition.exposure.app.moduleIds=[];f.save();
+  const disabled=await composeRuntime({root:f.root});
+  assert.equal(disabled.moduleCount,0);assert.deepEqual(disabled.nativeAccess,{admin:false,app:false});
+  f.composition.exposure.app.moduleIds=['creezio.access'];f.save();
+  await assert.rejects(composeRuntime({root:f.root}),error=>error.code==='composition.invalid');
+  assert.deepEqual(read(generated(f.root,'composition.json')).nativeAccess,{admin:false,app:false});
 });
 
 test('explicit witness emits static typed imports and an executable public handler deterministically', async t => {
@@ -54,6 +103,7 @@ test('explicit witness emits static typed imports and an executable public handl
   assert.deepEqual(await status.handler().json(), { module: 'example.witness', version: '1.0.0', status: 'ready' });
   assert.equal(registry.modules[0].operations.find(operation => operation.id === 'protected-http').access, 'protected');
   const metadata = read(generated(f.root, 'composition.json'));
+  assert.deepEqual(metadata.nativeAccess,{admin:false,app:false},'another active module does not enable native access');
   assert.equal(metadata.views[0].access, 'public-read'); assert.equal(metadata.packageArchivesVerified, false);
 });
 
@@ -102,8 +152,8 @@ test('host operation budget is validated before replacing an existing generated 
 test('runtime route conflicts and reserved routes fail host preflight without writing outputs', async t => {
   const f = fixture(t);
   f.module.contracts.schemas.find(schema => schema.id === 'empty-input').schema.properties = { x: { type: 'string' }, y: { type: 'string' } };
-  f.module.contracts.api[0].path = '/api/{x}/a';
-  f.module.contracts.api[1].path = '/api/b/{y}';
+  f.module.contracts.api[0].path = '/api/business/{x}/a';
+  f.module.contracts.api[1].path = '/api/business/b/{y}';
   f.module.contracts.api[0].parameters = [{ name: 'x', in: 'path', inputField: 'x', required: true }];
   f.module.contracts.api[1].parameters = [{ name: 'y', in: 'path', inputField: 'y', required: true }]; f.save();
   await assert.rejects(composeRuntime({ root: f.root }), error => error.code === 'build.route-conflict');
@@ -113,6 +163,21 @@ test('runtime route conflicts and reserved routes fail host preflight without wr
   f.module.contracts.api[0].parameters = []; f.module.contracts.api[1].parameters = []; f.save();
   await assert.rejects(composeRuntime({ root: f.root }), error => error.code === 'build.route-reserved');
   assert.equal(existsSync(generated(f.root, 'server.ts')), false);
+});
+
+test('native access namespace is reserved even when access is absent, including parameter captures', async t => {
+  const f=fixture(t);await composeRuntime({root:f.root});
+  const names=['server.ts','client.tsx','composition.json'],before=names.map(name=>readFileSync(generated(f.root,name),'utf8'));
+  f.module.contracts.schemas.find(schema=>schema.id==='empty-input').schema.properties={area:{type:'string'}};
+  for(const route of ['/api/access','/api/access/app/login','/api/{area}','/api/{area}/app/login','/api/{area}/elsewhere']) {
+    f.module.contracts.api[0].path=route;
+    f.module.contracts.api[0].parameters=route.includes('{area}')?[{name:'area',in:'path',inputField:'area',required:true}]:[];f.save();
+    await assert.rejects(composeRuntime({root:f.root}),error=>error.code==='build.route-reserved',route);
+    assert.deepEqual(names.map(name=>readFileSync(generated(f.root,name),'utf8')),before);
+  }
+  f.module.contracts.api[0].path='/api/accessibility';f.module.contracts.api[0].parameters=[];f.save();
+  await composeRuntime({root:f.root});
+  assert.equal(read(generated(f.root,'composition.json')).modules[0].routes[0].path,'/api/accessibility');
 });
 
 test('workspace and output traversal are rejected', async t => {

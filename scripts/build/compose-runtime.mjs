@@ -138,10 +138,17 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     }
   }
   const compositionDigest = contractIntegrity(composition);
+  // This host-owned transport is not a module CRUD operation or an implicit
+  // public contribution. Each audience requires both selection and exposure.
+  const accessEnabled = modules.some(module => module.id === 'creezio.access');
+  const nativeAccess = Object.freeze({
+    admin: accessEnabled && composition.exposure.admin.moduleIds.includes('creezio.access'),
+    app: accessEnabled && composition.exposure.app.moduleIds.includes('creezio.access'),
+  });
   // Only approved host code is loaded. Module entrypoints remain inert paths;
   // these sentinels verify the exact dispatch policy without evaluating package code.
   try {
-    validateRuntimeDefinition({ compositionDigest, modules: modules.map(module => ({ ...module,
+    validateRuntimeDefinition({ compositionDigest, nativeAccess, modules: modules.map(module => ({ ...module,
       operations: module.operations.map(operation => ({ ...operation, handler() { throw new Error('Build validation must never invoke module handlers.'); } })),
     })) });
   } catch (error) {
@@ -155,9 +162,9 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   }).join(',\n')}] }`);
   const clientViews = views.map(view => { const { component, ...metadata } = view; return `{ ...${JSON.stringify(metadata)}, component: ${component} }`; });
   const rendered = {
-    'server.ts': `${banner}import type { RuntimeModule } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/runtime/types.ts')))};\n${serverImports.join('\n')}\nexport const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const modules: readonly RuntimeModule[] = [${serverModules.join(',\n')}];\n`,
+    'server.ts': `${banner}import type { RuntimeModule, RuntimeNativeAccess } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/runtime/types.ts')))};\n${serverImports.join('\n')}\nexport const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess: RuntimeNativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const modules: readonly RuntimeModule[] = [${serverModules.join(',\n')}];\n`,
     'client.tsx': `${banner}import type { RuntimeView } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/runtime/ui.ts')))};\n${clientImports.join('\n')}\nexport const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const views: readonly RuntimeView[] = [${clientViews.join(',\n')}];\n`,
-    'composition.json': `${stringify({ schemaVersion: 1, compositionDigest, applicationId: composition.application.id, hostProfile: composition.host.profile,
+    'composition.json': `${stringify({ schemaVersion: 1, compositionDigest, nativeAccess, applicationId: composition.application.id, hostProfile: composition.host.profile,
       modules: modules.map(({ id, version, operations }) => ({ id, version, routes: operations.map(({ handler, ...metadata }) => metadata) })),
       views: views.map(({ component, ...metadata }) => metadata), packageArchivesVerified: false })}\n`,
   };
@@ -166,7 +173,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     const target = confined(root, destinations[name], { missing: true });
     if (!existsSync(target) || readFileSync(target, 'utf8') !== content) writeFileSync(target, content, 'utf8');
   }
-  return { compositionDigest, moduleCount: modules.length, viewCount: views.length, outputs: Object.values(destinations).map(file => slash(path.relative(root, file))) };
+  return { compositionDigest, nativeAccess, moduleCount: modules.length, viewCount: views.length, outputs: Object.values(destinations).map(file => slash(path.relative(root, file))) };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

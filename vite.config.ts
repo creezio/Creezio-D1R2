@@ -29,7 +29,7 @@ export default defineConfig(async () => {
           main: 'worker.ts',
           compatibility_date: '2026-05-15',
           compatibility_flags: ['nodejs_compat'],
-          vars: { CREEZIO_RUNTIME_PROFILE: 'local' },
+          vars: { CREEZIO_RUNTIME_PROFILE: 'local', CREEZIO_APP_ORIGIN: process.env.CREEZIO_APP_ORIGIN ?? 'http://127.0.0.1:5173' },
           d1_databases: [{ binding: hosting.d1, database_name: 'creezio-local',
             database_id: '00000000-0000-4000-8000-000000000000' }],
           r2_buckets: [{ binding: hosting.r2, bucket_name: 'creezio-local' }],

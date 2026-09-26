@@ -14,4 +14,6 @@ Administration humaine : actions `human-status-updated`, `human-sessions-revoked
 
 Impersonation : ajout de deux modèles privés et des références d'audit acteur/sujet/source/délégation/contexte/audience. Credential et purpose distincts, acteur `impersonated-user`, permission native impersonate réservée sans grant bootstrap ; déclaration de manage alignée sur les humains directs. Le moteur exige l'éligibilité explicite de l'opération et de ses permissions, refuse approbation humaine et gestion native, et conserve un scope exact. La fin explicite ne change pas les sessions personnelles de la cible ; aucune interface ou restauration silencieuse de session n'est annoncée par ce lot interne.
 
-Connexion HTTP, gestion visuelle des droits et interfaces encore à construire ; aucune publication produit ni version de paquet distribuée annoncée.
+Raccordement du transport HTTP natif login/session/logout du cœur à la composition : module access activé et audiences admin/app exposées explicitement, drapeaux générés fermés par défaut et namespace réservé. Aucun nouveau modèle, SQL ni contrat API métier artificiel. Les garanties d'origine, cookies et parsing borné se qualifient avec les recettes du transport ; aucun bootstrap ou parcours administratif n'est ajouté aux routes natives.
+
+Gestion visuelle des droits, interfaces et qualification hébergée encore à construire ; aucune publication produit ni version de paquet distribuée annoncée.

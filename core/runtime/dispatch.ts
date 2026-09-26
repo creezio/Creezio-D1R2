@@ -1,5 +1,6 @@
 import { resolveRuntimeEnvironment } from './environment.ts';
-import type { CreezioRuntime, RuntimeDefinition, RuntimeInput, RuntimeOperation, RuntimeOperationContext } from './types.ts';
+import { dispatchAccessHttp } from '../identity/http.ts';
+import type { CreezioRuntime, RuntimeDefinition, RuntimeInput, RuntimeOperation, RuntimeOperationContext, RuntimeNativeAccess } from './types.ts';
 
 export type { CreezioRuntime, RuntimeDefinition, RuntimeHandler, RuntimeInput, RuntimeModule, RuntimeOperation, RuntimeOperationContext } from './types.ts';
 
@@ -27,7 +28,7 @@ function parseRoute(path: string): readonly Segment[] {
   const normalized = path.replace(/\/$/, '') || '/';
   if (!isApi(normalized) || normalized === '/api/health') throw new RuntimeConfigurationError('route.reserved', 'This route belongs to the host or health endpoint.');
   const names = new Set<string>();
-  return Object.freeze(normalized.slice(1).split('/').map(segment => {
+  const segments = normalized.slice(1).split('/').map(segment => {
     if (/^\{[A-Za-z][A-Za-z0-9_]*\}$/.test(segment)) {
       const parameter = segment.slice(1, -1);
       if (names.has(parameter)) throw new RuntimeConfigurationError('route.parameter', 'Route parameter names must be unique.');
@@ -35,7 +36,20 @@ function parseRoute(path: string): readonly Segment[] {
     }
     if (segment === '.' || segment === '..' || /[{}]/.test(segment)) throw new RuntimeConfigurationError('route.invalid', 'Invalid route segment.');
     return Object.freeze({ literal: segment });
-  }));
+  });
+  if (segments.length >= 2 && 'literal' in segments[0] && segments[0].literal === 'api'
+    && (!('literal' in segments[1]) || segments[1].literal === 'access'))
+    throw new RuntimeConfigurationError('route.reserved', 'Native authentication paths belong to the host.');
+  return Object.freeze(segments);
+}
+
+function nativeAccessFor(definition: RuntimeDefinition): RuntimeNativeAccess {
+  const value = definition.nativeAccess;
+  if (value === undefined) return Object.freeze({admin: false, app: false});
+  if (!value || typeof value !== 'object' || typeof value.admin !== 'boolean' || typeof value.app !== 'boolean'
+    || Object.keys(value).length !== 2 || ((value.admin || value.app) && !definition.modules.some(module => module.id === 'creezio.access')))
+    throw new RuntimeConfigurationError('native-access.invalid', 'Native account audiences require the selected access module.');
+  return Object.freeze({admin: value.admin, app: value.app});
 }
 
 function overlap(left: readonly Segment[], right: readonly Segment[]): boolean {
@@ -44,6 +58,7 @@ function overlap(left: readonly Segment[], right: readonly Segment[]): boolean {
 
 function compile(definition: RuntimeDefinition): readonly Route[] {
   if (!definition || !Array.isArray(definition.modules) || !/^sha256-[a-f0-9]{64}$/.test(definition.compositionDigest)) throw new RuntimeConfigurationError('composition.invalid', 'A static module list and composition digest are required.');
+  nativeAccessFor(definition);
   const modules = new Set<string>(), routes: Route[] = [];
   for (const module of definition.modules) {
     if (!module || !idPattern.test(module.id) || !versionPattern.test(module.version) || !Array.isArray(module.operations) || modules.has(module.id)) throw new RuntimeConfigurationError('module.invalid', 'Module metadata must be valid and unique.');
@@ -131,6 +146,7 @@ export function validateRuntimeDefinition(definition: RuntimeDefinition): void {
 /** Routes are compiled once from reviewed static imports, never from request data or a remote module URL. */
 export function createRuntime(definition: RuntimeDefinition): CreezioRuntime {
   const routes = compile(definition);
+  const nativeAccess = nativeAccessFor(definition);
   return Object.freeze({
     async fetch(request: Request, environment: unknown): Promise<Response | null> {
       const url = new URL(request.url), head = request.method === 'HEAD';
@@ -150,6 +166,8 @@ export function createRuntime(definition: RuntimeDefinition): CreezioRuntime {
       if (path === '/api/health') return request.method === 'GET' || head
         ? json({status:'ok'},200,requestId,head)
         : error('method_not_allowed','Method not allowed.',405,requestId,head,{allow:'GET, HEAD'});
+      if (path === '/api/access' || path.startsWith('/api/access/'))
+        return dispatchAccessHttp(request, resolved, environment, nativeAccess, requestId, path);
       const matches = routes.flatMap(route => { const params = match(route,segments); return params ? [{route,params}] : []; });
       if (!matches.length) return error('not_found','API route not found.',404,requestId,head);
       const matched = matches.find(item => item.route.operation.method === (head ? 'GET' : request.method))
@@ -158,7 +176,7 @@ export function createRuntime(definition: RuntimeDefinition): CreezioRuntime {
         const allowed = new Set<string>(matches.map(item=>item.route.operation.method)); if(allowed.has('GET'))allowed.add('HEAD');
         return error('method_not_allowed','Method not allowed.',405,requestId,head,{allow:[...allowed].join(', ')});
       }
-      // T-04 will resolve native credentials. No cookie, bearer token or host header grants access here.
+      // T-06 will connect module authorization and fresh mutation guards. Native login alone grants no module access here.
       if (matched.route.operation.access === 'protected') return error('authentication_required','Authentication required.',401,requestId,head);
       try {
         const context = Object.freeze({ moduleId:matched.route.operation.ownerModuleId, profile:resolved.profile, requestId });

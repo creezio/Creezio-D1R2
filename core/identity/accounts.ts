@@ -1,4 +1,4 @@
-import { createD1IdentityStore, normalizeLoginIdentifier } from './d1-store.ts';
+import { createD1IdentityStore, normalizeLoginIdentifier, type IdentityDatabase } from './d1-store.ts';
 import { hashPassword, verifyPassword, PASSWORD_PROFILE } from './password.ts';
 import { digestOpaqueToken, issueOpaqueToken } from './tokens.ts';
 
@@ -33,7 +33,7 @@ export async function provisionBootstrapCapability(db: D1Database) {
  * Database errors propagate to the host's redacted failure boundary, never a successful login.
  * A session identifies a principal; it does not itself grant administrator or module rights.
  */
-export function createAccountService(db: D1Database) {
+export function createAccountService(db: IdentityDatabase) {
   const store = createD1IdentityStore(db);
   return Object.freeze({
     async bootstrap(input: unknown) {

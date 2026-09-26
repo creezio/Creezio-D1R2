@@ -127,7 +127,7 @@ test('actual Vinext Worker, static assets, selected module and persistent D1/R2 
           ...artifacts.files.filter(file => file.gzipBytes !== undefined && file.path !== 'dist/server/index.js')
             .map(file => ({ type: 'ESModule', path: join(root, file.path) })),
         ], modulesRoot: join(root, 'dist/server'),
-        compatibilityDate, compatibilityFlags: ['nodejs_compat'], bindings: { CREEZIO_RUNTIME_PROFILE: 'local' },
+        compatibilityDate, compatibilityFlags: ['nodejs_compat'], bindings: { CREEZIO_RUNTIME_PROFILE: 'local', CREEZIO_APP_ORIGIN: 'http://localhost' },
         ...stateBindings, assets: { directory: join(root, 'dist/client'), binding: 'ASSETS',
           routerConfig: { has_user_worker: true }, assetConfig: { html_handling: 'none', not_found_handling: 'none' } } },
       { name: 'creezio-witness', modules: true, script: witness.script, compatibilityDate,
@@ -164,13 +164,19 @@ test('actual Vinext Worker, static assets, selected module and persistent D1/R2 
       const assetResponse = await timed('staticAsset', () => instance.dispatchFetch(url));
       assert.equal(assetResponse.status, 200); assert.equal(digest(Buffer.from(await assetResponse.arrayBuffer())), asset.sha256);
     });
-    await check('full artifact health is JSON; empty composition and unknown API/MCP never serve HTML', async () => {
+    await check('full artifact routes native authentication and refuses unknown API/MCP without serving HTML', async () => {
       const health = await timed('health', () => instance.dispatchFetch('http://localhost/api/health'));
       assert.equal(health.status, 200, health.status === 200 ? undefined : await health.clone().text()); assert.deepEqual(await health.json(), { status: 'ok' });
       for (const route of ['/api/missing', '/mcp/missing', '/api/modules/example.witness/status', '/api/qualification/roundtrip']) {
         const response = await instance.dispatchFetch(`http://localhost${route}`);
         assert.equal(response.status, 404); assert.equal((await response.json()).error.code, 'not_found');
       }
+      const session = await instance.dispatchFetch('http://localhost/api/access/admin/session');
+      assert.equal(session.status, 401); assert.equal((await session.json()).error.code, 'authentication_required');
+      assert.match(session.headers.get('set-cookie'), /^creezio-local-admin=;/);
+      const login = await instance.dispatchFetch('http://localhost/api/access/admin/login', {method: 'POST',
+        headers: {'content-type': 'application/json'}, body: '{}'});
+      assert.equal(login.status, 403); assert.equal((await login.json()).error.code, 'origin_denied');
     });
     await check('the generated selected module executes in workerd, only on its allowed HTTP method', async () => {
       const worker = await instance.getWorker('creezio-witness');
