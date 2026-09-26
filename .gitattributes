@@ -1,0 +1,5 @@
+# These generated artifacts and their source snapshot are compared byte-for-byte.
+# Keep identical bytes on Windows development and Linux CI checkouts.
+extensions/native/access/module/models.json text eol=lf
+extensions/native/access/module/manifest.json text eol=lf
+data/schema/access.sql text eol=lf
