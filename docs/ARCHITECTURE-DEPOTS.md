@@ -81,3 +81,7 @@ Chaque module possède le même dossier documentaire, les six suites CI, les tes
 | Données, secrets, déclarations de déploiement | Exploitant de l'app | Hors sources distribuées ; transfert initial contrôlé, aucune réimportation locale automatique aux updates. |
 
 Le client du registre déclare l'origine et les versions effectivement installées. Une copie sans GitHub conserve une provenance mais n'est pas annoncée comme un fork GitHub. Les réglages de protection de branche et les droits de publication ne sont pas hérités par copie des fichiers ; leur activation fait partie du parcours officiel de création d'un dépôt.
+
+## Graphe intermodules
+
+Le module natif `modules-settings` présente le graphe « dépend de / utilisé par » ; le SDK valide et résout les déclarations de toute origine. `application/config/` porte les choix et le verrou de composition. Le serveur commun protège installation, activation, update et retrait, indépendamment de l’interface employée. Le [contrat des dépendances](DEPENDANCES-MODULES.md) s’applique aussi entre modules de deux éditeurs tiers. Ni la séparation des dépôts ni un paquet npm ne crée une nouvelle instance de données ou un runtime par module.

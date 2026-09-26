@@ -4,7 +4,7 @@ Le développement est autorisé suivant le plan et le backlog. Le runtime et les
 
 ## Préparer une contribution
 
-Lire [AGENTS.md](AGENTS.md), le [PRD](docs/PRD.md), le [plan d'implémentation](docs/PLAN-IMPLEMENTATION.md), le [standard de développement](docs/DEVELOPMENT-STANDARD.md) et le [cycle Git](docs/GIT-FLOW.md). Pour un module, lire aussi le [standard des modules](docs/STANDARD-MODULE.md). Les [skills de développement](skills/README.md) accompagnent cette méthode ; ils ne remplacent ni les contrôles ni les autorisations.
+Lire [AGENTS.md](AGENTS.md), le [PRD](docs/PRD.md), le [plan d'implémentation](docs/PLAN-IMPLEMENTATION.md), le [standard de développement](docs/DEVELOPMENT-STANDARD.md) et le [cycle Git](docs/GIT-FLOW.md). Pour un module, lire aussi le [standard des modules](docs/STANDARD-MODULE.md) et le [contrat des dépendances](docs/DEPENDANCES-MODULES.md). Déclarer les fournisseurs obligatoires/facultatifs, versions/origines et ports publics, puis vérifier les consommateurs avant toute rupture. Les [skills de développement](skills/README.md) accompagnent cette méthode ; ils ne remplacent ni les contrôles ni les autorisations.
 
 Relier le travail à une exigence et à une tâche existante dans [EXIGENCES.md](docs/EXIGENCES.md), [USER-STORIES.md](docs/USER-STORIES.md) et [TODO.md](docs/TODO.md). Une issue précise le besoin et les critères quand GitHub est utilisé. Sans GitHub, une tâche locale persistante remplit cette fonction sans inventer de référence distante.
 
@@ -22,7 +22,7 @@ Les modules externes fournissent un paquet runtime et un artefact de validation 
 
 ## Proposer et intégrer
 
-Le flux commun est : branche de travail issue de `main`, PR à jour, revue technique par un autre agent sur le SHA final, squash GitHub, puis vérification du nouveau `main`. Les branches sont de type `module/`, `core/`, `docs/` ou `release/` selon le [cycle Git](docs/GIT-FLOW.md). `release/` sert à préparer une publication et n'est pas une deuxième branche stable. Le bootstrap autorisé étend la PR #1 au P0 sur sa branche actuelle ; cette exception initiale évite des PR empilées et conserve les contrôles avant fusion.
+Le flux commun est : branche de travail issue de `main`, PR à jour, revue technique par un autre agent sur le SHA final, squash GitHub, puis vérification du nouveau `main`. Les branches sont de type `module/`, `core/`, `docs/` ou `release/` selon le [cycle Git](docs/GIT-FLOW.md). `release/` sert à préparer une publication et n'est pas une deuxième branche stable. Le bootstrap autorisé étend la PR #1 au P0 sur sa branche actuelle ; cette exception initiale évite des PR empilées et conserve les contrôles avant fusion. Le responsable autorise également les checkpoints de développement local pendant le blocage de facturation Actions, selon GIT-FLOW ; les protections de fusion restent appliquées.
 
 La PR décrit le problème et le comportement final, son périmètre, les contrats et données affectés, les preuves, les limites et les documents actualisés. Elle est tenue à jour après correction. Une contribution ne choisit pas une autre méthode de fusion pour contourner les règles communes.
 

@@ -15,3 +15,7 @@ Lire les [règles communes et la phase autorisée](../../README.md), le [standar
 6. La revue technique est confiée à un autre agent que celui qui a réalisé le changement, avec SHA final, base, périmètre et conclusion explicites. Conserver la preuve hors du commit source ou dans un artefact associé pour ne pas changer la révision revue. Le même compte GitHub peut développer et fusionner : aucune deuxième identité ni approbation GitHub n'est exigée. Ne pas transformer la revue en auto-approbation distante, ni fusionner, publier ou envoyer un commentaire hors du mandat reçu.
 
 Conclure par les corrections nécessaires ou l'absence de défaut constaté dans le périmètre examiné, sans certification universelle ni faux résultat de test. Une nouvelle modification pertinente impose de réexaminer les preuves et la revue concernées.
+
+## Dépendances entre modules
+
+Appliquer le [contrat commun](../../../docs/DEPENDANCES-MODULES.md). Relire les déclarations, origines, plages, ports publics et contributions facultatives avec le verrou et le plan de changement. Vérifier les consommateurs, les références non déclarées et les tests d’absence/incompatibilité/retrait. Une bibliothèque npm installée ne prouve pas un module métier actif ; une fixture T-02 ne prouve pas le gestionnaire ou la publication.

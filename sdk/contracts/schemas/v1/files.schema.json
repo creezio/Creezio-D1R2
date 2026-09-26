@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:files",
+  "title": "Creezio files v1",
+  "description": "File categories stored by the host adapter; permissions apply to metadata and content.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+      },
+      "metadataModel": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+      },
+      "ownerField": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+      },
+      "contextField": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+      },
+      "mimeTypes": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "minItems": 1,
+        "maxItems": 1000
+      },
+      "maxBytes": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 9007199254740991
+      },
+      "permissions": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+        },
+        "minItems": 0,
+        "maxItems": 1000
+      },
+      "attachment": {
+        "type": "object",
+        "properties": {
+          "models": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+            },
+            "minItems": 0,
+            "maxItems": 1000
+          },
+          "multiple": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "models",
+          "multiple"
+        ],
+        "additionalProperties": false
+      },
+      "deletion": {
+        "type": "string",
+        "enum": [
+          "restrict",
+          "detach",
+          "delete-with-owner"
+        ]
+      },
+      "public": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "id",
+      "metadataModel",
+      "ownerField",
+      "contextField",
+      "mimeTypes",
+      "maxBytes",
+      "permissions",
+      "attachment",
+      "deletion",
+      "public"
+    ],
+    "additionalProperties": false
+  },
+  "minItems": 0,
+  "maxItems": 1000
+}

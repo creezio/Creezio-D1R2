@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:api",
+  "title": "Creezio api v1",
+  "description": "HTTP bindings to existing operations; schema and input mappings must match the operation, authentication and audience.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+      },
+      "method": {
+        "type": "string",
+        "enum": [
+          "GET",
+          "POST",
+          "PUT",
+          "PATCH",
+          "DELETE"
+        ]
+      },
+      "path": {
+        "type": "string",
+        "pattern": "^/[A-Za-z0-9/_{}.-]*$",
+        "maxLength": 512
+      },
+      "operation": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+      },
+      "audience": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/audience"
+      },
+      "auth": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/auth"
+        },
+        "minItems": 1,
+        "maxItems": 5
+      },
+      "parameters": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "in": {
+              "type": "string",
+              "enum": [
+                "path",
+                "query",
+                "header"
+              ]
+            },
+            "inputField": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "required": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "name",
+            "in",
+            "inputField",
+            "required"
+          ],
+          "additionalProperties": false
+        },
+        "minItems": 0,
+        "maxItems": 1000
+      },
+      "input": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/schemaRef"
+      },
+      "output": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/schemaRef"
+      },
+      "rateLimit": {
+        "type": "object",
+        "properties": {
+          "requests": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "windowSeconds": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "requests",
+          "windowSeconds"
+        ],
+        "additionalProperties": false
+      },
+      "requiresModules": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+        },
+        "minItems": 1,
+        "maxItems": 1000,
+        "uniqueItems": true,
+        "description": "Optional dependency guards. Every ID must be declared optional; the contribution is unavailable while any guarded module is absent or inactive."
+      }
+    },
+    "required": [
+      "id",
+      "method",
+      "path",
+      "operation",
+      "audience",
+      "auth",
+      "parameters",
+      "input",
+      "output",
+      "rateLimit"
+    ],
+    "additionalProperties": false
+  },
+  "minItems": 0,
+  "maxItems": 1000
+}

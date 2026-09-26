@@ -15,3 +15,7 @@ Lire les [règles communes et la phase autorisée](../../README.md), le [standar
 6. Décrire le modèle actuel et l'évolution compatible. La chaîne centrale génère et inspecte le SQL ; aucun script de conversion n'est ajouté au module. Bloquer une évolution destructive non résolue et conserver les données lors d'une mise à jour.
 
 Dans les lots applicatifs autorisés après P0, une fois l'outillage requis livré et qualifié, éprouver cas autorisés/interdits, changements de session, accès croisés, références supprimées, réponses périmées et conflits par les canaux affectés. Maintenir PRD/décisions, fiche d'impact et suites concernées ; distinguer tests locaux et intégration réellement exercée. Voir [stockage et hébergement](../../../docs/STOCKAGE-ET-HEBERGEMENT.md) pour les garanties propres à chaque cible.
+
+## Dépendances entre modules
+
+Appliquer le [contrat commun](../../../docs/DEPENDANCES-MODULES.md). Relier les références intermodules à des contrats publics déclarés et versionnés. Dépendre d’un catalogue ne donne accès ni à ses tables privées ni aux données d’un autre contexte. Vérifier les relations persistantes avant désactivation/retrait ; une intégration facultative ne peut laisser de référence obligatoire orpheline. Tester la garde d’exécution et les plans concurrents.

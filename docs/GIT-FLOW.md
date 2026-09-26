@@ -105,3 +105,7 @@ Une application peut être créée depuis une release précise sans compte GitHu
 Si Git local est disponible, garder les mêmes branches de travail et la traçabilité des commits ; l'intégration locale contrôlée n'est pas présentée comme une PR GitHub. Sans Git, enregistrer l'empreinte de source, les changements, décisions, révisions et artefacts dans le dossier de travail. Ne pas créer de dépôt distant implicitement.
 
 Les contrats, tests pertinents, revue technique par un autre agent, identité des artefacts et mandat de publication restent requis dans le profil local ou Sites. Les contrôles propres à GitHub sont explicitement non applicables, pas artificiellement réussis. Cette voie doit pouvoir produire une livraison vérifiée sans fabriquer d'issue, de PR, d'approbation distante ou de protection active.
+
+## 10. Continuité locale pendant l’indisponibilité d’Actions
+
+Décision explicite du responsable le 26 septembre 2026 : le blocage de facturation GitHub Actions suspend les fusions, pas le développement local. Après tests et revue du livrable consommé, les lots suivants peuvent partir de checkpoints locaux identifiés, avec branche courte par lot et traçabilité dans le backlog. Ne pas publier des PR empilées ni annoncer une intégration main. À la reprise d’Actions, intégrer les lots dans l’ordre par PR, rapprocher les changements de main et requalifier les candidats. Conserver les historiques existants ; aucun bypass des règles ni faux check réussi.

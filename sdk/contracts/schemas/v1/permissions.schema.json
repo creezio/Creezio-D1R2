@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:permissions",
+  "title": "Creezio permissions v1",
+  "description": "Authorization declarations, resolved by the common executor. Actor types and audience declarations never grant access on their own.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+      },
+      "title": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/text"
+      },
+      "audiences": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/audience"
+        },
+        "minItems": 1,
+        "maxItems": 2
+      },
+      "actors": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/actor"
+        },
+        "minItems": 1,
+        "maxItems": 5
+      },
+      "scopes": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+        },
+        "minItems": 0,
+        "maxItems": 1000
+      },
+      "context": {
+        "type": "string",
+        "enum": [
+          "required",
+          "application"
+        ]
+      },
+      "default": {
+        "const": "deny"
+      },
+      "resources": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+        },
+        "minItems": 0,
+        "maxItems": 1000
+      },
+      "actions": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "read",
+            "create",
+            "update",
+            "delete",
+            "execute",
+            "configure",
+            "export",
+            "approve"
+          ]
+        },
+        "minItems": 1,
+        "maxItems": 1000
+      },
+      "enforcement": {
+        "type": "object",
+        "properties": {
+          "request": {
+            "const": true
+          },
+          "commit": {
+            "const": true
+          }
+        },
+        "required": [
+          "request",
+          "commit"
+        ],
+        "additionalProperties": false
+      },
+      "public": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "id",
+      "title",
+      "audiences",
+      "actors",
+      "scopes",
+      "context",
+      "default",
+      "resources",
+      "actions",
+      "enforcement",
+      "public"
+    ],
+    "additionalProperties": false
+  },
+  "minItems": 0,
+  "maxItems": 1000
+}

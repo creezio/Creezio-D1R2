@@ -48,6 +48,17 @@ test('a documentation-only P0 tree is valid without runtime or modules', t => {
   assert.equal(result.metrics.skills, 9);
 });
 
+test('Cloudflare local secret files are inspected with redacted diagnostics', t => {
+  const root = fixture(t);
+  const value = ['cf', 'at_', 'Q'.repeat(36)].join('');
+  for (const file of ['.dev.vars', '.dev.vars.test', '.dev.vars.example']) write(root, file, `CLOUDFLARE_API_TOKEN=${value}\n`);
+  const result = validateDocs(root);
+  for (const file of ['.dev.vars', '.dev.vars.test', '.dev.vars.example']) {
+    assert.ok(result.errors.some(error => error.code === 'POSSIBLE_SECRET' && error.file === file));
+  }
+  assert.ok(!JSON.stringify(result).includes(value));
+});
+
 test('required documentation and the six suite declarations cannot disappear', t => {
   const root = fixture(t);
   unlinkSync(join(root, 'docs/PRD.md'));

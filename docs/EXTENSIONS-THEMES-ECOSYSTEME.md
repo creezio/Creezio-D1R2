@@ -178,3 +178,7 @@ Une mise à jour ciblée sélectionne une version de module et ses dépendances 
 9. Le module OpenAI activé et configuré produit une réponse réelle, un appel d'outil autorisé puis un widget dans les interfaces natives ; aucune clé API n'atteint le navigateur.
 10. Deux contextes de la même application Sites utilisent le même couple D1/R2 sans fuite de données, fichiers, résultats de recherche ou conversations.
 11. Un n8n existant planifie une action Creezio exécutée navigateur fermé, sans module n8n installé dans Creezio ; son résultat ou callback est consultable après reconnexion. Les mauvais tokens, portées/contextes non autorisés, accès révoqués et rejeux non autorisés sont refusés ; une reprise idempotente autorisée ne répète aucun effet et ne contourne aucune validation humaine.
+
+## Dépendances et compatibilité interéditeurs
+
+Appliquer [DEPENDANCES-MODULES.md](DEPENDANCES-MODULES.md) : déclarations obligatoires/facultatives, ports publics, origine, plages et verrou transitif ; même règle pour natifs, métier et tiers. Le catalogue affiche fournisseurs et consommateurs, et le gestionnaire prépare un plan avant toute modification cassante. Le starter inclut la déclaration et les recettes, dont une chaîne de trois modules et une intégration facultative. npm distribue les archives ; le résolveur Creezio qualifie leur composition et leur activation métier. Une archive retirée du catalogue n’arrête pas l’app déployée, mais une reconstruction doit encore disposer de ses artefacts vérifiés.

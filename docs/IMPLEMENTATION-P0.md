@@ -26,7 +26,7 @@ Limite explicite : GitHub ne distingue pas à lui seul deux workflows homonymes 
 
 ## Impact et preuves
 
-Contrôleurs autonomes sans dépendance npm tierce ; Node est un outil de développement, pas une dépendance de runtime Creezio. Aucun changement de modèle D1, fichier R2, opération métier, UI ou widget. Les contrats produit et les 83 exigences restent conservés. Les politiques de licence/offres restent différées ; aucun composant premium distribué par ce travail local.
+Contrôleurs autonomes sans dépendance npm tierce ; Node est un outil de développement, pas une dépendance de runtime Creezio. Aucun changement de modèle D1, fichier R2, opération métier, UI ou widget. Les contrats produit et les exigences restent conservés ; les ajouts ultérieurs sont suivis dans EXIGENCES.md. Les politiques de licence/offres restent différées ; aucun composant premium distribué par ce travail local.
 
 La qualification T-01 reste partielle jusqu’à activation, relecture des réglages et validation du parcours distant avec refus. T-02 et le runtime ne sont pas annoncés livrés ; leurs jalons seront consommés selon le [backlog](TODO.md). Le résultat exact des tests figure dans la preuve locale, avec limites et empreintes.
 
@@ -37,3 +37,7 @@ Les réglages ont été appliqués et relus : main exige une PR, `creezio/qualit
 Le [premier run distant](https://github.com/creezio/Creezio-D1R2/actions/runs/36257911219) sur `77ad0fabbfec8f6571ce95ba6cb9e8b6489515db` a été refusé avant toute étape : compte GitHub Actions verrouillé pour facturation. Il ne s'agit pas d'un échec des tests. GitHub signale la PR `BLOCKED`, ce qui confirme le refus de fusion en l'absence du contrôle réussi ; aucune tentative de contournement ou fusion effectuée. La régularisation a été demandée au responsable.
 
 La revue technique des contrôleurs/tests/workflow sur cette tête et la base `82241ffade8fb2686d3ad646935ae5a01385dbdc` a été acceptée par un autre agent. Les modifications documentaires sont relues par l'orchestrateur. Toute nouvelle tête exige rapprochement des preuves et de la revue avant fusion. Le développement des contrats peut être préparé localement, mais ni la gouvernance distante complète ni le runtime ne sont déclarés qualifiés tant que la CI n'a pas exécuté les tests.
+
+## Continuité autorisée en local
+
+Le responsable a autorisé explicitement la poursuite locale pendant la régularisation de GitHub Actions. T-02 travaille sur `core/t02-contracts` depuis le checkpoint P0 `3767c43`, avec schémas, validateurs, fixtures et tests. Les dépendances intermodules sont renforcées selon la nouvelle demande. T-01 conserve sa qualification distante en attente ; les fusions restent bloquées, sans empêcher les constructions locales dépendant de livrables testés. Les résultats de T-02 seront distingués de la preuve P0 précédente.

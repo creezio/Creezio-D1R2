@@ -14,7 +14,7 @@ export const REQUIRED_DOCUMENTS = Object.freeze([
     'ARCHITECTURE-DEPOTS', 'STANDARD-MODULE', 'DEVELOPMENT-STANDARD', 'GIT-FLOW',
     'CADRE-PRODUIT-ET-COMMUNAUTE', 'EXTENSIONS-THEMES-ECOSYSTEME', 'INTERACTIONS-WIDGETS',
     'COMPATIBILITE-CHATGPT', 'STOCKAGE-ET-HEBERGEMENT', 'LICENCES-ET-OFFRES',
-    'QUALIFICATION-SITES', 'AUDIT-AVANT-DEVELOPPEMENT',
+    'QUALIFICATION-SITES', 'AUDIT-AVANT-DEVELOPPEMENT', 'DEPENDANCES-MODULES',
   ].map(name => `docs/${name}.md`),
 ]);
 
@@ -209,7 +209,7 @@ export function validateDocs(root) {
     ['environment-credential', /^\s*(?:export\s+)?(?:[A-Z][A-Z0-9]*_)*(?:API_KEY|API_TOKEN|ACCESS_TOKEN|AUTH_TOKEN|PASSWORD|SECRET|PRIVATE_KEY)(?:_[A-Z0-9]+)*\s*=\s*["']?([A-Za-z0-9_+\/=.-]{24,})/],
   ];
   for (const [file, absolute] of files) {
-    if (!TEXT_FILE.test(file) && !/(?:^|\/)(?:LICENSE|\.env(?:\.[^/]+)?)$/.test(file)) continue;
+    if (!TEXT_FILE.test(file) && !/(?:^|\/)(?:LICENSE|\.(?:env|dev\.vars)(?:\.[^/]+)?)$/.test(file)) continue;
     try {
       if (lstatSync(absolute).size > MAX_TEXT_BYTES) { add('TEXT_TOO_LARGE', file, 1, 'Text exceeds the validation size limit and was not inspected.'); continue; }
       const text = readFileSync(absolute, 'utf8').replace(/^\uFEFF/, '');

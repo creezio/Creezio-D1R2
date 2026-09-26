@@ -27,6 +27,6 @@ body:
     id: dependencies
     attributes:
       label: Dépendances et limites
-      description: Prérequis techniques, accès externes, compatibilité, documents et versions affectés ; mandat de publication distinct.
+      description: Modules requis/facultatifs, éditeurs/origines, versions/contrats publics, consommateurs affectés et cas de retrait ; distinguer bibliothèques, fournisseurs externes et prérequis du backlog. Mandat de publication distinct.
     validations:
       required: true

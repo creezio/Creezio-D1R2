@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { writeFileSync, readFileSync, mkdirSync, renameSync, symlinkSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { inspectTap, sourceIdentity, sameSourceIdentity } from '../../scripts/quality/evidence.mjs';
+import { inspectTap, sourceIdentity, sameSourceIdentity, collectRequiredTests } from '../../scripts/quality/evidence.mjs';
 import { temporaryDirectory } from './temporary.mjs';
 
 const tap = counts => Object.entries({ tests: 2, pass: 2, fail: 0, cancelled: 0, skipped: 0, todo: 0, ...counts })
@@ -21,6 +21,21 @@ test('a commit change invalidates proof even with identical source bytes', () =>
   const a = { head: 'head-a', tree: 'tree-a', sha256: 'content-a' };
   assert.equal(sameSourceIdentity(a, { ...a }), true);
   for (const key of ['head', 'tree', 'sha256']) assert.equal(sameSourceIdentity(a, { ...a, [key]: 'changed' }), false);
+});
+
+test('the aggregate refuses a missing or empty contracts suite and linked tests', t => {
+  const root = temporaryDirectory(t, 'creezio-suites-');
+  mkdirSync(join(root, 'tests', 'quality'), { recursive: true });
+  writeFileSync(join(root, 'tests', 'quality', 'one.test.mjs'), '// fixture');
+  assert.throws(() => collectRequiredTests(root), /ENOENT/);
+  mkdirSync(join(root, 'tests', 'contracts'));
+  assert.throws(() => collectRequiredTests(root), /No tests found.*contracts/);
+  writeFileSync(join(root, 'tests', 'contracts', 'two.test.mjs'), '// fixture');
+  assert.deepEqual(collectRequiredTests(root), ['tests/quality/one.test.mjs', 'tests/contracts/two.test.mjs']);
+  renameSync(join(root, 'tests', 'contracts'), join(root, 'saved-contracts'));
+  symlinkSync(join(root, 'saved-contracts'), join(root, 'tests', 'contracts'), process.platform === 'win32' ? 'junction' : 'dir');
+  try { assert.throws(() => collectRequiredTests(root), /Invalid test directory/); }
+  finally { unlinkSync(join(root, 'tests', 'contracts')); }
 });
 test('source identity covers pending source edits but not ignored evidence', t => {
   const root = temporaryDirectory(t, 'creezio-evidence-');

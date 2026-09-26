@@ -1,0 +1,435 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:module",
+  "title": "Creezio module v1",
+  "description": "Portable module contract v1. Runtime declarations may generate this descriptor; authoring two independent contradictory contracts is forbidden.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "identity": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+        },
+        "title": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/text"
+        },
+        "publisher": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+        },
+        "origin": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/httpsUri"
+        },
+        "version": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/version"
+        },
+        "source": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/source"
+        },
+        "license": {
+          "type": "object",
+          "properties": {
+            "expression": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "file": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+            }
+          },
+          "required": [
+            "expression",
+            "file"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "publisher",
+        "origin",
+        "version",
+        "source",
+        "license"
+      ],
+      "additionalProperties": false
+    },
+    "compatibility": {
+      "type": "object",
+      "properties": {
+        "core": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/versionRange"
+        },
+        "sdk": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/versionRange"
+        },
+        "requiredCapabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/capability"
+          },
+          "minItems": 0,
+          "maxItems": 1000
+        },
+        "optionalCapabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/capability"
+          },
+          "minItems": 0,
+          "maxItems": 1000
+        }
+      },
+      "required": [
+        "core",
+        "sdk",
+        "requiredCapabilities",
+        "optionalCapabilities"
+      ],
+      "additionalProperties": false
+    },
+    "entrypoints": {
+      "type": "object",
+      "properties": {
+        "server": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/codeRef"
+        },
+        "ui": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/codeRef"
+        },
+        "plugin": {
+          "type": "object",
+          "properties": {
+            "manifest": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+            },
+            "mcp": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+            },
+            "contributions": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/codeRef"
+            }
+          },
+          "required": [
+            "manifest",
+            "mcp",
+            "contributions"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "server",
+        "plugin"
+      ],
+      "additionalProperties": false
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "moduleId": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "origin": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/httpsUri"
+          },
+          "versionRange": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/versionRange"
+          },
+          "optional": {
+            "type": "boolean"
+          },
+          "contracts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+                },
+                "versionRange": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/versionRange"
+                }
+              },
+              "required": [
+                "id",
+                "versionRange"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 0,
+            "maxItems": 1000
+          },
+          "whenAbsent": {
+            "type": "string",
+            "enum": [
+              "block",
+              "disable-contributions"
+            ]
+          },
+          "whenIncompatible": {
+            "const": "block",
+            "description": "Blocks required dependencies and explicitly selected optional integrations. An unselected optional integration imposes no version or port requirement on another selected module."
+          },
+          "autoInstall": {
+            "const": false
+          }
+        },
+        "required": [
+          "moduleId",
+          "origin",
+          "versionRange",
+          "optional",
+          "contracts",
+          "whenAbsent",
+          "whenIncompatible",
+          "autoInstall"
+        ],
+        "additionalProperties": false,
+        "description": "optional:false means required; optional:true contributes only if the consumer selected its integration. Selected absent/inactive optional dependencies disable guarded contributions; selected incompatible dependencies block. Unselected optional dependencies cannot be referenced by active contributions. One shared resolved version per module identity; no implicit installation."
+      },
+      "minItems": 0,
+      "maxItems": 1000
+    },
+    "contracts": {
+      "type": "object",
+      "properties": {
+        "schemas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "schema": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/schemaDocument"
+              }
+            },
+            "required": [
+              "id",
+              "schema"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0,
+          "maxItems": 1000
+        },
+        "models": {
+          "$ref": "urn:creezio:contracts:v1:models"
+        },
+        "files": {
+          "$ref": "urn:creezio:contracts:v1:files"
+        },
+        "permissions": {
+          "$ref": "urn:creezio:contracts:v1:permissions"
+        },
+        "operations": {
+          "$ref": "urn:creezio:contracts:v1:operations"
+        },
+        "api": {
+          "$ref": "urn:creezio:contracts:v1:api"
+        },
+        "mcp": {
+          "$ref": "urn:creezio:contracts:v1:mcp"
+        },
+        "events": {
+          "$ref": "urn:creezio:contracts:v1:events"
+        },
+        "settings": {
+          "$ref": "urn:creezio:contracts:v1:settings"
+        },
+        "search": {
+          "$ref": "urn:creezio:contracts:v1:search"
+        },
+        "ui": {
+          "$ref": "urn:creezio:contracts:v1:ui"
+        },
+        "widgets": {
+          "$ref": "urn:creezio:contracts:v1:widgets"
+        },
+        "publicContracts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "version": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/version"
+              },
+              "models": {
+                "type": "array",
+                "items": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+                },
+                "minItems": 0,
+                "maxItems": 1000
+              },
+              "operations": {
+                "type": "array",
+                "items": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+                },
+                "minItems": 0,
+                "maxItems": 1000
+              },
+              "events": {
+                "type": "array",
+                "items": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+                },
+                "minItems": 0,
+                "maxItems": 1000
+              },
+              "schemas": {
+                "type": "array",
+                "items": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/schemaRef"
+                },
+                "minItems": 0,
+                "maxItems": 1000
+              }
+            },
+            "required": [
+              "id",
+              "version",
+              "models",
+              "operations",
+              "events",
+              "schemas"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0,
+          "maxItems": 1000
+        }
+      },
+      "required": [
+        "schemas",
+        "models",
+        "files",
+        "permissions",
+        "operations",
+        "api",
+        "mcp",
+        "events",
+        "settings",
+        "search",
+        "ui",
+        "widgets",
+        "publicContracts"
+      ],
+      "additionalProperties": false
+    },
+    "documentation": {
+      "$ref": "urn:creezio:contracts:v1:documentation"
+    },
+    "validation": {
+      "$ref": "urn:creezio:contracts:v1:validation"
+    },
+    "packaging": {
+      "$ref": "urn:creezio:contracts:v1:packaging"
+    },
+    "lifecycle": {
+      "type": "object",
+      "properties": {
+        "deactivation": {
+          "const": "preserve-data"
+        },
+        "configuration": {
+          "const": "explicit-state"
+        },
+        "uninstall": {
+          "const": "explicit-approved-action"
+        },
+        "activationRequirements": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "minItems": 0,
+          "maxItems": 1000
+        },
+        "absent": {
+          "type": "object",
+          "properties": {
+            "models": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/absence"
+            },
+            "files": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/absence"
+            },
+            "widgets": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/absence"
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        },
+        "dependencyChanges": {
+          "type": "object",
+          "properties": {
+            "install": {
+              "const": "resolve-explicit-consumer-selection"
+            },
+            "activate": {
+              "const": "require-active-dependencies"
+            },
+            "update": {
+              "const": "validate-dependent-contracts"
+            },
+            "deactivate": {
+              "const": "block-or-explicit-dependent-plan"
+            },
+            "uninstall": {
+              "const": "block-or-explicit-dependent-plan"
+            },
+            "data": {
+              "const": "preserve"
+            }
+          },
+          "required": [
+            "install",
+            "activate",
+            "update",
+            "deactivate",
+            "uninstall",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "deactivation",
+        "configuration",
+        "uninstall",
+        "activationRequirements",
+        "absent",
+        "dependencyChanges"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "identity",
+    "compatibility",
+    "entrypoints",
+    "dependencies",
+    "contracts",
+    "documentation",
+    "validation",
+    "packaging",
+    "lifecycle"
+  ],
+  "additionalProperties": false
+}

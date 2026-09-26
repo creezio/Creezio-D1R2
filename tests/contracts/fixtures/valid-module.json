@@ -1,0 +1,2082 @@
+{
+  "schemaVersion": "1.0.0",
+  "identity": {
+    "id": "creezio.tasks",
+    "title": "Tasks contract fixture",
+    "publisher": "creezio",
+    "origin": "https://example.invalid/creezio/tasks",
+    "version": "1.0.0",
+    "source": {
+      "kind": "snapshot",
+      "revision": "fixture-v1",
+      "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "license": {
+      "expression": "MIT",
+      "file": "LICENSE"
+    }
+  },
+  "compatibility": {
+    "core": "^1.0.0",
+    "sdk": "^1.0.0",
+    "requiredCapabilities": [
+      "data.d1.shared",
+      "files.r2.shared",
+      "runtime.worker"
+    ],
+    "optionalCapabilities": [
+      "ui.mcp-apps"
+    ]
+  },
+  "entrypoints": {
+    "server": {
+      "path": "module/entry.server.ts",
+      "export": "create"
+    },
+    "ui": {
+      "path": "ui/contributions.ts",
+      "export": "contributions"
+    },
+    "plugin": {
+      "manifest": "plugin/plugin.json",
+      "mcp": "plugin/mcp.json",
+      "contributions": {
+        "path": "plugin/contributions.ts",
+        "export": "contributions"
+      }
+    }
+  },
+  "dependencies": [
+    {
+      "moduleId": "example.catalogue",
+      "origin": "https://example.invalid/catalogue",
+      "versionRange": "^1.0.0",
+      "optional": true,
+      "contracts": [],
+      "whenAbsent": "disable-contributions",
+      "whenIncompatible": "block",
+      "autoInstall": false
+    }
+  ],
+  "contracts": {
+    "schemas": [
+      {
+        "id": "task",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "context_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "owner_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "record_version": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "id",
+            "context_id",
+            "owner_id",
+            "title",
+            "record_version"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "get-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "context_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "id",
+            "context_id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "context_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "cursor": {
+              "type": "string"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          "required": [
+            "context_id",
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "id",
+                  "title"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 100
+            },
+            "cursor": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "update-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "context_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "record_version": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "id",
+            "context_id",
+            "title",
+            "record_version",
+            "request_id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "widget-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "title",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "setting-value",
+        "schema": {
+          "type": "string",
+          "maxLength": 256
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "task",
+        "title": "Task",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false
+          },
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false
+          },
+          {
+            "id": "owner_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false
+          },
+          {
+            "id": "title",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "id": "record_version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "by-owner",
+            "fields": [
+              "context_id",
+              "owner_id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "permission",
+            "id": "read"
+          },
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "permission",
+            "id": "write"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": true
+        },
+        "public": true
+      }
+    ],
+    "files": [
+      {
+        "id": "attachment",
+        "metadataModel": {
+          "moduleId": "creezio.tasks",
+          "kind": "model",
+          "id": "task"
+        },
+        "ownerField": "owner_id",
+        "contextField": "context_id",
+        "mimeTypes": [
+          "application/pdf",
+          "image/png"
+        ],
+        "maxBytes": 10485760,
+        "permissions": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "permission",
+            "id": "read"
+          },
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "permission",
+            "id": "write"
+          }
+        ],
+        "attachment": {
+          "models": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "model",
+              "id": "task"
+            }
+          ],
+          "multiple": true
+        },
+        "deletion": "restrict",
+        "public": false
+      }
+    ],
+    "permissions": [
+      {
+        "id": "read",
+        "title": "Task read",
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "machine",
+          "delegated-user"
+        ],
+        "scopes": [
+          "tasks.read"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "model",
+            "id": "task"
+          }
+        ],
+        "actions": [
+          "read"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      },
+      {
+        "id": "write",
+        "title": "Task write",
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "machine",
+          "delegated-user"
+        ],
+        "scopes": [
+          "tasks.write"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "model",
+            "id": "task"
+          }
+        ],
+        "actions": [
+          "update"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      },
+      {
+        "id": "approve",
+        "title": "Task approve",
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "machine",
+          "delegated-user"
+        ],
+        "scopes": [
+          "tasks.approve"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "model",
+            "id": "task"
+          }
+        ],
+        "actions": [
+          "approve"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      },
+      {
+        "id": "admin",
+        "title": "Task admin",
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "machine",
+          "delegated-user"
+        ],
+        "scopes": [
+          "tasks.admin"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "model",
+            "id": "task"
+          }
+        ],
+        "actions": [
+          "configure",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      }
+    ],
+    "operations": [
+      {
+        "id": "list",
+        "title": "Task list",
+        "kind": "query",
+        "input": {
+          "schemaId": "list-input"
+        },
+        "output": {
+          "schemaId": "list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "machine",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "list"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "model",
+              "id": "task"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "stale-object",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "outcome-unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 100
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 1000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": []
+        },
+        "public": true
+      },
+      {
+        "id": "get",
+        "title": "Task get",
+        "kind": "query",
+        "input": {
+          "schemaId": "get-input"
+        },
+        "output": {
+          "schemaId": "task"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "machine",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "get"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "model",
+              "id": "task"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "stale-object",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "outcome-unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 1000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": []
+        },
+        "public": true
+      },
+      {
+        "id": "update",
+        "title": "Task update",
+        "kind": "command",
+        "input": {
+          "schemaId": "update-input"
+        },
+        "output": {
+          "schemaId": "task"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "permission",
+            "id": "write"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "machine",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "update"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "model",
+              "id": "task"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "model",
+              "id": "task"
+            }
+          ],
+          "emits": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "event",
+              "id": "updated"
+            }
+          ],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "stale-object",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "outcome-unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "request_id",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "required",
+          "permission": {
+            "moduleId": "creezio.tasks",
+            "kind": "permission",
+            "id": "approve"
+          },
+          "bind": [
+            "actor",
+            "context",
+            "operation",
+            "input-hash",
+            "object-version"
+          ],
+          "expiresAfterSeconds": 300
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "record_version"
+        },
+        "execution": {
+          "maxDurationMs": 1000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": []
+        },
+        "public": true
+      },
+      {
+        "id": "admin-configure",
+        "title": "Task admin-configure",
+        "kind": "command",
+        "input": {
+          "schemaId": "update-input"
+        },
+        "output": {
+          "schemaId": "task"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "permission",
+            "id": "admin"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "machine",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "admin-configure"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "model",
+              "id": "task"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "model",
+              "id": "task"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "stale-object",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "outcome-unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "request_id",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "record_version"
+        },
+        "execution": {
+          "maxDurationMs": 1000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": []
+        },
+        "public": true
+      },
+      {
+        "id": "rebuild-index",
+        "title": "Task rebuild-index",
+        "kind": "command",
+        "input": {
+          "schemaId": "update-input"
+        },
+        "output": {
+          "schemaId": "task"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "permission",
+            "id": "admin"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "machine",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "rebuild-index"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "model",
+              "id": "task"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "model",
+              "id": "task"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "stale-object",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "outcome-unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "request_id",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "record_version"
+        },
+        "execution": {
+          "maxDurationMs": 1000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": []
+        },
+        "public": true
+      },
+      {
+        "id": "delete-index",
+        "title": "Task delete-index",
+        "kind": "command",
+        "input": {
+          "schemaId": "update-input"
+        },
+        "output": {
+          "schemaId": "task"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "permission",
+            "id": "admin"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "machine",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "delete-index"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "model",
+              "id": "task"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "model",
+              "id": "task"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "stale-object",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "outcome-unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "request_id",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "record_version"
+        },
+        "execution": {
+          "maxDurationMs": 1000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": []
+        },
+        "public": true
+      }
+    ],
+    "api": [
+      {
+        "id": "list-api",
+        "method": "GET",
+        "path": "/tasks",
+        "operation": {
+          "moduleId": "creezio.tasks",
+          "kind": "operation",
+          "id": "list"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "api-token",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "list-input"
+        },
+        "output": {
+          "schemaId": "list-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "get-api",
+        "method": "GET",
+        "path": "/tasks/{id}",
+        "operation": {
+          "moduleId": "creezio.tasks",
+          "kind": "operation",
+          "id": "get"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "api-token",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "get-input"
+        },
+        "output": {
+          "schemaId": "task"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "update-api",
+        "method": "PATCH",
+        "path": "/tasks/{id}",
+        "operation": {
+          "moduleId": "creezio.tasks",
+          "kind": "operation",
+          "id": "update"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "api-token",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "update-input"
+        },
+        "output": {
+          "schemaId": "task"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin-api",
+        "method": "POST",
+        "path": "/admin/tasks/{id}",
+        "operation": {
+          "moduleId": "creezio.tasks",
+          "kind": "operation",
+          "id": "admin-configure"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "api-token",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "update-input"
+        },
+        "output": {
+          "schemaId": "task"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      }
+    ],
+    "mcp": {
+      "tools": [
+        {
+          "id": "get",
+          "name": "tasks_get",
+          "operation": {
+            "moduleId": "creezio.tasks",
+            "kind": "operation",
+            "id": "get"
+          },
+          "audiences": [
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "get-input"
+          },
+          "output": {
+            "schemaId": "task"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true,
+          "widget": {
+            "moduleId": "creezio.tasks",
+            "kind": "widget",
+            "id": "task-summary"
+          }
+        },
+        {
+          "id": "list",
+          "name": "tasks_list",
+          "operation": {
+            "moduleId": "creezio.tasks",
+            "kind": "operation",
+            "id": "list"
+          },
+          "audiences": [
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "list-input"
+          },
+          "output": {
+            "schemaId": "list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "update",
+          "name": "tasks_update",
+          "operation": {
+            "moduleId": "creezio.tasks",
+            "kind": "operation",
+            "id": "update"
+          },
+          "audiences": [
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "update-input"
+          },
+          "output": {
+            "schemaId": "task"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true,
+          "widget": {
+            "moduleId": "creezio.tasks",
+            "kind": "widget",
+            "id": "task-edit"
+          }
+        },
+        {
+          "id": "admin",
+          "name": "tasks_admin",
+          "operation": {
+            "moduleId": "creezio.tasks",
+            "kind": "operation",
+            "id": "admin-configure"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "update-input"
+          },
+          "output": {
+            "schemaId": "task"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        }
+      ],
+      "resources": [
+        {
+          "id": "task-summary-ui",
+          "uri": "ui://tasks/summary/v1",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "plugin/widgets/task-summary/index.html"
+          },
+          "widget": {
+            "moduleId": "creezio.tasks",
+            "kind": "widget",
+            "id": "task-summary"
+          }
+        },
+        {
+          "id": "task-edit-ui",
+          "uri": "ui://tasks/edit/v1",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "permission",
+              "id": "write"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "plugin/widgets/task-edit/index.html"
+          },
+          "widget": {
+            "moduleId": "creezio.tasks",
+            "kind": "widget",
+            "id": "task-edit"
+          }
+        }
+      ],
+      "prompts": [],
+      "skills": [
+        {
+          "id": "manage-tasks",
+          "path": "plugin/skills/manage-tasks/SKILL.md",
+          "audiences": [
+            "app"
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "operation",
+              "id": "get"
+            },
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "operation",
+              "id": "update"
+            }
+          ],
+          "resources": [
+            "task-summary-ui",
+            "task-edit-ui"
+          ],
+          "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ]
+    },
+    "events": [
+      {
+        "id": "updated",
+        "version": "1.0.0",
+        "payload": {
+          "schemaId": "task"
+        },
+        "context": "required",
+        "permissions": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "durable": true,
+        "public": true,
+        "delivery": {
+          "mode": "external-trigger",
+          "maxAttempts": 3,
+          "deduplicationField": "id"
+        },
+        "subscribers": []
+      }
+    ],
+    "settings": [
+      {
+        "id": "task-label",
+        "title": "Label",
+        "schema": {
+          "schemaId": "setting-value"
+        },
+        "visibility": "server",
+        "required": false,
+        "permissions": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "permission",
+            "id": "admin"
+          }
+        ],
+        "redact": true,
+        "default": "Task"
+      }
+    ],
+    "search": [
+      {
+        "id": "tasks",
+        "model": {
+          "moduleId": "creezio.tasks",
+          "kind": "model",
+          "id": "task"
+        },
+        "fields": [
+          "id",
+          "title"
+        ],
+        "facets": [
+          "owner_id"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "context": "required",
+        "engine": "native",
+        "rebuildOperation": {
+          "moduleId": "creezio.tasks",
+          "kind": "operation",
+          "id": "rebuild-index"
+        },
+        "deleteOperation": {
+          "moduleId": "creezio.tasks",
+          "kind": "operation",
+          "id": "delete-index"
+        },
+        "invalidatedBy": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "event",
+            "id": "updated"
+          }
+        ],
+        "projectionVersion": "1.0.0",
+        "filterBeforeCount": true,
+        "resumable": true
+      }
+    ],
+    "ui": {
+      "views": [
+        {
+          "id": "tasks-view",
+          "title": "Tasks",
+          "surfaces": [
+            "workspace",
+            "front"
+          ],
+          "route": "/tasks",
+          "component": {
+            "path": "ui/workspace/tasks.ts",
+            "export": "view"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "operation",
+              "id": "list"
+            },
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "operation",
+              "id": "get"
+            },
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "operation",
+              "id": "update"
+            }
+          ],
+          "input": {
+            "schemaId": "list-input"
+          },
+          "panel": {
+            "identityFields": [
+              "context_id"
+            ],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend"
+          }
+        }
+      ],
+      "navigation": [
+        {
+          "id": "tasks-nav",
+          "title": "Tasks",
+          "view": {
+            "moduleId": "creezio.tasks",
+            "kind": "view",
+            "id": "tasks-view"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "surfaces": [
+            "workspace",
+            "front"
+          ],
+          "order": 10
+        }
+      ],
+      "slots": [
+        {
+          "id": "tasks-main",
+          "slot": "workspace.main",
+          "view": {
+            "moduleId": "creezio.tasks",
+            "kind": "view",
+            "id": "tasks-view"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.tasks",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "surfaces": [
+            "workspace"
+          ]
+        }
+      ],
+      "front": {
+        "mode": "provided"
+      },
+      "styles": [
+        "ui/styles.css"
+      ]
+    },
+    "widgets": [
+      {
+        "id": "task-summary",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "task-summary-ui",
+        "renderer": {
+          "path": "plugin/widgets/task-summary/view.ts",
+          "export": "render"
+        },
+        "input": {
+          "schemaId": "task"
+        },
+        "state": {
+          "schemaId": "widget-state"
+        },
+        "result": {
+          "schemaId": "task"
+        },
+        "audiences": [
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "requiredCapabilities": [
+          "ui.mcp-apps"
+        ],
+        "assets": [
+          "plugin/widgets/task-summary/index.html",
+          "plugin/widgets/task-summary/style.css"
+        ],
+        "actions": [
+          {
+            "id": "ask",
+            "label": "Send this task to chat",
+            "input": {
+              "schemaId": "widget-state"
+            },
+            "requiredCapabilities": [
+              "ui.message"
+            ],
+            "fallback": "copy-message",
+            "mode": "message",
+            "target": {
+              "template": "plugin/widgets/task-summary/message.md",
+              "preview": true,
+              "voluntarySend": true,
+              "states": [
+                "proposed",
+                "transmitted",
+                "refused",
+                "unknown"
+              ]
+            }
+          },
+          {
+            "id": "retain",
+            "label": "Retain this context for the next turn",
+            "input": {
+              "schemaId": "widget-state"
+            },
+            "requiredCapabilities": [
+              "ui.context"
+            ],
+            "fallback": "local-untransmitted-context",
+            "mode": "context",
+            "target": {
+              "namespace": "module-instance",
+              "fields": [
+                "title"
+              ],
+              "scope": [
+                "actor",
+                "conversation",
+                "surface"
+              ],
+              "expiresAfterSeconds": 3600,
+              "replace": true,
+              "removable": true,
+              "revisionField": "revision"
+            }
+          },
+          {
+            "id": "refresh",
+            "label": "Refresh task",
+            "input": {
+              "schemaId": "get-input"
+            },
+            "requiredCapabilities": [
+              "tools.call"
+            ],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.tasks",
+                "kind": "operation",
+                "id": "get"
+              }
+            }
+          },
+          {
+            "id": "expand",
+            "label": "Expand details",
+            "input": {
+              "schemaId": "widget-state"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "local",
+              "handler": {
+                "path": "plugin/widgets/task-summary/view.ts",
+                "export": "expand"
+              },
+              "effect": "visual-only"
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 16384,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      },
+      {
+        "id": "task-edit",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "task-edit-ui",
+        "renderer": {
+          "path": "plugin/widgets/task-edit/view.ts",
+          "export": "render"
+        },
+        "input": {
+          "schemaId": "task"
+        },
+        "state": {
+          "schemaId": "widget-state"
+        },
+        "result": {
+          "schemaId": "task"
+        },
+        "audiences": [
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "permission",
+            "id": "write"
+          }
+        ],
+        "requiredCapabilities": [
+          "ui.mcp-apps"
+        ],
+        "assets": [
+          "plugin/widgets/task-edit/index.html"
+        ],
+        "actions": [
+          {
+            "id": "save",
+            "label": "Confirm task update",
+            "input": {
+              "schemaId": "update-input"
+            },
+            "requiredCapabilities": [
+              "tools.call"
+            ],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.tasks",
+                "kind": "operation",
+                "id": "update"
+              }
+            },
+            "afterSuccessContext": {
+              "namespace": "module-instance",
+              "fields": [
+                "title"
+              ],
+              "scope": [
+                "actor",
+                "conversation",
+                "surface"
+              ],
+              "expiresAfterSeconds": 3600,
+              "replace": true,
+              "removable": true,
+              "revisionField": "revision"
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 16384,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      }
+    ],
+    "publicContracts": [
+      {
+        "id": "tasks",
+        "version": "1.0.0",
+        "models": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "model",
+            "id": "task"
+          }
+        ],
+        "operations": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "operation",
+            "id": "get"
+          },
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "operation",
+            "id": "list"
+          },
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "operation",
+            "id": "update"
+          }
+        ],
+        "events": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "event",
+            "id": "updated"
+          }
+        ],
+        "schemas": [
+          {
+            "schemaId": "task"
+          },
+          {
+            "schemaId": "get-input"
+          },
+          {
+            "schemaId": "list-input"
+          },
+          {
+            "schemaId": "list-output"
+          },
+          {
+            "schemaId": "update-input"
+          }
+        ]
+      }
+    ]
+  },
+  "documentation": {
+    "installed": {
+      "readme": {
+        "path": "README.md",
+        "artifact": "runtime",
+        "visibility": "public"
+      },
+      "prd": {
+        "path": "prd.md",
+        "artifact": "runtime",
+        "visibility": "public"
+      },
+      "changelog": {
+        "path": "CHANGELOG.md",
+        "artifact": "runtime",
+        "visibility": "public"
+      }
+    },
+    "development": {
+      "agents": {
+        "path": "AGENTS.md",
+        "artifact": "validation",
+        "visibility": "restricted"
+      },
+      "files": {
+        "path": "FILES.md",
+        "artifact": "validation",
+        "visibility": "restricted"
+      },
+      "interview": {
+        "path": "interview.md",
+        "artifact": "validation",
+        "visibility": "restricted"
+      },
+      "todo": {
+        "path": "TODO.md",
+        "artifact": "validation",
+        "visibility": "restricted"
+      }
+    },
+    "versionBinding": {
+      "moduleVersion": "1.0.0",
+      "sourceRevision": "fixture-v1"
+    },
+    "localRevisions": {
+      "installedVersionDistinct": true,
+      "approvedImmutable": true
+    },
+    "installationHistory": {
+      "distinctFromPackageChangelog": true
+    }
+  },
+  "validation": {
+    "gate": "gate.mjs",
+    "suites": {
+      "backend": {
+        "mode": "required",
+        "script": "ci/backend.mjs",
+        "tests": [
+          "tests/backend/contract.test.mjs"
+        ]
+      },
+      "ui": {
+        "mode": "required",
+        "script": "ci/ui.mjs",
+        "tests": [
+          "tests/ui/contract.test.mjs"
+        ]
+      },
+      "api-mcp": {
+        "mode": "required",
+        "script": "ci/api-mcp.mjs",
+        "tests": [
+          "tests/api-mcp/contract.test.mjs"
+        ]
+      },
+      "widgets": {
+        "mode": "required",
+        "script": "ci/widgets.mjs",
+        "tests": [
+          "tests/widgets/contract.test.mjs"
+        ]
+      },
+      "package": {
+        "mode": "required",
+        "script": "ci/package.mjs",
+        "tests": [
+          "tests/package/contract.test.mjs"
+        ]
+      },
+      "docs": {
+        "mode": "required",
+        "script": "ci/docs.mjs",
+        "tests": [
+          "tests/docs/contract.test.mjs"
+        ]
+      }
+    },
+    "policy": {
+      "id": "creezio.module-policy",
+      "version": "1.0.0",
+      "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "isolation": {
+      "productionSecrets": false,
+      "publicationRights": false
+    },
+    "evidence": {
+      "sourceIntegrity": true,
+      "artifactIntegrity": true,
+      "profile": true,
+      "executedSuites": true
+    }
+  },
+  "packaging": {
+    "runtime": {
+      "files": [
+        "README.md",
+        "prd.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "module/manifest.json",
+        "module/contracts.json",
+        "module/entry.server.ts",
+        "module/models.ts",
+        "module/files.ts",
+        "module/operations.ts",
+        "module/permissions.ts",
+        "module/events.ts",
+        "module/settings.ts",
+        "module/search.ts",
+        "ui/contributions.ts",
+        "ui/workspace/tasks.ts",
+        "ui/front/tasks.ts",
+        "ui/styles.css",
+        "plugin/plugin.json",
+        "plugin/mcp.json",
+        "plugin/contributions.ts",
+        "plugin/widgets/task-summary/view.ts",
+        "plugin/widgets/task-summary/index.html",
+        "plugin/widgets/task-summary/style.css",
+        "plugin/widgets/task-summary/message.md",
+        "plugin/widgets/task-edit/view.ts",
+        "plugin/widgets/task-edit/index.html",
+        "plugin/skills/manage-tasks/SKILL.md"
+      ],
+      "references": []
+    },
+    "validation": {
+      "files": [
+        "AGENTS.md",
+        "FILES.md",
+        "interview.md",
+        "TODO.md",
+        "gate.mjs",
+        "ci/backend.mjs",
+        "tests/backend/contract.test.mjs",
+        "ci/ui.mjs",
+        "tests/ui/contract.test.mjs",
+        "ci/api-mcp.mjs",
+        "tests/api-mcp/contract.test.mjs",
+        "ci/widgets.mjs",
+        "tests/widgets/contract.test.mjs",
+        "ci/package.mjs",
+        "tests/package/contract.test.mjs",
+        "ci/docs.mjs",
+        "tests/docs/contract.test.mjs"
+      ],
+      "references": [
+        {
+          "from": "gate.mjs",
+          "to": "prd.md",
+          "artifact": "runtime"
+        }
+      ]
+    },
+    "validationBinding": {
+      "moduleId": "creezio.tasks",
+      "moduleVersion": "1.0.0",
+      "sourceRevision": "fixture-v1"
+    },
+    "noRuntimeTests": true,
+    "installation": "build-and-publish",
+    "providerInstallation": false
+  },
+  "lifecycle": {
+    "deactivation": "preserve-data",
+    "configuration": "explicit-state",
+    "uninstall": "explicit-approved-action",
+    "activationRequirements": [],
+    "absent": {},
+    "dependencyChanges": {
+      "install": "resolve-explicit-consumer-selection",
+      "activate": "require-active-dependencies",
+      "update": "validate-dependent-contracts",
+      "deactivate": "block-or-explicit-dependent-plan",
+      "uninstall": "block-or-explicit-dependent-plan",
+      "data": "preserve"
+    }
+  }
+}

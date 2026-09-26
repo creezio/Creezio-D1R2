@@ -191,3 +191,7 @@ L'application verrouille version, origine, dépendances et intégrités. L'insta
 La recette de mise à jour conserve front personnalisé, extensions propres, données, droits et provenance ; elle vérifie aussi refus d'incompatibilité, dépendance absente, retrait de contribution et désactivation sans effacement. Une montée de version du plugin Creezio n'actualise pas le service externe auquel il se connecte.
 
 Le parcours de livraison respecte le [cycle Git](GIT-FLOW.md) et le [stockage/hébergement](STOCKAGE-ET-HEBERGEMENT.md). Sur Sites, publication dans GPT sur mandat ; depuis Docker local, exécuteur de livraison autorisé. L'artefact, le SQL applicable et les droits d'inscription sont vérifiés avant les modifications de production. Un retour au code précédent ne prétend pas annuler le SQL déjà appliqué.
+
+## 11. Dépendances de toutes origines
+
+Le [contrat des dépendances](DEPENDANCES-MODULES.md) est obligatoire. Le manifeste distingue required/optional, origine/version attendues, ports publics versionnés et contributions conditionnelles ; le verrou fixe la résolution transitive. Une dépendance npm ne suffit pas à enregistrer ou activer un module. Le cycle de vie contrôle les consommateurs directs/transitifs avant update, désactivation ou suppression, avec données préservées. Les six suites qualifient absence, incompatibilité, désactivation, intégration facultative et même opération par les différents canaux. Le starter et les AGENTS de chaque module renvoient à ce contrat.

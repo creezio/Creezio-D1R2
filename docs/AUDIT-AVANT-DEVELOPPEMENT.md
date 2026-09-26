@@ -80,3 +80,9 @@ Contrôles exécutés le 26 septembre 2026 : **32 fichiers Markdown, 905 liens l
 Après corrections, les relectures ciblées ne relèvent plus de défaut bloquant dans le périmètre documentaire. Les tests de comportement, preuves fournisseur, protections et releases restent volontairement non validés tant que leur travail n'a pas été exécuté.
 
 Le dossier permet de reprendre par une tâche identifiée sans reconstituer toute la conversation. Les prochains actes sont : validation utilisateur du plan, P0 et qualification de la gouvernance, tranche fonctionnelle précoce puis déroulement du backlog. La création du vrai fork, les deux Sites complets, les publications Cloudflare et les futures applications métier restent des jalons ultérieurs.
+
+## Complément — dépendances et continuité locale
+
+La demande du 26 septembre précise une lacune du cadrage : les dépendances étaient citées mais leurs garanties de cycle de vie n’étaient pas assez explicites. [DEPENDANCES-MODULES.md](DEPENDANCES-MODULES.md), six exigences supplémentaires (89 au total), stories/lots existants, contrats, skills et gabarits décrivent désormais résolution transitive, ports publics, versions/origines, contributions facultatives et protection des consommateurs. Le catalogue natif `modules-settings` doit afficher le graphe et les impacts ; le starter doit qualifier des archives de plusieurs éditeurs. La validation statique T-02 en cours n’est pas encore une recette de ces fonctions runtime.
+
+Le responsable autorise les constructions et tests locaux pendant la facturation Actions bloquée. Contrôleurs P0 et protections sont présents ; aucune fusion n’est réalisée sans CI distante. Cette décision remplace l’attente générale avant tout runtime, tout en conservant les recettes et jalons produit.

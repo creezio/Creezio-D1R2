@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:artifact-receipt",
+  "title": "Creezio detached artifact receipt v1",
+  "description": "Detached immutable pairing of independently hashed runtime and validation artifacts. It contains no hash of itself. Structure does not prove registry identity, signature or downloaded bytes.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "module": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+        },
+        "origin": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/httpsUri"
+        },
+        "version": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/version"
+        },
+        "source": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/source"
+        }
+      },
+      "required": [
+        "id",
+        "origin",
+        "version",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "contractIntegrity": {
+      "$ref": "urn:creezio:contracts:v1:common#/$defs/integrity",
+      "description": "SHA-256 of canonical module descriptor JSON using the same canonicalization as compositionIntegrity."
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "integrity": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/integrity"
+        },
+        "location": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "local"
+                },
+                "path": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "https"
+                },
+                "url": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/httpsUri"
+                }
+              },
+              "required": [
+                "kind",
+                "url"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "integrity",
+        "location"
+      ],
+      "additionalProperties": false
+    },
+    "validation": {
+      "type": "object",
+      "properties": {
+        "integrity": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/integrity"
+        },
+        "location": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "local"
+                },
+                "path": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "https"
+                },
+                "url": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/httpsUri"
+                }
+              },
+              "required": [
+                "kind",
+                "url"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "integrity",
+        "location"
+      ],
+      "additionalProperties": false
+    },
+    "policy": {
+      "$ref": "urn:creezio:contracts:v1:common#/$defs/policyRef"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "module",
+    "contractIntegrity",
+    "runtime",
+    "validation",
+    "policy"
+  ],
+  "additionalProperties": false
+}

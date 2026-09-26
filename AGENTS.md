@@ -53,3 +53,9 @@ Lire `docs/LICENCES-ET-OFFRES.md` : dernière instruction = PRÉVOIR L'ARCHITECT
 ## Espace disque
 
 Réutiliser les checkouts, dépendances et builds existants. Vérifier l'espace libre avant installation, copie ou build volumineux ; sous 20 Gio, traiter d'abord les temporaires connus et inutilisés du travail. Préserver sources, modifications non committées, bases, secrets et livrables. Conserver le build actif et les éléments nécessaires au retour arrière. Avant suppression récursive, vérifier confinement et absence de liens/jonctions et de processus utilisateurs ; sous Windows utiliser PowerShell et `Remove-Item -LiteralPath`. Ne laisser aucun serveur de test inutile.
+
+## Dépendances de modules et développement local autorisé
+
+Lire `docs/DEPENDANCES-MODULES.md` pour tout ajout ou changement intermodule. Déclarer dépendance, origine, versions et ports publics ; ne jamais importer un composant privé ou accéder aux tables d’un fournisseur pour éviter son contrat. Contrôler aussi les consommateurs avant update/retrait et déclarer les contributions facultatives. Mettre à jour manifeste, composition/verrou, docs/PRD/changelog et tests affectés ; pas d’auto-installation dictée par un manifeste tiers.
+
+Décision utilisateur du 26 septembre : continuer le développement et les qualifications locales pendant le blocage de facturation GitHub Actions. Les checkpoints locaux peuvent être utilisés pour les lots suivants selon `docs/GIT-FLOW.md` ; cette autorisation ne permet ni faux succès distant ni fusion contournant les protections.

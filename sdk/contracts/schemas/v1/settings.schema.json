@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:settings",
+  "title": "Creezio settings v1",
+  "description": "Typed settings and references to server-side credentials. Secret references are distinct from machine tokens, registration and activation grants.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+      },
+      "title": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/text"
+      },
+      "schema": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/schemaRef"
+      },
+      "visibility": {
+        "type": "string",
+        "enum": [
+          "public",
+          "server",
+          "secret-reference"
+        ]
+      },
+      "required": {
+        "type": "boolean"
+      },
+      "permissions": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+        },
+        "minItems": 0,
+        "maxItems": 1000
+      },
+      "provider": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+      },
+      "diagnoseOperation": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+      },
+      "redact": {
+        "const": true
+      },
+      "default": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/jsonValue"
+      },
+      "requiresModules": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+        },
+        "minItems": 1,
+        "maxItems": 1000,
+        "uniqueItems": true,
+        "description": "Optional dependency guards. Every ID must be declared optional; the contribution is unavailable while any guarded module is absent or inactive."
+      }
+    },
+    "required": [
+      "id",
+      "title",
+      "schema",
+      "visibility",
+      "required",
+      "permissions",
+      "redact"
+    ],
+    "additionalProperties": false
+  },
+  "minItems": 0,
+  "maxItems": 1000
+}

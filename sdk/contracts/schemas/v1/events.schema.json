@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:events",
+  "title": "Creezio events v1",
+  "description": "Versioned durable events and bounded externally triggered deliveries; this declaration starts no scheduler or daemon.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+      },
+      "version": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/version"
+      },
+      "payload": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/schemaRef"
+      },
+      "context": {
+        "type": "string",
+        "enum": [
+          "required",
+          "application"
+        ]
+      },
+      "permissions": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+        },
+        "minItems": 0,
+        "maxItems": 1000
+      },
+      "durable": {
+        "type": "boolean"
+      },
+      "public": {
+        "type": "boolean"
+      },
+      "delivery": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "const": "external-trigger"
+          },
+          "maxAttempts": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "deduplicationField": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "callback": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+          }
+        },
+        "required": [
+          "mode",
+          "maxAttempts",
+          "deduplicationField"
+        ],
+        "additionalProperties": false
+      },
+      "subscribers": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "operation": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+            },
+            "condition": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/schemaRef"
+            }
+          },
+          "required": [
+            "id",
+            "operation"
+          ],
+          "additionalProperties": false
+        },
+        "minItems": 0,
+        "maxItems": 1000
+      },
+      "requiresModules": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+        },
+        "minItems": 1,
+        "maxItems": 1000,
+        "uniqueItems": true,
+        "description": "Optional dependency guards. Every ID must be declared optional; the contribution is unavailable while any guarded module is absent or inactive."
+      }
+    },
+    "required": [
+      "id",
+      "version",
+      "payload",
+      "context",
+      "permissions",
+      "durable",
+      "public",
+      "delivery",
+      "subscribers"
+    ],
+    "additionalProperties": false
+  },
+  "minItems": 0,
+  "maxItems": 1000
+}

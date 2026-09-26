@@ -1,5 +1,5 @@
 # Backlog de réalisation
-Révision 3 — 26 septembre 2026. **GO complet reçu ; T-01 en cours.** Ce fichier est la liste de travail canonique du produit ; le plan et les PRD de modules y renvoient. Les autres items restent « à faire ». L'[état P0](IMPLEMENTATION-P0.md) distingue contrôleurs locaux et gouvernance distante. Le dossier documentaire est audité séparément dans [AUDIT-AVANT-DEVELOPPEMENT.md](AUDIT-AVANT-DEVELOPPEMENT.md) ; il ne coche aucune fonctionnalité.
+Révision 4 — 26 septembre 2026. **GO complet reçu ; T-01 et T-02 en cours.** Ce fichier est la liste de travail canonique du produit ; le plan et les PRD de modules y renvoient. Les autres items restent « à faire ». La poursuite des constructions et tests locaux est expressément autorisée pendant le blocage de facturation Actions, avec checkpoints par lot ; aucune fusion avant les contrôles distants requis. L'[état P0](IMPLEMENTATION-P0.md) distingue contrôleurs locaux et gouvernance distante. Le dossier documentaire est audité séparément dans [AUDIT-AVANT-DEVELOPPEMENT.md](AUDIT-AVANT-DEVELOPPEMENT.md) ; il ne coche aucune fonctionnalité.
 ## Règles de suivi
 États autorisés : à faire, en cours, bloqué (raison/prérequis), en revue, vérifié, livré. Enregistrer responsable réel, branche/issue ou tâche locale, PR, SHA, tests/profils et preuves à chaque transition. « Livré » exige version et livraison vérifiée ; fusionner ne suffit pas. Une dépendance fournisseur manquante bloque sa recette, pas toutes les tâches indépendantes.
 Après GO, commencer P0 puis la tranche P1/P2 nécessaire au premier Site ; les dépendances ci-dessous priment sur le numéro du lot. Qualifier Cloudflare tôt dès disponibilité, mais ne pas bloquer le travail local sur son accès. P3/P4 peuvent avancer par tranches couplées : installer un module témoin d’abord, finaliser le starter après widgets/front. Le socle complet et les preuves restent requis avant P7.
@@ -10,7 +10,7 @@ Une dépendance consomme un **livrable précis et testé**, pas automatiquement 
 
 | Prérequis consommable | Ce qui autorise la suite | Ce qui reste à qualifier et où |
 |---|---|---|
-| T-01 → T-02/T-03 | Politique et revue technique approuvées, premiers contrôles docs/gouvernance construits dans T-01, protections activées et refus prouvés | Contrôles fonctionnels ajoutés par T-02 puis modules ; la preuve de SHA/artefact est d’abord un test du contrôleur, pas une release de CMS. |
+| T-01 → T-02/T-03 | Contrôleurs locaux testés/revus et protections appliquées ; poursuite locale autorisée le 26 septembre malgré Actions bloqué pour facturation, selon GIT-FLOW | Contrôles fonctionnels ajoutés par T-02 puis modules ; la preuve de SHA/artefact est d’abord un test du contrôleur, pas une release de CMS. |
 | T-02 → T-03/T-11 | Schémas/validateurs SDK exécutés sur fixtures valides/invalides ; aucun runtime applicatif prétendument testé | Six suites de vrais modules et intégration hôte en T-11/T-30 ; répétition pertinente sur les modules ultérieurs. |
 | T-04/T-05/T-06/T-07 → T-08/T-09/T-31 | Comptes, modèles, fichiers, opérations et workspace construits et testés localement | T-09 teste la tranche sur Sites ; T-32 sur Cloudflare. Les fonctions ajoutées ensuite repassent la recette hôte avant T-36. |
 | T-10 à T-29 → lots consommateurs | Contrats et code testés sur l’environnement disponible, avec refus ; aucune intégration fournisseur annoncée réelle sans accès | Compléter tous les profils et fournisseurs déclarés avant T-36 ; leurs preuves peuvent avancer en parallèle des tâches indépendantes. |
@@ -25,7 +25,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | Tâche | Lot | Livrable | Dépendances | État |
 |---|---|---|---|---|
 | [T-01](#T-01) | P0 | Gouvernance effective et revue indépendante | GO reçu | En cours |
-| [T-02](#T-02) | P0 | Contrats exécutables et contrôle commun | [T-01](#T-01) | À faire |
+| [T-02](#T-02) | P0 | Contrats exécutables et contrôle commun | [T-01](#T-01) | En cours |
 | [T-03](#T-03) | P1 | Runtime commun et démarrage local | [T-02](#T-02) | À faire |
 | [T-04](#T-04) | P2 | Identités, comptes et droits | [T-03](#T-03) | À faire |
 | [T-05](#T-05) | P2 | Données, fichiers, recherche et coffre | [T-03](#T-03), [T-04](#T-04) | À faire |
@@ -72,17 +72,17 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Travail/livrables : Politique et revue technique approuvées, premiers validateurs documentaires et de gouvernance construits puis qualifiés, règles distantes et propriétaires réels activés, tests de refus. T-02 ajoute ensuite les schémas métier et critères de modules.
 - Besoin : [US-01](USER-STORIES.md#US-01). Acceptation : [REQ-0101](EXIGENCES.md#REQ-0101), [REQ-0102](EXIGENCES.md#REQ-0102), [REQ-0103](EXIGENCES.md#REQ-0103), [REQ-0104](EXIGENCES.md#REQ-0104).
 - Validation : implémenter puis exécuter les recettes liées, sur **GitHub et local selon le profil** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : [réalisation locale P0](IMPLEMENTATION-P0.md), tests des contrôleurs et observation distante dans `.quality/` ; pas de qualification globale T-01 ni runtime. Bootstrap dans la PR #1 avec revue technique et CI ; lots suivants sur branches dédiées depuis main.
+- Preuves : [réalisation locale P0](IMPLEMENTATION-P0.md), tests des contrôleurs et observation distante dans `.quality/` ; pas de qualification globale T-01 ni runtime. Bootstrap dans la PR #1 ; contrôles locaux réussis et protections relues, Actions refusé avant démarrage pour facturation. Lots suivants autorisés sur checkpoints locaux selon GIT-FLOW, fusions en attente.
 
 <a id="T-02"></a>
 ## T-02 — Contrats exécutables et contrôle commun
 
-- Lot : **P0** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P0** ; état : **en cours** ; responsable : Codex, schémas/validateur/tests répartis entre agents et intégration revue.
 - Dépendances : [T-01](#T-01).
-- Travail/livrables : Schémas initiaux et validateur SDK sur fixtures positives/négatives, raccordés à la garde de gouvernance T-01 ; suites applicatives qualifiées ensuite avec leurs vrais modules en T-11 et T-30.
-- Besoin : [US-02](USER-STORIES.md#US-02). Acceptation : [REQ-0201](EXIGENCES.md#REQ-0201), [REQ-0202](EXIGENCES.md#REQ-0202), [REQ-0203](EXIGENCES.md#REQ-0203).
+- Travail/livrables : Schémas et validateur SDK sur fixtures positives/négatives, graphes intermodules de toutes origines, références publiques, versions, optional et transitions de composition ; branche locale core/t02-contracts depuis 3767c43. Suites applicatives avec vrais modules ensuite en T-11/T-30 ; ne pas confondre fixtures et runtime.
+- Besoin : [US-02](USER-STORIES.md#US-02). Acceptation : [REQ-0201](EXIGENCES.md#REQ-0201), [REQ-0202](EXIGENCES.md#REQ-0202), [REQ-0203](EXIGENCES.md#REQ-0203), [REQ-0204](EXIGENCES.md#REQ-0204).
 - Validation : implémenter puis exécuter les recettes liées, sur **local et CI, puis intégration des modules** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : [réalisation T-02](IMPLEMENTATION-T02.md), agrégat local réussi et corrections relues ; checkpoint et preuve exacte conservés hors sources. Livrable statique consommable localement après la revue finale ; CI distante en attente. Pas d’installation ou de runtime module qualifié par ces fixtures.
 
 <a id="T-03"></a>
 ## T-03 — Runtime commun et démarrage local
@@ -169,8 +169,8 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 
 - Lot : **P3** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
 - Dépendances : [T-02](#T-02), [T-06](#T-06), [T-10](#T-10).
-- Travail/livrables : SDK versionné, module natif modules-settings, catalogue/configuration/diagnostic, dépendances et composition.
-- Besoin : [US-11](USER-STORIES.md#US-11). Acceptation : [REQ-1101](EXIGENCES.md#REQ-1101), [REQ-1102](EXIGENCES.md#REQ-1102), [REQ-1103](EXIGENCES.md#REQ-1103).
+- Travail/livrables : SDK versionné, résolveur et verrou transitif, module natif modules-settings, catalogue/configuration/diagnostic « dépend de / utilisé par », plan de changement et gardes communes du cycle de vie. Contributions facultatives et relations persistantes contrôlées selon DEPENDANCES-MODULES.md.
+- Besoin : [US-11](USER-STORIES.md#US-11). Acceptation : [REQ-1101](EXIGENCES.md#REQ-1101), [REQ-1102](EXIGENCES.md#REQ-1102), [REQ-1103](EXIGENCES.md#REQ-1103), [REQ-1104](EXIGENCES.md#REQ-1104), [REQ-1105](EXIGENCES.md#REQ-1105), [REQ-1106](EXIGENCES.md#REQ-1106).
 - Validation : implémenter puis exécuter les recettes liées, sur **local et app hôte** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
 
@@ -359,8 +359,8 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 
 - Lot : **P3** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
 - Dépendances : [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-16](#T-16).
-- Travail/livrables : Starter destiné à un dépôt public, paquet runtime, validation autonome, plugin et démo locale ; comparateur fournisseur de référence. Vérifier les droits avant toute distribution concernée ; publication de la démo qualifiée en T-32.
-- Besoin : [US-30](USER-STORIES.md#US-30). Acceptation : [REQ-3001](EXIGENCES.md#REQ-3001), [REQ-3002](EXIGENCES.md#REQ-3002), [REQ-3003](EXIGENCES.md#REQ-3003).
+- Travail/livrables : Starter destiné à un dépôt public, paquet runtime, validation autonome, plugin et démo locale ; comparateur fournisseur de référence, chaîne de dépendances interéditeurs et intégration facultative depuis les archives réelles. Vérifier les droits avant toute distribution concernée ; publication de la démo qualifiée en T-32.
+- Besoin : [US-30](USER-STORIES.md#US-30). Acceptation : [REQ-3001](EXIGENCES.md#REQ-3001), [REQ-3002](EXIGENCES.md#REQ-3002), [REQ-3003](EXIGENCES.md#REQ-3003), [REQ-3004](EXIGENCES.md#REQ-3004).
 - Validation : implémenter puis exécuter les recettes liées, sur **tarball dans app de validation indépendante et démo locale** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
 
@@ -439,8 +439,8 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 
 - Lot : **P8** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
 - Dépendances : [T-37](#T-37).
-- Travail/livrables : Release A→B, update individuelle de module/thème, starter installé, issue/PR amont et preuves de compatibilité ; publication Cloudflare du fork via le parcours T-32.
-- Besoin : [US-38](USER-STORIES.md#US-38). Acceptation : [REQ-3801](EXIGENCES.md#REQ-3801), [REQ-3802](EXIGENCES.md#REQ-3802).
+- Travail/livrables : Release A→B, update individuelle de module/thème, starter installé, issue/PR amont, refus d’update/retrait cassant les consommateurs et preuves des intégrations facultatives ; publication Cloudflare du fork via le parcours T-32.
+- Besoin : [US-38](USER-STORIES.md#US-38). Acceptation : [REQ-3801](EXIGENCES.md#REQ-3801), [REQ-3802](EXIGENCES.md#REQ-3802), [REQ-3803](EXIGENCES.md#REQ-3803).
 - Validation : implémenter puis exécuter les recettes liées, sur **A/B, Cloudflare, tarballs et GitHub** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
 

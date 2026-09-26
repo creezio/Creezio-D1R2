@@ -1,0 +1,332 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:mcp",
+  "title": "Creezio mcp v1",
+  "description": "Conversation projection, with tools useful without UI. Plugin packaging and platform dialect qualification remain separate from these Creezio declarations.",
+  "type": "object",
+  "properties": {
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+$",
+            "maxLength": 128
+          },
+          "operation": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+          },
+          "audiences": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/audience"
+            },
+            "minItems": 1,
+            "maxItems": 2
+          },
+          "auth": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/auth"
+            },
+            "minItems": 1,
+            "maxItems": 5
+          },
+          "input": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/schemaRef"
+          },
+          "output": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/schemaRef"
+          },
+          "annotations": {
+            "type": "object",
+            "properties": {
+              "readOnly": {
+                "type": "boolean"
+              },
+              "destructive": {
+                "type": "boolean"
+              },
+              "idempotent": {
+                "type": "boolean"
+              },
+              "openWorld": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "readOnly",
+              "destructive",
+              "idempotent",
+              "openWorld"
+            ],
+            "additionalProperties": false
+          },
+          "widget": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+          },
+          "textFallback": {
+            "const": true
+          },
+          "requiresModules": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "minItems": 1,
+            "maxItems": 1000,
+            "uniqueItems": true,
+            "description": "Optional dependency guards. Every ID must be declared optional; the contribution is unavailable while any guarded module is absent or inactive."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "operation",
+          "audiences",
+          "auth",
+          "input",
+          "output",
+          "annotations",
+          "textFallback"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 1000
+    },
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048
+          },
+          "mimeType": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "audiences": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/audience"
+            },
+            "minItems": 1,
+            "maxItems": 2
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+            },
+            "minItems": 0,
+            "maxItems": 1000
+          },
+          "source": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "asset"
+                  },
+                  "path": {
+                    "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "operation"
+                  },
+                  "operation": {
+                    "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "operation"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "widget": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+          },
+          "requiresModules": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "minItems": 1,
+            "maxItems": 1000,
+            "uniqueItems": true,
+            "description": "Optional dependency guards. Every ID must be declared optional; the contribution is unavailable while any guarded module is absent or inactive."
+          }
+        },
+        "required": [
+          "id",
+          "uri",
+          "mimeType",
+          "audiences",
+          "permissions",
+          "source"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 1000
+    },
+    "prompts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "template": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+          },
+          "input": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/schemaRef"
+          },
+          "audiences": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/audience"
+            },
+            "minItems": 1,
+            "maxItems": 2
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+            },
+            "minItems": 0,
+            "maxItems": 1000
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+            },
+            "minItems": 0,
+            "maxItems": 1000
+          },
+          "requiresModules": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "minItems": 1,
+            "maxItems": 1000,
+            "uniqueItems": true,
+            "description": "Optional dependency guards. Every ID must be declared optional; the contribution is unavailable while any guarded module is absent or inactive."
+          }
+        },
+        "required": [
+          "id",
+          "template",
+          "input",
+          "audiences",
+          "permissions",
+          "operations"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 1000
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "path": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+          },
+          "audiences": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/audience"
+            },
+            "minItems": 1,
+            "maxItems": 2
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+            },
+            "minItems": 0,
+            "maxItems": 1000
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "minItems": 0,
+            "maxItems": 1000
+          },
+          "integrity": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/integrity"
+          },
+          "requiresModules": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "minItems": 1,
+            "maxItems": 1000,
+            "uniqueItems": true,
+            "description": "Optional dependency guards. Every ID must be declared optional; the contribution is unavailable while any guarded module is absent or inactive."
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "audiences",
+          "operations",
+          "resources",
+          "integrity"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 1000
+    }
+  },
+  "required": [
+    "tools",
+    "resources",
+    "prompts",
+    "skills"
+  ],
+  "additionalProperties": false
+}

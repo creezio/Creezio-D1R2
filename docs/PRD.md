@@ -1,6 +1,6 @@
 # Creezio — PRD produit
 
-Version de cadrage : 1, 26 septembre 2026. **Spécification avant développement ; aucun CMS livré à ce stade.** La validation de ce dossier autorisera le démarrage des lots ; elle ne vaudra ni recette du produit ni autorisation générale de publication.
+Version de cadrage : 2, 26 septembre 2026. **GO reçu, implémentation en cours ; aucun CMS complet livré à ce stade.** Le backlog distingue preuves locales et qualification du produit ; le GO ne vaut pas recette.
 
 ## Produit et résultat recherché
 
@@ -80,3 +80,7 @@ La chaîne normative est : **PRD → exigence → user story → tâche → test
 Une décision modifie les documents concernés et les liens de traçabilité, sans multiplier des listes de travail concurrentes. Une story regroupe un besoin ; une tâche décrit un travail livrable ; les tests prouvent les critères des exigences. Une case cochée signifie que ses preuves existent pour la version et le profil concernés. Les dépendances externes ne doivent pas disparaître derrière une case « terminé ».
 
 Le [rapport avant développement](AUDIT-AVANT-DEVELOPPEMENT.md) expose les corrections, les preuves existantes, les limites et les prérequis restants. Le GO utilisateur autorisera le lot de démarrage. La validation finale des deux Sites et du parcours Cloudflare précédera les autres applications métier.
+
+## Composition fiable des fonctionnalités
+
+L’administrateur voit de quels modules dépend chaque fonctionnalité et quels modules l’utilisent, quelle que soit leur origine. Installer un panier exige un catalogue compatible et actif ; une intégration facultative peut être retirée en conservant le reste du module autonome. Le système calcule les dépendances transitives, fixe les versions et bloque les mises à jour, désactivations ou retraits qui casseraient un consommateur. La proposition de changements est explicite et protège les données. Le [contrat des dépendances](DEPENDANCES-MODULES.md) précise manifeste, droits, interface, SDK, starter, tests et parcours de livraison ; ce n’est pas une simple liste npm.

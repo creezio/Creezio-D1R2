@@ -1,0 +1,288 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:common",
+  "title": "Creezio common v1",
+  "description": "Shared value and reference types. A contract reference is resolved against the selected module identity, origin and version; it is not a filesystem or network lookup.",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "maxLength": 128
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$",
+      "maxLength": 128,
+      "description": "Syntax precheck; canonical SemVer validation is semantic."
+    },
+    "versionRange": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "filePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*:)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)[^\\x00-\\x1f]+$",
+      "description": "Artifact-relative POSIX path. Filesystem validation also confines resolution and rejects links."
+    },
+    "httpsUri": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://",
+      "maxLength": 2048
+    },
+    "integrity": {
+      "type": "string",
+      "pattern": "^sha256-[a-f0-9]{64}$",
+      "description": "Lowercase hexadecimal SHA-256 of exact artifact bytes; not npm SRI syntax."
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "git",
+            "snapshot"
+          ]
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "integrity": {
+          "$ref": "#/$defs/integrity"
+        },
+        "repository": {
+          "$ref": "#/$defs/httpsUri"
+        }
+      },
+      "required": [
+        "kind",
+        "revision",
+        "integrity"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "git"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "revision": {
+                "type": "string",
+                "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
+              },
+              "repository": {
+                "$ref": "#/$defs/httpsUri"
+              }
+            },
+            "required": [
+              "revision",
+              "repository"
+            ]
+          }
+        }
+      ]
+    },
+    "schemaRef": {
+      "type": "object",
+      "properties": {
+        "schemaId": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "required": [
+        "schemaId"
+      ],
+      "additionalProperties": false
+    },
+    "contractRef": {
+      "type": "object",
+      "properties": {
+        "moduleId": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "model",
+            "file",
+            "operation",
+            "permission",
+            "event",
+            "setting",
+            "search",
+            "view",
+            "widget",
+            "publicContract",
+            "schema"
+          ]
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "required": [
+        "moduleId",
+        "kind",
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "codeRef": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/filePath"
+        },
+        "export": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "required": [
+        "path",
+        "export"
+      ],
+      "additionalProperties": false
+    },
+    "policyRef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "version": {
+          "$ref": "#/$defs/version"
+        },
+        "integrity": {
+          "$ref": "#/$defs/integrity"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "integrity"
+      ],
+      "additionalProperties": false
+    },
+    "actor": {
+      "type": "string",
+      "enum": [
+        "user",
+        "machine",
+        "delegated-user",
+        "anonymous",
+        "signed-webhook"
+      ]
+    },
+    "audience": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "app"
+      ]
+    },
+    "auth": {
+      "type": "string",
+      "enum": [
+        "session",
+        "api-token",
+        "oauth",
+        "anonymous",
+        "webhook-signature"
+      ]
+    },
+    "capability": {
+      "$ref": "#/$defs/id"
+    },
+    "absence": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "$ref": "#/$defs/text"
+        },
+        "policyRule": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "required": [
+        "reason",
+        "policyRule"
+      ],
+      "additionalProperties": false
+    },
+    "permissionRefs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/contractRef"
+      },
+      "minItems": 0,
+      "maxItems": 1000
+    },
+    "schemaDocument": {
+      "description": "JSON Schema data boundary. Semantic validation must verify the 2020-12 metaschema and compile in strict mode within bounds. Unknown keywords and remote references are rejected there.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "maxProperties": 1000,
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        }
+      ]
+    },
+    "jsonValue": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string",
+          "maxLength": 65536
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/jsonValue"
+          },
+          "maxItems": 1000
+        },
+        {
+          "type": "object",
+          "maxProperties": 1000,
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        }
+      ]
+    }
+  }
+}

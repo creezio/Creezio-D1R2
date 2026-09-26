@@ -334,7 +334,7 @@ Le parcours obligatoire utilise Docker comme environnement local de développeme
 
 ## 10. Lots d'implémentation et critères de sortie
 
-Le [backlog](TODO.md) porte les dépendances exécutables, les exigences et les preuves de chaque tâche. Les lots ci-dessous regroupent le travail ; leur numéro n'autorise pas à ignorer une dépendance. La première tranche P1 utilise le minimum P2 nécessaire aux comptes/données/opérations. Aucun runtime ne commence avant GO et qualification de la gouvernance P0 ; construire les premiers contrôles fait partie de P0, pas d'un contrôle déjà en place.
+Le [backlog](TODO.md) porte les dépendances exécutables, les exigences et les preuves de chaque tâche. Les lots ci-dessous regroupent le travail ; leur numéro n'autorise pas à ignorer une dépendance. La première tranche P1 utilise le minimum P2 nécessaire aux comptes/données/opérations. Le GO complet est acquis. Les contrôleurs locaux P0 permettent la suite selon les jalons consommables ; la décision explicite de poursuivre localement pendant le blocage Actions est décrite dans GIT-FLOW. Aucune fusion ne contourne les contrôles distants.
 
 | Lot | Tâches canoniques | Résultat et sortie |
 |---|---|---|
@@ -423,3 +423,15 @@ Sources techniques primaires :
 - [Forks GitHub](https://docs.github.com/en/pull-requests/reference/forks) et [API de création de fork](https://docs.github.com/en/rest/repos/forks) : filiation, propriétaires et règles de visibilité.
 
 **État de construction :** le socle complet et le fork applicatif de recette restent à construire. La qualification technique isolée est suivie dans [Qualification Sites](QUALIFICATION-SITES.md) avec ses résultats et limites ; sa réussite éventuelle ne remplace pas la recette des deux applications complètes.
+
+## 15. Graphe de dépendances des modules
+
+Le [contrat détaillé](DEPENDANCES-MODULES.md) renforce les mentions précédentes : tous les modules déclarent leurs dépendances obligatoires ou facultatives, versions/origines et ports publics. Le résolveur valide la fermeture transitive et un verrou unique, puis produit un plan d’installation ou de changement avec impact sur les consommateurs. Pas de dépendance cachée dans un widget, de copie des tables du fournisseur ni de module installé implicitement par un tiers.
+
+- **T-02** : schémas et validation statique de compositions/versions/ports/cycles et transitions, fixtures positives et négatives.
+- **T-11** : résolveur, gestion des états, écran « dépend de / utilisé par », refus de retrait ou update incompatible et garde serveur commune UI/API/MCP, révision du plan et concurrence.
+- **T-13/T-16** : contributions conditionnelles dans front/workspace/chat/MCP, widgets historiques refusant les actions devenues indisponibles.
+- **T-25/T-30/T-37** : modules de référence, starter et archives interéditeurs, relations métier sans accès aux tables privées.
+- **T-38** : chaîne complète de mises à jour, dépendance transitive et intégration facultative sur les déploiements qualifiés, sans toucher aux données ni aux versions hors périmètre.
+
+Ces règles sont communes aux hébergements. Les tests de contrats T-02 ne valent pas recette du gestionnaire, des paquets ou de la publication.

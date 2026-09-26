@@ -1,0 +1,292 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:ui",
+  "title": "Creezio ui v1",
+  "description": "Declarative views for the stable workspace SDK and optional dynamic front; themes cannot replace server authorization.",
+  "type": "object",
+  "properties": {
+    "views": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "title": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/text"
+          },
+          "surfaces": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "workspace",
+                "front"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 2
+          },
+          "route": {
+            "type": "string",
+            "pattern": "^/[A-Za-z0-9/_{}.-]*$",
+            "maxLength": 512
+          },
+          "component": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/codeRef"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+            },
+            "minItems": 0,
+            "maxItems": 1000
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+            },
+            "minItems": 0,
+            "maxItems": 1000
+          },
+          "input": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/schemaRef"
+          },
+          "panel": {
+            "type": "object",
+            "properties": {
+              "identityFields": {
+                "type": "array",
+                "items": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+                },
+                "minItems": 0,
+                "maxItems": 1000
+              },
+              "navigation": {
+                "const": "sdk"
+              },
+              "retention": {
+                "type": "string",
+                "enum": [
+                  "preserve",
+                  "discard"
+                ]
+              },
+              "inactiveEffects": {
+                "type": "string",
+                "enum": [
+                  "suspend",
+                  "explicit-read-only"
+                ]
+              }
+            },
+            "required": [
+              "identityFields",
+              "navigation",
+              "retention",
+              "inactiveEffects"
+            ],
+            "additionalProperties": false
+          },
+          "requiresModules": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "minItems": 1,
+            "maxItems": 1000,
+            "uniqueItems": true,
+            "description": "Optional dependency guards. Every ID must be declared optional; the contribution is unavailable while any guarded module is absent or inactive."
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "surfaces",
+          "route",
+          "component",
+          "permissions",
+          "operations",
+          "input",
+          "panel"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 1000
+    },
+    "navigation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "title": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/text"
+          },
+          "view": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+            },
+            "minItems": 0,
+            "maxItems": 1000
+          },
+          "surfaces": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "workspace",
+                "front"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 2
+          },
+          "order": {
+            "type": "integer"
+          },
+          "badgeOperation": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+          },
+          "requiresModules": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "minItems": 1,
+            "maxItems": 1000,
+            "uniqueItems": true,
+            "description": "Optional dependency guards. Every ID must be declared optional; the contribution is unavailable while any guarded module is absent or inactive."
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "view",
+          "permissions",
+          "surfaces",
+          "order"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 1000
+    },
+    "slots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "slot": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "view": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+            },
+            "minItems": 0,
+            "maxItems": 1000
+          },
+          "surfaces": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "workspace",
+                "front"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 2
+          },
+          "requiresModules": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "minItems": 1,
+            "maxItems": 1000,
+            "uniqueItems": true,
+            "description": "Optional dependency guards. Every ID must be declared optional; the contribution is unavailable while any guarded module is absent or inactive."
+          }
+        },
+        "required": [
+          "id",
+          "slot",
+          "view",
+          "permissions",
+          "surfaces"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 1000
+    },
+    "front": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "const": "provided"
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "const": "absent"
+            },
+            "justification": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/absence"
+            }
+          },
+          "required": [
+            "mode",
+            "justification"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "styles": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+      },
+      "minItems": 0,
+      "maxItems": 1000
+    }
+  },
+  "required": [
+    "views",
+    "navigation",
+    "slots",
+    "front",
+    "styles"
+  ],
+  "additionalProperties": false
+}

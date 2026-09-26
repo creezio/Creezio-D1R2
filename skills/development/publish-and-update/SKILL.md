@@ -15,3 +15,7 @@ Lire les [règles communes et la phase autorisée](../../README.md), le [cycle G
 6. Avant une publication officielle, vérifier propriétaire/enregistrement et token de déclaration requis. Une panne de cette vérification suspend la livraison préparée, pas l'app existante. Après succès vérifié, déclarer la version réellement livrée ; une panne de synchronisation reste reprenable et visible. Token de registre, droits premium et autorisation d'assistance sont distincts.
 
 Terminer avec destination, version/SHA, empreinte de l'artefact, résultat de publication et vérifications réelles. Ne clôturer un critère de production qu'après sa preuve. Les apps adoptent une release explicitement ; aucune propagation automatique à tous les forks.
+
+## Dépendances entre modules
+
+Appliquer le [contrat commun](../../../docs/DEPENDANCES-MODULES.md). Comparer graphes avant/après et verrou de composition, y compris consommateurs directs/transitifs. Présenter les dépendances nouvelles, changements d’origine/version, configuration et droits ; appliquer seulement le plan autorisé. Tester refus de mise à jour cassante, désactivation/retrait, puis intégrations facultatives et conservation des données. Ne pas recalculer silencieusement les versions lors du déploiement.

@@ -15,3 +15,7 @@ Lire les [règles communes et la phase autorisée](../../README.md), le [standar
 6. Pour une distribution externe, séparer paquet installable, plugin conversationnel et démo consommant le même module. Vérifier l'archive produite dans une app hôte sans résolution cachée vers le checkout du développeur, puis sa mise à jour et la conservation des données.
 
 Livrer le contrat cohérent et ses preuves, avec les parties encore non implémentées ou non qualifiées. Les scripts SQL de transformation ne sont pas un livrable du module ; l'évolution des modèles relève de la chaîne centrale.
+
+## Dépendances entre modules
+
+Appliquer le [contrat commun](../../../docs/DEPENDANCES-MODULES.md). Déclarer chaque dépendance requise ou facultative avec origine, plage de versions, ports publics et contributions concernées. Vérifier les consommateurs de tout contrat modifié. Ne pas remplacer un fournisseur absent par une copie de son modèle ou un import privé ; tester le fonctionnement autonome si optional. Le starter et les docs du module exposent les mêmes déclarations.

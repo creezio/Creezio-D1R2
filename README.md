@@ -10,16 +10,17 @@ Un module ou extension Creezio possède ses données, sa logique métier, ses AP
 
 ## Implémentation en cours
 
-Le GO complet a été reçu le 26 septembre 2026. Le premier lot construit les contrôles de développement ; voir [P0](docs/IMPLEMENTATION-P0.md). Le produit complet n'est pas implémenté et la sonde technique garde sa portée limitée. Avec Node 24, `npm run check` vérifie les documents et les contrôleurs présents, sans prétendre qualifier le CMS.
+Le GO complet a été reçu le 26 septembre 2026. Les premiers lots construisent les contrôles de développement et contrats SDK ; voir [P0](docs/IMPLEMENTATION-P0.md) et [T-02](docs/IMPLEMENTATION-T02.md). Le produit complet n'est pas implémenté et la sonde technique garde sa portée limitée. Avec Node 24, installer les dépendances verrouillées par `npm ci --ignore-scripts`, puis `npm run check` vérifie les documents, les contrôleurs et les contrats SDK. `npm run test:contracts` cible leurs tests ; cela ne qualifie pas encore le CMS ou l’installation réelle de modules.
 
 | Document | Usage |
 |---|---|
 | [PRD](docs/PRD.md) | Définition de Creezio, publics, parcours, périmètre et réussite attendue. |
-| [Exigences](docs/EXIGENCES.md) | 83 exigences identifiées avec critères, preuves et profils de recette. |
+| [Exigences](docs/EXIGENCES.md) | 89 exigences identifiées avec critères, preuves et profils de recette. |
 | [User stories](docs/USER-STORIES.md) | 39 résultats attendus pour les utilisateurs et développeurs. |
 | [Backlog](docs/TODO.md) | 39 lots de travail, dépendances, livrables et état réel ; liste canonique des tâches. |
 | [Plan d'implémentation](docs/PLAN-IMPLEMENTATION.md) | Architecture, lots P0 à P9 et recette complète. |
 | [Architecture des dépôts](docs/ARCHITECTURE-DEPOTS.md) | Socle, douze familles natives, fork, modules externes et registre central. |
+| [Dépendances entre modules](docs/DEPENDANCES-MODULES.md) | Relations obligatoires/facultatives, versions, graphe et protection du cycle de vie. |
 | [Interactions des widgets](docs/INTERACTIONS-WIDGETS.md) | Plusieurs widgets par module, modes message/contexte/direct et parité des chats. |
 | [Standard module](docs/STANDARD-MODULE.md) | PRD/changelog/docs, contrats, six suites CI et paquets vérifiables. |
 | [Développement](docs/DEVELOPMENT-STANDARD.md) · [Git flow](docs/GIT-FLOW.md) | Règles de travail, branche/PR/revue/squash, versions et publication. |

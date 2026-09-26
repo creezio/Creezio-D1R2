@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "1.0.0",
+  "application": {
+    "id": "example.app",
+    "version": "1.0.0",
+    "provenance": {
+      "kind": "snapshot",
+      "revision": "fixture-v1",
+      "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  "host": {
+    "profile": "sites",
+    "capabilities": [
+      "data.d1.shared",
+      "files.r2.shared",
+      "runtime.worker",
+      "ui.mcp-apps"
+    ]
+  },
+  "sdk": {
+    "version": "1.0.0",
+    "coreVersion": "1.0.0",
+    "policy": {
+      "id": "creezio.module-policy",
+      "version": "1.0.0",
+      "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  "modules": [
+    {
+      "moduleId": "creezio.tasks",
+      "origin": "https://example.invalid/creezio/tasks",
+      "versionRange": "^1.0.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/native/tasks"
+      },
+      "enabled": true,
+      "configuration": [
+        {
+          "setting": {
+            "moduleId": "creezio.tasks",
+            "kind": "setting",
+            "id": "task-label"
+          },
+          "valueRef": "task-label"
+        }
+      ],
+      "integrations": [
+        {
+          "moduleId": "example.catalogue",
+          "enabled": false
+        }
+      ]
+    }
+  ],
+  "front": {
+    "kind": "workspace"
+  },
+  "exposure": {
+    "admin": {
+      "moduleIds": [
+        "creezio.tasks"
+      ]
+    },
+    "app": {
+      "moduleIds": [
+        "creezio.tasks"
+      ]
+    }
+  }
+}

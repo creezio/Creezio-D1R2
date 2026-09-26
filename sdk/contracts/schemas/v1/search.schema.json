@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:search",
+  "title": "Creezio search v1",
+  "description": "Derived search projections, including authorization of totals/facets and bounded rebuilding. Optional provider service is never installed by a module.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+      },
+      "model": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+      },
+      "fields": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+        },
+        "minItems": 1,
+        "maxItems": 1000
+      },
+      "facets": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+        },
+        "minItems": 0,
+        "maxItems": 1000
+      },
+      "permissions": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+        },
+        "minItems": 0,
+        "maxItems": 1000
+      },
+      "context": {
+        "type": "string",
+        "enum": [
+          "required",
+          "application"
+        ]
+      },
+      "engine": {
+        "type": "string",
+        "enum": [
+          "native",
+          "provider"
+        ]
+      },
+      "provider": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+      },
+      "rebuildOperation": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+      },
+      "deleteOperation": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+      },
+      "invalidatedBy": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+        },
+        "minItems": 0,
+        "maxItems": 1000
+      },
+      "projectionVersion": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/version"
+      },
+      "filterBeforeCount": {
+        "const": true
+      },
+      "resumable": {
+        "const": true
+      },
+      "requiresModules": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+        },
+        "minItems": 1,
+        "maxItems": 1000,
+        "uniqueItems": true,
+        "description": "Optional dependency guards. Every ID must be declared optional; the contribution is unavailable while any guarded module is absent or inactive."
+      }
+    },
+    "required": [
+      "id",
+      "model",
+      "fields",
+      "facets",
+      "permissions",
+      "context",
+      "engine",
+      "rebuildOperation",
+      "deleteOperation",
+      "invalidatedBy",
+      "projectionVersion",
+      "filterBeforeCount",
+      "resumable"
+    ],
+    "additionalProperties": false
+  },
+  "minItems": 0,
+  "maxItems": 1000
+}

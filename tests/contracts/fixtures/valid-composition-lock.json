@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0.0",
+  "applicationId": "example.app",
+  "sdkVersion": "1.0.0",
+  "coreVersion": "1.0.0",
+  "policy": {
+    "id": "creezio.module-policy",
+    "version": "1.0.0",
+    "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "compositionIntegrity": "sha256-83703613d479dcf035a2d731baa81ee9efeb06b98ffb80856e1de09392f8142a",
+  "modules": [
+    {
+      "moduleId": "creezio.tasks",
+      "origin": "https://example.invalid/creezio/tasks",
+      "version": "1.0.0",
+      "source": {
+        "kind": "snapshot",
+        "revision": "fixture-v1",
+        "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "contractIntegrity": "sha256-9fac97615060e572b08de80b9a3554b15017c207a0253bccd6fe73ac7d418409",
+      "runtime": {
+        "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000",
+        "location": {
+          "kind": "local",
+          "path": "artifacts/tasks-runtime.tgz"
+        }
+      },
+      "validation": {
+        "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000",
+        "location": {
+          "kind": "local",
+          "path": "artifacts/tasks-validation.tgz"
+        }
+      },
+      "dependencies": []
+    }
+  ]
+}

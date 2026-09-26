@@ -1,0 +1,425 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:validation",
+  "title": "Creezio validation v1",
+  "description": "Six suite contracts. A declaration or script path is not execution evidence; non-applicability is decided by approved consumer policy.",
+  "type": "object",
+  "properties": {
+    "gate": {
+      "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+    },
+    "suites": {
+      "type": "object",
+      "properties": {
+        "backend": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "const": "required"
+                },
+                "script": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                },
+                "tests": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                  },
+                  "minItems": 1,
+                  "maxItems": 1000
+                }
+              },
+              "required": [
+                "mode",
+                "script",
+                "tests"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "const": "not-applicable"
+                },
+                "script": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                },
+                "tests": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                  },
+                  "minItems": 1,
+                  "maxItems": 1000
+                },
+                "justification": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/absence"
+                }
+              },
+              "required": [
+                "mode",
+                "script",
+                "tests",
+                "justification"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "ui": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "const": "required"
+                },
+                "script": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                },
+                "tests": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                  },
+                  "minItems": 1,
+                  "maxItems": 1000
+                }
+              },
+              "required": [
+                "mode",
+                "script",
+                "tests"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "const": "not-applicable"
+                },
+                "script": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                },
+                "tests": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                  },
+                  "minItems": 1,
+                  "maxItems": 1000
+                },
+                "justification": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/absence"
+                }
+              },
+              "required": [
+                "mode",
+                "script",
+                "tests",
+                "justification"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "api-mcp": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "const": "required"
+                },
+                "script": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                },
+                "tests": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                  },
+                  "minItems": 1,
+                  "maxItems": 1000
+                }
+              },
+              "required": [
+                "mode",
+                "script",
+                "tests"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "const": "not-applicable"
+                },
+                "script": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                },
+                "tests": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                  },
+                  "minItems": 1,
+                  "maxItems": 1000
+                },
+                "justification": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/absence"
+                }
+              },
+              "required": [
+                "mode",
+                "script",
+                "tests",
+                "justification"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "widgets": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "const": "required"
+                },
+                "script": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                },
+                "tests": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                  },
+                  "minItems": 1,
+                  "maxItems": 1000
+                }
+              },
+              "required": [
+                "mode",
+                "script",
+                "tests"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "const": "not-applicable"
+                },
+                "script": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                },
+                "tests": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                  },
+                  "minItems": 1,
+                  "maxItems": 1000
+                },
+                "justification": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/absence"
+                }
+              },
+              "required": [
+                "mode",
+                "script",
+                "tests",
+                "justification"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "package": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "const": "required"
+                },
+                "script": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                },
+                "tests": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                  },
+                  "minItems": 1,
+                  "maxItems": 1000
+                }
+              },
+              "required": [
+                "mode",
+                "script",
+                "tests"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "const": "not-applicable"
+                },
+                "script": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                },
+                "tests": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                  },
+                  "minItems": 1,
+                  "maxItems": 1000
+                },
+                "justification": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/absence"
+                }
+              },
+              "required": [
+                "mode",
+                "script",
+                "tests",
+                "justification"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "docs": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "const": "required"
+                },
+                "script": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                },
+                "tests": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                  },
+                  "minItems": 1,
+                  "maxItems": 1000
+                }
+              },
+              "required": [
+                "mode",
+                "script",
+                "tests"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "const": "not-applicable"
+                },
+                "script": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                },
+                "tests": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                  },
+                  "minItems": 1,
+                  "maxItems": 1000
+                },
+                "justification": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/absence"
+                }
+              },
+              "required": [
+                "mode",
+                "script",
+                "tests",
+                "justification"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "backend",
+        "ui",
+        "api-mcp",
+        "widgets",
+        "package",
+        "docs"
+      ],
+      "additionalProperties": false
+    },
+    "policy": {
+      "$ref": "urn:creezio:contracts:v1:common#/$defs/policyRef"
+    },
+    "isolation": {
+      "type": "object",
+      "properties": {
+        "productionSecrets": {
+          "const": false
+        },
+        "publicationRights": {
+          "const": false
+        }
+      },
+      "required": [
+        "productionSecrets",
+        "publicationRights"
+      ],
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "sourceIntegrity": {
+          "const": true
+        },
+        "artifactIntegrity": {
+          "const": true
+        },
+        "profile": {
+          "const": true
+        },
+        "executedSuites": {
+          "const": true
+        }
+      },
+      "required": [
+        "sourceIntegrity",
+        "artifactIntegrity",
+        "profile",
+        "executedSuites"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "gate",
+    "suites",
+    "policy",
+    "isolation",
+    "evidence"
+  ],
+  "additionalProperties": false
+}

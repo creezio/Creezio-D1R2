@@ -170,3 +170,7 @@ Aucune tâche GPT n'est créée par cette spécification. Les versions, accès e
 ## Suivi de validation
 
 Chaque capacité recevra une spécification détaillée, ses tests, ses dépendances et ses preuves. Statuts : spécifié, implémenté, testé localement, testé dans l'hébergement cible, accès fournisseur manquant, point à résoudre. À la rédaction, aucun runtime Creezio-D1R2 n'est implémenté.
+
+## Graphe de dépendances
+
+Déclarer et afficher required/optional, versions/origines et ports publics ; résoudre transitivement et montrer « dépend de / utilisé par ». Refuser cycles, incompatibilités, référence privée ou dépendance obligatoire absente/inactive. Bloquer update/retrait cassant un consommateur, préserver données, retirer les seules contributions facultatives concernées. Recettes des six suites et des trois hébergements selon [DEPENDANCES-MODULES.md](DEPENDANCES-MODULES.md), avec archives multiéditeurs en T-30 et adoption en T-38.

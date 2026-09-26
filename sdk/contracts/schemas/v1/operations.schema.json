@@ -1,0 +1,397 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:operations",
+  "title": "Creezio operations v1",
+  "description": "Authoritative operations shared by API, MCP, UI and widgets. Semantic validation also rejects query mutation, missing resource/context permissions and contradictory approval/idempotency settings.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+      },
+      "title": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/text"
+      },
+      "kind": {
+        "type": "string",
+        "enum": [
+          "query",
+          "command"
+        ]
+      },
+      "input": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/schemaRef"
+      },
+      "output": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/schemaRef"
+      },
+      "permissions": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+        },
+        "minItems": 0,
+        "maxItems": 1000
+      },
+      "audiences": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/audience"
+        },
+        "minItems": 1,
+        "maxItems": 2
+      },
+      "actors": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/actor"
+        },
+        "minItems": 1,
+        "maxItems": 5
+      },
+      "context": {
+        "type": "string",
+        "enum": [
+          "required",
+          "application"
+        ]
+      },
+      "handler": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/codeRef"
+      },
+      "effects": {
+        "type": "object",
+        "properties": {
+          "reads": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+            },
+            "minItems": 0,
+            "maxItems": 1000
+          },
+          "writes": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+            },
+            "minItems": 0,
+            "maxItems": 1000
+          },
+          "emits": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+            },
+            "minItems": 0,
+            "maxItems": 1000
+          },
+          "calls": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+            },
+            "minItems": 0,
+            "maxItems": 1000
+          },
+          "providers": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "minItems": 0,
+            "maxItems": 1000
+          }
+        },
+        "required": [
+          "reads",
+          "writes",
+          "emits",
+          "calls",
+          "providers"
+        ],
+        "additionalProperties": false
+      },
+      "errors": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "retryable": {
+              "type": "boolean"
+            },
+            "outcome": {
+              "type": "string",
+              "enum": [
+                "rejected",
+                "unknown"
+              ]
+            }
+          },
+          "required": [
+            "code",
+            "retryable",
+            "outcome"
+          ],
+          "additionalProperties": false
+        },
+        "minItems": 0,
+        "maxItems": 1000
+      },
+      "pagination": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "const": "none"
+              }
+            },
+            "required": [
+              "mode"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "const": "cursor"
+              },
+              "cursorField": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "limitField": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "maxItems": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10000
+              }
+            },
+            "required": [
+              "mode",
+              "cursorField",
+              "limitField",
+              "maxItems"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "idempotency": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "const": "none"
+              }
+            },
+            "required": [
+              "mode"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "const": "required"
+              },
+              "keyField": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "scope": {
+                "type": "string",
+                "enum": [
+                  "actor-context-operation"
+                ]
+              },
+              "retentionSeconds": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "mode",
+              "keyField",
+              "scope",
+              "retentionSeconds"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "approval": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "const": "none"
+              }
+            },
+            "required": [
+              "mode"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "const": "required"
+              },
+              "permission": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+              },
+              "bind": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "actor",
+                    "context",
+                    "operation",
+                    "input-hash",
+                    "object-version"
+                  ]
+                },
+                "minItems": 5,
+                "maxItems": 5
+              },
+              "expiresAfterSeconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 604800
+              }
+            },
+            "required": [
+              "mode",
+              "permission",
+              "bind",
+              "expiresAfterSeconds"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "concurrency": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "none",
+              "object-version"
+            ]
+          },
+          "versionField": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "additionalProperties": false
+      },
+      "execution": {
+        "type": "object",
+        "properties": {
+          "maxDurationMs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 300000
+          },
+          "maxItems": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          },
+          "resumable": {
+            "type": "boolean"
+          },
+          "resumeOperation": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+          },
+          "cancelOperation": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+          },
+          "progressSchema": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/schemaRef"
+          }
+        },
+        "required": [
+          "maxDurationMs",
+          "maxItems",
+          "resumable"
+        ],
+        "additionalProperties": false
+      },
+      "audit": {
+        "type": "object",
+        "properties": {
+          "required": {
+            "const": true
+          },
+          "redactFields": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "minItems": 0,
+            "maxItems": 1000
+          }
+        },
+        "required": [
+          "required",
+          "redactFields"
+        ],
+        "additionalProperties": false
+      },
+      "public": {
+        "type": "boolean"
+      },
+      "requiresModules": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+        },
+        "minItems": 1,
+        "maxItems": 1000,
+        "uniqueItems": true,
+        "description": "Optional dependency guards. Every ID must be declared optional; the contribution is unavailable while any guarded module is absent or inactive."
+      }
+    },
+    "required": [
+      "id",
+      "title",
+      "kind",
+      "input",
+      "output",
+      "permissions",
+      "audiences",
+      "actors",
+      "context",
+      "handler",
+      "effects",
+      "errors",
+      "pagination",
+      "idempotency",
+      "approval",
+      "concurrency",
+      "execution",
+      "audit",
+      "public"
+    ],
+    "additionalProperties": false
+  },
+  "minItems": 0,
+  "maxItems": 1000
+}

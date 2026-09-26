@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { lstatSync, readFileSync } from 'node:fs';
+import { lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve, relative, isAbsolute, sep, dirname } from 'node:path';
 
 /** TAP counters are necessary as well as process success: skipped/empty is not a pass. */
@@ -14,6 +14,27 @@ export function inspectTap(output, exitCode) {
   const success = exitCode === 0 && counts.tests > 0 && counts.pass === counts.tests
     && ['fail', 'cancelled', 'skipped', 'todo'].every(key => counts[key] === 0);
   return { success, counts, reason: success ? null : 'Nonzero exit, missing, failed or unexecuted test' };
+}
+
+/** Each approved suite is mandatory; a missing directory cannot silently shrink coverage. */
+export function collectRequiredTests(root) {
+  const suites = ['quality', 'contracts'];
+  const files = [];
+  for (const suite of suites) {
+    const directory = resolve(root, 'tests', suite);
+    for (const entry of [root, resolve(root, 'tests'), directory]) {
+      const stat = lstatSync(entry);
+      if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error(`Invalid test directory: ${suite}`);
+    }
+    const names = readdirSync(directory).filter(name => name.endsWith('.test.mjs')).sort();
+    if (!names.length) throw new Error(`No tests found in required suite: ${suite}`);
+    for (const name of names) {
+      const stat = lstatSync(resolve(directory, name));
+      if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`Invalid test file in suite: ${suite}`);
+      files.push(`tests/${suite}/${name}`);
+    }
+  }
+  return files;
 }
 
 /** Includes untracked sources, excludes ignored evidence, and never follows symlinks. */

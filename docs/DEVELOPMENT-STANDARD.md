@@ -1,6 +1,6 @@
 # Standard de développement Creezio
 
-Ce document est le contrat commun du cœur, des modules, du SDK, des thèmes, des applications dérivées et des services séparés de l'écosystème. Les contrôles exécutables sont construits et qualifiés par lots. Avant le développement runtime, la phase P0 doit qualifier la gouvernance effective et ses chemins de validation ; écrire une règle dans un fichier ne l'active pas sur GitHub ou dans un outil d'IA.
+Ce document est le contrat commun du cœur, des modules, du SDK, des thèmes, des applications dérivées et des services séparés de l'écosystème. Les contrôles exécutables sont construits et qualifiés par lots. La phase P0 qualifie la gouvernance et ses chemins de validation ; le développement local reste autorisé pendant le blocage Actions selon GIT-FLOW, sans fusion anticipée ; écrire une règle dans un fichier ne l'active pas sur GitHub ou dans un outil d'IA.
 
 Les comportements produit sont définis par le [PRD](PRD.md), les [exigences](EXIGENCES.md), les [user stories](USER-STORIES.md), la [matrice des capacités](MATRICE-CAPACITES.md) et le [plan](PLAN-IMPLEMENTATION.md). Le [backlog](TODO.md) centralise les travaux et leurs preuves. Le [standard des modules](STANDARD-MODULE.md) et le [cycle Git](GIT-FLOW.md) s'appliquent sans méthode parallèle par contributeur.
 
@@ -99,3 +99,7 @@ Suivre exclusivement le [cycle Git](GIT-FLOW.md) lorsque GitHub est utilisé. Fu
 L'artefact livré doit correspondre à la révision finale réellement intégrée et testée. Avant modification de production, vérifier compatibilités, SQL central, droits et inscription obligatoire du parcours officiel. Une panne du registre suspend une nouvelle livraison à ce stade sans bloquer l'application déjà installée. La déclaration du résultat après publication est reprenable.
 
 Le compte rendu distingue ce qui a changé, ce qui a réellement été vérifié, l'état de livraison et les limites restantes. Les tâches ne sont closes que lorsque leurs critères le permettent. Ne pas présenter une qualification ciblée comme une recette globale du produit et ne pas promettre une surveillance ou une tâche planifiée inexistante.
+
+## 9. Impact des dépendances
+
+Tout changement de module vérifie le [graphe de dépendances](DEPENDANCES-MODULES.md), y compris ses consommateurs : déclarations/origines/plages/ports publics, contributions conditionnelles, composition/verrou et plan de changement. Les tests couvrent les versions compatibles et incompatibles, absence et désactivation. PRD, README, changelog et fiche d’impact expliquent les nouveaux prérequis ou ruptures ; ne pas laisser l’agent remplacer une dépendance manquante par une copie, un accès privé ou une réussite simulée.

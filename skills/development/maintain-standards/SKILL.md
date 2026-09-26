@@ -15,3 +15,7 @@ Lire les [règles communes et la phase autorisée](../../README.md), le [standar
 6. Traiter les protections distantes comme une configuration séparée, modifiable uniquement dans un mandat adapté. Lire leurs réglages effectifs et les qualifier avant de les annoncer actifs. Ne pas réclamer une confirmation par commande déjà autorisée et ne pas prétendre rendre inviolable un dérivé dont le propriétaire peut modifier le code.
 
 Contribuer par la branche et la PR prévues, sans réécriture de l'historique publié. Une future release du standard suit revue indépendante, squash puis vérification du nouveau SHA de main et de l'archive exacte. Indiquer quels consommateurs restent à mettre à jour ; ne pas propager automatiquement la modification à tous les forks.
+
+## Dépendances entre modules
+
+Appliquer le [contrat commun](../../../docs/DEPENDANCES-MODULES.md). Une modification du contrat de dépendances aligne schémas SDK, validateurs, fixtures, manifeste/verrou, gestionnaire, guides et critères du backlog. Préserver la distinction module Creezio, dépendance npm, fournisseur et capacité d’hébergement. Toute relaxation des conflits ou références doit être explicite et revue, jamais ajoutée pour faire passer la candidate.

@@ -30,6 +30,6 @@ body:
     id: evidence
     attributes:
       label: Preuves et impact
-      description: Date, version, profil, données fictives, fréquence et conséquences ; distinguer hypothèses et faits.
+      description: Date, version, profil, données fictives, fréquence et conséquences ; pour un problème intermodule, joindre la chaîne et le verrou expurgés, origines/versions, état des modules et intégrations. Distinguer hypothèses et faits.
     validations:
       required: true

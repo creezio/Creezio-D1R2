@@ -1,0 +1,244 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:models",
+  "title": "Creezio models v1",
+  "description": "Current data models. Semantic validation resolves fields, compatible relations, context boundaries and declared permissions. No SQL transformation scripts.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+      },
+      "title": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/text"
+      },
+      "scope": {
+        "type": "string",
+        "enum": [
+          "context",
+          "application"
+        ]
+      },
+      "contextField": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+      },
+      "fields": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "string",
+                "integer",
+                "number",
+                "boolean",
+                "date-time",
+                "json"
+              ]
+            },
+            "nullable": {
+              "type": "boolean"
+            },
+            "protected": {
+              "type": "boolean"
+            },
+            "computed": {
+              "type": "boolean"
+            },
+            "schema": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/schemaRef"
+            },
+            "default": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/jsonValue"
+            },
+            "constraints": {
+              "type": "object",
+              "properties": {
+                "minLength": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "maxLength": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "minimum": {
+                  "type": "number"
+                },
+                "maximum": {
+                  "type": "number"
+                },
+                "enum": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:creezio:contracts:v1:common#/$defs/jsonValue"
+                  },
+                  "minItems": 1,
+                  "maxItems": 1000
+                },
+                "pattern": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "nullable",
+            "protected",
+            "computed"
+          ],
+          "additionalProperties": false
+        },
+        "minItems": 1,
+        "maxItems": 1000
+      },
+      "primaryKey": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+        },
+        "minItems": 1,
+        "maxItems": 1000
+      },
+      "indexes": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "minItems": 1,
+              "maxItems": 1000
+            },
+            "unique": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "id",
+            "fields",
+            "unique"
+          ],
+          "additionalProperties": false
+        },
+        "minItems": 0,
+        "maxItems": 1000
+      },
+      "relations": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "minItems": 1,
+              "maxItems": 1000
+            },
+            "target": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+            },
+            "targetFields": {
+              "type": "array",
+              "items": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "minItems": 1,
+              "maxItems": 1000
+            },
+            "onDelete": {
+              "type": "string",
+              "enum": [
+                "restrict",
+                "set-null",
+                "cascade"
+              ]
+            },
+            "via": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+            }
+          },
+          "required": [
+            "id",
+            "fields",
+            "target",
+            "targetFields",
+            "onDelete"
+          ],
+          "additionalProperties": false
+        },
+        "minItems": 0,
+        "maxItems": 1000
+      },
+      "permissions": {
+        "type": "array",
+        "items": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
+        },
+        "minItems": 0,
+        "maxItems": 1000
+      },
+      "deletion": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "soft",
+              "hard"
+            ]
+          },
+          "requiresApproval": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "mode",
+          "requiresApproval"
+        ],
+        "additionalProperties": false
+      },
+      "public": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "id",
+      "title",
+      "scope",
+      "fields",
+      "primaryKey",
+      "indexes",
+      "relations",
+      "permissions",
+      "deletion",
+      "public"
+    ],
+    "additionalProperties": false
+  },
+  "minItems": 0,
+  "maxItems": 1000
+}

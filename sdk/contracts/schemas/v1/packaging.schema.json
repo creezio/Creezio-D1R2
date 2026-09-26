@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:packaging",
+  "title": "Creezio packaging v1",
+  "description": "Runtime and separate validation artifacts have closed references and immutable bindings. Fixture hashes describe test data, not a built package.",
+  "type": "object",
+  "properties": {
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+          },
+          "minItems": 1,
+          "maxItems": 1000
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+              },
+              "to": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+              },
+              "artifact": {
+                "type": "string",
+                "enum": [
+                  "runtime",
+                  "validation"
+                ]
+              }
+            },
+            "required": [
+              "from",
+              "to",
+              "artifact"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0,
+          "maxItems": 1000
+        }
+      },
+      "required": [
+        "files",
+        "references"
+      ],
+      "additionalProperties": false
+    },
+    "validation": {
+      "type": "object",
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+          },
+          "minItems": 1,
+          "maxItems": 1000
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+              },
+              "to": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+              },
+              "artifact": {
+                "type": "string",
+                "enum": [
+                  "runtime",
+                  "validation"
+                ]
+              }
+            },
+            "required": [
+              "from",
+              "to",
+              "artifact"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0,
+          "maxItems": 1000
+        }
+      },
+      "required": [
+        "files",
+        "references"
+      ],
+      "additionalProperties": false
+    },
+    "validationBinding": {
+      "type": "object",
+      "properties": {
+        "moduleId": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+        },
+        "moduleVersion": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/version"
+        },
+        "sourceRevision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "moduleId",
+        "moduleVersion",
+        "sourceRevision"
+      ],
+      "additionalProperties": false,
+      "description": "Identity binding only. Exact artifact hashes belong to a detached lock or receipt, never inside an artifact whose hash they describe."
+    },
+    "noRuntimeTests": {
+      "const": true
+    },
+    "installation": {
+      "const": "build-and-publish"
+    },
+    "providerInstallation": {
+      "const": false
+    }
+  },
+  "required": [
+    "runtime",
+    "validation",
+    "validationBinding",
+    "noRuntimeTests",
+    "installation",
+    "providerInstallation"
+  ],
+  "additionalProperties": false
+}

@@ -1,6 +1,6 @@
 # Repères du dépôt
 
-État : dossier de préparation avant GO. Aucun runtime, paquet exécutable, workflow de contrôle ou déploiement CMS dans cet arbre. Les noms de scripts futurs sont des contrats, pas des commandes disponibles.
+État : implémentation autorisée, contrôleurs P0 présents et contrats SDK en cours. Aucun CMS complet ni déploiement produit qualifié. Distinguer les scripts réellement présents des commandes encore prévues dans les contrats.
 
 | Emplacement | Responsabilité |
 |---|---|
@@ -25,6 +25,7 @@
 | [docs/GIT-FLOW.md](docs/GIT-FLOW.md) | Branches, commits, PR, revue, fusion et releases. |
 | [docs/CADRE-PRODUIT-ET-COMMUNAUTE.md](docs/CADRE-PRODUIT-ET-COMMUNAUTE.md) | Usages, communauté, registre et création. |
 | [docs/EXTENSIONS-THEMES-ECOSYSTEME.md](docs/EXTENSIONS-THEMES-ECOSYSTEME.md) | SDK, paquets, thèmes, starter et updates. |
+| [docs/DEPENDANCES-MODULES.md](docs/DEPENDANCES-MODULES.md) | Déclarations, graphe résolu, impacts et cycle de vie intermodules. |
 | [docs/INTERACTIONS-WIDGETS.md](docs/INTERACTIONS-WIDGETS.md) | Widgets multiples et trois modes par action ; hôte interne et GPT. |
 | [docs/COMPATIBILITE-CHATGPT.md](docs/COMPATIBILITE-CHATGPT.md) | MCP, widgets, plugins et skills conversationnels. |
 | [docs/STOCKAGE-ET-HEBERGEMENT.md](docs/STOCKAGE-ET-HEBERGEMENT.md) | Local, Sites, Cloudflare et transfert D1/R2. |
@@ -38,6 +39,8 @@
 - [scripts/quality](scripts/quality/) : documentation, gouvernance, empreintes et observation distante en lecture seule.
 - [tests/quality](tests/quality/) : cas positifs/négatifs des contrôleurs, fixtures temporaires nettoyées.
 - [Workflow P0](.github/workflows/p0-validation.yml) : tests sans secrets et agrégation ; origine réelle vérifiée par le mainteneur avant fusion.
-- [État P0](docs/IMPLEMENTATION-P0.md) et [CHANGELOG](CHANGELOG.md) : périmètre, preuves et limites.
+- [sdk/contracts](sdk/contracts/) : schémas versionnés, validation déclarative et analyse des compositions/transitions ; aucune exécution de module.
+- [tests/contracts](tests/contracts/) : fixtures de contrats et cas intermodules, widgets et chargement JSON borné.
+- [État P0](docs/IMPLEMENTATION-P0.md), [T-02](docs/IMPLEMENTATION-T02.md) et [CHANGELOG](CHANGELOG.md) : périmètre, preuves et limites.
 
 Tout ajout structurel met ce repère à jour. Chaque module construit fournit ensuite son propre FILES et ses instructions locales, conformément au standard commun.

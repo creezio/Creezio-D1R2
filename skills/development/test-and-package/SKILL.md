@@ -15,3 +15,7 @@ Lire les [règles communes et la phase autorisée](../../README.md), le [standar
 6. Pour une candidate de PR, un résultat sur A ne valide pas B ni une nouvelle base main. Après intégration/release, le SHA et l'artefact réellement livrés doivent correspondre aux preuves ; appliquer le [cycle Git](../../../docs/GIT-FLOW.md).
 
 Rendre un bilan des contrôles exécutés, échecs, éléments non vérifiés et artefacts identifiés. Une CI verte, une capture ou un healthcheck isolé n'est pas une recette produit complète. Nettoyer uniquement les temporaires créés devenus inutiles après vérification de leur usage.
+
+## Dépendances entre modules
+
+Appliquer le [contrat commun](../../../docs/DEPENDANCES-MODULES.md). Exercer dépendances requises et facultatives, versions/ports incompatibles, transitivité et cycles. Pour le packaging, utiliser les archives réelles des fournisseurs sans résolution cachée vers un checkout. Contrôler aussi les consommateurs après update/retrait, les contributions dans les six suites et les données conservées. La chaîne de plusieurs éditeurs et le scénario facultatif sont des critères du starter.

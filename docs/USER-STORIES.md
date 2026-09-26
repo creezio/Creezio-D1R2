@@ -17,7 +17,7 @@ Profil : **GitHub et local selon le profil**. Réalisation : [T-01](TODO.md#T-01
 
 En tant que **développeur de module**, je veux **disposer d’un contrat validé indépendamment de mes propres tests**, afin de **produire des extensions compatibles dès leur création**.
 
-Étant donné une installation ou un dépôt de test avec les prérequis déclarés, lorsque ce parcours est exécuté avec un acteur autorisé, alors les résultats définis dans [REQ-0201](EXIGENCES.md#REQ-0201), [REQ-0202](EXIGENCES.md#REQ-0202), [REQ-0203](EXIGENCES.md#REQ-0203) sont observables. Avec des droits, une configuration ou un artefact invalides, les refus et conservations prévus par ces mêmes critères sont vérifiés.
+Étant donné une installation ou un dépôt de test avec les prérequis déclarés, lorsque ce parcours est exécuté avec un acteur autorisé, alors les résultats définis dans [REQ-0201](EXIGENCES.md#REQ-0201), [REQ-0202](EXIGENCES.md#REQ-0202), [REQ-0203](EXIGENCES.md#REQ-0203), [REQ-0204](EXIGENCES.md#REQ-0204) sont observables. Avec des droits, une configuration ou un artefact invalides, les refus et conservations prévus par ces mêmes critères sont vérifiés.
 
 Livrable observable : Schémas initiaux et validateur SDK sur fixtures positives/négatives, raccordés à la garde de gouvernance T-01 ; suites applicatives qualifiées ensuite avec leurs vrais modules en T-11 et T-30.
 
@@ -116,9 +116,9 @@ Profil : **clients MCP réels et Site public**. Réalisation : [T-10](TODO.md#T-
 
 En tant que **développeur d’extension**, je veux **ajouter une fonctionnalité avec le contrat commun**, afin de **éviter toute intégration ad hoc dans chaque app**.
 
-Étant donné une installation ou un dépôt de test avec les prérequis déclarés, lorsque ce parcours est exécuté avec un acteur autorisé, alors les résultats définis dans [REQ-1101](EXIGENCES.md#REQ-1101), [REQ-1102](EXIGENCES.md#REQ-1102), [REQ-1103](EXIGENCES.md#REQ-1103) sont observables. Avec des droits, une configuration ou un artefact invalides, les refus et conservations prévus par ces mêmes critères sont vérifiés.
+Étant donné une installation ou un dépôt de test avec les prérequis déclarés, lorsque ce parcours est exécuté avec un acteur autorisé, alors les résultats définis dans [REQ-1101](EXIGENCES.md#REQ-1101), [REQ-1102](EXIGENCES.md#REQ-1102), [REQ-1103](EXIGENCES.md#REQ-1103), [REQ-1104](EXIGENCES.md#REQ-1104), [REQ-1105](EXIGENCES.md#REQ-1105), [REQ-1106](EXIGENCES.md#REQ-1106) sont observables. Avec des droits, une configuration ou un artefact invalides, les refus et conservations prévus par ces mêmes critères sont vérifiés.
 
-Livrable observable : SDK versionné, module natif modules-settings, catalogue/configuration/diagnostic, dépendances et composition.
+Livrable observable : SDK versionné, résolveur et verrou transitif, module natif modules-settings, catalogue/configuration/diagnostic « dépend de / utilisé par », plan de changement et gardes communes du cycle de vie. Contributions facultatives et relations persistantes contrôlées selon DEPENDANCES-MODULES.md.
 
 Profil : **local et app hôte**. Réalisation : [T-11](TODO.md#T-11) ; dépendances et statut y sont suivis.
 
@@ -325,9 +325,9 @@ Profil : **chaque fournisseur réel autorisé**. Réalisation : [T-29](TODO.md#T
 
 En tant que **éditeur de module externe**, je veux **partir d’un dépôt prêt puis publier une extension installable**, afin de **contribuer sans reconstruire les conventions du CMS**.
 
-Étant donné une installation ou un dépôt de test avec les prérequis déclarés, lorsque ce parcours est exécuté avec un acteur autorisé, alors les résultats définis dans [REQ-3001](EXIGENCES.md#REQ-3001), [REQ-3002](EXIGENCES.md#REQ-3002), [REQ-3003](EXIGENCES.md#REQ-3003) sont observables. Avec des droits, une configuration ou un artefact invalides, les refus et conservations prévus par ces mêmes critères sont vérifiés.
+Étant donné une installation ou un dépôt de test avec les prérequis déclarés, lorsque ce parcours est exécuté avec un acteur autorisé, alors les résultats définis dans [REQ-3001](EXIGENCES.md#REQ-3001), [REQ-3002](EXIGENCES.md#REQ-3002), [REQ-3003](EXIGENCES.md#REQ-3003), [REQ-3004](EXIGENCES.md#REQ-3004) sont observables. Avec des droits, une configuration ou un artefact invalides, les refus et conservations prévus par ces mêmes critères sont vérifiés.
 
-Livrable observable : Starter destiné à un dépôt public, paquet runtime, validation autonome, plugin et démo locale ; comparateur fournisseur de référence. Vérifier les droits avant toute distribution concernée ; publication de la démo qualifiée en T-32.
+Livrable observable : Starter destiné à un dépôt public, paquet runtime, validation autonome, plugin et démo locale ; comparateur fournisseur de référence, chaîne de dépendances interéditeurs et intégration facultative depuis les archives réelles. Vérifier les droits avant toute distribution concernée ; publication de la démo qualifiée en T-32.
 
 Profil : **tarball dans app de validation indépendante et démo locale**. Réalisation : [T-30](TODO.md#T-30) ; dépendances et statut y sont suivis.
 
@@ -413,9 +413,9 @@ Profil : **GitHub et deux Sites publics**. Réalisation : [T-37](TODO.md#T-37) ;
 
 En tant que **éditeur d’app dérivée**, je veux **adopter les évolutions choisies du socle et de mes modules**, afin de **profiter de la communauté sans perdre mon travail**.
 
-Étant donné une installation ou un dépôt de test avec les prérequis déclarés, lorsque ce parcours est exécuté avec un acteur autorisé, alors les résultats définis dans [REQ-3801](EXIGENCES.md#REQ-3801), [REQ-3802](EXIGENCES.md#REQ-3802) sont observables. Avec des droits, une configuration ou un artefact invalides, les refus et conservations prévus par ces mêmes critères sont vérifiés.
+Étant donné une installation ou un dépôt de test avec les prérequis déclarés, lorsque ce parcours est exécuté avec un acteur autorisé, alors les résultats définis dans [REQ-3801](EXIGENCES.md#REQ-3801), [REQ-3802](EXIGENCES.md#REQ-3802), [REQ-3803](EXIGENCES.md#REQ-3803) sont observables. Avec des droits, une configuration ou un artefact invalides, les refus et conservations prévus par ces mêmes critères sont vérifiés.
 
-Livrable observable : Release A→B, update individuelle de module/thème, starter installé, issue/PR amont et preuves de compatibilité ; publication Cloudflare du fork via le parcours T-32.
+Livrable observable : Release A→B, update individuelle de module/thème, starter installé, issue/PR amont, refus d’update/retrait cassant les consommateurs et preuves des intégrations facultatives ; publication Cloudflare du fork via le parcours T-32.
 
 Profil : **A/B, Cloudflare, tarballs et GitHub**. Réalisation : [T-38](TODO.md#T-38) ; dépendances et statut y sont suivis.
 

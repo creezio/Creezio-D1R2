@@ -1,0 +1,282 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:documentation",
+  "title": "Creezio documentation v1",
+  "description": "Installed package documents are version-bound; local approved PRD revisions and installation history have distinct lifecycles.",
+  "type": "object",
+  "properties": {
+    "installed": {
+      "type": "object",
+      "properties": {
+        "readme": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+            },
+            "visibility": {
+              "type": "string",
+              "enum": [
+                "public",
+                "restricted"
+              ]
+            },
+            "artifact": {
+              "type": "string",
+              "enum": [
+                "runtime",
+                "validation"
+              ]
+            }
+          },
+          "required": [
+            "path",
+            "visibility",
+            "artifact"
+          ],
+          "additionalProperties": false
+        },
+        "prd": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+            },
+            "visibility": {
+              "type": "string",
+              "enum": [
+                "public",
+                "restricted"
+              ]
+            },
+            "artifact": {
+              "type": "string",
+              "enum": [
+                "runtime",
+                "validation"
+              ]
+            }
+          },
+          "required": [
+            "path",
+            "visibility",
+            "artifact"
+          ],
+          "additionalProperties": false
+        },
+        "changelog": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+            },
+            "visibility": {
+              "type": "string",
+              "enum": [
+                "public",
+                "restricted"
+              ]
+            },
+            "artifact": {
+              "type": "string",
+              "enum": [
+                "runtime",
+                "validation"
+              ]
+            }
+          },
+          "required": [
+            "path",
+            "visibility",
+            "artifact"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "readme",
+        "prd",
+        "changelog"
+      ],
+      "additionalProperties": false
+    },
+    "development": {
+      "type": "object",
+      "properties": {
+        "agents": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+            },
+            "visibility": {
+              "type": "string",
+              "enum": [
+                "public",
+                "restricted"
+              ]
+            },
+            "artifact": {
+              "type": "string",
+              "enum": [
+                "runtime",
+                "validation"
+              ]
+            }
+          },
+          "required": [
+            "path",
+            "visibility",
+            "artifact"
+          ],
+          "additionalProperties": false
+        },
+        "files": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+            },
+            "visibility": {
+              "type": "string",
+              "enum": [
+                "public",
+                "restricted"
+              ]
+            },
+            "artifact": {
+              "type": "string",
+              "enum": [
+                "runtime",
+                "validation"
+              ]
+            }
+          },
+          "required": [
+            "path",
+            "visibility",
+            "artifact"
+          ],
+          "additionalProperties": false
+        },
+        "interview": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+            },
+            "visibility": {
+              "type": "string",
+              "enum": [
+                "public",
+                "restricted"
+              ]
+            },
+            "artifact": {
+              "type": "string",
+              "enum": [
+                "runtime",
+                "validation"
+              ]
+            }
+          },
+          "required": [
+            "path",
+            "visibility",
+            "artifact"
+          ],
+          "additionalProperties": false
+        },
+        "todo": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+            },
+            "visibility": {
+              "type": "string",
+              "enum": [
+                "public",
+                "restricted"
+              ]
+            },
+            "artifact": {
+              "type": "string",
+              "enum": [
+                "runtime",
+                "validation"
+              ]
+            }
+          },
+          "required": [
+            "path",
+            "visibility",
+            "artifact"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "agents",
+        "files",
+        "interview",
+        "todo"
+      ],
+      "additionalProperties": false
+    },
+    "versionBinding": {
+      "type": "object",
+      "properties": {
+        "moduleVersion": {
+          "$ref": "urn:creezio:contracts:v1:common#/$defs/version"
+        },
+        "sourceRevision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "moduleVersion",
+        "sourceRevision"
+      ],
+      "additionalProperties": false
+    },
+    "localRevisions": {
+      "type": "object",
+      "properties": {
+        "installedVersionDistinct": {
+          "const": true
+        },
+        "approvedImmutable": {
+          "const": true
+        }
+      },
+      "required": [
+        "installedVersionDistinct",
+        "approvedImmutable"
+      ],
+      "additionalProperties": false
+    },
+    "installationHistory": {
+      "type": "object",
+      "properties": {
+        "distinctFromPackageChangelog": {
+          "const": true
+        }
+      },
+      "required": [
+        "distinctFromPackageChangelog"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "installed",
+    "development",
+    "versionBinding",
+    "localRevisions",
+    "installationHistory"
+  ],
+  "additionalProperties": false
+}

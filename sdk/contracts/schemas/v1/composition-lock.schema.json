@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:composition-lock",
+  "title": "Creezio composition-lock v1",
+  "description": "Resolved exact identities, versions and artifact bytes. A lock is accepted only against its composition, descriptors and verified artifacts.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "applicationId": {
+      "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+    },
+    "sdkVersion": {
+      "$ref": "urn:creezio:contracts:v1:common#/$defs/version"
+    },
+    "coreVersion": {
+      "$ref": "urn:creezio:contracts:v1:common#/$defs/version"
+    },
+    "policy": {
+      "$ref": "urn:creezio:contracts:v1:common#/$defs/policyRef"
+    },
+    "compositionIntegrity": {
+      "$ref": "urn:creezio:contracts:v1:common#/$defs/integrity",
+      "description": "SHA-256 of canonical composition JSON: recursively sort object keys by UTF-16 code units, preserve array order, JSON.stringify primitives, no whitespace, UTF-8 bytes."
+    },
+    "modules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "moduleId": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "origin": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/httpsUri"
+          },
+          "version": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/version"
+          },
+          "source": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/source"
+          },
+          "contractIntegrity": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/integrity",
+            "description": "SHA-256 of canonical module descriptor JSON using the same canonicalization as compositionIntegrity."
+          },
+          "runtime": {
+            "type": "object",
+            "properties": {
+              "integrity": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/integrity"
+              },
+              "location": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "local"
+                      },
+                      "path": {
+                        "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "path"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "https"
+                      },
+                      "url": {
+                        "$ref": "urn:creezio:contracts:v1:common#/$defs/httpsUri"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "url"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "required": [
+              "integrity",
+              "location"
+            ],
+            "additionalProperties": false
+          },
+          "validation": {
+            "type": "object",
+            "properties": {
+              "integrity": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/integrity"
+              },
+              "location": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "local"
+                      },
+                      "path": {
+                        "$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "path"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "https"
+                      },
+                      "url": {
+                        "$ref": "urn:creezio:contracts:v1:common#/$defs/httpsUri"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "url"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "required": [
+              "integrity",
+              "location"
+            ],
+            "additionalProperties": false
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "moduleId": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+                },
+                "version": {
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/version"
+                }
+              },
+              "required": [
+                "moduleId",
+                "version"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 0,
+            "maxItems": 1000,
+            "description": "Exact dependency edges into this lock. Target node carries its origin, source, contract and runtime/validation integrity; all transitive targets are resolved and checked. Absent optional dependencies have no edge."
+          }
+        },
+        "required": [
+          "moduleId",
+          "origin",
+          "version",
+          "source",
+          "contractIntegrity",
+          "runtime",
+          "validation",
+          "dependencies"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "maxItems": 1000
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "applicationId",
+    "sdkVersion",
+    "coreVersion",
+    "policy",
+    "compositionIntegrity",
+    "modules"
+  ],
+  "additionalProperties": false
+}
