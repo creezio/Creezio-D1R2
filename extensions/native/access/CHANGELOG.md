@@ -2,6 +2,8 @@
 
 ## 0.0.0 — travail non publié
 
+Installation opérateur locale du schéma central et du premier compte : réutilisation des modèles, du provisionnement et du bootstrap natifs, sans nouvelle table ni API publique. Inspection conservatrice, refus d'écrasement et reprise sans remplacement d'une capacité vivante ou d'un marqueur consommé.
+
 Entrées navigateur `/access/admin` et `/access/app` via le SDK partagé de l'hôte, activées par composition et audience. Le manifeste garde les vues métier privées absentes ; les tests du SDK, du rendu et du navigateur sont distingués des six suites du module. Aucun modèle ou SQL ajouté pour l'interface de connexion.
 
 Modèles d'identité : comptes, mots de passe, sessions, installation explicite, audit technique et admission. SQL généré centralement et persistance exercée dans D1.

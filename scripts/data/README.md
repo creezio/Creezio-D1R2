@@ -23,6 +23,14 @@ L'affinité SQLite peut convertir des valeurs avant le CHECK : les contraintes q
 
 Le générateur refuse plus de 100 colonnes par table et un statement dépassant 100 000 octets, conformément aux [limites D1](https://developers.cloudflare.com/d1/platform/limits/). Le nombre de requêtes autorisé par invocation et l'atomicité du parcours de publication ne se déduisent pas de ces deux limites. Les particularités NULL, clés et contraintes suivent la [documentation SQLite CREATE TABLE](https://www.sqlite.org/lang_createtable.html).
 
-## Preuves locales
+## Installation opérateur Access
+
+[install-access.mjs](install-access.mjs) est un outil Node réservé au responsable du stockage. Il charge les artefacts fixes et vérifiés, fournit une inspection expurgée, crée le schéma neuf sur confirmation explicite puis réutilise les services natifs de compte. Aucun SQL arbitraire, chemin de module exécutable ou objet de plan forgé n'est accepté. L'application du schéma et la consommation du bootstrap constituent deux étapes distinctes ; les réponses inconnues ne déclenchent pas de nouvelle écriture automatique.
+
+La comparaison porte sur la base entière dans ce premier installateur, et non seulement sur le namespace Access. Refus des objets/données étrangers, absence de réparation, marqueur consommé conservé. La définition exacte de `_cf_METADATA` créée paresseusement par Miniflare est la seule exception interne qualifiée ; aucun préfixe `_cf_` ou `sqlite_` n'est ignoré globalement. Un adaptateur distant doit qualifier ses objets internes et budgets avant de réutiliser cette installation. Le journal central d'évolution complet reste distinct, en T-05.
+
+Le [parcours local](../../docs/INSTALLATION-LOCALE.md) raccorde cette API au même stockage que le runtime. Ses commandes ne sont pas une API publique et ne sont pas importées dans le Worker produit.
+
+## Qualification du générateur
 
 [sql-schema.test.mjs](../../tests/identity/sql-schema.test.mjs) vérifie la génération et ses refus, puis applique des schémas synthétiques dans de vrais D1 Miniflare isolés : clés, CHECK, défauts, JSON, Unicode, FKs, rollback et inspection sans réparation. Les états éphémères sont fermés par `dispose`. Ces tests ne qualifient ni une production Cloudflare/Sites, ni un algorithme d'évolution de schéma, ni les parcours applicatifs d'accès.

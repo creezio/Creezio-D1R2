@@ -31,6 +31,7 @@
 | [docs/STOCKAGE-ET-HEBERGEMENT.md](docs/STOCKAGE-ET-HEBERGEMENT.md) | Local, Sites, Cloudflare et transfert D1/R2. |
 | [docs/LICENCES-ET-OFFRES.md](docs/LICENCES-ET-OFFRES.md) | Politiques/activation/accompagnement et décisions commerciales différées. |
 | [docs/QUALIFICATION-SITES.md](docs/QUALIFICATION-SITES.md) | Preuves techniques limitées, distinctes du CMS. |
+| [docs/INSTALLATION-LOCALE.md](docs/INSTALLATION-LOCALE.md) | Inspection, premier compte local, configuration commune et reprises sans écrasement. |
 | [docs/AUDIT-AVANT-DEVELOPPEMENT.md](docs/AUDIT-AVANT-DEVELOPPEMENT.md) | Audit croisé et conditions de démarrage/livraison. |
 
 ## Contrôleurs P0 en cours
@@ -64,7 +65,8 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 
 - [core/identity](core/identity/) : credentials opaques, cryptographie, stockage D1 et services natifs de comptes, droits et impersonation ; transport natif login/session/logout dans http.ts et ses règles d'origine, corps et cookies dans http-policy.ts.
 - [extensions/native/access](extensions/native/access/) : vingt et un modèles privés d'identité et de droits, contrat, documentation et six suites ; module sélectionné par la composition pour activer le transport natif, sans contributions UI/API métier/MCP encore exposées.
-- [scripts/data](scripts/data/) et [data/schema/access.sql](data/schema/access.sql) : génération centrale inspectable et contrôle de dérive, sans application automatique à une base.
+- [scripts/data](scripts/data/) et [data/schema/access.sql](data/schema/access.sql) : génération centrale inspectable, contrôle de dérive et moteur d'installation opérateur explicite ; aucune application SQL au démarrage du Worker.
+- [scripts/local](scripts/local/) : configuration et stockage locaux communs, verrou des commandes officielles, saisie terminal sans écho et parcours opérateur ; aucun accès fournisseur.
 - [core/authorization](core/authorization/) : moteur pur, résolveur natif partagé, contrat de politique, lecture D1 cohérente et service de remplacement des droits protégé par session/epoch/claim ; décision pure distincte d'une écriture autorisée.
 - [tests/identity](tests/identity/) : tokens, droits et qualification cryptographique ; données exclusivement synthétiques.
 - [État T-04](docs/IMPLEMENTATION-T04.md) : tranches, portée des contrôles et garanties restant à raccorder.

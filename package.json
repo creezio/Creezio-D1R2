@@ -17,7 +17,9 @@
     "check:data": "node scripts/data/prepare-access.mjs",
     "dev": "node scripts/run-framework.mjs dev",
     "build": "node scripts/run-framework.mjs build",
-    "start": "node --import ./scripts/local-environment.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
+    "start": "node scripts/run-framework.mjs start",
+    "access:inspect": "node scripts/local/install.mjs inspect",
+    "access:install": "node scripts/local/install.mjs install",
     "typecheck": "node scripts/build/compose-runtime.mjs && tsc --noEmit",
     "test:runtime": "node --test --test-concurrency=1 tests/runtime/*.test.mjs",
     "test:identity": "node --test --test-concurrency=1 tests/identity/*.test.mjs"

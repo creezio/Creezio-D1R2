@@ -84,7 +84,8 @@ const stringify = value => JSON.stringify(value, null, 2);
  * Does not install packages, import their code, grant authorization, execute SQL, or publish anything.
  * Package archive provenance/integrity is a separate T-30 qualification; an installed directory is not that proof.
  */
-export async function composeRuntime({ root = process.cwd(), compositionPath = 'configuration/composition.json', lockPath, outputDir = '.creezio/generated' } = {}) {
+/** Read and validate inert composition descriptors without generating output or loading module code. */
+export function loadRuntimeComposition({ root = process.cwd(), compositionPath = 'configuration/composition.json', lockPath } = {}) {
   root = path.resolve(root);
   confined(root, root, { directory: true });
   const compositionFile = confined(root, compositionPath);
@@ -94,6 +95,13 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   const located = composition.modules.map(selection => locateModule(root, selection));
   const result = validateComposition(composition, { modules: located.map(item => item.descriptor), lock });
   if (result.errors.length) throw new CompositionBuildError('composition.invalid', 'Composition and lock validation failed.', result.errors);
+  return { root, compositionFile, lockFile, composition, located, result };
+}
+
+export async function composeRuntime({ root = process.cwd(), compositionPath = 'configuration/composition.json', lockPath, outputDir = '.creezio/generated' } = {}) {
+  const loaded = loadRuntimeComposition({ root, compositionPath, lockPath });
+  root = loaded.root;
+  const { compositionFile, lockFile, composition, located, result } = loaded;
   const output = confined(root, outputDir, { directory: true, missing: true });
   const destinations = Object.fromEntries(['server.ts', 'client.tsx', 'composition.json'].map(name => [name, confined(root, path.join(output, name), { missing: true })]));
   if (located.some(item => contained(item.directory, output))

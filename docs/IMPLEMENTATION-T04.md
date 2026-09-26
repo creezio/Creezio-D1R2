@@ -1,6 +1,6 @@
 # T-04 — Identités et droits natifs
 
-Fondations, comptes, droits D1, cycle de comptes, machines, administration humaine, impersonation et transport HTTP sont intégrés jusqu’à la PR #11, main qualifié `0192c8d` (542 tests). Le lot [T-04](TODO.md#T-04) reste **en cours**. La tranche `core/t04-native-ui` ajoute les entrées navigateur et le SDK de session partagé ; les autres transports, la livraison des liens et l'administration visuelle restent à construire. [REQ-0401](EXIGENCES.md#REQ-0401), [REQ-0402](EXIGENCES.md#REQ-0402) et [REQ-0403](EXIGENCES.md#REQ-0403) restent partiellement ou non qualifiées selon leurs parcours.
+Fondations, comptes, droits D1, cycle de comptes, machines, administration humaine, impersonation, transport HTTP et entrée navigateur sont intégrés jusqu’à la PR #12, main qualifié `94194a9` (575 tests). Le lot [T-04](TODO.md#T-04) reste **en cours**. La tranche `core/t04-installation` construit le parcours opérateur local ; les autres transports, la livraison des liens et l'administration visuelle restent à construire. [REQ-0401](EXIGENCES.md#REQ-0401), [REQ-0402](EXIGENCES.md#REQ-0402) et [REQ-0403](EXIGENCES.md#REQ-0403) restent partiellement ou non qualifiées selon leurs parcours.
 
 ## Tranches et critères
 
@@ -10,7 +10,15 @@ Fondations, comptes, droits D1, cycle de comptes, machines, administration humai
 - Autorisations effectives : résolution fraîche depuis D1, droits au commit, impersonation contrôlée et auditée, raccordement aux opérations communes. Le protocole OAuth/MCP complet reste [T-10](TODO.md#T-10).
 - Interfaces : connexion native, état de session et gestion des accès, purge lors du changement d'identité, six suites du module access puis recettes Sites/Cloudflare.
 
+L'identité locale qualifiée, comprenant le parcours d'installation explicite, est un jalon consommable par T-05. Les fondations de stockage utiles permettent ensuite T-06. Les opérations administratives Access utilisent ce registre commun ; ne pas multiplier des routes particulières au prétexte de terminer T-04. Les droits par UI/API/MCP/widgets et OAuth gardent leurs critères ouverts jusqu'aux canaux T-06/T-07/T-10.
+
 ## Fondations présentes
+
+Le [parcours d'installation locale](INSTALLATION-LOCALE.md) est construit dans la tranche opérateur. Le moteur central charge les modèles, le manifeste et le SQL approuvé, sans exécuter le code des modules ; la composition doit activer Access et exposer son entrée administrative. Le plan capturé est immuable. L'inspection distingue base neuve, schéma prêt, capacité vivante ou expirée, installation consommée, incompatibilité et indisponibilité.
+
+Les CREATE explicites s'appliquent dans un batch gardé par la définition complète du schéma. Les batches des services natifs conservent leurs gardes et reçoivent les contrôles d'installation ; aucun objet étranger ni donnée non technique ne peut être accepté silencieusement. Seule la définition exacte de la métadonnée interne Miniflare qualifiée peut être absente ou présente ; pas d'exemption par préfixe. La création du schéma ne constitue pas une transaction globale avec la création du compte. Une réponse perdue déclenche une observation, jamais un nouvel essai automatique ; une consommation ne peut être attribuée à cet appel qu'à partir de sa propre capacité encore connue.
+
+La CLI locale affiche cible et empreinte du SQL, recueille les credentials sans écho puis demande la confirmation finale. Elle utilise directement les services canoniques sous Node 24 et le proxy D1 Miniflare, sans handler HTTP privilégié. Configuration/persistance/port communs avec les commandes officielles de développement et de démarrage, verrou coopératif conservé jusqu'à fermeture du moteur. Un arrêt brutal ou une fermeture incertaine ne justifie pas la suppression automatique du verrou. Les essais et la recette sur le build final sont liés au candidat ; aucune base utilisateur n'est utilisée pour la qualification.
 
 `core/identity/tokens.ts` émet 256 bits aléatoires via Web Crypto. Session, token API, invitation, activation, reset, installation et impersonation ont des formats séparés. Seule l'empreinte liée à cet usage est destinée au stockage ; le secret est délivré au destinataire prévu, sans journalisation. Versions inconnues, mauvaise longueur, encodage non canonique et utilisation dans un autre canal sont refusés.
 

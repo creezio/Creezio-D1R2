@@ -336,6 +336,8 @@ Le parcours obligatoire utilise Docker comme environnement local de développeme
 
 Le [backlog](TODO.md) porte les dépendances exécutables, les exigences et les preuves de chaque tâche. Les lots ci-dessous regroupent le travail ; leur numéro n'autorise pas à ignorer une dépendance. La première tranche P1 utilise le minimum P2 nécessaire aux comptes/données/opérations. Le GO complet est acquis. Les contrôleurs locaux P0 permettent la suite selon les jalons consommables ; la décision explicite de poursuivre localement pendant le blocage Actions est décrite dans GIT-FLOW. Aucune fusion ne contourne les contrôles distants.
 
+T-05 consomme l'identité locale qualifiée de T-04 (comptes/droits persistants, installation explicite, transport et entrée natifs), sans attendre la qualification de tous les canaux futurs. T-06 consomme ensuite les fondations de stockage dont ses opérations ont besoin. Les critères transversaux de T-04 restent ouverts jusqu'aux interfaces et transports T-06/T-07/T-10 ; aucune clôture artificielle pour débloquer la suite. L'administration Access déclare ses opérations dans le registre commun ; seules les routes de handshake d'identité restent une responsabilité native distincte.
+
 | Lot | Tâches canoniques | Résultat et sortie |
 |---|---|---|
 | P0 — Méthode et contrats exécutables | T-01, T-02 | Activer/qualifier règles GitHub, revue distincte, premiers contrôles de documentation/contrats/gouvernance et cas invalides. Ne pas annoncer des suites runtime exécutées avant leur construction. |

@@ -4,7 +4,7 @@ import { cpSync, mkdirSync, readFileSync, writeFileSync, existsSync, symlinkSync
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { transform } from 'esbuild';
-import { composeRuntime } from '../../scripts/build/compose-runtime.mjs';
+import { composeRuntime, loadRuntimeComposition } from '../../scripts/build/compose-runtime.mjs';
 import { contractIntegrity } from '../../sdk/contracts/validate.mjs';
 import { temporaryDirectory } from '../quality/temporary.mjs';
 
@@ -53,6 +53,20 @@ async function clientRegistry(root) {
   const { code } = await transform(source, { loader: 'tsx', format: 'esm' });
   return import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 }
+
+test('operator composition read validates the same lock without generating files or running module code', t => {
+  const f = fixture(t, 'access');
+  // A source file that throws would expose accidental import/execution of module code.
+  writeFileSync(path.join(f.root, accessPath, 'module/entry.server.ts'), 'throw new Error("Module code must remain inert during inspection");');
+  const loaded = loadRuntimeComposition({ root: f.root });
+  assert.deepEqual(loaded.composition, f.composition);
+  assert.equal(loaded.located[0].descriptor.identity.id, 'creezio.access');
+  assert.equal(existsSync(path.join(f.root, '.creezio')), false);
+  f.lock.compositionIntegrity = `sha256-${'0'.repeat(64)}`;
+  write(path.join(f.root, 'configuration/composition.lock.json'), f.lock);
+  assert.throws(() => loadRuntimeComposition({ root: f.root }), error => error.code === 'composition.invalid');
+  assert.equal(existsSync(path.join(f.root, '.creezio')), false);
+});
 
 test('an explicitly empty composition builds no module, view, native access or witness import', async t => {
   const f = fixture(t, false), result = await composeRuntime({ root: f.root });
