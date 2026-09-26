@@ -56,13 +56,14 @@ test('server permission catalogue is detached and immutable and cannot replace t
   const external = [{ id: 'example.notes:read', audiences: ['app'], actors: ['user'] }];
   const resolver = createNativeAuthorizationResolver(fake.db, { permissions: external });
   external[0].id = 'example.notes:write'; external[0].audiences.push('admin'); external.push({ id: 'example.other:read', audiences: ['app'], actors: ['user'] });
-  assert.equal(resolver.permissions.length, 2); assert.equal(resolver.permissions[1].id, 'example.notes:read');
-  assert.deepEqual(resolver.permissions[1].audiences, ['app']);
+  assert.deepEqual(resolver.permissions.map(permission => permission.id).sort(),
+    ['creezio.access:impersonate', 'creezio.access:manage', 'example.notes:read']);
+  assert.deepEqual(resolver.permissions.find(permission => permission.id === 'example.notes:read').audiences, ['app']);
   assert.throws(() => resolver.permissions.push(external[0]), TypeError);
   assert.throws(() => resolver.permissions[0].actors.push('machine'), TypeError);
   assert.throws(() => { resolver.permissions[0].id = 'example.other:write'; }, TypeError);
   assert.throws(() => ACCESS_MANAGEMENT.requiredPermissionIds.splice(0), TypeError);
-  for (const id of ['creezio.access:manage', 'creezio.access:manage\n'])
+  for (const id of ['creezio.access:manage', 'creezio.access:manage\n', 'creezio.access:impersonate', 'creezio.access:impersonate\n'])
     assert.throws(() => serviceWith([{ id, actors: ['machine'], audiences: ['app'] }]), /Invalid server permission catalog/);
   function serviceWith(permissions) { return createAccountLifecycleService(fake.db, { permissions }); }
 });
