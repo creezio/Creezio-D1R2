@@ -6,7 +6,7 @@ import {generateD1Schema} from '../../../../../scripts/data/d1-schema.mjs';
 test('access owns private identity models and a deterministic relational schema',()=>{
  const models=JSON.parse(read('module/models.json'));
  assert.deepEqual(manifest.contracts.models,models);
- assert.equal(models.length,17);
+ assert.equal(models.length,19);
  for(const model of models){assert.equal(model.public,false);assert.ok(model.fields.every(field=>field.protected));}
  const generated=generateD1Schema(manifest.identity.id,models);
  assert.equal(Object.keys(generated.tables).length,models.length);
@@ -65,4 +65,26 @@ test('account capabilities own purpose-bound target snapshots and never embed gr
  assert.ok(capability.indexes.some(index=>JSON.stringify(index.fields)===JSON.stringify(['principal_id','revoked_at_ms','consumed_at_ms','expires_at_ms'])),'outstanding target capabilities need a selective index');
  assert.ok(capability.indexes.some(index=>JSON.stringify(index.fields)===JSON.stringify(['revoked_at_ms','consumed_at_ms','expires_at_ms'])),'global outstanding count must not scan consumed history');
  assert.ok(models.find(model=>model.id==='sessions').indexes.some(index=>JSON.stringify(index.fields)===JSON.stringify(['principal_id','revoked_at_ms','expires_at_ms'])),'live target sessions need a selective index');
+});
+
+test('machine credentials persist hashes and exact scope tuples without implicit account rights',()=>{
+ const models=JSON.parse(read('module/models.json'));
+ const credentials=models.find(model=>model.id==='api_credentials');
+ const scopes=models.find(model=>model.id==='api_credential_scopes');
+ assert.deepEqual(credentials.primaryKey,['id']);
+ assert.deepEqual(credentials.fields.find(field=>field.id==='secret_hash').constraints,{minLength:71,maxLength:71});
+ assert.ok(credentials.indexes.some(index=>index.unique&&JSON.stringify(index.fields)===JSON.stringify(['secret_hash'])));
+ assert.ok(credentials.indexes.some(index=>index.unique&&JSON.stringify(index.fields)===JSON.stringify(['revocation_nonce'])));
+ assert.ok(credentials.indexes.some(index=>JSON.stringify(index.fields)===JSON.stringify(['principal_id','auth_version','revoked_at_ms','expires_at_ms'])));
+ assert.deepEqual(scopes.primaryKey,['credential_id','context_id','audience','permission_id']);
+ assert.deepEqual(scopes.fields.find(field=>field.id==='audience').constraints.enum,['admin','app']);
+ assert.deepEqual(scopes.relations.map(relation=>[relation.fields,relation.target.id,relation.targetFields,relation.onDelete]),[
+  [['credential_id'],'api_credentials',['id'],'restrict'],[['context_id'],'contexts',['id'],'restrict']]);
+ assert.equal(scopes.fields.some(field=>field.type==='json'),false,'scope pairing is represented in relational keys, never a flattened JSON grant');
+ for(const name of ['token','secret','password_record','account_version','role_id'])assert.equal(credentials.fields.some(field=>field.id===name),false,name);
+ const audit=models.find(model=>model.id==='access_audit');
+ assert.equal(audit.fields.find(field=>field.id==='credential_id').nullable,true);
+ assert.equal(audit.relations.some(relation=>relation.fields.includes('credential_id')),false,'credential reference is retained independently of token retention');
+ for(const action of ['service-created','service-status-updated','api-token-issued','api-token-rotated','api-token-revoked'])
+  assert.ok(audit.fields.find(field=>field.id==='action').constraints.enum.includes(action));
 });

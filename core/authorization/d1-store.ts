@@ -1,6 +1,7 @@
 import { ACCESS_TABLES, type IdentityDatabase, type NativeSession } from '../identity/d1-store.ts';
 import { ACCESS_POLICY_LIMITS, parseAccessPolicy, type AccessPolicy } from './policy.ts';
 import type { AuthorizationAudience } from './types.ts';
+import { MACHINE_SCOPE_LIMITS, parseStoredMachineScopeRows, type MachineScope } from '../identity/machine-policy.ts';
 
 export interface StoredPrincipal {
   readonly id: string;
@@ -16,6 +17,18 @@ export interface StoredAuthorizationState {
   readonly session: NativeSession;
   readonly principals: readonly StoredPrincipal[];
   readonly policy: AccessPolicy;
+}
+
+/** Credential and ACLs resolved together; deliberately has no human session. */
+export interface StoredMachineAuthorizationState {
+  readonly epoch: number;
+  readonly nowMs: number;
+  readonly policy: AccessPolicy;
+  readonly principal: { readonly id: string; readonly displayName: string; readonly authVersion: number };
+  readonly credential: {
+    readonly id: string; readonly principalId: string; readonly expiresAtMs: number;
+    readonly scope: MachineScope | null;
+  };
 }
 
 export interface CommitAccessPolicyInput {
@@ -97,13 +110,10 @@ export function createD1AuthorizationStore(db: IdentityDatabase) {
     AND s.auth_version = p.auth_version AND s.account_version = h.version AND s.credential_version = c.version
     AND (c.expires_at_ms IS NULL OR c.expires_at_ms > ${NOW})`;
 
-  async function read(sessionDigest: string, requestedAudience: AuthorizationAudience): Promise<StoredAuthorizationState | null> {
-    if (!digest(sessionDigest) || !audience(requestedAudience)) return null;
-    const queries = [
-      statement(`SELECT s.id, s.principal_id AS principalId, p.display_name AS displayName,
-        s.audience, s.auth_version AS authVersion, s.created_at_ms AS createdAtMs,
-        s.expires_at_ms AS expiresAtMs, a.epoch, ${NOW} AS nowMs ${sessionFrom}
-        WHERE ${liveSession} LIMIT 2`, [sessionDigest, requestedAudience]),
+  // Keep this same ordered ACL projection for both human and machine reads.
+  // Each caller includes its credential SELECT in the SAME D1 batch, at index 0.
+  function policyQueries(): D1PreparedStatement[] {
+    return [
       statement(`SELECT p.id, p.kind, p.status, h.status AS humanStatus FROM ${table.principals} p
         LEFT JOIN ${table.human_accounts} h ON h.principal_id = p.id ORDER BY p.id LIMIT ${ACCESS_POLICY_LIMITS.principals + 1}`),
       statement(`SELECT id, status FROM ${table.contexts} ORDER BY id LIMIT ${ACCESS_POLICY_LIMITS.contexts + 1}`),
@@ -121,18 +131,13 @@ export function createD1AuthorizationStore(db: IdentityDatabase) {
       statement(`SELECT principal_id AS principalId, context_id AS contextId, audience, permission_id AS permissionId, effect
         FROM ${table.principal_overrides} ORDER BY principal_id, context_id, audience, permission_id LIMIT ${ACCESS_POLICY_LIMITS.overrides + 1}`),
     ];
-    const results = await batch(queries);
-    if (results[0].results.length === 0) return null;
+  }
+
+  function decodePolicy(results: D1Result<Record<string, unknown>>[], principalId: string) {
     const caps = [1, ACCESS_POLICY_LIMITS.principals, ACCESS_POLICY_LIMITS.contexts, ACCESS_POLICY_LIMITS.roles,
       ACCESS_POLICY_LIMITS.roleEdges, ACCESS_POLICY_LIMITS.roleEdges, ACCESS_POLICY_LIMITS.roleEdges,
       ACCESS_POLICY_LIMITS.memberships, ACCESS_POLICY_LIMITS.assignments, ACCESS_POLICY_LIMITS.overrides];
-    if (results.some((result, index) => result.results.length > caps[index])) throw new AuthorizationStoreError();
-    const row = results[0].results[0];
-    if (!identifier(row.id) || !identifier(row.principalId) || typeof row.displayName !== 'string'
-      || row.displayName.length > 200 || !row.displayName.isWellFormed() || !audience(row.audience)
-      || row.audience !== requestedAudience || !positive(row.authVersion) || !instant(row.createdAtMs)
-      || !instant(row.expiresAtMs) || !positive(row.epoch) || !instant(row.nowMs)
-      || row.expiresAtMs <= row.nowMs) throw new AuthorizationStoreError();
+    if (caps.some((cap, index) => !results[index] || results[index].results.length > cap)) throw new AuthorizationStoreError();
     const roles = results[3].results.map(role => ({ id: role.id, inherits: [] as unknown[],
       permissionIds: [] as unknown[], permissionOverrides: [] as unknown[] }));
     const roleMap = new Map(roles.map(role => [role.id, role]));
@@ -157,11 +162,65 @@ export function createD1AuthorizationStore(db: IdentityDatabase) {
     if (!policy) throw new AuthorizationStoreError();
     const principals = Object.freeze(results[1].results.map(principalRow));
     const knownPrincipals = new Set(principals.map(principal => principal.id));
-    if (knownPrincipals.size !== principals.length || !knownPrincipals.has(row.principalId)
+    if (knownPrincipals.size !== principals.length || !knownPrincipals.has(principalId)
       || policy.memberships.some(membership => !knownPrincipals.has(membership.principalId))) throw new AuthorizationStoreError();
+    return { principals, policy };
+  }
+
+  async function read(sessionDigest: string, requestedAudience: AuthorizationAudience): Promise<StoredAuthorizationState | null> {
+    if (!digest(sessionDigest) || !audience(requestedAudience)) return null;
+    const results = await batch([
+      statement(`SELECT s.id, s.principal_id AS principalId, p.display_name AS displayName,
+        s.audience, s.auth_version AS authVersion, s.created_at_ms AS createdAtMs,
+        s.expires_at_ms AS expiresAtMs, a.epoch, ${NOW} AS nowMs ${sessionFrom}
+        WHERE ${liveSession} LIMIT 2`, [sessionDigest, requestedAudience]),
+      ...policyQueries(),
+    ]);
+    if (results[0].results.length === 0) return null;
+    const row = results[0].results[0];
+    if (!identifier(row.id) || !identifier(row.principalId) || typeof row.displayName !== 'string'
+      || row.displayName.length > 200 || !row.displayName.isWellFormed() || !audience(row.audience)
+      || row.audience !== requestedAudience || !positive(row.authVersion) || !instant(row.createdAtMs)
+      || !instant(row.expiresAtMs) || !positive(row.epoch) || !instant(row.nowMs)
+      || row.expiresAtMs <= row.nowMs) throw new AuthorizationStoreError();
+    const { principals, policy } = decodePolicy(results, row.principalId);
     const session = Object.freeze({ id: row.id, principalId: row.principalId, displayName: row.displayName,
       audience: row.audience, authVersion: row.authVersion, createdAtMs: row.createdAtMs, expiresAtMs: row.expiresAtMs });
     return Object.freeze({ epoch: row.epoch, nowMs: row.nowMs, session, principals, policy });
+  }
+
+  async function readMachine(tokenDigest: string, contextId: string,
+    requestedAudience: AuthorizationAudience): Promise<StoredMachineAuthorizationState | null> {
+    if (!digest(tokenDigest) || !identifier(contextId) || !audience(requestedAudience)) return null;
+    const results = await batch([
+      statement(`SELECT k.id, k.principal_id AS principalId, p.display_name AS displayName,
+        p.auth_version AS authVersion, k.expires_at_ms AS expiresAtMs, a.epoch, ${NOW} AS nowMs
+        FROM ${table.api_credentials} k JOIN ${table.principals} p ON p.id = k.principal_id
+        JOIN ${table.authorization_state} a ON a.id = 'application'
+        WHERE k.secret_hash = ? AND k.revoked_at_ms IS NULL AND k.expires_at_ms > ${NOW}
+          AND p.kind = 'service' AND p.status = 'active' AND k.auth_version = p.auth_version LIMIT 2`, [tokenDigest]),
+      ...policyQueries(),
+      // Validate the complete bounded credential scope set, then select one
+      // indivisible tuple. No union of contexts/audiences/permissions is returned.
+      statement(`SELECT context_id AS contextId, audience, permission_id AS permissionId
+        FROM ${table.api_credential_scopes} WHERE credential_id IN
+          (SELECT id FROM ${table.api_credentials} WHERE secret_hash = ?)
+        ORDER BY context_id, audience, permission_id LIMIT ${MACHINE_SCOPE_LIMITS.permissions + 1}`, [tokenDigest]),
+    ]);
+    if (results[0].results.length === 0) return null;
+    const row = results[0].results[0];
+    if (!identifier(row.id) || !identifier(row.principalId) || typeof row.displayName !== 'string'
+      || row.displayName.length > 200 || !row.displayName.isWellFormed() || !positive(row.authVersion)
+      || !instant(row.expiresAtMs) || !positive(row.epoch) || !instant(row.nowMs)
+      || row.expiresAtMs <= row.nowMs) throw new AuthorizationStoreError();
+    const { policy } = decodePolicy(results, row.principalId);
+    const scopes = parseStoredMachineScopeRows(results[10].results);
+    if (!scopes) throw new AuthorizationStoreError();
+    const scope = scopes.find(item => item.contextId === contextId && item.audience === requestedAudience) ?? null;
+    return Object.freeze({ epoch: row.epoch, nowMs: row.nowMs, policy,
+      principal: Object.freeze({ id: row.principalId, displayName: row.displayName, authVersion: row.authVersion }),
+      credential: Object.freeze({ id: row.id, principalId: row.principalId, expiresAtMs: row.expiresAtMs, scope }),
+    });
   }
 
   async function commitPolicy(input: CommitAccessPolicyInput): Promise<boolean> {
@@ -225,5 +284,5 @@ export function createD1AuthorizationStore(db: IdentityDatabase) {
     return acquired === 1;
   }
 
-  return Object.freeze({ read, commitPolicy });
+  return Object.freeze({ read, readMachine, commitPolicy });
 }

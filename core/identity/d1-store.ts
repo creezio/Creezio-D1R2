@@ -8,7 +8,8 @@ export const IDENTITY_STORE_LIMITS = Object.freeze({
 });
 const modelIds = ['principals', 'human_accounts', 'password_credentials', 'sessions', 'bootstrap',
   'authorization_state', 'access_audit', 'auth_throttles', 'contexts', 'memberships', 'roles',
-  'role_parents', 'role_grants', 'role_overrides', 'role_assignments', 'principal_overrides', 'account_capabilities'] as const;
+  'role_parents', 'role_grants', 'role_overrides', 'role_assignments', 'principal_overrides', 'account_capabilities',
+  'api_credentials', 'api_credential_scopes'] as const;
 export type AccessModelId = typeof modelIds[number];
 const hex = (value: string) => Array.from(new TextEncoder().encode(value), byte => byte.toString(16).padStart(2, '0')).join('');
 /** Same lossless namespace encoding as the central schema compiler, without Node. */

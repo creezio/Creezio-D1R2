@@ -91,6 +91,14 @@ function targetShape(value: unknown): value is AuthorizationTarget {
     && (value.purpose === 'operation' || value.purpose === 'human-approval');
 }
 
+/** Detach a validated server operation target before asynchronous credential resolution. */
+export function copyAuthorizationTarget(value: unknown): AuthorizationTarget | null {
+  if (!targetShape(value)) return null;
+  return Object.freeze({ contextId: value.contextId, audience: value.audience,
+    actors: Object.freeze([...value.actors]), requiredPermissionIds: Object.freeze([...value.requiredPermissionIds]),
+    purpose: value.purpose });
+}
+
 type ResolvedRoles = { grants: Map<string, Set<string>>; denials: Map<string, Set<string>> } | { error: AuthorizationReason };
 function resolveRoles(snapshot: AuthorizationSnapshot): ResolvedRoles {
   const knownPermissions = new Set(snapshot.permissions.map(permission => permission.id));

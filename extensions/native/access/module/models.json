@@ -770,7 +770,12 @@
             "capability-issued",
             "capability-revoked",
             "account-activated",
-            "password-reset"
+            "password-reset",
+            "service-created",
+            "service-status-updated",
+            "api-token-issued",
+            "api-token-rotated",
+            "api-token-revoked"
           ]
         }
       },
@@ -831,6 +836,17 @@
       },
       {
         "id": "capability_id",
+        "type": "string",
+        "nullable": true,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "credential_id",
         "type": "string",
         "nullable": true,
         "protected": true,
@@ -1818,6 +1834,284 @@
           "moduleId": "creezio.access",
           "kind": "model",
           "id": "principals"
+        },
+        "targetFields": [
+          "id"
+        ],
+        "onDelete": "restrict"
+      }
+    ],
+    "permissions": [
+      {
+        "moduleId": "creezio.access",
+        "kind": "permission",
+        "id": "manage"
+      }
+    ],
+    "deletion": {
+      "mode": "hard",
+      "requiresApproval": true
+    },
+    "public": false
+  },
+  {
+    "id": "api_credentials",
+    "title": "Native machine API credentials",
+    "scope": "application",
+    "fields": [
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "secret_hash",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 71,
+          "maxLength": 71
+        }
+      },
+      {
+        "id": "principal_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "auth_version",
+        "type": "integer",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "label",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      {
+        "id": "created_at_ms",
+        "type": "integer",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "expires_at_ms",
+        "type": "integer",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "revoked_at_ms",
+        "type": "integer",
+        "nullable": true,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "revocation_nonce",
+        "type": "string",
+        "nullable": true,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "indexes": [
+      {
+        "id": "secret-hash",
+        "fields": [
+          "secret_hash"
+        ],
+        "unique": true
+      },
+      {
+        "id": "revocation",
+        "fields": [
+          "revocation_nonce"
+        ],
+        "unique": true
+      },
+      {
+        "id": "active-principal",
+        "fields": [
+          "principal_id",
+          "auth_version",
+          "revoked_at_ms",
+          "expires_at_ms"
+        ],
+        "unique": false
+      },
+      {
+        "id": "active-global",
+        "fields": [
+          "revoked_at_ms",
+          "expires_at_ms",
+          "principal_id",
+          "auth_version"
+        ],
+        "unique": false
+      }
+    ],
+    "relations": [
+      {
+        "id": "principal",
+        "fields": [
+          "principal_id"
+        ],
+        "target": {
+          "moduleId": "creezio.access",
+          "kind": "model",
+          "id": "principals"
+        },
+        "targetFields": [
+          "id"
+        ],
+        "onDelete": "restrict"
+      }
+    ],
+    "permissions": [
+      {
+        "moduleId": "creezio.access",
+        "kind": "permission",
+        "id": "manage"
+      }
+    ],
+    "deletion": {
+      "mode": "hard",
+      "requiresApproval": true
+    },
+    "public": false
+  },
+  {
+    "id": "api_credential_scopes",
+    "title": "Exact machine context and audience permission tuples",
+    "scope": "application",
+    "fields": [
+      {
+        "id": "credential_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "audience",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "admin",
+            "app"
+          ]
+        }
+      },
+      {
+        "id": "permission_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 256
+        }
+      }
+    ],
+    "primaryKey": [
+      "credential_id",
+      "context_id",
+      "audience",
+      "permission_id"
+    ],
+    "indexes": [],
+    "relations": [
+      {
+        "id": "credential",
+        "fields": [
+          "credential_id"
+        ],
+        "target": {
+          "moduleId": "creezio.access",
+          "kind": "model",
+          "id": "api_credentials"
+        },
+        "targetFields": [
+          "id"
+        ],
+        "onDelete": "restrict"
+      },
+      {
+        "id": "context",
+        "fields": [
+          "context_id"
+        ],
+        "target": {
+          "moduleId": "creezio.access",
+          "kind": "model",
+          "id": "contexts"
         },
         "targetFields": [
           "id"

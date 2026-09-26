@@ -1,6 +1,6 @@
 # Access — comptes et accès natifs
 
-Version de travail 0.0.0, persistance et droits de [T-04](../../../docs/IMPLEMENTATION-T04.md). Ce module possède dix-sept modèles privés d'identité et d'autorisation ; le cœur assure leurs règles, la cryptographie et les décisions de droits.
+Version de travail 0.0.0, persistance et droits de [T-04](../../../docs/IMPLEMENTATION-T04.md). Ce module possède dix-neuf modèles privés d'identité et d'autorisation ; le cœur assure leurs règles, la cryptographie et les décisions de droits.
 
 Le premier compte nécessite une capacité d'installation provisionnée explicitement par le responsable du déploiement. Les mots de passe utilisent Argon2id ; les sessions utilisent des secrets opaques dont seule l'empreinte est stockée. L'acquisition d'une installation et ses effets sont atomiques dans une seule D1 ; une session est revalidée à chaque lecture et à son émission après vérification du mot de passe.
 
@@ -13,6 +13,10 @@ Les memberships lient compte, contexte et audience. Les affectations de rôles e
 L'audit distingue le compte qui agit, le compte cible et l'identifiant de capacité ; il ne contient ni secret ni PHC. Le jeton clair est retourné une seule fois à l'émetteur autorisé. Aucun envoi d'e-mail, lien public ou livraison au destinataire n'est encore fourni ; cette remise doit rester explicite et ne constitue pas une vérification d'adresse e-mail.
 
 Les versions du principal, du compte et du credential invalident immédiatement l'ensemble des anciennes sessions et capacités, y compris celles conservées pour l'historique. La même consommation ne marque physiquement qu'au plus 32 sessions vivantes et huit autres capacités non expirées. Des index composites limitent les recherches aux lignes concernées ; une ligne historique sans marqueur de révocation ne redevient pas utilisable si ses versions sont périmées. Aucune purge autonome n'est requise pour cette invalidation.
+
+Les comptes de service sont des principaux distincts, sans compte humain, mot de passe, session ni rôle automatique. `api_credentials` conserve l'empreinte du jeton API, le sujet, sa version, le libellé et les dates/nonce de révocation. `api_credential_scopes` conserve une ligne par permission d'un couple exact contexte/audience. Ces portées limitent les droits actuels du compte ; elles n'en créent aucun et ne donnent jamais le droit de valider humainement une opération. Le catalogue serveur vérifie aussi que chaque permission accepte l'acteur machine et l'audience demandée.
+
+Le parseur commun refuse portées vides, wildcards, doublons et données exécutables ; il copie et fige au plus 64 couples et 256 permissions au total. Il ne croise pas les permissions d'un contexte avec celles d'un autre. Émission, rotation, révocation et changement de statut doivent passer par les services administratifs gardés du cœur. Une rotation conserve les portées stockées et rend l'ancien jeton inutilisable. La qualification de ces services reste distincte des modèles, du parseur et du futur transport API/MCP.
 
 Aucune route HTTP, UI, MCP ni widget n'est exposé dans cette tranche. Les comptes persistants sont qualifiés par des harnais D1 ; ce n'est pas encore un parcours de connexion publié. Le module reste hors de la composition par défaut jusqu'à son raccordement complet. Les interfaces prévues dans le PRD restent à réaliser.
 

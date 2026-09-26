@@ -233,6 +233,38 @@ test('access capability schema enforces private target references, purpose, snap
   assert.deepEqual(await inspectD1Schema(db,'creezio.access',models),{ok:true,errors:[]});
 });
 
+test('machine credential scope keys preserve exact context/audience/permission rows in real D1', { timeout: 30000 }, async t => {
+  const db = await database(t);
+  const models = JSON.parse(readFileSync(new URL('../../extensions/native/access/module/models.json', import.meta.url), 'utf8'));
+  const schema = generateD1Schema('creezio.access', models), table = id => quote(schema.tables[id]);
+  await apply(db, schema);
+  await db.batch([
+    db.prepare(`INSERT INTO ${table('principals')} (id,kind,status,auth_version,display_name,created_at_ms,updated_at_ms) VALUES ('machine','service','active',1,'Synthetic service',0,0)`),
+    db.prepare(`INSERT INTO ${table('contexts')} (id,status) VALUES ('context-a','active'),('context-b','active')`),
+    db.prepare(`INSERT INTO ${table('api_credentials')} (id,secret_hash,principal_id,auth_version,label,created_at_ms,expires_at_ms) VALUES ('key-1',?,'machine',1,'Synthetic token',0,1000)`).bind(`sha256:${'d'.repeat(64)}`),
+  ]);
+  const scope = (credentialId, contextId, audience, permissionId) => db.prepare(`INSERT INTO ${table('api_credential_scopes')} (credential_id,context_id,audience,permission_id) VALUES (?,?,?,?)`).bind(credentialId,contextId,audience,permissionId).run();
+  await scope('key-1','context-a','app','example.notes:read');
+  await scope('key-1','context-b','admin','example.notes:write');
+  await scope('key-1','context-a','admin','example.notes:write');
+  await assert.rejects(scope('key-1','context-a','app','example.notes:read'),/UNIQUE constraint failed/);
+  await assert.rejects(scope('absent','context-a','app','example.notes:read'),/FOREIGN KEY constraint failed/);
+  await assert.rejects(scope('key-1','absent','app','example.notes:read'),/FOREIGN KEY constraint failed/);
+  await assert.rejects(scope('key-1','context-a','owner','example.notes:read'),/CHECK constraint failed/);
+  await assert.rejects(scope('key-1','context-a','app',null),/NOT NULL constraint failed/);
+  const rows = (await db.prepare(`SELECT context_id,audience,permission_id FROM ${table('api_credential_scopes')} ORDER BY context_id,audience`).all()).results;
+  assert.deepEqual(rows,[{context_id:'context-a',audience:'admin',permission_id:'example.notes:write'},
+    {context_id:'context-a',audience:'app',permission_id:'example.notes:read'},
+    {context_id:'context-b',audience:'admin',permission_id:'example.notes:write'}]);
+  for(const id of ['human_accounts','password_credentials','memberships','role_assignments'])
+    assert.equal((await db.prepare(`SELECT count(*) AS n FROM ${table(id)}`).first()).n,0);
+  for(const id of ['api_credentials','contexts'])
+    await assert.rejects(db.prepare(`DELETE FROM ${table(id)}`).run(),/FOREIGN KEY constraint failed/);
+  await assert.rejects(db.prepare(`UPDATE ${table('api_credentials')} SET auth_version=0 WHERE id='key-1'`).run(),/CHECK constraint failed/);
+  await assert.rejects(db.prepare(`UPDATE ${table('api_credentials')} SET secret_hash='invalid' WHERE id='key-1'`).run(),/CHECK constraint failed/);
+  assert.deepEqual(await inspectD1Schema(db,'creezio.access',models),{ok:true,errors:[]});
+});
+
 test('read-only schema inspection refuses missing, changed and extra module objects, not other modules', { timeout: 30000 }, async t => {
   const db = await database(t), models = [model()];
   const generated = generateD1Schema(moduleId, models), table = quote(generated.tables.items);

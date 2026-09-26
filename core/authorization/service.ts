@@ -1,4 +1,4 @@
-import { authorize } from './authorize.ts';
+import { authorize, copyAuthorizationTarget } from './authorize.ts';
 import { createD1AuthorizationStore } from './d1-store.ts';
 import { exactRecord, parseAccessPolicy,
   policySnapshot, validPolicyCatalog } from './policy.ts';
@@ -15,11 +15,12 @@ export function createAuthorizationService(db: IdentityDatabase, options: { perm
   const store = createD1AuthorizationStore(db);
   async function check(token: unknown, target: AuthorizationTarget): Promise<AuthorizationDecision> {
     try {
-      if (!target || (target.audience !== 'admin' && target.audience !== 'app'))
+      const captured = copyAuthorizationTarget(target);
+      if (!captured)
         return Object.freeze({ allowed: false, reason: 'invalid_target' });
-      const current = await state(token, target.audience);
+      const current = await state(token, captured.audience);
       if (!current) return Object.freeze({ allowed: false, reason: 'credential_disabled' });
-      return authorize(policySnapshot(current.policy, permissions, current.session), target, current.nowMs);
+      return authorize(policySnapshot(current.policy, permissions, current.session), captured, current.nowMs);
     } catch { return Object.freeze({ allowed: false, reason: 'invalid_snapshot' }); }
   }
   async function readPolicy(token: unknown): Promise<{ok: true; epoch: number; policy: AccessPolicy} | Failure> {
