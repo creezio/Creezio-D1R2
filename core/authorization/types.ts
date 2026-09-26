@@ -1,6 +1,6 @@
 export type AuthorizationAudience = 'admin' | 'app';
-export type AuthorizationActor = 'user' | 'machine' | 'delegated-user';
-export type CredentialKind = 'session' | 'api-token' | 'oauth';
+export type AuthorizationActor = 'user' | 'machine' | 'delegated-user' | 'impersonated-user';
+export type CredentialKind = 'session' | 'api-token' | 'oauth' | 'impersonation';
 
 /** Exact moduleId:permissionId, never a wildcard or prefix grant. */
 export type PermissionId = string;
@@ -49,14 +49,18 @@ export interface AuthorizationSnapshot {
   readonly credential: {
     readonly id: string;
     readonly subjectId: string;
-    readonly kind: CredentialKind;
     readonly enabled: boolean;
     readonly expiresAtMs: number;
     readonly contextIds: readonly string[];
     readonly audiences: readonly AuthorizationAudience[];
     /** Maximum credential scope, intersected with the subject's current grants. */
     readonly permissionIds: readonly PermissionId[];
-  };
+  } & ({ readonly kind: Exclude<CredentialKind, 'impersonation'> } | {
+    readonly kind: 'impersonation';
+    /** Actual initiating human; actor.id above remains the effective subject. */
+    readonly actorPrincipalId: string;
+    readonly sourceSessionId: string;
+  });
   readonly permissions: readonly PermissionDefinition[];
   readonly roles: readonly RoleDefinition[];
   readonly assignments: readonly RoleAssignment[];

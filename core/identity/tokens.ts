@@ -6,6 +6,7 @@ const prefixes = {
   activation: 'cz1v_',
   'password-reset': 'cz1r_',
   bootstrap: 'cz1b_',
+  impersonation: 'cz1p_',
 } as const;
 
 export type TokenPurpose = keyof typeof prefixes;

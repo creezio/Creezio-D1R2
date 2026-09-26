@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { issueOpaqueToken, digestOpaqueToken } from '../../core/identity/tokens.ts';
 
-const purposes = ['session', 'api-token', 'invitation', 'activation', 'password-reset', 'bootstrap'];
+const purposes = ['session', 'api-token', 'invitation', 'activation', 'password-reset', 'bootstrap', 'impersonation'];
 
 test('every purpose issues a canonical 256-bit token with a separate reproducible digest', async () => {
   for (const purpose of purposes) {
     const issued = await issueOpaqueToken(purpose), second = await issueOpaqueToken(purpose);
     assert.notEqual(issued.token, second.token);
-    assert.match(issued.token, /^cz1[sairvb]_[A-Za-z0-9_-]{43}$/);
+    assert.match(issued.token, /^cz1[sairvbp]_[A-Za-z0-9_-]{43}$/);
     assert.equal(Buffer.from(issued.token.slice(5), 'base64url').byteLength, 32);
     assert.equal(issued.digest, await digestOpaqueToken(issued.token, purpose));
     assert.equal(issued.digest, 'sha256:' + createHash('sha256').update(`creezio:credential:v1:${purpose}:${issued.token}`).digest('hex'));

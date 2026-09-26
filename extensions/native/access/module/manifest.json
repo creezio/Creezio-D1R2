@@ -9,7 +9,7 @@
     "source": {
       "kind": "snapshot",
       "revision": "t04-access-models-v1",
-      "integrity": "sha256-184756db3b440e0a0738eaebeb85a72577d7ebe24b0fc882bd027244202b30ab"
+      "integrity": "sha256-94b09ae864b9b995d8c2e8b2845597d9c25ca9a383e51f39c16aaa7f088181bc"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -849,7 +849,9 @@
                 "api-token-revoked",
                 "human-status-updated",
                 "human-sessions-revoked",
-                "human-session-revoked"
+                "human-session-revoked",
+                "impersonation-started",
+                "impersonation-stopped"
               ]
             }
           },
@@ -939,6 +941,42 @@
             "constraints": {
               "minLength": 1,
               "maxLength": 128
+            }
+          },
+          {
+            "id": "impersonation_id",
+            "type": "string",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "audience",
+            "type": "string",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                null,
+                "admin",
+                "app"
+              ]
             }
           }
         ],
@@ -2227,6 +2265,360 @@
           "requiresApproval": true
         },
         "public": false
+      },
+      {
+        "id": "impersonations",
+        "title": "Audited bounded impersonation credentials",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "secret_hash",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "source_session_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "actor_principal_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "subject_principal_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "subject_auth_version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "subject_account_version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "subject_credential_version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "audience",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "admin",
+                "app"
+              ]
+            }
+          },
+          {
+            "id": "reason",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 500
+            }
+          },
+          {
+            "id": "created_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "expires_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "ended_at_ms",
+            "type": "integer",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "revocation_nonce",
+            "type": "string",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "primaryKey": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "secret-hash",
+            "fields": [
+              "secret_hash"
+            ],
+            "unique": true
+          },
+          {
+            "id": "revocation",
+            "fields": [
+              "revocation_nonce"
+            ],
+            "unique": true
+          },
+          {
+            "id": "outstanding-source",
+            "fields": [
+              "source_session_id",
+              "ended_at_ms",
+              "expires_at_ms"
+            ],
+            "unique": false
+          },
+          {
+            "id": "outstanding",
+            "fields": [
+              "ended_at_ms",
+              "expires_at_ms"
+            ],
+            "unique": false
+          },
+          {
+            "id": "subject",
+            "fields": [
+              "subject_principal_id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [
+          {
+            "id": "source-session",
+            "fields": [
+              "source_session_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "sessions"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          },
+          {
+            "id": "actor",
+            "fields": [
+              "actor_principal_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principals"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          },
+          {
+            "id": "subject",
+            "fields": [
+              "subject_principal_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principals"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          },
+          {
+            "id": "context",
+            "fields": [
+              "context_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "contexts"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
+      },
+      {
+        "id": "impersonation_permissions",
+        "title": "Fixed impersonation permission ceiling",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "impersonation_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "permission_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        ],
+        "primaryKey": [
+          "impersonation_id",
+          "permission_id"
+        ],
+        "indexes": [],
+        "relations": [
+          {
+            "id": "impersonation",
+            "fields": [
+              "impersonation_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "impersonations"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
       }
     ],
     "files": [],
@@ -2238,12 +2630,34 @@
           "admin"
         ],
         "actors": [
-          "user",
-          "machine",
-          "delegated-user"
+          "user"
         ],
         "scopes": [
           "access.manage"
+        ],
+        "context": "application",
+        "default": "deny",
+        "resources": [],
+        "actions": [
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      },
+      {
+        "id": "impersonate",
+        "title": "Agir temporairement comme un utilisateur",
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user"
+        ],
+        "scopes": [
+          "access.impersonate"
         ],
         "context": "application",
         "default": "deny",

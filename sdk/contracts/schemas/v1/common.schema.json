@@ -190,6 +190,7 @@
         "user",
         "machine",
         "delegated-user",
+        "impersonated-user",
         "anonymous",
         "signed-webhook"
       ]
@@ -207,6 +208,7 @@
         "session",
         "api-token",
         "oauth",
+        "impersonation",
         "anonymous",
         "webhook-signature"
       ]

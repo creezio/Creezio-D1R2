@@ -2,6 +2,8 @@ import { ACCESS_TABLES, type IdentityDatabase, type NativeSession } from '../ide
 import { ACCESS_POLICY_LIMITS, parseAccessPolicy, type AccessPolicy } from './policy.ts';
 import type { AuthorizationAudience } from './types.ts';
 import { MACHINE_SCOPE_LIMITS, parseStoredMachineScopeRows, type MachineScope } from '../identity/machine-policy.ts';
+import { decodeImpersonationMeta, type ImpersonationMeta } from '../identity/impersonation-store.ts';
+import { IMPERSONATION_LIMITS } from '../identity/impersonation-policy.ts';
 
 export interface StoredPrincipal {
   readonly id: string;
@@ -29,6 +31,22 @@ export interface StoredMachineAuthorizationState {
     readonly id: string; readonly principalId: string; readonly expiresAtMs: number;
     readonly scope: MachineScope | null;
   };
+}
+
+/** Current target identity metadata; deliberately not a target session. */
+export interface StoredImpersonationSubject {
+  readonly id: string;
+  readonly displayName: string;
+  readonly authVersion: number;
+  readonly accountVersion: number;
+  readonly credentialVersion: number;
+  readonly credentialExpiresAtMs: number | null;
+}
+export interface StoredImpersonationSourceState extends StoredAuthorizationState {
+  readonly subject: StoredImpersonationSubject;
+}
+export interface StoredImpersonationAuthorizationState extends StoredImpersonationSourceState {
+  readonly impersonation: ImpersonationMeta;
 }
 
 export interface CommitAccessPolicyInput {
@@ -104,13 +122,23 @@ export function createD1AuthorizationStore(db: IdentityDatabase) {
     JOIN ${table.human_accounts} h ON h.principal_id = p.id
     JOIN ${table.password_credentials} c ON c.principal_id = p.id
     JOIN ${table.authorization_state} a ON a.id = 'application'`;
-  const liveSession = `s.secret_hash = ? AND s.audience = ?
-    AND s.revoked_at_ms IS NULL AND s.expires_at_ms > ${NOW}
+  const currentHumanSession = `s.revoked_at_ms IS NULL AND s.expires_at_ms > ${NOW}
     AND p.kind = 'human' AND p.status = 'active' AND h.status = 'active'
     AND s.auth_version = p.auth_version AND s.account_version = h.version AND s.credential_version = c.version
     AND (c.expires_at_ms IS NULL OR c.expires_at_ms > ${NOW})`;
+  const liveSession = `s.secret_hash = ? AND s.audience = ? AND ${currentHumanSession}`;
+  const sourceMembership = `EXISTS (SELECT 1 FROM ${table.contexts} WHERE id = 'application' AND status = 'active')
+    AND EXISTS (SELECT 1 FROM ${table.memberships} WHERE principal_id = p.id
+      AND context_id = 'application' AND audience = 'admin' AND status = 'active')`;
+  const currentTarget = `tp.id <> p.id AND tp.kind = 'human' AND tp.status = 'active' AND th.status = 'active'
+    AND (tc.expires_at_ms IS NULL OR tc.expires_at_ms > ${NOW})`;
+  const impersonationIdentities = `s.id, s.principal_id AS principalId, p.display_name AS displayName,
+    s.audience, s.auth_version AS authVersion, s.created_at_ms AS createdAtMs,
+    s.expires_at_ms AS expiresAtMs, a.epoch, ${NOW} AS nowMs,
+    tp.id AS subjectId, tp.display_name AS subjectDisplayName, tp.auth_version AS subjectAuthVersion,
+    th.version AS subjectAccountVersion, tc.version AS subjectCredentialVersion, tc.expires_at_ms AS subjectCredentialExpiresAtMs`;
 
-  // Keep this same ordered ACL projection for both human and machine reads.
+  // Keep this same ordered ACL projection for human, machine and impersonation reads.
   // Each caller includes its credential SELECT in the SAME D1 batch, at index 0.
   function policyQueries(): D1PreparedStatement[] {
     return [
@@ -223,6 +251,85 @@ export function createD1AuthorizationStore(db: IdentityDatabase) {
     });
   }
 
+  function decodeImpersonationIdentities(results: D1Result<Record<string, unknown>>[]): StoredImpersonationSourceState {
+    if (results[0].results.length !== 1) throw new AuthorizationStoreError();
+    const row = results[0].results[0];
+    if (!identifier(row.id) || !identifier(row.principalId) || typeof row.displayName !== 'string'
+      || row.displayName.length > 200 || !row.displayName.isWellFormed() || row.audience !== 'admin'
+      || !positive(row.authVersion) || !instant(row.createdAtMs) || !instant(row.expiresAtMs)
+      || !positive(row.epoch) || !instant(row.nowMs) || row.expiresAtMs <= row.nowMs
+      || !identifier(row.subjectId) || row.subjectId === row.principalId || typeof row.subjectDisplayName !== 'string'
+      || row.subjectDisplayName.length > 200 || !row.subjectDisplayName.isWellFormed()
+      || !positive(row.subjectAuthVersion) || !positive(row.subjectAccountVersion) || !positive(row.subjectCredentialVersion)
+      || (row.subjectCredentialExpiresAtMs !== null && (!instant(row.subjectCredentialExpiresAtMs)
+        || row.subjectCredentialExpiresAtMs <= row.nowMs))) throw new AuthorizationStoreError();
+    const { principals, policy } = decodePolicy(results, row.principalId);
+    for (const id of [row.principalId, row.subjectId]) {
+      const principal = principals.find(item => item.id === id);
+      if (!principal || principal.kind !== 'human' || principal.status !== 'active' || principal.humanStatus !== 'active') throw new AuthorizationStoreError();
+    }
+    const session: NativeSession = Object.freeze({ id: row.id, principalId: row.principalId, displayName: row.displayName,
+      audience: 'admin', authVersion: row.authVersion, createdAtMs: row.createdAtMs, expiresAtMs: row.expiresAtMs });
+    const subject = Object.freeze({ id: row.subjectId, displayName: row.subjectDisplayName, authVersion: row.subjectAuthVersion,
+      accountVersion: row.subjectAccountVersion, credentialVersion: row.subjectCredentialVersion,
+      credentialExpiresAtMs: row.subjectCredentialExpiresAtMs });
+    return Object.freeze({ epoch: row.epoch, nowMs: row.nowMs, session, principals, policy, subject });
+  }
+
+  async function readForImpersonation(sessionDigest: string, subjectPrincipalId: string, contextId: string,
+    requestedAudience: AuthorizationAudience): Promise<StoredImpersonationSourceState | null> {
+    if (!digest(sessionDigest) || !identifier(subjectPrincipalId) || !identifier(contextId) || !audience(requestedAudience)) return null;
+    const results = await batch([
+      statement(`SELECT ${impersonationIdentities} ${sessionFrom}
+        JOIN ${table.principals} tp ON tp.id = ?
+        JOIN ${table.human_accounts} th ON th.principal_id = tp.id
+        JOIN ${table.password_credentials} tc ON tc.principal_id = tp.id
+        WHERE ${liveSession} AND ${sourceMembership} AND ${currentTarget}
+        AND EXISTS (SELECT 1 FROM ${table.contexts} WHERE id = ? AND status = 'active')
+        AND EXISTS (SELECT 1 FROM ${table.memberships} WHERE principal_id = tp.id
+          AND context_id = ? AND audience = ? AND status = 'active') LIMIT 2`,
+      [subjectPrincipalId, sessionDigest, 'admin', contextId, contextId, requestedAudience]),
+      ...policyQueries(),
+    ]);
+    if (!results[0].results.length) return null;
+    const state = decodeImpersonationIdentities(results);
+    if (state.subject.id !== subjectPrincipalId) throw new AuthorizationStoreError();
+    return state;
+  }
+
+  async function readImpersonation(tokenDigest: string): Promise<StoredImpersonationAuthorizationState | null> {
+    if (!digest(tokenDigest)) return null;
+    const results = await batch([
+      statement(`SELECT ${impersonationIdentities}, k.id AS impersonationId, k.context_id AS contextId,
+        k.audience AS impersonationAudience, k.reason, k.created_at_ms AS impersonationCreatedAtMs,
+        k.expires_at_ms AS impersonationExpiresAtMs
+        ${sessionFrom} JOIN ${table.impersonations} k ON k.source_session_id = s.id AND k.actor_principal_id = p.id
+        JOIN ${table.principals} tp ON tp.id = k.subject_principal_id
+        JOIN ${table.human_accounts} th ON th.principal_id = tp.id
+        JOIN ${table.password_credentials} tc ON tc.principal_id = tp.id
+        WHERE k.secret_hash = ? AND k.ended_at_ms IS NULL AND k.revocation_nonce IS NULL AND k.expires_at_ms > ${NOW}
+        AND s.audience = 'admin' AND ${currentHumanSession} AND ${sourceMembership} AND ${currentTarget}
+        AND tp.auth_version = k.subject_auth_version AND th.version = k.subject_account_version
+        AND tc.version = k.subject_credential_version
+        AND EXISTS (SELECT 1 FROM ${table.contexts} WHERE id = k.context_id AND status = 'active')
+        AND EXISTS (SELECT 1 FROM ${table.memberships} WHERE principal_id = tp.id
+          AND context_id = k.context_id AND audience = k.audience AND status = 'active') LIMIT 2`, [tokenDigest]),
+      ...policyQueries(),
+      statement(`SELECT permission_id AS permissionId FROM ${table.impersonation_permissions}
+        WHERE impersonation_id IN (SELECT id FROM ${table.impersonations} WHERE secret_hash = ?)
+        ORDER BY permission_id LIMIT ${IMPERSONATION_LIMITS.permissions + 1}`, [tokenDigest]),
+    ]);
+    if (!results[0].results.length) return null;
+    const state = decodeImpersonationIdentities(results), row = results[0].results[0];
+    const impersonation = decodeImpersonationMeta({ id: row.impersonationId, actorPrincipalId: state.session.principalId,
+      subjectPrincipalId: state.subject.id, sourceSessionId: state.session.id, contextId: row.contextId,
+      audience: row.impersonationAudience, reason: row.reason,
+      createdAtMs: row.impersonationCreatedAtMs, expiresAtMs: row.impersonationExpiresAtMs },
+    results[10].results.map(item => item.permissionId));
+    if (!impersonation || impersonation.expiresAtMs <= state.nowMs) throw new AuthorizationStoreError();
+    return Object.freeze({ ...state, impersonation });
+  }
+
   async function commitPolicy(input: CommitAccessPolicyInput): Promise<boolean> {
     if (!inputShape(input) || !digest(input.sessionDigest) || !identifier(input.sessionId)
       || !identifier(input.principalId) || !positive(input.epoch) || input.epoch >= MAX_EPOCH) throw new AuthorizationStoreInputError();
@@ -284,5 +391,5 @@ export function createD1AuthorizationStore(db: IdentityDatabase) {
     return acquired === 1;
   }
 
-  return Object.freeze({ read, readMachine, commitPolicy });
+  return Object.freeze({ read, readMachine, readForImpersonation, readImpersonation, commitPolicy });
 }

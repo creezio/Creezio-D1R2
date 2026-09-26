@@ -6,7 +6,7 @@ import {generateD1Schema} from '../../../../../scripts/data/d1-schema.mjs';
 test('access owns private identity models and a deterministic relational schema',()=>{
  const models=JSON.parse(read('module/models.json'));
  assert.deepEqual(manifest.contracts.models,models);
- assert.equal(models.length,19);
+ assert.equal(models.length,21);
  for(const model of models){assert.equal(model.public,false);assert.ok(model.fields.every(field=>field.protected));}
  const generated=generateD1Schema(manifest.identity.id,models);
  assert.equal(Object.keys(generated.tables).length,models.length);
@@ -105,4 +105,37 @@ test('human administration keeps session targets historical and indexes bounded 
  ]) assert.ok(byId.get(id).indexes.some(index=>!index.unique&&JSON.stringify(index.fields)===JSON.stringify(fields)),`${id}: ${fields.join(',')}`);
  assert.deepEqual(byId.get('principals').fields.find(field=>field.id==='status').constraints.enum,['active','disabled']);
  assert.deepEqual(byId.get('human_accounts').fields.find(field=>field.id==='status').constraints.enum,['active','pending','disabled']);
+});
+
+test('impersonation models preserve distinct source and subject without constraining replaceable memberships',()=>{
+ const models=JSON.parse(read('module/models.json')), byId=new Map(models.map(model=>[model.id,model]));
+ const delegation=byId.get('impersonations'), ceiling=byId.get('impersonation_permissions');
+ assert.deepEqual(delegation.primaryKey,['id']);
+ assert.deepEqual(delegation.fields.find(f=>f.id==='secret_hash').constraints,{minLength:71,maxLength:71});
+ for(const field of ['subject_auth_version','subject_account_version','subject_credential_version']){
+  assert.equal(delegation.fields.find(f=>f.id===field).nullable,false);
+  assert.equal(delegation.fields.find(f=>f.id===field).constraints.minimum,1);
+ }
+ assert.deepEqual(delegation.fields.find(f=>f.id==='audience').constraints.enum,['admin','app']);
+ assert.deepEqual(delegation.relations.map(r=>[r.fields[0],r.target.id,r.onDelete]),[
+  ['source_session_id','sessions','restrict'],['actor_principal_id','principals','restrict'],
+  ['subject_principal_id','principals','restrict'],['context_id','contexts','restrict']]);
+ assert.equal(delegation.relations.some(r=>r.target.id==='memberships'),false,'revoking membership must remain possible');
+ assert.deepEqual(ceiling.primaryKey,['impersonation_id','permission_id']);
+ assert.equal(ceiling.relations[0].target.id,'impersonations');
+ for(const field of ['secret_hash','revocation_nonce'])assert.ok(delegation.indexes.some(i=>i.unique&&i.fields.length===1&&i.fields[0]===field));
+ assert.ok(delegation.indexes.some(i=>JSON.stringify(i.fields)===JSON.stringify(['source_session_id','ended_at_ms','expires_at_ms'])));
+ assert.ok(delegation.indexes.some(i=>JSON.stringify(i.fields)===JSON.stringify(['ended_at_ms','expires_at_ms'])));
+ const audit=byId.get('access_audit');
+ for(const field of ['impersonation_id','context_id','audience']){
+  assert.equal(audit.fields.find(f=>f.id===field).nullable,true);
+  assert.equal(audit.relations.some(r=>r.fields.includes(field)),false,'audit references remain historical');
+ }
+ for(const action of ['impersonation-started','impersonation-stopped'])assert.ok(audit.fields.find(f=>f.id==='action').constraints.enum.includes(action));
+ assert.deepEqual(audit.fields.find(f=>f.id==='audience').constraints.enum,[null,'admin','app'],'historical audit permits omitted audience without allowing unknown values');
+ for(const id of ['manage','impersonate']){
+  const permission=manifest.contracts.permissions.find(p=>p.id===id);
+  assert.deepEqual(permission.actors,['user']);assert.deepEqual(permission.audiences,['admin']);
+  assert.equal(permission.context,'application');assert.equal(permission.default,'deny');
+ }
 });

@@ -5,8 +5,12 @@ export const ACCESS_POLICY_LIMITS = Object.freeze({ contexts: 64, roles: 128, me
   assignments: 1000, overrides: 1000, roleEdges: 1024, principals: 1024, bytes: 98_304 });
 export const ADMIN_CONTEXT = 'application';
 export const MANAGE_ACCESS = 'creezio.access:manage';
+export const IMPERSONATE_ACCESS = 'creezio.access:impersonate';
 export const ACCESS_PERMISSION: PermissionDefinition = Object.freeze({ id: MANAGE_ACCESS,
   audiences: Object.freeze(['admin'] as const), actors: Object.freeze(['user'] as const) });
+export const IMPERSONATION_PERMISSION: PermissionDefinition = Object.freeze({ id: IMPERSONATE_ACCESS,
+  audiences: Object.freeze(['admin'] as const), actors: Object.freeze(['user'] as const) });
+export const NATIVE_ACCESS_PERMISSIONS: readonly PermissionDefinition[] = Object.freeze([ACCESS_PERMISSION, IMPERSONATION_PERMISSION]);
 type Status = 'active' | 'disabled';
 export interface AccessPolicy {
   readonly contexts: readonly { readonly id: string; readonly status: Status }[];

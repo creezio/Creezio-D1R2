@@ -37,7 +37,7 @@
           "$ref": "urn:creezio:contracts:v1:common#/$defs/auth"
         },
         "minItems": 1,
-        "maxItems": 5
+        "maxItems": 6
       },
       "parameters": {
         "type": "array",

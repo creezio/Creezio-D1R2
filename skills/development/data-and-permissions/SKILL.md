@@ -16,6 +16,10 @@ Lire les [règles communes et la phase autorisée](../../README.md), le [standar
 
 Dans les lots applicatifs autorisés après P0, une fois l'outillage requis livré et qualifié, éprouver cas autorisés/interdits, changements de session, accès croisés, références supprimées, réponses périmées et conflits par les canaux affectés. Maintenir PRD/décisions, fiche d'impact et suites concernées ; distinguer tests locaux et intégration réellement exercée. Voir [stockage et hébergement](../../../docs/STOCKAGE-ET-HEBERGEMENT.md) pour les garanties propres à chaque cible.
 
+## Impersonation
+
+Pour une opération accessible en impersonation, déclarer explicitement `impersonated-user` sur la permission et l'opération, puis `impersonation` sur l'exposition concernée. Ni `user`/`session`, ni `delegated-user`/`oauth` ne valent ce consentement. Conserver l'acteur réel, sa session source et le sujet effectif dans la résolution et l'audit ; ne jamais fabriquer de session personnelle cible. L'accès natif `manage`, le démarrage d'impersonation et les validations humaines sont exclus. Relire source, cible, contexte, audience et plafond de droits au point d'utilisation ; un contrôle préalable seul n'autorise pas une mutation. Voir [T-04](../../../docs/IMPLEMENTATION-T04.md) pour les services et limites réellement qualifiés.
+
 ## Dépendances entre modules
 
 Appliquer le [contrat commun](../../../docs/DEPENDANCES-MODULES.md). Relier les références intermodules à des contrats publics déclarés et versionnés. Dépendre d’un catalogue ne donne accès ni à ses tables privées ni aux données d’un autre contexte. Vérifier les relations persistantes avant désactivation/retrait ; une intégration facultative ne peut laisser de référence obligatoire orpheline. Tester la garde d’exécution et les plans concurrents.

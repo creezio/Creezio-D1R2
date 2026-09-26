@@ -12,7 +12,7 @@ const ID = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
 const QUALIFIED_PERMISSION = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
 const OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 const audience = (value: unknown) => value === 'admin' || value === 'app';
-const actor = (value: unknown) => value === 'user' || value === 'machine' || value === 'delegated-user';
+const actor = (value: unknown) => value === 'user' || value === 'machine' || value === 'delegated-user' || value === 'impersonated-user';
 const text = (value: unknown, expression: RegExp, maximum = 128) => typeof value === 'string' && value.length <= maximum && value.match(expression)?.[0] === value;
 const id = (value: unknown) => text(value, ID);
 const opaqueId = (value: unknown) => text(value, OPAQUE_ID);
@@ -30,7 +30,7 @@ const list = (value: unknown, maximum: number, valid: (item: unknown) => boolean
 const uniqueList = (value: unknown, maximum: number, valid: (item: unknown) => boolean, nonempty = false) =>
   list(value, maximum, valid, nonempty) && new Set(value).size === value.length;
 const audiences = (value: unknown, nonempty = false) => uniqueList(value, 2, audience, nonempty);
-const actors = (value: unknown) => uniqueList(value, 3, actor, true);
+const actors = (value: unknown) => uniqueList(value, 4, actor, true);
 const contexts = (value: unknown) => uniqueList(value, AUTHORIZATION_LIMITS.contexts, opaqueId);
 const permissions = (value: unknown) => uniqueList(value, AUTHORIZATION_LIMITS.permissions, permissionId);
 
@@ -66,13 +66,21 @@ function plainData(value: unknown): boolean {
 function snapshotShape(value: unknown): value is AuthorizationSnapshot {
   if (!plainData(value) || !shape(value, ['actor', 'credential', 'permissions', 'roles', 'assignments', 'overrides'])) return false;
   const principal = value.actor, credential = value.credential;
+  if (!record(credential)) return false;
+  const impersonated = credential.kind === 'impersonation';
+  const credentialKeys = ['id', 'subjectId', 'kind', 'enabled', 'expiresAtMs', 'contextIds', 'audiences', 'permissionIds'];
+  if (impersonated) credentialKeys.push('actorPrincipalId', 'sourceSessionId');
   return shape(principal, ['id', 'kind', 'enabled', 'contextIds', 'audiences'])
     && opaqueId(principal.id) && (principal.kind === 'human' || principal.kind === 'service') && typeof principal.enabled === 'boolean'
     && contexts(principal.contextIds) && audiences(principal.audiences)
-    && shape(credential, ['id', 'subjectId', 'kind', 'enabled', 'expiresAtMs', 'contextIds', 'audiences', 'permissionIds'])
-    && opaqueId(credential.id) && opaqueId(credential.subjectId) && (credential.kind === 'session' || credential.kind === 'api-token' || credential.kind === 'oauth')
+    && shape(credential, credentialKeys)
+    && opaqueId(credential.id) && opaqueId(credential.subjectId) && (credential.kind === 'session' || credential.kind === 'api-token' || credential.kind === 'oauth' || impersonated)
     && typeof credential.enabled === 'boolean' && instant(credential.expiresAtMs)
     && contexts(credential.contextIds) && audiences(credential.audiences) && permissions(credential.permissionIds)
+    && (!impersonated || (opaqueId(credential.actorPrincipalId) && opaqueId(credential.sourceSessionId)
+      && credential.actorPrincipalId !== credential.subjectId && Array.isArray(credential.contextIds) && credential.contextIds.length === 1
+      && Array.isArray(credential.audiences) && credential.audiences.length === 1
+      && Array.isArray(credential.permissionIds) && credential.permissionIds.length >= 1 && credential.permissionIds.length <= 64))
     && list(value.permissions, AUTHORIZATION_LIMITS.permissions, item => shape(item, ['id', 'audiences', 'actors'])
       && permissionId(item.id) && audiences(item.audiences, true) && actors(item.actors))
     && list(value.roles, AUTHORIZATION_LIMITS.roles, item => shape(item, ['id', 'inherits', 'permissionIds', 'permissionOverrides'])
@@ -167,7 +175,15 @@ export function authorize(snapshot: unknown, target: unknown, nowMs: number): Au
   if (credential.subjectId !== principal.id) return decision('credential_subject');
   if (credential.expiresAtMs <= nowMs) return decision('credential_expired');
   if (principal.kind === 'service' && credential.kind !== 'api-token') return decision('credential_kind');
-  const effectiveActor: AuthorizationActor = credential.kind === 'session' ? 'user' : credential.kind === 'oauth' ? 'delegated-user' : 'machine';
+  const impersonated = credential.kind === 'impersonation';
+  if (impersonated && principal.kind !== 'human') return decision('credential_kind');
+  // These reserved operations can never be delegated by impersonation, even if
+  // an invalid server catalog were to advertise the extra actor on them.
+  if (impersonated && target.requiredPermissionIds.some(id => id === 'creezio.access:manage' || id === 'creezio.access:impersonate'))
+    return decision('actor_denied');
+  if (impersonated && target.purpose === 'human-approval') return decision('human_approval_required');
+  const effectiveActor: AuthorizationActor = credential.kind === 'session' ? 'user' : credential.kind === 'oauth' ? 'delegated-user'
+    : impersonated ? 'impersonated-user' : 'machine';
   if (!principal.contextIds.includes(target.contextId)) return decision('context_denied');
   if (!principal.audiences.includes(target.audience)) return decision('audience_denied');
   if (!credential.contextIds.includes(target.contextId) || !credential.audiences.includes(target.audience)) return decision('scope_denied');

@@ -2,7 +2,7 @@ import semver from 'semver';
 import { createHash } from 'node:crypto';
 import { walk, walkContracts, safePackagePath, contractIndex, collectReferences, refKey, isContractRef } from './references.mjs';
 
-const authActors = { session:'user', 'api-token':'machine', oauth:'delegated-user', anonymous:'anonymous', 'webhook-signature':'signed-webhook' };
+const authActors = { session:'user', 'api-token':'machine', oauth:'delegated-user', impersonation:'impersonated-user', anonymous:'anonymous', 'webhook-signature':'signed-webhook' };
 const subset = (small, large) => small.every(value => large.includes(value));
 const same = (left, right) => canonicalJson(left) === canonicalJson(right);
 export function canonicalJson(value) {
@@ -87,6 +87,8 @@ export function checkModule(module, report) {
   c.operations.forEach((op, i) => {
     const p = `/contracts/operations/${i}`;
     unique(op.audiences, `${p}/audiences`, report); unique(op.actors, `${p}/actors`, report);
+    if (op.actors.includes('impersonated-user') && op.permissions.some(ref => ref.moduleId === 'creezio.access' && ['manage', 'impersonate'].includes(ref.id)))
+      report('operation.impersonation', p, 'Impersonation cannot administer access or start another impersonation.');
     if (!op.permissions.length && !op.actors.every(actor => actor === 'anonymous')) report('operation.permissions', `${p}/permissions`, 'Protected operations need declared permissions.');
     if (op.audiences.includes('admin') && op.actors.includes('anonymous')) report('operation.audience', p, 'Administrative operations cannot be anonymous.');
     if (op.kind === 'query' && (op.effects.writes.length || op.effects.emits.length || op.approval.mode !== 'none')) report('operation.effect', p, 'Queries cannot mutate, emit effects or require mutation approval.');

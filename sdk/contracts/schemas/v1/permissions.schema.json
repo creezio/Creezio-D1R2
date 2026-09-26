@@ -27,7 +27,7 @@
           "$ref": "urn:creezio:contracts:v1:common#/$defs/actor"
         },
         "minItems": 1,
-        "maxItems": 5
+        "maxItems": 6
       },
       "scopes": {
         "type": "array",

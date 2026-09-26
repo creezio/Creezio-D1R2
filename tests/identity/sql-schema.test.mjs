@@ -296,6 +296,47 @@ test('human administration schema keeps audit target sessions historical and bou
   assert.deepEqual(await inspectD1Schema(db,'creezio.access',models),{ok:true,errors:[]});
 });
 
+test('impersonation D1 models preserve source/subject relations, immutable scope keys and historical audit references', { timeout: 30000 }, async t => {
+  const db = await database(t);
+  const models = JSON.parse(readFileSync(new URL('../../extensions/native/access/module/models.json', import.meta.url), 'utf8'));
+  const schema = generateD1Schema('creezio.access', models), table = id => quote(schema.tables[id]);
+  await apply(db, schema);
+  await db.batch([
+    db.prepare(`INSERT INTO ${table('principals')} (id,kind,status,auth_version,display_name,created_at_ms,updated_at_ms) VALUES ('actor','human','active',1,'Actor fixture',0,0),('subject','human','active',1,'Subject fixture',0,0)`),
+    db.prepare(`INSERT INTO ${table('contexts')} (id,status) VALUES ('workspace','active')`),
+    db.prepare(`INSERT INTO ${table('sessions')} (id,secret_hash,principal_id,audience,auth_version,account_version,credential_version,created_at_ms,expires_at_ms) VALUES ('source',?,'actor','admin',1,1,1,0,10000)`).bind(`sha256:${'a'.repeat(64)}`),
+  ]);
+  const base={id:'delegation',secret_hash:`sha256:${'b'.repeat(64)}`,source_session_id:'source',actor_principal_id:'actor',subject_principal_id:'subject',
+    subject_auth_version:1,subject_account_version:1,subject_credential_version:1,context_id:'workspace',audience:'app',reason:'Synthetic support request',
+    created_at_ms:0,expires_at_ms:1000,ended_at_ms:null,revocation_nonce:null};
+  const insert=overrides=>{const row={...base,...overrides},keys=Object.keys(row);return db.prepare(`INSERT INTO ${table('impersonations')} (${keys.map(quote).join(',')}) VALUES (${keys.map(()=>'?').join(',')})`).bind(...keys.map(k=>row[k])).run();};
+  await insert({});
+  for(const field of ['source_session_id','actor_principal_id','subject_principal_id','context_id'])
+    await assert.rejects(insert({id:`bad-${field}`,secret_hash:`sha256:${'c'.repeat(64)}`,[field]:'missing'}),/FOREIGN KEY constraint failed/);
+  for(const [field,value] of [['subject_auth_version',0],['subject_account_version',0],['subject_credential_version',0],['reason',''],['reason','x'.repeat(501)],
+    ['audience','owner'],['secret_hash','clear-value'],['ended_at_ms',-1],['revocation_nonce','']])
+    await assert.rejects(insert({id:`bad-${field}`,secret_hash:`sha256:${'c'.repeat(64)}`,[field]:value}),/CHECK constraint failed/);
+  await assert.rejects(insert({id:'duplicate-hash'}),/UNIQUE constraint failed/);
+  await insert({id:'second',secret_hash:`sha256:${'c'.repeat(64)}`,revocation_nonce:'one-end'});
+  await assert.rejects(db.prepare(`UPDATE ${table('impersonations')} SET revocation_nonce='one-end' WHERE id='delegation'`).run(),/UNIQUE constraint failed/);
+  const permission=()=>db.prepare(`INSERT INTO ${table('impersonation_permissions')} (impersonation_id,permission_id) VALUES ('delegation','example.catalogue:read')`).run();
+  await permission();await assert.rejects(permission(),/UNIQUE constraint failed/);
+  await assert.rejects(db.prepare(`INSERT INTO ${table('impersonation_permissions')} (impersonation_id,permission_id) VALUES ('missing','example.catalogue:read')`).run(),/FOREIGN KEY constraint failed/);
+  await db.prepare(`INSERT INTO ${table('memberships')} (principal_id,context_id,audience,status) VALUES ('subject','workspace','app','active')`).run();
+  await db.prepare(`DELETE FROM ${table('memberships')} WHERE principal_id='subject'`).run();
+  assert.equal((await db.prepare(`SELECT count(*) AS n FROM ${table('impersonations')}`).first()).n,2,'membership removal is not blocked by stored delegation history');
+  await db.prepare(`INSERT INTO ${table('access_audit')} (id,action,principal_id,session_id,claim_nonce,created_at_ms,target_principal_id,impersonation_id,context_id,audience) VALUES ('audit','impersonation-stopped','actor','source','audit-end',0,'subject','historical-removed-delegation','historical-context','app')`).run();
+  await db.prepare(`INSERT INTO ${table('access_audit')} (id,action,principal_id,claim_nonce,created_at_ms) VALUES ('audit-omitted','bootstrap-completed','actor','audit-omitted',0)`).run();
+  for(const [id,audience] of [['audit-null',null],['audit-admin','admin']])
+    await db.prepare(`INSERT INTO ${table('access_audit')} (id,action,principal_id,claim_nonce,created_at_ms,audience) VALUES (?,'impersonation-stopped','actor',?,0,?)`).bind(id,id,audience).run();
+  assert.equal((await db.prepare(`SELECT audience FROM ${table('access_audit')} WHERE id='audit-omitted'`).first()).audience,null);
+  assert.equal((await db.prepare(`SELECT audience FROM ${table('access_audit')} WHERE id='audit-null'`).first()).audience,null);
+  await assert.rejects(db.prepare(`INSERT INTO ${table('access_audit')} (id,action,principal_id,claim_nonce,created_at_ms,audience) VALUES ('audit-bad','impersonation-stopped','actor','audit-bad',0,'owner')`).run(),/CHECK constraint failed/);
+  await assert.rejects(db.prepare(`DELETE FROM ${table('sessions')} WHERE id='source'`).run(),/FOREIGN KEY constraint failed/);
+  assert.equal((await db.prepare(`SELECT count(*) AS n FROM ${table('sessions')} WHERE principal_id='subject'`).first()).n,0,'no personal target session is created by delegation data');
+  assert.deepEqual(await inspectD1Schema(db,'creezio.access',models),{ok:true,errors:[]});
+});
+
 test('read-only schema inspection refuses missing, changed and extra module objects, not other modules', { timeout: 30000 }, async t => {
   const db = await database(t), models = [model()];
   const generated = generateD1Schema(moduleId, models), table = quote(generated.tables.items);
