@@ -173,7 +173,7 @@ test('actual Vinext Worker, static assets, selected module and persistent D1/R2 
       }
       const session = await instance.dispatchFetch('http://localhost/api/access/admin/session');
       assert.equal(session.status, 401); assert.equal((await session.json()).error.code, 'authentication_required');
-      assert.match(session.headers.get('set-cookie'), /^creezio-local-admin=;/);
+      assert.equal(session.headers.has('set-cookie'), false);
       const login = await instance.dispatchFetch('http://localhost/api/access/admin/login', {method: 'POST',
         headers: {'content-type': 'application/json'}, body: '{}'});
       assert.equal(login.status, 403); assert.equal((await login.json()).error.code, 'origin_denied');

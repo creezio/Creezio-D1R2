@@ -148,6 +148,26 @@ test('native HTTP uses the real dispatcher, bounded requests, audience cookies a
       safeResponse(await request('/api/modules/example.protected/status', { headers: { cookie: adminCookie } }), 401);
     });
 
+    await check('a delayed session refusal cannot overwrite the cookie from a more recent login', async () => {
+      const oldToken = await call('opaqueToken', 'session');
+      const oldResponse = await session(`__Host-creezio-admin=${oldToken}`);
+      safeResponse(oldResponse, 401);
+      const loginResponse = await login(), freshCookie = cookie(loginResponse, 'admin');
+      // Synthetic delivery order, not a browser qualification: apply the login
+      // first and the older GET last, as the browser would apply Set-Cookie.
+      let deliveredCookie = '';
+      for (const response of [loginResponse, oldResponse]) {
+        const update = response.headers['set-cookie'];
+        if (update) deliveredCookie = update.split(';', 1)[0];
+      }
+      assert.equal(oldResponse.headers['set-cookie'], undefined);
+      assert.equal(deliveredCookie, freshCookie);
+      const current = await session(deliveredCookie);
+      safeResponse(current, 200);
+      assert.equal(json(current).session.id, json(loginResponse).session.id);
+      assert.equal(current.headers['set-cookie'], undefined);
+    });
+
     await check('canonical origin, CSRF and request metadata reject forged hosts and cross-site requests before D1', async () => {
       const bad = [
         { headers: { 'x-creezio-request': '1', 'content-type': 'application/json' } },
@@ -199,7 +219,7 @@ test('native HTTP uses the real dispatcher, bounded requests, audience cookies a
         '__Host-creezio-admin=malformed', `__Host-creezio-admin=${appCookie.split('=')[1]}`,
         `__Host-creezio-admin=${api}`, `__Host-creezio-admin=${impersonation}`, appCookie]) {
         const result = await session(value); safeResponse(result, 401);
-        assert.match(result.headers['set-cookie'], /^__Host-creezio-admin=;/); assert.match(result.headers['set-cookie'], /Max-Age=0/);
+        assert.equal(result.headers['set-cookie'], undefined);
       }
       safeResponse(await session(adminCookie, 'app'), 401);
       safeResponse(await session(`${adminCookie}; ${appCookie}`, 'app'), 200);

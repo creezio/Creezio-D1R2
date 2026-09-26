@@ -22,7 +22,7 @@ Pour une opération accessible en impersonation, déclarer explicitement `impers
 
 ## Transport natif navigateur
 
-Pour le transport navigateur natif, réutiliser les services et l'adaptateur commun : origine de déploiement explicite, audiences sélectionnées par composition, cookies séparés et corps borné. Aucun token dans JSON/URL, repli Bearer/GPT, route publique de provisionnement ou faux rôle administrateur. Préserver la protection des mutations, la fraîcheur D1 et les refus après révocation. Une limite globale avant KDF ne prouve pas l'équité réseau ; ne pas faire confiance à une adresse de visiteur sans qualification de l'hôte. Documenter qu'un timeout ne prouve pas l'absence d'effet d'un commit engagé.
+Pour le transport navigateur natif, réutiliser les services et l'adaptateur commun : origine de déploiement explicite, audiences sélectionnées par composition, cookies séparés et corps borné. Aucun token dans JSON/URL, repli Bearer/GPT, route publique de provisionnement ou faux rôle administrateur. Préserver la protection des mutations, la fraîcheur D1 et les refus après révocation. GET session ne modifie jamais les cookies, même sur refus ; une ancienne réponse ne doit pas effacer une connexion plus récente. Ignorer une réponse dans React ou annuler fetch ne neutralise pas son éventuel Set-Cookie. Une limite globale avant KDF ne prouve pas l'équité réseau ; ne pas faire confiance à une adresse de visiteur sans qualification de l'hôte. Documenter qu'un timeout ne prouve pas l'absence d'effet d'un commit engagé.
 
 ## Dépendances entre modules
 

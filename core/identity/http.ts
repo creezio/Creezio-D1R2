@@ -91,7 +91,9 @@ export async function dispatchAccessHttp(request: Request, environment: RuntimeE
       const session = token ? await bounded(request, () => service.session(token, audience)) : null;
       return session
         ? json({session: publicSession(session)}, 200, requestId, head)
-        : failure('authentication_required', 401, requestId, head, {'set-cookie': clearAccessCookie(configuration, audience)});
+        // A delayed GET refusal must not clear a newer login cookie. Browsers
+        // apply Set-Cookie independently of a UI's stale-response protection.
+        : failure('authentication_required', 401, requestId, head);
     }
     await bounded(request, async () => {
       const body = await readAccessJson(request);
