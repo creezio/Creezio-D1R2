@@ -62,6 +62,8 @@ L'absence de contrat disponible n'est pas présentée comme une impossibilité d
 
 ## Contraintes établies
 
+- La sonde protégée version 6 (`54b5d6950434674dca684686d7ec83ab037e720a`) refuse PBKDF2-HMAC-SHA256 à 600 000 itérations avec un plafond annoncé de 100 000. Entrées synthétiques fixes, aucun compte créé ; sans clé de sonde, refus HTTP 401. La primitive de mots de passe sera qualifiée séparément sans abaisser silencieusement son coût ; voir [T-04](IMPLEMENTATION-T04.md).
+- En version 7 (`890b2a7aa9d378c107c3207e53f2c3c6329d4f8e`), les profils fixes Argon2id 19 MiB/t2/p1 et scrypt N32768/r8/p3 réussissent avec les mêmes résultats qu'en local. Le premier est retenu pour la primitive Creezio. Ce test ne qualifie ni comptes, ni sessions, ni mémoire totale/concurrence d'un CMS complet ; les durées externes ne mesurent pas le CPU facturé.
 - Le runtime Worker dispose de 128 Mo par isolate selon le profil Sites portable, partagés entre les requêtes concurrentes.
 - Les sockets TCP bruts ne sont pas pris en charge par les Sites hébergés selon les instructions du fournisseur ; les connecteurs utilisent HTTPS.
 - Les chemins `/signin-with-chatgpt`, `/signout-with-chatgpt` et `/callback` appartiennent au dispatcher. Les routes Creezio utilisent un préfixe distinct.

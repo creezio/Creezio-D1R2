@@ -17,7 +17,8 @@
     "build": "node scripts/run-framework.mjs build",
     "start": "node --import ./scripts/local-environment.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "typecheck": "node scripts/build/compose-runtime.mjs && tsc --noEmit",
-    "test:runtime": "node --test --test-concurrency=1 tests/runtime/*.test.mjs"
+    "test:runtime": "node --test --test-concurrency=1 tests/runtime/*.test.mjs",
+    "test:identity": "node --test --test-concurrency=1 tests/identity/*.test.mjs"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
@@ -39,6 +40,7 @@
     "wrangler": "4.92.0"
   },
   "dependencies": {
+    "@noble/hashes": "2.4.0",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   }

@@ -1,6 +1,6 @@
 # Dépôts, propriété des fichiers et composition
 
-Architecture cible au 26 septembre 2026. Les répertoires runtime de cet arbre sont **à construire**, pas des fichiers déjà livrés. Le dépôt actuel prépare les contrats, documents et guides de développement.
+Architecture cible au 26 septembre 2026. Les contrats et le runtime commun ont leur première qualification locale ; les fondations d'identité sont en cours. Cet arbre décrit aussi les modules/interfaces **encore à construire**, sans prétendre qu'ils sont livrés. Consulter le [backlog](TODO.md) et les documents de réalisation pour chaque périmètre.
 
 ## Quatre responsabilités distinctes
 

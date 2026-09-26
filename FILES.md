@@ -1,6 +1,6 @@
 # Repères du dépôt
 
-État : implémentation autorisée, contrôleurs P0/contrats SDK présents et runtime T-03 en cours. Aucun CMS complet ni déploiement produit qualifié. Distinguer les scripts réellement présents des commandes encore prévues dans les contrats.
+État : implémentation autorisée, contrôleurs P0/contrats SDK et runtime T-03 local présents ; fondations T-04 en cours. Aucun CMS complet ni déploiement produit qualifié. Distinguer les scripts réellement présents des commandes encore prévues dans les contrats.
 
 | Emplacement | Responsabilité |
 |---|---|
@@ -57,3 +57,10 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - [.openai/hosting.json](.openai/hosting.json) : noms logiques DB/BUCKET, sans identité de Site ni ressource distante créée.
 - [tests/runtime](tests/runtime/) : contrôles de composition, environnement, routage et workerd ; module témoin avec ses propres docs et six suites.
 - [État T-03](docs/IMPLEMENTATION-T03.md) : périmètre vérifié, commandes et limites ; `.creezio`, `.quality`, `.wrangler` et `dist` restent locaux et ignorés.
+
+## Fondations de l'identité T-04
+
+- [core/identity](core/identity/) : credentials opaques et primitives de l'identité ; persistance des comptes encore à construire.
+- [core/authorization](core/authorization/) : décision pure sur l'identité et les politiques résolues côté serveur ; aucune authentification implicite de son entrée.
+- [tests/identity](tests/identity/) : tokens, droits et qualification cryptographique ; données exclusivement synthétiques.
+- [État T-04](docs/IMPLEMENTATION-T04.md) : tranches, portée des contrôles et garanties restant à raccorder.

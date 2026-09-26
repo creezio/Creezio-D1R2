@@ -11,7 +11,7 @@ const started = new Date().toISOString();
 const evidencePath = resolve(root, '.quality/latest.json');
 mkdirSync(dirname(evidencePath), { recursive: true });
 const write = value => writeFileSync(evidencePath, JSON.stringify(value, null, 2) + '\n');
-const profile = 't03-runtime-local';
+const profile = 't04-identity-foundations-local';
 write({ schemaVersion: 1, profile, started, state: 'running', success: false, mergeReady: false });
 try {
 const source = sourceIdentity(root);
@@ -41,7 +41,7 @@ const report = { schemaVersion: 1, profile, started, finished: new Date().toISOS
   source, results: { docs, commands, tests: { ...tap, files: tests, exitCode: result.status }, runtime,
     runtimeEvidenceCurrent: runtimeCurrent, sourceUnchanged: unchanged },
   success, state: success ? 'passed' : 'failed', mergeReady: false,
-  limits: ['Local Worker and module witness qualification; native CMS modules and authentication are not implemented',
+  limits: ['Local runtime and identity foundations; persisted accounts, login and the access module are not implemented',
     'No remote CI, hosted Sites/Cloudflare, archive installation or dependency lifecycle qualification'] };
 write(report);
 console.log(JSON.stringify({ success, mergeReady: false, source: source.sha256, docs: docs.metrics,

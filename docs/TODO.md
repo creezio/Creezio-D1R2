@@ -27,7 +27,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-01](#T-01) | P0 | Gouvernance effective et revue indépendante | GO reçu | En cours |
 | [T-02](#T-02) | P0 | Contrats exécutables et contrôle commun | [T-01](#T-01) | En cours |
 | [T-03](#T-03) | P1 | Runtime commun et démarrage local | [T-02](#T-02) | En cours |
-| [T-04](#T-04) | P2 | Identités, comptes et droits | [T-03](#T-03) | À faire |
+| [T-04](#T-04) | P2 | Identités, comptes et droits | [T-03](#T-03) | En cours |
 | [T-05](#T-05) | P2 | Données, fichiers, recherche et coffre | [T-03](#T-03), [T-04](#T-04) | À faire |
 | [T-06](#T-06) | P2 | Opérations, événements et exécutions bornées | [T-04](#T-04), [T-05](#T-05) | À faire |
 | [T-07](#T-07) | P1 | Workspace et conservation des onglets | [T-03](#T-03), [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | À faire |
@@ -97,12 +97,13 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-04"></a>
 ## T-04 — Identités, comptes et droits
 
-- Lot : **P2** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P2** ; état : **en cours** ; responsable : Codex, fondations et revues réparties entre agents.
 - Dépendances : [T-03](#T-03).
 - Travail/livrables : Identités/sessions, invitations, comptes de service, rôles/contextes et module natif access.
+- Tranches : [fondations, persistance, comptes, enforcement et interfaces](IMPLEMENTATION-T04.md). Le SQL central minimal nécessaire aux comptes est avancé avec T-04 ; le reste de T-05 demeure distinct, sans ajouter un cycle au backlog.
 - Besoin : [US-04](USER-STORIES.md#US-04). Acceptation : [REQ-0401](EXIGENCES.md#REQ-0401), [REQ-0402](EXIGENCES.md#REQ-0402), [REQ-0403](EXIGENCES.md#REQ-0403).
 - Validation : implémenter puis exécuter les recettes liées, sur **local, puis Sites/Cloudflare** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : branche locale `core/t04-identity` depuis le runtime qualifié `4d97e9e`. Premières primitives qualifiées localement, checkpoint/revue exacte hors sources ; aucune connexion ou gestion de comptes livrée. La [sonde Sites](QUALIFICATION-SITES.md) établit une limite PBKDF2 et la réussite des candidats à coût fixe ; voir [réalisation T-04](IMPLEMENTATION-T04.md).
 
 <a id="T-05"></a>
 ## T-05 — Données, fichiers, recherche et coffre
