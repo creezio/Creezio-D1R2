@@ -1,0 +1,3 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {readFileSync,lstatSync} from 'node:fs';
+const base=new URL('../../',import.meta.url),m=JSON.parse(readFileSync(new URL('module/manifest.json',base),'utf8'));
+test('source inventory separates runtime from controls without claiming an archive',()=>{for(const artifact of ['runtime','validation'])for(const name of m.packaging[artifact].files){const stat=lstatSync(new URL(name,base));assert.ok(stat.isFile()&&!stat.isSymbolicLink(),name);}assert.ok(m.packaging.runtime.files.every(name=>!name.startsWith('tests/')&&!name.startsWith('ci/')));assert.equal(m.packaging.providerInstallation,false);});

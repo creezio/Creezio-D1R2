@@ -31,7 +31,11 @@ test('the aggregate refuses a missing or empty contracts suite and linked tests'
   mkdirSync(join(root, 'tests', 'contracts'));
   assert.throws(() => collectRequiredTests(root), /No tests found.*contracts/);
   writeFileSync(join(root, 'tests', 'contracts', 'two.test.mjs'), '// fixture');
-  assert.deepEqual(collectRequiredTests(root), ['tests/quality/one.test.mjs', 'tests/contracts/two.test.mjs']);
+  assert.throws(() => collectRequiredTests(root), /ENOENT/);
+  mkdirSync(join(root, 'tests', 'runtime'));
+  assert.throws(() => collectRequiredTests(root), /No tests found.*runtime/);
+  writeFileSync(join(root, 'tests', 'runtime', 'three.test.mjs'), '// fixture');
+  assert.deepEqual(collectRequiredTests(root), ['tests/quality/one.test.mjs', 'tests/contracts/two.test.mjs', 'tests/runtime/three.test.mjs']);
   renameSync(join(root, 'tests', 'contracts'), join(root, 'saved-contracts'));
   symlinkSync(join(root, 'saved-contracts'), join(root, 'tests', 'contracts'), process.platform === 'win32' ? 'junction' : 'dir');
   try { assert.throws(() => collectRequiredTests(root), /Invalid test directory/); }

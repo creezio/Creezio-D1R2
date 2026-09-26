@@ -1,0 +1,2 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+test('no widget or MCP Apps resource makes the widget suite explicitly non-applicable',()=>{const m=JSON.parse(readFileSync(new URL('../../module/manifest.json',import.meta.url),'utf8'));assert.deepEqual(m.contracts.widgets,[]);assert.equal(m.contracts.mcp.resources.length,0);assert.equal(m.validation.suites.widgets.mode,'not-applicable');assert.ok(m.validation.suites.widgets.justification.policyRule);});

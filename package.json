@@ -11,11 +11,35 @@
     "test:quality": "node --test tests/quality/*.test.mjs",
     "test:contracts": "node --test tests/contracts/*.test.mjs",
     "check": "node scripts/quality/run.mjs",
-    "check:governance": "node scripts/quality/governance.mjs"
+    "check:governance": "node scripts/quality/governance.mjs",
+    "compose": "node scripts/build/compose-runtime.mjs",
+    "dev": "node scripts/run-framework.mjs dev",
+    "build": "node scripts/run-framework.mjs build",
+    "start": "node --import ./scripts/local-environment.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
+    "typecheck": "node scripts/build/compose-runtime.mjs && tsc --noEmit",
+    "test:runtime": "node --test --test-concurrency=1 tests/runtime/*.test.mjs"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "1.37.1",
+    "@cloudflare/workers-types": "4.20260515.1",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "@vitejs/plugin-rsc": "0.5.26",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
-    "semver": "7.8.5"
+    "esbuild": "0.27.3",
+    "miniflare": "4.20260515.0",
+    "react-server-dom-webpack": "19.2.6",
+    "semver": "7.8.5",
+    "typescript": "5.9.3",
+    "vinext": "1.0.0-beta.5",
+    "vite": "8.0.13",
+    "wrangler": "4.92.0"
+  },
+  "dependencies": {
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
   }
 }

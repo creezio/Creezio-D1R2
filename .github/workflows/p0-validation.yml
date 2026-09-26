@@ -1,4 +1,4 @@
-name: P0 controller validation
+name: Creezio local qualification
 
 on:
   pull_request:
@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   p0-local:
-    name: P0 documentation and controller tests
+    name: Documentation, contracts and local Worker
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -28,14 +28,14 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .node-version
-      - name: Install locked validator dependencies
+      - name: Install locked development dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Validate P0 sources
+      - name: Validate sources and local runtime
         run: npm run check
       - name: Show evidence summary
         if: always()
         run: |
-          node --input-type=module -e 'import {readFileSync} from "node:fs"; const r=JSON.parse(readFileSync(".quality/latest.json","utf8")); console.log(JSON.stringify({profile:r.profile,source:r.source.sha256,head:r.source.head,success:r.success,mergeReady:r.mergeReady,limits:r.limits},null,2));'
+          node --input-type=module -e 'import {readFileSync} from "node:fs"; const r=JSON.parse(readFileSync(".quality/latest.json","utf8")); console.log(JSON.stringify({profile:r.profile,source:r.source?.sha256,head:r.source?.head,success:r.success,mergeReady:r.mergeReady,limits:r.limits},null,2));'
   quality-gate:
     name: creezio/quality-gate
     needs: [p0-local]

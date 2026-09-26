@@ -1,6 +1,6 @@
 # Instructions Creezio-D1R2
 
-GO d'implémentation complète reçu le 26 septembre 2026. Commencer suivant les dépendances du backlog ; T-01 en cours, contrôleurs locaux et preuves dans `docs/IMPLEMENTATION-P0.md`. Ce GO remplace l'attente indiquée dans les textes de préparation ci-dessous. Les protections, revues et recettes doivent toujours être réellement qualifiées avant les jalons dépendants.
+GO d'implémentation complète reçu le 26 septembre 2026. Suivre les dépendances du backlog ; contrôleurs locaux P0 et contrats T-02 présents, runtime T-03 en cours. Lire les documents `docs/IMPLEMENTATION-P0.md`, `docs/IMPLEMENTATION-T02.md` et `docs/IMPLEMENTATION-T03.md` pour distinguer réalisations et qualifications. Ce GO remplace l'attente indiquée dans les textes de préparation ci-dessous. Les protections, revues et recettes doivent toujours être réellement qualifiées avant les jalons dépendants.
 
 Lire `README.md`, `FILES.md`, `docs/PRD.md`, `docs/EXIGENCES.md`, `docs/USER-STORIES.md`, `docs/TODO.md`, `docs/PLAN-IMPLEMENTATION.md` et `docs/MATRICE-CAPACITES.md` avant intervention. Le GO d'implémentation est accordé ; réaliser les lots autorisés avec leurs contrôles et recettes. Le backlog reste la source canonique des états et dépendances : une autorisation de construire ne prouve ni une fonctionnalité livrée ni une protection activée.
 

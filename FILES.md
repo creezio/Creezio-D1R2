@@ -1,6 +1,6 @@
 # Repères du dépôt
 
-État : implémentation autorisée, contrôleurs P0 présents et contrats SDK en cours. Aucun CMS complet ni déploiement produit qualifié. Distinguer les scripts réellement présents des commandes encore prévues dans les contrats.
+État : implémentation autorisée, contrôleurs P0/contrats SDK présents et runtime T-03 en cours. Aucun CMS complet ni déploiement produit qualifié. Distinguer les scripts réellement présents des commandes encore prévues dans les contrats.
 
 | Emplacement | Responsabilité |
 |---|---|
@@ -44,3 +44,16 @@
 - [État P0](docs/IMPLEMENTATION-P0.md), [T-02](docs/IMPLEMENTATION-T02.md) et [CHANGELOG](CHANGELOG.md) : périmètre, preuves et limites.
 
 Tout ajout structurel met ce repère à jour. Chaque module construit fournit ensuite son propre FILES et ses instructions locales, conformément au standard commun.
+
+## Runtime commun T-03
+
+- [worker.ts](worker.ts) : entrée fetch unique, API Creezio puis rendu Vinext.
+- [core/runtime](core/runtime/) : routage des opérations statiques, environnement, refus des appels protégés et erreurs bornées.
+- [adapters](adapters/) : reconnaissance des bindings D1/R2 et profils d'hébergement ; aucun service tiers installé.
+- [configuration](configuration/) : composition explicite et verrou de l'application ; pas de module témoin inclus par défaut.
+- [scripts/build](scripts/build/) : génération des imports sélectionnés et contrôle de compatibilité Worker, sans installation implicite.
+- [app](app/) : page initiale et montage des seules vues front explicitement anonymes ; aucune administration provisoire ouverte.
+- [vite.config.ts](vite.config.ts), [tsconfig.json](tsconfig.json), [scripts/run-framework.mjs](scripts/run-framework.mjs) : outillage figé et build commun ; un seul `dist` et un seul état local `.wrangler/state`.
+- [.openai/hosting.json](.openai/hosting.json) : noms logiques DB/BUCKET, sans identité de Site ni ressource distante créée.
+- [tests/runtime](tests/runtime/) : contrôles de composition, environnement, routage et workerd ; module témoin avec ses propres docs et six suites.
+- [État T-03](docs/IMPLEMENTATION-T03.md) : périmètre vérifié, commandes et limites ; `.creezio`, `.quality`, `.wrangler` et `dist` restent locaux et ignorés.

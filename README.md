@@ -10,7 +10,11 @@ Un module ou extension Creezio possède ses données, sa logique métier, ses AP
 
 ## Implémentation en cours
 
-Le GO complet a été reçu le 26 septembre 2026. Les premiers lots construisent les contrôles de développement et contrats SDK ; voir [P0](docs/IMPLEMENTATION-P0.md) et [T-02](docs/IMPLEMENTATION-T02.md). Le produit complet n'est pas implémenté et la sonde technique garde sa portée limitée. Avec Node 24, installer les dépendances verrouillées par `npm ci --ignore-scripts`, puis `npm run check` vérifie les documents, les contrôleurs et les contrats SDK. `npm run test:contracts` cible leurs tests ; cela ne qualifie pas encore le CMS ou l’installation réelle de modules.
+Le GO complet a été reçu le 26 septembre 2026. Les contrôleurs de développement et contrats SDK sont disponibles localement ; voir [P0](docs/IMPLEMENTATION-P0.md) et [T-02](docs/IMPLEMENTATION-T02.md). [T-03](docs/IMPLEMENTATION-T03.md) construit maintenant le Worker commun, la composition statique des modules et leur qualification locale. Le produit complet n'est pas implémenté et la sonde hébergée garde sa portée limitée.
+
+Avec Node 24, installer une fois les dépendances verrouillées par `npm ci --ignore-scripts`, puis lancer `npm run dev`. Le développement utilise D1/R2 locaux persistants et ne demande aucune clé fournisseur. `npm run build` prépare le Worker et les assets ; `npm start` exécute ce build localement. La composition de départ ne contient pas encore les modules natifs : sa page vérifie uniquement la présence des bindings et la réponse du socle. L'authentification native, les données métier et le workspace suivent dans les lots du backlog.
+
+`npm run check` vérifie documents, contrôleurs, contrats, types, build et tests du runtime local. `npm run test:contracts` cible les contrats ; `npm run test:runtime` nécessite un build à jour. Les tests exercent un module témoin explicitement sélectionné et des données synthétiques isolées. Ils ne prouvent ni une publication Sites/Cloudflare, ni le cycle d'installation des paquets communautaires.
 
 | Document | Usage |
 |---|---|

@@ -1,0 +1,2 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {createElement} from 'react';import {renderToStaticMarkup} from 'react-dom/server';import {view} from '../../ui/front/view.ts';
+test('declared view renders the real public API link',()=>{const html=renderToStaticMarkup(createElement(view));assert.match(html,/data-module="example.witness"/);assert.match(html,/href="\/api\/modules\/example.witness\/status"/);assert.match(html,/Module témoin/);});

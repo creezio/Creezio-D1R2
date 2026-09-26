@@ -1,5 +1,5 @@
 # Backlog de réalisation
-Révision 4 — 26 septembre 2026. **GO complet reçu ; T-01 et T-02 en cours.** Ce fichier est la liste de travail canonique du produit ; le plan et les PRD de modules y renvoient. Les autres items restent « à faire ». La poursuite des constructions et tests locaux est expressément autorisée pendant le blocage de facturation Actions, avec checkpoints par lot ; aucune fusion avant les contrôles distants requis. L'[état P0](IMPLEMENTATION-P0.md) distingue contrôleurs locaux et gouvernance distante. Le dossier documentaire est audité séparément dans [AUDIT-AVANT-DEVELOPPEMENT.md](AUDIT-AVANT-DEVELOPPEMENT.md) ; il ne coche aucune fonctionnalité.
+Révision 4 — 26 septembre 2026. **GO complet reçu ; T-01, T-02 et T-03 en cours.** Ce fichier est la liste de travail canonique du produit ; le plan et les PRD de modules y renvoient. Les autres items restent « à faire ». La poursuite des constructions et tests locaux est expressément autorisée pendant le blocage de facturation Actions, avec checkpoints par lot ; aucune fusion avant les contrôles distants requis. L'[état P0](IMPLEMENTATION-P0.md) distingue contrôleurs locaux et gouvernance distante. Le dossier documentaire est audité séparément dans [AUDIT-AVANT-DEVELOPPEMENT.md](AUDIT-AVANT-DEVELOPPEMENT.md) ; il ne coche aucune fonctionnalité.
 ## Règles de suivi
 États autorisés : à faire, en cours, bloqué (raison/prérequis), en revue, vérifié, livré. Enregistrer responsable réel, branche/issue ou tâche locale, PR, SHA, tests/profils et preuves à chaque transition. « Livré » exige version et livraison vérifiée ; fusionner ne suffit pas. Une dépendance fournisseur manquante bloque sa recette, pas toutes les tâches indépendantes.
 Après GO, commencer P0 puis la tranche P1/P2 nécessaire au premier Site ; les dépendances ci-dessous priment sur le numéro du lot. Qualifier Cloudflare tôt dès disponibilité, mais ne pas bloquer le travail local sur son accès. P3/P4 peuvent avancer par tranches couplées : installer un module témoin d’abord, finaliser le starter après widgets/front. Le socle complet et les preuves restent requis avant P7.
@@ -26,7 +26,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 |---|---|---|---|---|
 | [T-01](#T-01) | P0 | Gouvernance effective et revue indépendante | GO reçu | En cours |
 | [T-02](#T-02) | P0 | Contrats exécutables et contrôle commun | [T-01](#T-01) | En cours |
-| [T-03](#T-03) | P1 | Runtime commun et démarrage local | [T-02](#T-02) | À faire |
+| [T-03](#T-03) | P1 | Runtime commun et démarrage local | [T-02](#T-02) | En cours |
 | [T-04](#T-04) | P2 | Identités, comptes et droits | [T-03](#T-03) | À faire |
 | [T-05](#T-05) | P2 | Données, fichiers, recherche et coffre | [T-03](#T-03), [T-04](#T-04) | À faire |
 | [T-06](#T-06) | P2 | Opérations, événements et exécutions bornées | [T-04](#T-04), [T-05](#T-05) | À faire |
@@ -87,12 +87,12 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-03"></a>
 ## T-03 — Runtime commun et démarrage local
 
-- Lot : **P1** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P1** ; état : **en cours** ; responsable : Codex, runtime/composition/recettes répartis entre agents et intégration revue.
 - Dépendances : [T-02](#T-02).
 - Travail/livrables : Versions figées, lockfile, profils de build, installation sur base neuve et module témoin ; mesures initiales.
 - Besoin : [US-03](USER-STORIES.md#US-03). Acceptation : [REQ-0301](EXIGENCES.md#REQ-0301), [REQ-0302](EXIGENCES.md#REQ-0302), [REQ-0303](EXIGENCES.md#REQ-0303).
 - Validation : implémenter puis exécuter les recettes liées, sur **local workerd/Miniflare** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : [réalisation T-03](IMPLEMENTATION-T03.md), branche locale `core/t03-runtime` depuis le checkpoint T-02 `72c7f3f`. Build/types et agrégat local réussis, incluant workerd et persistance D1/R2 après redémarrage ; checkpoint et revue exacte conservés hors sources. Ce livrable permet T-04 localement après revue. CI distante en attente ; aucune qualification Sites/Cloudflare ni CMS complet acquise.
 
 <a id="T-04"></a>
 ## T-04 — Identités, comptes et droits

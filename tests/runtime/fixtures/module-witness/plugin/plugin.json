@@ -1,0 +1,6 @@
+{
+  "name": "creezio-runtime-witness",
+  "version": "1.0.0",
+  "description": "Composition witness. No ChatGPT connection or publication is configured.",
+  "mcpServers": {}
+}

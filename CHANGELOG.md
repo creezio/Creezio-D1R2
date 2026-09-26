@@ -2,6 +2,7 @@
 
 ## Non publié
 
+- Runtime T-03 : Worker commun, composition statique contrôlée, adaptateurs DB/BUCKET, vue initiale et module témoin de qualification. Opérations protégées fermées jusqu'au raccordement de l'identité native ; aucune publication produit.
 - Démarrage de T-01 après GO : contrôleurs documentaires et de gouvernance, tests de refus et empreinte des sources. Workflow candidat sans droits de publication.
 - Contrats de widgets : plusieurs types/instances par module et modes message/contexte/direct déclarés par action.
 

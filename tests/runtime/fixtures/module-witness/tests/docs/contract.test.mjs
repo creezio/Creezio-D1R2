@@ -1,0 +1,2 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+test('version documents and scope limits are present',()=>{for(const name of ['README.md','prd.md','interview.md','TODO.md','CHANGELOG.md','AGENTS.md','FILES.md'])assert.ok(readFileSync(new URL('../../'+name,import.meta.url),'utf8').trim().length>50);const readme=readFileSync(new URL('../../README.md',import.meta.url),'utf8');assert.match(readme,/Aucun compte/);assert.match(readme,/composition de test explicite/);});

@@ -1,0 +1,583 @@
+{
+  "schemaVersion": "1.0.0",
+  "identity": {
+    "id": "example.witness",
+    "title": "Runtime composition witness",
+    "publisher": "creezio",
+    "origin": "https://github.com/creezio/Creezio-D1R2",
+    "version": "1.0.0",
+    "source": {
+      "kind": "snapshot",
+      "revision": "t03-witness-v1",
+      "integrity": "sha256-0619df714913a3ba1d18df4d7cc534bf1b2e094aad01c3f8470c0f0fa885ff0b"
+    },
+    "license": {
+      "expression": "MIT",
+      "file": "LICENSE"
+    }
+  },
+  "compatibility": {
+    "core": "^0.0.0",
+    "sdk": "^1.0.0",
+    "requiredCapabilities": [
+      "runtime.worker"
+    ],
+    "optionalCapabilities": []
+  },
+  "entrypoints": {
+    "server": {
+      "path": "module/entry.server.ts",
+      "export": "create"
+    },
+    "ui": {
+      "path": "ui/contributions.ts",
+      "export": "contributions"
+    },
+    "plugin": {
+      "manifest": "plugin/plugin.json",
+      "mcp": "plugin/mcp.json",
+      "contributions": {
+        "path": "plugin/contributions.ts",
+        "export": "contributions"
+      }
+    }
+  },
+  "dependencies": [],
+  "contracts": {
+    "schemas": [
+      {
+        "id": "empty-input",
+        "schema": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "status-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "module": {
+              "const": "example.witness"
+            },
+            "version": {
+              "const": "1.0.0"
+            },
+            "status": {
+              "const": "ready"
+            }
+          },
+          "required": [
+            "module",
+            "version",
+            "status"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "models": [],
+    "files": [],
+    "permissions": [
+      {
+        "id": "inspect",
+        "title": "Protected witness inspection",
+        "audiences": [
+          "app"
+        ],
+        "actors": [
+          "user",
+          "machine",
+          "delegated-user"
+        ],
+        "scopes": [
+          "witness.inspect"
+        ],
+        "context": "application",
+        "default": "deny",
+        "resources": [],
+        "actions": [
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      }
+    ],
+    "operations": [
+      {
+        "id": "status",
+        "title": "Public witness metadata",
+        "kind": "query",
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "status-output"
+        },
+        "permissions": [],
+        "audiences": [
+          "app"
+        ],
+        "actors": [
+          "anonymous"
+        ],
+        "context": "application",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "read_status"
+        },
+        "effects": {
+          "reads": [],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 1000,
+          "maxItems": 1,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": []
+        },
+        "public": true
+      },
+      {
+        "id": "protected",
+        "title": "Protected witness sentinel",
+        "kind": "query",
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "status-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "example.witness",
+            "kind": "permission",
+            "id": "inspect"
+          }
+        ],
+        "audiences": [
+          "app"
+        ],
+        "actors": [
+          "user",
+          "machine",
+          "delegated-user"
+        ],
+        "context": "application",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "read_protected"
+        },
+        "effects": {
+          "reads": [],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 1000,
+          "maxItems": 1,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": []
+        },
+        "public": true
+      }
+    ],
+    "api": [
+      {
+        "id": "status-http",
+        "method": "GET",
+        "path": "/api/modules/example.witness/status",
+        "operation": {
+          "moduleId": "example.witness",
+          "kind": "operation",
+          "id": "status"
+        },
+        "audience": "app",
+        "auth": [
+          "anonymous"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "status-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "protected-http",
+        "method": "GET",
+        "path": "/api/modules/example.witness/protected",
+        "operation": {
+          "moduleId": "example.witness",
+          "kind": "operation",
+          "id": "protected"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "api-token",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "status-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      }
+    ],
+    "mcp": {
+      "tools": [],
+      "resources": [],
+      "prompts": [],
+      "skills": []
+    },
+    "events": [],
+    "settings": [],
+    "search": [],
+    "ui": {
+      "views": [
+        {
+          "id": "witness-view",
+          "title": "Module témoin",
+          "surfaces": [
+            "front"
+          ],
+          "route": "/witness",
+          "component": {
+            "path": "ui/front/view.ts",
+            "export": "view"
+          },
+          "permissions": [],
+          "operations": [
+            {
+              "moduleId": "example.witness",
+              "kind": "operation",
+              "id": "status"
+            }
+          ],
+          "input": {
+            "schemaId": "empty-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend"
+          }
+        }
+      ],
+      "navigation": [
+        {
+          "id": "witness-nav",
+          "title": "Module témoin",
+          "view": {
+            "moduleId": "example.witness",
+            "kind": "view",
+            "id": "witness-view"
+          },
+          "permissions": [],
+          "surfaces": [
+            "front"
+          ],
+          "order": 0
+        }
+      ],
+      "slots": [],
+      "front": {
+        "mode": "provided"
+      },
+      "styles": []
+    },
+    "widgets": [],
+    "publicContracts": [
+      {
+        "id": "status",
+        "version": "1.0.0",
+        "models": [],
+        "operations": [
+          {
+            "moduleId": "example.witness",
+            "kind": "operation",
+            "id": "status"
+          }
+        ],
+        "events": [],
+        "schemas": [
+          {
+            "schemaId": "empty-input"
+          },
+          {
+            "schemaId": "status-output"
+          }
+        ]
+      }
+    ]
+  },
+  "documentation": {
+    "installed": {
+      "readme": {
+        "path": "README.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "prd": {
+        "path": "prd.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "changelog": {
+        "path": "CHANGELOG.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      }
+    },
+    "development": {
+      "agents": {
+        "path": "AGENTS.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "files": {
+        "path": "FILES.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "interview": {
+        "path": "interview.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "todo": {
+        "path": "TODO.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      }
+    },
+    "versionBinding": {
+      "moduleVersion": "1.0.0",
+      "sourceRevision": "t03-witness-v1"
+    },
+    "localRevisions": {
+      "installedVersionDistinct": true,
+      "approvedImmutable": true
+    },
+    "installationHistory": {
+      "distinctFromPackageChangelog": true
+    }
+  },
+  "validation": {
+    "gate": "gate.mjs",
+    "suites": {
+      "backend": {
+        "mode": "required",
+        "script": "ci/backend.mjs",
+        "tests": [
+          "tests/backend/contract.test.mjs"
+        ]
+      },
+      "ui": {
+        "mode": "required",
+        "script": "ci/ui.mjs",
+        "tests": [
+          "tests/ui/contract.test.mjs"
+        ]
+      },
+      "api-mcp": {
+        "mode": "required",
+        "script": "ci/api-mcp.mjs",
+        "tests": [
+          "tests/api-mcp/contract.test.mjs"
+        ]
+      },
+      "widgets": {
+        "mode": "not-applicable",
+        "script": "ci/widgets.mjs",
+        "tests": [
+          "tests/widgets/contract.test.mjs"
+        ],
+        "justification": {
+          "reason": "No widget or MCP Apps resource is declared; the test verifies this absence.",
+          "policyRule": "witness.widgets-absent"
+        }
+      },
+      "package": {
+        "mode": "required",
+        "script": "ci/package.mjs",
+        "tests": [
+          "tests/package/contract.test.mjs"
+        ]
+      },
+      "docs": {
+        "mode": "required",
+        "script": "ci/docs.mjs",
+        "tests": [
+          "tests/docs/contract.test.mjs"
+        ]
+      }
+    },
+    "policy": {
+      "id": "creezio.local-contracts",
+      "version": "1.0.0",
+      "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
+    },
+    "isolation": {
+      "productionSecrets": false,
+      "publicationRights": false
+    },
+    "evidence": {
+      "sourceIntegrity": true,
+      "artifactIntegrity": true,
+      "profile": true,
+      "executedSuites": true
+    }
+  },
+  "packaging": {
+    "runtime": {
+      "files": [
+        "README.md",
+        "prd.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "module/manifest.json",
+        "module/entry.server.ts",
+        "module/operations.ts",
+        "module/models.ts",
+        "module/files.ts",
+        "module/permissions.ts",
+        "module/events.ts",
+        "module/settings.ts",
+        "module/search.ts",
+        "ui/contributions.ts",
+        "ui/front/view.ts",
+        "plugin/plugin.json",
+        "plugin/mcp.json",
+        "plugin/contributions.ts"
+      ],
+      "references": []
+    },
+    "validation": {
+      "files": [
+        "AGENTS.md",
+        "FILES.md",
+        "interview.md",
+        "TODO.md",
+        "gate.mjs",
+        "ci/run-suite.mjs",
+        "ci/backend.mjs",
+        "tests/backend/contract.test.mjs",
+        "ci/ui.mjs",
+        "tests/ui/contract.test.mjs",
+        "ci/api-mcp.mjs",
+        "tests/api-mcp/contract.test.mjs",
+        "ci/widgets.mjs",
+        "tests/widgets/contract.test.mjs",
+        "ci/package.mjs",
+        "tests/package/contract.test.mjs",
+        "ci/docs.mjs",
+        "tests/docs/contract.test.mjs"
+      ],
+      "references": []
+    },
+    "validationBinding": {
+      "moduleId": "example.witness",
+      "moduleVersion": "1.0.0",
+      "sourceRevision": "t03-witness-v1"
+    },
+    "noRuntimeTests": true,
+    "installation": "build-and-publish",
+    "providerInstallation": false
+  },
+  "lifecycle": {
+    "deactivation": "preserve-data",
+    "configuration": "explicit-state",
+    "uninstall": "explicit-approved-action",
+    "activationRequirements": [],
+    "absent": {
+      "models": {
+        "reason": "The composition witness has no business persistence or conversation UI.",
+        "policyRule": "witness.no-business-storage-or-widgets"
+      },
+      "files": {
+        "reason": "The composition witness has no business persistence or conversation UI.",
+        "policyRule": "witness.no-business-storage-or-widgets"
+      },
+      "widgets": {
+        "reason": "The composition witness has no business persistence or conversation UI.",
+        "policyRule": "witness.no-business-storage-or-widgets"
+      }
+    },
+    "dependencyChanges": {
+      "install": "resolve-explicit-consumer-selection",
+      "activate": "require-active-dependencies",
+      "update": "validate-dependent-contracts",
+      "deactivate": "block-or-explicit-dependent-plan",
+      "uninstall": "block-or-explicit-dependent-plan",
+      "data": "preserve"
+    }
+  }
+}

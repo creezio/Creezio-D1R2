@@ -16,8 +16,11 @@ node_modules/
 *.db-*
 .wrangler/
 .next/
+next-env.d.ts
 coverage/
 .quality/
 *.tsbuildinfo
 *.log
 private/
+dist/
+.creezio/

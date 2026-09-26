@@ -1,0 +1,3 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {read_status} from '../../module/operations.ts';
+const m=JSON.parse(readFileSync(new URL('../../module/manifest.json',import.meta.url),'utf8'));
+test('HTTP declaration and handler agree; no MCP connection is claimed',async()=>{const api=m.contracts.api.find(a=>a.id==='status-http');assert.equal(api.method,'GET');assert.deepEqual(api.auth,['anonymous']);assert.equal(api.operation.id,'status');assert.equal((await read_status().json()).module,m.identity.id);assert.deepEqual(m.contracts.mcp,{tools:[],resources:[],prompts:[],skills:[]});});

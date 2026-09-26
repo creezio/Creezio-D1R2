@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
+    "types": ["node", "@cloudflare/workers-types", "vinext/types"],
+    "paths": { "@/*": ["./*"] }
+  },
+  "include": ["app/**/*.tsx", "core/**/*.ts", "adapters/**/*.ts", "worker.ts", "vite.config.ts", ".creezio/generated/**/*.ts", ".creezio/generated/**/*.tsx", "tests/runtime/fixtures/module-witness/**/*.ts", "tests/runtime/fixtures/module-witness/**/*.tsx"],
+  "exclude": ["node_modules", "dist"]
+}

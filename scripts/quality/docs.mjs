@@ -18,7 +18,7 @@ export const REQUIRED_DOCUMENTS = Object.freeze([
   ].map(name => `docs/${name}.md`),
 ]);
 
-const IGNORED = new Set(['.git', '.quality', 'node_modules', 'dist', 'build', 'coverage', '.next', '.wrangler', '.cache', 'private', 'docker-data']);
+const IGNORED = new Set(['.git', '.quality', '.creezio', 'node_modules', 'dist', 'build', 'coverage', '.next', '.wrangler', '.cache', 'private', 'docker-data']);
 const TEXT_FILE = /\.(?:md|mdx|mjs|cjs|js|jsx|ts|tsx|json|ya?ml|toml|txt|html|css|env|example)$/i;
 const MODULE_DOCUMENTS = ['README.md', 'AGENTS.md', 'FILES.md', 'prd.md', 'interview.md', 'TODO.md', 'CHANGELOG.md'];
 const MODULE_FAMILIES = ['extensions/native', 'extensions/common', 'application/extensions'];
