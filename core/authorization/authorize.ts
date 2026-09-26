@@ -13,7 +13,7 @@ const QUALIFIED_PERMISSION = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*:[a-z][a-z0-9]*(
 const OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 const audience = (value: unknown) => value === 'admin' || value === 'app';
 const actor = (value: unknown) => value === 'user' || value === 'machine' || value === 'delegated-user';
-const text = (value: unknown, expression: RegExp, maximum = 128) => typeof value === 'string' && value.length <= maximum && expression.test(value);
+const text = (value: unknown, expression: RegExp, maximum = 128) => typeof value === 'string' && value.length <= maximum && value.match(expression)?.[0] === value;
 const id = (value: unknown) => text(value, ID);
 const opaqueId = (value: unknown) => text(value, OPAQUE_ID);
 const permissionId = (value: unknown) => text(value, QUALIFIED_PERMISSION, 256);

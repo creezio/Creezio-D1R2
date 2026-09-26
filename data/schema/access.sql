@@ -3,7 +3,7 @@
 -- Inspect before applying to a new database. No automatic repair.
 
 CREATE TABLE "cz_637265657a696f2e616363657373_6163636573735f6175646974" (
-  "action" TEXT NOT NULL CHECK ("action" IS NOT NULL AND (typeof("action") = 'text' AND instr("action", char(0)) = 0 AND "action" IN ('bootstrap-completed', 'session-created', 'session-revoked'))),
+  "action" TEXT NOT NULL CHECK ("action" IS NOT NULL AND (typeof("action") = 'text' AND instr("action", char(0)) = 0 AND "action" IN ('bootstrap-completed', 'session-created', 'session-revoked', 'authorization-updated'))),
   "claim_nonce" TEXT NOT NULL CHECK ("claim_nonce" IS NOT NULL AND (typeof("claim_nonce") = 'text' AND instr("claim_nonce", char(0)) = 0 AND length("claim_nonce") >= 1 AND length("claim_nonce") <= 128)),
   "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
   "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
@@ -43,6 +43,12 @@ CREATE TABLE "cz_637265657a696f2e616363657373_626f6f747374726170" (
   FOREIGN KEY ("principal_id") REFERENCES "cz_637265657a696f2e616363657373_7072696e636970616c73" ("id") ON DELETE RESTRICT
 ) WITHOUT ROWID;
 
+CREATE TABLE "cz_637265657a696f2e616363657373_636f6e7465787473" (
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
+  "status" TEXT NOT NULL CHECK ("status" IS NOT NULL AND (typeof("status") = 'text' AND instr("status", char(0)) = 0 AND "status" IN ('active', 'disabled'))),
+  PRIMARY KEY ("id")
+) WITHOUT ROWID;
+
 CREATE TABLE "cz_637265657a696f2e616363657373_68756d616e5f6163636f756e7473" (
   "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
   "login_identifier" TEXT NOT NULL CHECK ("login_identifier" IS NOT NULL AND (typeof("login_identifier") = 'text' AND instr("login_identifier", char(0)) = 0 AND length("login_identifier") >= 1 AND length("login_identifier") <= 254)),
@@ -51,6 +57,16 @@ CREATE TABLE "cz_637265657a696f2e616363657373_68756d616e5f6163636f756e7473" (
   "updated_at_ms" INTEGER NOT NULL CHECK ("updated_at_ms" IS NOT NULL AND (typeof("updated_at_ms") = 'integer' AND "updated_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "updated_at_ms" >= 0 AND "updated_at_ms" <= 9007199254740991)),
   "version" INTEGER NOT NULL CHECK ("version" IS NOT NULL AND (typeof("version") = 'integer' AND "version" BETWEEN -9007199254740991 AND 9007199254740991 AND "version" >= 1 AND "version" <= 9007199254740991)),
   PRIMARY KEY ("principal_id"),
+  FOREIGN KEY ("principal_id") REFERENCES "cz_637265657a696f2e616363657373_7072696e636970616c73" ("id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e616363657373_6d656d6265727368697073" (
+  "audience" TEXT NOT NULL CHECK ("audience" IS NOT NULL AND (typeof("audience") = 'text' AND instr("audience", char(0)) = 0 AND "audience" IN ('admin', 'app'))),
+  "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "principal_id" TEXT NOT NULL CHECK ("principal_id" IS NOT NULL AND (typeof("principal_id") = 'text' AND instr("principal_id", char(0)) = 0 AND length("principal_id") >= 1 AND length("principal_id") <= 128)),
+  "status" TEXT NOT NULL CHECK ("status" IS NOT NULL AND (typeof("status") = 'text' AND instr("status", char(0)) = 0 AND "status" IN ('active', 'disabled'))),
+  PRIMARY KEY ("principal_id", "context_id", "audience"),
+  FOREIGN KEY ("context_id") REFERENCES "cz_637265657a696f2e616363657373_636f6e7465787473" ("id") ON DELETE RESTRICT,
   FOREIGN KEY ("principal_id") REFERENCES "cz_637265657a696f2e616363657373_7072696e636970616c73" ("id") ON DELETE RESTRICT
 ) WITHOUT ROWID;
 
@@ -65,6 +81,16 @@ CREATE TABLE "cz_637265657a696f2e616363657373_70617373776f72645f63726564656e7469
   FOREIGN KEY ("principal_id") REFERENCES "cz_637265657a696f2e616363657373_7072696e636970616c73" ("id") ON DELETE RESTRICT
 ) WITHOUT ROWID;
 
+CREATE TABLE "cz_637265657a696f2e616363657373_7072696e636970616c5f6f7665727269646573" (
+  "audience" TEXT NOT NULL CHECK ("audience" IS NOT NULL AND (typeof("audience") = 'text' AND instr("audience", char(0)) = 0 AND "audience" IN ('admin', 'app'))),
+  "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "effect" TEXT NOT NULL CHECK ("effect" IS NOT NULL AND (typeof("effect") = 'text' AND instr("effect", char(0)) = 0 AND "effect" IN ('allow', 'deny'))),
+  "permission_id" TEXT NOT NULL CHECK ("permission_id" IS NOT NULL AND (typeof("permission_id") = 'text' AND instr("permission_id", char(0)) = 0 AND length("permission_id") >= 1 AND length("permission_id") <= 256)),
+  "principal_id" TEXT NOT NULL CHECK ("principal_id" IS NOT NULL AND (typeof("principal_id") = 'text' AND instr("principal_id", char(0)) = 0 AND length("principal_id") >= 1 AND length("principal_id") <= 128)),
+  PRIMARY KEY ("principal_id", "context_id", "audience", "permission_id"),
+  FOREIGN KEY ("principal_id", "context_id", "audience") REFERENCES "cz_637265657a696f2e616363657373_6d656d6265727368697073" ("principal_id", "context_id", "audience") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
 CREATE TABLE "cz_637265657a696f2e616363657373_7072696e636970616c73" (
   "auth_version" INTEGER NOT NULL CHECK ("auth_version" IS NOT NULL AND (typeof("auth_version") = 'integer' AND "auth_version" BETWEEN -9007199254740991 AND 9007199254740991 AND "auth_version" >= 1 AND "auth_version" <= 9007199254740991)),
   "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
@@ -73,6 +99,44 @@ CREATE TABLE "cz_637265657a696f2e616363657373_7072696e636970616c73" (
   "kind" TEXT NOT NULL CHECK ("kind" IS NOT NULL AND (typeof("kind") = 'text' AND instr("kind", char(0)) = 0 AND "kind" IN ('human', 'service'))),
   "status" TEXT NOT NULL CHECK ("status" IS NOT NULL AND (typeof("status") = 'text' AND instr("status", char(0)) = 0 AND "status" IN ('active', 'disabled'))),
   "updated_at_ms" INTEGER NOT NULL CHECK ("updated_at_ms" IS NOT NULL AND (typeof("updated_at_ms") = 'integer' AND "updated_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "updated_at_ms" >= 0 AND "updated_at_ms" <= 9007199254740991)),
+  PRIMARY KEY ("id")
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e616363657373_726f6c655f61737369676e6d656e7473" (
+  "audience" TEXT NOT NULL CHECK ("audience" IS NOT NULL AND (typeof("audience") = 'text' AND instr("audience", char(0)) = 0 AND "audience" IN ('admin', 'app'))),
+  "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "principal_id" TEXT NOT NULL CHECK ("principal_id" IS NOT NULL AND (typeof("principal_id") = 'text' AND instr("principal_id", char(0)) = 0 AND length("principal_id") >= 1 AND length("principal_id") <= 128)),
+  "role_id" TEXT NOT NULL CHECK ("role_id" IS NOT NULL AND (typeof("role_id") = 'text' AND instr("role_id", char(0)) = 0 AND length("role_id") >= 1 AND length("role_id") <= 128)),
+  PRIMARY KEY ("principal_id", "context_id", "audience", "role_id"),
+  FOREIGN KEY ("principal_id", "context_id", "audience") REFERENCES "cz_637265657a696f2e616363657373_6d656d6265727368697073" ("principal_id", "context_id", "audience") ON DELETE RESTRICT,
+  FOREIGN KEY ("role_id") REFERENCES "cz_637265657a696f2e616363657373_726f6c6573" ("id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e616363657373_726f6c655f6772616e7473" (
+  "permission_id" TEXT NOT NULL CHECK ("permission_id" IS NOT NULL AND (typeof("permission_id") = 'text' AND instr("permission_id", char(0)) = 0 AND length("permission_id") >= 1 AND length("permission_id") <= 256)),
+  "role_id" TEXT NOT NULL CHECK ("role_id" IS NOT NULL AND (typeof("role_id") = 'text' AND instr("role_id", char(0)) = 0 AND length("role_id") >= 1 AND length("role_id") <= 128)),
+  PRIMARY KEY ("role_id", "permission_id"),
+  FOREIGN KEY ("role_id") REFERENCES "cz_637265657a696f2e616363657373_726f6c6573" ("id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e616363657373_726f6c655f6f7665727269646573" (
+  "effect" TEXT NOT NULL CHECK ("effect" IS NOT NULL AND (typeof("effect") = 'text' AND instr("effect", char(0)) = 0 AND "effect" IN ('allow', 'deny'))),
+  "permission_id" TEXT NOT NULL CHECK ("permission_id" IS NOT NULL AND (typeof("permission_id") = 'text' AND instr("permission_id", char(0)) = 0 AND length("permission_id") >= 1 AND length("permission_id") <= 256)),
+  "role_id" TEXT NOT NULL CHECK ("role_id" IS NOT NULL AND (typeof("role_id") = 'text' AND instr("role_id", char(0)) = 0 AND length("role_id") >= 1 AND length("role_id") <= 128)),
+  PRIMARY KEY ("role_id", "permission_id"),
+  FOREIGN KEY ("role_id") REFERENCES "cz_637265657a696f2e616363657373_726f6c6573" ("id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e616363657373_726f6c655f706172656e7473" (
+  "parent_role_id" TEXT NOT NULL CHECK ("parent_role_id" IS NOT NULL AND (typeof("parent_role_id") = 'text' AND instr("parent_role_id", char(0)) = 0 AND length("parent_role_id") >= 1 AND length("parent_role_id") <= 128)),
+  "role_id" TEXT NOT NULL CHECK ("role_id" IS NOT NULL AND (typeof("role_id") = 'text' AND instr("role_id", char(0)) = 0 AND length("role_id") >= 1 AND length("role_id") <= 128)),
+  PRIMARY KEY ("role_id", "parent_role_id"),
+  FOREIGN KEY ("parent_role_id") REFERENCES "cz_637265657a696f2e616363657373_726f6c6573" ("id") ON DELETE RESTRICT,
+  FOREIGN KEY ("role_id") REFERENCES "cz_637265657a696f2e616363657373_726f6c6573" ("id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e616363657373_726f6c6573" (
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
   PRIMARY KEY ("id")
 ) WITHOUT ROWID;
 

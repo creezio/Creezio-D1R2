@@ -24,8 +24,8 @@ test('login policy is bounded ASCII, case folded and consistent without Unicode 
 
 test('table names encode the module and model bytes without collisions or caller-controlled SQL', () => {
   const names = Object.keys(ACCESS_TABLES);
-  assert.equal(names.length, 8);
-  assert.equal(new Set(Object.values(ACCESS_TABLES)).size, 8);
+  assert.equal(names.length, 16);
+  assert.equal(new Set(Object.values(ACCESS_TABLES)).size, 16);
   for (const name of names) {
     assert.equal(ACCESS_TABLES[name], `cz_${Buffer.from('creezio.access').toString('hex')}_${Buffer.from(name).toString('hex')}`);
   }

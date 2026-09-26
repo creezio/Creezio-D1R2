@@ -756,7 +756,8 @@
           "enum": [
             "bootstrap-completed",
             "session-created",
-            "session-revoked"
+            "session-revoked",
+            "authorization-updated"
           ]
         }
       },
@@ -932,6 +933,625 @@
       }
     ],
     "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.access",
+        "kind": "permission",
+        "id": "manage"
+      }
+    ],
+    "deletion": {
+      "mode": "hard",
+      "requiresApproval": true
+    },
+    "public": false
+  },
+  {
+    "id": "contexts",
+    "title": "Authorization contexts",
+    "scope": "application",
+    "fields": [
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "status",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "active",
+            "disabled"
+          ]
+        }
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "indexes": [],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.access",
+        "kind": "permission",
+        "id": "manage"
+      }
+    ],
+    "deletion": {
+      "mode": "hard",
+      "requiresApproval": true
+    },
+    "public": false
+  },
+  {
+    "id": "memberships",
+    "title": "Audience-specific context memberships",
+    "scope": "application",
+    "fields": [
+      {
+        "id": "principal_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "audience",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "admin",
+            "app"
+          ]
+        }
+      },
+      {
+        "id": "status",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "active",
+            "disabled"
+          ]
+        }
+      }
+    ],
+    "primaryKey": [
+      "principal_id",
+      "context_id",
+      "audience"
+    ],
+    "indexes": [],
+    "relations": [
+      {
+        "id": "principal",
+        "fields": [
+          "principal_id"
+        ],
+        "target": {
+          "moduleId": "creezio.access",
+          "kind": "model",
+          "id": "principals"
+        },
+        "targetFields": [
+          "id"
+        ],
+        "onDelete": "restrict"
+      },
+      {
+        "id": "context",
+        "fields": [
+          "context_id"
+        ],
+        "target": {
+          "moduleId": "creezio.access",
+          "kind": "model",
+          "id": "contexts"
+        },
+        "targetFields": [
+          "id"
+        ],
+        "onDelete": "restrict"
+      }
+    ],
+    "permissions": [
+      {
+        "moduleId": "creezio.access",
+        "kind": "permission",
+        "id": "manage"
+      }
+    ],
+    "deletion": {
+      "mode": "hard",
+      "requiresApproval": true
+    },
+    "public": false
+  },
+  {
+    "id": "roles",
+    "title": "Explicit authorization roles",
+    "scope": "application",
+    "fields": [
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    ],
+    "primaryKey": [
+      "id"
+    ],
+    "indexes": [],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.access",
+        "kind": "permission",
+        "id": "manage"
+      }
+    ],
+    "deletion": {
+      "mode": "hard",
+      "requiresApproval": true
+    },
+    "public": false
+  },
+  {
+    "id": "role_parents",
+    "title": "Role inheritance edges",
+    "scope": "application",
+    "fields": [
+      {
+        "id": "role_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "parent_role_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    ],
+    "primaryKey": [
+      "role_id",
+      "parent_role_id"
+    ],
+    "indexes": [],
+    "relations": [
+      {
+        "id": "role",
+        "fields": [
+          "role_id"
+        ],
+        "target": {
+          "moduleId": "creezio.access",
+          "kind": "model",
+          "id": "roles"
+        },
+        "targetFields": [
+          "id"
+        ],
+        "onDelete": "restrict"
+      },
+      {
+        "id": "parent-role",
+        "fields": [
+          "parent_role_id"
+        ],
+        "target": {
+          "moduleId": "creezio.access",
+          "kind": "model",
+          "id": "roles"
+        },
+        "targetFields": [
+          "id"
+        ],
+        "onDelete": "restrict"
+      }
+    ],
+    "permissions": [
+      {
+        "moduleId": "creezio.access",
+        "kind": "permission",
+        "id": "manage"
+      }
+    ],
+    "deletion": {
+      "mode": "hard",
+      "requiresApproval": true
+    },
+    "public": false
+  },
+  {
+    "id": "role_grants",
+    "title": "Role permission defaults",
+    "scope": "application",
+    "fields": [
+      {
+        "id": "role_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "permission_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 256
+        }
+      }
+    ],
+    "primaryKey": [
+      "role_id",
+      "permission_id"
+    ],
+    "indexes": [],
+    "relations": [
+      {
+        "id": "role",
+        "fields": [
+          "role_id"
+        ],
+        "target": {
+          "moduleId": "creezio.access",
+          "kind": "model",
+          "id": "roles"
+        },
+        "targetFields": [
+          "id"
+        ],
+        "onDelete": "restrict"
+      }
+    ],
+    "permissions": [
+      {
+        "moduleId": "creezio.access",
+        "kind": "permission",
+        "id": "manage"
+      }
+    ],
+    "deletion": {
+      "mode": "hard",
+      "requiresApproval": true
+    },
+    "public": false
+  },
+  {
+    "id": "role_overrides",
+    "title": "Explicit role permission overrides",
+    "scope": "application",
+    "fields": [
+      {
+        "id": "role_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "permission_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      {
+        "id": "effect",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "allow",
+            "deny"
+          ]
+        }
+      }
+    ],
+    "primaryKey": [
+      "role_id",
+      "permission_id"
+    ],
+    "indexes": [],
+    "relations": [
+      {
+        "id": "role",
+        "fields": [
+          "role_id"
+        ],
+        "target": {
+          "moduleId": "creezio.access",
+          "kind": "model",
+          "id": "roles"
+        },
+        "targetFields": [
+          "id"
+        ],
+        "onDelete": "restrict"
+      }
+    ],
+    "permissions": [
+      {
+        "moduleId": "creezio.access",
+        "kind": "permission",
+        "id": "manage"
+      }
+    ],
+    "deletion": {
+      "mode": "hard",
+      "requiresApproval": true
+    },
+    "public": false
+  },
+  {
+    "id": "role_assignments",
+    "title": "Roles assigned within memberships",
+    "scope": "application",
+    "fields": [
+      {
+        "id": "principal_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "audience",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "admin",
+            "app"
+          ]
+        }
+      },
+      {
+        "id": "role_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    ],
+    "primaryKey": [
+      "principal_id",
+      "context_id",
+      "audience",
+      "role_id"
+    ],
+    "indexes": [],
+    "relations": [
+      {
+        "id": "membership",
+        "fields": [
+          "principal_id",
+          "context_id",
+          "audience"
+        ],
+        "target": {
+          "moduleId": "creezio.access",
+          "kind": "model",
+          "id": "memberships"
+        },
+        "targetFields": [
+          "principal_id",
+          "context_id",
+          "audience"
+        ],
+        "onDelete": "restrict"
+      },
+      {
+        "id": "role",
+        "fields": [
+          "role_id"
+        ],
+        "target": {
+          "moduleId": "creezio.access",
+          "kind": "model",
+          "id": "roles"
+        },
+        "targetFields": [
+          "id"
+        ],
+        "onDelete": "restrict"
+      }
+    ],
+    "permissions": [
+      {
+        "moduleId": "creezio.access",
+        "kind": "permission",
+        "id": "manage"
+      }
+    ],
+    "deletion": {
+      "mode": "hard",
+      "requiresApproval": true
+    },
+    "public": false
+  },
+  {
+    "id": "principal_overrides",
+    "title": "Explicit account permission overrides",
+    "scope": "application",
+    "fields": [
+      {
+        "id": "principal_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "audience",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "admin",
+            "app"
+          ]
+        }
+      },
+      {
+        "id": "permission_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      {
+        "id": "effect",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "allow",
+            "deny"
+          ]
+        }
+      }
+    ],
+    "primaryKey": [
+      "principal_id",
+      "context_id",
+      "audience",
+      "permission_id"
+    ],
+    "indexes": [],
+    "relations": [
+      {
+        "id": "membership",
+        "fields": [
+          "principal_id",
+          "context_id",
+          "audience"
+        ],
+        "target": {
+          "moduleId": "creezio.access",
+          "kind": "model",
+          "id": "memberships"
+        },
+        "targetFields": [
+          "principal_id",
+          "context_id",
+          "audience"
+        ],
+        "onDelete": "restrict"
+      }
+    ],
     "permissions": [
       {
         "moduleId": "creezio.access",

@@ -7,7 +7,8 @@ export const IDENTITY_STORE_LIMITS = Object.freeze({
   throttlePruneBatchSize: 32,
 });
 const modelIds = ['principals', 'human_accounts', 'password_credentials', 'sessions', 'bootstrap',
-  'authorization_state', 'access_audit', 'auth_throttles'] as const;
+  'authorization_state', 'access_audit', 'auth_throttles', 'contexts', 'memberships', 'roles',
+  'role_parents', 'role_grants', 'role_overrides', 'role_assignments', 'principal_overrides'] as const;
 export type AccessModelId = typeof modelIds[number];
 const hex = (value: string) => Array.from(new TextEncoder().encode(value), byte => byte.toString(16).padStart(2, '0')).join('');
 /** Same lossless namespace encoding as the central schema compiler, without Node. */
@@ -149,6 +150,18 @@ export function createD1IdentityStore(db: IdentityDatabase) {
         SELECT ?, ?, 1, NULL, ${NOW}, ${NOW} WHERE ${claimExists}`, [principalId, input.passwordRecord, claim]),
       statement(`INSERT INTO ${table.authorization_state} (id, epoch, bootstrap_principal_id, updated_at_ms)
         SELECT 'application', 1, ?, ${NOW} WHERE ${claimExists}`, [principalId, claim]),
+      // Explicit initial ACL, matching the canonical access policy. The durable
+      // bootstrap marker never substitutes for these rows during authorization.
+      statement(`INSERT INTO ${table.contexts} (id, status)
+        SELECT 'application', 'active' WHERE ${claimExists}`, [claim]),
+      statement(`INSERT INTO ${table.roles} (id)
+        SELECT 'administrator' WHERE ${claimExists}`, [claim]),
+      statement(`INSERT INTO ${table.role_grants} (role_id, permission_id)
+        SELECT 'administrator', 'creezio.access:manage' WHERE ${claimExists}`, [claim]),
+      statement(`INSERT INTO ${table.memberships} (principal_id, context_id, audience, status)
+        SELECT ?, 'application', 'admin', 'active' WHERE ${claimExists}`, [principalId, claim]),
+      statement(`INSERT INTO ${table.role_assignments} (principal_id, context_id, audience, role_id)
+        SELECT ?, 'application', 'admin', 'administrator' WHERE ${claimExists}`, [principalId, claim]),
       statement(`INSERT INTO ${table.access_audit} (id, action, principal_id, session_id, claim_nonce, created_at_ms)
         SELECT ?, 'bootstrap-completed', ?, NULL, ?, ${NOW} WHERE ${claimExists}`, [auditId, principalId, claim, claim]),
       statement(`UPDATE ${table.bootstrap} SET principal_id = ? WHERE id = 'installation' AND claim_nonce = ?`, [principalId, claim]),

@@ -59,7 +59,8 @@ test('native identity store enforces claims and fresh account state in real pers
   const freshSession = async id => call('createSessionAfterPassword', await call('findPasswordAccount', loginIdentifier), sessionInput(id));
   const bootstrapInput = capabilityDigest => ({ capabilityDigest, loginIdentifier, displayName: 'Synthetic owner', passwordRecord });
   async function assertNoBootstrapEffects() {
-    for (const id of ['principals', 'human_accounts', 'password_credentials', 'sessions', 'authorization_state', 'access_audit']) {
+    for (const id of ['principals', 'human_accounts', 'password_credentials', 'sessions', 'authorization_state', 'access_audit',
+      'contexts', 'memberships', 'roles', 'role_parents', 'role_grants', 'role_overrides', 'role_assignments', 'principal_overrides']) {
       assert.equal(await count(id), 0, `${id} must remain empty`);
     }
   }
@@ -108,7 +109,16 @@ test('native identity store enforces claims and fresh account state in real pers
       assert.equal(completed.length, 1); assert.equal(results.filter(value => value === null).length, 1);
       principalId = completed[0].principalId;
       assert.equal(typeof principalId, 'string');
-      for (const id of ['principals', 'human_accounts', 'password_credentials', 'authorization_state', 'access_audit']) assert.equal(await count(id), 1, id);
+      for (const id of ['principals', 'human_accounts', 'password_credentials', 'authorization_state', 'access_audit',
+        'contexts', 'memberships', 'roles', 'role_grants', 'role_assignments']) assert.equal(await count(id), 1, id);
+      for (const id of ['role_parents', 'role_overrides', 'principal_overrides']) assert.equal(await count(id), 0, id);
+      assert.deepEqual(await db.prepare(`SELECT * FROM ${table('contexts')}`).first(), { id: 'application', status: 'active' });
+      assert.deepEqual(await db.prepare(`SELECT * FROM ${table('roles')}`).first(), { id: 'administrator' });
+      assert.deepEqual(await db.prepare(`SELECT * FROM ${table('role_grants')}`).first(), { role_id: 'administrator', permission_id: 'creezio.access:manage' });
+      assert.deepEqual(await db.prepare(`SELECT * FROM ${table('memberships')}`).first(),
+        { principal_id: principalId, context_id: 'application', audience: 'admin', status: 'active' });
+      assert.deepEqual(await db.prepare(`SELECT * FROM ${table('role_assignments')}`).first(),
+        { principal_id: principalId, context_id: 'application', audience: 'admin', role_id: 'administrator' });
       assert.equal(await count('sessions'), 0);
       assert.equal((await db.prepare(`SELECT principal_id FROM ${table('bootstrap')}`).first()).principal_id, principalId);
       assert.equal(await call('completeBootstrap', bootstrapInput(digest('bootstrap'))), null);
@@ -207,7 +217,7 @@ test('native identity store enforces claims and fresh account state in real pers
       assert.equal(await call('getSession', digest('revoked-session'), 'admin'), null);
       assert.equal(await call('completeBootstrap', bootstrapInput(digest('bootstrap'))), null);
     });
-    t.diagnostic('Real local D1 only: generated schema, guarded bootstrap/session batches and persistence qualified. No public HTTP authentication, delivery, role assignment, account recovery or hosted Sites claim.');
+    t.diagnostic('Real local D1 only: generated schema, guarded bootstrap/session batches, explicit initial ACL and persistence qualified. No public HTTP authentication, delivery, role management, account recovery or hosted Sites claim.');
   } finally {
     try { if (instance) await instance.dispose(); }
     finally { state.cleanup(); }
