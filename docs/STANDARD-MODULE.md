@@ -1,0 +1,193 @@
+# Standard des modules Creezio
+
+Ce document définit le contrat des modules natifs, communs, propres à une application et distribués par un éditeur tiers. Il s'applique à leur conception, à leurs sources, à leurs paquets et à leur validation. Le runtime, le SDK, les générateurs et les contrôles qui le feront respecter restent à construire et à qualifier ; la présence de ce contrat ne prouve pas leur fonctionnement.
+
+Lire également la [matrice des capacités](MATRICE-CAPACITES.md), les [extensions et thèmes](EXTENSIONS-THEMES-ECOSYSTEME.md), la [compatibilité ChatGPT](COMPATIBILITE-CHATGPT.md) et le [standard de développement](DEVELOPMENT-STANDARD.md). Les exigences et leur avancement sont suivis dans [EXIGENCES.md](EXIGENCES.md), [USER-STORIES.md](USER-STORIES.md) et [TODO.md](TODO.md), sans créer une seconde numérotation dans chaque guide.
+
+## 1. Une fonctionnalité complète, plusieurs surfaces
+
+Un module possède ses modèles éventuels, ses opérations, ses droits, ses événements, sa recherche, ses écrans et ses relations publiques avec d'autres modules. Il reste utilisable sans conversation. Sa partie **plugin conversationnel** expose les opérations autorisées sous forme d'outils MCP, de ressources, de widgets et de skills ; elle ne constitue ni un second backend ni un second stockage.
+
+Le même contrat s'applique aux emplacements suivants :
+
+| Emplacement | Responsabilité |
+|---|---|
+| `extensions/native/` | Capacités natives livrées avec Creezio. Leur découpage ne les rend pas facultatives dans la recette de parité. |
+| `extensions/common/` | Modules communs installables et versionnés individuellement, dont les connecteurs externes. |
+| `application/extensions/` | Modules appartenant à l'application dérivée. |
+| Paquet d'un éditeur tiers | Même contrat, avec éditeur, origine, version, dépendances et intégrité vérifiables. |
+
+Un module n'impose pas un Worker, un conteneur ou une base physique supplémentaire. L'application assemble les modules sélectionnés dans son déploiement commun. Une démo d'éditeur peut être une application distincte, mais elle ne devient pas une dépendance du paquet consommé.
+
+Un connecteur reçoit les accès d'un service déjà disponible. Il fournit l'intégration prête à configurer ; Creezio n'installe, n'héberge, ne met à jour et ne sauvegarde pas le service fournisseur. La planification reste extérieure à Creezio : les opérations bornées et leurs reprises sont appelées par un client autorisé.
+
+## 2. Structure canonique des sources
+
+```text
+<module>/
+  README.md
+  AGENTS.md
+  FILES.md
+  prd.md
+  interview.md
+  TODO.md
+  CHANGELOG.md
+  gate.mjs
+  module/
+    manifest.json
+    entry.server.ts
+    models.ts
+    files.ts
+    operations.ts
+    permissions.ts
+    events.ts
+    settings.ts
+    search.ts
+  ui/
+    contributions.ts
+    workspace/
+    front/
+    styles.css
+  plugin/
+    plugin.json
+    mcp.json
+    contributions.ts
+    widgets/
+    skills/
+  ci/
+    backend.mjs
+    ui.mjs
+    api-mcp.mjs
+    widgets.mjs
+    package.mjs
+    docs.mjs
+  tests/
+    backend/
+    ui/
+    api-mcp/
+    widgets/
+    package/
+    docs/
+```
+
+Les contrats doivent pouvoir déclarer explicitement l'absence de modèles, de fichiers, de vue front ou de widget quand la fonctionnalité n'en nécessite pas. Les six entrées de validation restent présentes ; une suite non applicable exige un motif vérifiable accepté par la politique commune. Un dossier vide ou un script retournant systématiquement un succès ne constitue pas cette justification.
+
+Les noms ci-dessus fixent les responsabilités et les points d'entrée à construire. Le SDK versionné définira les schémas exacts, les exports TypeScript et les commandes exécutables ; aucune commande de ces futurs scripts n'est réputée disponible du seul fait de cette arborescence.
+
+## 3. Manifeste et contrats métier
+
+Le manifeste porte au minimum :
+
+- Une identité stable incluant l'éditeur et l'origine, une version, la révision source, les licences applicables et les compatibilités du SDK, du cœur et des dépendances.
+- Les points d'entrée runtime et UI, les contributions de workspace/front, la partie plugin, les modèles et les contrats publics fournis ou consommés.
+- Les opérations, permissions, événements, réglages, ressources de fichiers et projections de recherche déclarés par les fichiers du module.
+- Les capacités d'hébergement requises, les services externes éventuels et les états de configuration nécessaires.
+- Les documents de la version livrée et les références de validation, avec distinction entre contenu runtime et contenu de développement.
+- Les dépendances obligatoires ou facultatives et leur compatibilité, la sélection des contributions et les règles de désactivation.
+
+Le SDK vérifie cohérence et unicité des identités, résolution des dépendances, fermeture des références et absence de collisions. Un paquet portant le même nom avec une autre origine ne remplace pas silencieusement le module installé. Les contraintes d'édition/activation sont séparées de l'identité du paquet et des droits métier ; elles ne créent pas de capacités absentes de l'hébergement.
+
+| Fichier | Contrat à couvrir |
+|---|---|
+| `models.ts` | Modèles actuels, types, contraintes, relations, index, contexte, règles de suppression, champs calculés et champs protégés. |
+| `files.ts` | Catégories de fichiers, métadonnées, tailles/types admis, propriétaire et contexte, accès, attachement et suppression cohérents. |
+| `operations.ts` | Entrées/sorties typées, validation, effets, erreurs, pagination, concurrence, idempotence, approbation humaine éventuelle et audit. |
+| `permissions.ts` | Acteurs, rôles, portées et contextes autorisés, refus par défaut et contrôles à l'exécution ainsi qu'au commit. |
+| `events.ts` | Événements versionnés, tâches/outbox, état et progression durables, callbacks, annulation, reprises et effets idempotents. |
+| `settings.ts` | Réglages typés, valeurs publiques/privées, références de secrets, validation des accès et diagnostic sans divulgation. |
+| `search.ts` | Champs et projections, index dérivés, droits sur résultats/compteurs/facettes, invalidation et reprise bornée. |
+
+Une relation entre modules utilise une identité d'objet et une opération ou un contrat public versionné. Elle ne dépend pas des tables internes, du composant React privé ou d'un identifiant de démonstration d'un autre module. Les cas de dépendance absente, incompatible ou désactivée sont explicites ; les règles de suppression préservent la cohérence des références.
+
+## 4. Données et exécution
+
+Le contexte de données est résolu côté serveur à partir de l'identité autorisée. Un contexte fourni dans une requête reste une demande à vérifier, jamais une preuve de droit. Les lectures, mutations, fichiers, recherches, exports, compteurs et résultats de widgets appliquent les mêmes frontières.
+
+Sur Sites, une application utilise son couple D1/R2 partagé avec cloisonnement logique. Hors Sites, un adaptateur peut résoudre des ressources physiques distinctes selon les capacités de l'hôte. Ce choix ne change ni les modèles ni les opérations métier, et ne multiplie pas les applications.
+
+Le module déclare ses modèles actuels. La chaîne centrale génère et inspecte le SQL, le versionne et vérifie sa compatibilité avec les données avant publication. Le SQL appliqué est immuable. Il n'y a pas de script de transformation de bases fourni par chaque module. Une évolution incompatible ou destructive non résolue bloque la livraison ; désactiver ou mettre à jour un module ne réinitialise pas ses données.
+
+Les traitements se terminent dans les bornes de l'hôte et conservent leur progression si plusieurs appels sont nécessaires. Un service externe planifie ou reprend les opérations autorisées. Le module ne crée ni scheduler central, ni poller interne, ni daemon. Le navigateur peut consulter l'état d'un traitement sans devenir son moteur d'exécution.
+
+Les secrets restent côté serveur et les clients reçoivent des références ou états expurgés. Clé fournisseur, identité machine Creezio, consentement OAuth, token d'inscription et droit d'activation sont des objets distincts. Les bibliothèques et imports doivent être compatibles avec le build Worker ; un besoin de processus résident ou de système local passe par un service externe explicitement configuré.
+
+## 5. Workspace, front et navigation
+
+Le module déclare vues, routes, navigation, emplacements, titres, badges et permissions dans `ui/contributions.ts`. Le workspace Creezio et les thèmes compatibles les composent sans ajout manuel dans chaque application. Un front spécifique est facultatif ; une application headless peut utiliser les API ou le moteur de composition du SDK.
+
+L'accès au workspace n'accorde pas l'administration système. Les vues métier et les réglages sensibles sont filtrés selon leurs droits ; le serveur reste l'autorité même si une entrée UI est cachée.
+
+Les vues passent par le SDK de navigation. Elles n'importent pas de contexte privé Next/Vinext et ne dérivent pas l'objet d'un panneau inactif depuis l'URL globale. Identité, localisation, historique, activité et état du panneau sont distincts. Les tests couvrent onglets multiples, brouillons, scroll, focus, liens directs, transitions interrompues, réponses tardives, portails, mutation externe et révocation. Une vue inactive ne poursuit pas des effets interdits par son état d'activité.
+
+Un thème personnalise le front, ses composants et sa présentation. Il ne remplace pas le chat ni les comportements standard du workspace Creezio et ne redéfinit pas les permissions métier. Retirer une contribution désactivée ne doit ni laisser un écran actionnable ni effacer les données qui pourront être réutilisées après réactivation.
+
+## 6. Plugin, MCP, skills et widgets
+
+Le plugin est une projection du module vers les conversations. Son manifeste, ses outils/ressources MCP, ses skills et ses widgets suivent le [contrat ChatGPT](COMPATIBILITE-CHATGPT.md). Les opérations restent exploitables sans widget ; l'absence d'UI dans un client ne rend pas les résultats inutilisables.
+
+Les contributions précisent leur audience : MCP/plugin d'administration ou MCP/plugin applicatif. Il s'agit de catalogues et droits distincts dans le même backend, sans exposition administrative automatique. Un site public ne rend aucune opération protégée anonyme.
+
+Les appels utilisent une session utilisateur, une identité machine ou une délégation OAuth vérifiée selon le canal. Les outils, le front et les widgets appellent le même exécuteur autorisé. Un jeton ne remplace pas une approbation humaine exigée et une identité GPT ne crée aucun droit Creezio.
+
+Chaque widget décrit son schéma, son rendu, ses actions, ses versions compatibles, son audience et les données strictement nécessaires. La révision interactive, la version du contrat de widget et la version de l'objet métier sont distinctes. Les actions revalident côté serveur droits, contexte, état de l'objet et idempotence ; le contenu historique d'un message n'est pas une autorisation.
+
+La recette couvre plusieurs plugins dans un chat, l'historique des widgets, les clics répétés, objets supprimés/périmés, module désactivé, changement de session, révocation, résultat trop volumineux et client sans UI. Une compatibilité ChatGPT annoncée exige une recette réelle dans ChatGPT ; un test local de manifeste seul ne la prouve pas.
+
+Les skills conversationnels du module sont distincts des [skills de développement](../skills/README.md). Aucun skill n'étend de lui-même le mandat de publication, l'accès aux données ou les permissions de l'utilisateur.
+
+## 7. Documentation persistante et versions
+
+| Document du module | Responsabilité |
+|---|---|
+| `README.md` | Usage, installation/configuration, surfaces, dépendances, compatibilités et limites prouvées. |
+| `prd.md` | Objectif et comportement de la version source, périmètre, parcours, critères d'acceptation et critères négatifs. |
+| `interview.md` | Questions utiles, décisions, validations explicites et éléments encore ouverts ; aucune approbation déduite d'un silence. |
+| `TODO.md` | Travail réel restant, dépendances, preuves attendues, état et liens vers les tâches centrales. |
+| `CHANGELOG.md` | Changements de paquet, compatibilités et versions effectivement publiées ; intentions non livrées identifiées séparément. |
+| `AGENTS.md` | Instructions locales, périmètre, invariants et liens vers la méthode commune ; aucun assouplissement silencieux des contrôles. |
+| `FILES.md` | Cartographie utile des responsabilités et points d'entrée, entretenue lorsque la structure change. |
+
+L'application doit rendre consultables les documents de la **version installée**, avec origine, version et révision, depuis les surfaces autorisées et leurs opérations API/MCP. Un texte amont plus récent ne remplace pas silencieusement le PRD ou le changelog de cette version.
+
+Les travaux de spécification dans une installation sont des révisions persistantes rattachées au module, à l'installation, à la version de départ, à l'auteur, à l'état et aux preuves de validation. Une révision approuvée est immuable ; toute modification crée une nouvelle révision. La publication d'un document d'éditeur n'approuve pas une demande locale et une approbation locale ne publie pas le paquet de l'éditeur.
+
+Le cycle associe clarification, PRD approuvé, tâches, réalisation autorisée, contrôles sur la révision concernée, recette humaine requise et livraison déclarée. Une tâche cochée ou une CI verte ne signifie pas que la version est installée. Les documents de travail sensibles restent réservés aux acteurs autorisés ; ils ne sont pas exposés par défaut au front ou au MCP applicatif.
+
+L'historique d'installation est distinct du changelog du paquet : version et origine reçues, livraison concernée, date, résultat effectif et preuves. Il conserve échecs et reprises sans les convertir en succès. Les passages source → paquet → installation sont liés explicitement, sans synchronisation bidirectionnelle implicite des documents.
+
+## 8. Six suites et un contrôle commun
+
+`gate.mjs` compose les contrôles du module avec ceux du SDK approuvé. Les mêmes critères s'appliquent localement, en CI et à la livraison ; leur sélection dépend du profil et de l'impact contrôlé, pas de la seule déclaration de l'auteur.
+
+| Suite | Preuves exigées selon les capacités du module |
+|---|---|
+| `backend` | Modèles, invariants, isolation, autorisations, atomicité bornée, concurrence, idempotence, reprises et refus d'actions invalides. |
+| `ui` | Vues réelles, états de configuration, droits, navigation/panneaux, formulaires, clavier, erreurs et absence de régression du workspace. |
+| `api-mcp` | Contrats entrée/sortie, découverte, audiences, pagination, appels sans navigateur, mauvaises identités/portées/contextes, révocation et approbations. |
+| `widgets` | Rendu et actions, versions, absence d'UI, objets périmés, clics répétés, module indisponible, droits au clic et absence de fuite. |
+| `package` | Archive produite, intégrité/origine, fermeture des références, dépendances, assets UI/widgets, imports Worker, installation, mise à jour ciblée et désactivation conservant les données. |
+| `docs` | Documents requis, liens, schémas déclarés, cohérence versions/contrats, décisions et critères traçables, absence de secret et statut de preuve honnête. |
+
+Les cas négatifs sont obligatoires : un module valide doit être accepté et un module invalide doit être rejeté pour la bonne raison. Un contrôle absent, vide, non exécuté, ignoré ou fondé sur une autre révision ne vaut pas validation. Les justifications de non-applicabilité sont contrôlées et conservées avec les résultats.
+
+Les tests ne sont pas embarqués dans le Worker de production et n'imposent pas un Worker par module ou par test. Les recettes qui demandent un hôte ou un fournisseur réel restent explicitement non vérifiées tant que les accès et l'exécution manquent.
+
+## 9. Paquet runtime et artefact de validation externe
+
+La validation porte sur l'archive réellement distribuée, pas seulement sur le checkout de l'éditeur. Le paquet runtime contient les entrées `module/`, `ui/`, `plugin/`, les assets nécessaires et la documentation publique de version, notamment `README.md`, `prd.md` et `CHANGELOG.md`. Son manifeste publié ne conserve aucune référence de développement vers un fichier absent du paquet.
+
+Les scripts CI, fixtures, tests et documents de travail peuvent être distribués dans un artefact de validation séparé. Cet artefact est lié de façon immuable à l'identité du paquet, sa version, sa révision source et son intégrité ; sa propre intégrité est vérifiée. Une URL pointant sur une branche mutable ne suffit pas.
+
+Le SDK assemble les deux artefacts dans un environnement de validation isolé. Il vérifie la fermeture de **toutes** les références, y compris transitives : `gate.mjs`, `ci/`, `tests/`, `interview.md`, `TODO.md`, `AGENTS.md`, `FILES.md`, règles de gouvernance, skills, guides, scripts auxiliaires, gabarits GitHub/hooks, notices de changement et `CONTRIBUTING.md` lorsqu'ils sont référencés. Les entrées provenant du runtime, telles que `prd.md` et `CHANGELOG.md`, sont identifiées explicitement et proviennent du même paquet vérifié.
+
+Une référence manquante ou inaccessible bloque la validation requise. L'éditeur peut restreindre l'accès à un artefact privé ; le parcours officiel doit alors disposer d'un accès autorisé, sans rendre publics ses documents de travail. Les références ne permettent ni sortie du périmètre assemblé ni récupération arbitraire non figée.
+
+La politique fournie par un éditeur explique ses propres contrôles ; elle ne remplace pas la politique SDK approuvée de l'application consommatrice. Le code de test d'un tiers est exécuté sans secrets de production ni droits de publication. Les exemples, hooks ou workflows présents dans l'artefact ne sont jamais activés implicitement.
+
+## 10. Installation et mise à jour
+
+L'application verrouille version, origine, dépendances et intégrités. L'installation compose les contrats et les assets, vérifie modèles/droits/conflits et construit l'application. Une mise à jour individuelle de module sélectionne une nouvelle version compatible, puis reconstruit et republie l'application ; elle n'injecte pas du code exécutable distant à chaud dans le Worker.
+
+La recette de mise à jour conserve front personnalisé, extensions propres, données, droits et provenance ; elle vérifie aussi refus d'incompatibilité, dépendance absente, retrait de contribution et désactivation sans effacement. Une montée de version du plugin Creezio n'actualise pas le service externe auquel il se connecte.
+
+Le parcours de livraison respecte le [cycle Git](GIT-FLOW.md) et le [stockage/hébergement](STOCKAGE-ET-HEBERGEMENT.md). Sur Sites, publication dans GPT sur mandat ; depuis Docker local, exécuteur de livraison autorisé. L'artefact, le SQL applicable et les droits d'inscription sont vérifiés avant les modifications de production. Un retour au code précédent ne prétend pas annuler le SQL déjà appliqué.

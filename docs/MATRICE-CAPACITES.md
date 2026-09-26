@@ -2,6 +2,29 @@
 
 Spécification du produit, proposée avant implémentation. Chaque capacité doit être vérifiée dans son environnement réel. Une intégration sans accès fournisseur reste identifiée comme non vérifiée.
 
+## Traçabilité et état
+
+Chaque ligne ci-dessous reste normative ; son détail complète les critères identifiés dans [EXIGENCES.md](EXIGENCES.md). Les tâches et preuves sont suivies exclusivement dans [TODO.md](TODO.md), les besoins dans [USER-STORIES.md](USER-STORIES.md). Aucune capacité produit n'est marquée validée par la seule présence de ce dossier.
+
+| Capacités de cette matrice | Exigences / tâches de réalisation |
+|---|---|
+| Runtime, installation, limites | REQ-0301 à REQ-0303, REQ-0901 à REQ-0902 ; T-03, T-09 |
+| Identités, accès, données, coffre, recherche, export | REQ-0401 à REQ-0603 ; T-04 à T-06 |
+| Workspace, onglets, navigation et état | REQ-0701 à REQ-0703 ; T-07 |
+| Fronts, thèmes, headless | REQ-1301 à REQ-1302 ; T-13 |
+| Conversations, OpenAI, outils et widgets | REQ-1401 à REQ-1603 ; T-14 à T-16 |
+| MCP, OAuth et accès machine | REQ-1001 à REQ-1003 ; T-10 |
+| Modules, documentation embarquée et PRD révisionnés | REQ-1101 à REQ-1202 ; T-11, T-12 |
+| Tâches, messagerie, support, CRM, pages, analytics, intentions, règles | REQ-1701 à REQ-2401 ; T-17 à T-24 |
+| Catalogue et connecteurs | REQ-2501 à REQ-2902 ; T-25 à T-29 |
+| Starter, paquets, artefacts de validation et tiers | REQ-3001 à REQ-3003 ; T-30 |
+| Local, Cloudflare, transfert, multiressource | REQ-3101 à REQ-3301 ; T-31 à T-33 |
+| Registre, éditions et accompagnement | REQ-0801 à REQ-0803, REQ-3401 à REQ-3501 ; T-08, T-34, T-35 |
+| GitHub, AGENTS/skills, six CI par module et contrôle des contributions | REQ-0101 à REQ-0203 ; T-01, T-02 |
+| Release, filiation, mises à jour et recette finale | REQ-3601 à REQ-3901 ; T-36 à T-39 |
+
+Les intervalles regroupent des familles d'identifiants ; seuls les IDs explicitement définis dans EXIGENCES.md existent. Le [standard module](STANDARD-MODULE.md) et la [méthode de développement](DEVELOPMENT-STANDARD.md) s'appliquent transversalement, y compris aux modules natifs, privés et tiers.
+
 ## Socle serverless
 
 Le [cadre produit et communauté](CADRE-PRODUIT-ET-COMMUNAUTE.md) fait partie de cette matrice. Creezio couvre l'app personnelle, l'équipe interne et le SaaS ; le workspace est utilisable selon les rôles, le front est facultatif et les fonctions d'administration système restent soumises à des droits propres.

@@ -2,6 +2,14 @@
 
 26 septembre 2026. Plan de construction et de qualification. **Creezio est un nouveau CMS nativement serverless ; les services externes sont des extensions, pas des composants du socle.** SQL central généré, comptes natifs, sources publiques et destination du futur fork `Creez-io/Creezio-Lab` sont acquis. Prévoir l'architecture Community/Enterprise, l'activation et l'accompagnement ; licence, tarifs, liste premium et conditions d'accès des SaaS sont expressément différés. Voir [Licences et offres](LICENCES-ET-OFFRES.md), distinct du LICENSE actuel. Les preuves hébergées sont suivies dans [Qualification Sites](QUALIFICATION-SITES.md).
 
+## État et documents de pilotage
+
+Révision de cadrage 1 du 26 septembre 2026 : **dossier préparé avant GO, runtime non construit**. Les formulations fonctionnelles décrivent la cible à livrer, pas des fonctions déjà disponibles. Les preuves de la sonde gardent leur portée limitée.
+
+Le [PRD produit](PRD.md) exprime les usages ; [EXIGENCES.md](EXIGENCES.md) fixe 79 critères identifiés ; [USER-STORIES.md](USER-STORIES.md) décrit 39 parcours ; [TODO.md](TODO.md) suit 39 lots de travail, leurs dépendances, acceptations et preuves. Ce backlog est la source unique des états, sans case fonctionnelle cochée à ce stade. L'[audit avant développement](AUDIT-AVANT-DEVELOPPEMENT.md) distingue préparation, prérequis et validations futures.
+
+L'[architecture des dépôts](ARCHITECTURE-DEPOTS.md) fixe les frontières entre socle, app dérivée, modules tiers et registre. Le [standard des modules](STANDARD-MODULE.md), le [standard de développement](DEVELOPMENT-STANDARD.md), le [Git flow](GIT-FLOW.md), [CONTRIBUTING](../CONTRIBUTING.md) et les [skills de développement](../skills/README.md) font partie du contrat. Les gabarits documentaires ne sont pas des contrôles CI déjà actifs.
+
 ## 1. Résultat attendu
 
 Le [cadre produit et communauté](CADRE-PRODUIT-ET-COMMUNAUTE.md) précise les usages personnels, d'entreprise et SaaS : workspace Creezio directement utilisable selon les rôles, front facultatif composé depuis les modules ou headless, architecture commune à tous les hébergements, création avec/sans GitHub, registre central et contribution. Il fait partie de ce plan. Enregistrement central obligatoire à la publication officielle, développement local possible hors ligne et propriétaire vérifié par GitHub ou email sont approuvés.
@@ -60,7 +68,7 @@ Les fonctions du produit sont décrites dans la [matrice](MATRICE-CAPACITES.md).
 
 ### Front applicatif
 
-Le front de départ est livré et fonctionnel ; son activation est facultative et il peut être remplacé entièrement. Une application personnelle ou collective peut utiliser le workspace Creezio comme interface unique, avec des rôles. Le front consomme les API publiques autorisées, jamais les composants privés du back-office ou les identifiants des fournisseurs. Les composants couvrent conversations, navigation, pièces jointes, panneaux, formulaires et widgets. Chaque intégration annoncée opérationnelle doit avoir été testée avec son service réel.
+Le front de départ doit être livré et fonctionnel ; son activation est facultative et il peut être remplacé entièrement. Une application personnelle ou collective peut utiliser le workspace Creezio comme interface unique, avec des rôles. Le front consomme les API publiques autorisées, jamais les composants privés du back-office ou les identifiants des fournisseurs. Les composants couvrent conversations, navigation, pièces jointes, panneaux, formulaires et widgets. Chaque intégration annoncée opérationnelle doit avoir été testée avec son service réel.
 
 Le socle conserve **une administration standardisée**, avec ses onglets, navigation, panneaux, chat, états et interactions. L'externalisation d'un moteur technique ne supprime pas sa surface fonctionnelle : le module correspondant la raccorde au service externe. Toute impossibilité démontrée doit être traitée explicitement ; elle ne justifie pas une version simplifiée de l'interface.
 
@@ -102,23 +110,26 @@ core/                      Identités, droits, opérations, données, événemen
 admin/                     Back-office Creezio
 ui/                        Composants réutilisables et moteur de widgets
 themes/                    Thèmes de front prêts à utiliser, dont ChatGPT-like
+extensions/native/         Douze familles fonctionnelles fournies d’origine
 extensions/common/         Extensions communes livrées/versionnées séparément
 sdk/                       Contrats d'extension, client headless et validation
 catalog/                   Métadonnées des extensions et thèmes référencés
 application/frontend/      Front de départ, appartenant ensuite à l'application
 application/extensions/    Extensions propres à l'application
 application/config/        Choix, branding du front, composition de l'application
-adapters/sites/            Auth, bindings D1/R2 et conventions GPT Sites
+adapters/sites/            Bindings, transports et conventions GPT Sites ; auth native commune
 adapters/docker/           Développement local persistant et exécuteur de livraison
 adapters/cloudflare/       Worker, assets, bindings et publication directe
 adapters/storage/          Sites natif, D1/R2 locaux, compte Cloudflare distant
 data/                      Modèles actuels, initialisation et accès D1/R2
 scripts/                   Setup, validation, build, publication et mise à jour
 skills/development/        Skills versionnés pour développer, tester et contribuer
-docs/                      Contrats, installation, exploitation et recette
+governance/                Politiques de contrôle versionnées et références approuvées
+.github/                   Issues/PR, contrôles et propriétaires activés au lot P0
+docs/                      PRD, exigences, stories, backlog, contrats et preuves
 ```
 
-Le dépôt contient les sources nécessaires au démarrage. Des frontières de propriété explicites séparent les fichiers maintenus par Creezio de ceux appartenant à l'application. Les extensions optionnelles sont exclues du bundle serveur lorsqu'elles ne sont pas sélectionnées. Un adaptateur d'hébergement Docker peut exécuter la même application sans devenir une dépendance du socle serverless.
+Le dépôt livré devra contenir les sources nécessaires au démarrage. Des frontières de propriété explicites séparent les fichiers maintenus par Creezio de ceux appartenant à l'application. Les extensions optionnelles sont exclues du bundle serveur lorsqu'elles ne sont pas sélectionnées. Un adaptateur d'hébergement Docker peut exécuter la même application sans devenir une dépendance du socle serverless.
 
 ## 4. Installation prête à l'emploi sur GPT Sites
 
@@ -188,13 +199,19 @@ Chaque extension doit déclarer les éléments suivants, avec schéma et validat
 | Widgets | Type et version, données de rendu, lectures/actions autorisées, compatibilité des messages anciens. |
 | Événements | Événements émis/reçus, webhooks signés, état persistant, déduplication et opérations de reprise appelables de l'extérieur ; les relances automatiques sont exécutées par le fournisseur/orchestrateur externe. |
 | Cycle de vie | Installation, activation, désactivation, mise à jour, désinstallation explicite et sort des données. |
-| Validation | Tests de contrat, permissions, initialisation, conservation des données, isolation et intégration réelle du service externe. |
+| Documentation | README, AGENTS, FILES, PRD complet, décisions/interview, TODO, CHANGELOG et gate par module, quelle que soit son origine ; documentation liée à la version installée. |
+| CI et validation | Six suites backend, UI, API-MCP, widgets, package et docs, tests propres et contrôles SDK indépendants ; critères négatifs, données conservées, isolation et fournisseur réel. |
+| Distribution vérifiable | Paquet runtime et artefact de validation lié à son intégrité ; fermeture des références de tests/outils/docs, aucune dépendance cachée à un checkout voisin. |
 
 Le contrat de données distingue champs persistés, calculés côté serveur et snapshots en lecture seule ; relations, règles de suppression et projections de lecture restent explicites. Les déclarations d'index servent aux listes/recherches natives ou aux fournisseurs configurés. La recherche de base reste utile sans moteur externe. Meili ajoute ses fonctions avancées ; son indexation est incrémentale, bornée, reprenable et inclut suppressions et reconstruction par génération. Les droits sont appliqués avant résultats, compteurs et facettes.
 
 Une extension est du code de confiance revu et livré avec l'application ; le contrat n'est pas une sandbox garantissant l'isolation de code malveillant. L'ajout de nouveau code nécessite un build et une publication selon le parcours de l'hébergement : demande dans GPT sur Sites, déclenchement possible depuis l'administration sur Docker. Une extension déjà incluse et compatible peut être activée et configurée directement. On ne télécharge pas du JavaScript arbitraire pour l'exécuter dans le Worker en production.
 
 L'API d'extension reste identique qu'elle provienne du catalogue Creezio ou du client. Exemples communs : catalogue produits, Stripe, Meili, n8n, Hermes. Exemples propres à un client : objets et parcours de son métier.
+
+Les obligations détaillées sont dans [STANDARD-MODULE.md](STANDARD-MODULE.md). Chaque module conserve `prd.md`, `interview.md`, `TODO.md`, `CHANGELOG.md`, `README.md`, `AGENTS.md`, `FILES.md` et ses scripts `ci/` avec tests et `gate.mjs`. Les documents distribués sont expurgés de notes privées. PRD/changelog de la version installée sont embarqués au build, sans lecture Node filesystem dans le Worker ni récupération de GitHub main. Ils restent distincts du PRD de travail révisionné et validé humainement, et de l'historique réel des installations. Les parcours UI/API/MCP de consultation respectent les droits.
+
+Une suite absente, vide, ignorée ou rattachée au mauvais artefact ne constitue pas une validation. Les suites du module complètent les vérifications indépendantes du SDK et de l'app ; un auteur ne choisit pas les règles qui acceptent sa propre PR. Les scripts de contrôle ne sont pas livrés dans le Worker de production.
 
 ### Écosystème et dépôt de départ
 
@@ -273,9 +290,15 @@ Envoi différé, reprise de la boîte d'envoi et reconstruction/indexation volum
 
 ## 9. GitHub, fork et mises à jour
 
+### Développement, fusion et publication
+
+Le [Git flow](GIT-FLOW.md) est unique : branche courte depuis `origin/main` à jour, tâche ou issue liée, commits ciblés, PR, synchronisation de main par merge, contrôles sur la révision actuelle, revue indépendante et **squash GitHub**. Pas de `develop` permanent, de branche permanente d'agent, de rebase/force-push d'une branche publiée ni de contournement par commit direct sur main. `release/<id>` prépare une version par le même circuit de PR ; cette branche de travail n'est pas une seconde branche stable.
+
+Après squash, vérifier le nouveau SHA de main et l'artefact exact avant tag/publication. Les versions de modules restent indépendantes, les tags immuables et les publications d'une même version sérialisées. Fusion, release, déploiement et validation utilisateur sont des états différents. Les protections GitHub, propriétaires, identités et origine des contrôles doivent être réellement activés/testés en P0 ; un dossier `.github` seul ne les impose pas. Une copie sans GitHub conserve provenance, tests et revue autorisée sans annoncer de fausse PR.
+
 ### Filiation réelle
 
-Le dépôt original `creezio/Creezio-D1R2` est public et sous [licence MIT](../LICENSE). Le premier dérivé sera le véritable fork GitHub public **`Creez-io/Creezio-Lab`**, destination approuvée. Il sera créé seulement après structuration et validation du socle, puis vérifié par `fork`, `parent` et l'ancêtre Git commun. Aucun fork n'est encore créé. Une copie par template ne répond pas à ce jalon. L'original reste sous `creezio` ; aucun transfert ni changement d'offre ou de politique d'organisation n'est demandé.
+Le dépôt original `creezio/Creezio-D1R2` est public ; son contenu documentaire déjà publié reste accompagné du [LICENSE actuel](../LICENSE). Les conditions de distribution du futur code, Community/Enterprise et l’éligibilité des SaaS restent à décider selon [Licences et offres](LICENCES-ET-OFFRES.md). Le premier dérivé sera le véritable fork GitHub public **`Creez-io/Creezio-Lab`**, destination approuvée. Il sera créé seulement après structuration et validation du socle, puis vérifié par `fork`, `parent` et l'ancêtre Git commun. Aucun fork n'est encore créé. Une copie par template ne répond pas à ce jalon. L'original reste sous `creezio` ; aucun transfert ni changement d'offre ou de politique d'organisation n'est demandé.
 
 Un fork GitHub d'un dépôt public reste public. Une application cliente dont les sources doivent rester privées utilise donc un dépôt indépendant, qui conserve explicitement l'origine Creezio, la version du socle, la composition et le parcours de mise à jour. Cette filiation documentée n'est pas présentée comme un vrai fork GitHub. La preuve sur deux Sites conserve le véritable fork public de test demandé. Les Sites A et B sont publics par choix utilisateur ; les droits et données applicatifs restent protégés indépendamment de la visibilité des sources.
 
@@ -309,28 +332,30 @@ Le parcours obligatoire utilise Docker comme environnement local de développeme
 
 ## 10. Lots d'implémentation et critères de sortie
 
-Les lots couvrent aussi le [cadre produit et communauté](CADRE-PRODUIT-ET-COMMUNAUTE.md) : rôle opérateur dans le workspace et front facultatif dès les lots 1–2 ; registre UI dynamique, starter et skills/validateurs dans le lot 3 ; profils d'interface et plugins dans le lot 4 ; API du registre central et parcours de création/filiation dans le lot 6 ; boucle contribution → release → adoption compatible dans le lot 8. Le registre est un service distinct à construire avec Creezio, sans dépendance des opérations métier à un serveur de flotte. Prévoir dès le lot 1 sa tranche minimale d'enregistrement et de validation de publication avec propriétaire vérifié, puis compléter le suivi des versions au lot 6 ; aucune publication officielle ne contourne cette exigence.
+Le [backlog](TODO.md) porte les dépendances exécutables, les exigences et les preuves de chaque tâche. Les lots ci-dessous regroupent le travail ; leur numéro n'autorise pas à ignorer une dépendance. La première tranche P1 utilise le minimum P2 nécessaire aux comptes/données/opérations. Aucun runtime ne commence avant GO et qualification de la gouvernance P0 ; construire les premiers contrôles fait partie de P0, pas d'un contrôle déjà en place.
 
-| Lot | Travail | Preuve nécessaire avant la suite |
+| Lot | Tâches canoniques | Résultat et sortie |
 |---|---|---|
-| 0 — Spécification et contraintes | Détailler capacités, rôles, UI dynamique et contrats communs ; formaliser SQL central, comptes, filiation, Community/Enterprise et droits de redistribution. | Modèle gratuit/premium explicite ; textes et périmètres de licence examinés avant distribution du code ; destination `Creez-io/Creezio-Lab` approuvée. La qualification technique ne vaut pas validation du socle complet. |
-| 1 — Socle démarrable et qualification | Structure, profils de build, identité, modèles, D1/R2 et première interface ; prototype de panneaux React stables avec routeur isolé, puis local, Site A et Workers direct, transfert et auth. | Même tranche fonctionnelle réellement exécutée sur les cibles avant extension du socle ; deux fiches, brouillons, scroll, historiques, navigation interrompue et révocation qualifiés ; donnée/fichier persistés, copie contrôlée et production indépendante du local. Réutiliser les environnements. |
-| 2 — Sécurité et opérations | Identités, rôles, contextes de données, modèles et initialisation, registre d'opérations, audit, API et MCP moderne avec compatibilité des clients retenus. | Même opération et mêmes permissions depuis les différents canaux sans fabriquer de session machine ; schémas, pagination JSON et OAuth qualifiés avec clients réels ; refus prouvés, absence de fuite entre contextes, installation sur base neuve et conservation des données après republication. |
-| 3 — Contrats et développement d'extensions | Manifestes, validation, SDK, cycle de vie, événements, projections, configuration, catalogue et diagnostics. Préparer le starter avec paquet et démo fondée sur le même code. | Extension créée à partir de la documentation, installée sans recoder API/MCP/chat, versionnée et désactivée sans perte de données ; incompatibilité bloquée ; code optionnel absent du socle minimal. |
-| 4 — Interfaces et chat | Construire le workspace/chat Creezio complets selon les rôles ; front facultatif/remplaçable, thèmes dynamiques standard et ChatGPT-like, composants réutilisables, conversations, fournisseur IA et widgets. | App complète sans front spécifique ; opérateur autorisé dans le workspace mais interdit d'administration système ; vues de modules ajoutées automatiquement aux thèmes ; widget réel lisant/modifiant un objet avec trace serveur ; conversation persistante et réouverture cohérente. |
-| 5 — Capacités et extensions communes | Construire les fonctions par groupes : données/configuration ; productivité/chat ; connecteurs/agents ; exploitation/développement externe. Construire n8n et Stripe comme deux modules de référence prêts à configurer, puis Meili et les autres modules selon la matrice. | Installation + accès fournisseur suffisent pour obtenir les API, MCP, événements et widgets prévus, sans intégration spécifique dans l'app. Chaque ligne de la matrice dispose d'une preuve ou d'une dépendance externe précisément identifiée. Aucun composant incompatible ne rentre dans le bundle du socle. Les fonctions annoncées opérationnelles sont testées réellement. |
-| 6 — Distribution et mises à jour | Manifeste de release, propriété des fichiers et identité des déploiements. Parcours GPT pour Sites ; depuis Docker local, publication Workers + assets + D1/R2 puis mises à jour préservant la production. | Site A mis à jour dans GPT. Cloudflare direct : reprise des transferts, absence de collision des ressources, conflit d'édition explicite, données de production conservées. |
-| 7 — Release et véritable fork | Après validation du socle, stabiliser l'original, publier une release, créer le fork public `Creez-io/Creezio-Lab` et enregistrer Site B ; personnaliser le front et développer l'extension « demandes ». | Deux URLs actives, filiation GitHub vérifiée, persistance et identités de déploiement indépendantes ; démarrage du fork par le parcours standard. |
-| 8 — Recette comparative et écosystème | Nouvelle release sur A, mise à jour de B dans GPT. Puis nouvelle version d'une seule extension et mise à jour ciblée ; installation dans B du paquet issu du starter. | Socle puis module de B actualisés séparément ; autres versions, front, extension privée, modèles et données préservés. Démo du starter publiée sur Cloudflare et même paquet exercé dans B ; compte rendu avec versions et preuves. |
-| 9 — Validation utilisateur | Présenter les deux Sites et la démonstration reproductible, ainsi que le parcours de développement Docker → production Cloudflare. | Validation avant la construction d'autres applications métier. |
+| P0 — Méthode et contrats exécutables | T-01, T-02 | Activer/qualifier règles GitHub, revue distincte, premiers contrôles de documentation/contrats/gouvernance et cas invalides. Ne pas annoncer des suites runtime exécutées avant leur construction. |
+| P1 — Tranche fonctionnelle précoce | T-03, T-07, T-08, T-09, T-31 | Runtime commun, workspace/onglets, identité/donnée/fichier/opération témoins et registre minimal avant publication officielle. Local puis Site A. Docker/Cloudflare qualifiés dès accès disponibles sans bloquer les travaux indépendants. |
+| P2 — Identités, données et opérations | T-04, T-05, T-06, T-10 | Sécurité complète, stockage/coffre/recherche/export, registre d'opérations, API/MCP et OAuth ; refus, droits au commit et reprise prouvés. |
+| P3 — Modules et distribution | T-11, T-12, T-30 | Contrat/SDK/cycle de vie, docs par version et six CI ; première extension témoin puis starter complet avec paquet réel et démo locale, après disponibilité des interfaces/widgets. |
+| P4 — Interfaces et chat | T-13 à T-16 | Front facultatif, deux thèmes dynamiques/headless, chat standard complet, module OpenAI, widgets et plugins réellement qualifiés dans Creezio et GPT. |
+| P5 — Natif et connecteurs | T-17 à T-29 | Tâches, messagerie, support, CRM, pages/navigation, analytics, intentions, règles ; catalogue, n8n, Stripe, Meili et connecteurs recensés avec leurs PRD/tests/preuves propres. |
+| P6 — Livraison et offres | T-32 à T-35 | Application et démo publiées sur Cloudflare avec transfert/reprise, multiressource hors Sites, politiques Community/Enterprise et assistance limitée/révocable. Décisions commerciales restent différées. |
+| P7 — Release et vrai fork | T-36, T-37 | Original qualifié, conditions de distribution examinées, version publiable puis vrai fork public Creez-io/Creezio-Lab et Site B. |
+| P8 — Adoption et communauté | T-38 | Mise à jour A/B, update individuelle de module/thème, véritable paquet tiers installé puis actualisé, contribution amont et parcours Cloudflare du fork. |
+| P9 — Validation utilisateur | T-39 | Démonstration reproductible et preuves complètes des deux Sites, clients MCP/GPT, données et parcours Cloudflare, avant toute nouvelle app métier. |
 
-Chaque lot produit du code, sa documentation, des vérifications pertinentes et un état des limites. Les tests locaux de contrat ne remplacent pas la recette hébergée. Les deux Sites sont réutilisés ; pas de multiplication des déploiements et copies de travail à chaque essai.
+Le local et le développement des contrats ne nécessitent pas de nouvelle clé Cloudflare. L'accès manquant bloque sa recette de publication, qui reste obligatoire avant validation finale. La démo du starter est d'abord vérifiée localement (T-30), puis publiée avec le parcours Cloudflare (T-32) : aucune dépendance circulaire entre starter et publication. Les preuves préexistantes de sonde et de composants réemployables ne cochent pas les fonctionnalités de ces lots.
 
-L'[architecture Community/Enterprise et accompagnement](LICENCES-ET-OFFRES.md) complète ces lots : identifier les frontières et droits de reprise au lot 0 ; prévoir politiques versionnées et droits signés dès le lot 2 ; construire compte central, paiement et activation au lot 6 ; qualifier expiration/panne, refus API/MCP et assistance sur dépôt consenti au lot 8. Licence, tarifs, liste premium et accès des SaaS en Community ou uniquement en premium seront décidés plus tard, sans retarder la conception technique ni retirer une capacité native sans décision explicite.
+Le registre central est un service distinct : T-08 construit sa tranche d'enregistrement/vérification et documente son bootstrap, T-34 ses politiques/droits et T-35 l'accompagnement. Aucune dépendance métier à un serveur de flotte. Les frontières techniques et les politiques de test sont nécessaires dès la conception ; licence finale, tarifs, fonctions premium et accès SaaS ne sont pas des décisions exigées pour commencer le développement. Le contrat de distribution applicable devra être examiné avant publication du code concerné.
+
+Chaque tâche livre code, documents à jour, tests proportionnés et limites. Les tests locaux ne remplacent pas les recettes hébergées. Réutiliser sites/checkouts/dépendances et builds ; aucun environnement nouveau par essai.
 
 ## 11. Première application dérivée : Creezio Lab
 
-Proposition de métier volontairement neutre : des demandes contenant titre, description, statut et pièce jointe. Une extension cliente apporte les modèles de données, API, outils MCP et un widget permettant de consulter puis modifier une demande selon les droits.
+Métier de recette : demandes d'achat contenant titre, description, statut, montant proposé et pièce jointe. Un module métier apporte données, API/MCP et widget ; un module de validation de budget démontre un échange intermodules par contrat public. Le comparateur fournisseur externe et le catalogue commun complètent la recette sans devenir obligatoires pour créer une demande. Le [dossier d'architecture](ARCHITECTURE-DEPOTS.md) fixe ces frontières.
 
 Le front du fork utilise le thème ChatGPT-like, avec son propre écran d'accueil et son organisation conversationnelle. Son administration reste Creezio, avec le même chat et le même comportement d'onglets que l'original. Une extension commune de recherche Meili, si configurée, indexe les demandes avec les droits ; le même contrat fonctionne sans cette extension et annonce clairement l'absence de recherche Meili.
 
@@ -385,7 +410,7 @@ Ces points ne demandent pas de redéfinir le métier des applications. L'absence
 
 ## 14. Références et limites de cette conception
 
-Le runtime, les bindings D1/R2, l'authentification et la publication utilisent les capacités effectivement disponibles dans GPT Sites. Les vérifications de plateforme du lot 0 restent nécessaires. La publication Sites est effectuée dans le parcours GPT, hors du runtime de l'application.
+Le runtime, les bindings D1/R2, l'authentification et la publication utilisent les capacités effectivement disponibles dans GPT Sites. Les vérifications de plateforme des tâches T-03, T-09 et T-32 restent nécessaires sur les versions retenues. La publication Sites est effectuée dans le parcours GPT, hors du runtime de l'application.
 
 Sources techniques primaires :
 

@@ -1,0 +1,35 @@
+name: Anomalie reproductible
+description: Décrire un problème du socle, d'un module ou d'un profil.
+title: "fix: "
+body:
+  - type: markdown
+    attributes:
+      value: "Ne publiez aucun secret ni donnée privée. Une issue ne donne pas mandat de modifier une production."
+  - type: input
+    id: scope
+    attributes:
+      label: Composant, version et profil
+      description: Socle ou module qualifié ; SHA/version ; Sites, local ou Cloudflare ; client si MCP/widget.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction, résultat attendu et résultat observé
+      description: Étapes minimales, rôle de test, erreurs expurgées et limites de reproduction.
+    validations:
+      required: true
+  - type: textarea
+    id: trace
+    attributes:
+      label: Exigences, stories ou critères concernés
+      description: Lier les IDs connus ; sinon décrire le besoin pour rattachement avant développement.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Preuves et impact
+      description: Date, version, profil, données fictives, fréquence et conséquences ; distinguer hypothèses et faits.
+    validations:
+      required: true

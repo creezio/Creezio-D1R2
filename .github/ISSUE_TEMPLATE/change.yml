@@ -1,0 +1,32 @@
+name: Évolution ou tâche de développement
+description: Proposer un résultat traçable et ses critères avant de coder.
+title: "feat: "
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: Utilisateur, besoin et résultat attendu
+      description: Préciser le problème et le périmètre, sans imposer prématurément une implémentation.
+    validations:
+      required: true
+  - type: textarea
+    id: trace
+    attributes:
+      label: PRD, exigences, stories et tâche
+      description: Liens/IDs du dossier et composant propriétaire ; proposer les IDs manquants avant implémentation.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Critères positifs, refus et preuves attendues
+      description: Rôles, données, UI/API/MCP/widget, profils et tests pertinents ; aucune donnée privée.
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dépendances et limites
+      description: Prérequis techniques, accès externes, compatibilité, documents et versions affectés ; mandat de publication distinct.
+    validations:
+      required: true

@@ -8,6 +8,23 @@ Le dossier [Extensions, thèmes et écosystème](docs/EXTENSIONS-THEMES-ECOSYSTE
 
 Un module ou extension Creezio possède ses données, sa logique métier, ses API, ses relations intermodules et ses écrans. Sa partie plugin conversationnel expose les outils MCP, skills et widgets selon le format standard GPT, sans dupliquer le backend ni les données. La publication dans ChatGPT est facultative ; le chat Creezio héberge plusieurs de ces plugins. Chaque application possède son MCP d'administration et peut exposer son MCP destiné aux utilisateurs métier, dans le workspace ou dans le front, avec catalogues et droits distincts dans un même déploiement. Le [contrat de compatibilité ChatGPT](docs/COMPATIBILITE-CHATGPT.md) définit cette cible et sa recette réelle, encore à réaliser.
 
+## Dossier prêt à examiner avant développement
+
+Le produit complet n'est pas implémenté. Ce dépôt contient le dossier de cadrage, les standards et guides ; la sonde technique a une portée limitée. Le développement attend le GO utilisateur.
+
+| Document | Usage |
+|---|---|
+| [PRD](docs/PRD.md) | Définition de Creezio, publics, parcours, périmètre et réussite attendue. |
+| [Exigences](docs/EXIGENCES.md) | 79 exigences identifiées avec critères, preuves et profils de recette. |
+| [User stories](docs/USER-STORIES.md) | 39 résultats attendus pour les utilisateurs et développeurs. |
+| [Backlog](docs/TODO.md) | 39 lots de travail, dépendances, livrables et état réel ; liste canonique des tâches. |
+| [Plan d'implémentation](docs/PLAN-IMPLEMENTATION.md) | Architecture, lots P0 à P9 et recette complète. |
+| [Architecture des dépôts](docs/ARCHITECTURE-DEPOTS.md) | Socle, douze familles natives, fork, modules externes et registre central. |
+| [Standard module](docs/STANDARD-MODULE.md) | PRD/changelog/docs, contrats, six suites CI et paquets vérifiables. |
+| [Développement](docs/DEVELOPMENT-STANDARD.md) · [Git flow](docs/GIT-FLOW.md) | Règles de travail, branche/PR/revue/squash, versions et publication. |
+| [Skills](skills/README.md) · [Contribuer](CONTRIBUTING.md) · [Fichiers](FILES.md) | Points d'entrée pour humains et IA. |
+| [Audit avant développement](docs/AUDIT-AVANT-DEVELOPPEMENT.md) | Corrections, couverture, limites et prérequis avant les différents jalons. |
+
 ## Objectif
 
 Un socle d'applications personnelles, internes ou SaaS avec backend et modules prêts à l'emploi. Le back-office conserve l'identité Creezio et peut constituer toute l'interface de l'application, avec des vues et opérations accordées selon les rôles ; l'administration du système exige des droits spécifiques. Un front facultatif consomme les mêmes API : thèmes composant automatiquement les vues des modules, personnalisation libre ou interface headless indépendante.
@@ -45,8 +62,8 @@ Chaque application rassemble son administration et son front dans un seul projet
 
 ## Ordre de travail demandé
 
-1. Présenter le plan complet, avec capacités, architecture, contrat d'extension, organisation du code et parcours de mise à jour par hébergement.
-2. Structurer et construire le socle selon les décisions validées.
+1. Préparer et auditer PRD, exigences, stories, backlog, contrats et méthode ; attendre le GO avant développement.
+2. Après GO, qualifier la gouvernance P0 puis construire le socle selon le backlog et les décisions validées.
 3. Faire fonctionner l'original sur un premier GPT Site. Une fois le socle structuré et vérifié, créer une première application de test par véritable fork et la faire fonctionner sur un second GPT Site indépendant. Le dépôt doit démarrer directement avec son front de départ, son back-office et sa persistance ; aucun assemblage manuel propre à la démo.
 4. Valider le parcours de mise à jour Docker séparément, puis faire valider l'application de test avant de construire d'autres applications métier.
 

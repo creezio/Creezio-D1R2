@@ -1,0 +1,34 @@
+# Repères du dépôt
+
+État : dossier de préparation avant GO. Aucun runtime, paquet exécutable, workflow de contrôle ou déploiement CMS dans cet arbre. Les noms de scripts futurs sont des contrats, pas des commandes disponibles.
+
+| Emplacement | Responsabilité |
+|---|---|
+| [README.md](README.md) | Présentation et parcours de lecture. |
+| [AGENTS.md](AGENTS.md) | Instructions applicables et invariants. |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Point d'entrée des contributions. |
+| [LICENSE](LICENSE) | Licence du contenu déjà publié ; ne préjuge pas des conditions du futur produit. |
+| [.gitignore](.gitignore) | Exclusion des secrets, données locales et sorties régénérables. |
+| [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md) | Contenu demandé pour les PR ; ne remplace pas une protection distante. |
+| [.github/ISSUE_TEMPLATE/bug.yml](.github/ISSUE_TEMPLATE/bug.yml) | Reproduction et traçabilité des anomalies. |
+| [.github/ISSUE_TEMPLATE/change.yml](.github/ISSUE_TEMPLATE/change.yml) | Besoin, critères et dépendances des évolutions/tâches. |
+| [skills/README.md](skills/README.md) | Registre et routage des neuf skills de développement canoniques. |
+| [docs/PRD.md](docs/PRD.md) | Vision, utilisateurs, périmètre et réussite. |
+| [docs/EXIGENCES.md](docs/EXIGENCES.md) | Exigences stables et recettes attendues. |
+| [docs/USER-STORIES.md](docs/USER-STORIES.md) | Parcours utilisateur/développeur reliés aux exigences. |
+| [docs/TODO.md](docs/TODO.md) | Backlog canonique, dépendances, jalons et états. |
+| [docs/PLAN-IMPLEMENTATION.md](docs/PLAN-IMPLEMENTATION.md) | Architecture détaillée et lots. |
+| [docs/MATRICE-CAPACITES.md](docs/MATRICE-CAPACITES.md) | Inventaire fonctionnel et scénarios de conservation. |
+| [docs/ARCHITECTURE-DEPOTS.md](docs/ARCHITECTURE-DEPOTS.md) | Socle/fork/tiers/registre, modules natifs et propriété. |
+| [docs/STANDARD-MODULE.md](docs/STANDARD-MODULE.md) | Contrat uniforme, documentation et six CI par module. |
+| [docs/DEVELOPMENT-STANDARD.md](docs/DEVELOPMENT-STANDARD.md) | Méthode, impact documentaire, confiance et preuves. |
+| [docs/GIT-FLOW.md](docs/GIT-FLOW.md) | Branches, commits, PR, revue, fusion et releases. |
+| [docs/CADRE-PRODUIT-ET-COMMUNAUTE.md](docs/CADRE-PRODUIT-ET-COMMUNAUTE.md) | Usages, communauté, registre et création. |
+| [docs/EXTENSIONS-THEMES-ECOSYSTEME.md](docs/EXTENSIONS-THEMES-ECOSYSTEME.md) | SDK, paquets, thèmes, starter et updates. |
+| [docs/COMPATIBILITE-CHATGPT.md](docs/COMPATIBILITE-CHATGPT.md) | MCP, widgets, plugins et skills conversationnels. |
+| [docs/STOCKAGE-ET-HEBERGEMENT.md](docs/STOCKAGE-ET-HEBERGEMENT.md) | Local, Sites, Cloudflare et transfert D1/R2. |
+| [docs/LICENCES-ET-OFFRES.md](docs/LICENCES-ET-OFFRES.md) | Politiques/activation/accompagnement et décisions commerciales différées. |
+| [docs/QUALIFICATION-SITES.md](docs/QUALIFICATION-SITES.md) | Preuves techniques limitées, distinctes du CMS. |
+| [docs/AUDIT-AVANT-DEVELOPPEMENT.md](docs/AUDIT-AVANT-DEVELOPPEMENT.md) | Audit croisé et conditions de démarrage/livraison. |
+
+Tout ajout structurel met ce repère à jour. Chaque module construit fournit ensuite son propre FILES et ses instructions locales, conformément au standard commun.

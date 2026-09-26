@@ -86,6 +86,12 @@ Le service central est provisionné initialement par son mainteneur, avec propri
 
 Un code accessible peut être modifié et une copie divergente peut tenter de retirer la déclaration centrale, indépendamment des autorisations que sa licence lui accorde réellement. Le registre suit les installations enregistrées, pas un inventaire exhaustif de toutes les copies. Les relations GitHub identifient les vrais forks visibles, pas toutes les archives ou apps privées. Le modèle Community/Enterprise et les droits premium signés sont détaillés dans [Licences et offres](LICENCES-ET-OFFRES.md) ; ni inscription ni abonnement n'accordent un accès implicite au code ou aux données d'un client.
 
+## Dossier produit et standard des modules
+
+Le [PRD](PRD.md), les [exigences identifiées](EXIGENCES.md), les [stories](USER-STORIES.md) et le [backlog](TODO.md) rendent le plan exécutable et reprenable. Chaque exigence porte critères positifs/négatifs, tâche, profil et preuve attendue. Le [standard des modules](STANDARD-MODULE.md) impose PRD, décisions/interview, TODO, CHANGELOG, README, AGENTS, FILES et gate à tous les modules, avec six suites backend/UI/API-MCP/widgets/package/docs et tests indépendants du SDK. Le [dossier des dépôts](ARCHITECTURE-DEPOTS.md) fixe les frontières et l'inventaire natif.
+
+La documentation de la version installée est embarquée avec le module ; les révisions de travail validées et l'historique d'installation sont des états applicatifs distincts. L'artefact externe de validation conserve toutes les références nécessaires, sans dépendance cachée à un checkout ni secrets de production.
+
 ## Skills de développement et contrôles de conformité
 
 Fournir un pack versionné de skills pour créer une app, créer/modifier un module, déclarer modèles/opérations, développer les vues/widgets, tester, publier, mettre à jour et contribuer. Ces skills de **développement** sont distincts des skills **conversationnels** qui guident l'utilisateur du module. Ils référencent les contrats canoniques, les exemples et les commandes, avec un `AGENTS.md` concis ; ne pas multiplier des copies contradictoires des règles.
@@ -102,6 +108,8 @@ Les skills guident l'IA. Une même commande de conformité dans le développemen
 Des exemples volontairement invalides doivent échouer pour prouver que les contrôles sont effectifs. Les schémas/linters contrôlent la structure ; les tests de contrat et recettes contrôlent le comportement et les intégrations réelles. Aucune validation statique ne prouve toute la logique métier ou l'innocuité d'un module malveillant. Les règles de branche et de publication imposent ces contrôles sur les dépôts administrés ; un fork modifié hors de ces parcours ne reçoit pas automatiquement la qualification Creezio. Les skills ne sont pas une interdiction technique universelle de modifier des sources accessibles. [Rôle des skills](https://developers.openai.com/plugins/build/skills).
 
 ## Contributions et mises à jour de l'écosystème
+
+Appliquer [GIT-FLOW.md](GIT-FLOW.md) et [DEVELOPMENT-STANDARD.md](DEVELOPMENT-STANDARD.md) : branches courtes depuis main, commits ciblés, PR à jour, revue indépendante, squash uniquement, puis tests de l'artefact du SHA réellement fusionné avant tag/publication. Synchroniser une branche publiée par merge de main ; pas de force-push/rebase ni de contournement des protections. Un seul compte GitHub ne fournit pas deux approbateurs. Ces protections et contrôles sont à activer et qualifier en P0 ; les consignes seules ne prouvent pas leur application.
 
 Le parcours de retour utilisateur prépare une reproduction minimale, les versions et diagnostics expurgés ; il distingue bug du socle, module officiel, module tiers et personnalisation. L'auteur peut demander l'envoi d'une issue puis proposer une correction. Le token du registre n'accorde pas l'accès GitHub : utiliser une connexion autorisée ou fournir un brouillon/patch prêt à soumettre. Aucun code privé, secret ou donnée métier n'est joint implicitement.
 

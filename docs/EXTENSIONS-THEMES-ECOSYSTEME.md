@@ -60,9 +60,13 @@ Le dépôt fournit un module complet, incluant sa partie plugin conversationnel 
 - **Une application de démonstration**, utilisant une version fixée du vrai socle Creezio et cette même extension. Elle démarre localement avec D1/R2 persistants et peut être publiée entièrement sur Cloudflare : Worker, front, administration, D1/R2 et assets.
 - **Une distribution ChatGPT/Codex facultative de la partie plugin**, utilisant le même manifeste portable, la même configuration MCP, les mêmes skills et ressources UI MCP Apps que le chat Creezio. La composition de l'application génère des profils distincts pour son MCP admin et son MCP front. Cette distribution connecte à l'application hébergeant le module ; elle ne contient pas une nouvelle base ou un second backend métier.
 
-Structure indicative :
+Structure minimale, complétée par le [standard des modules](STANDARD-MODULE.md) :
 
 ```text
+README.md, AGENTS.md, FILES.md       Repères du module et contraintes de développement
+prd.md, interview.md, TODO.md       Spécification, décisions et suivi traçable
+CHANGELOG.md, gate.mjs              Historique éditeur et entrée des contrôles
+ci/                                backend/ui/api-mcp/widgets/package/docs
 module/          Contrat, modèles, fichiers, opérations, API et relations intermodules
 ui/              Écrans admin/front et composants partagés
 plugin/          Partie conversationnelle du module
@@ -71,7 +75,7 @@ plugin/          Partie conversationnelle du module
   skills/        Workflows conversationnels
   widgets/       Ressources UI appelant les opérations du module
 demo/            Composition Creezio utilisant le module complet du starter
-tests/           Contrats, accès, API/MCP, widget et installation réelle
+tests/           backend/ui/api-mcp/widgets/package/docs, contrats et installation réelle
 docs/            Démarrage, configuration, publication et contribution
 scripts/         Validation, packaging et publication de la démo
 ```
@@ -87,6 +91,12 @@ Les ressources Cloudflare, accès administrateur et secrets de démonstration ap
 L'archive de module distribuée à Creezio contient sa fonctionnalité complète, sa partie conversationnelle et leurs dépendances déclarées. La distribution du plugin vers ChatGPT n'embarque que les éléments de connexion et d'interaction nécessaires ; les données et opérations restent dans le module hébergé. Les deux archives excluent `demo/`, les données de démonstration, les secrets et identifiants privés d'hébergement, ainsi que toute copie embarquée du socle Creezio. La configuration MCP décrit la connexion ; l'URL propre à une application est résolue explicitement lors de la composition/distribution. Les contrats partagés sont des dépendances compatibles, pas un second runtime. La recette installe l'archive de module effectivement produite dans Creezio Lab, sans résolution implicite vers le workspace de développement, et vérifie sa partie plugin séparément.
 
 Construire et publier la démo depuis la racine du starter : aucune dépendance à une copie voisine non fournie du CMS. Le bouton [Deploy to Cloudflare](https://developers.cloudflare.com/workers/platform/deploy-buttons/) pourra compléter le parcours du starter public ; il ne remplace ni la distribution du paquet ni la preuve du vrai fork GitHub. Le parcours Wrangler authentifié reste disponible, notamment pour les extensions maintenues dans des dépôts privés indépendants.
+
+Le module distribue le PRD et le changelog correspondant à sa version, embarqués au build pour consultation autorisée UI/API/MCP. Son historique éditeur reste distinct des installations locales et des révisions de PRD validées dans l'app. Le starter fournit les six suites CI et leurs tests, pas des scripts vides produisant un faux succès.
+
+Le paquet runtime est accompagné d'un **artefact de validation** lié à sa version/origine/intégrité : gate, CI/tests, documents et fermeture de leurs références nécessaires (scripts, règles, skills, gabarits, fichiers de contexte). Il s'exécute dans l'environnement de validation isolé, sans secrets de production, et ne remplace jamais les contrôles approuvés du consommateur. Aucun CI ni runtime de test ne s'exécute dans le Worker de production. Voir [STANDARD-MODULE.md](STANDARD-MODULE.md).
+
+Les premières preuves de packaging utilisent une app hôte de validation locale, sans créer prématurément le fork public. La démo Cloudflare est qualifiée avec le parcours de livraison, puis le paquet est exercé dans le vrai fork au jalon prévu. Le [backlog](TODO.md) évite toute dépendance circulaire entre ces étapes.
 
 ## Installation et cycle de vie
 
@@ -137,6 +147,8 @@ Le contrat du canal distingue session utilisateur et identité machine autorisé
 Le front livré et l'administration restent publiables avec le backend dans une seule application. Un front headless hébergé séparément est une option de composition ; il utilise les mêmes API et un parcours d'identité/CORS explicitement configuré. Cela n'implique aucun backend distinct par utilisateur ou client.
 
 ## Développeurs et confiance
+
+Les règles canoniques sont [DEVELOPMENT-STANDARD.md](DEVELOPMENT-STANDARD.md), [GIT-FLOW.md](GIT-FLOW.md) et [CONTRIBUTING.md](../CONTRIBUTING.md), avec [skills de développement](../skills/README.md). Tâche/issue, branche courte, PR à jour, revue indépendante, squash puis vérification du SHA final et du paquet exact s'appliquent aussi aux dépôts du starter et des modules. Leurs réglages distants sont qualifiés, pas hérités magiquement par fork. Les exigences/stories/tâches et preuves relient documentation, sources et versions.
 
 Livrer une documentation publique, un SDK versionné, le starter public, un exemple installé, des tests de conformité, une procédure de contribution, un changelog et une politique de compatibilité. Le catalogue distingue officiel, tiers et privé, ainsi que l'état de maintenance. Les dépôts et paquets privés conservent leurs contrôles d'accès.
 

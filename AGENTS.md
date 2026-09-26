@@ -1,6 +1,14 @@
 # Instructions Creezio-D1R2
 
-Lire `README.md`, `docs/PLAN-IMPLEMENTATION.md` et `docs/MATRICE-CAPACITES.md` avant intervention. Le périmètre confirmé par l'utilisateur prime.
+Lire `README.md`, `FILES.md`, `docs/PRD.md`, `docs/EXIGENCES.md`, `docs/USER-STORIES.md`, `docs/TODO.md`, `docs/PLAN-IMPLEMENTATION.md` et `docs/MATRICE-CAPACITES.md` avant intervention. Le backlog est la source canonique des états et dépendances ; aucune fonctionnalité runtime n'est déjà livrée. Le mandat de cadrage autorise documentation/contrats et PR documentaire ; attendre le GO utilisateur avant construction, déploiement ou activation de la gouvernance.
+
+Appliquer `CONTRIBUTING.md`, `docs/GIT-FLOW.md`, `docs/DEVELOPMENT-STANDARD.md` et `docs/STANDARD-MODULE.md`. Consulter `skills/README.md` pour choisir un guide dans `skills/development/` ; ne pas présumer la découverte automatique par le client IA. Les neuf skills guident la méthode, les contrôleurs correspondants restent à construire/qualifier au P0 puis dans les lots applicatifs. Le rapport `docs/AUDIT-AVANT-DEVELOPPEMENT.md` expose les prérequis réels.
+
+- Toute intervention se rattache à une exigence/story/tâche ou correction documentaire identifiée. Mettre à jour seulement les docs affectées, avec preuve ou justification d'absence d'impact : PRD, décisions, TODO, changelog, FILES et contrats/skills concernés.
+- Modules natifs, métier et tiers : même dossier README/AGENTS/FILES/prd/interview/TODO/CHANGELOG/gate ; six suites backend/ui/api-mcp/widgets/package/docs, tests propres et SDK indépendants. Pas de suite vide, fake verte ou preuve d'un ancien SHA. Le PRD installé est distinct des révisions locales validées et de l'historique de livraison.
+- Développer sur branche courte liée à une tâche/issue depuis main à jour ; préserver le travail présent. Commits ciblés, PR, synchronisation par merge, revue indépendante et squash GitHub. Aucun push direct main, amend/rebase/force d'une branche publiée ni branche permanente d'agent ; après squash, vérifier nouveau main et artefact exact avant release.
+- Protéger main/tags et vérifier l'origine du contrôle final `creezio/quality-gate` dans la phase autorisée ; des fichiers ne rendent pas les règles actives. Plusieurs agents avec le même compte ne valent pas une approbation GitHub indépendante. Pas de contournement en cas de relecteur manquant ; aucune création implicite de compte/app GitHub.
+- Les paquets externes fournissent un artefact de validation autonome lié à leur intégrité ; leurs tests s'exécutent isolés sans secrets, leur politique ne remplace pas celle de l'hôte. Code de contrôle et dépendances ne tournent pas dans le Worker de production. Le périmètre confirmé par l'utilisateur prime.
 
 Lire aussi `docs/EXTENSIONS-THEMES-ECOSYSTEME.md` pour la distribution, les thèmes, le SDK, le starter et les mises à jour indépendantes, et `docs/QUALIFICATION-SITES.md` pour les preuves et limites de la qualification hébergée.
 
