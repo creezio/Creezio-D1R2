@@ -1,12 +1,18 @@
 # Access — comptes et accès natifs
 
-Version de travail 0.0.0, persistance et droits de [T-04](../../../docs/IMPLEMENTATION-T04.md). Ce module possède seize modèles privés d'identité et d'autorisation ; le cœur assure leurs règles, la cryptographie et les décisions de droits.
+Version de travail 0.0.0, persistance et droits de [T-04](../../../docs/IMPLEMENTATION-T04.md). Ce module possède dix-sept modèles privés d'identité et d'autorisation ; le cœur assure leurs règles, la cryptographie et les décisions de droits.
 
 Le premier compte nécessite une capacité d'installation provisionnée explicitement par le responsable du déploiement. Les mots de passe utilisent Argon2id ; les sessions utilisent des secrets opaques dont seule l'empreinte est stockée. L'acquisition d'une installation et ses effets sont atomiques dans une seule D1 ; une session est revalidée à chaque lecture et à son émission après vérification du mot de passe.
 
 Le même claim initialise explicitement le contexte `application`, le rôle `administrator`, son seul grant `creezio.access:manage` et l'affectation du premier compte sur l'audience `admin`. Aucun wildcard ni rôle applicatif supplémentaire n'est créé. Le marqueur d'installation ne donne aucun droit en l'absence de ces lignes ; l'autorité dépend des droits courants.
 
 Les memberships lient compte, contexte et audience. Les affectations de rôles et exceptions de compte référencent cette clé entière ; les héritages, grants et exceptions de rôle possèdent leurs propres relations. Les états de contexte et de membership peuvent désactiver l'accès. L'epoch globale de `authorization_state` sert à détecter un changement du graphe avant une écriture protégée ; une lecture préalable ne remplace pas cette garde au commit. La portée effectivement qualifiée du résolveur et des mutations figure dans le document T-04.
+
+`account_capabilities` conserve uniquement l'empreinte des capacités d'invitation, d'activation et de réinitialisation du mot de passe, leur cible, ses versions attendues, l'expiration et les marqueurs de consommation/révocation. Une invitation crée une personne en attente sans mot de passe, membership ni rôle. Son activation établit le mot de passe ; la réinitialisation d'un compte actif renouvelle son credential et révoque ses sessions. Aucun de ces jetons ne donne de permission et sa consommation n'émet pas de session. Les services du cœur doivent autoriser émission/révocation au commit et recontrôler la consommation après le calcul du mot de passe. Le TODO distingue leur construction et leur qualification.
+
+L'audit distingue le compte qui agit, le compte cible et l'identifiant de capacité ; il ne contient ni secret ni PHC. Le jeton clair est retourné une seule fois à l'émetteur autorisé. Aucun envoi d'e-mail, lien public ou livraison au destinataire n'est encore fourni ; cette remise doit rester explicite et ne constitue pas une vérification d'adresse e-mail.
+
+Les versions du principal, du compte et du credential invalident immédiatement l'ensemble des anciennes sessions et capacités, y compris celles conservées pour l'historique. La même consommation ne marque physiquement qu'au plus 32 sessions vivantes et huit autres capacités non expirées. Des index composites limitent les recherches aux lignes concernées ; une ligne historique sans marqueur de révocation ne redevient pas utilisable si ses versions sont périmées. Aucune purge autonome n'est requise pour cette invalidation.
 
 Aucune route HTTP, UI, MCP ni widget n'est exposé dans cette tranche. Les comptes persistants sont qualifiés par des harnais D1 ; ce n'est pas encore un parcours de connexion publié. Le module reste hors de la composition par défaut jusqu'à son raccordement complet. Les interfaces prévues dans le PRD restent à réaliser.
 

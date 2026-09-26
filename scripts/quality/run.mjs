@@ -11,7 +11,7 @@ const started = new Date().toISOString();
 const evidencePath = resolve(root, '.quality/latest.json');
 mkdirSync(dirname(evidencePath), { recursive: true });
 const write = value => writeFileSync(evidencePath, JSON.stringify(value, null, 2) + '\n');
-const profile = 't04-authorization-local';
+const profile = 't04-account-lifecycle';
 write({ schemaVersion: 1, profile, started, state: 'running', success: false, mergeReady: false });
 try {
 const source = sourceIdentity(root);
@@ -42,8 +42,8 @@ const report = { schemaVersion: 1, profile, started, finished: new Date().toISOS
   source, results: { docs, commands, tests: { ...tap, files: tests, exitCode: result.status }, runtime,
     runtimeEvidenceCurrent: runtimeCurrent, sourceUnchanged: unchanged },
   success, state: success ? 'passed' : 'failed', mergeReady: false,
-  limits: ['Local accounts and persistent authorization; guarded writes cover ACL replacement only; HTTP, access UI, invitations, reset, impersonation and machine credentials remain unimplemented',
-    'No remote CI, hosted Sites/Cloudflare, archive installation or dependency lifecycle qualification'] };
+  limits: ['Native accounts, persistent authorization and one-use account capabilities; HTTP, recipient delivery, access UI, impersonation and machine credentials remain unimplemented',
+    'Hosted Sites/Cloudflare, archive installation and module dependency lifecycle are not qualified by this aggregate; remote CI provenance is verified separately'] };
 write(report);
 console.log(JSON.stringify({ success, mergeReady: false, source: source.sha256, docs: docs.metrics,
   tests: tap, runtimeEvidenceCurrent: runtimeCurrent, sourceUnchanged: unchanged, evidence: '.quality/latest.json' }, null, 2));

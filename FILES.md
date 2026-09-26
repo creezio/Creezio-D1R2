@@ -60,9 +60,9 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 
 ## Fondations de l'identité T-04
 
-- [core/identity](core/identity/) : credentials opaques, cryptographie, stockage D1 et services natifs bootstrap/login/session ; transports à raccorder.
-- [extensions/native/access](extensions/native/access/) : seize modèles privés d'identité et de droits, contrat de module, documentation et six suites ; aucune exposition HTTP/UI/MCP dans cette tranche.
+- [core/identity](core/identity/) : credentials opaques, cryptographie, stockage D1 et services natifs bootstrap/login/session/invitation/activation/récupération ; transports à raccorder.
+- [extensions/native/access](extensions/native/access/) : dix-sept modèles privés d'identité et de droits, contrat de module, documentation et six suites ; aucune exposition HTTP/UI/MCP dans cette tranche.
 - [scripts/data](scripts/data/) et [data/schema/access.sql](data/schema/access.sql) : génération centrale inspectable et contrôle de dérive, sans application automatique à une base.
-- [core/authorization](core/authorization/) : moteur pur, contrat de politique, lecture D1 cohérente et service de remplacement des droits protégé par session/epoch/claim ; décision pure distincte d'une écriture autorisée.
+- [core/authorization](core/authorization/) : moteur pur, résolveur natif partagé, contrat de politique, lecture D1 cohérente et service de remplacement des droits protégé par session/epoch/claim ; décision pure distincte d'une écriture autorisée.
 - [tests/identity](tests/identity/) : tokens, droits et qualification cryptographique ; données exclusivement synthétiques.
 - [État T-04](docs/IMPLEMENTATION-T04.md) : tranches, portée des contrôles et garanties restant à raccorder.

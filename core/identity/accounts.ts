@@ -2,7 +2,8 @@ import { createD1IdentityStore, normalizeLoginIdentifier } from './d1-store.ts';
 import { hashPassword, verifyPassword, PASSWORD_PROFILE } from './password.ts';
 import { digestOpaqueToken, issueOpaqueToken } from './tokens.ts';
 
-const encoder = new TextEncoder();
+import { validPasswordInput, normalizeDisplayName as displayName, validIdentityAudience as validAudience,
+  identityInputFields as inputFields, identityAdmissionKey as admissionKey } from './input.ts';
 export const ACCOUNT_POLICY = Object.freeze({ minimumPasswordCodePoints: 15, maximumPasswordBytes: PASSWORD_PROFILE.maximumPasswordBytes,
   sessionTtlMs: 8 * 60 * 60 * 1000, bootstrapTtlMs: 15 * 60 * 1000,
   admissionWindowMs: 60_000, loginGlobalLimit: 60, loginAccountLimit: 5, bootstrapLimit: 5 });
@@ -13,34 +14,10 @@ export type IdentityAudience = 'admin' | 'app';
 type Failure = Readonly<{ ok: false; code: 'invalid_input' | 'invalid_credentials' | 'bootstrap_unavailable' | 'rate_limited' }>;
 const failure = (code: Failure['code']): Failure => Object.freeze({ ok: false, code });
 
-function validPasswordInput(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= ACCOUNT_POLICY.maximumPasswordBytes
-    && value.isWellFormed() && encoder.encode(value).byteLength <= ACCOUNT_POLICY.maximumPasswordBytes;
-}
 /** No trim, normalization or character-class composition rule; exact supplied password is used. */
 export function validNewPassword(value: unknown): value is string {
   return validPasswordInput(value) && [...value].length >= ACCOUNT_POLICY.minimumPasswordCodePoints;
 }
-function displayName(value: unknown): string | null {
-  if (typeof value !== 'string' || !value.isWellFormed() || value.length > 200) return null;
-  const normalized = value.trim();
-  return normalized && [...normalized].length <= 120 && !/[\u0000-\u001f\u007f]/.test(normalized) ? normalized : null;
-}
-const validAudience = (value: unknown): value is IdentityAudience => value === 'admin' || value === 'app';
-function inputFields(value: unknown, keys: readonly string[]): value is Record<string, unknown> {
-  try {
-    if (!value || typeof value !== 'object' || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) return false;
-    const descriptors = Object.getOwnPropertyDescriptors(value);
-    return Reflect.ownKeys(descriptors).length === keys.length
-      && keys.every(key => Object.hasOwn(descriptors, key) && Object.hasOwn(descriptors[key], 'value'));
-  } catch { return false; }
-}
-async function admissionKey(domain: string, value = ''): Promise<string> {
-  const bytes = encoder.encode(`creezio:identity-admission:v1:${domain}:${value}`);
-  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
-  return `sha256:${Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('')}`;
-}
-
 /** Deployment-side only: the caller already possesses the database binding.
  * Never register this provisioning function as an anonymous HTTP/MCP operation.
  * Local development can explicitly provision offline; no implicit startup owner.
@@ -63,11 +40,12 @@ export function createAccountService(db: D1Database) {
       if (!inputFields(input, ['token', 'loginIdentifier', 'displayName', 'password'])) return failure('invalid_input');
       const loginIdentifier = normalizeLoginIdentifier(input.loginIdentifier), name = displayName(input.displayName);
       if (!loginIdentifier || !name || !validNewPassword(input.password)) return failure('invalid_input');
-      const capabilityDigest = await digestOpaqueToken(input.token, 'bootstrap');
+      const password = input.password, token = input.token;
+      const capabilityDigest = await digestOpaqueToken(token, 'bootstrap');
       if (!capabilityDigest) return failure('bootstrap_unavailable');
       if (!(await store.consumeThrottle({ key: await admissionKey('bootstrap'), limit: ACCOUNT_POLICY.bootstrapLimit, windowMs: ACCOUNT_POLICY.admissionWindowMs })).allowed) return failure('rate_limited');
       if (!await store.canCompleteBootstrap(capabilityDigest)) return failure('bootstrap_unavailable');
-      const passwordRecord = hashPassword(input.password);
+      const passwordRecord = hashPassword(password);
       const account = await store.completeBootstrap({ capabilityDigest, loginIdentifier, displayName: name, passwordRecord });
       // Claim acquisition, expiry, and all effects are rechecked in one D1 batch after the KDF.
       return account ? Object.freeze({ ok: true as const, principalId: account.principalId }) : failure('bootstrap_unavailable');
@@ -76,14 +54,15 @@ export function createAccountService(db: D1Database) {
       if (!inputFields(input, ['loginIdentifier', 'password', 'audience'])) return failure('invalid_input');
       const loginIdentifier = normalizeLoginIdentifier(input.loginIdentifier);
       if (!loginIdentifier || !validPasswordInput(input.password) || !validAudience(input.audience)) return failure('invalid_input');
+      const password = input.password, audience = input.audience;
       // Global bound first: cycling random identifiers cannot create unlimited per-account rows.
       if (!(await store.consumeThrottle({ key: await admissionKey('login-global'), limit: ACCOUNT_POLICY.loginGlobalLimit, windowMs: ACCOUNT_POLICY.admissionWindowMs })).allowed
         || !(await store.consumeThrottle({ key: await admissionKey('login-account', loginIdentifier), limit: ACCOUNT_POLICY.loginAccountLimit, windowMs: ACCOUNT_POLICY.admissionWindowMs })).allowed) return failure('rate_limited');
       const account = await store.findPasswordAccount(loginIdentifier);
-      const correct = verifyPassword(input.password, account?.passwordRecord ?? absentAccountRecord);
+      const correct = verifyPassword(password, account?.passwordRecord ?? absentAccountRecord);
       if (!account || !correct) return failure('invalid_credentials');
       const issued = await issueOpaqueToken('session');
-      const session = await store.createSessionAfterPassword(account, { sessionDigest: issued.digest, audience: input.audience, ttlMs: ACCOUNT_POLICY.sessionTtlMs });
+      const session = await store.createSessionAfterPassword(account, { sessionDigest: issued.digest, audience, ttlMs: ACCOUNT_POLICY.sessionTtlMs });
       // A concurrent disable/password change prevents insertion. Never release the issued token on rejection.
       return session ? Object.freeze({ ok: true as const, token: issued.token, session }) : failure('invalid_credentials');
     },

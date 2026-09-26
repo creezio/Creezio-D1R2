@@ -1,35 +1,18 @@
 import { authorize } from './authorize.ts';
 import { createD1AuthorizationStore } from './d1-store.ts';
-import { ACCESS_PERMISSION, ADMIN_CONTEXT, MANAGE_ACCESS, exactRecord, parseAccessPolicy,
+import { exactRecord, parseAccessPolicy,
   policySnapshot, validPolicyCatalog } from './policy.ts';
 import type { AccessPolicy } from './policy.ts';
 import type { AuthorizationDecision, AuthorizationTarget, PermissionDefinition } from './types.ts';
 import type { IdentityDatabase } from '../identity/d1-store.ts';
-import { digestOpaqueToken } from '../identity/tokens.ts';
+import { ACCESS_MANAGEMENT as MANAGEMENT, createNativeAuthorizationResolver } from './resolver.ts';
 
 type Failure = { readonly ok: false; readonly error: 'invalid_input' | 'unauthorized' | 'forbidden' | 'conflict' | 'storage_error' };
 const fail = (error: Failure['error']): Failure => Object.freeze({ ok: false, error });
-const MANAGEMENT: AuthorizationTarget = Object.freeze({ contextId: ADMIN_CONTEXT, audience: 'admin',
-  actors: Object.freeze(['user'] as const), requiredPermissionIds: Object.freeze([MANAGE_ACCESS]), purpose: 'operation' });
-
 /** Server composition supplies the catalog; callers never choose permission definitions or actor identities. */
 export function createAuthorizationService(db: IdentityDatabase, options: { permissions: readonly PermissionDefinition[] }) {
-  // The built-in administration permission cannot be broadened by a module catalog.
-  if (!options || !Array.isArray(options.permissions) || options.permissions.some(p => p?.id === MANAGE_ACCESS))
-    throw new TypeError('Invalid server permission catalog.');
-  const permissions = structuredClone([ACCESS_PERMISSION, ...options.permissions]);
-  const empty = parseAccessPolicy({ contexts: [], roles: [], memberships: [], assignments: [], overrides: [] })!;
-  if (!validPolicyCatalog(empty, permissions)) throw new TypeError('Invalid server permission catalog.');
+  const { permissions, resolve: state } = createNativeAuthorizationResolver(db, options);
   const store = createD1AuthorizationStore(db);
-  async function state(token: unknown, audience: 'admin' | 'app') {
-    const digest = await digestOpaqueToken(token, 'session');
-    if (!digest) return null;
-    const result = await store.read(digest, audience);
-    if (!result) return null;
-    const policy = parseAccessPolicy(result.policy);
-    if (!policy || !validPolicyCatalog(policy, permissions)) throw new Error('Invalid persisted policy.');
-    return { ...result, policy, digest };
-  }
   async function check(token: unknown, target: AuthorizationTarget): Promise<AuthorizationDecision> {
     try {
       if (!target || (target.audience !== 'admin' && target.audience !== 'app'))

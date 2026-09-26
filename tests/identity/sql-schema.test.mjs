@@ -1,6 +1,7 @@
 import '../../scripts/local-environment.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { Miniflare } from 'miniflare';
 import { generateD1Schema, inspectD1Schema, sqlTableName, D1SchemaError } from '../../scripts/data/d1-schema.mjs';
 
@@ -195,6 +196,41 @@ test('real D1 nullable enums, unique keys, foreign keys and rollback remain enfo
   ]), /FOREIGN KEY constraint failed/);
   assert.equal(await db.prepare(`SELECT id FROM ${parents} WHERE id = 'rollback'`).first(), null);
   assert.equal((await inspectD1Schema(db, moduleId, models)).ok, true);
+});
+
+test('access capability schema enforces private target references, purpose, snapshots and one-use identifiers in real D1', { timeout: 30000 }, async t => {
+  const db = await database(t);
+  const models = JSON.parse(readFileSync(new URL('../../extensions/native/access/module/models.json', import.meta.url), 'utf8'));
+  const schema = generateD1Schema('creezio.access', models), table = id => quote(schema.tables[id]);
+  await apply(db, schema);
+  await db.batch([
+    db.prepare(`INSERT INTO ${table('principals')} (id,kind,status,auth_version,display_name,created_at_ms,updated_at_ms) VALUES ('pending','human','active',1,'Pending fixture',0,0)`),
+    db.prepare(`INSERT INTO ${table('human_accounts')} (principal_id,login_identifier,status,version,created_at_ms,updated_at_ms) VALUES ('pending','pending@example.invalid','pending',1,0,0)`),
+  ]);
+  const base = {id:'first',secret_hash:`sha256:${'a'.repeat(64)}`,purpose:'invitation',principal_id:'pending',
+    auth_version:1,account_version:1,credential_version:null,created_at_ms:0,expires_at_ms:1000,
+    consumed_at_ms:null,revoked_at_ms:null,claim_nonce:null};
+  const insert = changes => {
+    const row = {...base,...changes}, keys=Object.keys(row);
+    return db.prepare(`INSERT INTO ${table('account_capabilities')} (${keys.map(quote).join(',')}) VALUES (${keys.map(()=>'?').join(',')})`).bind(...keys.map(key=>row[key])).run();
+  };
+  await insert({});
+  await insert({id:'second',secret_hash:`sha256:${'b'.repeat(64)}`,purpose:'activation'});
+  assert.equal((await db.prepare(`SELECT credential_version FROM ${table('account_capabilities')} WHERE id='first'`).first()).credential_version,null);
+  for(const [field,value] of [['purpose','session'],['auth_version',0],['account_version',null],['credential_version',0],
+    ['created_at_ms',-1],['expires_at_ms',1.5],['consumed_at_ms',-1],['revoked_at_ms',-1],['secret_hash','short'],['claim_nonce','']]){
+    await assert.rejects(insert({id:`bad-${field}`,secret_hash:`sha256:${'c'.repeat(64)}`,[field]:value}),/constraint failed/);
+  }
+  await assert.rejects(insert({id:null,secret_hash:`sha256:${'c'.repeat(64)}`}),/NOT NULL constraint failed/);
+  await assert.rejects(insert({id:'duplicate-hash',purpose:'password-reset'}),/UNIQUE constraint failed/);
+  await assert.rejects(insert({id:'orphan',secret_hash:`sha256:${'c'.repeat(64)}`,principal_id:'missing'}),/FOREIGN KEY constraint failed/);
+  await db.prepare(`UPDATE ${table('account_capabilities')} SET claim_nonce='claim-once',consumed_at_ms=500 WHERE id='first'`).run();
+  await assert.rejects(db.prepare(`UPDATE ${table('account_capabilities')} SET claim_nonce='claim-once' WHERE id='second'`).run(),/UNIQUE constraint failed/);
+  assert.equal((await db.prepare(`SELECT count(*) AS n FROM ${table('account_capabilities')}`).first()).n,2);
+  for(const id of ['password_credentials','memberships','role_assignments','principal_overrides'])
+    assert.equal((await db.prepare(`SELECT count(*) AS n FROM ${table(id)}`).first()).n,0,'capability rows do not create credentials or rights');
+  await assert.rejects(db.prepare(`DELETE FROM ${table('principals')} WHERE id='pending'`).run(),/FOREIGN KEY constraint failed/);
+  assert.deepEqual(await inspectD1Schema(db,'creezio.access',models),{ok:true,errors:[]});
 });
 
 test('read-only schema inspection refuses missing, changed and extra module objects, not other modules', { timeout: 30000 }, async t => {
