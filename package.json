@@ -1,0 +1,13 @@
+{
+  "name": "creezio-d1r2",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24 <25" },
+  "scripts": {
+    "check:docs": "node scripts/quality/docs.mjs",
+    "test:quality": "node --test tests/quality/*.test.mjs",
+    "check": "node scripts/quality/run.mjs",
+    "check:governance": "node scripts/quality/governance.mjs"
+  }
+}

@@ -1,5 +1,5 @@
 # Backlog de réalisation
-Révision 2 — 26 septembre 2026. **Implémentation en attente du GO utilisateur.** Ce fichier est la liste de travail canonique du produit ; le plan et les PRD de modules y renvoient. Les items ci-dessous sont tous « à faire ». Le dossier documentaire présent est préparé et audité séparément dans [AUDIT-AVANT-DEVELOPPEMENT.md](AUDIT-AVANT-DEVELOPPEMENT.md) ; il ne coche aucune fonctionnalité.
+Révision 3 — 26 septembre 2026. **GO complet reçu ; T-01 en cours.** Ce fichier est la liste de travail canonique du produit ; le plan et les PRD de modules y renvoient. Les autres items restent « à faire ». L'[état P0](IMPLEMENTATION-P0.md) distingue contrôleurs locaux et gouvernance distante. Le dossier documentaire est audité séparément dans [AUDIT-AVANT-DEVELOPPEMENT.md](AUDIT-AVANT-DEVELOPPEMENT.md) ; il ne coche aucune fonctionnalité.
 ## Règles de suivi
 États autorisés : à faire, en cours, bloqué (raison/prérequis), en revue, vérifié, livré. Enregistrer responsable réel, branche/issue ou tâche locale, PR, SHA, tests/profils et preuves à chaque transition. « Livré » exige version et livraison vérifiée ; fusionner ne suffit pas. Une dépendance fournisseur manquante bloque sa recette, pas toutes les tâches indépendantes.
 Après GO, commencer P0 puis la tranche P1/P2 nécessaire au premier Site ; les dépendances ci-dessous priment sur le numéro du lot. Qualifier Cloudflare tôt dès disponibilité, mais ne pas bloquer le travail local sur son accès. P3/P4 peuvent avancer par tranches couplées : installer un module témoin d’abord, finaliser le starter après widgets/front. Le socle complet et les preuves restent requis avant P7.
@@ -10,7 +10,7 @@ Une dépendance consomme un **livrable précis et testé**, pas automatiquement 
 
 | Prérequis consommable | Ce qui autorise la suite | Ce qui reste à qualifier et où |
 |---|---|---|
-| T-01 → T-02/T-03 | Politique/identités approuvées, premiers contrôles docs/gouvernance construits dans T-01, protections activées et refus prouvés | Contrôles fonctionnels ajoutés par T-02 puis modules ; la preuve de SHA/artefact est d’abord un test du contrôleur, pas une release de CMS. |
+| T-01 → T-02/T-03 | Politique et revue technique approuvées, premiers contrôles docs/gouvernance construits dans T-01, protections activées et refus prouvés | Contrôles fonctionnels ajoutés par T-02 puis modules ; la preuve de SHA/artefact est d’abord un test du contrôleur, pas une release de CMS. |
 | T-02 → T-03/T-11 | Schémas/validateurs SDK exécutés sur fixtures valides/invalides ; aucun runtime applicatif prétendument testé | Six suites de vrais modules et intégration hôte en T-11/T-30 ; répétition pertinente sur les modules ultérieurs. |
 | T-04/T-05/T-06/T-07 → T-08/T-09/T-31 | Comptes, modèles, fichiers, opérations et workspace construits et testés localement | T-09 teste la tranche sur Sites ; T-32 sur Cloudflare. Les fonctions ajoutées ensuite repassent la recette hôte avant T-36. |
 | T-10 à T-29 → lots consommateurs | Contrats et code testés sur l’environnement disponible, avec refus ; aucune intégration fournisseur annoncée réelle sans accès | Compléter tous les profils et fournisseurs déclarés avant T-36 ; leurs preuves peuvent avancer en parallèle des tâches indépendantes. |
@@ -24,7 +24,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 ## Vue ordonnée par dépendances
 | Tâche | Lot | Livrable | Dépendances | État |
 |---|---|---|---|---|
-| [T-01](#T-01) | P0 | Gouvernance effective et revue indépendante | GO utilisateur | À faire |
+| [T-01](#T-01) | P0 | Gouvernance effective et revue indépendante | GO reçu | En cours |
 | [T-02](#T-02) | P0 | Contrats exécutables et contrôle commun | [T-01](#T-01) | À faire |
 | [T-03](#T-03) | P1 | Runtime commun et démarrage local | [T-02](#T-02) | À faire |
 | [T-04](#T-04) | P2 | Identités, comptes et droits | [T-03](#T-03) | À faire |
@@ -67,12 +67,12 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-01"></a>
 ## T-01 — Gouvernance effective et revue indépendante
 
-- Lot : **P0** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
-- Dépendances : GO utilisateur pour commencer la construction.
-- Travail/livrables : Politique/identités approuvées, premiers validateurs documentaires et de gouvernance construits puis qualifiés, règles distantes et propriétaires réels activés, tests de refus. T-02 ajoute ensuite les schémas métier et critères de modules.
+- Lot : **P0** ; état : **en cours** ; responsable : Codex, coordination et contrôleurs locaux.
+- Dépendances : GO complet reçu le 26 septembre 2026. Compte unique `creezio` confirmé par le responsable ; revue technique par un autre agent, contrôles et protections à qualifier.
+- Travail/livrables : Politique et revue technique approuvées, premiers validateurs documentaires et de gouvernance construits puis qualifiés, règles distantes et propriétaires réels activés, tests de refus. T-02 ajoute ensuite les schémas métier et critères de modules.
 - Besoin : [US-01](USER-STORIES.md#US-01). Acceptation : [REQ-0101](EXIGENCES.md#REQ-0101), [REQ-0102](EXIGENCES.md#REQ-0102), [REQ-0103](EXIGENCES.md#REQ-0103), [REQ-0104](EXIGENCES.md#REQ-0104).
 - Validation : implémenter puis exécuter les recettes liées, sur **GitHub et local selon le profil** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : [réalisation locale P0](IMPLEMENTATION-P0.md), tests des contrôleurs et observation distante dans `.quality/` ; pas de qualification globale T-01 ni runtime. Bootstrap dans la PR #1 avec revue technique et CI ; lots suivants sur branches dédiées depuis main.
 
 <a id="T-02"></a>
 ## T-02 — Contrats exécutables et contrôle commun
@@ -474,7 +474,7 @@ Ces sous-tâches sont toutes à faire, sous la responsabilité et les dépendanc
 | Prérequis | Lot concerné | Conduite |
 |---|---|---|
 | GO de développement | T-01 et suivants | Attendre la décision utilisateur après lecture du dossier. |
-| Identité de revue et règles GitHub | T-01 ; première fusion | Configurer un relecteur distinct de l’auteur/dernier pousseur et qualifier les règles. Ne pas contourner avec un faux compte ni une auto-approbation. |
+| Revue technique et règles GitHub | T-01 ; première fusion | Compte unique creezio autorisé ; revue d’un autre agent liée au SHA, origine du workflow vérifiée et protections qualifiées. Aucune approbation GitHub indépendante inventée. |
 | Accès au Site courant | T-09 | Relire accès/outils ; réutiliser le Site de qualification si adapté. Pas de nouveau Site par essai. |
 | Docker fonctionnel | T-31 | Moteur inaccessible lors du relevé : diagnostiquer au démarrage du lot, sans lancer un service utilisateur implicitement. |
 | Compte Cloudflare connecté | T-32/T-33 | Un nouveau jeton du compte autorisé a permis les lectures Workers/D1/R2 ; sa politique confirme leurs droits d'écriture. Accès suffisant pour préparer la recette sur workers.dev, mais aucune écriture, publication ou limite de quotas qualifiée. Les droits DNS de ce jeton sont insuffisants : vérifier les accès de zone existants si domaine personnalisé. L'ancien échec OAuth n'est plus un préalable obligatoire. Pour le transfert multipart par S3 R2, qualifier les credentials et permissions S3 distincts d’OAuth ; ne pas réclamer automatiquement une nouvelle clé. |

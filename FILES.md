@@ -32,4 +32,12 @@
 | [docs/QUALIFICATION-SITES.md](docs/QUALIFICATION-SITES.md) | Preuves techniques limitées, distinctes du CMS. |
 | [docs/AUDIT-AVANT-DEVELOPPEMENT.md](docs/AUDIT-AVANT-DEVELOPPEMENT.md) | Audit croisé et conditions de démarrage/livraison. |
 
+## Contrôleurs P0 en cours
+
+- [package.json](package.json) et [.node-version](.node-version) : commandes locales et runtime des outils de développement.
+- [scripts/quality](scripts/quality/) : documentation, gouvernance, empreintes et observation distante en lecture seule.
+- [tests/quality](tests/quality/) : cas positifs/négatifs des contrôleurs, fixtures temporaires nettoyées.
+- [Workflow P0](.github/workflows/p0-validation.yml) : tests sans secrets et agrégation ; origine réelle vérifiée par le mainteneur avant fusion.
+- [État P0](docs/IMPLEMENTATION-P0.md) et [CHANGELOG](CHANGELOG.md) : périmètre, preuves et limites.
+
 Tout ajout structurel met ce repère à jour. Chaque module construit fournit ensuite son propre FILES et ses instructions locales, conformément au standard commun.

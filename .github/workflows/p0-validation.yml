@@ -1,0 +1,47 @@
+name: P0 controller validation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# The orchestrator verifies this workflow's origin and exact revision before merge.
+# A GitHub Actions App ID alone does not identify its workflow.
+permissions:
+  contents: read
+
+concurrency:
+  group: p0-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  p0-local:
+    name: P0 documentation and controller tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - name: Validate P0 sources
+        run: npm run check
+      - name: Show evidence summary
+        if: always()
+        run: |
+          node --input-type=module -e 'import {readFileSync} from "node:fs"; const r=JSON.parse(readFileSync(".quality/latest.json","utf8")); console.log(JSON.stringify({profile:r.profile,source:r.source.sha256,head:r.source.head,success:r.success,mergeReady:r.mergeReady,limits:r.limits},null,2));'
+  quality-gate:
+    name: creezio/quality-gate
+    needs: [p0-local]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require completed validation
+        env:
+          VALIDATION_RESULT: ${{ needs.p0-local.result }}
+        run: test "$VALIDATION_RESULT" = success

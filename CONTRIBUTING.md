@@ -1,6 +1,6 @@
 # Contribuer à Creezio
 
-Le dépôt définit actuellement le produit, ses contrats et sa préparation. Le runtime et les contrôles automatisés seront construits et qualifiés selon le plan. La présence d'un guide, d'un skill ou d'un fichier de configuration ne signifie pas qu'une CI ou une protection distante est active.
+Le développement est autorisé suivant le plan et le backlog. Le runtime et les contrôles automatisés sont construits et qualifiés par lots. La présence d'un guide, d'un skill ou d'un fichier de configuration ne signifie pas qu'une CI ou une protection distante est active.
 
 ## Préparer une contribution
 
@@ -22,13 +22,13 @@ Les modules externes fournissent un paquet runtime et un artefact de validation 
 
 ## Proposer et intégrer
 
-Le flux commun est : branche de travail issue de `main`, PR à jour, revue indépendante, squash GitHub, puis vérification du nouveau `main`. Les branches sont de type `module/`, `core/`, `docs/` ou `release/` selon le [cycle Git](docs/GIT-FLOW.md). `release/` sert à préparer une publication et n'est pas une deuxième branche stable.
+Le flux commun est : branche de travail issue de `main`, PR à jour, revue technique par un autre agent sur le SHA final, squash GitHub, puis vérification du nouveau `main`. Les branches sont de type `module/`, `core/`, `docs/` ou `release/` selon le [cycle Git](docs/GIT-FLOW.md). `release/` sert à préparer une publication et n'est pas une deuxième branche stable. Le bootstrap autorisé étend la PR #1 au P0 sur sa branche actuelle ; cette exception initiale évite des PR empilées et conserve les contrôles avant fusion.
 
 La PR décrit le problème et le comportement final, son périmètre, les contrats et données affectés, les preuves, les limites et les documents actualisés. Elle est tenue à jour après correction. Une contribution ne choisit pas une autre méthode de fusion pour contourner les règles communes.
 
 Indexer uniquement les chemins concernés et relire le diff. Les commits suivent `<type>(<scope>): <résultat>`. Ne pas pousser directement `main`, réécrire une branche publiée, forcer un push, ignorer les hooks/contrôles ou utiliser un bypass. Une PR devenue ancienne est actualisée en intégrant `main` dans sa branche, puis contrôlée et revue à nouveau.
 
-La revue GitHub exige une identité habilitée indépendante de l'auteur et du dernier pousseur pertinent. Plusieurs agents sous le même compte ne remplacent pas cette indépendance. Si cet accès manque, préparer le travail et signaler précisément le blocage ; aucune auto-approbation ou fausse identité n'est admise.
+Le projet utilise le compte GitHub `creezio`, conformément à la décision utilisateur. Aucune seconde identité GitHub ni App dédiée n'est requise. Un autre agent relit la révision finale ; sa conclusion, le SHA et les limites sont conservés hors du commit source ou dans un artefact associé. L'orchestrateur vérifie cette revue, l'origine du workflow et les résultats de CI avant de fusionner. Cette preuve technique n'est pas une approbation GitHub, et le nom du check ne garantit pas à lui seul quel workflow l'a produit.
 
 Les issues et PR sont créées ou commentées dans le mandat donné. Une correction amont n'autorise pas implicitement le déploiement des applications qui la consomment. Une app privée peut proposer une correction expurgée sans transmettre son code métier, ses données ou ses accès.
 

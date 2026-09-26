@@ -8,9 +8,9 @@ Le dossier [Extensions, thèmes et écosystème](docs/EXTENSIONS-THEMES-ECOSYSTE
 
 Un module ou extension Creezio possède ses données, sa logique métier, ses API, ses relations intermodules et ses écrans. Sa partie plugin conversationnel expose les outils MCP, skills et widgets selon le format standard GPT, sans dupliquer le backend ni les données. La publication dans ChatGPT est facultative ; le chat Creezio héberge plusieurs de ces plugins. Chaque application possède son MCP d'administration et peut exposer son MCP destiné aux utilisateurs métier, dans le workspace ou dans le front, avec catalogues et droits distincts dans un même déploiement. Le [contrat de compatibilité ChatGPT](docs/COMPATIBILITE-CHATGPT.md) définit cette cible et sa recette réelle, encore à réaliser.
 
-## Dossier prêt à examiner avant développement
+## Implémentation en cours
 
-Le produit complet n'est pas implémenté. Ce dépôt contient le dossier de cadrage, les standards et guides ; la sonde technique a une portée limitée. Le développement attend le GO utilisateur.
+Le GO complet a été reçu le 26 septembre 2026. Le premier lot construit les contrôles de développement ; voir [P0](docs/IMPLEMENTATION-P0.md). Le produit complet n'est pas implémenté et la sonde technique garde sa portée limitée. Avec Node 24, `npm run check` vérifie les documents et les contrôleurs présents, sans prétendre qualifier le CMS.
 
 | Document | Usage |
 |---|---|

@@ -4,7 +4,7 @@ Cette méthode est commune au cœur, aux modules, aux applications et aux servic
 
 ## 1. Branches et références
 
-`main` contient le travail intégré. Elle n'implique ni publication de chaque commit ni déploiement automatique. Le flux est unique : branche de travail issue de `main`, PR vers `main`, revue indépendante et intégration **squash**.
+`main` contient le travail intégré. Elle n'implique ni publication de chaque commit ni déploiement automatique. Le flux est unique : branche de travail issue de `main`, PR vers `main`, revue technique par un autre agent sur la révision finale et intégration **squash**. Le compte GitHub `creezio` est conservé : une seconde identité GitHub et une App de contrôle dédiée ne sont pas des prérequis.
 
 | Référence | Usage |
 |---|---|
@@ -17,6 +17,8 @@ Cette méthode est commune au cœur, aux modules, aux applications et aux servic
 L'identifiant de travail renvoie à une issue ou une tâche réellement enregistrée. Les branches sont courtes et supprimées après vérification de l'intégration et de l'absence de travail restant. Il n'y a pas de branche `develop`, de branche personnelle permanente ou de succession de PR fondées sur des branches non intégrées. Une demande large est divisée en travaux cohérents et liés.
 
 `release/*` est une **branche de travail**, pas une seconde branche stable : les commits de préparation y sont poussés dans le mandat de travail, puis une PR revue la fait entrer dans `main`. Les restrictions empêchant tout commit sans PR ciblent `main` et les références publiées ; elles ne doivent pas rendre ce parcours de préparation impossible.
+
+**Bootstrap autorisé le 26 septembre 2026 :** étendre la [PR #1](https://github.com/creezio/Creezio-D1R2/pull/1) de cadrage au P0 sur sa branche actuelle, avec nouveaux commits, description et preuves actualisées. Cette exception initiale au découpage documentation/implémentation évite une série de PR dépendantes ; elle n'autorise ni push direct sur `main`, ni fusion sans CI et revue technique. Les premiers contrôleurs sont examinés et testés sur leurs cas positifs/négatifs avant adoption, sans prétendre disposer d'une version approuvée antérieure qui n'existe pas encore. Après son squash, les travaux suivants repartent du nouveau `main` vérifié.
 
 ## 2. Préparer un changement
 
@@ -37,15 +39,17 @@ Une branche correspond à une PR, créée en brouillon tant que le changement n'
 
 Une autorisation de travailler n'est pas une autorisation générale de communiquer ou publier ailleurs. Les autorisations déjà données sont réutilisées ; ne pas demander une nouvelle approbation à chaque push lorsqu'elles couvrent l'action. En l'absence de mandat nécessaire, terminer la préparation et indiquer l'acte précis restant à autoriser.
 
-## 4. Actualisation et revue indépendante
+## 4. Actualisation et revue technique
 
 La PR doit être à jour avec `main`. Si `main` avance, fusionner `origin/main` dans la branche de travail, résoudre les conflits en préservant les comportements requis et utiliser un commit de synchronisation explicite, par exemple `chore(sync): intégrer main`. Ne pas rebaser une branche publiée et ne pas forcer son push. Cette méthode ne dépend pas d'une merge queue.
 
-Les contrôles pertinents sont réexécutés sur le candidat actualisé. La revue porte sur son contenu final et sa composition avec `main`, pas seulement sur une ancienne tête de branche. Une modification pertinente ou un conflit résolu après revue exige une nouvelle approbation ; la politique réinitialise les approbations devenues caduques.
+Les contrôles pertinents sont réexécutés sur le candidat actualisé. La revue porte sur son contenu final et sa composition avec `main`, pas seulement sur une ancienne tête de branche. Une modification pertinente ou un conflit résolu après revue exige une nouvelle revue du périmètre affecté ; l'orchestrateur n'utilise pas une conclusion devenue caduque.
 
-L'approbateur habilité est distinct de l'auteur et du dernier pousseur pertinent. Deux agents utilisant le même compte GitHub ne constituent pas deux identités indépendantes. Si personne ne peut fournir la revue requise, la PR reste en attente ; ne pas créer de faux compte, auto-approuver ou utiliser une dérogation implicite.
+Un autre agent que celui qui réalise la modification effectue la revue technique. Il identifie le SHA final, sa base, le périmètre, les preuves examinées, les défauts et sa conclusion. Ce résultat est conservé hors du commit source ou dans un artefact rattaché à cette révision, afin que son enregistrement ne modifie pas le code revu. Le même compte GitHub peut pousser et fusionner ; aucune auto-approbation GitHub n'est fabriquée et aucune deuxième identité n'est exigée. Une revue humaine peut compléter la revue technique.
 
 La revue vérifie critères d'acceptation, cas négatifs, conservation des données et des interactions, qualité des preuves, portée des droits et changements des contrôles eux-mêmes. Les discussions doivent être résolues. `CODEOWNERS` peut orienter la revue, mais ne prouve ni une approbation ni une protection effective.
+
+Avant fusion, l'orchestrateur rapproche PR, tête/base et éventuel commit de test fusionné, run/attempt, fichier de workflow réellement exécuté, contrôleurs et résultats. Il relit spécifiquement toute modification du workflow ou de ses validateurs contre les contrats approuvés. Un check homonyme ou déclaré par GitHub Actions ne remplace pas cette vérification : la protection GitHub ne certifie pas l'identité du fichier de workflow. L'absence de preuve, un résultat périmé ou un défaut non résolu empêche la fusion par l'orchestrateur ; ce contrôle de procédure n'est pas présenté comme une protection GitHub automatique.
 
 ## 5. Intégration dans main
 
@@ -61,7 +65,7 @@ Le travail suivant repart du `main` vérifié. Une issue exigeant une mise en pr
 
 Après intégration et vérification des changements fonctionnels, créer une branche `release/<release-id>` depuis le `main` actuel. Elle prépare seulement versions, changelogs, documentation de livraison et verrous nécessaires. Une nouvelle fonctionnalité découverte à ce stade passe par sa propre branche de travail.
 
-Cette préparation suit la même PR à jour, la même revue indépendante et le même squash vers `main`. **Le squash produit une nouvelle révision de `main`.** Construire et tester l'artefact publiable depuis cette révision finale, avec ses versions et verrous définitifs. Ne pas publier l'ancien build de la PR, même si son diff paraît identique.
+Cette préparation suit la même PR à jour, la même revue technique et le même squash vers `main`. **Le squash produit une nouvelle révision de `main`.** Construire et tester l'artefact publiable depuis cette révision finale, avec ses versions et verrous définitifs. Ne pas publier l'ancien build de la PR, même si son diff paraît identique.
 
 Les contrôles associent commit source, profil, dépendances, contenu assemblé, intégrité de l'artefact et résultats. Le candidat testé est celui qui est publié. Si une étape de publication impose une reconstruction, son identité/contenu doit être revérifié et les preuves nécessaires rétablies avant annonce de réussite. Les préparations d'une même version de composant sont sérialisées pour éviter collisions et doubles publications.
 
@@ -86,11 +90,11 @@ Après publication, vérifier l'application réelle, ses données, fichiers, dro
 
 ## 8. Protections à activer et qualifier
 
-La cible de gouvernance comprend PR obligatoire vers `main`, approbation indépendante, contrôles requis actuels, discussions résolues, branche à jour et squash seul. Les pushes forcés et suppressions des références protégées sont interdits. Les droits d'administration/bypass et les secrets de publication sont séparés des identités de développement ordinaires.
+La cible de gouvernance comprend PR obligatoire vers `main`, contrôle Actions requis et à jour, discussions résolues, branche à jour et squash seul. Elle n'impose pas d'approbation GitHub par un autre compte : la revue technique liée au SHA est vérifiée par l'orchestrateur. Les pushes forcés et suppressions des références protégées sont interdits. Aucun bypass n'est utilisé pour fusionner ; les secrets de publication ne sont pas accessibles aux tests du candidat.
 
-La politique des contrôles provient d'une révision approuvée. Vérifier l'origine réelle de leur exécution et le lien au candidat : un nom de job ou un statut de succès auto-déclaré ne suffit pas. Le résultat agrégé refuse une suite requise absente, annulée, ignorée ou non exécutée ; les filtres de chemins ne doivent pas soustraire la PR au contrôle requis.
+Les contrats approuvés guident le contrôle et la revue des validateurs. Après le bootstrap, leur évolution est comparée à la révision précédemment approuvée avant adoption ; le candidat ne décide pas seul de retirer ses contrôles. Le résultat agrégé refuse une suite requise absente, annulée, ignorée ou non exécutée ; les filtres de chemins ne doivent pas soustraire la PR au contrôle requis. Le check Actions fournit une preuve d'exécution, sans constituer un service externe de décision de fusion.
 
-Les workflows de PR n'exposent pas de secrets de production au code du candidat. Les workflows privilégiés ne chargent pas arbitrairement les scripts d'une PR non approuvée. Les réglages réellement disponibles, leur portée, les comptes de revue et les garanties sur les tags sont vérifiés dans le dépôt concerné ; un fork n'hérite pas nécessairement des réglages de sa source.
+Les workflows de PR utilisent des permissions en lecture et n'exposent pas de secrets de production au code du candidat. Les workflows privilégiés ne chargent pas arbitrairement les scripts d'une PR non approuvée. Les réglages réellement disponibles, leur portée et les garanties sur les tags sont vérifiés dans le dépôt concerné ; un fork n'hérite pas nécessairement des réglages de sa source. Le [fonctionnement des status checks](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/troubleshooting-rules) explique pourquoi leur nom ne lie pas la preuve à un workflow précis ; ne pas promettre cette garantie pour le dépôt personnel.
 
 La phase P0 consigne l'état distant observé, active les mesures autorisées et démontre acceptation d'un candidat conforme ainsi que refus d'un candidat invalide. Des fichiers de configuration, exemples de workflow et hooks inactifs ne prouvent aucune protection. Toute impossibilité effective reste visible ; elle n'est pas masquée par une promesse ou un compte rendu vert.
 
@@ -100,4 +104,4 @@ Une application peut être créée depuis une release précise sans compte GitHu
 
 Si Git local est disponible, garder les mêmes branches de travail et la traçabilité des commits ; l'intégration locale contrôlée n'est pas présentée comme une PR GitHub. Sans Git, enregistrer l'empreinte de source, les changements, décisions, révisions et artefacts dans le dossier de travail. Ne pas créer de dépôt distant implicitement.
 
-Les contrats, tests pertinents, revue indépendante autorisée, identité des artefacts et mandat de publication restent requis dans le profil local ou Sites. Les contrôles propres à GitHub sont explicitement non applicables, pas artificiellement réussis. Cette voie doit pouvoir produire une livraison vérifiée sans fabriquer d'issue, de PR, d'approbation distante ou de protection active.
+Les contrats, tests pertinents, revue technique par un autre agent, identité des artefacts et mandat de publication restent requis dans le profil local ou Sites. Les contrôles propres à GitHub sont explicitement non applicables, pas artificiellement réussis. Cette voie doit pouvoir produire une livraison vérifiée sans fabriquer d'issue, de PR, d'approbation distante ou de protection active.

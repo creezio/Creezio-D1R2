@@ -1,5 +1,7 @@
 # Audit du dossier avant développement
 
+Mise à jour après GO du 26 septembre : le responsable a autorisé l’implémentation complète et le fonctionnement sous le seul compte creezio. Voir [P0](IMPLEMENTATION-P0.md) pour les réalisations ; les relevés initiaux ci-dessous sont historiques.
+
 26 septembre 2026 — révision de cadrage 1. Périmètre : cohérence du plan, architecture, capacités, modules, interfaces, gouvernance et préparation du développement. **Ce rapport n'est pas une recette runtime ni un audit de sécurité d'un CMS déjà construit.**
 
 Travail documentaire local `task-20260926-01`, rattaché à la demande de consolidation et d'audit avant GO. Branche de revue : `docs/task-20260926-01-cadrage-complet`. Ce travail prépare notamment les contrats des exigences REQ-0101 à REQ-0203 et leur traçabilité ; il ne déclare pas ces contrôles implémentés.
@@ -12,7 +14,7 @@ Après deux premiers jetons actifs mais insuffisants pour D1/R2, un nouveau jeto
 
 ## Verdict et limites
 
-Le dossier décrit les usages, frontières, contrats, critères et ordre de travail nécessaires pour commencer **P0 après GO utilisateur**. Aucun nouveau choix produit bloquant n'a été identifié après correction. Le code du CMS, ses contrôleurs et ses recettes restent à construire. Les protections distantes et l'identité indépendante de revue doivent être établies dans P0 ; les accès nécessaires aux autres jalons sont listés ci-dessous.
+Le dossier décrit les usages, frontières, contrats, critères et ordre de travail nécessaires pour commencer **P0 après GO utilisateur**. Aucun nouveau choix produit bloquant n'a été identifié après correction. Le code du CMS, ses contrôleurs et ses recettes restent à construire. Les protections distantes et le parcours de revue technique doivent être établis dans P0 ; les accès nécessaires aux autres jalons sont listés ci-dessous.
 
 Le PRD, les exigences, les stories et le backlog ne sont pas quatre listes concurrentes : le PRD fixe le résultat, les exigences définissent l'acceptation, les stories expriment les parcours et TODO porte dépendances/états/preuves. Les contrats spécialisés détaillent ces exigences ; une réduction de leur périmètre demande une décision explicite.
 
@@ -61,7 +63,7 @@ Trois relectures parallèles ont confronté le dossier aux capacités, aux contr
 | Élément | Fait connu et portée | Action au bon jalon |
 |---|---|---|
 | GitHub, relu pendant cet audit | `main` à `82241ffade8fb2686d3ad646935ae5a01385dbdc`, `protected: false`, contrôles requis désactivés, collection rulesets vide. Aucun contrôle actif ajouté par cette préparation. | P0 : premiers contrôles, identités habilitées et protections réellement qualifiés. Les gabarits présents ne valent pas enforcement. |
-| Revue GitHub | Aucune seconde identité habilitée à approuver indépendamment de l'auteur/dernier pousseur n'est encore établie. | Avant première fusion : identifier le relecteur ou le mécanisme autorisé distinct. Sans cela, laisser la PR en attente ; pas de bypass. |
+| Revue technique — décision après GO | Le responsable conserve uniquement le compte creezio ; aucune seconde identité GitHub requise. | Revue par un autre agent, liée à la révision ; workflow réel/CI vérifiés avant squash sous creezio. Ne pas inventer une approbation GitHub. |
 | Sites | Sonde publique existante : primitives D1/R2, auth/cookies/révocation et accès externes vérifiés antérieurement ; pas le CMS. | T-09 : relire accès actuels et réutiliser le Site A si adapté ; B seulement après socle validé. |
 | Chat/OpenAI | Deux appels réels réussis dans la sonde ; progression SSE groupée côté navigateur, consultation concurrente d'événements D1 prouvée. | T-14/T-16 : vraie conversation, annulation/reprise, permissions et widgets à qualifier. Ne pas assimiler cette sonde au chat livré. |
 | Docker | CLI présent ; moteurs inaccessibles lors du relevé de faisabilité. Aucun service démarré pour cet audit. | T-31 : environnement fonctionnel et volumes à qualifier ; ce manque ne bloque pas la rédaction des contrats. |

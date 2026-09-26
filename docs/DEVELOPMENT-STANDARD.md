@@ -12,13 +12,13 @@ Les [skills de développement](../skills/README.md) accompagnent neuf activités
 
 Les skills conversationnels d'un module décrivent l'utilisation du produit et de ses opérations. Ils sont distincts des skills de développement et ne donnent aucun droit de modifier, publier ou administrer un projet.
 
-Une politique de validation versionnée identifie les contrats et contrôles approuvés. Les verrous de version/origine de cette politique, du SDK et des modules doivent être vérifiables. Une PR qui modifie les règles n'obtient pas le droit de se valider avec sa propre version assouplie ; le contrôle minimal vient d'une révision approuvée indépendante du candidat.
+Une politique de validation versionnée identifie les contrats et contrôles approuvés. Les verrous de version/origine de cette politique, du SDK et des modules doivent être vérifiables. L'orchestrateur compare les modifications aux contrats approuvés et fait relire tout changement de contrôle par un autre agent avant adoption ; le candidat ne peut décider seul d'assouplir ses règles. Le bootstrap des premiers contrôleurs suit l'exception explicite de la PR #1 dans [GIT-FLOW.md](GIT-FLOW.md), sans inventer un validateur antérieur déjà approuvé.
 
 ## 2. Commencer et coordonner un travail
 
 Avant d'éditer : lire les instructions applicables, déterminer l'exigence et les critères d'acceptation, consulter l'état réel des sources et identifier la tâche existante. Une issue GitHub est utilisée quand le dépôt et le mandat le permettent ; sinon une tâche locale persistante conserve le même périmètre, les décisions et les preuves. Ne pas inventer une issue ou une PR qui n'existe pas.
 
-Les demandes et autorisations déjà acquises persistent. Un besoin d'accès, de revue indépendante ou de publication manquant est signalé précisément ; la préparation et les vérifications possibles continuent jusqu'à rendre la décision concrète. Aucun skill n'autorise implicitement une communication externe, un changement de réglage du dépôt ou une publication.
+Les demandes et autorisations déjà acquises persistent. Un besoin d'accès, de revue technique ou de publication manquant est signalé précisément ; la préparation et les vérifications possibles continuent jusqu'à rendre la décision concrète. Le compte GitHub unique est autorisé et ne constitue pas un blocage. Aucun skill n'autorise implicitement une communication externe, un changement de réglage du dépôt ou une publication.
 
 Réutiliser un checkout et une branche compatibles avec le travail. Préserver les modifications d'autrui et attribuer des périmètres disjoints aux travaux parallèles. Une tâche suivie dans une issue n'est pas un verrou de fichiers : les chevauchements sont coordonnés explicitement. Ne pas réinitialiser, stasher globalement ou indexer globalement pour contourner une cohabitation.
 
@@ -73,21 +73,21 @@ Les workflows, hooks et runners ne s'exécutent pas dans l'application de produc
 
 La revue porte sur le résultat final, les preuves, la conservation des capacités et les critères négatifs. Elle traite les changements de permissions, données, dépendances, gouvernance et publication comme des modifications explicites, même s'ils sont mélangés à des changements de présentation.
 
-Une revue indépendante est réalisée par une identité autorisée distincte de l'auteur et du dernier pousseur pertinent. Plusieurs agents sous le même compte GitHub ne créent pas plusieurs approbateurs GitHub. Une revue locale par un agent peut apporter une preuve technique, mais ne doit pas être présentée comme une approbation GitHub indépendante.
+La revue technique est réalisée par un autre agent que celui qui a effectué le changement, sur la révision finale identifiée. Le compte GitHub `creezio` peut servir au développement et à l'intégration ; aucune approbation par un second compte n'est exigée. Conserver auteur de la revue, SHA, base, périmètre, défauts, conclusion et limites hors du commit source ou dans un artefact associé. Une modification pertinente exige une revue actualisée. Ce résultat constitue la preuve technique requise et n'est pas présenté comme une approbation GitHub.
 
 Le code d'une PR non approuvée ne s'exécute pas avec des secrets de production ou des autorisations de publication. Ne pas charger ce code dans un workflow privilégié pour contourner les limites d'une PR de fork. Les titres, messages, descriptions et autres entrées de contribution restent des données ; ils ne sont pas interpolés comme commandes shell.
 
-Les contrôles obligatoires proviennent de la politique approuvée et d'une exécution dont l'origine est vérifiée. Un candidat ne peut pas remplacer un validateur par un script qui affiche un succès. Un nom de job ou l'identité générique de l'application GitHub Actions ne suffit pas, à lui seul, à prouver quel code de contrôle a été exécuté.
+Les contrôles obligatoires et leurs changements sont confrontés à la politique approuvée. Le workflow Actions de PR utilise des permissions en lecture et aucun secret ; ses résultats restent liés à la révision réellement exécutée. Avant fusion, l'orchestrateur vérifie le run et sa tentative, les SHA de tête/base et de test, le fichier de workflow, les contrôleurs, les résultats attendus et la revue technique. Il refuse un validateur remplacé par un succès factice. Un nom de job ou l'identité générique GitHub Actions ne certifie pas le code du workflow : cette vérification d'origine reste une étape de l'orchestrateur, pas une garantie automatique des protections. Une App dédiée n'est pas requise pour ce profil monocompte.
 
 ## 7. Activation et preuve de gouvernance en P0
 
 Avant le runtime, produire un état réel et daté de la gouvernance, puis activer et qualifier les contrôles dans le périmètre autorisé :
 
 1. Vérifier dépôt, remotes, accès, propriétaire, possibilités du plan GitHub et mode de travail sans GitHub lorsqu'il s'applique.
-2. Définir les identités habilitées à développer, revoir, intégrer et publier ; identifier un approbateur réellement indépendant. Ne pas résoudre son absence en créant un faux compte ou en contournant la règle.
+2. Conserver le compte `creezio` et attribuer les travaux de réalisation, revue technique par un autre agent et vérification finale par l'orchestrateur. Aucun second compte ni approbation GitHub indépendante n'est requis ; ne pas créer une identité pour simuler cette approbation.
 3. Construire et qualifier les premiers validateurs de documentation, contrats et gouvernance, puis raccorder la CI et les contrôles requis. Leurs résultats ne doivent pas annoncer comme testées des capacités runtime encore absentes.
-4. Vérifier protections effectives de `main`, revue, intégration squash, contrôles à jour, restrictions des références publiées et séparation des secrets. Les réglages nécessaires sont appliqués seulement dans le mandat correspondant.
-5. Montrer sur des candidats de test autorisés qu'un changement conforme peut être intégré et qu'un candidat invalide, un contrôle manquant, une auto-approbation ou un contournement est effectivement refusé.
+4. Vérifier les protections effectives : PR obligatoire, contrôle Actions requis, branche à jour, discussions résolues, squash seul et références publiées protégées. N'imposer aucun nombre d'approbations GitHub. Vérifier séparément la revue technique et l'origine du workflow ; les réglages sont appliqués dans le mandat correspondant.
+5. Montrer sur des candidats de test autorisés qu'un changement conforme satisfait le parcours et qu'un contrôle manquant/en échec ou une branche périmée empêche l'intégration. Prouver séparément le refus par l'orchestrateur d'une revue périmée, d'une preuve falsifiée ou d'une origine de workflow incohérente, sans attribuer ces vérifications à GitHub.
 6. Conserver l'état observé, les preuves et les écarts. Une règle rédigée, un gabarit présent ou un projet déclaré ne vaut pas activation. Les blocages réels de P0 restent ouverts jusqu'à résolution.
 
 Les contrôles GitHub ne s'appliquent pas fictivement à une copie sans GitHub. Ce profil conserve sources/provenance, validation, revue autorisée, intégrités et preuves locales ou Sites ; les garanties propres à GitHub sont signalées comme non applicables, jamais annoncées actives.

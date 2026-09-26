@@ -4,7 +4,7 @@
 
 ## État et documents de pilotage
 
-Révision de cadrage 1 du 26 septembre 2026 : **dossier préparé avant GO, runtime non construit**. Les formulations fonctionnelles décrivent la cible à livrer, pas des fonctions déjà disponibles. Les preuves de la sonde gardent leur portée limitée.
+GO complet reçu le 26 septembre 2026 : **T-01 en cours, runtime non construit**. L'[état P0](IMPLEMENTATION-P0.md) décrit les premières réalisations et prérequis. Les formulations fonctionnelles décrivent la cible à livrer, pas des fonctions déjà disponibles. Les preuves de la sonde gardent leur portée limitée.
 
 Le [PRD produit](PRD.md) exprime les usages ; [EXIGENCES.md](EXIGENCES.md) fixe 83 critères identifiés ; [USER-STORIES.md](USER-STORIES.md) décrit 39 parcours ; [TODO.md](TODO.md) suit 39 lots de travail, leurs dépendances, acceptations et preuves. Ce backlog est la source unique des états, sans case fonctionnelle cochée à ce stade. L'[audit avant développement](AUDIT-AVANT-DEVELOPPEMENT.md) distingue préparation, prérequis et validations futures.
 
