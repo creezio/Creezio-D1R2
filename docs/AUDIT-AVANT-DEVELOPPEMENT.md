@@ -4,6 +4,12 @@
 
 Travail documentaire local `task-20260926-01`, rattaché à la demande de consolidation et d'audit avant GO. Branche de revue : `docs/task-20260926-01-cadrage-complet`. Ce travail prépare notamment les contrats des exigences REQ-0101 à REQ-0203 et leur traçabilité ; il ne déclare pas ces contrôles implémentés.
 
+## Complément : interactions de widgets
+
+La clarification du 26 septembre ajoute quatre exigences (REQ-1604 à REQ-1607), portant le total à **83 exigences**, toujours 39 stories et 39 tâches. Le [contrat des interactions](INTERACTIONS-WIDGETS.md) rend explicites widgets multiples, modes message/contexte/direct **par action**, parité chat interne/GPT et absence d'approbation métier implicite. Les chiffres du contrôle initial ci-dessous restent datés de sa révision à 79 exigences ; ils ne décrivent pas ce complément. La documentation OpenAI a été relue, mais aucune recette en conversation GPT ni implémentation Creezio n'est annoncée réalisée.
+
+Après deux premiers jetons actifs mais insuffisants pour D1/R2, un nouveau jeton fourni a permis les lectures Workers, D1 et R2 ; sa politique confirme les droits d'écriture correspondants. Il permet de préparer la recette sur workers.dev, sans prétendre à une publication déjà réussie. Le DNS reste refusé pour ce jeton : vérifier séparément les accès de zone si domaine personnalisé. Aucun droit modifié, jeton créé ou déploiement exécuté ; la conservation des accès reste locale et chiffrée hors de ce dépôt. Le renouvellement de l'ancien OAuth n'est plus un préalable obligatoire.
+
 ## Verdict et limites
 
 Le dossier décrit les usages, frontières, contrats, critères et ordre de travail nécessaires pour commencer **P0 après GO utilisateur**. Aucun nouveau choix produit bloquant n'a été identifié après correction. Le code du CMS, ses contrôleurs et ses recettes restent à construire. Les protections distantes et l'identité indépendante de revue doivent être établies dans P0 ; les accès nécessaires aux autres jalons sont listés ci-dessous.

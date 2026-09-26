@@ -6,6 +6,8 @@ Version de cadrage : 1, 26 septembre 2026. **Spécification avant développement
 
 Creezio est un socle d'applications nativement serverless, comparable à un CMS extensible : il fournit un backend, un workspace standard avec onglets et chat, des comptes et droits, des données et fichiers, et des modules fonctionnels prêts à utiliser. Il permet de créer une application personnelle, un outil d'entreprise ou un SaaS. Le workspace peut être l'interface unique ; un front facultatif utilise les thèmes dynamiques fournis ou une réalisation headless. Tous les modules, natifs, métiers partagés, spécifiques et externes, suivent le même contrat de données, opérations, API, MCP, UI, documentation et tests. Leur partie plugin conversationnel rend ces fonctions utilisables dans le chat Creezio et, si l'éditeur le souhaite, dans ChatGPT. Chaque app possède ses propres données, accès et déploiement, tout en pouvant adopter les évolutions du socle et de ses modules sans perdre ses personnalisations.
 
+Un module peut fournir plusieurs widgets. Leurs actions distinguent demande proposée au chat, contexte conservé pour le prochain tour et traitement direct sans tour LLM ; un même widget peut combiner ces modes. Le [contrat des interactions](INTERACTIONS-WIDGETS.md) s'applique à ChatGPT et au chat Creezio, avec mêmes données/droits et sans validation d'achat implicite.
+
 Le développeur doit commencer par son métier, sans reconstruire les comptes, le workspace, les API, les outils MCP, les widgets ou les mécanismes de mise à jour. L'administrateur configure des fonctionnalités complètes ; installer un connecteur n8n ou Stripe puis renseigner ses accès doit suffire pour utiliser les opérations annoncées.
 
 ## Utilisateurs et parcours

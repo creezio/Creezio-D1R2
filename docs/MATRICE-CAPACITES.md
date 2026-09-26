@@ -12,7 +12,7 @@ Chaque ligne ci-dessous reste normative ; son détail complète les critères id
 | Identités, accès, données, coffre, recherche, export | REQ-0401 à REQ-0603 ; T-04 à T-06 |
 | Workspace, onglets, navigation et état | REQ-0701 à REQ-0703 ; T-07 |
 | Fronts, thèmes, headless | REQ-1301 à REQ-1302 ; T-13 |
-| Conversations, OpenAI, outils et widgets | REQ-1401 à REQ-1603 ; T-14 à T-16 |
+| Conversations, OpenAI, outils et widgets | REQ-1401 à REQ-1607 ; T-14 à T-16 |
 | MCP, OAuth et accès machine | REQ-1001 à REQ-1003 ; T-10 |
 | Modules, documentation embarquée et PRD révisionnés | REQ-1101 à REQ-1202 ; T-11, T-12 |
 | Tâches, messagerie, support, CRM, pages, analytics, intentions, règles | REQ-1701 à REQ-2401 ; T-17 à T-24 |
@@ -113,6 +113,8 @@ Ces capacités sont fournies d'origine et peuvent être organisées en modules n
 - SDK headless : un front indépendant consomme les mêmes API sans importer le back-office.
 - Personnalisations séparées du thème parent, préservées lors de sa mise à jour.
 - Conversations : brouillons, recherche, renommage, archivage/restauration, pièces jointes, panneaux et liens profonds. Parcours guidés avec pause, correction, reprise et historique ; cache séparé par acteur/surface/espace.
+
+Les widgets sont multiples par module et par conversation. Leurs actions déclarent demande au chat, contexte du prochain tour ou traitement direct ; vérifier les trois modes dans le chat Creezio et ChatGPT, capacités absentes, contextes révisés/retirés, réponses tardives et autorisations. Voir [INTERACTIONS-WIDGETS.md](INTERACTIONS-WIDGETS.md).
 
 ## Extensions et services prêts à configurer
 

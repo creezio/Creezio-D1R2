@@ -45,6 +45,12 @@ Déclarer schémas d'entrée/sortie, annotations, identité stable, droits et p�
 
 Les bundles de widgets sont construits et versionnés avec leurs styles/assets. Le Worker expose les ressources depuis le build ou les assets autorisés ; il ne lit pas un dossier Node local à l'exécution. Fixer ensemble les versions du SDK MCP et des helpers MCP Apps compatibles. Les exemples sont des références de composition ; un serveur Node de démonstration n'est pas le runtime serverless du produit. [Exemples officiels](https://github.com/openai/openai-apps-sdk-examples).
 
+## Plusieurs widgets et trois modes par action
+
+Un module peut déclarer plusieurs types et instances de widgets : fiche produit, ajout rapide au panier, panier, critères de recherche, comparaison ou confirmation. Chaque action déclare son mode : **message proposé au chat**, **contexte pour le prochain tour** ou **traitement direct dans le widget**. Un même widget peut combiner ces modes ; aucun mode global ni second backend par widget.
+
+Le [contrat des interactions](INTERACTIONS-WIDGETS.md) fixe leur choix, les capacités nécessaires, l'envoi volontaire, les états incertains et les replis. `ui/message`, `ui/update-model-context` et `tools/call` servent ces intentions selon les capacités de l'hôte ; les alias ChatGPT restent facultatifs. Un contexte ne lance pas une réponse ni une mutation ; une action directe n'a pas besoin d'un tour LLM ; un prompt généré n'est pas une confirmation de commande. Le chat interne Creezio doit fournir les mêmes effets et contrôles sur les mêmes opérations.
+
 ## Identité et appels
 
 L'accès ChatGPT aux données protégées utilise OAuth délégué vers les comptes Creezio : découverte, PKCE, portées, audience, consentement, renouvellement et révocation. ChatGPT ne fournit pas une clé API personnalisée ni un grant `client_credentials` pour ce parcours. Déclarer les schémas de sécurité des outils et les erreurs de liaison attendues. Les appels d'automatisation compatibles conservent leurs tokens API ; les différents canaux utilisent les mêmes opérations autorisées. [Authentification Plugins](https://developers.openai.com/plugins/build/auth).
@@ -70,5 +76,7 @@ La publication du code Creezio, du paquet npm et du plugin ChatGPT sont des éta
 Le module de recette possède un objet D1 et une pièce jointe R2. Depuis le front Creezio puis depuis ChatGPT, le même utilisateur autorisé retrouve cet objet, affiche le widget, exécute une action et relit le résultat. Un skill guide le workflow sans inventer les données. Tester utilisateur interdit, révocation, objet modifié, double action, widget historique et fonctionnement sans UI. Vérifier le paquet produit et sa mise à jour, ainsi que le rendu réel dans ChatGPT ; un simulateur de pont ou un test MCP seul ne suffit pas. Cette recette complète celle des deux Sites A/B.
 
 La recette distingue les deux connexions : un administrateur gère l'application par son MCP ; un utilisateur utilise une fonction métier par le MCP du front sans découvrir ni appeler les outils administratifs. Installer au moins deux plugins dans le chat Creezio, afficher leurs widgets dans la même conversation et vérifier le routage et les droits de chaque action. Une extension avec contributions admin et front doit fonctionner dans les deux catalogues sans fuite entre eux. Le même plugin doit rester installable dans Creezio sans publication dans ChatGPT.
+
+Vérifier aussi les scénarios des exigences REQ-1604 à REQ-1607 : deux types d'un même module et plusieurs instances, aperçu/envoi du message, contexte remplacé/retiré au prochain tour sans réponse spontanée, action directe sans LLM, hôte sans capacité et timeout sans double exécution. Recette réelle dans les deux hôtes, sans assimiler un pont simulé à ChatGPT.
 
 Vérifier aussi une relation entre deux modules : une action du widget utilise une opération autorisée de l'autre module, retrouve les mêmes données dans l'interface applicative et conserve les contrôles d'accès. Désactiver l'exposition conversationnelle ne supprime ni le module, ni ses données, ni ses API et écrans autorisés.

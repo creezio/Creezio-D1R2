@@ -25,6 +25,7 @@
 | [docs/GIT-FLOW.md](docs/GIT-FLOW.md) | Branches, commits, PR, revue, fusion et releases. |
 | [docs/CADRE-PRODUIT-ET-COMMUNAUTE.md](docs/CADRE-PRODUIT-ET-COMMUNAUTE.md) | Usages, communauté, registre et création. |
 | [docs/EXTENSIONS-THEMES-ECOSYSTEME.md](docs/EXTENSIONS-THEMES-ECOSYSTEME.md) | SDK, paquets, thèmes, starter et updates. |
+| [docs/INTERACTIONS-WIDGETS.md](docs/INTERACTIONS-WIDGETS.md) | Widgets multiples et trois modes par action ; hôte interne et GPT. |
 | [docs/COMPATIBILITE-CHATGPT.md](docs/COMPATIBILITE-CHATGPT.md) | MCP, widgets, plugins et skills conversationnels. |
 | [docs/STOCKAGE-ET-HEBERGEMENT.md](docs/STOCKAGE-ET-HEBERGEMENT.md) | Local, Sites, Cloudflare et transfert D1/R2. |
 | [docs/LICENCES-ET-OFFRES.md](docs/LICENCES-ET-OFFRES.md) | Politiques/activation/accompagnement et décisions commerciales différées. |

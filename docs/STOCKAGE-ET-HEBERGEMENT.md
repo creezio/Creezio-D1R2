@@ -160,3 +160,9 @@ Les résultats et limites sont détaillés dans [Qualification Sites](QUALIFICAT
 - [Données locales](https://developers.cloudflare.com/workers/local-development/local-data/) : persistance des ressources de développement.
 
 État du parcours Cloudflare personnel : faisabilité documentaire ; aucun déploiement ni transfert vers ce compte réalisé. Les sondes Sites publiées et leurs preuves réelles sont consignées dans Qualification Sites.
+
+## Qualification des accès de publication
+
+Un jeton actif ne prouve pas les droits de déployer l'application complète. Vérifier séparément compte cible, Workers Scripts, D1 et Workers R2 Storage en lecture/écriture, puis Zone/Workers Routes/DNS si le parcours utilise un domaine personnalisé. La lecture d'une liste ne qualifie pas une écriture ; le contrôle des politiques et la recette autorisée de publication restent distincts. Ne pas modifier les permissions ou créer un jeton implicitement pour faire réussir un test. [Permissions Cloudflare](https://developers.cloudflare.com/fundamentals/api/reference/permissions/).
+
+Les identifiants du protocole S3 R2 ne sont pas un bearer OAuth Wrangler. Ils peuvent toutefois être obtenus à partir d'un **jeton R2 disposant des droits appropriés** selon la procédure Cloudflare (identifiant du jeton et dérivation de son secret) ; ne pas exiger systématiquement un second jeton si l'accès fourni permet déjà le parcours. Vérifier droits d'administration des buckets et droits objet selon le besoin, sans conserver ces dérivés en clair. [Authentification R2](https://developers.cloudflare.com/r2/api/tokens/).

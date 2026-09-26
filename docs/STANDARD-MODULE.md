@@ -129,7 +129,7 @@ Les contributions précisent leur audience : MCP/plugin d'administration ou MCP/
 
 Les appels utilisent une session utilisateur, une identité machine ou une délégation OAuth vérifiée selon le canal. Les outils, le front et les widgets appellent le même exécuteur autorisé. Un jeton ne remplace pas une approbation humaine exigée et une identité GPT ne crée aucun droit Creezio.
 
-Chaque widget décrit son schéma, son rendu, ses actions, ses versions compatibles, son audience et les données strictement nécessaires. La révision interactive, la version du contrat de widget et la version de l'objet métier sont distinctes. Les actions revalident côté serveur droits, contexte, état de l'objet et idempotence ; le contenu historique d'un message n'est pas une autorisation.
+Le module déclare une collection de widgets nommés/versionnés, avec plusieurs types et instances possibles. Chaque widget décrit son schéma, son rendu, ses actions, ses versions compatibles, son audience et les données strictement nécessaires. Chaque action possède un mode `message`, `context` ou `direct`, sa cible, son schéma, les capacités requises et son repli selon [INTERACTIONS-WIDGETS.md](INTERACTIONS-WIDGETS.md). Les modes peuvent coexister dans un même widget. La révision interactive, la version du contrat de widget et la version de l'objet métier sont distinctes. Les opérations métier effectivement appelées revalident côté serveur droits, contexte, état de l'objet, approbations et idempotence ; le contenu historique d'un message n'est pas une autorisation.
 
 La recette couvre plusieurs plugins dans un chat, l'historique des widgets, les clics répétés, objets supprimés/périmés, module désactivé, changement de session, révocation, résultat trop volumineux et client sans UI. Une compatibilité ChatGPT annoncée exige une recette réelle dans ChatGPT ; un test local de manifeste seul ne la prouve pas.
 
@@ -164,7 +164,7 @@ L'historique d'installation est distinct du changelog du paquet : version et ori
 | `backend` | Modèles, invariants, isolation, autorisations, atomicité bornée, concurrence, idempotence, reprises et refus d'actions invalides. |
 | `ui` | Vues réelles, états de configuration, droits, navigation/panneaux, formulaires, clavier, erreurs et absence de régression du workspace. |
 | `api-mcp` | Contrats entrée/sortie, découverte, audiences, pagination, appels sans navigateur, mauvaises identités/portées/contextes, révocation et approbations. |
-| `widgets` | Rendu et actions, versions, absence d'UI, objets périmés, clics répétés, module indisponible, droits au clic et absence de fuite. |
+| `widgets` | Plusieurs types d'un même module et plusieurs instances ; modes message/contexte/direct et capacités/replis ; versions, absence d'UI, objets périmés, clics répétés, contexte obsolète, module indisponible, droits au clic et absence de fuite. |
 | `package` | Archive produite, intégrité/origine, fermeture des références, dépendances, assets UI/widgets, imports Worker, installation, mise à jour ciblée et désactivation conservant les données. |
 | `docs` | Documents requis, liens, schémas déclarés, cohérence versions/contrats, décisions et critères traçables, absence de secret et statut de preuve honnête. |
 

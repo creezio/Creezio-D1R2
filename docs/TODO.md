@@ -1,5 +1,5 @@
 # Backlog de réalisation
-Révision 1 — 26 septembre 2026. **Implémentation en attente du GO utilisateur.** Ce fichier est la liste de travail canonique du produit ; le plan et les PRD de modules y renvoient. Les items ci-dessous sont tous « à faire ». Le dossier documentaire présent est préparé et audité séparément dans [AUDIT-AVANT-DEVELOPPEMENT.md](AUDIT-AVANT-DEVELOPPEMENT.md) ; il ne coche aucune fonctionnalité.
+Révision 2 — 26 septembre 2026. **Implémentation en attente du GO utilisateur.** Ce fichier est la liste de travail canonique du produit ; le plan et les PRD de modules y renvoient. Les items ci-dessous sont tous « à faire ». Le dossier documentaire présent est préparé et audité séparément dans [AUDIT-AVANT-DEVELOPPEMENT.md](AUDIT-AVANT-DEVELOPPEMENT.md) ; il ne coche aucune fonctionnalité.
 ## Règles de suivi
 États autorisés : à faire, en cours, bloqué (raison/prérequis), en revue, vérifié, livré. Enregistrer responsable réel, branche/issue ou tâche locale, PR, SHA, tests/profils et preuves à chaque transition. « Livré » exige version et livraison vérifiée ; fusionner ne suffit pas. Une dépendance fournisseur manquante bloque sa recette, pas toutes les tâches indépendantes.
 Après GO, commencer P0 puis la tranche P1/P2 nécessaire au premier Site ; les dépendances ci-dessous priment sur le numéro du lot. Qualifier Cloudflare tôt dès disponibilité, mais ne pas bloquer le travail local sur son accès. P3/P4 peuvent avancer par tranches couplées : installer un module témoin d’abord, finaliser le starter après widgets/front. Le socle complet et les preuves restent requis avant P7.
@@ -219,8 +219,8 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 
 - Lot : **P4** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
 - Dépendances : [T-10](#T-10), [T-13](#T-13), [T-15](#T-15).
-- Travail/livrables : Hôte widgets, ressources MCP Apps, paquet plugin/skills, adaptateur GPT et recette réelle autorisée.
-- Besoin : [US-16](USER-STORIES.md#US-16). Acceptation : [REQ-1601](EXIGENCES.md#REQ-1601), [REQ-1602](EXIGENCES.md#REQ-1602), [REQ-1603](EXIGENCES.md#REQ-1603).
+- Travail/livrables : Hôte multiwidgets, ressources MCP Apps, paquet plugin/skills, modes message/contexte/direct par action, adaptateur GPT et recette réelle des trois modes dans les deux chats.
+- Besoin : [US-16](USER-STORIES.md#US-16). Acceptation : [REQ-1601](EXIGENCES.md#REQ-1601), [REQ-1602](EXIGENCES.md#REQ-1602), [REQ-1603](EXIGENCES.md#REQ-1603), [REQ-1604](EXIGENCES.md#REQ-1604), [REQ-1605](EXIGENCES.md#REQ-1605), [REQ-1606](EXIGENCES.md#REQ-1606), [REQ-1607](EXIGENCES.md#REQ-1607).
 - Validation : implémenter puis exécuter les recettes liées, sur **chat Creezio et conversation ChatGPT** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
 
@@ -477,7 +477,7 @@ Ces sous-tâches sont toutes à faire, sous la responsabilité et les dépendanc
 | Identité de revue et règles GitHub | T-01 ; première fusion | Configurer un relecteur distinct de l’auteur/dernier pousseur et qualifier les règles. Ne pas contourner avec un faux compte ni une auto-approbation. |
 | Accès au Site courant | T-09 | Relire accès/outils ; réutiliser le Site de qualification si adapté. Pas de nouveau Site par essai. |
 | Docker fonctionnel | T-31 | Moteur inaccessible lors du relevé : diagnostiquer au démarrage du lot, sans lancer un service utilisateur implicitement. |
-| Compte Cloudflare connecté | T-32/T-33 | OAuth précédemment en échec ; réauthentifier le compte autorisé et vérifier Workers/D1/R2/quotas. Pour le transfert multipart par S3 R2, qualifier les credentials et permissions S3 distincts d’OAuth ; ne pas réclamer automatiquement une nouvelle clé. |
+| Compte Cloudflare connecté | T-32/T-33 | Un nouveau jeton du compte autorisé a permis les lectures Workers/D1/R2 ; sa politique confirme leurs droits d'écriture. Accès suffisant pour préparer la recette sur workers.dev, mais aucune écriture, publication ou limite de quotas qualifiée. Les droits DNS de ce jeton sont insuffisants : vérifier les accès de zone existants si domaine personnalisé. L'ancien échec OAuth n'est plus un préalable obligatoire. Pour le transfert multipart par S3 R2, qualifier les credentials et permissions S3 distincts d’OAuth ; ne pas réclamer automatiquement une nouvelle clé. |
 | Accès fournisseurs | T-15/T-26 à T-29 | Réutiliser les secrets autorisés conservés ; affectation explicite à chaque environnement, jamais copie automatique des secrets de la sonde. Accès manquant = recette concernée non qualifiée. |
 | Publication npm/catalogue/plugin | T-30/T-36 | Vérifier comptes/origines/droits ; tester d’abord le tarball sans publication publique. |
 | Contrat de distribution | Avant le premier push public de code ou autre distribution concernée, puis T-30/T-36 | Arbitrage différé : aucune question de licence/tarif/SaaS à rouvrir pendant le cadrage technique. Vérifier le périmètre avant sa première distribution, sans bloquer la conception et le travail local autorisé. |

@@ -15,11 +15,12 @@ Le produit complet n'est pas implémenté. Ce dépôt contient le dossier de cad
 | Document | Usage |
 |---|---|
 | [PRD](docs/PRD.md) | Définition de Creezio, publics, parcours, périmètre et réussite attendue. |
-| [Exigences](docs/EXIGENCES.md) | 79 exigences identifiées avec critères, preuves et profils de recette. |
+| [Exigences](docs/EXIGENCES.md) | 83 exigences identifiées avec critères, preuves et profils de recette. |
 | [User stories](docs/USER-STORIES.md) | 39 résultats attendus pour les utilisateurs et développeurs. |
 | [Backlog](docs/TODO.md) | 39 lots de travail, dépendances, livrables et état réel ; liste canonique des tâches. |
 | [Plan d'implémentation](docs/PLAN-IMPLEMENTATION.md) | Architecture, lots P0 à P9 et recette complète. |
 | [Architecture des dépôts](docs/ARCHITECTURE-DEPOTS.md) | Socle, douze familles natives, fork, modules externes et registre central. |
+| [Interactions des widgets](docs/INTERACTIONS-WIDGETS.md) | Plusieurs widgets par module, modes message/contexte/direct et parité des chats. |
 | [Standard module](docs/STANDARD-MODULE.md) | PRD/changelog/docs, contrats, six suites CI et paquets vérifiables. |
 | [Développement](docs/DEVELOPMENT-STANDARD.md) · [Git flow](docs/GIT-FLOW.md) | Règles de travail, branche/PR/revue/squash, versions et publication. |
 | [Skills](skills/README.md) · [Contribuer](CONTRIBUTING.md) · [Fichiers](FILES.md) | Points d'entrée pour humains et IA. |

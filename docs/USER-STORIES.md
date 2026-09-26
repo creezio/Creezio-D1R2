@@ -1,5 +1,5 @@
 # User stories
-Révision 1 — 26 septembre 2026. Chaque story exprime un résultat pour une personne ou un rôle de développement. Elle est terminée seulement après satisfaction des exigences liées et de leurs preuves sur les profils prévus. Les modules détaillent leurs propres stories dans leur PRD, sans remplacer les exigences communes.
+Révision 2 — 26 septembre 2026. Chaque story exprime un résultat pour une personne ou un rôle de développement. Elle est terminée seulement après satisfaction des exigences liées et de leurs preuves sur les profils prévus. Les modules détaillent leurs propres stories dans leur PRD, sans remplacer les exigences communes.
 
 <a id="US-01"></a>
 ## US-01 — Gouvernance effective et revue indépendante
@@ -171,9 +171,9 @@ Profil : **OpenAI réel et chats app/workspace**. Réalisation : [T-15](TODO.md#
 
 En tant que **utilisateur de l’app**, je veux **agir sur mes données depuis un widget dans Creezio ou GPT**, afin de **utiliser la même fonctionnalité dans mes conversations**.
 
-Étant donné une installation ou un dépôt de test avec les prérequis déclarés, lorsque ce parcours est exécuté avec un acteur autorisé, alors les résultats définis dans [REQ-1601](EXIGENCES.md#REQ-1601), [REQ-1602](EXIGENCES.md#REQ-1602), [REQ-1603](EXIGENCES.md#REQ-1603) sont observables. Avec des droits, une configuration ou un artefact invalides, les refus et conservations prévus par ces mêmes critères sont vérifiés.
+Étant donné une installation ou un dépôt de test avec les prérequis déclarés, lorsque ce parcours est exécuté avec un acteur autorisé, alors les résultats définis dans [REQ-1601](EXIGENCES.md#REQ-1601), [REQ-1602](EXIGENCES.md#REQ-1602), [REQ-1603](EXIGENCES.md#REQ-1603), [REQ-1604](EXIGENCES.md#REQ-1604), [REQ-1605](EXIGENCES.md#REQ-1605), [REQ-1606](EXIGENCES.md#REQ-1606), [REQ-1607](EXIGENCES.md#REQ-1607) sont observables. Avec des droits, une configuration ou un artefact invalides, les refus et conservations prévus par ces mêmes critères sont vérifiés.
 
-Livrable observable : Hôte widgets, ressources MCP Apps, paquet plugin/skills, adaptateur GPT et recette réelle autorisée.
+Livrable observable : Hôte multiwidgets, ressources MCP Apps, paquet plugin/skills, modes message/contexte/direct par action, adaptateur GPT et recette réelle des trois modes dans les deux chats.
 
 Profil : **chat Creezio et conversation ChatGPT**. Réalisation : [T-16](TODO.md#T-16) ; dépendances et statut y sont suivis.
 
