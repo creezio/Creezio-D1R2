@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import './globals.css';
+import '../sdk/access/styles.css';
 
 export const metadata = {
   title: 'Creezio',

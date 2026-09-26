@@ -130,6 +130,10 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     modules.push({ id: descriptor.identity.id, version: descriptor.identity.version, operations });
     for (const [index, view] of descriptor.contracts.ui.views.entries()) {
       if (!active(selection.moduleId, `/contracts/ui/views/${index}`)) continue;
+      const firstSegment = view.route.split('/')[1];
+      if (firstSegment === 'access' || firstSegment.includes('{')) {
+        fail('view.reserved', 'Native access entry routes belong to the host.');
+      }
       const component = importCode(output, item, view.component, clientImports);
       const access = view.surfaces.includes('front') && composition.exposure.app.moduleIds.includes(selection.moduleId)
         && view.permissions.length === 0 && view.operations.every(reference => publicOperation(resolveOperation(reference))) ? 'public-read' : 'protected';
@@ -163,7 +167,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   const clientViews = views.map(view => { const { component, ...metadata } = view; return `{ ...${JSON.stringify(metadata)}, component: ${component} }`; });
   const rendered = {
     'server.ts': `${banner}import type { RuntimeModule, RuntimeNativeAccess } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/runtime/types.ts')))};\n${serverImports.join('\n')}\nexport const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess: RuntimeNativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const modules: readonly RuntimeModule[] = [${serverModules.join(',\n')}];\n`,
-    'client.tsx': `${banner}import type { RuntimeView } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/runtime/ui.ts')))};\n${clientImports.join('\n')}\nexport const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const views: readonly RuntimeView[] = [${clientViews.join(',\n')}];\n`,
+    'client.tsx': `${banner}import type { RuntimeView } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/runtime/ui.ts')))};\n${clientImports.join('\n')}\nexport const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const views: readonly RuntimeView[] = [${clientViews.join(',\n')}];\n`,
     'composition.json': `${stringify({ schemaVersion: 1, compositionDigest, nativeAccess, applicationId: composition.application.id, hostProfile: composition.host.profile,
       modules: modules.map(({ id, version, operations }) => ({ id, version, routes: operations.map(({ handler, ...metadata }) => metadata) })),
       views: views.map(({ component, ...metadata }) => metadata), packageArchivesVerified: false })}\n`,

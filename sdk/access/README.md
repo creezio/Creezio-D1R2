@@ -1,0 +1,13 @@
+# Session navigateur native
+
+Ce SDK public est partagé par l'entrée du workspace Creezio et les fronts applicatifs. Il ne dépend pas du routeur Next/Vinext, des tables D1 ou d'un fournisseur. Le transport conserve les cookies HttpOnly côté navigateur ; ni jeton ni mot de passe ne sont persistés par le SDK.
+
+`createAccessClient` sélectionne explicitement origine et audience. `createAccessController` reçoit un transport et un coordinateur ; `createBrowserAccessController` les raccorde au navigateur après montage. Le contrôleur expose un snapshot immutable, l'abonnement, la vérification, la connexion, la déconnexion et sa fermeture. Les quatre phases distinguent vérification en cours, anonymat confirmé, session vérifiée et vérification indisponible. L'audience admin ne représente pas un rôle administrateur.
+
+Seul GET session frais établit l'identité affichée, y compris après un POST. Une erreur de mutation reste une erreur même si une session plus ancienne est encore valide. Aucune mutation n'est relancée automatiquement. Les réponses de lecture périmées sont ignorées ; abandonner un composant ne signifie pas qu'un POST envoyé ou son Set-Cookie a été annulé. La mutation et sa réconciliation conservent leur coordination jusqu'à leur règlement effectif.
+
+La coordination est séparée par origine et audience. Web Locks sérialise les parcours coopérants entre onglets lorsqu'il est disponible ; sinon la file est commune au document seulement. Les messages BroadcastChannel invalident l'état et demandent une relecture, sans transporter d'identité ni de secret. Ils n'accordent aucun droit. La fermeture complète d'un document peut libérer son verrou alors qu'un effet serveur est en cours : ce mécanisme n'est pas une transaction entre navigateur et serveur. Reprise de navigation et retour au premier plan demandent une vérification fraîche.
+
+`LoginForm` et `NativeAccessPanel` proposent une présentation accessible et remplaçable. Ils n'imposent aucune navigation ou redirection issue d'une query. L'hôte conserve ses routes minces et consulte les drapeaux publics `nativeAccess` générés depuis la composition. Le premier segment des vues de modules reste littéral et ne peut occuper `/access`, réservé aux entrées natives. Les permissions des opérations restent exclusivement contrôlées par le serveur.
+
+Les tests de client/contrôleur utilisent des transports contrôlés pour les courses et pannes ; ils sont distincts des recettes réelles HTTP/D1, du rendu React et du navigateur. Voir [T-04](../../docs/IMPLEMENTATION-T04.md) pour les résultats et limites de la tranche. Ce SDK n'implémente pas encore l'administration visuelle, la récupération de compte ou l'impersonation dans l'interface.

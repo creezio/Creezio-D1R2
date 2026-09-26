@@ -1,5 +1,7 @@
 # Fichiers du module access
 
+Le [SDK de session navigateur](../../../sdk/access/) fournit les entrées natives de connexion ; les routes hôte sont dans [app/access](../../../app/access/). Elles ne constituent pas des vues métier anonymes du module. Client/contrôleur, rendu React et recettes navigateur ont leurs contrôles d'hôte distincts.
+
 - `module/models.json` : source canonique des vingt et un modèles actuels d'identité et d'autorisation ; relations ACL, capacités de cycle de compte, credentials API/scopes, impersonations et références d'audit incluses.
 - `module/manifest.json` : descripteur dérivé, modèles et contrat de validation.
 - `module/entry.server.ts` : métadonnées de phase HTTP sans effets de démarrage ; les audiences natives sont sélectionnées par la composition du cœur.

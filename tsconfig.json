@@ -16,6 +16,6 @@
     "types": ["node", "@cloudflare/workers-types", "vinext/types"],
     "paths": { "@/*": ["./*"] }
   },
-  "include": ["app/**/*.tsx", "core/**/*.ts", "adapters/**/*.ts", "extensions/**/*.ts", "extensions/**/*.tsx", "worker.ts", "vite.config.ts", ".creezio/generated/**/*.ts", ".creezio/generated/**/*.tsx", "tests/runtime/fixtures/module-witness/**/*.ts", "tests/runtime/fixtures/module-witness/**/*.tsx"],
+  "include": ["app/**/*.tsx", "sdk/**/*.ts", "sdk/**/*.tsx", "core/**/*.ts", "adapters/**/*.ts", "extensions/**/*.ts", "extensions/**/*.tsx", "worker.ts", "vite.config.ts", ".creezio/generated/**/*.ts", ".creezio/generated/**/*.tsx", "tests/runtime/fixtures/module-witness/**/*.ts", "tests/runtime/fixtures/module-witness/**/*.tsx"],
   "exclude": ["node_modules", "dist"]
 }

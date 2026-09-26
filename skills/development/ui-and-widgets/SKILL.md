@@ -16,6 +16,10 @@ Lire les [règles communes et la phase autorisée](../../README.md), le [standar
 
 Après P0 et le GO applicable, exécuter composants, parcours navigateur et intégration hôte selon l'impact. Vérifier plusieurs widgets d'un même module, leurs trois modes dans Creezio/GPT, contexte remplacé/retiré, hôte sans capacité et timeout sans doublon. Vérifier aussi deux fiches distinctes, navigation rapide, brouillon, portail, refus au clic et historique du widget. Conserver versions, révision et limites dans les preuves ; aucun résultat mocké ne qualifie l'hébergement ou ChatGPT.
 
+## Session navigateur commune
+
+Réutiliser le [SDK access](../../../sdk/access/README.md) pour une entrée native, y compris dans un front personnalisé. L'hôte impose l'audience depuis la composition ; une session admin ne donne pas un rôle. Seul un GET frais établit l'identité affichée. Une panne réseau ne vaut pas anonymat confirmé ; une erreur de mutation reste visible. Purger les secrets saisis, invalider les réponses anciennes et ne pas rétablir un état privé périmé. Un abort ou un démontage ne neutralise pas Set-Cookie : conserver la coordination d'un POST émis et de sa relecture jusqu'à leur règlement, sans retry automatique. Les invalidations entre onglets ne transportent aucune identité à adopter. Documenter les limites du repli sans Web Locks et du déchargement complet. Tester rendu, courses contrôlées et navigateur séparément ; des événements synthétiques ne prouvent pas un changement réel de focus de l'hôte.
+
 ## Dépendances entre modules
 
 Appliquer le [contrat commun](../../../docs/DEPENDANCES-MODULES.md). Déclarer les contributions conditionnelles liées aux intégrations facultatives. L’absence du fournisseur retire les opérations, outils, vues ou actions concernés sans casser les autres widgets du module. Un widget historique et une URL directe restent contrôlés au serveur ; ne pas se contenter de masquer un bouton. Le front ne résout pas ses propres versions de modules.

@@ -16,4 +16,10 @@ button:disabled { opacity: .6; cursor: wait; }
 button:focus-visible { outline: 3px solid #9bc2ac; outline-offset: 3px; }
 .footnote { font-size: 12px; line-height: 1.6; max-width: 580px; color: #718076; margin-top: 20px; }
 footer { color: #7a867f; font-size: 12px; border-top: 1px solid #dde3d9; padding-top: 20px; }
+.brand a { display: inline-flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; }
+.access-entry { max-width: 840px; }
+.access-entry-body { width: 100%; max-width: 470px; margin: auto; padding: 50px 0; }
+.access-links { display: flex; flex-wrap: wrap; gap: 16px 24px; margin-top: 24px; }
+.access-links a { color: #214e41; text-underline-offset: 4px; font-size: 14px; }
+a:focus-visible { outline: 3px solid #60866d; outline-offset: 4px; border-radius: 3px; }
 @media (max-width: 600px) { .welcome { padding: 28px 24px 24px; } .welcome-body { padding: 56px 0; } .status-card { align-items: flex-start; flex-direction: column; } h1 { letter-spacing: -1.6px; } }

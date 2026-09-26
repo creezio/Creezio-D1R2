@@ -2690,7 +2690,7 @@
       "front": {
         "mode": "absent",
         "justification": {
-          "reason": "No module interface is contributed yet; the native HTTP handshake is qualified separately by the core.",
+          "reason": "No private module view is contributed. Native entry screens use the shared host SDK and have separate qualification.",
           "policyRule": "access.no-module-ui"
         }
       },
@@ -2768,7 +2768,7 @@
           "tests/ui/contract.test.mjs"
         ],
         "justification": {
-          "reason": "No module interface is contributed. Absence is tested; the native HTTP handshake does not provide an access screen.",
+          "reason": "No module view is declared; absence is tested here. Native login/session/logout entry screens and SDK are qualified separately by host tests.",
           "policyRule": "access.no-module-ui"
         }
       },

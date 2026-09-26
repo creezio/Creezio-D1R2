@@ -19,7 +19,7 @@
         "revision": "t04-access-models-v1",
         "integrity": "sha256-94b09ae864b9b995d8c2e8b2845597d9c25ca9a383e51f39c16aaa7f088181bc"
       },
-      "contractIntegrity": "sha256-6c860882176041ce4a70f512dac076472509520ef77c793578368ad25d6babb8",
+      "contractIntegrity": "sha256-a160394d8769761b6fa1d9af16e69048faa054cba9ec2bc2dedeea22779a2d1c",
       "runtime": {
         "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000",
         "location": {

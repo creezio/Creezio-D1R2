@@ -164,6 +164,18 @@ test('actual Vinext Worker, static assets, selected module and persistent D1/R2 
       const assetResponse = await timed('staticAsset', () => instance.dispatchFetch(url));
       assert.equal(assetResponse.status, 200); assert.equal(digest(Buffer.from(await assetResponse.arrayBuffer())), asset.sha256);
     });
+    await check('native entry routes render only their selected audience without a server-side identity', async () => {
+      for (const [audience, title] of [['admin', 'Accéder à Creezio'], ['app', 'Accéder à l’application']]) {
+        const response = await instance.dispatchFetch(`http://localhost/access/${audience}`);
+        assert.equal(response.status, 200);
+        const html = await response.text();
+        assert.ok(html.includes(title));
+        assert.match(html, /Vérification de votre session/);
+        assert.doesNotMatch(html, /Votre session est vérifiée/);
+        assert.equal(response.headers.has('set-cookie'), false);
+      }
+      assert.equal((await instance.dispatchFetch('http://localhost/access/owner')).status, 404);
+    });
     await check('full artifact routes native authentication and refuses unknown API/MCP without serving HTML', async () => {
       const health = await timed('health', () => instance.dispatchFetch('http://localhost/api/health'));
       assert.equal(health.status, 200, health.status === 200 ? undefined : await health.clone().text()); assert.deepEqual(await health.json(), { status: 'ok' });

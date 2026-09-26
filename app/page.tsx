@@ -1,4 +1,5 @@
 import { RuntimeStatus } from './runtime-status';
+import { nativeAccess } from '../.creezio/generated/client';
 
 export default function Home() {
   return <main className="welcome">
@@ -8,7 +9,11 @@ export default function Home() {
       <h1>Votre application<br />commence ici.</h1>
       <p className="intro">Le socle commun est en construction. Cette installation permet de vérifier le démarrage de l’application et ses connexions de stockage.</p>
       <RuntimeStatus />
-      <p className="footnote">Les comptes, le workspace et les modules natifs seront raccordés dans les prochaines étapes de construction.</p>
+      <nav className="access-links" aria-label="Connexion">
+        {nativeAccess.admin && <a href="/access/admin">Se connecter au workspace</a>}
+        {nativeAccess.app && <a href="/access/app">Se connecter à l’application</a>}
+      </nav>
+      <p className="footnote">La connexion native est disponible. Le workspace et les autres modules natifs sont en cours de construction.</p>
     </section>
     <footer>Un socle commun. Vos modules. Votre interface.</footer>
   </main>;

@@ -1,0 +1,29 @@
+.creezio-access-panel, .creezio-access-form { box-sizing: border-box; font-family: inherit; color: #192b27; }
+.creezio-access-panel *, .creezio-access-form * { box-sizing: border-box; }
+.creezio-access-panel { width: 100%; max-width: 460px; margin: 32px 0; padding: 32px; border: 1px solid #d2ded5; border-radius: 16px; background: #fff; box-shadow: 0 12px 36px #192b2708; }
+.creezio-access-heading { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+.creezio-access-symbol { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px; color: #fff; background: #214e41; font-size: 24px; font-weight: 650; }
+.creezio-access-panel .creezio-access-eyebrow { margin: 0 0 5px; color: #536a5e; font-size: 11px; font-weight: 650; letter-spacing: 1px; text-transform: uppercase; }
+.creezio-access-panel h2 { margin: 0; font-size: 21px; line-height: 1.25; letter-spacing: -.5px; font-weight: 650; }
+.creezio-access-panel .creezio-access-status { margin: 0 0 24px; color: #4c6055; font-size: 14px; line-height: 1.65; }
+.creezio-access-form fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+.creezio-access-field { margin-bottom: 18px; }
+.creezio-access-field label { display: block; margin-bottom: 7px; font-size: 14px; font-weight: 550; }
+.creezio-access-field input { display: block; width: 100%; min-width: 0; min-height: 46px; padding: 11px 13px; border: 1px solid #a7b7ac; border-radius: 8px; color: #192b27; background: #fff; font: inherit; font-size: 16px; line-height: 1.35; }
+.creezio-access-field input[aria-invalid="true"] { border-color: #ae352f; background: #fff9f8; }
+.creezio-access-field input:focus-visible { outline: 3px solid #8bb09b; outline-offset: 2px; }
+.creezio-access-panel button, .creezio-access-form button { min-height: 44px; max-width: 100%; padding: 12px 16px; border: 1px solid transparent; border-radius: 8px; font: inherit; font-size: 14px; line-height: 1.4; font-weight: 550; white-space: normal; cursor: pointer; }
+.creezio-access-form .creezio-access-primary { width: 100%; color: #fff; background: #214e41; }
+.creezio-access-form .creezio-access-primary:hover:not(:disabled) { background: #173d32; }
+.creezio-access-panel .creezio-access-secondary { color: #214e41; background: #f0f5ef; border-color: #ceddd1; }
+.creezio-access-panel .creezio-access-secondary:hover:not(:disabled) { background: #e4eee3; }
+.creezio-access-panel button:focus-visible, .creezio-access-form button:focus-visible { outline: 3px solid #58866a; outline-offset: 3px; }
+.creezio-access-panel button:disabled, .creezio-access-form button:disabled, .creezio-access-form fieldset:disabled input { opacity: .65; cursor: wait; }
+.creezio-access-panel .creezio-access-error, .creezio-access-form .creezio-access-error { margin: 0 0 18px; padding: 12px 14px; border: 1px solid #edb4ad; border-radius: 8px; color: #8c2822; background: #fff4f1; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.creezio-access-identity { margin-bottom: 18px; padding: 18px; border: 1px solid #d8e6d8; border-radius: 10px; background: #f8fbf6; }
+.creezio-access-identity p { margin: 0 0 14px; color: #4c6055; font-size: 13px; line-height: 1.6; }
+.creezio-access-identity .creezio-access-name { margin-bottom: 5px; color: #192b27; font-size: 17px; font-weight: 600; overflow-wrap: anywhere; }
+.creezio-access-panel .creezio-access-notice { margin: 20px 0 0; padding-top: 16px; border-top: 1px solid #dde5dc; color: #596b60; font-size: 12px; line-height: 1.65; }
+.creezio-access-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@media (max-width: 480px) { .creezio-access-panel { padding: 24px 20px; margin: 24px 0; border-radius: 12px; } .creezio-access-panel h2 { font-size: 19px; } }
+@media (forced-colors: active) { .creezio-access-field input:focus-visible, .creezio-access-panel button:focus-visible, .creezio-access-form button:focus-visible { outline-color: Highlight; } }

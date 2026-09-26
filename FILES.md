@@ -52,13 +52,15 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - [adapters](adapters/) : reconnaissance des bindings D1/R2 et profils d'hébergement ; aucun service tiers installé.
 - [configuration](configuration/) : composition explicite et verrou de l'application ; pas de module témoin inclus par défaut.
 - [scripts/build](scripts/build/) : génération des imports sélectionnés et contrôle de compatibilité Worker, sans installation implicite.
-- [app](app/) : page initiale et montage des seules vues front explicitement anonymes ; aucune administration provisoire ouverte.
+- [app](app/) : page initiale, entrées natives `/access/admin` et `/access/app`, et montage des seules vues front explicitement anonymes ; aucune administration provisoire ouverte.
 - [vite.config.ts](vite.config.ts), [tsconfig.json](tsconfig.json), [scripts/run-framework.mjs](scripts/run-framework.mjs) : outillage figé et build commun ; un seul `dist` et un seul état local `.wrangler/state`.
 - [.openai/hosting.json](.openai/hosting.json) : noms logiques DB/BUCKET, sans identité de Site ni ressource distante créée.
 - [tests/runtime](tests/runtime/) : contrôles de composition, environnement, routage et workerd ; module témoin avec ses propres docs et six suites.
 - [État T-03](docs/IMPLEMENTATION-T03.md) : périmètre vérifié, commandes et limites ; `.creezio`, `.quality`, `.wrangler` et `dist` restent locaux et ignorés.
 
 ## Fondations de l'identité T-04
+
+- [sdk/access](sdk/access/) : contrat public de session navigateur, client HTTP, contrôleur et coordination, composants React réutilisables ; aucune lecture directe de cookie, table ou secret, aucun couplage au routeur hôte.
 
 - [core/identity](core/identity/) : credentials opaques, cryptographie, stockage D1 et services natifs de comptes, droits et impersonation ; transport natif login/session/logout dans http.ts et ses règles d'origine, corps et cookies dans http-policy.ts.
 - [extensions/native/access](extensions/native/access/) : vingt et un modèles privés d'identité et de droits, contrat, documentation et six suites ; module sélectionné par la composition pour activer le transport natif, sans contributions UI/API métier/MCP encore exposées.

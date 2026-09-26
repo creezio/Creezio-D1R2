@@ -1,6 +1,6 @@
 # État access
 
-Tranche de transport HTTP natif en construction, contrôle final à relier au checkpoint source.
+Tranche d’entrée navigateur native en construction, contrôle final à relier au checkpoint source.
 
 - Identité D1, claim d'installation, sessions et admission : tranche de stockage qualifiée localement et intégrée ; les recettes hébergées restent distinctes.
 - Seize modèles d'identité/ACL, seed au même claim, résolution fraîche et modification du graphe : tranche qualifiée localement et intégrée ; voir [T-04](../../../docs/IMPLEMENTATION-T04.md) pour les preuves exactes.
@@ -10,8 +10,8 @@ Tranche de transport HTTP natif en construction, contrôle final à relier au ch
 - Administration humaine : tranche qualifiée localement et intégrée. État du compte conservé, auto-désactivation refusée, auto-révocation explicite permise ; les transports restent distincts.
 - Impersonation : tranche interne qualifiée localement et intégrée ; deux modèles privés, purpose/credential distincts, provenance typée, permission native réservée et refus purs. Aucune session personnelle de la cible ni grant bootstrap. Les transports et interfaces restent distincts.
 - Remise des capacités par e-mail, vérification d'adresse, interface d'impersonation et purge d'état privé au changement d'identité : à construire.
-- Transport login/session/logout et cookies distincts admin/app : tranche locale en construction et qualification, activation explicite par composition/audience ; aucun bootstrap HTTP. Une provenance réseau fiable reste indisponible sur les hôtes actuellement qualifiés : ne pas la déduire d'un header. Les limites D1 bornent le KDF mais ne garantissent pas l'équité entre visiteurs ; recette navigateur/Sites à construire avant annonce d'une connexion hébergée.
-- Interfaces de connexion et purge de session/état privé : à construire.
+- Transport login/session/logout et cookies distincts admin/app : tranche locale qualifiée et intégrée par PR #11, activation explicite par composition/audience ; aucun bootstrap HTTP. Une provenance réseau fiable reste indisponible sur les hôtes actuellement qualifiés : ne pas la déduire d'un header. Les limites D1 bornent le KDF mais ne garantissent pas l'équité entre visiteurs ; recette navigateur/Sites à construire avant annonce d'une connexion hébergée.
+- Entrées de connexion natives et SDK de session partagé : en construction et qualification ; administration visuelle et interface d’impersonation encore à construire.
 - API/MCP/widgets et recette hébergée : à raccorder puis qualifier ; OAuth dépend de T-10.
 - Distribution du paquet : à qualifier en T-30 ; pas d'archive installable revendiquée ici.
 

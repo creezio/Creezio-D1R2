@@ -1,5 +1,7 @@
 # Décisions du module access
 
+- 27 septembre 2026 : entrée native via le SDK partagé de l'hôte, avec routes et audiences explicites. Aucun écran métier public fictif ajouté au manifeste ; état de session confirmé par GET, erreurs réseau distinctes, coordination navigateur et recettes réelles séparées des six suites de contrats du module.
+
 - 26 septembre 2026 : connexion native Creezio, indépendante d'une éventuelle barrière d'hébergement GPT.
 - Workspace utilisable pour une personne, une équipe ou un SaaS ; l'administration système reste un droit distinct.
 - Modèles actuels et SQL central généré ; aucune ancienne architecture ni conversion de données intégrée.

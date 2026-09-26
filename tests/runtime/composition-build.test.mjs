@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { cpSync, mkdirSync, readFileSync, writeFileSync, existsSync, symlinkSync, unlinkSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { transform } from 'esbuild';
 import { composeRuntime } from '../../scripts/build/compose-runtime.mjs';
 import { contractIntegrity } from '../../sdk/contracts/validate.mjs';
 import { temporaryDirectory } from '../quality/temporary.mjs';
@@ -47,12 +48,18 @@ function fixture(t, witness = true) {
   return { root, composition, lock, module, save };
 }
 const generated = (root, name) => path.join(root, '.creezio/generated', name);
+async function clientRegistry(root) {
+  const source = readFileSync(generated(root, 'client.tsx'), 'utf8');
+  const { code } = await transform(source, { loader: 'tsx', format: 'esm' });
+  return import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+}
 
 test('an explicitly empty composition builds no module, view, native access or witness import', async t => {
   const f = fixture(t, false), result = await composeRuntime({ root: f.root });
   assert.equal(result.moduleCount, 0); assert.equal(result.viewCount, 0);
   assert.deepEqual(result.nativeAccess, {admin:false,app:false});
   assert.deepEqual(read(generated(f.root,'composition.json')).nativeAccess, {admin:false,app:false});
+  assert.deepEqual((await clientRegistry(f.root)).nativeAccess, {admin:false,app:false});
   assert.doesNotMatch(readFileSync(generated(f.root, 'server.ts'), 'utf8'), /example\.witness|fixtures\/module-witness/);
   assert.doesNotMatch(readFileSync(generated(f.root, 'client.tsx'), 'utf8'), /fixtures\/module-witness/);
 });
@@ -65,6 +72,10 @@ test('default native access composition explicitly enables both audiences withou
   const registry=await import(pathToFileURL(generated(f.root,'server.ts')).href);
   assert.deepEqual(registry.nativeAccess,{admin:true,app:true});assert.ok(Object.isFrozen(registry.nativeAccess));
   assert.throws(()=>{registry.nativeAccess.admin=false;},TypeError);
+  const client = await clientRegistry(f.root);
+  assert.deepEqual(client.nativeAccess, registry.nativeAccess);
+  assert.ok(Object.isFrozen(client.nativeAccess));
+  assert.throws(() => { client.nativeAccess.app = false; }, TypeError);
   assert.deepEqual(registry.modules,[{id:'creezio.access',version:'0.0.0',operations:[]}]);
   assert.deepEqual(result.nativeAccess,registry.nativeAccess);assert.ok(Object.isFrozen(result.nativeAccess));
   assert.deepEqual(read(generated(f.root,'composition.json')).nativeAccess,registry.nativeAccess);
@@ -78,6 +89,7 @@ test('native access audiences require independent explicit exposures and an acti
     f.composition.exposure.app.moduleIds=app?['creezio.access']:[];f.save();
     await composeRuntime({root:f.root});
     assert.deepEqual(read(generated(f.root,'composition.json')).nativeAccess,{admin,app});
+    assert.deepEqual((await clientRegistry(f.root)).nativeAccess,{admin,app});
   }
   f.composition.modules[0].enabled=false;
   f.composition.exposure.admin.moduleIds=[];f.composition.exposure.app.moduleIds=[];f.save();
@@ -163,6 +175,17 @@ test('runtime route conflicts and reserved routes fail host preflight without wr
   f.module.contracts.api[0].parameters = []; f.module.contracts.api[1].parameters = []; f.save();
   await assert.rejects(composeRuntime({ root: f.root }), error => error.code === 'build.route-reserved');
   assert.equal(existsSync(generated(f.root, 'server.ts')), false);
+});
+
+test('native access entry views are reserved without replacing the previous valid composition', async t => {
+  const f = fixture(t); await composeRuntime({ root: f.root });
+  const names = ['server.ts', 'client.tsx', 'composition.json'];
+  const before = names.map(name => readFileSync(generated(f.root, name), 'utf8'));
+  for (const route of ['/access', '/access/admin', '/access/app', '/{surface}/admin', '/:surface/admin']) {
+    f.module.contracts.ui.views[0].route = route; f.save();
+    await assert.rejects(composeRuntime({ root: f.root }), error => error.code === (route.includes(':') ? 'composition.invalid' : 'view.reserved'), route);
+    assert.deepEqual(names.map(name => readFileSync(generated(f.root, name), 'utf8')), before);
+  }
 });
 
 test('native access namespace is reserved even when access is absent, including parameter captures', async t => {
