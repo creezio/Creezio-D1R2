@@ -64,7 +64,7 @@ test('selected Worker graph refuses transitive paths outside its root and linked
   }
 });
 
-test('normal application build refuses an incompatible selected module before replacing the valid artifact', { timeout: 45000 }, async () => {
+test('normal application build refuses incompatible server and UI imports before replacing the valid artifact', { timeout: 75000 }, async () => {
   const artifactBefore = measureRuntimeArtifacts(root).digest;
   const scratch = qualificationScratch(root);
   try {
@@ -75,20 +75,30 @@ test('normal application build refuses an incompatible selected module before re
       const destination = join(target, file); mkdirSync(dirname(destination), { recursive: true });
       writeFileSync(destination, readFileSync(join(base, file)));
     }
-    writeFileSync(join(target, 'module/operations.ts'),
-      "import { readFileSync } from 'node:fs';\nexport function read_status() { return readFileSync('not-an-application-file'); }\nexport function read_protected() { throw new Error('unreachable'); }\n");
     const composition = JSON.parse(readFileSync(join(root, 'configuration/composition.witness.json'), 'utf8'));
     const lock = JSON.parse(readFileSync(join(root, 'configuration/composition.witness.lock.json'), 'utf8'));
     composition.modules[0].source.path = slash(relative(root, target));
     lock.compositionIntegrity = contractIntegrity(composition);
     const compositionPath = join(scratch.directory, 'composition.json'), lockPath = join(scratch.directory, 'composition.lock.json');
     writeFileSync(compositionPath, JSON.stringify(composition)); writeFileSync(lockPath, JSON.stringify(lock));
-    const run = spawnSync(process.execPath, ['scripts/run-framework.mjs', 'build'], { cwd: root, encoding: 'utf8',
-      timeout: 30000, maxBuffer: 2 * 1024 * 1024, env: { ...process.env,
-        CREEZIO_COMPOSITION: compositionPath, CREEZIO_COMPOSITION_LOCK: lockPath } });
-    assert.equal(run.error, undefined); assert.notEqual(run.status, 0);
-    assert.match(`${run.stdout}\n${run.stderr}`, /Selected application code cannot import Node builtin node:fs/);
-    assert.equal(measureRuntimeArtifacts(root).digest, artifactBefore, 'Refused candidate must preserve the existing build.');
+    const variants = [
+      { file: 'module/operations.ts', code: "import { readFileSync } from 'node:fs';\nexport function read_status() { return readFileSync('not-an-application-file'); }\nexport function read_protected() { throw new Error('unreachable'); }\n" },
+      { file: 'ui/front/view.ts', code: "import { readFileSync } from 'node:fs';\nexport function view() { return readFileSync('not-an-application-file', 'utf8'); }\n" },
+    ];
+    for (const variant of variants) {
+      writeFileSync(join(target, variant.file), variant.code);
+      try {
+        const run = spawnSync(process.execPath, ['scripts/run-framework.mjs', 'build'], { cwd: root, encoding: 'utf8',
+          timeout: 30000, maxBuffer: 2 * 1024 * 1024, env: { ...process.env,
+            CREEZIO_COMPOSITION: compositionPath, CREEZIO_COMPOSITION_LOCK: lockPath } });
+        assert.equal(run.error, undefined, variant.file); assert.notEqual(run.status, 0, variant.file);
+        assert.match(`${run.stdout}\n${run.stderr}`, /Selected application code cannot import Node builtin node:fs/, variant.file);
+        assert.equal(measureRuntimeArtifacts(root).digest, artifactBefore, `${variant.file}: refused candidate must preserve the existing build.`);
+      } finally {
+        // Each variant changes one contribution only; UI rejection cannot rely on a still-invalid handler.
+        writeFileSync(join(target, variant.file), readFileSync(join(base, variant.file)));
+      }
+    }
   } finally {
     await composeRuntime({ root, compositionPath: 'configuration/composition.json', lockPath: 'configuration/composition.lock.json' });
     scratch.cleanup();

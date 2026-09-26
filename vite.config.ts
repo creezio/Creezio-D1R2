@@ -12,7 +12,9 @@ export default defineConfig(async () => {
     compositionPath: process.env.CREEZIO_COMPOSITION ?? 'configuration/composition.json',
     ...(process.env.CREEZIO_COMPOSITION_LOCK ? { lockPath: process.env.CREEZIO_COMPOSITION_LOCK } : {}),
   });
-  await assertWorkerBoundary({ root, entryPoints: ['.creezio/generated/server.ts', 'core/runtime/dispatch.ts'] });
+  await assertWorkerBoundary({ root, entryPoints: [
+    '.creezio/generated/server.ts', '.creezio/generated/client.tsx', 'core/runtime/dispatch.ts',
+  ] });
   const { cloudflare } = await import('@cloudflare/vite-plugin');
   return {
     server: { host: '127.0.0.1', port: 5173, strictPort: true },

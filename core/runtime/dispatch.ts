@@ -123,6 +123,11 @@ async function invoke(route: Route, input: RuntimeInput, context: Omit<RuntimeOp
   finally { clearTimeout(timer); requestSignal.removeEventListener('abort',onAbort); }
 }
 
+/** Pure host preflight. Validates registration without invoking any supplied handler. */
+export function validateRuntimeDefinition(definition: RuntimeDefinition): void {
+  compile(definition);
+}
+
 /** Routes are compiled once from reviewed static imports, never from request data or a remote module URL. */
 export function createRuntime(definition: RuntimeDefinition): CreezioRuntime {
   const routes = compile(definition);
@@ -162,7 +167,8 @@ export function createRuntime(definition: RuntimeDefinition): CreezioRuntime {
         if (!(response instanceof Response)) throw new Error('Invalid handler result.');
         const headers = new Headers(response.headers);
         headers.set('x-creezio-request-id',requestId); headers.set('x-content-type-options','nosniff'); headers.set('cache-control','no-store');
-        if(head)await response.body?.cancel();
+        // A stream producer may never settle cancellation. HEAD must not wait for its body.
+        if(head)void response.body?.cancel().catch(()=>{});
         return new Response(head?null:response.body,{status:response.status,statusText:response.statusText,headers});
       } catch (failure) {
         if(failure instanceof InvocationCancelled)return failure.kind==='timeout'

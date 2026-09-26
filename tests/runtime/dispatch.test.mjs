@@ -80,6 +80,17 @@ test('HEAD reads discard the body and preserve the real status without creating 
   assert.equal(response.status,202);assert.equal(await response.text(),'');assert.equal(calls,1);assert.equal(cancelled,true);
 });
 
+test('HEAD completes even when the stream producer never settles cancellation',async()=>{
+  let cancelled=false,timer;
+  const app=runtime([moduleOf([operation({handler:()=>new Response(new ReadableStream({cancel(){cancelled=true;return new Promise(()=>{});}}),{status:202})})])]);
+  const pending=app.fetch(request('/api/modules/example.test/status',{method:'HEAD'}),environment());
+  const timeout=Symbol('HEAD did not complete');
+  try {
+    const response=await Promise.race([pending,new Promise(resolve=>{timer=setTimeout(()=>resolve(timeout),100);})]);
+    assert.notEqual(response,timeout);assert.equal(response.status,202);assert.equal(await response.text(),'');assert.equal(cancelled,true);
+  } finally { clearTimeout(timer); }
+});
+
 test('handler failures and non-Response results become redacted JSON 500',async()=>{
   for(const handler of [()=>{throw new Error('PRIVATE_KEY=secret-value');},()=>({fake:true})]){
     const response=await runtime([moduleOf([operation({handler})])]).fetch(request('/api/modules/example.test/status'),environment());

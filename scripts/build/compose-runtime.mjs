@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { loadJson } from '../../sdk/contracts/load.mjs';
 import { validateComposition, contractIntegrity } from '../../sdk/contracts/validate.mjs';
 import { safePackagePath } from '../../sdk/contracts/references.mjs';
+import { validateRuntimeDefinition, RuntimeConfigurationError } from '../../core/runtime/dispatch.ts';
 
 export class CompositionBuildError extends Error {
   constructor(code, message, diagnostics = []) { super(message); this.name = 'CompositionBuildError'; this.code = code; this.diagnostics = diagnostics; }
@@ -137,6 +138,17 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     }
   }
   const compositionDigest = contractIntegrity(composition);
+  // Only approved host code is loaded. Module entrypoints remain inert paths;
+  // these sentinels verify the exact dispatch policy without evaluating package code.
+  try {
+    validateRuntimeDefinition({ compositionDigest, modules: modules.map(module => ({ ...module,
+      operations: module.operations.map(operation => ({ ...operation, handler() { throw new Error('Build validation must never invoke module handlers.'); } })),
+    })) });
+  } catch (error) {
+    if (error instanceof RuntimeConfigurationError) throw new CompositionBuildError(`build.${error.code.replaceAll('.', '-')}`, error.message,
+      [{ code: error.code, message: error.message }]);
+    throw error;
+  }
   const banner = '// Generated from an explicit validated composition. Do not edit.\n';
   const serverModules = modules.map(module => `{ id: ${JSON.stringify(module.id)}, version: ${JSON.stringify(module.version)}, operations: [${module.operations.map(operation => {
     const { handler, ...metadata } = operation; return `{ ...${JSON.stringify(metadata)}, handler: ${handler} }`;

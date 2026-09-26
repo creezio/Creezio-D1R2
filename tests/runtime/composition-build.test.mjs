@@ -90,6 +90,31 @@ test('invalid declarations and colliding routes cannot reach generated code', as
   await assert.rejects(composeRuntime({root:f.root}),error=>error.code==='composition.invalid');
 });
 
+test('host operation budget is validated before replacing an existing generated composition', async t => {
+  const f = fixture(t); await composeRuntime({ root: f.root });
+  const names = ['server.ts', 'client.tsx', 'composition.json'];
+  const before = names.map(name => readFileSync(generated(f.root, name), 'utf8'));
+  f.module.contracts.operations[0].execution.maxDurationMs = 30001; f.save();
+  await assert.rejects(composeRuntime({ root: f.root }), error => error.code === 'build.operation-budget');
+  assert.deepEqual(names.map(name => readFileSync(generated(f.root, name), 'utf8')), before);
+});
+
+test('runtime route conflicts and reserved routes fail host preflight without writing outputs', async t => {
+  const f = fixture(t);
+  f.module.contracts.schemas.find(schema => schema.id === 'empty-input').schema.properties = { x: { type: 'string' }, y: { type: 'string' } };
+  f.module.contracts.api[0].path = '/api/{x}/a';
+  f.module.contracts.api[1].path = '/api/b/{y}';
+  f.module.contracts.api[0].parameters = [{ name: 'x', in: 'path', inputField: 'x', required: true }];
+  f.module.contracts.api[1].parameters = [{ name: 'y', in: 'path', inputField: 'y', required: true }]; f.save();
+  await assert.rejects(composeRuntime({ root: f.root }), error => error.code === 'build.route-conflict');
+  assert.equal(existsSync(generated(f.root, 'server.ts')), false);
+  f.module.contracts.api[0].path = '/api/health';
+  f.module.contracts.api[1].path = '/api/b/private';
+  f.module.contracts.api[0].parameters = []; f.module.contracts.api[1].parameters = []; f.save();
+  await assert.rejects(composeRuntime({ root: f.root }), error => error.code === 'build.route-reserved');
+  assert.equal(existsSync(generated(f.root, 'server.ts')), false);
+});
+
 test('workspace and output traversal are rejected', async t => {
   const f = fixture(t); f.composition.modules[0].source.path = '../outside'; f.save();
   await assert.rejects(composeRuntime({root:f.root}),error=>error.code==='source.path');
