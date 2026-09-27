@@ -10,13 +10,17 @@ import {fr} from 'date-fns/locale';
 import {Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger, ScrollArea, cn} from '../../../../sdk/ui/index.ts';
 import {AssistantMessageContent} from './message-content';
+import {WidgetMessage} from './widget-message';
+import type {WidgetMessageContentV1} from '../../../../sdk/widgets/types.ts';
+import type {ConversationsController} from '../../../../sdk/conversations/types.ts';
 import type {AssistantSource} from './source-links';
 
 export type ConversationMode = 'chat' | 'work';
 export type ConversationSummary = Readonly<{id: string; title: string; mode: ConversationMode;
   updatedAt: string; archivedAt: string | null}>;
 export type ConversationMessage = Readonly<{id: string; role: 'user' | 'assistant' | 'system';
-  content: string; sources?: readonly AssistantSource[]; createdAt?: string}>;
+  content: string; widgetContent?: WidgetMessageContentV1|null;
+  sources?: readonly AssistantSource[]; createdAt?: string}>;
 export type ConversationModelOption = Readonly<{id: string; label: string}>;
 export type ConversationProgressStep = Readonly<{id: string; label: string; state: 'running' | 'done' | 'failed'}>;
 
@@ -33,6 +37,7 @@ export type ConversationPanelProps = Readonly<{
   messages: readonly ConversationMessage[];
   draft: string;
   onDraftChange: (draft: string) => void;
+  onWidgetContextAction?: ConversationsController['changeWidgetContext'];
   modelOptions?: readonly ConversationModelOption[];
   selectedModelId?: string | null;
   onModelChange?: (modelId: string) => void;
@@ -215,7 +220,12 @@ export function ConversationPanel(props: ConversationPanelProps) {
           {props.messages.map(message => <div key={message.id}
             className={cn('rounded-xl px-2.5 py-2 text-xs', message.role === 'user'
               ? 'ml-6 bg-slate-900 text-white' : 'mr-2 border border-slate-100 bg-slate-50 text-slate-800')}>
-            {message.role === 'user' ? <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
+            {message.widgetContent && props.selectedId ? <>
+              {message.content && <div className="mb-1 whitespace-pre-wrap leading-relaxed">{message.content}</div>}
+              <WidgetMessage content={message.widgetContent} messageId={message.id}
+                conversationId={props.selectedId} active={props.open && !props.selectedArchived}
+                onProposeText={props.onDraftChange} onContextAction={props.onWidgetContextAction} />
+            </> : message.role === 'user' ? <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
               : <AssistantMessageContent content={message.content} sources={[...(message.sources ?? [])]}
                 onNavigate={props.onNavigate} />}
           </div>)}

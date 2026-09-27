@@ -105,7 +105,30 @@ CREATE TABLE "cz_637265657a696f2e636f6e766572736174696f6e73_7475726e" (
   "revision" INTEGER NOT NULL CHECK ("revision" IS NOT NULL AND (typeof("revision") = 'integer' AND "revision" BETWEEN -9007199254740991 AND 9007199254740991 AND "revision" >= 1 AND "revision" <= 9007199254740991)),
   "state" TEXT NOT NULL CHECK ("state" IS NOT NULL AND (typeof("state") = 'text' AND instr("state", char(0)) = 0 AND "state" IN ('queued', 'running', 'succeeded', 'failed', 'cancel_requested', 'cancelled', 'no_provider', 'unknown'))),
   "updated_at" TEXT NOT NULL CHECK ("updated_at" IS NOT NULL AND (typeof("updated_at") = 'text' AND length("updated_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "updated_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "updated_at") = "updated_at")),
+  "widget_context_snapshot" TEXT CHECK ("widget_context_snapshot" IS NULL OR (typeof("widget_context_snapshot") = 'text' AND json_valid("widget_context_snapshot") = 1)),
   PRIMARY KEY ("context_id", "owner_id", "audience", "conversation_id", "id"),
+  FOREIGN KEY ("context_id", "owner_id", "audience", "conversation_id") REFERENCES "cz_637265657a696f2e636f6e766572736174696f6e73_636f6e766572736174696f6e" ("context_id", "owner_id", "audience", "id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e636f6e766572736174696f6e73_7769646765745f636f6e74657874" (
+  "action_id" TEXT NOT NULL CHECK ("action_id" IS NOT NULL AND (typeof("action_id") = 'text' AND instr("action_id", char(0)) = 0 AND length("action_id") >= 1 AND length("action_id") <= 128)),
+  "actor_principal_id" TEXT NOT NULL CHECK ("actor_principal_id" IS NOT NULL AND (typeof("actor_principal_id") = 'text' AND instr("actor_principal_id", char(0)) = 0 AND length("actor_principal_id") >= 1 AND length("actor_principal_id") <= 128)),
+  "audience" TEXT NOT NULL CHECK ("audience" IS NOT NULL AND (typeof("audience") = 'text' AND instr("audience", char(0)) = 0 AND "audience" IN ('admin', 'app'))),
+  "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "conversation_id" TEXT NOT NULL CHECK ("conversation_id" IS NOT NULL AND (typeof("conversation_id") = 'text' AND instr("conversation_id", char(0)) = 0 AND length("conversation_id") >= 1 AND length("conversation_id") <= 128)),
+  "expires_at" TEXT NOT NULL CHECK ("expires_at" IS NOT NULL AND (typeof("expires_at") = 'text' AND length("expires_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "expires_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "expires_at") = "expires_at")),
+  "instance_id" TEXT NOT NULL CHECK ("instance_id" IS NOT NULL AND (typeof("instance_id") = 'text' AND instr("instance_id", char(0)) = 0 AND length("instance_id") >= 1 AND length("instance_id") <= 128)),
+  "message_id" TEXT NOT NULL CHECK ("message_id" IS NOT NULL AND (typeof("message_id") = 'text' AND instr("message_id", char(0)) = 0 AND length("message_id") >= 1 AND length("message_id") <= 128)),
+  "namespace" TEXT NOT NULL CHECK ("namespace" IS NOT NULL AND (typeof("namespace") = 'text' AND instr("namespace", char(0)) = 0 AND "namespace" IN ('module-instance'))),
+  "owner_id" TEXT NOT NULL CHECK ("owner_id" IS NOT NULL AND (typeof("owner_id") = 'text' AND instr("owner_id", char(0)) = 0 AND length("owner_id") >= 1 AND length("owner_id") <= 128)),
+  "removed_at" TEXT CHECK ("removed_at" IS NULL OR (typeof("removed_at") = 'text' AND length("removed_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "removed_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "removed_at") = "removed_at")),
+  "revision" INTEGER NOT NULL CHECK ("revision" IS NOT NULL AND (typeof("revision") = 'integer' AND "revision" BETWEEN -9007199254740991 AND 9007199254740991 AND "revision" >= 1 AND "revision" <= 9007199254740991)),
+  "updated_at" TEXT NOT NULL CHECK ("updated_at" IS NOT NULL AND (typeof("updated_at") = 'text' AND length("updated_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "updated_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "updated_at") = "updated_at")),
+  "value" TEXT CHECK ("value" IS NULL OR (typeof("value") = 'text' AND json_valid("value") = 1)),
+  "widget_id" TEXT NOT NULL CHECK ("widget_id" IS NOT NULL AND (typeof("widget_id") = 'text' AND instr("widget_id", char(0)) = 0 AND length("widget_id") >= 1 AND length("widget_id") <= 128)),
+  "widget_module_id" TEXT NOT NULL CHECK ("widget_module_id" IS NOT NULL AND (typeof("widget_module_id") = 'text' AND instr("widget_module_id", char(0)) = 0 AND length("widget_module_id") >= 1 AND length("widget_module_id") <= 128)),
+  "widget_version" TEXT NOT NULL CHECK ("widget_version" IS NOT NULL AND (typeof("widget_version") = 'text' AND instr("widget_version", char(0)) = 0 AND length("widget_version") >= 1 AND length("widget_version") <= 128)),
+  PRIMARY KEY ("context_id", "owner_id", "audience", "conversation_id", "actor_principal_id", "instance_id", "namespace"),
   FOREIGN KEY ("context_id", "owner_id", "audience", "conversation_id") REFERENCES "cz_637265657a696f2e636f6e766572736174696f6e73_636f6e766572736174696f6e" ("context_id", "owner_id", "audience", "id") ON DELETE RESTRICT
 ) WITHOUT ROWID;
 
@@ -124,3 +147,5 @@ CREATE INDEX "cz_637265657a696f2e636f6e766572736174696f6e73_6d657373616765_idx_6
 CREATE INDEX "cz_637265657a696f2e636f6e766572736174696f6e73_6d657373616765_idx_7365617263682d6368726f6e6f6c6f6779" ON "cz_637265657a696f2e636f6e766572736174696f6e73_6d657373616765" ("context_id", "owner_id", "audience", "created_at", "conversation_id", "id");
 
 CREATE INDEX "cz_637265657a696f2e636f6e766572736174696f6e73_7475726e_idx_726563656e742d7475726e73" ON "cz_637265657a696f2e636f6e766572736174696f6e73_7475726e" ("context_id", "owner_id", "audience", "conversation_id", "created_at", "id");
+
+CREATE INDEX "cz_637265657a696f2e636f6e766572736174696f6e73_7769646765745f636f6e74657874_idx_62792d636f6e766572736174696f6e" ON "cz_637265657a696f2e636f6e766572736174696f6e73_7769646765745f636f6e74657874" ("context_id", "owner_id", "audience", "conversation_id", "actor_principal_id", "updated_at", "instance_id");

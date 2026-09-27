@@ -18,8 +18,12 @@ const ordered = (limit: number, where: Row, after: Row | null, indexId: string, 
   ({limit,where,after,order:{indexId,direction}} as Parameters<OperationContext['data']['list']>[1]);
 const summary = (row: Row) => ({id:row.id,title:row.title,mode:row.mode,updatedAt:row.updated_at,
   archivedAt:row.archived_at,revision:row.revision});
-const message = (row: Row) => ({id:row.id,conversationId:row.conversation_id,role:row.role,
-  body:row.body,createdAt:row.created_at,revision:row.revision});
+const message = (row: Row,context?:OperationContext) => {
+  const content=row.content===null?null:context?.widgets?.projectSnapshot(row.content)??null;
+  return {id:row.id,conversationId:row.conversation_id,role:row.role,
+    body:row.content!==null&&content===null?'Widget indisponible':row.body,
+    content,createdAt:row.created_at,revision:row.revision};
+};
 const turnView = (row: Row) => ({id:row.id,conversationId:row.conversation_id,state:row.state,
   providerId:row.provider_id,updatedAt:row.updated_at,revision:row.revision,
   lastSequence:row.last_sequence,errorCode:row.error_code});
@@ -149,7 +153,78 @@ export async function messageList(value: JsonValue, context: OperationContext) {
   const after=decodeCursor(cursor,expected);
   const page=await context.data.list('message',ordered(safeMessageLimit(limit),{...scope(context),conversation_id:String(conversationId)},after,
     'chronology','desc')) as Page;
-  return {output:{items:page.items.map(message),nextCursor:encodeCursor(page.nextAfter,expected)}};
+  return {output:{items:page.items.map(row=>message(row,context)),nextCursor:encodeCursor(page.nextAfter,expected)}};
+}
+/** A native host creates immutable, catalog-checked widget instances in a message. */
+export async function widgetMessageCreate(value:JsonValue,context:OperationContext) {
+  const args=input(value),conversationId=args.conversationId,parent=await activeConversation(context,conversationId);
+  const revision=Number(args.revision);
+  const widgets=context.widgets;
+  if(!Number.isSafeInteger(revision)||revision!==parent.revision||!Array.isArray(args.instances))conflict();
+  if(!widgets)throw new OperationError('unsupported');
+  let content:JsonValue;
+  try{content=widgets.createSnapshot(args.instances as Parameters<typeof widgets.createSnapshot>[0]) as unknown as JsonValue;}
+  catch{throw new OperationError('invalid_input');}
+  const now=at(),row:Row={...scope(context),conversation_id:String(conversationId),id:crypto.randomUUID(),
+    role:'tool',body:'Widget interactif',content,created_at:now,revision:1};
+  const guard=context.data.planGet('conversation',{key:key(context,String(conversationId)),where:{archived_at:null},required:true});
+  const created=context.data.planCreate('message',{values:row});
+  const updated=context.data.planPatch('conversation',{key:key(context,String(conversationId)),
+    compare:{field:'revision',expected:revision},where:scope(context),values:{updated_at:now}});
+  return {output:{message:message(row,context)},plans:[guard,created,updated]};
+}
+async function changeWidgetContext(value:JsonValue,context:OperationContext,remove:boolean) {
+  const args=input(value),conversationId=args.conversationId,messageId=args.messageId;
+  await activeConversation(context,conversationId);
+  if(!validId(messageId)||!validId(args.instanceId)||!validId(args.actionId)||!context.widgets
+    ||!Number.isSafeInteger(args.instanceRevision)||!Number.isSafeInteger(args.expectedRevision)
+    ||Number(args.expectedRevision)<0)throw new OperationError('invalid_input');
+  const source=await context.data.get('message',{key:childKey(context,String(conversationId),messageId)}) as Row|null;
+  const content=source?.content===null?null:context.widgets.projectSnapshot(source?.content);
+  if(!source||source.role!=='tool'||!content)throw new OperationError('not_found');
+  const instance=content.instances.find(item=>item.instanceId===args.instanceId
+    &&item.instanceRevision===args.instanceRevision);
+  if(!instance)throw new OperationError('conflict');
+  let target:ReturnType<NonNullable<OperationContext['widgets']>['contextAction']>;
+  try{target=context.widgets.contextAction(instance,String(args.actionId),args.input);}
+  catch{throw new OperationError('forbidden');}
+  const k={...scope(context),conversation_id:String(conversationId),actor_principal_id:context.actorPrincipalId,
+    instance_id:instance.instanceId,namespace:target.namespace};
+  const prior=await context.data.get('widget_context',{key:k}) as Row|null;
+  const expected=Number(args.expectedRevision);
+  if((prior?Number(prior.revision):0)!==expected||remove&&!prior)throw new OperationError('conflict');
+  const now=at(),expiresAt=new Date(Date.now()+target.expiresAfterSeconds*1000).toISOString();
+  const contextValue=remove?null:target.value;
+  const guard=context.data.planGet('message',{key:childKey(context,String(conversationId),messageId),required:true});
+  const parentGuard=context.data.planGet('conversation',{key:key(context,String(conversationId)),where:{archived_at:null},required:true});
+  const plan=prior?context.data.planPatch('widget_context',{key:k,compare:{field:'revision',expected},
+    values:{value:contextValue,removed_at:remove?now:null,expires_at:expiresAt,updated_at:now,
+      widget_module_id:instance.moduleId,widget_id:instance.widgetId,widget_version:instance.widgetVersion,
+      message_id:messageId,action_id:String(args.actionId)}}):context.data.planCreate('widget_context',{values:{...k,
+    widget_module_id:instance.moduleId,widget_id:instance.widgetId,widget_version:instance.widgetVersion,
+    message_id:messageId,action_id:String(args.actionId),value:contextValue,revision:1,
+    expires_at:expiresAt,removed_at:null,updated_at:now}});
+  return {output:{context:{instanceId:instance.instanceId,namespace:target.namespace,revision:expected+1,
+    value:contextValue,expiresAt,removed:remove}},plans:[guard,parentGuard,plan]};
+}
+export const widgetContextReplace=(value:JsonValue,context:OperationContext)=>changeWidgetContext(value,context,false);
+export const widgetContextRemove=(value:JsonValue,context:OperationContext)=>changeWidgetContext(value,context,true);
+export async function widgetContextRead(value:JsonValue,context:OperationContext) {
+  const args=input(value),conversationId=args.conversationId,messageId=args.messageId;
+  await conversation(context,conversationId);
+  if(!validId(messageId)||!validId(args.instanceId)||!validId(args.actionId)||!context.widgets
+    ||!Number.isSafeInteger(args.instanceRevision))throw new OperationError('invalid_input');
+  const source=await context.data.get('message',{key:childKey(context,String(conversationId),messageId)}) as Row|null;
+  const content=source?.content===null?null:context.widgets.projectSnapshot(source?.content);
+  const instance=content?.instances.find(item=>item.instanceId===args.instanceId
+    &&item.instanceRevision===args.instanceRevision);
+  if(!instance)throw new OperationError('not_found');
+  const k={...scope(context),conversation_id:String(conversationId),actor_principal_id:context.actorPrincipalId,
+    instance_id:instance.instanceId,namespace:'module-instance'};
+  const row=await context.data.get('widget_context',{key:k}) as Row|null;
+  if(!row||row.action_id!==args.actionId||row.message_id!==messageId)return {output:{context:null}};
+  return {output:{context:{instanceId:instance.instanceId,namespace:'module-instance',revision:row.revision,
+    value:row.value,expiresAt:row.expires_at,removed:row.removed_at!==null||String(row.expires_at)<=at()}}};
 }
 export async function messageAdd(value:JsonValue,context:OperationContext) {
   const args=input(value), parent=await activeConversation(context,args.conversationId), revision=Number(args.revision);
@@ -160,7 +235,7 @@ export async function messageAdd(value:JsonValue,context:OperationContext) {
   const created=context.data.planCreate('message',{values:row});
   const updated=context.data.planPatch('conversation',{key:key(context,String(args.conversationId)),
     compare:{field:'revision',expected:revision},where:scope(context),values:{updated_at:now}});
-  return {output:{message:message(row)},plans:[guard,created,updated]};
+  return {output:{message:message(row,context)},plans:[guard,created,updated]};
 }
 export async function draftRead(value:JsonValue,context:OperationContext) {
   const id=input(value).conversationId;
@@ -191,6 +266,32 @@ export async function turnRead(value:JsonValue,context:OperationContext) {
   const args=input(value), row=await turn(context,args.conversationId,args.turnId);
   return {output:{turn:row?turnView(row):null}};
 }
+async function captureWidgetContexts(context:OperationContext,conversationId:string):Promise<JsonValue> {
+  if(!context.widgets)return [];
+  let after:Row|null=null;
+  const captured:JsonValue[]=[];
+  for(let pageNumber=0;pageNumber<8;pageNumber++){
+    const page=await context.data.list('widget_context',ordered(4,{...scope(context),conversation_id:conversationId,
+      actor_principal_id:context.actorPrincipalId},after,'by-conversation','desc')) as Page;
+    for(const row of page.items){
+      if(row.removed_at!==null||typeof row.expires_at!=='string'||row.expires_at<=at())continue;
+      const source=await context.data.get('message',{key:childKey(context,conversationId,String(row.message_id))}) as Row|null;
+      const content=source?.content===null?null:context.widgets.projectSnapshot(source?.content);
+      const instance=content?.instances.find(item=>item.instanceId===row.instance_id
+        &&item.moduleId===row.widget_module_id&&item.widgetId===row.widget_id
+        &&item.widgetVersion===row.widget_version);
+      if(!instance)continue;
+      captured.push({moduleId:instance.moduleId,widgetId:instance.widgetId,widgetVersion:instance.widgetVersion,
+        messageId:row.message_id,instanceId:instance.instanceId,revision:row.revision,
+        value:row.value,expiresAt:row.expires_at});
+      if(captured.length>4||new TextEncoder().encode(JSON.stringify(captured)).length>4096)
+        throw new OperationError('invalid_input');
+    }
+    after=page.nextAfter;if(!after)break;
+  }
+  if(after)throw new OperationError('invalid_input');
+  return captured;
+}
 export async function turnStart(value:JsonValue,context:OperationContext) {
   const args=input(value), conversationId=args.conversationId, parent=await activeConversation(context,conversationId);
   const revision=Number(args.revision), draftRevision=Number(args.draftRevision);
@@ -205,11 +306,12 @@ export async function turnStart(value:JsonValue,context:OperationContext) {
   const k={...scope(context),conversation_id:String(conversationId)};
   const priorDraft=await context.data.get('draft',{key:k}) as Row|null;
   if((priorDraft?.revision??0)!==draftRevision)conflict();
+  const widgetContextSnapshot=await captureWidgetContexts(context,String(conversationId));
   const now=at(),turnId=crypto.randomUUID();
   const userMessage={...k,id:String(args.messageId),role:'user',body:String(args.body),content:null,
     created_at:now,revision:1};
   const turnRow={...k,id:turnId,state:'queued',provider_id:'openai.responses.v1',created_at:now,
-    updated_at:now,revision:1,last_sequence:1,error_code:null};
+    updated_at:now,revision:1,last_sequence:1,error_code:null,widget_context_snapshot:widgetContextSnapshot};
   const guard=context.data.planGet('conversation',{key:key(context,String(conversationId)),
     where:{archived_at:null,active_turn_id:null},required:true});
   const created=context.data.planCreate('message',{values:userMessage});
@@ -222,10 +324,10 @@ export async function turnStart(value:JsonValue,context:OperationContext) {
   const changed=context.data.planPatch('conversation',{key:key(context,String(conversationId)),
     where:{archived_at:null,active_turn_id:null},compare:{field:'revision',expected:revision},
     values:{updated_at:now,active_turn_id:turnId}});
-  return {output:{message:message(userMessage),turn:turnView(turnRow)},
+  return {output:{message:message(userMessage,context),turn:turnView(turnRow)},
     plans:[guard,created,cleared,begun,event,changed],
     outbox:[{id:turnId,provider:'openai.responses.v1',providerIdempotencyKey:turnId,
-      payload:{conversationId,turnId,messageId:args.messageId,modelId:args.modelId}}]};
+      payload:{conversationId,turnId,messageId:args.messageId,modelId:args.modelId,step:0}}]};
 }
 export async function eventList(value:JsonValue,context:OperationContext) {
   const args=input(value), limit=Number(args.limit), afterSequence=Number(args.afterSequence??0);

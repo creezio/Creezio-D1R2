@@ -21,6 +21,9 @@ import type {ProviderConfigStorage,ProviderHttpPort,ProviderTransport} from '../
 import type {VaultStorage} from '../vault/service.ts';
 import {createTurnBridge} from '../conversations/turn-bridge.ts';
 import type {ProviderOperationSchema} from '../providers/tools.ts';
+import {dispatchWidgetHttp} from '../widgets/http.ts';
+import {createWidgetApprovalService} from '../widgets/approval.ts';
+import type {CompiledWidgetCatalog, WidgetValidatorMap} from '../../sdk/widgets/catalog.ts';
 
 type Engine = ReturnType<typeof createOperationEngine>;
 const encoder = new TextEncoder();
@@ -91,6 +94,14 @@ function decodedRequestKey(request: Request): string {
       fail('invalid_input', 400);
     return key;
   } catch { return fail('invalid_input', 400); }
+}
+function approvalPointer(request: Request, statusRead: boolean): string | undefined {
+  const value = request.headers.get('x-creezio-approval-id');
+  if (value === null) return undefined;
+  // This is an opaque grant reference, never part of a module's business input.
+  // Only the engine may establish its authority and consume it with the mutation.
+  if (statusRead || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value)) fail('invalid_input', 400);
+  return value;
 }
 function bearer(request: Request): {kind: 'api-token' | 'oauth'; token: string} {
   const value = request.headers.get('authorization');
@@ -183,6 +194,7 @@ function errorStatus(error: OperationError): number {
     case 'forbidden': return 403;
     case 'not_found': return 404;
     case 'conflict': return 409;
+    case 'approval_required': return 428;
     case 'rate_limited': return 429;
     case 'unsupported': return 501;
     case 'cancelled': return 499;
@@ -229,6 +241,7 @@ export function createOperationHttpTransport(bindings: readonly OperationHttpBin
       if (!configuration) return failure('runtime_unavailable', 503, requestId);
       try {
         transportChecks(request, binding, configuration, statusRead);
+        const approvalId = approvalPointer(request, statusRead);
         const issued = credential(request, binding, configuration), contextId = context(request, binding);
         if (statusMatch) {
           await admit(environment, binding, issued.token, true);
@@ -247,7 +260,8 @@ export function createOperationHttpTransport(bindings: readonly OperationHttpBin
           binding.method === 'GET' ? undefined : await readAccessJson(request));
         await admit(environment, binding, issued.token);
         const result = await bounded(request, () => engine.invoke({ credential: issued, moduleId: binding.moduleId, operationId: binding.operationId,
-          audience: binding.audience, contextId, input, signal: request.signal }), binding.kind === 'command');
+          audience: binding.audience, contextId, input, signal: request.signal,
+          ...(approvalId === undefined ? {} : {approvalId}) }), binding.kind === 'command');
         return json({ execution: projected(result.execution, result.replayed) }, result.execution.state === 'running' || result.execution.state === 'unknown' ? 202 : 200,
           requestId);
       } catch (error) {
@@ -271,10 +285,15 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
   readonly openAiProvider?: {readonly config:ProviderConfigStorage;readonly vault:VaultStorage;
     readonly transport:(http:ProviderHttpPort)=>ProviderTransport};
   readonly toolCatalog?:readonly ProviderOperationSchema[];
+  readonly widgetCatalog?:CompiledWidgetCatalog;
+  readonly widgetValidators?:WidgetValidatorMap;
   readonly runtimeInventory?: Parameters<typeof createOperationEngine>[0]['runtimeInventory']}) {
   return Object.freeze({async dispatch(request: Request, environment: RuntimeEnvironment, rawEnvironment: unknown,
     requestId: string): Promise<Response | null> {
     const path = new URL(request.url).pathname;
+    if (path.startsWith('/api/widgets/')) return options.widgetCatalog
+      ? dispatchWidgetHttp(request, environment, rawEnvironment, requestId, {permissions:options.permissions,catalog:options.widgetCatalog,
+        approvals:createWidgetApprovalService({db:environment.bindings.DB,catalog:options.dataCatalog,permissions:options.permissions,registry:options.registry})}) : null;
     if (path.startsWith('/api/files/')) return options.fileCatalog
       ? dispatchFileHttp(request, environment, rawEnvironment, requestId, {catalog:options.dataCatalog,files:options.fileCatalog,permissions:options.permissions}) : null;
     if (path.startsWith('/api/workspace/')) return dispatchWorkspaceHttp(request, environment, rawEnvironment, requestId,
@@ -289,6 +308,15 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
     try{keyring=readProviderKeyring(rawEnvironment);}catch{/* Misconfigured deployment is unavailable, never replaced with an in-process key. */}
     const provider=options.openAiProvider?createOpenAiProviderHost({db:environment.bindings.DB,
       catalog:options.dataCatalog,permissions:options.permissions,...options.openAiProvider,keyring}):null;
+    const createHostEngine = () => createOperationEngine({db: environment.bindings.DB, registry: options.registry,
+      catalog: options.dataCatalog, permissions: options.permissions, runtimeInventory: options.runtimeInventory,
+      approvals:createWidgetApprovalService({db:environment.bindings.DB,catalog:options.dataCatalog,permissions:options.permissions,registry:options.registry}),
+      ...(options.widgetCatalog && options.widgetValidators ? {widgets:{catalog:options.widgetCatalog,validators:options.widgetValidators}} : {}),
+      ...(provider ? {providerAvailability:async(request,providerId)=>providerId==='openai.responses.v1'
+        ?provider.availability(request):{providerId,state:'missing' as const,modelIds:[]}} : {}),
+      ...(options.openAiProvider&&keyring?{providerSecrets:{storage:options.openAiProvider.vault,keyring,
+        providerId:'openai.responses.v1'}}:{}),
+      ...(options.fileCatalog ? {files:{catalog:options.fileCatalog,bucket:environment.bindings.BUCKET as unknown as FileBucket}} : {})});
     if(driveMatch){
       if(request.method!=='POST')return failure('method_not_allowed',405,requestId,{allow:'POST'},request.method==='HEAD');
       if(!provider)return failure('runtime_unavailable',503,requestId);
@@ -319,7 +347,8 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
           limit:30,windowMs:60_000});
         if(!throttle.allowed)fail('rate_limited',429);
         const bridge=createTurnBridge({db:environment.bindings.DB,catalog:options.dataCatalog,
-          permissions:options.permissions,provider,registry:options.registry,toolCatalog:options.toolCatalog??[]});
+          permissions:options.permissions,provider,registry:options.registry,engine:createHostEngine(),toolCatalog:options.toolCatalog??[],
+          ...(options.widgetCatalog && options.widgetValidators ? {widgets:{catalog:options.widgetCatalog,validators:options.widgetValidators}} : {})});
         const driveSignal=new AbortController(),onAbort=()=>driveSignal.abort();
         if(request.signal.aborted)onAbort();else request.signal.addEventListener('abort',onAbort,{once:true});
         const driveTimer=setTimeout(()=>driveSignal.abort(),25_000);
@@ -334,13 +363,6 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
         return failure('service_unavailable',503,requestId);
       }
     }
-    const engine = createOperationEngine({db: environment.bindings.DB, registry: options.registry,
-      catalog: options.dataCatalog, permissions: options.permissions, runtimeInventory: options.runtimeInventory,
-      ...(provider ? {providerAvailability:async(request,providerId)=>providerId==='openai.responses.v1'
-        ?provider.availability(request):{providerId,state:'missing' as const,modelIds:[]}} : {}),
-      ...(options.openAiProvider&&keyring?{providerSecrets:{storage:options.openAiProvider.vault,keyring,
-        providerId:'openai.responses.v1'}}:{}),
-      ...(options.fileCatalog ? {files:{catalog:options.fileCatalog,bucket:environment.bindings.BUCKET as unknown as FileBucket}} : {})});
-    return createOperationHttpTransport(options.bindings, engine).dispatch(request, environment, rawEnvironment, requestId);
+    return createOperationHttpTransport(options.bindings, createHostEngine()).dispatch(request, environment, rawEnvironment, requestId);
   }});
 }

@@ -38,12 +38,24 @@ const models = [
     field('conversationId','string',{constraints:S(128)}),field('text','string',{constraints:S(16000,0)}),
     field('updatedAt','date-time'),field('revision','integer',{constraints:I(1)})],
     [...common,'conversationId'],[],[relation('conversation','conversationId')]),
+  model('widget_context','Contextes des widgets',[
+    field('conversationId','string',{constraints:S(128)}),field('instanceId','string',{constraints:S(128)}),
+    field('actorPrincipalId','string',{constraints:S(128)}),field('namespace','string',{constraints:{enum:['module-instance']}}),
+    field('widgetModuleId','string',{constraints:S(128)}),field('widgetId','string',{constraints:S(128)}),
+    field('widgetVersion','string',{constraints:S(128)}),field('messageId','string',{constraints:S(128)}),
+    field('actionId','string',{constraints:S(128)}),
+    field('value','json',{nullable:true}),field('revision','integer',{constraints:I(1)}),
+    field('expiresAt','date-time'),field('removedAt','date-time',{nullable:true}),field('updatedAt','date-time')],
+    [...common,'conversationId','actorPrincipalId','instanceId','namespace'],
+    [{id:'by-conversation',fields:[...common,'conversationId','actorPrincipalId','updatedAt','instanceId'],unique:false}],
+    [relation('conversation','conversationId')]),
   model('turn','Tours de conversation',[
     field('conversationId','string',{constraints:S(128)}),field('id','string',{constraints:S(128)}),
     field('state','string',{constraints:{enum:['queued','running','succeeded','failed','cancel_requested','cancelled','no_provider','unknown']}}),
     field('providerId','string',{nullable:true,constraints:S(128)}),field('createdAt','date-time'),
     field('updatedAt','date-time'),field('revision','integer',{constraints:I(1)}),
-    field('lastSequence','integer',{constraints:I(0)}),field('errorCode','string',{nullable:true,constraints:S(128)})],
+    field('lastSequence','integer',{constraints:I(0)}),field('errorCode','string',{nullable:true,constraints:S(128)}),
+    field('widgetContextSnapshot','json',{nullable:true})],
     [...common,'conversationId','id'],[{id:'recent-turns',fields:[...common,'conversationId','createdAt','id'],unique:false}],
     [relation('conversation','conversationId')]),
   model('event','Événements de progression',[
@@ -96,8 +108,18 @@ const num = (min=0,max=Number.MAX_SAFE_INTEGER) => ({type:'integer',minimum:min,
 const nullable = schema => ({anyOf:[schema,{type:'null'}]});
 const summary = obj({id:str(),title:str(240),mode:{type:'string',enum:['chat','work']},
   updatedAt:str(35),archivedAt:nullable(str(35)),revision:num(1)});
+const widgetVersion=str(128);
+const objectVersion={anyOf:[num(0),str(128)]};
+const renderExecution=obj({moduleId:str(),operationId:str(),operationDigest:{type:'string',pattern:'^sha256-[a-f0-9]{64}$'},
+  executionId:str()});
+const widgetInstance=obj({instanceId:str(),instanceRevision:num(1),moduleId:str(),widgetId:str(),
+  widgetVersion,resourceUri:str(512),resourceDigest:{type:'string',pattern:'^sha256-[a-f0-9]{64}$'},
+  state:{},objectRef:str(),objectVersion,renderExecution},['instanceId','instanceRevision','moduleId','widgetId',
+  'widgetVersion','resourceUri','resourceDigest','state']);
+const widgetContent=obj({kind:{const:'creezio.widget-message'},schemaVersion:{const:1},
+  instances:{type:'array',items:widgetInstance,minItems:1,maxItems:4}});
 const message = obj({id:str(),conversationId:str(),role:{type:'string',enum:['user','assistant','tool','system']},
-  body:str(16000,0),createdAt:str(35),revision:num(1)});
+  body:str(16000,0),content:nullable(widgetContent),createdAt:str(35),revision:num(1)});
 const turn = obj({id:str(),conversationId:str(),state:{type:'string',enum:['queued','running','succeeded','failed','cancel_requested','cancelled','no_provider','unknown']},
   providerId:nullable(str()),updatedAt:str(35),revision:num(1),lastSequence:num(0),errorCode:nullable(str())});
 const event = obj({turnId:str(),sequence:num(1),kind:str(64),payload:{},createdAt:str(35)});
@@ -118,6 +140,17 @@ const messagesInput = schema('message-list-input',obj({conversationId:str(),limi
 const messagesOutput = schema('message-page-output',page(message));
 const addMessageInput = schema('message-add-input',obj({requestKey:str(128),conversationId:str(),id:str(),body:str(16000),revision:num(1)}));
 const messageOutput = schema('message-output',obj({message}));
+const widgetSeed=obj({moduleId:str(),widgetId:str(),widgetVersion,state:{},objectRef:str(),
+  objectVersion},['moduleId','widgetId','widgetVersion','state']);
+const widgetMessageInput=schema('widget-message-create-input',obj({requestKey:str(128),conversationId:str(),
+  revision:num(1),instances:{type:'array',items:widgetSeed,minItems:1,maxItems:4}}));
+const contextInput=schema('widget-context-input',obj({requestKey:str(128),conversationId:str(),messageId:str(),
+  instanceId:str(),instanceRevision:num(1),actionId:str(),expectedRevision:num(0),input:{}}));
+const contextView=obj({instanceId:str(),namespace:{const:'module-instance'},
+  revision:num(1),value:{},expiresAt:str(35),removed:{type:'boolean'}});
+const contextOutput=schema('widget-context-output',obj({context:nullable(contextView)}));
+const contextReadInput=schema('widget-context-read-input',obj({conversationId:str(),messageId:str(),
+  instanceId:str(),instanceRevision:num(1),actionId:str()}));
 const draftInput = schema('draft-read-input',obj({conversationId:str()}));
 const draftOutput = schema('draft-output',obj({conversationId:str(),text:str(16000,0),updatedAt:nullable(str(35)),revision:num(0)}));
 const draftSaveInput = schema('draft-save-input',obj({requestKey:str(128),conversationId:str(),text:str(16000,0),revision:num(0)}));
@@ -166,10 +199,18 @@ operation('conversation.archive','Archiver une conversation','command',stateInpu
 operation('conversation.restore','Restaurer une conversation','command',stateInput,summaryOut,['conversation'],['conversation'],{exportName:'conversationRestore',concurrency:{mode:'object-version',versionField:'revision'}});
 operation('message.list','Lister les messages','query',messagesInput,messagesOutput,['conversation','message'],[],{exportName:'messageList',maxItems:50,pagination:{mode:'cursor',cursorField:'cursor',limitField:'limit',maxItems:50}});
 operation('message.add','Ajouter un message utilisateur','command',addMessageInput,messageOutput,['conversation'],['conversation','message'],{exportName:'messageAdd',concurrency:{mode:'object-version',versionField:'revision'}});
+operation('widget.message.create','Insérer un message widget','command',widgetMessageInput,messageOutput,
+  ['conversation'],['conversation','message'],{exportName:'widgetMessageCreate',concurrency:{mode:'object-version',versionField:'revision'}});
+operation('widget.context.replace','Remplacer un contexte widget','command',contextInput,contextOutput,
+  ['conversation','message','widget_context'],['widget_context'],{exportName:'widgetContextReplace'});
+operation('widget.context.remove','Retirer un contexte widget','command',contextInput,contextOutput,
+  ['conversation','message','widget_context'],['widget_context'],{exportName:'widgetContextRemove'});
+operation('widget.context.read','Lire un contexte widget','query',contextReadInput,contextOutput,
+  ['conversation','message','widget_context'],[],{exportName:'widgetContextRead'});
 operation('draft.read','Lire un brouillon','query',draftInput,draftOutput,['conversation','draft'],[],{exportName:'draftRead'});
 operation('draft.save','Enregistrer un brouillon','command',draftSaveInput,draftOutput,['conversation','draft'],['draft'],{exportName:'draftSave'});
 operation('turn.read','Lire le statut d’un tour','query',turnInput,turnOutput,['conversation','turn'],[],{exportName:'turnRead'});
-operation('turn.start','Démarrer un tour IA','command',startInput,startOutput,['conversation','draft'],
+operation('turn.start','Démarrer un tour IA','command',startInput,startOutput,['conversation','draft','widget_context','message'],
   ['conversation','message','draft','turn','event'],{exportName:'turnStart',concurrency:{mode:'object-version',versionField:'revision'}});
 operations.find(op=>op.id==='turn.start').effects.providers.push('openai.responses.v1');
 operation('event.list','Lire la progression','query',eventInput,eventOutput,['conversation','turn','event'],[],{exportName:'eventList',maxItems:52,pagination:{mode:'cursor',cursorField:'afterSequence',limitField:'limit',maxItems:50}});

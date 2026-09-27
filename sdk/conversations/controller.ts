@@ -1,7 +1,9 @@
 import type {OperationClientResult} from '../operations/client.ts';
 import {readJson} from '../operations/protocol.ts';
+import {validWidgetMessageContent} from '../widgets/validation.ts';
 import type {ConversationActionResult, ConversationAttachment, ConversationDraft, ConversationEvent, ConversationMessage, ConversationPage,
-  ConversationsController, ConversationsControllerOptions, ConversationsSnapshot, ConversationSummary, ConversationTurn} from './types.ts';
+  ConversationsController, ConversationsControllerOptions, ConversationsSnapshot, ConversationSummary, ConversationTurn,
+  WidgetContextView} from './types.ts';
 
 type JsonObject=Record<string,unknown>;
 const object=(value:unknown):JsonObject|null=>value&&typeof value==='object'&&!Array.isArray(value)?value as JsonObject:null;
@@ -12,7 +14,11 @@ const summary=(value:unknown)=>{const row=object(value);return !!row&&id(row.id)
   &&(row.archivedAt===null||text(row.archivedAt,35))&&Number.isSafeInteger(row.revision);};
 const message=(value:unknown)=>{const row=object(value);return !!row&&id(row.id)&&id(row.conversationId)
   &&['user','assistant','tool','system'].includes(String(row.role))&&text(row.body,16000)
-  &&text(row.createdAt,35)&&Number.isSafeInteger(row.revision);};
+  &&text(row.createdAt,35)&&Number.isSafeInteger(row.revision)
+  &&(row.content===undefined||row.content===null||validWidgetMessageContent(row.content));};
+const widgetContext=(value:unknown):value is WidgetContextView=>{const row=object(value);return !!row
+  &&id(row.instanceId)&&row.namespace==='module-instance'&&Number.isSafeInteger(row.revision)
+  &&Number(row.revision)>=1&&text(row.expiresAt,35)&&typeof row.removed==='boolean';};
 const attachment=(value:unknown)=>{const row=object(value),reference=object(row?.reference);return !!row
   &&id(row.fileId)&&id(row.conversationId)&&text(row.filename,255)&&text(row.contentType,128)
   &&Number.isSafeInteger(row.byteSize)&&Number(row.byteSize)>=0&&text(row.createdAt,35)
@@ -29,9 +35,11 @@ function validOutput(name:string,value:JsonObject):boolean {
     &&value.items.every(summary)&&(value.nextCursor===null||text(value.nextCursor,2048));
   if(['conversation.create','conversation.rename','conversation.archive','conversation.restore'].includes(name))return summary(value.conversation);
   if(name==='conversation.read')return summary(value.conversation)&&['no_provider','configured'].includes(String(value.provider));
-  if(name==='message.list')return Array.isArray(value.items)&&value.items.length<=50&&value.items.every(message)
+  if(name==='message.list')return Array.isArray(value.items)&&value.items.length<=1&&value.items.every(message)
     &&(value.nextCursor===null||text(value.nextCursor,2048));
   if(name==='message.add')return message(value.message);
+  if(['widget.context.read','widget.context.replace','widget.context.remove'].includes(name))
+    return Object.hasOwn(value,'context')&&(value.context===null||widgetContext(value.context));
   if(['draft.read','draft.save'].includes(name))return id(value.conversationId)&&text(value.text,16000)
     &&(value.updatedAt===null||text(value.updatedAt,35))&&Number.isSafeInteger(value.revision);
   if(['turn.read','turn.cancel'].includes(name))return value.turn===null||turn(value.turn);
@@ -50,6 +58,28 @@ const empty:ConversationsSnapshot=Object.freeze({phase:'loading',provider:'no_pr
   nextCursor:null,selected:null,messages:Object.freeze([]),messagesNextCursor:null,draft:null,
   activeTurn:null,turnEvents:Object.freeze([]),searchQuery:'',archived:false,pending:false,
   unknown:null,error:null});
+
+/** Stitch a server-ordered newest slice onto a locally loaded chronological window. */
+export function mergeRecentMessages(existing:readonly ConversationMessage[], recentNewestFirst:readonly ConversationMessage[]){
+  const merged=[...existing],recent=[...recentNewestFirst].reverse();
+  for(let index=0;index<recent.length;index++){
+    const item=recent[index],found=merged.findIndex(row=>row.id===item.id);
+    if(found>=0){if(item.revision>merged[found].revision)merged[found]=item;continue;}
+    let insertion=merged.length;
+    for(let next=index+1;next<recent.length;next++){
+      const position=merged.findIndex(row=>row.id===recent[next].id);
+      if(position>=0){insertion=position;break;}
+    }
+    if(insertion===merged.length){
+      for(let prior=index-1;prior>=0;prior--){
+        const position=merged.findIndex(row=>row.id===recent[prior].id);
+        if(position>=0){insertion=position+1;break;}
+      }
+    }
+    merged.splice(insertion,0,item);
+  }
+  return merged;
+}
 
 /** Host-bound conversation state; themes receive only the rendered view. */
 export function createConversationsController(options:ConversationsControllerOptions):ConversationsController {
@@ -239,14 +269,28 @@ export function createConversationsController(options:ConversationsControllerOpt
       update({selected,messages:Object.freeze([]),messagesNextCursor:null,draft:null,
         activeTurn:null,turnEvents:Object.freeze([]),
         provider:detail.provider==='configured'?'configured':'no_provider'});
-      const [messages,draft]=await Promise.all([query('message.list',{conversationId,limit:25},()=>serial===openGeneration),
+      const [messages,draft]=await Promise.all([query('message.list',{conversationId,limit:1},()=>serial===openGeneration),
         query('draft.read',{conversationId},()=>serial===openGeneration)]);
       if(!current(stamp)||serial!==openGeneration||snapshot.selected?.id!==conversationId)return;
-      const msg=Array.isArray(messages?.items)?messages.items as ConversationMessage[]:[];
+      const msg=Array.isArray(messages?.items)?[...messages.items as ConversationMessage[]]:[];
+      let olderCursor=typeof messages?.nextCursor==='string'?messages.nextCursor:null;
+      // A restored conversation has no remembered terminal turn. Load the
+      // latest assistant's whole exchange so a preceding tool widget survives
+      // a reload even when only the final assistant was initially visible.
+      for(let page=1;page<32&&msg.length&&msg.at(-1)?.role!=='user'&&olderCursor;page++){
+        const cursor=olderCursor;
+        const older=await query('message.list',{conversationId,limit:1,cursor},
+          ()=>serial===openGeneration&&snapshot.selected?.id===conversationId);
+        if(!current(stamp)||serial!==openGeneration||snapshot.selected?.id!==conversationId)return;
+        if(!Array.isArray(older?.items)||!older.items.length)break;
+        msg.push((older.items as ConversationMessage[])[0]);
+        olderCursor=typeof older.nextCursor==='string'?older.nextCursor:null;
+        if(olderCursor===cursor)break;
+      }
       const storedDraft=object(draft);
       let local=localDrafts.get(conversationId);
       if(local===undefined)try{local=storage?.getItem(storageKey(`draft:${conversationId}`))??undefined;}catch{}
-      update({messages:Object.freeze([...msg].reverse()),messagesNextCursor:typeof messages?.nextCursor==='string'?messages.nextCursor:null,
+      update({messages:Object.freeze([...msg].reverse()),messagesNextCursor:olderCursor,
         draft:{conversationId,text:local??(typeof storedDraft?.text==='string'?storedDraft.text:''),
           updatedAt:typeof storedDraft?.updatedAt==='string'?storedDraft.updatedAt:null,
           revision:typeof storedDraft?.revision==='number'?storedDraft.revision:0}});
@@ -258,7 +302,7 @@ export function createConversationsController(options:ConversationsControllerOpt
       const selected=snapshot.selected,cursor=snapshot.messagesNextCursor;
       if(!selected||!cursor)return;
       const serial=openGeneration;
-      const result=await query('message.list',{conversationId:selected.id,limit:25,cursor},
+      const result=await query('message.list',{conversationId:selected.id,limit:1,cursor},
         ()=>serial===openGeneration&&snapshot.selected?.id===selected.id);
       if(serial!==openGeneration||snapshot.selected?.id!==selected.id||snapshot.messagesNextCursor!==cursor
         ||!Array.isArray(result?.items))return;
@@ -268,6 +312,28 @@ export function createConversationsController(options:ConversationsControllerOpt
       }).reverse();
       update({messages:Object.freeze([...older,...snapshot.messages]),
         messagesNextCursor:typeof result.nextCursor==='string'?result.nextCursor:null});
+    },
+    async readWidgetContext({instance,actionId}){
+      if(instance.host!=='creezio'||snapshot.selected?.id!==instance.conversationId||
+        !id(instance.messageId)||!id(instance.instanceId)||!id(actionId))
+        return {kind:'rejected',code:'invalid_input'};
+      const result=await invoke('widget.context.read',{conversationId:instance.conversationId,
+        messageId:instance.messageId,instanceId:instance.instanceId,
+        instanceRevision:instance.instanceRevision,actionId},false,
+        ()=>snapshot.selected?.id===instance.conversationId);
+      return result.kind==='ok'?{kind:'ok',value:result.value.context as WidgetContextView|null}:result;
+    },
+    async changeWidgetContext(request){
+      const {instance,actionId}=request;
+      const prior=await controller.readWidgetContext({instance,actionId});
+      if(prior.kind!=='ok')return prior;
+      if(request.remove&&prior.value===null)return {kind:'rejected',code:'not_found'};
+      const result=await invoke(request.remove?'widget.context.remove':'widget.context.replace',{
+        conversationId:instance.conversationId,messageId:instance.messageId,
+        instanceId:instance.instanceId,instanceRevision:instance.instanceRevision,actionId,
+        expectedRevision:prior.value?.revision??0,input:request.input},true,
+        ()=>snapshot.selected?.id===instance.conversationId);
+      return result.kind==='ok'?{kind:'ok',value:result.value.context as WidgetContextView|null}:result;
     },
     create:args=>commandSummary('conversation.create',args),
     rename:(conversationId,title)=>commandSummary('conversation.rename',{conversationId,title,revision:cache.get(conversationId)?.revision??0}),
@@ -373,19 +439,31 @@ export function createConversationsController(options:ConversationsControllerOpt
       if(!['queued','running','cancel_requested','unknown'].includes(row.state)){
         turnIds.delete(conversationId);
         try{storage?.removeItem(storageKey(`turn:${conversationId}`));}catch{}
-        const messages=await query('message.list',{conversationId,limit:25},
-          ()=>serial===openGeneration&&refreshSerial===turnRefreshGeneration&&snapshot.selected?.id===conversationId);
-        if(current(stamp)&&serial===openGeneration&&refreshSerial===turnRefreshGeneration
-          &&snapshot.selected?.id===conversationId&&Array.isArray(messages?.items)){
-          const existing=snapshot.messages,merged=[...existing];
-          const positions=new Map(merged.map((item,index)=>[item.id,index]));
-          for(const item of [...(messages.items as ConversationMessage[])].reverse()){
-            const position=positions.get(item.id);
-            if(position===undefined){positions.set(item.id,merged.length);merged.push(item);}
-            else if(item.revision>merged[position].revision)merged[position]=item;
-          }
-          update({messages:Object.freeze(merged),messagesNextCursor:existing.length?snapshot.messagesNextCursor:
-            typeof messages.nextCursor==='string'?messages.nextCursor:null});
+        // A final assistant can follow a durable tool widget. Read the bounded
+        // newest window through the initiating user message, one validated row
+        // per page, so a reload that initially opened only the last assistant
+        // does not lose the widget between them.
+        const recent:ConversationMessage[]=[];
+        let cursor:string|null=null,olderCursor:string|null=null;
+        for(let page=0;page<32;page++){
+          const messages=await query('message.list',{conversationId,limit:1,...(cursor?{cursor}:{})},
+            ()=>serial===openGeneration&&refreshSerial===turnRefreshGeneration&&snapshot.selected?.id===conversationId);
+          if(!current(stamp)||serial!==openGeneration||refreshSerial!==turnRefreshGeneration
+            ||snapshot.selected?.id!==conversationId)return null;
+          if(!Array.isArray(messages?.items)||!messages.items.length)break;
+          const item=(messages.items as ConversationMessage[])[0];
+          recent.push(item);
+          olderCursor=typeof messages.nextCursor==='string'?messages.nextCursor:null;
+          if(item.role==='user'||!olderCursor||olderCursor===cursor)break;
+          cursor=olderCursor;
+        }
+        if(recent.length){
+          const existing=snapshot.messages,known=new Set(existing.map(item=>item.id));
+          const merged=mergeRecentMessages(existing,recent);
+          const extendedOlder=!existing.length||recent.some(item=>known.has(item.id))&&
+            !known.has(recent.at(-1)!.id);
+          update({messages:Object.freeze(merged),messagesNextCursor:extendedOlder
+            ?olderCursor:snapshot.messagesNextCursor});
         }
         const detail=await query('conversation.read',{conversationId},
           ()=>serial===openGeneration&&refreshSerial===turnRefreshGeneration&&snapshot.selected?.id===conversationId);

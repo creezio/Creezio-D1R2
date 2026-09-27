@@ -17,6 +17,7 @@ import type {FrontProjection, FrontThemeProps, PublicFrontViewProps} from '../..
 import {shouldNavigateFromPanel} from '../../sdk/front/navigation';
 import {FrontAccessRefused, readFrontProjection} from './projection-client';
 import styles from './host.module.css';
+import {WidgetHostProvider} from '../../sdk/widgets/provider';
 
 const contextId = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(frontContextId) ? frontContextId : '';
 const emptyInput: WorkspaceInput = Object.freeze({});
@@ -237,7 +238,14 @@ function BoundFront({access, initialUrl}: {access: AccessController; initialUrl?
       if (location && shouldNavigateFromPanel(requested, previousPanelUrl, url,
         !!(shownView?.access === 'protected' && authorized && visibleIds.has(shownView.id)))) routeTo(location);
     }} renderShell={({controller, children}) => { controllerRef.current = controller; return children; }} />;
-  return <Theme brand={frontBrand} account={authenticated && state.session ? {displayName:state.session.displayName} : null}
+  return <WidgetHostProvider origin={access.origin} audience="app" contextId={contextId} access={access}
+    operationClient={client} resolveOperationBinding={({moduleId,operationId,operationDigest}) => {
+      const matches = httpBindings.filter(binding => binding.audience === 'app' && binding.auth.includes('session')
+        && binding.moduleId === moduleId && binding.operationId === operationId && binding.contractDigest === operationDigest);
+      const binding = matches.find(item => item.contributorModuleId === moduleId)
+        ?? matches.sort((a,b) => `${a.contributorModuleId}:${a.id}`.localeCompare(`${b.contributorModuleId}:${b.id}`))[0];
+      return binding ? `${binding.contributorModuleId}:${binding.id}` : null;
+    }}><Theme brand={frontBrand} account={authenticated && state.session ? {displayName:state.session.displayName} : null}
     navigation={navigation} location={allLocation} navigate={navigate} renderSlot={renderSlot}
     onLogin={() => setShowLogin(true)} onLogout={() => { setProjection(null); void access.logout(); }}
     onRefresh={() => { setProjection(null); void access.refresh(); }}>
@@ -248,5 +256,5 @@ function BoundFront({access, initialUrl}: {access: AccessController; initialUrl?
       <button type="button" onClick={() => setAttempt(value => value + 1)}>Réessayer</button></p>}
     {content}
     <div className={styles.flow} hidden={!panelActive} inert={!panelActive}>{protectedPanels}</div>
-  </Theme>;
+  </Theme></WidgetHostProvider>;
 }

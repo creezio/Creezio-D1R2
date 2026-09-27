@@ -13,6 +13,8 @@ docker compose -f adapters/docker/compose.yaml up -d --no-build
 
 Ouvrir `http://127.0.0.1:5173/access/admin`. L'installation interactive demande le premier compte et une confirmation explicite. Aucun mot de passe n'est fourni par image, variable ou argument. Le proxy TCP sur le port interne 5174 transmet HTTP et WebSocket au serveur local qui conserve son origine canonique `127.0.0.1:5173`. Le port publié reste limité au loopback de l'hôte.
 
+Les widgets utilisent une seconde origine d'affichage, `http://127.0.0.1:5175`, publiée uniquement sur le loopback hôte. Le relais statique démarre et s'arrête dans le même conteneur avec le serveur ; il ne possède ni D1, ni R2, ni session, ni clé fournisseur. Il n'ajoute aucune instance métier ni service tiers à maintenir.
+
 Pour vérifier la persistance, installer un compte synthétique avec la commande ci-dessus, puis arrêter le service et écrire un objet R2 synthétique via le même binding local et le même verrou :
 
 ```sh

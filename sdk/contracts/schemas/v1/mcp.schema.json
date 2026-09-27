@@ -173,6 +173,33 @@
           "widget": {
             "$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"
           },
+          "ui": {
+            "type": "object",
+            "properties": {
+              "csp": {
+                "type": "object",
+                "properties": {
+                  "connectDomains": {"type": "array", "items": {"type": "string", "maxLength": 2048}, "maxItems": 16, "uniqueItems": true},
+                  "resourceDomains": {"type": "array", "items": {"type": "string", "maxLength": 2048}, "maxItems": 16, "uniqueItems": true},
+                  "frameDomains": {"type": "array", "items": {"type": "string", "maxLength": 2048}, "maxItems": 16, "uniqueItems": true},
+                  "baseUriDomains": {"type": "array", "items": {"type": "string", "maxLength": 2048}, "maxItems": 16, "uniqueItems": true}
+                },
+                "additionalProperties": false
+              },
+              "permissions": {
+                "type": "object",
+                "properties": {
+                  "camera": {"type": "object", "additionalProperties": false},
+                  "microphone": {"type": "object", "additionalProperties": false},
+                  "geolocation": {"type": "object", "additionalProperties": false},
+                  "clipboardWrite": {"type": "object", "additionalProperties": false}
+                },
+                "additionalProperties": false
+              },
+              "prefersBorder": {"type": "boolean"}
+            },
+            "additionalProperties": false
+          },
           "requiresModules": {
             "type": "array",
             "items": {

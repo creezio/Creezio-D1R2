@@ -92,7 +92,7 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - [core/operations](core/operations/) : registre canonique, exécutions internes, validation statique, stockage technique et transport HTTP déclaré intégré.
 - [core/operations/native-access.ts](core/operations/native-access.ts) : raccordement hôte fermé des services Access existants aux mêmes transactions d'exécution ; aucun SQL ni accès privilégié ajouté aux handlers publics de modules.
 - [scripts/operations](scripts/operations/) : compilation centrale des validateurs d'opérations pour le Worker.
-- [data/schema/runtime.sql](data/schema/runtime.sql) et [scripts/data/prepare-runtime.mjs](scripts/data/prepare-runtime.mjs) : quatre modèles techniques des exécutions et contrôle central de leur SQL ; aucun changement automatique de base.
+- [data/schema/runtime.sql](data/schema/runtime.sql) et [scripts/data/prepare-runtime.mjs](scripts/data/prepare-runtime.mjs) : cinq modèles techniques des exécutions et approbations, avec contrôle central de leur SQL ; aucun changement automatique de base.
 - [tests/operations](tests/operations/) : registre, schémas compilés, exécutions D1 et Worker, refus et idempotence ; famille obligatoire de l'agrégat.
 - [docs/IMPLEMENTATION-T06.md](docs/IMPLEMENTATION-T06.md) : périmètre, progression et critères du registre commun.
 - [core/vault](core/vault/) : références opaques et chiffrement des secrets côté serveur.
@@ -150,3 +150,14 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - [tests/openai](tests/openai/) : recettes D1 du fournisseur ; suites obligatoires du contrôle commun.
 - [adapters/sites](adapters/sites/) et [scripts/sites](scripts/sites/) : opérateur temporaire, configuration et schéma central ; [installation Sites](docs/INSTALLATION-SITES.md).
 - `configuration/composition.sites.json` et son verrou : composition Sites sans données ni identifiant personnel de Site.
+
+## Widgets et plugins conversationnels T16
+
+- [sdk/widgets](sdk/widgets/) : contrats catalogue/instances, provider public, pont MCP Apps, approbation native et relais statique.
+- [core/widgets](core/widgets/) : snapshots autorisés, projection HTTP, ressources et grants d'approbation consommés par le moteur commun.
+- [scripts/widgets](scripts/widgets/) : compilation du relais statique pour les adaptateurs locaux et hébergés.
+- `scripts/local/widget-sandbox.mjs` et `widget-handshake.mjs` : démarrage et arrêt du relais local depuis le catalogue fraîchement composé ; contrôlés dans `tests/local/widget-sandbox.test.mjs` et les tests du verrou local.
+- `configuration/composition.widgets-local.json`, `composition.widgets-sites.json` et leurs verrous : compositions explicites de la recette multiwidgets.
+- `app/approvals/` : entrée native de décision humaine, indépendante du client MCP qui a demandé l'action.
+- [extensions/widgets-witness](extensions/widgets-witness/) : module optionnel de recette avec plusieurs widgets, absent du démarrage standard.
+- [tests/widgets](tests/widgets/) et [réalisation T16](docs/IMPLEMENTATION-T16.md) : contrôles des transports, droits, hôtes et périmètres à qualifier.

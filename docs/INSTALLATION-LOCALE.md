@@ -19,6 +19,8 @@ L'origine par défaut est `http://127.0.0.1:5173`. Pour choisir un autre port lo
 
 Les commandes officielles de développement, démarrage et installation prennent un verrou commun avant d'ouvrir le stockage. Le verrou reste détenu jusqu'à la fermeture du moteur. Il ne constitue pas un verrou système contre une invocation manuelle de Wrangler ou un autre outil SQL : fermer également ces outils avant d'installer.
 
+Si la composition contient des widgets, `dev` et `start` lancent également leur relais statique dans le même processus de pilotage, sur `http://127.0.0.1:5175` par défaut. Cette origine doit rester distincte de celle de l'application ; `CREEZIO_WIDGET_SANDBOX_ORIGIN` permet de choisir un autre port loopback avant le build. Le relais reçoit uniquement les profils de ressources compilés, sans données persistantes ni identifiants applicatifs, et s'arrête avec le serveur. Un port indisponible bloque le démarrage sans changer de cible en silence.
+
 Un verrou laissé après un arrêt brutal n'est jamais effacé automatiquement. Examiner son propriétaire et vérifier qu'aucun processus n'utilise encore cette installation avant de retirer ce seul fichier de verrou. Ne jamais supprimer `.wrangler/state` pour résoudre un verrou. Les liens et jonctions sur les chemins du stockage sont refusés.
 
 ## États et reprise

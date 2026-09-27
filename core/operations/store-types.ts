@@ -44,6 +44,8 @@ export interface OperationStore {
     readonly plans: readonly DataPlan[]; readonly output: JsonValue; readonly outbox?: readonly OperationOutboxIntent[];
     /** Trusted host Access statements; never accepted from an operation handler. */
     readonly nativeStatements?: readonly SqlStatement[];
+    /** Trusted host approval consumption, committed atomically with business plans. */
+    readonly approvalStatements?: readonly SqlStatement[];
   }): Promise<OperationExecution>;
   /** Rejection is allowed only before any business commit attempt or external emission. */
   fail(lease: DataLease, claim: OperationClaim, code: string): Promise<OperationExecution>;

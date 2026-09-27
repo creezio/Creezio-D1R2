@@ -4,12 +4,19 @@ import { moduleId, operationComposition } from './operations.mjs';
 import { contractIntegrity } from '../../../sdk/contracts/validate.mjs';
 
 /** Actual standalone validators produced by the same build-time compiler as the application. */
-export async function createFixtureRegistry({ before = async () => {}, overrides = {}, maxItems } = {}) {
+export async function createFixtureRegistry({ before = async () => {}, overrides = {}, maxItems, delegatedUser = false } = {}) {
   const composition = operationComposition();
+  if (delegatedUser) {
+    const approved=composition.modules[0].contracts.operations.find(entry=>entry.id==='approved_rename');
+    approved.actors=[...approved.actors,'delegated-user'];
+    for (const entry of composition.modules[0].contracts.permissions)
+      if (entry.id === 'edit') entry.actors=[...entry.actors,'delegated-user'];
+  }
   if (maxItems !== undefined) {
     for (const entry of composition.modules[0].contracts.operations) entry.execution.maxItems = maxItems;
-    composition.lock.modules[0].contractIntegrity = contractIntegrity(composition.modules[0]);
   }
+  if (delegatedUser || maxItems !== undefined)
+    composition.lock.modules[0].contractIntegrity = contractIntegrity(composition.modules[0]);
   const compiled = compileOperationSchemas(composition);
   const validators = { ...await import(`data:text/javascript;base64,${Buffer.from(compiled.validatorsCode).toString('base64')}`) };
   const calls = new Map(), contexts = [];

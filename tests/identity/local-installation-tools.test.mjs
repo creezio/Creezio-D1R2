@@ -154,10 +154,12 @@ test('local start pins the selected storage and origin and retains its lock unti
   const config = configFixture(t), child = new EventEmitter();
   mkdirSync(path.join(config.root, 'dist/server'), { recursive: true });
   writeFileSync(path.join(config.root, 'dist/server/wrangler.json'), JSON.stringify(localWorkerConfiguration(config)));
-  let released = false, launch;
+  let released = false, sandboxClosed = false, sandboxStarted = false, launch;
   const started = new Promise(resolve => { launch = resolve; });
   const initialListeners = { int: process.listenerCount('SIGINT'), term: process.listenerCount('SIGTERM') };
   const running = runLockedLocalRuntime('start', config, {
+    startSandbox: async target => {assert.equal(target,config);sandboxStarted=true;
+      return {close:async()=>{sandboxClosed=true;}};},
     acquireLock: async (target, purpose) => {
       assert.equal(target, config); assert.equal(purpose, 'start');
       return { release: async () => { released = true; } };
@@ -171,6 +173,8 @@ test('local start pins the selected storage and origin and retains its lock unti
       assert.equal(args[args.indexOf('--port') + 1], '5173');
       assert.equal(options.cwd, config.root);
       assert.equal(options.env.CREEZIO_APP_ORIGIN, config.origin);
+      assert.equal(options.env.CREEZIO_WIDGET_SANDBOX_ORIGIN,config.sandboxOrigin);
+      assert.equal(sandboxStarted,true);
       assert.equal(options.windowsHide, true);
       launch(); return child;
     },
@@ -181,7 +185,7 @@ test('local start pins the selected storage and origin and retains its lock unti
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(released, false);
   child.emit('close', 0, null);
-  assert.equal(await running, 0); assert.equal(released, true);
+  assert.equal(await running, 0); assert.equal(released, true);assert.equal(sandboxClosed,true);
   assert.equal(process.listenerCount('SIGINT'), initialListeners.int);
   assert.equal(process.listenerCount('SIGTERM'), initialListeners.term);
 });
@@ -197,6 +201,60 @@ test('local start refuses a mismatched build before launching and releases only 
     spawnChild: () => assert.fail('mismatched build must not open local storage'),
   }), /configuration differs/i);
   assert.equal(releases, 1);
+});
+
+test('local sandbox closes before releasing the storage lock when framework launch fails', async t => {
+  const config=configFixture(t);
+  mkdirSync(path.join(config.root,'dist/server'),{recursive:true});
+  writeFileSync(path.join(config.root,'dist/server/wrangler.json'),JSON.stringify(localWorkerConfiguration(config)));
+  const events=[];
+  await assert.rejects(runLockedLocalRuntime('start',config,{
+    acquireLock:async()=>({release:async()=>{events.push('unlock');}}),
+    startSandbox:async()=>({close:async()=>{events.push('sandbox-close');}}),
+    spawnChild:()=>{throw new Error('Synthetic launch failure');},
+  }),/Synthetic launch failure/);
+  assert.deepEqual(events,['sandbox-close','unlock']);
+});
+
+test('dev waits for the fresh composition before acknowledging and later closes its relay',async t=>{
+  const config=configFixture(t),child=new EventEmitter(),events=[];
+  child.connected=true;
+  child.send=(value,callback)=>{events.push(value.type);callback?.();};
+  let launch,completeSandbox;
+  const started=new Promise(resolve=>{launch=resolve;});
+  const sandboxReady=new Promise(resolve=>{completeSandbox=resolve;});
+  const running=runLockedLocalRuntime('dev',config,{
+    acquireLock:async()=>({release:async()=>{events.push('unlock');}}),
+    startSandbox:async()=>{events.push('sandbox-start');await sandboxReady;
+      return {close:async()=>{events.push('sandbox-close');}};},
+    spawnChild:(_command,_args,options)=>{
+      assert.equal(options.env.CREEZIO_LOCAL_WIDGET_HANDSHAKE,'1');
+      launch();return child;
+    },
+  });
+  await started;
+  assert.equal(events.includes('sandbox-start'),false);
+  child.emit('message',{type:'creezio-widget-catalog-ready',version:1});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.deepEqual(events,['sandbox-start']);
+  completeSandbox();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.deepEqual(events,['sandbox-start','creezio-widget-sandbox-ready']);
+  child.emit('close',0,null);
+  assert.equal(await running,0);
+  assert.deepEqual(events,['sandbox-start','creezio-widget-sandbox-ready','sandbox-close','unlock']);
+});
+
+test('dev composition timeout stops its startup child and releases the lock after close',async t=>{
+  const config=configFixture(t),child=new EventEmitter(),events=[];
+  child.kill=signal=>{events.push(`kill:${signal}`);setImmediate(()=>child.emit('close',null,signal));return true;};
+  await assert.rejects(runLockedLocalRuntime('dev',config,{
+    handshakeTimeoutMs:10,
+    acquireLock:async()=>({release:async()=>{events.push('unlock');}}),
+    startSandbox:async()=>assert.fail('stale catalog must not start before composition'),
+    spawnChild:()=>child,
+  }),/Local runtime could not be launched/);
+  assert.deepEqual(events,['kill:SIGTERM','unlock']);
 });
 
 test('local shutdown bridge waits for framework teardown, delivers once and leaves no referenced IPC channel', async () => {

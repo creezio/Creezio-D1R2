@@ -2,6 +2,35 @@
 -- Module: creezio.runtime
 -- Inspect before applying to a new database. No automatic repair.
 
+CREATE TABLE "cz_637265657a696f2e72756e74696d65_617070726f76616c73" (
+  "actor_principal_id" TEXT NOT NULL CHECK ("actor_principal_id" IS NOT NULL AND (typeof("actor_principal_id") = 'text' AND instr("actor_principal_id", char(0)) = 0 AND length("actor_principal_id") >= 1 AND length("actor_principal_id") <= 128)),
+  "audience" TEXT NOT NULL CHECK ("audience" IS NOT NULL AND (typeof("audience") = 'text' AND instr("audience", char(0)) = 0 AND "audience" IN ('admin', 'app'))),
+  "consumed_at_ms" INTEGER CHECK ("consumed_at_ms" IS NULL OR (typeof("consumed_at_ms") = 'integer' AND "consumed_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "consumed_at_ms" >= 0 AND "consumed_at_ms" <= 9007199254740991)),
+  "consumed_nonce" TEXT CHECK ("consumed_nonce" IS NULL OR (typeof("consumed_nonce") = 'text' AND instr("consumed_nonce", char(0)) = 0 AND length("consumed_nonce") >= 1 AND length("consumed_nonce") <= 128)),
+  "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
+  "credential_digest" TEXT NOT NULL CHECK ("credential_digest" IS NOT NULL AND (typeof("credential_digest") = 'text' AND instr("credential_digest", char(0)) = 0 AND length("credential_digest") >= 1 AND length("credential_digest") <= 71)),
+  "csrf_digest" TEXT CHECK ("csrf_digest" IS NULL OR (typeof("csrf_digest") = 'text' AND instr("csrf_digest", char(0)) = 0 AND length("csrf_digest") >= 1 AND length("csrf_digest") <= 71)),
+  "decided_at_ms" INTEGER CHECK ("decided_at_ms" IS NULL OR (typeof("decided_at_ms") = 'integer' AND "decided_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "decided_at_ms" >= 0 AND "decided_at_ms" <= 9007199254740991)),
+  "decision_nonce" TEXT CHECK ("decision_nonce" IS NULL OR (typeof("decision_nonce") = 'text' AND instr("decision_nonce", char(0)) = 0 AND length("decision_nonce") >= 1 AND length("decision_nonce") <= 128)),
+  "decision_session_id" TEXT CHECK ("decision_session_id" IS NULL OR (typeof("decision_session_id") = 'text' AND instr("decision_session_id", char(0)) = 0 AND length("decision_session_id") >= 1 AND length("decision_session_id") <= 128)),
+  "expires_at_ms" INTEGER NOT NULL CHECK ("expires_at_ms" IS NOT NULL AND (typeof("expires_at_ms") = 'integer' AND "expires_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "expires_at_ms" >= 0 AND "expires_at_ms" <= 9007199254740991)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
+  "input_hash" TEXT NOT NULL CHECK ("input_hash" IS NOT NULL AND (typeof("input_hash") = 'text' AND instr("input_hash", char(0)) = 0 AND length("input_hash") >= 1 AND length("input_hash") <= 71)),
+  "module_id" TEXT NOT NULL CHECK ("module_id" IS NOT NULL AND (typeof("module_id") = 'text' AND instr("module_id", char(0)) = 0 AND length("module_id") >= 1 AND length("module_id") <= 128)),
+  "oauth_client_id" TEXT CHECK ("oauth_client_id" IS NULL OR (typeof("oauth_client_id") = 'text' AND instr("oauth_client_id", char(0)) = 0 AND length("oauth_client_id") >= 1 AND length("oauth_client_id") <= 128)),
+  "oauth_grant_id" TEXT CHECK ("oauth_grant_id" IS NULL OR (typeof("oauth_grant_id") = 'text' AND instr("oauth_grant_id", char(0)) = 0 AND length("oauth_grant_id") >= 1 AND length("oauth_grant_id") <= 128)),
+  "object_version" TEXT NOT NULL CHECK ("object_version" IS NOT NULL AND (typeof("object_version") = 'text' AND instr("object_version", char(0)) = 0 AND length("object_version") >= 1 AND length("object_version") <= 128)),
+  "operation_digest" TEXT NOT NULL CHECK ("operation_digest" IS NOT NULL AND (typeof("operation_digest") = 'text' AND instr("operation_digest", char(0)) = 0 AND length("operation_digest") >= 1 AND length("operation_digest") <= 128)),
+  "operation_id" TEXT NOT NULL CHECK ("operation_id" IS NOT NULL AND (typeof("operation_id") = 'text' AND instr("operation_id", char(0)) = 0 AND length("operation_id") >= 1 AND length("operation_id") <= 128)),
+  "preview" TEXT NOT NULL CHECK ("preview" IS NOT NULL AND (typeof("preview") = 'text' AND json_valid("preview") = 1)),
+  "principal_id" TEXT NOT NULL CHECK ("principal_id" IS NOT NULL AND (typeof("principal_id") = 'text' AND instr("principal_id", char(0)) = 0 AND length("principal_id") >= 1 AND length("principal_id") <= 128)),
+  "request_key_hash" TEXT NOT NULL CHECK ("request_key_hash" IS NOT NULL AND (typeof("request_key_hash") = 'text' AND instr("request_key_hash", char(0)) = 0 AND length("request_key_hash") >= 1 AND length("request_key_hash") <= 71)),
+  "state" TEXT NOT NULL CHECK ("state" IS NOT NULL AND (typeof("state") = 'text' AND instr("state", char(0)) = 0 AND "state" IN ('pending', 'approved', 'rejected', 'consumed'))),
+  "updated_at_ms" INTEGER NOT NULL CHECK ("updated_at_ms" IS NOT NULL AND (typeof("updated_at_ms") = 'integer' AND "updated_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "updated_at_ms" >= 0 AND "updated_at_ms" <= 9007199254740991)),
+  PRIMARY KEY ("id")
+) WITHOUT ROWID;
+
 CREATE TABLE "cz_637265657a696f2e72756e74696d65_617474656d707473" (
   "claim_nonce" TEXT NOT NULL CHECK ("claim_nonce" IS NOT NULL AND (typeof("claim_nonce") = 'text' AND instr("claim_nonce", char(0)) = 0 AND length("claim_nonce") >= 1 AND length("claim_nonce") <= 128)),
   "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
@@ -69,6 +98,12 @@ CREATE TABLE "cz_637265657a696f2e72756e74696d65_6f7574626f78" (
   PRIMARY KEY ("id"),
   FOREIGN KEY ("execution_id") REFERENCES "cz_637265657a696f2e72756e74696d65_657865637574696f6e73" ("id") ON DELETE RESTRICT
 ) WITHOUT ROWID;
+
+CREATE INDEX "cz_637265657a696f2e72756e74696d65_617070726f76616c73_idx_6163746f722d7374617465" ON "cz_637265657a696f2e72756e74696d65_617070726f76616c73" ("actor_principal_id", "context_id", "audience", "state", "created_at_ms");
+
+CREATE INDEX "cz_637265657a696f2e72756e74696d65_617070726f76616c73_idx_657870697279" ON "cz_637265657a696f2e72756e74696d65_617070726f76616c73" ("expires_at_ms", "state");
+
+CREATE UNIQUE INDEX "cz_637265657a696f2e72756e74696d65_617070726f76616c73_idx_72657175657374" ON "cz_637265657a696f2e72756e74696d65_617070726f76616c73" ("module_id", "operation_id", "actor_principal_id", "context_id", "audience", "request_key_hash");
 
 CREATE UNIQUE INDEX "cz_637265657a696f2e72756e74696d65_617474656d707473_idx_636c61696d" ON "cz_637265657a696f2e72756e74696d65_617474656d707473" ("claim_nonce");
 

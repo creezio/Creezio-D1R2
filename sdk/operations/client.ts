@@ -8,6 +8,8 @@ export interface OperationClientRequest {
   readonly bindingId: string;
   readonly contextId: string;
   readonly input: Readonly<Record<string, unknown>>;
+  /** Opaque server grant pointer, kept outside business input. */
+  readonly approvalId?: string;
   /** A changed workspace projection invalidates an in-flight response. */
   readonly isCurrent?: () => boolean;
 }
@@ -49,7 +51,7 @@ export function createOperationClient(options: {origin: string; audience: Access
     if (!input) return rejected('invalid_input');
     if (before.phase !== 'authenticated' || before.pending || !before.session) return rejected('unauthorized');
     if (request.isCurrent && !request.isCurrent()) return rejected('stale');
-    const parts = requestParts(origin, binding, request.contextId, input);
+    const parts = requestParts(origin, binding, request.contextId, input, request.approvalId);
     if (!parts) return rejected('invalid_input');
     const mutation = binding.method !== 'GET';
     try {

@@ -340,7 +340,8 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
     selectedId={selectedId} selectedTitle={snapshot.selected?.title}
     selectedArchived={!!snapshot.selected?.archivedAt} conversations={snapshot.conversations}
     messages={snapshot.messages.filter(message=>!runningTurn||message.id!==runningTurn.id).map(message => ({id:message.id, role:message.role === 'tool' ? 'system' : message.role,
-      content:message.body, createdAt:message.createdAt}))}
+      content:message.body, widgetContent:message.content??null, createdAt:message.createdAt}))}
+    onWidgetContextAction={controller.changeWidgetContext}
     draft={snapshot.draft?.conversationId === selectedId ? snapshot.draft.text : ''}
     modelOptions={modelIds.map(id=>({id,label:id}))} selectedModelId={selectedModelId}
     onModelChange={id=>setSelectedModelId(modelIds.includes(id)?id:null)}

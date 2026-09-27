@@ -20,7 +20,7 @@ const compile = (modules = [descriptor], disabledContributions = []) => compileH
   operationCatalog: catalog, disabledContributions});
 
 test('front projection belongs to the host and is absent in workspace and headless modes', async () => {
-  for (const path of ['/api/front','/api/front/projection','/api/{scope}/projection']) {
+  for (const path of ['/api/front','/api/front/projection','/api/{scope}/projection','/api/widgets','/api/widgets/app/catalog']) {
     const changed=structuredClone(descriptor);changed.contracts.api[0].path=path;
     assert.throws(()=>compile([changed]),error=>error instanceof HttpBindingError&&error.code==='path');
   }
@@ -98,6 +98,37 @@ function fixture(binding = compile()[0]) {
 const request = (url, options = {}) => new Request(`${origin}${url}`, options);
 const cookie = token => `__Host-creezio-app=${token}`;
 const keyHeader = value => Buffer.from(value, 'utf8').toString('base64url');
+
+test('approval reference is host metadata, not business input or a lookup capability', async () => {
+  const token = (await issueOpaqueToken('session')).token, f = fixture();
+  const headers = {cookie: cookie(token), 'x-creezio-context': 'client-a', 'x-creezio-approval-id': 'approval-1'};
+  const result = await f.transport.dispatch(request('/api/records/42', {headers}), f.environment, f.raw, 'approval-request');
+  assert.equal(result.status, 200);
+  assert.equal(f.calls[0][1].approvalId, 'approval-1');
+  assert.deepEqual({...f.calls[0][1].input}, {id: 42});
+  for (const approvalId of ['', 'id,other', 'x'.repeat(129), 'id/other']) {
+    const bad = fixture();
+    const reply = await bad.transport.dispatch(request('/api/records/42', {headers: {...headers, 'x-creezio-approval-id': approvalId}}), bad.environment, bad.raw, 'invalid-approval');
+    assert.equal(reply.status, 400);
+    assert.equal(bad.calls.length, 0);
+    assert.equal(bad.database.calls.length, 0);
+  }
+  for (const path of ['/api/operations/status/example.record/read-http/execution-1', '/api/operations/lookup/example.record/read-http']) {
+    const read = fixture();
+    const reply = await read.transport.dispatch(request(path, {headers: {...headers, 'x-creezio-request-key': keyHeader('request-1')}}), read.environment, read.raw, 'approval-read');
+    assert.equal(reply.status, 400);
+    assert.equal(read.calls.length, 0);
+  }
+});
+
+test('HTTP compiler reserves host security and reconciliation headers', () => {
+  for (const name of ['x-creezio-context', 'x-creezio-request', 'x-creezio-request-key', 'x-creezio-approval-id']) {
+    const value = structuredClone(descriptor);
+    value.contracts.api[0].path = '/api/records';
+    value.contracts.api[0].parameters[0] = {name, in: 'header', inputField: 'id', required: true};
+    assert.throws(() => compile([value]), error => error instanceof HttpBindingError && error.code === 'parameters');
+  }
+});
 
 test('HTTP input uses exact binding and context; status rechecks through engine with same binding', async () => {
   const token = (await issueOpaqueToken('session')).token, f = fixture();

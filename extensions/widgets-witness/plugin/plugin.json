@@ -1,0 +1,6 @@
+{
+  "name": "creezio-widgets-witness",
+  "version": "1.0.0",
+  "description": "Optional MCP Apps widget witness; deployment and host qualification are separate.",
+  "mcpServers": {}
+}

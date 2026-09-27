@@ -1,0 +1,129 @@
+{
+  "schemaVersion": "1.0.0",
+  "application": {
+    "id": "creezio.app",
+    "version": "0.0.0",
+    "provenance": {
+      "kind": "git",
+      "revision": "72c7f3faca3df68beea64b50c2ddc51fd103a433",
+      "integrity": "sha256-0329f9c00c8cb7b9008487c4da44fd98ef9bfc9d866bd7212d62e1413cc18c54",
+      "repository": "https://github.com/creezio/Creezio-D1R2"
+    }
+  },
+  "host": {
+    "profile": "docker-local",
+    "capabilities": [
+      "runtime.worker",
+      "data.d1.shared",
+      "files.r2.shared"
+    ]
+  },
+  "sdk": {
+    "version": "1.0.0",
+    "coreVersion": "0.0.0",
+    "policy": {
+      "id": "creezio.local-contracts",
+      "version": "1.0.0",
+      "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
+    }
+  },
+  "modules": [
+    {
+      "moduleId": "creezio.access",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/native/access"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
+    },
+    {
+      "moduleId": "creezio.modules-settings",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/native/modules-settings"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
+    },
+    {
+      "moduleId": "creezio.conversations",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/native/conversations"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
+    },
+    {
+      "moduleId": "creezio.openai",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/native/openai"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
+    },
+    {
+      "moduleId": "creezio.theme-chatgpt",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "source": {
+        "kind": "workspace",
+        "path": "themes/chatgpt-like"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
+    },
+    {
+      "moduleId": "example.widgets-witness",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^1.0.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/widgets-witness"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
+    }
+  ],
+  "front": {
+    "kind": "theme",
+    "moduleId": "creezio.theme-chatgpt",
+    "theme": "chatgpt-like"
+  },
+  "exposure": {
+    "admin": {
+      "moduleIds": [
+        "creezio.access",
+        "creezio.modules-settings",
+        "creezio.conversations",
+        "creezio.openai",
+        "example.widgets-witness"
+      ]
+    },
+    "app": {
+      "moduleIds": [
+        "creezio.access",
+        "creezio.conversations",
+        "creezio.openai",
+        "creezio.theme-chatgpt",
+        "example.widgets-witness"
+      ]
+    }
+  }
+}

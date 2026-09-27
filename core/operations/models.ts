@@ -40,7 +40,18 @@ export const OPERATION_MODELS: readonly DataModel[] = freeze([
     text('claim_nonce', 128, true), integer('created_at_ms'), integer('updated_at_ms'), integer('claim_expires_at_ms', true)],
   [index('execution-intent', ['execution_id', 'intent_id'], true), index('delivery-claim', ['claim_nonce'], true),
     index('pending', ['state', 'updated_at_ms'])], [relation('execution', ['execution_id'], 'executions', ['id'])]),
+  model('approvals', [text('id'),text('module_id'),text('operation_id'),text('operation_digest'),
+    text('actor_principal_id'),text('principal_id'),text('context_id'),enumeration('audience',['admin','app']),
+    text('credential_digest',71),text('input_hash',71),text('request_key_hash',71),json('preview'),
+    text('object_version'),text('oauth_grant_id',128,true),text('oauth_client_id',128,true),
+    enumeration('state',['pending','approved','rejected','consumed']),integer('expires_at_ms'),
+    text('decision_session_id',128,true),text('csrf_digest',71,true),text('decision_nonce',128,true),
+    integer('decided_at_ms',true),integer('consumed_at_ms',true),text('consumed_nonce',128,true),
+    integer('created_at_ms'),integer('updated_at_ms')],
+    [index('request',['module_id','operation_id','actor_principal_id','context_id','audience','request_key_hash'],true),
+      index('actor-state',['actor_principal_id','context_id','audience','state','created_at_ms']),
+      index('expiry',['expires_at_ms','state'])]),
 ]);
 const hex = (value: string) => Array.from(new TextEncoder().encode(value), byte => byte.toString(16).padStart(2, '0')).join('');
 export const OPERATION_TABLES = Object.freeze(Object.fromEntries(OPERATION_MODELS.map(model =>
-  [model.id, `cz_${hex(OPERATION_STORAGE_MODULE_ID)}_${hex(model.id)}`])) as Record<'executions' | 'attempts' | 'audit' | 'outbox', string>);
+  [model.id, `cz_${hex(OPERATION_STORAGE_MODULE_ID)}_${hex(model.id)}`])) as Record<'executions' | 'attempts' | 'audit' | 'outbox' | 'approvals', string>);

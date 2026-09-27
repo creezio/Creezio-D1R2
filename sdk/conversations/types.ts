@@ -1,6 +1,7 @@
 import type {AccessAudience, AccessController} from '../access/types.ts';
 import type {OperationClient, OperationClientResult} from '../operations/client.ts';
 import type {StagedFileReference} from '../files/types.ts';
+import type {WidgetInstanceRef, WidgetMessageContentV1} from '../widgets/types.ts';
 
 export type ConversationMode = 'chat' | 'work';
 export interface ConversationSummary {
@@ -10,7 +11,16 @@ export interface ConversationSummary {
 export interface ConversationMessage {
   readonly id:string; readonly conversationId:string;
   readonly role:'user'|'assistant'|'tool'|'system'; readonly body:string;
+  readonly content?:WidgetMessageContentV1|null;
   readonly createdAt:string; readonly revision:number;
+}
+export interface WidgetContextView {
+  readonly instanceId:string; readonly namespace:'module-instance'; readonly revision:number;
+  readonly value:unknown; readonly expiresAt:string; readonly removed:boolean;
+}
+export interface WidgetContextActionRequest {
+  readonly instance:Extract<WidgetInstanceRef,{host:'creezio'}>;
+  readonly actionId:string; readonly input:unknown; readonly remove?:boolean;
 }
 export interface ConversationTurn {
   readonly id:string; readonly conversationId:string;
@@ -69,6 +79,8 @@ export interface ConversationsController {
   search(input:{query:string;cursor?:string|null;limit?:number;archived?:boolean}):Promise<ConversationPage<ConversationSummary>|null>;
   open(conversationId:string):Promise<void>;
   loadMoreMessages():Promise<void>;
+  readWidgetContext(request:Omit<WidgetContextActionRequest,'input'|'remove'>):Promise<ConversationActionResult<WidgetContextView|null>>;
+  changeWidgetContext(request:WidgetContextActionRequest):Promise<ConversationActionResult<WidgetContextView|null>>;
   create(input:{mode:ConversationMode;title?:string}):Promise<ConversationActionResult<ConversationSummary>>;
   rename(conversationId:string,title:string):Promise<ConversationActionResult<ConversationSummary>>;
   archive(conversationId:string):Promise<ConversationActionResult<ConversationSummary>>;

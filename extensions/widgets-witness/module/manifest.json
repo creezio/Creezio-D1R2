@@ -1,0 +1,1487 @@
+{
+  "schemaVersion": "1.0.0",
+  "identity": {
+    "id": "example.widgets-witness",
+    "title": "Widgets MCP Apps witness",
+    "publisher": "creezio",
+    "origin": "https://github.com/creezio/Creezio-D1R2",
+    "version": "1.0.0",
+    "source": {
+      "kind": "snapshot",
+      "revision": "t16-widgets-witness-v1",
+      "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "license": {
+      "expression": "MIT",
+      "file": "LICENSE"
+    }
+  },
+  "compatibility": {
+    "core": "^0.0.0",
+    "sdk": "^1.0.0",
+    "requiredCapabilities": [
+      "runtime.worker"
+    ],
+    "optionalCapabilities": []
+  },
+  "entrypoints": {
+    "server": {
+      "path": "module/entry.server.ts",
+      "export": "create"
+    },
+    "ui": {
+      "path": "ui/contributions.ts",
+      "export": "contributions"
+    },
+    "plugin": {
+      "manifest": "plugin/plugin.json",
+      "mcp": "plugin/mcp.json",
+      "contributions": {
+        "path": "plugin/contributions.ts",
+        "export": "contributions"
+      }
+    }
+  },
+  "dependencies": [],
+  "contracts": {
+    "schemas": [
+      {
+        "id": "empty-input",
+        "schema": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "read-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "rename-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "request_key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "id",
+            "title",
+            "revision",
+            "request_key"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "record-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            }
+          },
+          "required": [
+            "id",
+            "title",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "view-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "section": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "panel-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "draftTitle": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "baseTitle": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "baseRevision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "pendingRequestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "pendingExecutionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "draftTitle",
+            "baseTitle",
+            "baseRevision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "widget-state",
+        "schema": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "record",
+        "title": "Synthetic operation record",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "title",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 1000000
+            }
+          },
+          {
+            "id": "internal_secret",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "default": "synthetic protected model value"
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "example.widgets-witness",
+            "kind": "permission",
+            "id": "read"
+          },
+          {
+            "moduleId": "example.widgets-witness",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": false
+        },
+        "public": false
+      }
+    ],
+    "files": [],
+    "permissions": [
+      {
+        "id": "read",
+        "actions": [
+          "read"
+        ],
+        "actors": [
+          "user",
+          "machine",
+          "impersonated-user",
+          "delegated-user"
+        ],
+        "title": "read",
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "scopes": [],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "example.widgets-witness",
+            "kind": "model",
+            "id": "record"
+          }
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      },
+      {
+        "id": "edit",
+        "actions": [
+          "read",
+          "create",
+          "update",
+          "delete"
+        ],
+        "actors": [
+          "user",
+          "machine",
+          "impersonated-user",
+          "delegated-user"
+        ],
+        "title": "edit",
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "scopes": [],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "example.widgets-witness",
+            "kind": "model",
+            "id": "record"
+          }
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      }
+    ],
+    "operations": [
+      {
+        "id": "read_record",
+        "title": "read_record",
+        "kind": "query",
+        "input": {
+          "schemaId": "read-input"
+        },
+        "output": {
+          "schemaId": "record-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "example.widgets-witness",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "read_record"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "example.widgets-witness",
+              "kind": "model",
+              "id": "record"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "rejected",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "effect-unknown",
+            "retryable": false,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 1000,
+          "maxItems": 10,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "title"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "rename_record",
+        "title": "rename_record",
+        "kind": "command",
+        "input": {
+          "schemaId": "rename-input"
+        },
+        "output": {
+          "schemaId": "record-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "example.widgets-witness",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "rename_record"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "example.widgets-witness",
+              "kind": "model",
+              "id": "record"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "example.widgets-witness",
+              "kind": "model",
+              "id": "record"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "rejected",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "effect-unknown",
+            "retryable": false,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "request_key",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 1000,
+          "maxItems": 10,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "title"
+          ]
+        },
+        "public": false
+      }
+    ],
+    "api": [
+      {
+        "id": "record-read-admin",
+        "method": "GET",
+        "path": "/api/witness/admin/records/{id}",
+        "operation": {
+          "moduleId": "example.widgets-witness",
+          "kind": "operation",
+          "id": "read_record"
+        },
+        "audience": "admin",
+        "auth": [
+          "session"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "read-input"
+        },
+        "output": {
+          "schemaId": "record-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "record-rename-admin",
+        "method": "PATCH",
+        "path": "/api/witness/admin/records/{id}",
+        "operation": {
+          "moduleId": "example.widgets-witness",
+          "kind": "operation",
+          "id": "rename_record"
+        },
+        "audience": "admin",
+        "auth": [
+          "session"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "rename-input"
+        },
+        "output": {
+          "schemaId": "record-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "record-read-app",
+        "method": "GET",
+        "path": "/api/witness/app/records/{id}",
+        "operation": {
+          "moduleId": "example.widgets-witness",
+          "kind": "operation",
+          "id": "read_record"
+        },
+        "audience": "app",
+        "auth": [
+          "session"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "read-input"
+        },
+        "output": {
+          "schemaId": "record-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "record-rename-app",
+        "method": "PATCH",
+        "path": "/api/witness/app/records/{id}",
+        "operation": {
+          "moduleId": "example.widgets-witness",
+          "kind": "operation",
+          "id": "rename_record"
+        },
+        "audience": "app",
+        "auth": [
+          "session"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "rename-input"
+        },
+        "output": {
+          "schemaId": "record-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      }
+    ],
+    "mcp": {
+      "tools": [
+        {
+          "id": "card.read",
+          "name": "witness_card_read",
+          "operation": {
+            "moduleId": "example.widgets-witness",
+            "kind": "operation",
+            "id": "read_record"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "read-input"
+          },
+          "output": {
+            "schemaId": "record-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "widget": {
+            "moduleId": "example.widgets-witness",
+            "kind": "widget",
+            "id": "record-card"
+          },
+          "textFallback": true
+        },
+        {
+          "id": "card.rename",
+          "name": "witness_card_rename",
+          "operation": {
+            "moduleId": "example.widgets-witness",
+            "kind": "operation",
+            "id": "rename_record"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "rename-input"
+          },
+          "output": {
+            "schemaId": "record-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "widget": {
+            "moduleId": "example.widgets-witness",
+            "kind": "widget",
+            "id": "record-card"
+          },
+          "textFallback": true
+        },
+        {
+          "id": "picker.read",
+          "name": "witness_picker_read",
+          "operation": {
+            "moduleId": "example.widgets-witness",
+            "kind": "operation",
+            "id": "read_record"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "read-input"
+          },
+          "output": {
+            "schemaId": "record-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "widget": {
+            "moduleId": "example.widgets-witness",
+            "kind": "widget",
+            "id": "record-picker"
+          },
+          "textFallback": true
+        }
+      ],
+      "resources": [
+        {
+          "id": "record-card-ui",
+          "uri": "ui://example.widgets-witness/record-card",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "example.widgets-witness",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/card.html"
+          },
+          "widget": {
+            "moduleId": "example.widgets-witness",
+            "kind": "widget",
+            "id": "record-card"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        },
+        {
+          "id": "record-picker-ui",
+          "uri": "ui://example.widgets-witness/record-picker",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "example.widgets-witness",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/picker.html"
+          },
+          "widget": {
+            "moduleId": "example.widgets-witness",
+            "kind": "widget",
+            "id": "record-picker"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        }
+      ],
+      "prompts": [],
+      "skills": []
+    },
+    "events": [],
+    "settings": [],
+    "search": [],
+    "ui": {
+      "views": [
+        {
+          "id": "home",
+          "title": "Workspace témoin",
+          "surfaces": [
+            "workspace",
+            "front"
+          ],
+          "route": "/witness",
+          "component": {
+            "path": "ui/workspace/view.tsx",
+            "export": "witness_home"
+          },
+          "permissions": [
+            {
+              "moduleId": "example.widgets-witness",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "operations": [],
+          "input": {
+            "schemaId": "empty-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend"
+          }
+        },
+        {
+          "id": "record",
+          "title": "Fiche témoin",
+          "surfaces": [
+            "workspace",
+            "front"
+          ],
+          "route": "/witness/{id}",
+          "component": {
+            "path": "ui/workspace/view.tsx",
+            "export": "witness_record"
+          },
+          "permissions": [
+            {
+              "moduleId": "example.widgets-witness",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "example.widgets-witness",
+              "kind": "operation",
+              "id": "read_record"
+            },
+            {
+              "moduleId": "example.widgets-witness",
+              "kind": "operation",
+              "id": "rename_record"
+            }
+          ],
+          "input": {
+            "schemaId": "view-input"
+          },
+          "panel": {
+            "stateSchema": {
+              "schemaId": "panel-state"
+            },
+            "identityFields": [
+              "id"
+            ],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend"
+          }
+        },
+        {
+          "id": "public-info",
+          "title": "Information publique",
+          "surfaces": [
+            "front"
+          ],
+          "route": "/welcome",
+          "component": {
+            "path": "ui/front.tsx",
+            "export": "witness_public"
+          },
+          "permissions": [],
+          "operations": [],
+          "input": {
+            "schemaId": "empty-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend"
+          }
+        },
+        {
+          "id": "private-info",
+          "title": "Contexte autorisé",
+          "surfaces": [
+            "front"
+          ],
+          "route": "/witness-context",
+          "component": {
+            "path": "ui/front.tsx",
+            "export": "witness_private"
+          },
+          "permissions": [
+            {
+              "moduleId": "example.widgets-witness",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "operations": [],
+          "input": {
+            "schemaId": "empty-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend"
+          }
+        }
+      ],
+      "navigation": [
+        {
+          "id": "home",
+          "title": "Workspace témoin",
+          "view": {
+            "moduleId": "example.widgets-witness",
+            "kind": "view",
+            "id": "home"
+          },
+          "permissions": [
+            {
+              "moduleId": "example.widgets-witness",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "surfaces": [
+            "workspace",
+            "front"
+          ],
+          "order": 0
+        },
+        {
+          "id": "welcome",
+          "title": "Information publique",
+          "view": {
+            "moduleId": "example.widgets-witness",
+            "kind": "view",
+            "id": "public-info"
+          },
+          "permissions": [],
+          "surfaces": [
+            "front"
+          ],
+          "order": -1
+        }
+      ],
+      "slots": [
+        {
+          "id": "public-context",
+          "slot": "front.context",
+          "view": {
+            "moduleId": "example.widgets-witness",
+            "kind": "view",
+            "id": "public-info"
+          },
+          "permissions": [],
+          "surfaces": [
+            "front"
+          ]
+        },
+        {
+          "id": "private-footer",
+          "slot": "front.footer",
+          "view": {
+            "moduleId": "example.widgets-witness",
+            "kind": "view",
+            "id": "private-info"
+          },
+          "permissions": [
+            {
+              "moduleId": "example.widgets-witness",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "surfaces": [
+            "front"
+          ]
+        }
+      ],
+      "front": {
+        "mode": "provided"
+      },
+      "styles": []
+    },
+    "widgets": [
+      {
+        "id": "record-card",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "record-card-ui",
+        "renderer": {
+          "path": "ui/widgets/card.ts",
+          "export": "startWidget"
+        },
+        "input": {
+          "schemaId": "record-output"
+        },
+        "state": {
+          "schemaId": "widget-state"
+        },
+        "result": {
+          "schemaId": "record-output"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "example.widgets-witness",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "card.message",
+            "label": "Partager la fiche",
+            "input": {
+              "schemaId": "record-output"
+            },
+            "requiredCapabilities": [],
+            "fallback": "copy-message",
+            "mode": "message",
+            "target": {
+              "template": "ui/widgets/message.txt",
+              "preview": true,
+              "voluntarySend": true,
+              "states": [
+                "proposed",
+                "transmitted",
+                "refused",
+                "unknown"
+              ]
+            }
+          },
+          {
+            "id": "card.context",
+            "label": "Ajouter au contexte",
+            "input": {
+              "schemaId": "record-output"
+            },
+            "requiredCapabilities": [],
+            "fallback": "local-untransmitted-context",
+            "mode": "context",
+            "target": {
+              "namespace": "module-instance",
+              "fields": [
+                "id",
+                "title",
+                "revision"
+              ],
+              "scope": [
+                "actor",
+                "conversation",
+                "surface"
+              ],
+              "expiresAfterSeconds": 3600,
+              "replace": true,
+              "removable": true,
+              "revisionField": "revision"
+            }
+          },
+          {
+            "id": "card.read_record",
+            "label": "read_record",
+            "input": {
+              "schemaId": "read-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "example.widgets-witness",
+                "kind": "operation",
+                "id": "read_record"
+              }
+            }
+          },
+          {
+            "id": "card.rename_record",
+            "label": "rename_record",
+            "input": {
+              "schemaId": "rename-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "example.widgets-witness",
+                "kind": "operation",
+                "id": "rename_record"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 65536,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      },
+      {
+        "id": "record-picker",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "record-picker-ui",
+        "renderer": {
+          "path": "ui/widgets/picker.ts",
+          "export": "startWidget"
+        },
+        "input": {
+          "schemaId": "record-output"
+        },
+        "state": {
+          "schemaId": "widget-state"
+        },
+        "result": {
+          "schemaId": "record-output"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "example.widgets-witness",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "picker.message",
+            "label": "Partager la fiche",
+            "input": {
+              "schemaId": "record-output"
+            },
+            "requiredCapabilities": [],
+            "fallback": "copy-message",
+            "mode": "message",
+            "target": {
+              "template": "ui/widgets/message.txt",
+              "preview": true,
+              "voluntarySend": true,
+              "states": [
+                "proposed",
+                "transmitted",
+                "refused",
+                "unknown"
+              ]
+            }
+          },
+          {
+            "id": "picker.context",
+            "label": "Ajouter au contexte",
+            "input": {
+              "schemaId": "record-output"
+            },
+            "requiredCapabilities": [],
+            "fallback": "local-untransmitted-context",
+            "mode": "context",
+            "target": {
+              "namespace": "module-instance",
+              "fields": [
+                "id",
+                "title",
+                "revision"
+              ],
+              "scope": [
+                "actor",
+                "conversation",
+                "surface"
+              ],
+              "expiresAfterSeconds": 3600,
+              "replace": true,
+              "removable": true,
+              "revisionField": "revision"
+            }
+          },
+          {
+            "id": "picker.read_record",
+            "label": "read_record",
+            "input": {
+              "schemaId": "read-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "example.widgets-witness",
+                "kind": "operation",
+                "id": "read_record"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 65536,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      }
+    ],
+    "publicContracts": []
+  },
+  "documentation": {
+    "installed": {
+      "readme": {
+        "path": "README.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "prd": {
+        "path": "prd.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "changelog": {
+        "path": "CHANGELOG.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      }
+    },
+    "development": {
+      "agents": {
+        "path": "AGENTS.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "files": {
+        "path": "FILES.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "interview": {
+        "path": "interview.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "todo": {
+        "path": "TODO.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      }
+    },
+    "versionBinding": {
+      "moduleVersion": "1.0.0",
+      "sourceRevision": "t16-widgets-witness-v1"
+    },
+    "localRevisions": {
+      "installedVersionDistinct": true,
+      "approvedImmutable": true
+    },
+    "installationHistory": {
+      "distinctFromPackageChangelog": true
+    }
+  },
+  "validation": {
+    "gate": "gate.mjs",
+    "suites": {
+      "backend": {
+        "mode": "required",
+        "script": "ci/backend.mjs",
+        "tests": [
+          "tests/backend/contract.test.mjs"
+        ]
+      },
+      "ui": {
+        "mode": "required",
+        "script": "ci/ui.mjs",
+        "tests": [
+          "tests/ui/contract.test.mjs"
+        ]
+      },
+      "api-mcp": {
+        "mode": "required",
+        "script": "ci/api-mcp.mjs",
+        "tests": [
+          "tests/api-mcp/contract.test.mjs"
+        ]
+      },
+      "widgets": {
+        "mode": "required",
+        "script": "ci/widgets.mjs",
+        "tests": [
+          "tests/widgets/contract.test.mjs"
+        ]
+      },
+      "package": {
+        "mode": "required",
+        "script": "ci/package.mjs",
+        "tests": [
+          "tests/package/contract.test.mjs"
+        ]
+      },
+      "docs": {
+        "mode": "required",
+        "script": "ci/docs.mjs",
+        "tests": [
+          "tests/docs/contract.test.mjs"
+        ]
+      }
+    },
+    "policy": {
+      "id": "creezio.local-contracts",
+      "version": "1.0.0",
+      "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
+    },
+    "isolation": {
+      "productionSecrets": false,
+      "publicationRights": false
+    },
+    "evidence": {
+      "sourceIntegrity": true,
+      "artifactIntegrity": true,
+      "profile": true,
+      "executedSuites": true
+    }
+  },
+  "packaging": {
+    "runtime": {
+      "files": [
+        "README.md",
+        "prd.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "module/manifest.json",
+        "module/entry.server.ts",
+        "module/operations.ts",
+        "ui/contributions.ts",
+        "ui/workspace/view.tsx",
+        "plugin/plugin.json",
+        "plugin/mcp.json",
+        "plugin/contributions.ts",
+        "ui/front.tsx",
+        "ui/widgets/card.html",
+        "ui/widgets/picker.html",
+        "ui/widgets/card.ts",
+        "ui/widgets/picker.ts",
+        "ui/widgets/runtime.ts",
+        "ui/widgets/message.txt"
+      ],
+      "references": []
+    },
+    "validation": {
+      "files": [
+        "AGENTS.md",
+        "FILES.md",
+        "interview.md",
+        "TODO.md",
+        "gate.mjs",
+        "ci/run-suite.mjs",
+        "ci/backend.mjs",
+        "tests/backend/contract.test.mjs",
+        "ci/ui.mjs",
+        "tests/ui/contract.test.mjs",
+        "ci/api-mcp.mjs",
+        "tests/api-mcp/contract.test.mjs",
+        "ci/widgets.mjs",
+        "tests/widgets/contract.test.mjs",
+        "ci/package.mjs",
+        "tests/package/contract.test.mjs",
+        "ci/docs.mjs",
+        "tests/docs/contract.test.mjs",
+        "module/generate-manifest.mjs"
+      ],
+      "references": []
+    },
+    "validationBinding": {
+      "moduleId": "example.widgets-witness",
+      "moduleVersion": "1.0.0",
+      "sourceRevision": "t16-widgets-witness-v1"
+    },
+    "noRuntimeTests": true,
+    "installation": "build-and-publish",
+    "providerInstallation": false
+  },
+  "lifecycle": {
+    "deactivation": "preserve-data",
+    "configuration": "explicit-state",
+    "uninstall": "explicit-approved-action",
+    "activationRequirements": [],
+    "absent": {
+      "files": {
+        "reason": "No file workflow is part of this browser fixture.",
+        "policyRule": "witness.no-files"
+      }
+    },
+    "dependencyChanges": {
+      "install": "resolve-explicit-consumer-selection",
+      "activate": "require-active-dependencies",
+      "update": "validate-dependent-contracts",
+      "deactivate": "block-or-explicit-dependent-plan",
+      "uninstall": "block-or-explicit-dependent-plan",
+      "data": "preserve"
+    }
+  }
+}

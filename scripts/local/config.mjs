@@ -9,7 +9,9 @@ export const LOCAL_COMPATIBILITY_DATE = '2026-05-15';
 
 /** Local tools have one target. There is no remote/account/database override. */
 export function loadLocalConfiguration({ root = LOCAL_REPOSITORY_ROOT,
-  origin = process.env.CREEZIO_APP_ORIGIN ?? 'http://127.0.0.1:5173' } = {}) {
+  origin = process.env.CREEZIO_APP_ORIGIN ?? 'http://127.0.0.1:5173',
+  sandboxOrigin = process.env.CREEZIO_WIDGET_SANDBOX_ORIGIN ?? 'http://127.0.0.1:5175',
+  sandboxBindHost = process.env.CREEZIO_WIDGET_SANDBOX_BIND_HOST ?? '127.0.0.1' } = {}) {
   if (typeof root !== 'string' || !path.isAbsolute(root) || /[\u0000-\u001f\u007f]/u.test(root) || typeof origin !== 'string') throw new Error('Invalid local configuration.');
   let url;
   try { url = new URL(origin); } catch { throw new Error('Invalid local origin.'); }
@@ -17,6 +19,13 @@ export function loadLocalConfiguration({ root = LOCAL_REPOSITORY_ROOT,
     || url.username || url.password || url.pathname !== '/' || url.search || url.hash) throw new Error('Local origin must be canonical HTTP on 127.0.0.1.');
   const port = Number(url.port || 80);
   if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Local port must be between 1024 and 65535.');
+  let sandboxUrl;
+  try { sandboxUrl = new URL(sandboxOrigin); } catch { throw new Error('Invalid widget sandbox origin.'); }
+  if (sandboxUrl.origin !== sandboxOrigin || sandboxUrl.protocol !== 'http:' ||
+    sandboxUrl.hostname !== '127.0.0.1' || sandboxUrl.origin === origin ||
+    !Number.isInteger(Number(sandboxUrl.port)) || Number(sandboxUrl.port) < 1024 ||
+    Number(sandboxUrl.port) > 65535 || !['127.0.0.1', '0.0.0.0'].includes(sandboxBindHost))
+    throw new Error('Widget sandbox needs a distinct canonical loopback origin and local bind host.');
   const canonicalRoot = path.resolve(root), statePath = path.join(canonicalRoot, '.wrangler', 'state');
   const hostingPath = path.join(canonicalRoot, '.openai', 'hosting.json');
   for (const target of [canonicalRoot, path.dirname(hostingPath), hostingPath]) {
@@ -26,6 +35,7 @@ export function loadLocalConfiguration({ root = LOCAL_REPOSITORY_ROOT,
   const hosting = JSON.parse(readFileSync(hostingPath, 'utf8'));
   if (!hosting || hosting.d1 !== LOCAL_BINDINGS.database || hosting.r2 !== LOCAL_BINDINGS.bucket) throw new Error('Local bindings differ from the hosting contract.');
   return Object.freeze({ root: canonicalRoot, origin, host: '127.0.0.1', port,
+    sandboxOrigin, sandboxHost: sandboxBindHost, sandboxPort: Number(sandboxUrl.port),
     statePath, persistenceRoot: path.join(statePath, 'v3'), d1Path: path.join(statePath, 'v3', 'd1'),
     lockPath: path.join(canonicalRoot, '.wrangler', 'creezio-local.lock'),
     bindings: LOCAL_BINDINGS, compatibilityDate: LOCAL_COMPATIBILITY_DATE });
@@ -34,7 +44,8 @@ export function loadLocalConfiguration({ root = LOCAL_REPOSITORY_ROOT,
 export function localWorkerConfiguration(config) {
   return { name: 'creezio', main: 'worker.ts', compatibility_date: config.compatibilityDate,
     compatibility_flags: ['nodejs_compat'],
-    vars: { CREEZIO_RUNTIME_PROFILE: 'local', CREEZIO_APP_ORIGIN: config.origin },
+    vars: { CREEZIO_RUNTIME_PROFILE: 'local', CREEZIO_APP_ORIGIN: config.origin,
+      CREEZIO_WIDGET_SANDBOX_ORIGIN: config.sandboxOrigin },
     d1_databases: [{ binding: config.bindings.database, database_name: config.bindings.databaseName, database_id: config.bindings.databaseId }],
     r2_buckets: [{ binding: config.bindings.bucket, bucket_name: config.bindings.bucketName }] };
 }
@@ -46,6 +57,7 @@ export function assertLocalBuiltConfiguration(value, config) {
     && actual.every((binding, i) => binding && Object.keys(binding).length === Object.keys(wanted[i]).length
       && Object.keys(wanted[i]).every(key => binding[key] === wanted[i][key]));
   if (!value || value.vars?.CREEZIO_RUNTIME_PROFILE !== 'local' || value.vars?.CREEZIO_APP_ORIGIN !== config.origin
+    || value.vars?.CREEZIO_WIDGET_SANDBOX_ORIGIN !== config.sandboxOrigin
     || value.compatibility_date !== expected.compatibility_date
     || !sameBindings(value.d1_databases, expected.d1_databases)
     || !sameBindings(value.r2_buckets, expected.r2_buckets)) {

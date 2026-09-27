@@ -6,6 +6,7 @@ import { composeRuntime } from './scripts/build/compose-runtime.mjs';
 import { assertWorkerBoundary } from './scripts/build/worker-boundary.mjs';
 import { loadLocalConfiguration, localWorkerConfiguration } from './scripts/local/config.mjs';
 import {loadSitesBuildConfiguration} from './scripts/sites/config.mjs';
+import {awaitLocalWidgetSandboxReady} from './scripts/local/widget-handshake.mjs';
 
 export default defineConfig(async () => {
   const root = fileURLToPath(new URL('.', import.meta.url));
@@ -17,6 +18,7 @@ export default defineConfig(async () => {
     compositionPath: process.env.CREEZIO_COMPOSITION ?? 'configuration/composition.json',
     ...(process.env.CREEZIO_COMPOSITION_LOCK ? { lockPath: process.env.CREEZIO_COMPOSITION_LOCK } : {}),
   });
+  if(local)await awaitLocalWidgetSandboxReady();
   await assertWorkerBoundary({ root, entryPoints: [
     '.creezio/generated/server.ts', '.creezio/generated/client.tsx', '.creezio/generated/operations.ts', '.creezio/generated/provider-catalog.ts',
     'core/runtime/dispatch.ts', 'core/operations/http.ts',

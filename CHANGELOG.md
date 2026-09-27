@@ -1,8 +1,12 @@
 # Changelog
 
-## Non publié — OpenAI et qualification Sites
+## En cours — widgets T16
 
-Raccordement du module OpenAI au chat existant et adaptateur de publication Sites en construction. Installation opérateur séparée du Worker applicatif, réutilisant les comptes natifs ; schéma généré centralement dans l'enveloppe de déploiement Drizzle. Ces nouveaux parcours ne sont pas encore qualifiés en hébergement.
+Hôte MCP Apps du chat existant, ressources compilées des modules et comportements message/contexte/direct. Recette locale des widgets de deux modules avec OpenAI réel et reprise d'une mutation après perte de réponse ; qualification Sites et ChatGPT suivie séparément. Développement sur `core/t16-widgets`, périmètre et limites dans [la réalisation T16](docs/IMPLEMENTATION-T16.md).
+
+## 27 septembre 2026 — OpenAI et qualification Sites T15
+
+PR #24 intégrée ; CI candidat/main 993 tests réussis. Module OpenAI relié au chat original et publication du Worker commun sur Sites. Réponses réelles dans le workspace et le front, conservation du compte, du brouillon et de la pièce jointe R2 après mise à jour. Installation opérateur séparée du Worker applicatif ; SQL central généré dans l'enveloppe Drizzle. Le statut statique du catalogue ne confond plus réglage fournisseur inconnu et service absent. Les widgets et la connexion réelle ChatGPT restent à qualifier en T16.
 
 ## 27 septembre 2026 — Conversations T14
 

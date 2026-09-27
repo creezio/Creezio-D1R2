@@ -3,15 +3,18 @@ import type {AuthorizationAudience,AuthorizationActor} from '../authorization/ty
 import type {OperationRegistry} from '../operations/registry.ts';
 import type {ProviderTool} from '../../sdk/providers/types.ts';
 import {copyJson} from '../data/input.ts';
+import type {CompiledWidgetCatalog} from '../../sdk/widgets/catalog.ts';
 
 export interface ProviderOperationSchema {
   readonly moduleId:string;readonly operationId:string;readonly inputSchema:unknown;
   readonly schemaDigest:string;readonly audiences:readonly AuthorizationAudience[];
+  readonly widget?:Readonly<{moduleId:string;widgetId:string;version:string;resourceDigest:string;
+    toolName:string;operationDigest:string}>;
 }
 export interface ToolRequest {readonly credential:DataCredential;readonly contextId:string;
   readonly audience:AuthorizationAudience}
 export interface ProjectedTool {readonly provider:ProviderTool;readonly moduleId:string;
-  readonly operationId:string}
+  readonly operationId:string;readonly widget?:NonNullable<ProviderOperationSchema['widget']>}
 const ID=/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
 const digest=/^sha256-[a-f0-9]{64}$/;
 const plain=(value:unknown):value is Record<string,unknown>=>!!value&&typeof value==='object'
@@ -44,7 +47,8 @@ async function toolName(moduleId:string,operationId:string){
 
 /** The generated schema gives a shape; registry and fresh authorization give authority. */
 export async function projectAuthorizedReadTools(options:{readonly catalog:readonly ProviderOperationSchema[];
-  readonly registry:OperationRegistry;readonly data:DataAccess;readonly request:ToolRequest}){
+  readonly registry:OperationRegistry;readonly data:DataAccess;readonly request:ToolRequest;
+  readonly widgets?:CompiledWidgetCatalog}){
   const tools:ProjectedTool[]=[],diagnostics:string[]=[],names=new Set<string>();
   for(const candidate of options.catalog.slice(0,1000)){
     const label=`${candidate.moduleId}:${candidate.operationId}`;
@@ -62,6 +66,15 @@ export async function projectAuthorizedReadTools(options:{readonly catalog:reado
     if(!strictToolSchema(candidate.inputSchema)||new TextEncoder().encode(JSON.stringify(candidate.inputSchema)).length>16_384){
       diagnostics.push(`${label}:unsupported_schema`);continue;
     }
+    const widget=candidate.widget?options.widgets?.widgets.find(item=>item.moduleId===candidate.widget!.moduleId
+      &&item.widgetId===candidate.widget!.widgetId&&item.version===candidate.widget!.version
+      &&item.resourceDigest===candidate.widget!.resourceDigest
+      &&item.audiences.includes(options.request.audience)):undefined;
+    if(candidate.widget&&(!widget||candidate.widget.operationDigest!==registered.contractDigest
+      ||!widget.renderTools.some(tool=>tool.toolName===candidate.widget!.toolName
+        &&tool.operationModuleId===candidate.moduleId&&tool.operationId===candidate.operationId
+        &&tool.operationDigest===registered.contractDigest
+        &&tool.audiences.includes(options.request.audience)))) {diagnostics.push(`${label}:widget_unavailable`);continue;}
     let schema:JsonValue;
     try{schema=copyJson(candidate.inputSchema,16_384);}catch{diagnostics.push(`${label}:invalid_schema`);continue;}
     const actors=op.actors.filter((actor):actor is AuthorizationActor=>actor==='user'||actor==='delegated-user');
@@ -71,13 +84,17 @@ export async function projectAuthorizedReadTools(options:{readonly catalog:reado
       requiredPermissionIds:op.permissions.map(ref=>`${ref.moduleId}:${ref.id}`),purpose:'operation'},
       {moduleId:candidate.moduleId});}
     catch{diagnostics.push(`${label}:forbidden`);continue;}
+    try{if(widget?.permissions.length)options.data.requirePermissions(lease,widget.permissions);}
+    catch{diagnostics.push(`${label}:widget_forbidden`);continue;}
     finally{if(lease)options.data.dispose(lease);}
-    const name=await toolName(candidate.moduleId,candidate.operationId);
+    const name=candidate.widget?.toolName??await toolName(candidate.moduleId,candidate.operationId);
+    if(!/^[A-Za-z0-9_.-]{1,128}$/.test(name)){diagnostics.push(`${label}:widget_name`);continue;}
     if(names.has(name)){diagnostics.push(`${label}:collision`);continue;}
     names.add(name);
     tools.push({provider:{bindingId:label,name,description:op.title.slice(0,256),
       parameters:schema,schemaDigest:candidate.schemaDigest},
-      moduleId:candidate.moduleId,operationId:candidate.operationId});
+      moduleId:candidate.moduleId,operationId:candidate.operationId,
+      ...(candidate.widget?{widget:candidate.widget}:{})});
     if(tools.length>=16){diagnostics.push('catalog:limit');break;}
   }
   return Object.freeze({tools:Object.freeze(tools),diagnostics:Object.freeze(diagnostics)});

@@ -32,6 +32,13 @@ export function createMcpCatalog(catalog: McpCatalog, registry: OperationRegistr
       || item.permissions.length !== operation.declaration.permissions.length
       || item.permissions.some((permission, index) => permission !== `${operation.declaration.permissions[index].moduleId}:${operation.declaration.permissions[index].id}`)
       || item.annotations?.readOnly !== (operation.declaration.kind === 'query')) fail();
+    if (item.ui && (typeof item.ui.resourceUri !== 'string' || !item.ui.resourceUri.startsWith('ui://')
+      || !Array.isArray(item.ui.visibility) || !item.ui.visibility.includes('model')
+      || !item.ui.visibility.every(value => value === 'model' || value === 'app')
+      || !id(item.ui.widget.moduleId) || !id(item.ui.widget.widgetId)
+      || typeof item.ui.widget.version !== 'string'
+      || !/^sha256-[a-f0-9]{64}$/.test(item.ui.widget.resourceDigest)
+      || (item.outputSchema as Record<string, unknown>).type !== 'object')) fail();
     const audience = item.audience as AuthorizationAudience;
     if (tools[audience].has(item.name)) fail();
     tools[audience].set(item.name, item);
@@ -42,15 +49,27 @@ export function createMcpCatalog(catalog: McpCatalog, registry: OperationRegistr
       || !Array.isArray(item.permissions) || item.permissions.some(permission => typeof permission !== 'string')
       || !Array.isArray(item.actors) || item.actors.some(actor => !['delegated-user', 'machine'].includes(actor))
       || !['application', 'required'].includes(item.context)
-      || !['asset', 'operation'].includes(item.source?.kind)) fail();
+      || !['asset', 'operation', 'compiled-widget'].includes(item.source?.kind)) fail();
     if (item.source.kind === 'operation') {
       const operation = registry.resolve(item.source.moduleId, item.source.operationId);
       if (operation.declaration.kind !== 'query' || !operation.declaration.audiences.includes(item.audience)
         || operation.declaration.context !== item.context) fail();
-    } else if (typeof item.source.path !== 'string' || !item.source.path) fail();
+    } else if (item.source.kind === 'asset') {
+      if (typeof item.source.path !== 'string' || !item.source.path) fail();
+    } else {
+      if (!/^sha256-[a-f0-9]{64}$/.test(item.source.digest)
+        || !/^sha256-[a-f0-9]{64}$/.test(item.source.cspProfileId)
+        || !item.uri.endsWith(`/${item.source.digest}.html`)
+        || item.mimeType !== 'text/html;profile=mcp-app'
+        || typeof item.source.text !== 'string' || new TextEncoder().encode(item.source.text).length > 1_048_576
+        || !item.source.uiMeta || typeof item.source.uiMeta !== 'object') fail();
+    }
     const audience = item.audience as AuthorizationAudience;
     if (resources[audience].has(item.uri)) fail();
     resources[audience].set(item.uri, item);
+  }
+  for (const audience of ['admin', 'app'] as const) for (const tool of tools[audience].values()) {
+    if (tool.ui && resources[audience].get(tool.ui.resourceUri)?.source.kind !== 'compiled-widget') fail();
   }
   return Object.freeze({
     tool(audience: AuthorizationAudience, name: string): McpToolBinding | undefined { return tools[audience].get(name); },

@@ -12,20 +12,23 @@ import {createAccountService, provisionBootstrapCapability} from '../../../core/
 import {createAuthorizationService} from '../../../core/authorization/service.ts';
 import {createDataAccess} from '../../../core/data/service.ts';
 import {seedWitnessRecords} from '../fixtures/seed.mjs';
+import {compileWidgetSandbox} from '../../../scripts/widgets/sandbox.mjs';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const origin = 'http://127.0.0.1:8793';
 const themeArg = process.argv.find(value => value.startsWith('--front='))?.slice('--front='.length);
 const conversations = process.argv.includes('--conversations');
 const openai = process.argv.includes('--openai');
+const widgets = process.argv.includes('--widgets');
 const application = process.argv.includes('--application');
 if (application && themeArg) throw new Error('Application and front-witness recipes are distinct.');
 if(openai && (!conversations || !process.env.CREEZIO_VAULT_KEYRING))throw new Error('OpenAI recipe requires Conversations and an operator-supplied vault keyring.');
 if (themeArg && !['standard','chatgpt-like'].includes(themeArg)) throw new Error('Unknown synthetic front theme.');
-const compositionPath = application ? 'configuration/composition.json' : themeArg ? `configuration/composition.front-${themeArg}.json` : 'configuration/composition.workspace-witness.json';
+if (widgets && (!conversations || themeArg || application)) throw new Error('Widgets use their own common-app recipe with Conversations.');
+const compositionPath = widgets ? 'configuration/composition.widgets-local.json' : application ? 'configuration/composition.json' : themeArg ? `configuration/composition.front-${themeArg}.json` : 'configuration/composition.workspace-witness.json';
 const plan = await loadCompositionSchema({root, compositionPath});
 const persist = (!!themeArg || conversations) && process.argv.includes('--persist');
-const recipe=openai?'t15-openai-browser':conversations?'t14-conversations-browser':'t13-front-browser';
+const recipe=widgets?'t16-widgets-browser':openai?'t15-openai-browser':conversations?'t14-conversations-browser':'t13-front-browser';
 const stateRoot = join(root,'.quality',recipe);
 if (persist) {
   for (const folder of [root,join(root,'.quality'),stateRoot]) {
@@ -38,28 +41,34 @@ const schemaDigest=createHash('sha256').update(JSON.stringify(plan.statements)).
 const marker=persist&&existsSync(markerPath)?JSON.parse(readFileSync(markerPath,'utf8')):null;
 if(marker&&(marker.recipe!==recipe||marker.schemaDigest!==schemaDigest))throw new Error('Synthetic state schema mismatch; preserving it without changes.');
 const artifact = measureRuntimeArtifacts(root);
+const widgetCatalog = widgets ? (await import('../../../.creezio/generated/widget-catalog.ts')).widgetCatalog : null;
+const sandbox = widgets ? compileWidgetSandbox({catalog:widgetCatalog,hostOrigins:[origin],local:true}) : null;
+const sandboxRuntime = sandbox ? new Miniflare({host:'127.0.0.1',port:8794,cf:false,modules:true,
+  script:sandbox.script,compatibilityDate:'2026-05-15'}) : null;
 const runtime = new Miniflare({host:'127.0.0.1',port:8793,cf:false,d1Persist:persist?join(stateRoot,'d1'):false,r2Persist:persist?join(stateRoot,'r2'):false,
   modules:[{type:'ESModule',path:join(root,'dist/server/index.js')},
     ...artifact.files.filter(file => file.gzipBytes !== undefined && file.path !== 'dist/server/index.js')
       .map(file => ({type:'ESModule',path:join(root,file.path)}))],
   modulesRoot:join(root,'dist/server'), compatibilityDate:'2026-05-15', compatibilityFlags:['nodejs_compat'],
   bindings:{CREEZIO_RUNTIME_PROFILE:'local',CREEZIO_APP_ORIGIN:origin,
+    ...(widgets?{CREEZIO_WIDGET_SANDBOX_ORIGIN:'http://127.0.0.1:8794'}:{}),
     ...(openai?{CREEZIO_VAULT_KEYRING:process.env.CREEZIO_VAULT_KEYRING}:{})},
   d1Databases:{DB:'creezio-workspace-browser-synthetic'},r2Buckets:{BUCKET:'creezio-workspace-browser-synthetic'},
   assets:{directory:join(root,'dist/client'),binding:'ASSETS',routerConfig:{has_user_worker:true},assetConfig:{html_handling:'none',not_found_handling:'none'}},
 });
 const requireOk = value => {if (!value.ok) throw new Error(`Fixture refused: ${value.error}`); return value;};
 try {
+  if(sandboxRuntime)await sandboxRuntime.ready;
   await runtime.ready;
   const db = await runtime.getD1Database('DB');
   const tables=await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE '_cf_%' AND name NOT LIKE 'sqlite_%'").all();
   const restored=!!tables.results.length;
   if(persist && restored!==!!marker)throw new Error('Incomplete synthetic setup; preserving state for inspection.');
   if(!restored)await db.batch(plan.statements.map(sql => db.prepare(sql)));
-  const module = plan.runtimeCatalog.modules.find(item => item.moduleId === 'example.workspace-witness');
+  const module = plan.runtimeCatalog.modules.find(item => item.moduleId === (widgets?'example.widgets-witness':'example.workspace-witness'));
   if(!application&&!module)throw new Error('The witness composition is required for this recipe.');
-  const recipeModules=conversations?plan.runtimeCatalog.modules.filter(item=>[...(module?[module.moduleId]:[]),'creezio.conversations',...(openai?['creezio.openai']:[])].includes(item.moduleId)):[module];
-  if(conversations&&recipeModules.length!==((openai?2:1)+(module?1:0)))throw new Error('A required module is missing from the browser recipe.');
+  const recipeModules=conversations?plan.runtimeCatalog.modules.filter(item=>[...(module?[module.moduleId]:[]),'creezio.conversations',...(openai?['creezio.openai']:[]),...(widgets?['creezio.modules-settings']:[])].includes(item.moduleId)):[module];
+  if(conversations&&recipeModules.length!==((openai?2:1)+(module?1:0)+(widgets?1:0)))throw new Error('A required module is missing from the browser recipe.');
   const permissions = recipeModules.flatMap(item=>item.permissions.map(p => ({id:`${item.moduleId}:${p.id}`,audiences:p.audiences,actors:p.actors})));
   const accounts = createAccountService(db);
   const loginIdentifier = 'workspace@example.invalid', password = 'Synthetic workspace qualification password';
@@ -107,4 +116,4 @@ try {
       console.log(JSON.stringify({revoked:command.trim() === 'revoke',granted:command.trim() === 'grant'}));
     }
   }
-} finally {await runtime.dispose();}
+} finally {await runtime.dispose();if(sandboxRuntime)await sandboxRuntime.dispose();}

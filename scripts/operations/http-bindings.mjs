@@ -43,7 +43,7 @@ export function compileHttpBindings({ composition, modules, operationCatalog, di
         || path.startsWith('/api/operations/') || path.startsWith('/api/workspace/')
         || path === '/api/front' || path.startsWith('/api/front/') || path === '/api/files' || path.startsWith('/api/files/') || path === '/api/health') fail('path');
       const segments = named(path), pathNames = [...path.matchAll(/\{([A-Za-z][A-Za-z0-9_]*)\}/g)].map(match => match[1]);
-      if (segments[1] === null || ['access','operations','workspace','front'].includes(segments[1])) fail('path');
+      if (segments[1] === null || ['access','operations','workspace','front','widgets'].includes(segments[1])) fail('path');
       if (pathNames.length !== new Set(pathNames).size || path.split('/').slice(1).some(segment => /[{}]/.test(segment) && !/^\{[A-Za-z][A-Za-z0-9_]*\}$/.test(segment))) fail('path');
       const fields = new Set(), locations = new Set();
       const inputSchema = descriptors.get(owner)?.contracts.schemas?.find(schema => schema.id === op.input.schemaId)?.schema;
@@ -53,7 +53,8 @@ export function compileHttpBindings({ composition, modules, operationCatalog, di
         if (!id(parameter.name) || !inputField(parameter.inputField) || !['path', 'query', 'header'].includes(parameter.in)
           || typeof parameter.required !== 'boolean' || fields.has(parameter.inputField)
           || locations.has(`${parameter.in}:${parameter.name}`) || parameter.in === 'path' && (!pathNames.includes(parameter.name) || !parameter.required)
-          || parameter.in === 'header' && !/^x-[a-z0-9-]+$/.test(parameter.name)) fail('parameters');
+          || parameter.in === 'header' && (!/^x-[a-z0-9-]+$/.test(parameter.name)
+            || ['x-creezio-context', 'x-creezio-request', 'x-creezio-request-key', 'x-creezio-approval-id'].includes(parameter.name))) fail('parameters');
         fields.add(parameter.inputField); locations.add(`${parameter.in}:${parameter.name}`);
         const type = inputSchema.properties[parameter.inputField]?.type;
         if (!['string', 'integer', 'number', 'boolean'].includes(type)) fail('codec');

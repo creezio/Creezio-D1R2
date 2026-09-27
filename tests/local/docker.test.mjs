@@ -19,6 +19,9 @@ test('Docker dev profile reuses the native origin, bindings and one persistent s
   assert.match(compose, /context: \.\.\/\.\./);
   assert.match(compose, /dockerfile: adapters\/docker\/Dockerfile/);
   assert.match(compose, /127\.0\.0\.1:5173:5174/);
+  assert.match(compose, /127\.0\.0\.1:5175:5175/);
+  assert.match(compose, /CREEZIO_WIDGET_SANDBOX_ORIGIN: http:\/\/127\.0\.0\.1:5175/);
+  assert.match(compose, /CREEZIO_WIDGET_SANDBOX_BIND_HOST: 0\.0\.0\.0/);
   assert.match(compose, /local-state:\/app\/\.wrangler(?:\r?\n|$)/);
   assert.match(compose, /CREEZIO_APP_ORIGIN: http:\/\/127\.0\.0\.1:5173/);
   assert.doesNotMatch(compose, /privileged:|network_mode: host|\/var\/run\/docker\.sock/);
@@ -26,6 +29,7 @@ test('Docker dev profile reuses the native origin, bindings and one persistent s
   assert.match(dockerfile, /mkdir -p \/app\/\.wrangler\/state && chown -R node:node \/app/);
   assert.match(dockerfile, /npm ci --ignore-scripts --no-audit --no-fund/);
   assert.match(dockerfile, /CMD \["node", "adapters\/docker\/serve\.mjs"\]/);
+  assert.match(dockerfile, /EXPOSE 5174 5175/);
   for (const excluded of ['node_modules','.wrangler','.git','.quality','.env','.dev.vars*','.npmrc',
     '**/.quality','**/.dev.vars*','**/.npmrc']) assert.ok(ignore.split(/\r?\n/).includes(excluded));
   assert.equal(ignore.includes('.openai'), false, 'the local binding contract must enter the image');

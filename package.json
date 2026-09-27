@@ -41,7 +41,8 @@
     "test:modules": "node --test --test-concurrency=1 tests/modules/*.test.mjs",
     "data:conversations": "node scripts/data/prepare-native-module.mjs conversations --write",
     "test:conversations": "node --test --test-concurrency=1 tests/conversations/*.test.mjs",
-    "data:openai": "node scripts/data/prepare-native-module.mjs openai --write"
+    "data:openai": "node scripts/data/prepare-native-module.mjs openai --write",
+    "test:widgets": "node --test --test-concurrency=1 tests/widgets/*.test.mjs"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
@@ -69,6 +70,8 @@
     "wrangler": "4.92.0"
   },
   "dependencies": {
+    "@modelcontextprotocol/core": "2.1.0",
+    "@modelcontextprotocol/ext-apps": "2.0.3",
     "@modelcontextprotocol/server": "2.1.0",
     "@noble/hashes": "2.4.0",
     "@radix-ui/react-avatar": "1.1.11",
@@ -84,6 +87,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "sonner": "2.0.8",
-    "tailwind-merge": "2.6.0"
+    "tailwind-merge": "2.6.0",
+    "zod": "4.6.5"
   }
 }

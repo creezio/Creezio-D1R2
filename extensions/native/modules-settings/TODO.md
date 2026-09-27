@@ -7,3 +7,5 @@
 - Raccords à compléter dans leurs lots : publication effective T32, paquets externes complets T30, documents installés T12, PRD de travail/Kanban T23, profils Sites/Cloudflare.
 
 Ne fermer une ligne qu’avec les preuves du candidat correspondant.
+
+- T16 en cours : widget `module-detail` lecture seule sur `catalog.detail`, ressource MCP Apps compilée et suite `widgets` requise ; recette multi-module et hôtes externes par l'orchestrateur.

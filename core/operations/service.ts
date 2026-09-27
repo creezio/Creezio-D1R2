@@ -19,22 +19,19 @@ import type {OperationFilesPort} from '../../sdk/files/types.ts';
 import {createProviderSecretsPort} from '../providers/secrets.ts';
 import {VaultError,type VaultKeyring} from '../vault/crypto.ts';
 import type {VaultStorage} from '../vault/service.ts';
+import {operationDigest} from './digest.ts';
+import {createWidgetOperationPort} from '../widgets/host.ts';
+import type {CompiledWidgetCatalog,WidgetValidatorMap} from '../../sdk/widgets/catalog.ts';
+import type {WidgetApprovalService} from '../widgets/approval.ts';
 
 export interface OperationRequest {
   readonly credential: DataCredential; readonly moduleId: string; readonly operationId: string;
   readonly contextId: string; readonly audience: AuthorizationAudience; readonly input: unknown; readonly signal?: AbortSignal;
+  readonly approvalId?:string;
 }
 export interface OperationStatusRequest extends Omit<OperationRequest, 'input' | 'signal'> { readonly executionId: string }
 export interface OperationLookupRequest extends Omit<OperationRequest, 'input' | 'signal'> { readonly requestKey: string }
 const encoder = new TextEncoder();
-const canonical = (value: JsonValue): string => value && typeof value === 'object'
-  ? Array.isArray(value) ? `[${value.map(canonical).join(',')}]`
-    : `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical((value as DataRecord)[key])}`).join(',')}}`
-  : JSON.stringify(value);
-async function hash(value: JsonValue): Promise<string> {
-  const bytes = await crypto.subtle.digest('SHA-256', encoder.encode(canonical(value)));
-  return `sha256:${Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, '0')).join('')}`;
-}
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) throw new OperationError('invalid_input');
   const result: Record<string, unknown> = Object.create(null);
@@ -49,7 +46,7 @@ function capture(request: unknown, mode: 'invoke' | 'status' | 'lookup' = 'invok
   try {
     const raw = object(request), required = ['credential', 'moduleId', 'operationId', 'contextId', 'audience',
       mode === 'status' ? 'executionId' : mode === 'lookup' ? 'requestKey' : 'input'];
-    if (required.some(key => !Object.hasOwn(raw, key)) || Object.keys(raw).some(key => !required.includes(key) && (mode !== 'invoke' || key !== 'signal')))
+    if (required.some(key => !Object.hasOwn(raw, key)) || Object.keys(raw).some(key => !required.includes(key) && (mode !== 'invoke' || !['signal','approvalId'].includes(key))))
       throw new Error();
     const signal = raw.signal;
     if (signal !== undefined && !(signal instanceof AbortSignal)) throw new Error();
@@ -59,7 +56,10 @@ function capture(request: unknown, mode: 'invoke' | 'status' | 'lookup' = 'invok
     if (mode === 'lookup' && (typeof copied.requestKey !== 'string' || !copied.requestKey
       || encoder.encode(copied.requestKey).length > 512)) throw new Error();
     if (mode === 'invoke') copyJson(copied.input, OPERATION_LIMITS.inputBytes);
-    return Object.freeze({ ...copied, ...(signal ? { signal } : {}) }) as unknown as OperationRequest | OperationStatusRequest | OperationLookupRequest;
+    if (mode === 'invoke' && raw.approvalId !== undefined
+      && (typeof raw.approvalId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(raw.approvalId))) throw new Error();
+    return Object.freeze({ ...copied, ...(signal ? { signal } : {}),
+      ...(mode === 'invoke' && raw.approvalId ? {approvalId:raw.approvalId} : {}) }) as unknown as OperationRequest | OperationStatusRequest | OperationLookupRequest;
   } catch { throw new OperationError('invalid_input'); }
 }
 function errorCode(error: unknown): OperationError['code'] {
@@ -80,7 +80,9 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
   readonly files?: {readonly catalog: RuntimeFileCatalog; readonly bucket: FileBucket};
   readonly providerSecrets?: {readonly storage:VaultStorage;readonly keyring:VaultKeyring;readonly providerId:string};
   readonly providerAvailability?: (request: OperationRequest, providerId: string) => Promise<OperationProviderAvailability>;
-  readonly runtimeInventory?: ModuleSettingsHostInventory }) {
+  readonly runtimeInventory?: ModuleSettingsHostInventory;
+  readonly approvals?:WidgetApprovalService;
+  readonly widgets?:{readonly catalog:CompiledWidgetCatalog;readonly validators:WidgetValidatorMap} }) {
   const { registry } = options, catalog = copyJson(options.catalog, 4 * 1024 * 1024) as unknown as RuntimeDataCatalog;
   if (catalog.compositionDigest !== registry.compositionDigest) throw new OperationError('invalid_catalog');
   const hostInventory = captureHostInventory(options.runtimeInventory, registry.compositionDigest);
@@ -110,7 +112,7 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
       if (request.signal?.aborted) throw new OperationError('cancelled');
       if (operation.validateInput(request.input) !== true) throw new OperationError('invalid_input');
       // Unimplemented effects never silently execute as an ordinary mutation.
-      if (op.approval.mode !== 'none' || op.effects.calls.length || op.effects.emits.length
+      if (op.approval.mode === 'required' && !options.approvals || op.effects.calls.length || op.effects.emits.length
         || op.effects.reads.concat(op.effects.writes).some(ref => ref.moduleId !== operation.moduleId || !['model','file'].includes(ref.kind))
         || op.effects.reads.some(ref => ref.kind === 'file')
         || op.effects.writes.some(ref => ref.kind === 'file') && !options.files) throw new OperationError('unsupported');
@@ -140,7 +142,22 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           if (typeof value !== 'string' || !value.length || encoder.encode(value).length > 512) throw new OperationError('invalid_input');
           idempotencyKey = value;
         } else idempotencyKey = crypto.randomUUID();
-        const keyHash = await hash(idempotencyKey), inputHash = await hash(input);
+        const keyHash = await operationDigest(idempotencyKey), inputHash = await operationDigest(input);
+        let approvalStatements:readonly SqlStatement[]|undefined;
+        if(op.approval.mode==='required') {
+          const existing=await store.lookup(lease,{operationId:op.id,keyHash});
+          if(existing) {
+            if(existing.inputHash!==inputHash)throw new OperationError('conflict');
+            return Object.freeze({execution:checkedExecution(existing,operation),replayed:true});
+          }
+          if(!request.approvalId)throw new OperationError('approval_required');
+          const versionField=op.concurrency.versionField;
+          const objectVersion=versionField&&input&&typeof input==='object'&&!Array.isArray(input)
+            ?(input as DataRecord)[versionField]:undefined;
+          if(typeof objectVersion!=='string'&&typeof objectVersion!=='number')throw new OperationError('invalid_input');
+          approvalStatements=await options.approvals!.prepareConsumption({approvalId:request.approvalId,
+            credential:request.credential,operation,identity:data.describeLease(lease),inputHash,keyHash,objectVersion});
+        } else if(request.approvalId)throw new OperationError('invalid_input');
         if (request.signal?.aborted) throw new OperationError('cancelled');
         const start = await store.start(lease, { operationId: op.id, operationVersion: operation.contractDigest, keyHash, inputHash,
           claimTtlMs: Math.min(OPERATION_LIMITS.maxDurationMs, Math.max(1000, op.execution.maxDurationMs + 5000)),
@@ -217,7 +234,13 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           }, async publicationProof(categoryId, reference) {
             return (await this.preparePublication(categoryId,reference)).plan;
           }} satisfies OperationFilesPort)} : {}),
-          ...(operation.moduleId === 'creezio.modules-settings' && hostInventory ? {hostInventory} : {}) });
+          ...(operation.moduleId === 'creezio.modules-settings' && hostInventory ? {hostInventory} : {}),
+          ...(operation.moduleId === 'creezio.conversations' && options.widgets ? {widgets:createWidgetOperationPort({
+            ...options.widgets,audience:identity.audience,
+            authorize(widget){if(widget.permissions.length)data.requirePermissions(lease,widget.permissions);},
+            authorizeRender(render){try{return registry.resolve(render.moduleId,render.operationId).contractDigest===render.operationDigest;}
+              catch{return false;}},
+          })} : {}) });
         let attemptingCommit = false;
         let nativeStatements: readonly SqlStatement[] | undefined;
         let nativeCompared = false;
@@ -258,7 +281,8 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
             || outbox.some(intent => !op.effects.providers.includes(intent.provider))) throw new OperationError('invalid_output');
           ensure(); attemptingCommit = true;
           const committed = await Promise.race([store.commit(lease, start.claim, { plans, output, outbox,
-            ...(nativeStatements ? {nativeStatements} : {}) }), cancellation]);
+            ...(nativeStatements ? {nativeStatements} : {}),
+            ...(approvalStatements ? {approvalStatements} : {}) }), cancellation]);
           return Object.freeze({ execution: checkedExecution(committed, operation), replayed: false });
         } catch (error) {
           const code = errorCode(error);
@@ -296,7 +320,7 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
       if (operation.declaration.idempotency.mode !== 'required') throw new OperationError('unsupported');
       const lease = await authorize(request, operation);
       try {
-        const execution = await store.lookup(lease, {operationId: operation.declaration.id, keyHash: await hash(request.requestKey)});
+        const execution = await store.lookup(lease, {operationId: operation.declaration.id, keyHash: await operationDigest(request.requestKey)});
         return execution ? checkedExecution(execution, operation) : null;
       } catch (error) { if (error instanceof OperationError) throw error; throw new OperationError(errorCode(error)); }
       finally { data.dispose(lease); }

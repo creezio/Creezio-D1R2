@@ -33,3 +33,7 @@ Changelog éditeur, journal des installations et révisions locales de travail r
 ## Validation T11 et T12
 
 Six suites du module, graphe transitif multiéditeur et optional autonome ; tests D1 du premier accept concurrent et du CAS suivant ; garde fraîche révoquée ; API/MCP et reprise idempotente ; recette navigateur sur le vrai Worker. T30 qualifie séparément distribution externe complète, et T32 le publisher.
+
+## Widget de fiche T16
+
+Le widget administrateur `module-detail` rend la sortie de l'opération de lecture `catalog.detail` dans un hôte MCP Apps. Son bouton de relecture appelle le même outil MCP, sans écriture ni tour IA. Il conserve les droits `manage`, l'audience `admin`, un texte de repli MCP et une ressource HTML compilée et versionnée. L'interface Product Hub existante et ses opérations de plan restent inchangées. La recette multi-module et ChatGPT réel appartient à T16 ; les tests du module valident les contrats locaux.

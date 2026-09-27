@@ -462,6 +462,247 @@
     "public": false
   },
   {
+    "id": "widget_context",
+    "title": "Contextes des widgets",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "owner_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "audience",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "admin",
+            "app"
+          ]
+        }
+      },
+      {
+        "id": "conversation_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "instance_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "actor_principal_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "namespace",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "module-instance"
+          ]
+        }
+      },
+      {
+        "id": "widget_module_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "widget_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "widget_version",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "message_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "action_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "value",
+        "type": "json",
+        "nullable": true,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "expires_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "removed_at",
+        "type": "date-time",
+        "nullable": true,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "updated_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "owner_id",
+      "audience",
+      "conversation_id",
+      "actor_principal_id",
+      "instance_id",
+      "namespace"
+    ],
+    "indexes": [
+      {
+        "id": "by-conversation",
+        "fields": [
+          "context_id",
+          "owner_id",
+          "audience",
+          "conversation_id",
+          "actor_principal_id",
+          "updated_at",
+          "instance_id"
+        ],
+        "unique": false
+      }
+    ],
+    "relations": [
+      {
+        "id": "conversation",
+        "fields": [
+          "context_id",
+          "owner_id",
+          "audience",
+          "conversation_id"
+        ],
+        "target": {
+          "moduleId": "creezio.conversations",
+          "kind": "model",
+          "id": "conversation"
+        },
+        "targetFields": [
+          "context_id",
+          "owner_id",
+          "audience",
+          "id"
+        ],
+        "onDelete": "restrict"
+      }
+    ],
+    "permissions": [
+      {
+        "moduleId": "creezio.conversations",
+        "kind": "permission",
+        "id": "use"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
     "id": "turn",
     "title": "Tours de conversation",
     "scope": "context",
@@ -600,6 +841,13 @@
           "minLength": 1,
           "maxLength": 128
         }
+      },
+      {
+        "id": "widget_context_snapshot",
+        "type": "json",
+        "nullable": true,
+        "protected": false,
+        "computed": false
       }
     ],
     "primaryKey": [

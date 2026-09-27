@@ -7,3 +7,5 @@ Un plan accepté reste en attente de publication. La composition réellement emb
 Les fiches présentent README, PRD et changelog embarqués avec cette version, consultables aussi par API et MCP avec les mêmes droits. Le journal de l'application et les futures révisions de travail sont distincts du changelog de l'éditeur.
 
 Le contrat et les limites sont dans [le PRD](prd.md) et le travail restant dans [TODO](TODO.md).
+
+T16 ajoute une fiche de module en widget MCP Apps, réservée à l'audience administrateur. Elle réutilise l'opération `catalog.detail` en lecture seule et ses droits existants. La liste et la fiche Product Hub restent l'interface d'administration principale.

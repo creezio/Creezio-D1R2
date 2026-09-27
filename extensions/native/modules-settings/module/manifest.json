@@ -3471,7 +3471,12 @@
             "idempotent": true,
             "openWorld": false
           },
-          "textFallback": true
+          "textFallback": true,
+          "widget": {
+            "moduleId": "creezio.modules-settings",
+            "kind": "widget",
+            "id": "module-detail"
+          }
         },
         {
           "id": "plans.preview",
@@ -3642,7 +3647,42 @@
           "textFallback": true
         }
       ],
-      "resources": [],
+      "resources": [
+        {
+          "id": "module-detail-ui",
+          "uri": "ui://creezio.modules-settings/module-detail",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "permission",
+              "id": "manage"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/module-detail.html"
+          },
+          "widget": {
+            "moduleId": "creezio.modules-settings",
+            "kind": "widget",
+            "id": "module-detail"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        }
+      ],
       "prompts": [],
       "skills": []
     },
@@ -3829,7 +3869,73 @@
       },
       "styles": []
     },
-    "widgets": [],
+    "widgets": [
+      {
+        "id": "module-detail",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "module-detail-ui",
+        "renderer": {
+          "path": "ui/widgets/module-detail.ts",
+          "export": "startWidget"
+        },
+        "input": {
+          "schemaId": "catalog-detail-output"
+        },
+        "state": {
+          "schemaId": "panel-state"
+        },
+        "result": {
+          "schemaId": "catalog-detail-output"
+        },
+        "audiences": [
+          "admin"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "detail.read",
+            "label": "Relire la fiche",
+            "input": {
+              "schemaId": "catalog-detail-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.modules-settings",
+                "kind": "operation",
+                "id": "catalog.detail"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 65536,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      }
+    ],
     "publicContracts": []
   },
   "documentation": {
@@ -3909,15 +4015,11 @@
         ]
       },
       "widgets": {
-        "mode": "not-applicable",
+        "mode": "required",
         "script": "ci/widgets.mjs",
         "tests": [
           "tests/widgets/contract.test.mjs"
-        ],
-        "justification": {
-          "reason": "This module exposes administrative tools, without a conversational widget.",
-          "policyRule": "modules-settings.no-widgets"
-        }
+        ]
       },
       "package": {
         "mode": "required",
@@ -3969,7 +4071,9 @@
         "plugin/mcp.json",
         "plugin/contributions.ts",
         "module/documentation.ts",
-        "ui/documentation.tsx"
+        "ui/documentation.tsx",
+        "ui/widgets/module-detail.html",
+        "ui/widgets/module-detail.ts"
       ],
       "references": []
     },
@@ -4015,10 +4119,6 @@
       "files": {
         "reason": "Module lifecycle stores declarative plans and no user-owned binary files.",
         "policyRule": "modules-settings.no-files"
-      },
-      "widgets": {
-        "reason": "No conversational widget is declared in this module.",
-        "policyRule": "modules-settings.no-widgets"
       }
     },
     "dependencyChanges": {

@@ -43,7 +43,7 @@ function validateBinding(binding: OperationHttpBinding, audience: AccessAudience
       || fields.has(parameter.inputField)) throw new TypeError('Invalid operation HTTP parameter.');
     names.add(`${parameter.in}:${parameter.name}`); fields.add(parameter.inputField);
     if (parameter.in === 'header' && (!/^[A-Za-z][A-Za-z0-9-]{0,127}$/.test(parameter.name)
-      || ['authorization', 'cookie', 'origin', 'host', 'content-type', 'accept', 'x-creezio-context', 'x-creezio-request'].includes(parameter.name.toLowerCase())))
+      || ['authorization', 'cookie', 'origin', 'host', 'content-type', 'accept', 'x-creezio-context', 'x-creezio-request', 'x-creezio-request-key', 'x-creezio-approval-id'].includes(parameter.name.toLowerCase())))
       throw new TypeError('Reserved operation HTTP header.');
   }
   const placeholders = [...binding.path.matchAll(/\{([^}]+)\}/g)].map(match => match[1]);
@@ -66,10 +66,12 @@ function primitive(value: unknown, codec: OperationHttpBinding['parameters'][num
   if (codec === 'boolean' && typeof value === 'boolean') return String(value);
   return null;
 }
-function requestParts(origin: string, binding: OperationHttpBinding, contextId: string, input: Record<string, unknown>) {
+function requestParts(origin: string, binding: OperationHttpBinding, contextId: string, input: Record<string, unknown>, approvalId?: string) {
+  if (approvalId !== undefined && (!id(approvalId) || approvalId.length > 128)) return null;
   const fields = new Set<string>(); let path = binding.path;
   const url = new URL(path, origin);
   const headers = new Headers({'accept': 'application/json', 'x-creezio-context': contextId});
+  if (approvalId) headers.set('x-creezio-approval-id', approvalId);
   if (binding.method !== 'GET') { headers.set('content-type', 'application/json'); headers.set('x-creezio-request', '1'); }
   for (const parameter of binding.parameters) {
     const value = Object.hasOwn(input, parameter.inputField) ? input[parameter.inputField] : undefined;

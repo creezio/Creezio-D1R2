@@ -1,6 +1,13 @@
 # Changelog
 
-## 0.0.0 — T15 en qualification
+## 0.0.0 — T16 en qualification
+
+- Messages à plusieurs instances de widgets MCP Apps et lecture du résultat métier durable lié à leur affichage.
+- Actions distinctes : proposition de message, contexte du prochain tour, opération directe avec journal préalable et réconciliation.
+- Contexte de widget privé, remplaçable et supprimable ; capture du contexte autorisé lors du démarrage du tour.
+- Même hôte public du SDK dans le panneau original, le workspace et les thèmes de front. Qualification navigateur et ChatGPT suivie séparément.
+
+## 0.0.0 — T15
 
 - Tours OpenAI explicites avec événements persistants, arrêt et reprise ; le panneau Creezio reste commun au workspace et au front.
 - Conservation des échanges déjà chargés lors des envois successifs et de la réception du message final.

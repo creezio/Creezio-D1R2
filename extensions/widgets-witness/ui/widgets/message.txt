@@ -1,0 +1,1 @@
+Partager la fiche {{id}} : {{title}} (révision {{revision}}).

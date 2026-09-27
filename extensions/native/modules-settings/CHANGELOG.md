@@ -4,6 +4,10 @@
 
 Le Product Hub ne déduit plus « Configuration manquante / Indisponible » d'un réglage fournisseur obligatoire absent de la composition. Son état reste non vérifié tant qu'aucun état runtime autorisé n'est fourni ; les réglages ordinaires obligatoires absents restent signalés comme manquants.
 
+## Non publié — T16
+
+Ajout d'un widget MCP Apps de fiche de module, administrateur et lecture seule, lié à `catalog.detail`. Les octets HTML et leur profil CSP sont compilés ; aucune donnée ni opération métier nouvelle. La suite widgets devient requise.
+
 ## Non publié — précision des erreurs
 
 Les contrats de lecture de fiche, plan et documentation déclarent explicitement `not_found`, déjà retourné par le service. Aucun changement de données ou de droits.

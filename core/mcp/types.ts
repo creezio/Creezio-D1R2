@@ -1,4 +1,5 @@
 import type { AuthorizationAudience } from '../authorization/types.ts';
+import type {WidgetUiMeta, Integrity} from '../../sdk/widgets/catalog.ts';
 
 export type McpCredential = { readonly kind: 'oauth'; readonly token: string; readonly resource: string }
   | { readonly kind: 'api-token'; readonly token: string };
@@ -16,6 +17,11 @@ export interface McpToolBinding {
   readonly context: 'application' | 'required';
   readonly permissions: readonly string[];
   readonly contractDigest: string;
+  readonly ui?: Readonly<{
+    resourceUri: string;
+    visibility: readonly ('model' | 'app')[];
+    widget: Readonly<{moduleId: string; widgetId: string; version: string; resourceDigest: Integrity}>;
+  }>;
 }
 export interface McpResourceBinding {
   readonly id: string;
@@ -26,7 +32,11 @@ export interface McpResourceBinding {
   readonly permissions: readonly string[];
   readonly actors: readonly string[];
   readonly context: 'application' | 'required';
-  readonly source: Readonly<{kind: 'asset'; path: string} | {kind: 'operation'; moduleId: string; operationId: string}>;
+  readonly source: Readonly<
+    {kind: 'asset'; path: string} |
+    {kind: 'operation'; moduleId: string; operationId: string} |
+    {kind: 'compiled-widget'; digest: Integrity; cspProfileId: Integrity; text: string; uiMeta: WidgetUiMeta}
+  >;
 }
 export interface McpCatalog {
   readonly tools: readonly McpToolBinding[];

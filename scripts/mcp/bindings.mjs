@@ -1,4 +1,5 @@
 /** Build-time projection of reviewed MCP contributions onto canonical operations. */
+import {contractIntegrity} from '../../sdk/contracts/validate.mjs';
 export class McpBindingError extends Error {
   constructor(code) { super(`Invalid MCP binding (${code}).`); this.name = 'McpBindingError'; this.code = code; }
 }
@@ -9,10 +10,11 @@ const toolName = value => typeof value === 'string' && value.length <= 128 && /^
 const actorFor = Object.freeze({oauth: 'delegated-user', 'api-token': 'machine'});
 const json = value => JSON.stringify(value);
 
-export function compileMcpBindings({composition, modules, operationCatalog, disabledContributions = []}) {
+export function compileMcpBindings({composition, modules, operationCatalog, disabledContributions = [], widgetCatalog = {widgets: [], resources: []}}) {
   if (!composition || !Array.isArray(composition.modules) || !composition.exposure
     || !Array.isArray(modules) || operationCatalog?.schemaVersion !== 1 || !Array.isArray(operationCatalog.modules)
-    || !Array.isArray(disabledContributions)) fail('catalog');
+    || !Array.isArray(disabledContributions) || !Array.isArray(widgetCatalog.widgets)
+    || !Array.isArray(widgetCatalog.resources)) fail('catalog');
   const descriptors = new Map(modules.map(module => [module.identity?.id, module]));
   const selected = new Map(composition.modules.map(item => [item.moduleId, item]));
   const operations = new Map(operationCatalog.modules.flatMap(module => module.operations.map(entry =>
@@ -20,6 +22,8 @@ export function compileMcpBindings({composition, modules, operationCatalog, disa
   const active = (moduleId, pointer) => !disabledContributions.some(item => item.moduleId === moduleId
     && (item.path === pointer || pointer.startsWith(`${item.path}/`)));
   const exposed = (moduleId, audience) => composition.exposure[audience]?.moduleIds?.includes(moduleId) === true;
+  const widgetFor = ref => widgetCatalog.widgets.find(item => item.moduleId === ref?.moduleId && item.widgetId === ref?.id);
+  const widgetResourceFor = widget => widgetCatalog.resources.find(item => item.uri === widget?.resourceUri);
   const tools = [], resources = [], seenTools = new Set(), seenResources = new Set();
   for (const selection of composition.modules) {
     if (!selection.enabled) continue;
@@ -37,9 +41,12 @@ export function compileMcpBindings({composition, modules, operationCatalog, disa
       const inputSchema = descriptors.get(owner)?.contracts?.schemas?.find(schema => schema.id === op.input.schemaId)?.schema;
       const outputSchema = descriptors.get(owner)?.contracts?.schemas?.find(schema => schema.id === op.output.schemaId)?.schema;
       if (!inputSchema || inputSchema.type !== 'object' || !outputSchema || outputSchema.type !== 'object') fail('schema');
+      const widget = tool.widget ? widgetFor(tool.widget) : undefined;
+      if (tool.widget && (!widget || contractIntegrity(outputSchema) !== widget.schemas.input.digest)) fail('widget');
       for (const audience of tool.audiences) {
         if (!['admin', 'app'].includes(audience) || !op.audiences.includes(audience)) fail('audience');
         if (!exposed(selection.moduleId, audience)) continue;
+        if (widget && !widget.audiences.includes(audience)) continue;
         const key = `${audience}:${tool.name}`;
         if (seenTools.has(key)) fail('collision');
         seenTools.add(key);
@@ -49,7 +56,10 @@ export function compileMcpBindings({composition, modules, operationCatalog, disa
           inputSchema: structuredClone(inputSchema), outputSchema: structuredClone(outputSchema),
           annotations: structuredClone(tool.annotations), context: op.context,
           permissions: Object.freeze(op.permissions.map(ref => `${ref.moduleId}:${ref.id}`)),
-          contractDigest: entry.contractDigest}));
+          contractDigest: entry.contractDigest,
+          ...(widget ? {ui: {resourceUri: widget.resourceUri, visibility: ['model', 'app'],
+            widget: {moduleId: widget.moduleId, widgetId: widget.widgetId, version: widget.version,
+              resourceDigest: widget.resourceDigest}}} : {})}));
       }
     }
     for (const [index, resource] of descriptor.contracts.mcp.resources.entries()) {
@@ -66,19 +76,27 @@ export function compileMcpBindings({composition, modules, operationCatalog, disa
         if (!entry?.active || !selected.get(owner)?.enabled || entry.operation.kind !== 'query') fail('resource');
         source = {kind: 'operation', moduleId: owner, operationId: entry.operation.id};
       } else fail('resource');
+      const widget = resource.widget ? widgetFor(resource.widget) : undefined;
+      const compiledResource = widget ? widgetResourceFor(widget) : undefined;
+      if (resource.widget && (!widget || !compiledResource || source.kind !== 'asset')) fail('widget');
       for (const audience of resource.audiences) {
         if (!['admin', 'app'].includes(audience)) fail('audience');
         if (!exposed(selection.moduleId, audience)) continue;
-        const key = `${audience}:${resource.uri}`;
+        if (widget && !widget.audiences.includes(audience)) continue;
+        const uri = compiledResource?.uri ?? resource.uri;
+        const key = `${audience}:${uri}`;
         if (seenResources.has(key)) fail('collision');
         seenResources.add(key);
-        resources.push(Object.freeze({id: resource.id, uri: resource.uri, mimeType: resource.mimeType,
+        resources.push(Object.freeze({id: resource.id, uri, mimeType: resource.mimeType,
           contributorModuleId: selection.moduleId, audience,
-          permissions: Object.freeze(resource.permissions.map(ref => `${ref.moduleId}:${ref.id}`)),
+          permissions: Object.freeze([...new Set(resource.permissions.map(ref => `${ref.moduleId}:${ref.id}`)
+            .concat(widget?.permissions ?? []))]),
           actors: Object.freeze(source.kind === 'operation' ? [...operations.get(`${source.moduleId}:${source.operationId}`).operation.actors]
             : ['delegated-user', 'machine']),
           context: source.kind === 'operation' ? operations.get(`${source.moduleId}:${source.operationId}`).operation.context : 'required',
-          source: Object.freeze(source)}));
+          source: Object.freeze(compiledResource ? {kind: 'compiled-widget',
+            digest: compiledResource.digest, cspProfileId: compiledResource.cspProfileId,
+            text: compiledResource.text, uiMeta: compiledResource.uiMeta} : source)}));
       }
     }
   }

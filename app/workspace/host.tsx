@@ -10,6 +10,7 @@ import {Workspace, type WorkspaceRenderProps} from '../../sdk/workspace/componen
 import type {WorkspaceProjection, WorkspaceNavigation} from '../../sdk/workspace/types';
 import {readProjection, WorkspaceAccessRefused} from './projection-client';
 import {CreezioShell} from '../../admin/workspace/workspace-shell';
+import {WidgetHostProvider} from '../../sdk/widgets/provider';
 
 export function WorkspaceHost({audience}: {audience: AccessAudience}) {
   const [access, setAccess] = useState<AccessController | null>(null);
@@ -97,7 +98,14 @@ function BoundWorkspace({access}: {access: AccessController}) {
       onRefreshAccess={() => {setProjection(null);void access.refresh();}}
       onLogout={() => {setProjection(null);void access.logout();}} />;
   };
-  return <>
+  return <WidgetHostProvider origin={access.origin} audience={access.audience} contextId={contextId} access={access}
+    operationClient={client} resolveOperationBinding={({moduleId,operationId,operationDigest}) => {
+      const matches = httpBindings.filter(binding => binding.audience === access.audience && binding.auth.includes('session')
+        && binding.moduleId === moduleId && binding.operationId === operationId && binding.contractDigest === operationDigest);
+      const binding = matches.find(item => item.contributorModuleId === moduleId)
+        ?? matches.sort((a,b) => `${a.contributorModuleId}:${a.id}`.localeCompare(`${b.contributorModuleId}:${b.id}`))[0];
+      return binding ? `${binding.contributorModuleId}:${binding.id}` : null;
+    }}>
     {!authenticated && <section className="workspace-host-access"><NativeAccessPanel audience={access.audience} controller={access} /></section>}
     {!contextId ? <p role="alert">Le contexte demandé est invalide.</p> : error ? <div role="alert">Impossible de vérifier l’accès aux vues.
       <button type="button" onClick={() => setAttempt(value => value + 1)}>Réessayer</button></div> : null}
@@ -111,5 +119,5 @@ function BoundWorkspace({access}: {access: AccessController}) {
         window.history.replaceState(null, '', current);
       }} />
     </div>
-  </>;
+  </WidgetHostProvider>;
 }

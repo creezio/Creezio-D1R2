@@ -17,7 +17,7 @@ const tool = audience => ({name: `${audience}_read`, contributorModuleId: 'examp
   context: 'application', permissions: ['example.one:read'], contractDigest: digest});
 const registry = {resolve() {return {declaration: operation, contractDigest: digest};}};
 
-function fixture(withResource = false) {
+function fixture(withResource = false, withWidget = false) {
   const calls = [], rawTools = [], access = {allow: true, engine: 'success'};
   const engine = {async invoke(value) {
     calls.push(value);
@@ -27,7 +27,16 @@ function fixture(withResource = false) {
       output: null, errorCode: 'unauthorized'}, replayed: false};
     return {execution: {id: 'execution-1', state: 'succeeded', output: {ok: true}, errorCode: null}, replayed: false};
   }};
-  const catalog = {tools: [tool('admin'), tool('app')], resources: withResource ? [{id: 'guide', uri: 'creezio://admin/guide',
+  const widgetUri = `ui://creezio/example.one/widget/1.0.0/${digest}.html`;
+  const widgetTool = {...tool('admin'), ui: {resourceUri: widgetUri, visibility: ['model', 'app'],
+    widget: {moduleId: 'example.one', widgetId: 'widget', version: '1.0.0', resourceDigest: digest}}};
+  const widgetResource = {id: 'widget', uri: widgetUri, mimeType: 'text/html;profile=mcp-app',
+    contributorModuleId: 'example.one', audience: 'admin', permissions: ['example.one:read'],
+    actors: ['delegated-user'], context: 'application', source: {kind: 'compiled-widget', digest,
+      cspProfileId: `sha256-${'b'.repeat(64)}`, text: '<!doctype html><html></html>',
+      uiMeta: {csp: {connectDomains: [], resourceDomains: [], frameDomains: [], baseUriDomains: []}, permissions: {}}}};
+  const catalog = {tools: [withWidget ? widgetTool : tool('admin'), tool('app')],
+    resources: withWidget ? [widgetResource] : withResource ? [{id: 'guide', uri: 'creezio://admin/guide',
     mimeType: 'text/plain', contributorModuleId: 'example.one', audience: 'admin',
     permissions: ['example.one:read'], actors: ['delegated-user'], context: 'application',
     source: {kind: 'asset', path: 'plugin/guide.txt'}}] : []};
@@ -62,11 +71,11 @@ function fixture(withResource = false) {
   };
   return {calls, rawTools, access, transport, fetch};
 }
-const makeClient = (f, audience, modern) => {
+const makeClient = (f, audience, modern, token = 'valid') => {
   const client = new Client({name: 'test-client', version: '1.0.0'}, modern
     ? {versionNegotiation: {mode: {pin: '2026-07-28'}}} : undefined);
   const wire = new StreamableHTTPClientTransport(new URL(`${origin}/mcp/${audience}`),
-    {fetch: f.fetch, authProvider: {token: async () => 'valid'}});
+    {fetch: f.fetch, authProvider: {token: async () => token}});
   return {client, wire};
 };
 
@@ -137,4 +146,140 @@ test('MCP resource list and read obey audience and fresh permission', async () =
   const app = makeClient(f, 'app', true);
   try { await app.client.connect(app.wire); assert.deepEqual((await app.client.listResources()).resources, []); }
   finally { await app.client.close(); }
+});
+
+test('MCP Apps tool and compiled resource preserve UI metadata, text fallback and live authorization', async () => {
+  const f = fixture(false, true), {client, wire} = makeClient(f, 'admin', true);
+  try {
+    await client.connect(wire);
+    assert.deepEqual(client.getServerCapabilities()?.extensions?.['io.modelcontextprotocol/ui']?.mimeTypes,
+      ['text/html;profile=mcp-app']);
+    const tool = (await client.listTools()).tools.find(item => item.name === 'admin_read');
+    assert.ok(tool?._meta?.ui?.resourceUri.startsWith('ui://creezio/'));
+    assert.deepEqual(tool?._meta?.ui?.visibility, ['model', 'app']);
+    const result = await client.callTool({name: 'admin_read', arguments: {}});
+    assert.equal(result.structuredContent?.kind, 'creezio.widget.render.v1');
+    assert.equal(result.structuredContent?.instance.resourceUri, tool._meta.ui.resourceUri);
+    assert.deepEqual(result.structuredContent?.input, {ok: true});
+    assert.equal(result.content[0].type, 'text');
+    const read = await client.readResource({uri: tool._meta.ui.resourceUri});
+    assert.equal(read.contents[0].text, '<!doctype html><html></html>');
+    assert.deepEqual(read.contents[0]._meta?.ui?.csp?.connectDomains, []);
+    f.access.allow = false;
+    await assert.rejects(() => client.readResource({uri: tool._meta.ui.resourceUri}));
+  } finally { await client.close(); }
+});
+
+test('MCP approval pointer stays in request metadata outside operation arguments', async () => {
+  const f = fixture(), {client, wire} = makeClient(f, 'admin', true);
+  try {
+    await client.connect(wire);
+    await client.callTool({name: 'admin_read', arguments: {}, _meta: {'creezio/approvalId': 'approval-1'}});
+    assert.equal(f.calls[0].approvalId, 'approval-1');
+    assert.deepEqual(f.calls[0].input, {});
+    const denied = await client.callTool({name: 'admin_read', arguments: {},
+      _meta: {'creezio/approvalId': 'invalid/id'}});
+    assert.equal(denied.isError, true);
+    assert.equal(f.calls.length, 1);
+  } finally { await client.close(); }
+});
+
+test('MCP OAuth approval exposes a native URL, deduplicates the grant and preserves exact retry input', async () => {
+  const input = {id: 'record-1', title: 'Updated', record_version: 2, request_key: 'same-key'};
+  const grantCalls = [], resolveCalls = [], invokes = [];
+  let approved = false, expired = false, revoked = false, effects = 0;
+  const declaration = {id: 'rename', kind: 'command', context: 'required', audiences: ['admin'],
+    actors: ['delegated-user', 'machine'], permissions: [{moduleId: 'example.one', id: 'edit'}]};
+  const binding = {...tool('admin'), name: 'admin_rename', operationId: 'rename',
+    auth: ['oauth', 'api-token'], actors: ['delegated-user', 'machine'], context: 'required',
+    permissions: ['example.one:edit'], annotations: {readOnly: false, destructive: true,
+      idempotent: true, openWorld: false},
+    inputSchema: {type: 'object', additionalProperties: false, properties: {
+      id: {type: 'string'}, title: {type: 'string'}, record_version: {type: 'integer'},
+      request_key: {type: 'string'}}, required: ['id', 'title', 'record_version', 'request_key']}};
+  const transport = createMcpHttpTransport({tools: [binding], resources: []},
+    {resolve: () => ({declaration, contractDigest: digest})},
+    {async invoke(value) {
+      invokes.push(value);
+      if (!value.approvalId) throw new OperationError('approval_required');
+      if (!approved || value.approvalId !== 'approval-1' || JSON.stringify(value.input) !== JSON.stringify(input))
+        throw new OperationError('forbidden');
+      effects++;
+      return {execution: {id: 'execution-1', state: 'succeeded', output: {ok: true}, errorCode: null},
+        replayed: false};
+    }}, {origin, resourceMetadataUrl: audience => `${origin}/metadata/${audience}`,
+      async authenticate(request, _audience, resource) {
+        const bearer = request.headers.get('authorization');
+        return bearer === 'Bearer valid' && !revoked ? {credential: {kind: 'oauth', token: 'valid', resource},
+          contextId: 'tenant-a'} : bearer === 'Bearer machine'
+          ? {credential: {kind: 'api-token', token: 'machine'}, contextId: 'tenant-a'} : null;
+      },
+      async canDiscover() {return true;},
+      approvals: {async resolveApproved(value) {
+        resolveCalls.push(value);
+        assert.equal(value.credential.kind, 'oauth');
+        return approved && !expired && JSON.stringify(value.input) === JSON.stringify(input)
+          ? {approvalId: 'approval-1'} : null;
+      }, async request(value) {
+        grantCalls.push(value);
+        assert.equal(value.credential.kind, 'oauth');
+        if (approved || expired || JSON.stringify(value.input) !== JSON.stringify(input))
+          throw new OperationError('conflict');
+        return {approvalId: 'approval-1', state: 'pending', expiresAtMs: Date.now() + 60_000};
+      }}});
+  const fetch = (url, init) => transport.dispatch(new Request(url, init), 'admin', 'request-approval');
+  const oauth = makeClient({fetch}, 'admin', true);
+  try {
+    await oauth.client.connect(oauth.wire);
+    const first = await oauth.client.callTool({name: 'admin_rename', arguments: input});
+    assert.equal(first.isError, true);
+    assert.equal(first._meta?.['creezio/approval']?.approvalId, 'approval-1');
+    assert.equal(first._meta?.['creezio/approval']?.url,
+      `${origin}/approvals/admin/approval-1?context=tenant-a`);
+    assert.match(first.content[0].text, /https:\/\/example\.invalid\/approvals\/admin\/approval-1/);
+    assert.match(first.content[0].text, /_meta\["creezio\/approvalId"\] set to approval-1/);
+    assert.equal(JSON.stringify(first).includes('Bearer valid'), false, 'OAuth bearer is absent from result');
+    assert.equal(grantCalls.length, 1);
+    assert.equal(effects, 0);
+    const repeated = await oauth.client.callTool({name: 'admin_rename', arguments: input});
+    assert.equal(repeated._meta?.['creezio/approval']?.approvalId, 'approval-1');
+    assert.equal(grantCalls.length, 2);
+    assert.equal(effects, 0);
+    const pointer = {_meta: {'creezio/approvalId': 'approval-1'}};
+    assert.equal((await oauth.client.callTool({name: 'admin_rename', arguments: input, ...pointer})).isError, true);
+    assert.equal(effects, 0);
+    approved = true;
+    assert.equal((await oauth.client.callTool({name: 'admin_rename',
+      arguments: {...input, title: 'Altered'}, ...pointer})).isError, true);
+    assert.equal(effects, 0);
+    const altered = await oauth.client.callTool({name: 'admin_rename',
+      arguments: {...input, title: 'Altered'}});
+    assert.equal(altered.isError, true);
+    assert.equal(effects, 0);
+    expired = true;
+    assert.equal((await oauth.client.callTool({name: 'admin_rename', arguments: input})).isError, true);
+    assert.equal(effects, 0);
+    expired = false;
+    revoked = true;
+    await assert.rejects(oauth.client.callTool({name: 'admin_rename', arguments: input}));
+    assert.equal(effects, 0);
+    revoked = false;
+    const final = await oauth.client.callTool({name: 'admin_rename', arguments: input});
+    assert.equal(final.isError, undefined);
+    assert.deepEqual(final.structuredContent, {ok: true});
+    assert.equal(effects, 1);
+    assert.deepEqual(invokes.at(-1).input, input);
+    assert.equal(invokes.at(-1).approvalId, 'approval-1');
+    assert.equal(grantCalls.length, 4, 'exact approved retry resolves without requesting another grant');
+    assert.equal(resolveCalls.length, 5);
+  } finally {await oauth.client.close();}
+  const machine = makeClient({fetch}, 'admin', true, 'machine');
+  try {
+    await machine.client.connect(machine.wire);
+    const denied = await machine.client.callTool({name: 'admin_rename', arguments: input});
+    assert.equal(denied.isError, true);
+    assert.equal(denied._meta?.['creezio/approval'], undefined);
+    assert.equal(grantCalls.length, 4, 'API token cannot create human approval grant');
+    assert.equal(effects, 1);
+  } finally {await machine.client.close();}
 });

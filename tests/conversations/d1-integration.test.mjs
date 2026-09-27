@@ -19,6 +19,7 @@ import {dispatchFileHttp} from '../../core/files/http.ts';
 import {compileMcpBindings} from '../../scripts/mcp/bindings.mjs';
 import {createMcpHttpTransport} from '../../core/mcp/http.ts';
 import {fileOwnerId} from '../../core/files/catalog.ts';
+import {createWidgetSnapshot} from '../../core/widgets/snapshot.ts';
 import * as handlers from '../../extensions/native/conversations/module/operations.ts';
 
 const manifest=JSON.parse(readFileSync(new URL('../../extensions/native/conversations/module/manifest.json',import.meta.url),'utf8'));
@@ -263,6 +264,59 @@ test('Conversations operations use real D1 authority, CAS, cursors and atomic fi
     assert.deepEqual(escapedEvents.map(item=>item.sequence),Array.from({length:50},(_,index)=>index+2));
     data.dispose(lease);
     assert.equal(second.revision,1);
+    const widget={moduleId:'creezio.widgets-witness',widgetId:'card',version:'1.0.0',
+      resourceDigest:`sha256-${'a'.repeat(64)}`,
+      resourceUri:`ui://creezio/creezio.widgets-witness/card/1.0.0/sha256-${'a'.repeat(64)}.html`,
+      audiences:['admin'],permissions:[],renderTools:[{toolName:'witness_card_read',operationModuleId:moduleId,
+        operationId:'message.list',operationDigest:digest,audiences:['admin']}],actions:[{id:'pin',mode:'context',
+        target:{namespace:'module-instance',fields:['selected'],expiresAfterSeconds:3600}}]};
+    const widgets={catalog:{widgets:[widget],resources:[]},validators:new Map([
+      [`${widget.moduleId}\0${widget.widgetId}\0${widget.version}`,{state:value=>value&&typeof value==='object',
+        actionInputs:new Map([['pin',value=>value&&typeof value==='object'&&typeof value.selected==='string']])}],
+    ])};
+    const widgetEngine=createOperationEngine({db,catalog,registry:registry(),permissions,widgets,
+      providerAvailability:async(_request,providerId)=>({providerId,state:'ready',modelIds:['model-a']})});
+    const widgetInvoke=(operationId,input)=>widgetEngine.invoke({credential:{kind:'session',token:ownerAdmin.token},
+      moduleId,operationId,contextId:'application',audience:'admin',input});
+    const widgetConversation=success(await widgetInvoke('conversation.create',{
+      requestKey:'widget-conversation',mode:'chat',title:'Contexte widget'})).conversation;
+    const widgetMessage=success(await widgetInvoke('widget.message.create',{requestKey:'widget-message',
+      conversationId:widgetConversation.id,revision:1,
+      instances:[{moduleId:widget.moduleId,widgetId:widget.widgetId,widgetVersion:widget.version,state:{}}]})).message;
+    assert.equal(widgetMessage.content.instances[0].widgetId,'card');
+    const contextBase={conversationId:widgetConversation.id,messageId:widgetMessage.id,
+      instanceId:widgetMessage.content.instances[0].instanceId,instanceRevision:1,actionId:'pin',input:{selected:'alpha'}};
+    const replaced=success(await widgetInvoke('widget.context.replace',{requestKey:'context-replace',
+      ...contextBase,expectedRevision:0})).context;
+    assert.equal(replaced.revision,1);assert.equal(replaced.value.selected,'alpha');
+    const contextRead=success(await widgetInvoke('widget.context.read',Object.fromEntries(
+      Object.entries(contextBase).filter(([key])=>key!=='input')))).context;
+    assert.equal(contextRead.revision,1);
+    const removedContext=success(await widgetInvoke('widget.context.remove',{requestKey:'context-remove',
+      ...contextBase,expectedRevision:1})).context;
+    assert.equal(removedContext.removed,true);assert.equal(removedContext.revision,2);
+    const resumed=success(await widgetInvoke('widget.context.replace',{requestKey:'context-resume',
+      ...contextBase,expectedRevision:2})).context;
+    assert.equal(resumed.revision,3);
+    const widgetTurn=await widgetInvoke('turn.start',{requestKey:'widget-turn',conversationId:widgetConversation.id,
+      messageId:'widget-user-message',body:'Continue',revision:2,draftRevision:0,modelId:'model-a'});
+    assert.equal(widgetTurn.execution.state,'waiting');
+    const turnRow=await db.prepare(`SELECT widget_context_snapshot FROM "${generated.tables.turn}" WHERE id=?`)
+      .bind(widgetTurn.execution.output.turn.id).first();
+    assert.equal(JSON.parse(turnRow.widget_context_snapshot)[0].revision,3);
+    // A real tool turn stores a host-created renderExecution pointer. The list output schema must accept it on reload.
+    const rendered=await widgetInvoke('message.list',{conversationId:widgetConversation.id,limit:1});
+    const renderExecution={moduleId,operationId:'message.list',operationDigest:digest,executionId:rendered.execution.id};
+    const snapshot=createWidgetSnapshot([{moduleId:widget.moduleId,widgetId:widget.widgetId,
+      widgetVersion:widget.version,state:{},renderExecution}],widgets.catalog,widgets.validators,'admin',()=>true,()=>true);
+    await db.prepare(`INSERT INTO "${generated.tables.message}"
+      (context_id,owner_id,audience,conversation_id,id,role,body,content,created_at,revision)
+      VALUES (?,?,?,?,?,'tool','Widget interactif',?,?,1)`)
+      .bind('application',owner.principalId,'admin',widgetConversation.id,'rendered-widget',
+        JSON.stringify(snapshot),new Date(Date.now()+1000).toISOString()).run();
+    const reopened=success(await widgetInvoke('message.list',{conversationId:widgetConversation.id,limit:1}));
+    assert.equal(reopened.items[0].id,'rendered-widget');
+    assert.deepEqual({...reopened.items[0].content.instances[0].renderExecution},renderExecution);
   }finally{await runtime.dispose();}
 });
 

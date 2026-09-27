@@ -125,17 +125,21 @@ test('selected conversation is restored only after a scoped server read and clea
 
 test('message pages open on the newest messages and prepend older messages once',async()=>{
   const a=access(), pages=[
-    {items:[message('m4'),message('m3')],nextCursor:'older-1'},
-    {items:[message('m3'),message('m2')],nextCursor:'older-2'},
+    {items:[message('m4')],nextCursor:'older-1'},
+    {items:[message('m3')],nextCursor:'older-2'},
+    {items:[message('m2')],nextCursor:'older-3'},
     {items:[message('m1')],nextCursor:null}];
   const client={invoke:async({bindingId,input})=>{
     if(bindingId.endsWith('conversation.read'))return execution({conversation:summary('thread'),provider:'no_provider'});
-    if(bindingId.endsWith('message.list'))return execution(pages[input.cursor==='older-2'?2:input.cursor==='older-1'?1:0]);
+    if(bindingId.endsWith('message.list'))return execution(pages[input.cursor==='older-3'?3:
+      input.cursor==='older-2'?2:input.cursor==='older-1'?1:0]);
     if(bindingId.endsWith('draft.read'))return execution({conversationId:'thread',text:'',updatedAt:null,revision:0});
     throw new Error(bindingId);
   }};
   const controller=createConversationsController({access:a,client,audience:'app',contextId:'application',active:true});
   await controller.open('thread');
+  assert.deepEqual(controller.getSnapshot().messages.map(item=>item.id),['m4']);
+  await controller.loadMoreMessages();
   assert.deepEqual(controller.getSnapshot().messages.map(item=>item.id),['m3','m4']);
   await controller.loadMoreMessages();
   assert.deepEqual(controller.getSnapshot().messages.map(item=>item.id),['m2','m3','m4']);
@@ -238,8 +242,9 @@ test('terminal turn rereads the conversation revision and final assistant messag
   const client={invoke:async({bindingId})=>{
     if(bindingId.endsWith('conversation.read'))return execution({conversation:{...summary('thread'),revision},provider:'configured'});
     if(bindingId.endsWith('message.list'))return execution(++messageLists===1
-      ?{items:[earlier],nextCursor:'older'}
-      :{items:[assistant,{...sent,body:'Question ancienne',revision:1}],nextCursor:'recent'});
+      ?{items:[earlier],nextCursor:null}
+      :messageLists===2?{items:[assistant],nextCursor:'recent'}
+        :{items:[{...sent,body:'Question ancienne',revision:1}],nextCursor:null});
     if(bindingId.endsWith('message.add'))return execution({message:sent});
     if(bindingId.endsWith('draft.read'))return execution({conversationId:'thread',text:'',updatedAt:null,revision:1});
     if(bindingId.endsWith('turn.read')){revision=3;return execution({turn:finished});}
@@ -255,7 +260,50 @@ test('terminal turn rereads the conversation revision and final assistant messag
   assert.equal(controller.getSnapshot().selected.revision,3);
   assert.deepEqual(controller.getSnapshot().messages.map(row=>row.body),
     ['Réponse précédente','Question modifiée','Réponse complète']);
-  assert.equal(controller.getSnapshot().messagesNextCursor,'older');
+  assert.equal(controller.getSnapshot().messagesNextCursor,null);
+  controller.dispose();
+});
+
+test('reload and terminal refresh retain a tool widget between user and assistant',async()=>{
+  const a=access();
+  const digest=`sha256-${'a'.repeat(64)}`;
+  const older={...message('older'),role:'assistant'};
+  const user=message('turn-user');
+  const widget={...message('turn-widget'),role:'tool',body:'Widget interactif',content:{
+    kind:'creezio.widget-message',schemaVersion:1,instances:[{instanceId:'widget-1',
+      instanceRevision:1,moduleId:'example.widgets-witness',widgetId:'record',widgetVersion:'1.0.0',
+      resourceUri:`ui://creezio/example.widgets-witness/record/1.0.0/${digest}.html`,
+      resourceDigest:digest,state:{}}]}};
+  const assistant={...message('turn-assistant'),role:'assistant',body:'Réponse finale'};
+  const finished={id:'turn-1',conversationId:'thread',state:'succeeded',providerId:'openai.responses.v1',
+    updatedAt:'2026-09-27T00:00:02.000Z',lastSequence:3,errorCode:null,revision:3};
+  const pages=new Map([[undefined,{items:[assistant],nextCursor:'c-widget'}],
+    ['c-widget',{items:[widget],nextCursor:'c-user'}],
+    ['c-user',{items:[user],nextCursor:'c-older'}],
+    ['c-older',{items:[older],nextCursor:null}]]);
+  let reads=0;
+  const client={invoke:async({bindingId,input})=>{
+    if(bindingId.endsWith('conversation.read'))return execution({conversation:summary('thread'),provider:'configured'});
+    if(bindingId.endsWith('message.list')){reads++;return execution(pages.get(input.cursor));}
+    if(bindingId.endsWith('draft.read'))return execution({conversationId:'thread',text:'',updatedAt:null,revision:0});
+    if(bindingId.endsWith('turn.read'))return execution({turn:finished});
+    if(bindingId.endsWith('event.list'))return execution({items:[],nextSequence:null});
+    throw new Error(bindingId);
+  }};
+  const controller=createConversationsController({access:a,client,audience:'app',contextId:'application',active:true});
+  await controller.open('thread');
+  assert.deepEqual(controller.getSnapshot().messages.map(item=>item.id),
+    ['turn-user','turn-widget','turn-assistant']);
+  await controller.refreshTurn('thread','turn-1');
+  assert.deepEqual(controller.getSnapshot().messages.map(item=>item.id),
+    ['turn-user','turn-widget','turn-assistant']);
+  assert.deepEqual(controller.getSnapshot().messages[1].content,widget.content);
+  assert.equal(controller.getSnapshot().messagesNextCursor,'c-older');
+  await controller.loadMoreMessages();
+  assert.deepEqual(controller.getSnapshot().messages.map(item=>item.id),
+    ['older','turn-user','turn-widget','turn-assistant']);
+  assert.equal(controller.getSnapshot().messagesNextCursor,null);
+  assert.equal(reads,7);
   controller.dispose();
 });
 
