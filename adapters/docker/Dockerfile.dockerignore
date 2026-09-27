@@ -3,6 +3,7 @@
 .quality
 node_modules
 .wrangler
+.vinext
 .creezio/*
 !.creezio/docker-source.json
 .next

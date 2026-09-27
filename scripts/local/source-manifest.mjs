@@ -9,7 +9,7 @@ const RELATIVE='.creezio/docker-source.json';
 const LIMIT=8*1024*1024;
 const SHA40=/^[a-f0-9]{40}$/;
 const SHA64=/^[a-f0-9]{64}$/;
-const SKIP=new Set(['.git','.quality','.creezio','.wrangler','node_modules','dist','coverage',
+const SKIP=new Set(['.git','.quality','.creezio','.wrangler','.vinext','node_modules','dist','coverage',
   '.next','.cache','outputs','work','private','docker-data']);
 const skip=name=>SKIP.has(name)||name.startsWith('.next-');
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');

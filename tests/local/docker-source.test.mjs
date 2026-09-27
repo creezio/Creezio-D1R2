@@ -84,7 +84,14 @@ test('portable identity tolerates known generated runtime files at any depth but
   writeFileSync(path.join(image,'next-env.d.ts'),'// generated\n');
   writeFileSync(path.join(image,'tsconfig.tsbuildinfo'),'generated');
   writeFileSync(path.join(image,'.dev.vars'),'runtime only');
+  mkdirSync(path.join(image,'.vinext/dev'),{recursive:true});
+  writeFileSync(path.join(image,'.vinext/dev/lock.json'),'{"pid":1}\n');
+  mkdirSync(path.join(image,'.vinext/fonts'),{recursive:true});
+  writeFileSync(path.join(image,'.vinext/fonts/cache.woff2'),'generated');
   assert.deepEqual(sourceIdentity(image),sourceIdentity(checkout));
+  writeFileSync(path.join(image,'app.mjs'),'export const version = 2;\n');
+  assert.throws(()=>sourceIdentity(image),error=>error.code==='source_changed');
+  copyFileSync(path.join(checkout,'app.mjs'),path.join(image,'app.mjs'));
   mkdirSync(path.join(image,'app'));
   writeFileSync(path.join(image,'app/page.ts'),'export default null;\n');
   assert.throws(()=>sourceIdentity(image),error=>error.code==='inventory_mismatch');
