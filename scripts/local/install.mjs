@@ -20,16 +20,16 @@ export async function runLocalInstallation({ mode, config = loadLocalConfigurati
   if (mode === 'install' && io.interactive === false) return refusal('terminal_required');
   let lease, connection, result = refusal('installation_failed'), writeStarted = false, closureUnknown = false, password, confirmation;
   try {
-    engine ??= await import('../data/install-access.mjs');
-    const plan = engine.loadAccessInstallPlan(config.root);
-    if (typeof plan?.sqlDigest !== 'string' || !/^sha256-[a-f0-9]{64}(?![\s\S])/.test(plan.sqlDigest)) throw Object.assign(new Error('Invalid installation plan.'), { code: 'invalid_plan' });
+    engine ??= await import('../data/install-composition.mjs');
+    const plan = await engine.loadComposedInstallPlan(config.root);
+    if (typeof plan?.planDigest !== 'string' || !/^sha256-[a-f0-9]{64}(?![\s\S])/.test(plan.planDigest)) throw Object.assign(new Error('Invalid installation plan.'), { code: 'invalid_plan' });
     lease = await lock(config, mode);
     connection = await adapter(config);
-    const inspection = await engine.inspectAccessInstallation(connection.db, plan);
+    const inspection = await engine.inspectComposedInstallation(connection.db, plan);
     if (!states.has(inspection?.state)) throw Object.assign(new Error('Invalid inspection result.'), { code: 'invalid_inspection' });
     io.write(`Cible locale : ${config.d1Path}`);
     io.write(`Binding : ${config.bindings.database} ; base : ${config.bindings.databaseId}`);
-    io.write(`Schéma inspectable : data/schema/access.sql ; empreinte : ${plan.sqlDigest}`);
+    io.write(`Schéma composé central ; empreinte du plan : ${plan.planDigest}`);
     io.write(`État : ${inspection.state}`);
     if (mode === 'inspect') {
       result = Object.freeze({ ok: !['blocked', 'unavailable'].includes(inspection.state), code: 'inspected', state: inspection.state, effect: 'none' });
@@ -47,19 +47,19 @@ export async function runLocalInstallation({ mode, config = loadLocalConfigurati
       else {
         const createSchema = inspection.state === 'fresh';
         io.write(`Action : ${createSchema ? 'créer le schéma central puis ' : ''}créer le premier administrateur ${loginIdentifier}.`);
-        io.write(`Destination : ${config.d1Path} ; SQL : ${plan.sqlDigest}`);
+        io.write(`Destination : ${config.d1Path} ; plan : ${plan.planDigest}`);
         if (!await io.confirm('Tapez INSTALLER pour confirmer cette destination et cette action : ')) result = refusal('cancelled');
         else {
           let sourceUnchanged = false;
           try {
-            const latest = engine.loadAccessInstallPlan(config.root);
-            sourceUnchanged = ['modelDigest', 'sqlDigest', 'compositionDigest', 'lockDigest'].every(key => latest?.[key] === plan[key]);
+            const latest = await engine.loadComposedInstallPlan(config.root);
+            sourceUnchanged = ['planDigest', 'modelDigest', 'sqlDigest', 'compositionDigest', 'lockDigest'].every(key => latest?.[key] === plan[key]);
           } catch { /* A changed or unreadable source invalidates the operator's concrete approval. */ }
           if (!sourceUnchanged) result = refusal('source_changed');
           else {
             writeStarted = true;
-            const installed = await engine.installAccess(connection.db, plan, {
-              credentials: { loginIdentifier, displayName, password }, expectedSqlDigest: plan.sqlDigest, createSchema });
+            const installed = await engine.installComposed(connection.db, plan, {
+              credentials: { loginIdentifier, displayName, password }, expectedPlanDigest: plan.planDigest, createSchema });
             result = Object.freeze({ ok: installed?.ok === true, code: safeCode(installed?.code),
               effect: ['none', 'confirmed', 'unknown'].includes(installed?.effect) ? installed.effect : 'unknown',
               ...(typeof installed?.stage === 'string' ? { stage: safeCode(installed.stage) } : {}),

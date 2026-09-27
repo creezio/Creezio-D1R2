@@ -1,8 +1,12 @@
 # Changelog
 
-## En cours — widgets T16
+## En cours — SDK et starter T30
 
-Hôte MCP Apps du chat existant, ressources compilées des modules et comportements message/contexte/direct. Recette locale des widgets de deux modules avec OpenAI réel et reprise d'une mutation après perte de réponse ; qualification Sites et ChatGPT suivie séparément. Développement sur `core/t16-widgets`, périmètre et limites dans [la réalisation T16](docs/IMPLEMENTATION-T16.md).
+Distribution autonome du SDK public et premier module métier témoin dans le dépôt Creezio-Extension-Starter. Même moteur pour les vues, API, MCP et widgets ; intégration des paquets et qualification indépendante en cours.
+
+## 27 septembre 2026 — widgets T16
+
+PR #25 intégrée ; main `8736c340`, 1 019 tests locaux et CI réussis. Hôte MCP Apps du chat existant, ressources compilées des modules et comportements message/contexte/direct. Recette locale des widgets de deux modules avec OpenAI réel et reprise d'une mutation après perte de réponse ; qualification Sites et ChatGPT suivie séparément. Périmètre et limites dans [la réalisation T16](docs/IMPLEMENTATION-T16.md).
 
 ## 27 septembre 2026 — OpenAI et qualification Sites T15
 

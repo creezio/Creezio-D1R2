@@ -5,6 +5,9 @@ import type { ModuleSettingsHostInventory } from '../../sdk/module-settings/type
 import type {OperationFilesPort} from '../../sdk/files/types.ts';
 import type {ProviderSecretsPort} from '../../sdk/providers/types.ts';
 import type {WidgetOperationPort} from '../widgets/host.ts';
+import {OperationError} from '@creezio/sdk/operations/error';
+export {OperationError};
+export type {OperationErrorCode} from '@creezio/sdk/operations/error';
 
 /** The canonical v1 declaration is compiled once; transports do not invent an operation policy. */
 export interface OperationDeclaration {
@@ -72,12 +75,6 @@ export type OperationHandlers = Readonly<Record<string, OperationHandler>>;
 export interface RegisteredOperation {
   readonly moduleId: string; readonly moduleVersion: string; readonly contractDigest: string; readonly declaration: OperationDeclaration;
   readonly validateInput: OperationValidator; readonly validateOutput: OperationValidator; readonly handler: OperationHandler;
-}
-export type OperationErrorCode = 'invalid_catalog' | 'not_found' | 'invalid_input' | 'invalid_output' | 'unsupported' | 'approval_required'
-  | 'unauthorized' | 'forbidden' | 'conflict' | 'rate_limited' | 'unavailable' | 'unknown' | 'cancelled' | 'timeout';
-export class OperationError extends Error {
-  readonly code: OperationErrorCode;
-  constructor(code: OperationErrorCode) { super(`Operation refused (${code}).`); this.name = 'OperationError'; this.code = code; }
 }
 export const OPERATION_LIMITS = Object.freeze({ inputBytes: 65_536, outputBytes: 262_144, catalogBytes: 2_097_152,
   operations: 1000, maxDurationMs: 30_000, maxPlans: 16 });

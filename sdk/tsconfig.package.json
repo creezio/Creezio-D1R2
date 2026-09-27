@@ -1,0 +1,36 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "rewriteRelativeImportExtensions": true,
+    "rootDir": "..",
+    "outDir": "./dist/types",
+    "paths": {
+      "@creezio/sdk/workspace/components": ["./workspace/components-impl.tsx"],
+      "@creezio/sdk/workspace/metadata": ["./workspace/metadata-impl.tsx"],
+      "@creezio/sdk/workspace/toolbar": ["./workspace/toolbar-impl.tsx"],
+      "@creezio/sdk/ui/assistant-provider": ["./ui/assistant-provider-impl.tsx"],
+      "@creezio/sdk/*": ["./*"]
+    }
+  },
+  "include": [
+    "operations/error.ts",
+    "operations/handler.ts",
+    "operations/client.ts",
+    "files/types.ts",
+    "files/client.ts",
+    "workspace/types.ts",
+    "workspace/components-impl.tsx",
+    "workspace/metadata-impl.tsx",
+    "workspace/toolbar-impl.tsx",
+    "front/types.ts",
+    "widgets/types.ts",
+    "widgets/validation.ts",
+    "widgets/model-context.ts",
+    "ui/assistant-provider-impl.tsx",
+    "ui/index.ts"
+  ],
+  "exclude": ["dist"]
+}

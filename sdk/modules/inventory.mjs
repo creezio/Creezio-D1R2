@@ -3,6 +3,7 @@ import path from 'node:path';
 import {validateModule,contractIntegrity,canonicalJson} from '../contracts/validate.mjs';
 import {safePackagePath} from '../contracts/references.mjs';
 import {packModuleArtifacts} from '../../scripts/modules/archives.mjs';
+import {verifyPackageReceipt} from '../../scripts/modules/package-receipt.mjs';
 import {decodeInstalledDocument,installedDocumentDigest,splitInstalledDocumentContent,
   INSTALLED_DOCUMENT_LIMITS} from './documents.ts';
 
@@ -74,8 +75,16 @@ function compile({root,candidates,allowedOrigins,cacheDir='.creezio/module-artif
       || node.contractIntegrity!==contractIntegrity(descriptor)) fail('lock_identity',moduleId);
     const installed=descriptor.documentation.installed;
     const kinds=['readme','prd','changelog'];
+    if(item.validationReceipt && item.source.kind!=='package')fail('receipt_source',moduleId);
+    const detachedValidation=item.validationReceipt?verifyPackageReceipt({root:absoluteRoot,
+      receiptPath:item.validationReceipt,moduleDirectory:directory,descriptor}).validation:null;
+    if(detachedValidation&&(node.validation?.location?.kind!=='local'
+      ||node.validation.location.path!==detachedValidation.path))fail('lock_location',moduleId);
+    if(item.source.kind==='package'&&node.validation?.location?.kind==='local'
+      &&node.validation.location.path.startsWith('.creezio/packages/')&&!detachedValidation)fail('receipt_missing',moduleId);
     const artifact=packModuleArtifacts({root:absoluteRoot,moduleDirectory:directory,moduleId,descriptor,cacheDir,
       expected:{runtime:node.runtime?.integrity,validation:node.validation?.integrity},
+      detachedValidation,
       captureRuntimeFiles:index<selectedCount?kinds.map(kind=>installed[kind].path):[]});
     if (node.runtime?.integrity!==artifact.runtime.integrity
       || node.validation?.integrity!==artifact.validation.integrity) fail('lock_artifact',moduleId);

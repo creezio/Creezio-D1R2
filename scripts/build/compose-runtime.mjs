@@ -286,10 +286,17 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   if (composition.modules.some(selection => selection.moduleId === 'creezio.modules-settings' && selection.enabled)) {
     const config = loadJson(confined(root, inventoryPath), {root});
     if (config.schemaVersion !== 1 || !Array.isArray(config.allowedOrigins) || !Array.isArray(config.available)
-      || Object.keys(config).some(key => !['schemaVersion', 'allowedOrigins', 'available'].includes(key)))
+      || Object.keys(config).some(key => !['schemaVersion', 'allowedOrigins', 'available','validationReceipts'].includes(key))
+      || (config.validationReceipts!==undefined&&(!config.validationReceipts
+        || Array.isArray(config.validationReceipts)||typeof config.validationReceipts!=='object'
+        || Object.entries(config.validationReceipts).some(([moduleId,receipt])=>
+          !/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(moduleId)||!safePackagePath(receipt)
+          ||!composition.modules.some(selection=>selection.moduleId===moduleId)))))
       fail('inventory.configuration', 'An explicit, bounded module inventory configuration is required.');
     const candidates = composition.modules.map(selection => ({source: selection.source,
-      lockNode: lock.modules.find(node => node.moduleId === selection.moduleId)})).concat(config.available);
+      lockNode: lock.modules.find(node => node.moduleId === selection.moduleId),
+      ...(config.validationReceipts?.[selection.moduleId]
+        ?{validationReceipt:config.validationReceipts[selection.moduleId]}:{})})).concat(config.available);
     const {inventory,currentInstalledDocuments}=compileModuleInventoryWithDocuments({root, candidates,
       selectedCount:composition.modules.length,allowedOrigins: config.allowedOrigins});
     currentModuleCandidateKeys(composition,lock,inventory);

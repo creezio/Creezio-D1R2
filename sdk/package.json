@@ -1,0 +1,116 @@
+{
+  "name": "@creezio/sdk",
+  "version": "1.0.0",
+  "private": false,
+  "type": "module",
+  "description": "Creezio module authoring SDK",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "files": [
+    "dist/esm",
+    "dist/types/sdk/access",
+    "dist/types/sdk/contracts",
+    "dist/types/sdk/files",
+    "dist/types/sdk/front",
+    "dist/types/sdk/operations/client.d.ts",
+    "dist/types/sdk/operations/error.d.ts",
+    "dist/types/sdk/operations/handler.d.ts",
+    "dist/types/sdk/ui",
+    "dist/types/sdk/widgets",
+    "dist/types/sdk/workspace",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    "./operations/error": {
+      "types": "./dist/types/sdk/operations/error.d.ts",
+      "import": "./dist/esm/operations/error.js"
+    },
+    "./operations/handler": {
+      "types": "./dist/types/sdk/operations/handler.d.ts",
+      "import": "./dist/esm/operations/handler.js"
+    },
+    "./operations/client": {
+      "types": "./dist/types/sdk/operations/client.d.ts",
+      "import": "./dist/esm/operations/client.js"
+    },
+    "./files/types": {
+      "types": "./dist/types/sdk/files/types.d.ts",
+      "import": "./dist/esm/files/types.js"
+    },
+    "./files/client": {
+      "types": "./dist/types/sdk/files/client.d.ts",
+      "import": "./dist/esm/files/client.js"
+    },
+    "./workspace/types": {
+      "types": "./dist/types/sdk/workspace/types.d.ts",
+      "import": "./dist/esm/workspace/types.js"
+    },
+    "./workspace/components": {
+      "types": "./dist/types/sdk/workspace/components-impl.d.ts",
+      "import": "./dist/esm/workspace/components-impl.js"
+    },
+    "./workspace/metadata": {
+      "types": "./dist/types/sdk/workspace/metadata-impl.d.ts",
+      "import": "./dist/esm/workspace/metadata-impl.js"
+    },
+    "./workspace/toolbar": {
+      "types": "./dist/types/sdk/workspace/toolbar-impl.d.ts",
+      "import": "./dist/esm/workspace/toolbar-impl.js"
+    },
+    "./front/types": {
+      "types": "./dist/types/sdk/front/types.d.ts",
+      "import": "./dist/esm/front/types.js"
+    },
+    "./widgets/types": {
+      "types": "./dist/types/sdk/widgets/types.d.ts",
+      "import": "./dist/esm/widgets/types.js"
+    },
+    "./widgets/validation": {
+      "types": "./dist/types/sdk/widgets/validation.d.ts",
+      "import": "./dist/esm/widgets/validation.js"
+    },
+    "./widgets/model-context": {
+      "types": "./dist/types/sdk/widgets/model-context.d.ts",
+      "import": "./dist/esm/widgets/model-context.js"
+    },
+    "./ui": {
+      "types": "./dist/types/sdk/ui/index.d.ts",
+      "import": "./dist/esm/ui/index.js"
+    },
+    "./ui/assistant-provider": {
+      "types": "./dist/types/sdk/ui/assistant-provider-impl.d.ts",
+      "import": "./dist/esm/ui/assistant-provider-impl.js"
+    },
+    "./contracts/node": {
+      "types": "./dist/types/sdk/contracts/node.d.mts",
+      "import": "./dist/esm/contracts/validate.js"
+    }
+  },
+  "scripts": {
+    "build": "node ../scripts/sdk/build.mjs"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.4.0",
+    "@radix-ui/react-dropdown-menu": "2.1.24",
+    "@radix-ui/react-scroll-area": "1.2.18",
+    "@radix-ui/react-select": "2.3.7",
+    "@radix-ui/react-slot": "1.2.3",
+    "@radix-ui/react-tabs": "1.1.21",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "lucide-react": "0.468.0",
+    "semver": "7.8.5",
+    "sonner": "2.0.8",
+    "tailwind-merge": "2.6.0"
+  }
+}

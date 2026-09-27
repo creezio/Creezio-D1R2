@@ -3,10 +3,12 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "workspaces": ["sdk"],
   "engines": {
     "node": ">=24 <25"
   },
   "scripts": {
+    "sdk:build": "node scripts/sdk/build.mjs",
     "check:docs": "node scripts/quality/docs.mjs",
     "test:quality": "node --test tests/quality/*.test.mjs",
     "test:contracts": "node --test tests/contracts/*.test.mjs",

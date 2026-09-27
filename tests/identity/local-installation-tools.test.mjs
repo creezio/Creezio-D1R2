@@ -281,7 +281,7 @@ test('local shutdown bridge waits for framework teardown, delivers once and leav
 });
 
 function installationFixture(t, { state = 'fresh', confirm = true, cleanupFails = false, installFails = false } = {}) {
-  const config = configFixture(t), events = [], output = [], db = {}, plan = { sqlDigest: `sha256-${'a'.repeat(64)}` };
+  const config = configFixture(t), events = [], output = [], db = {}, plan = { planDigest: `sha256-${'a'.repeat(64)}` };
   const password = 'Synthetic operator password never logged';
   let lines = 0;
   const io = { interactive: true, write: value => output.push(value),
@@ -289,14 +289,14 @@ function installationFixture(t, { state = 'fresh', confirm = true, cleanupFails 
     readSecret: async () => { events.push('secret'); return password; },
     confirm: async () => { events.push('confirm'); return confirm; } };
   const engine = {
-    loadAccessInstallPlan: root => { assert.equal(root, config.root); events.push('plan'); return plan; },
-    inspectAccessInstallation: async (database, supplied) => {
+    loadComposedInstallPlan: root => { assert.equal(root, config.root); events.push('plan'); return plan; },
+    inspectComposedInstallation: async (database, supplied) => {
       assert.equal(database, db); assert.equal(supplied, plan); events.push('inspect');
       return { state, bootstrap: state === 'schema_ready' ? 'none' : state === 'bootstrap_expired' ? 'expired' : undefined };
     },
-    installAccess: async (database, supplied, options) => {
+    installComposed: async (database, supplied, options) => {
       events.push('install'); assert.equal(database, db); assert.equal(supplied, plan);
-      assert.equal(options.expectedSqlDigest, plan.sqlDigest); assert.equal(options.createSchema, state === 'fresh');
+      assert.equal(options.expectedPlanDigest, plan.planDigest); assert.equal(options.createSchema, state === 'fresh');
       assert.deepEqual(options.credentials, { loginIdentifier: 'owner@example.invalid', displayName: 'Synthetic operator', password });
       if (installFails) throw new Error(`Private failure ${password}`);
       return { ok: true, code: 'installed', effect: 'confirmed', stage: 'bootstrap', token: password };
@@ -370,8 +370,8 @@ test('operator uncertain effect never becomes success and uncertain closure reta
 test('operator refuses source changes during the credential and confirmation prompts', async t => {
   const fixture = installationFixture(t);
   let loads = 0;
-  fixture.args.engine.loadAccessInstallPlan = () => ({ sqlDigest: `sha256-${(loads++ ? 'b' : 'a').repeat(64)}` });
-  fixture.args.engine.inspectAccessInstallation = async () => ({ state: 'fresh', bootstrap: 'none' });
+  fixture.args.engine.loadComposedInstallPlan = () => ({ planDigest: `sha256-${(loads++ ? 'b' : 'a').repeat(64)}` });
+  fixture.args.engine.inspectComposedInstallation = async () => ({ state: 'fresh', bootstrap: 'none' });
   const result = await runLocalInstallation(fixture.args);
   assert.equal(result.ok, false); assert.equal(result.code, 'source_changed');
   assert.equal(result.effect, 'none'); assert.equal(fixture.events.includes('install'), false);

@@ -109,7 +109,7 @@ function cacheArchive(root,moduleId,kind,bytes,cacheRoot,writeCache) {
 }
 /** Node-only source packer. It never transforms line endings or executes module code. */
 export function packModuleArtifacts({root,moduleDirectory,moduleId,descriptor,
-  cacheDir='.creezio/module-artifacts',expected=null,writeCache=true,captureRuntimeFiles=[]}) {
+  cacheDir='.creezio/module-artifacts',expected=null,writeCache=true,captureRuntimeFiles=[],detachedValidation=null}) {
   const absoluteRoot=path.resolve(root),directory=confined(absoluteRoot,moduleDirectory,{directory:true});
   if (typeof moduleId!=='string'||!/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(moduleId)
     || descriptor?.identity?.id!==moduleId||!safePackagePath(cacheDir)) fail('descriptor');
@@ -121,9 +121,13 @@ export function packModuleArtifacts({root,moduleDirectory,moduleId,descriptor,
   const capturedRuntimeFiles=Object.fromEntries(runtimeFiles.filter(file=>captureRuntimeFiles.includes(file.path))
     .map(file=>[file.path,file.bytes]));
   const runtime=deterministicModuleArchive(runtimeFiles);
-  const validation=deterministicModuleArchive(readDeclared(directory,descriptor.packaging?.validation?.files,absoluteRoot));
-  if (expected && (expected.runtime!==sha(runtime)||expected.validation!==sha(validation))) fail('lock_artifact');
+  if(detachedValidation && (!/^sha256-[a-f0-9]{64}$/.test(detachedValidation.integrity??'')
+    || !safePackagePath(detachedValidation.path))) fail('validation_artifact');
+  const validation=detachedValidation?null:deterministicModuleArchive(
+    readDeclared(directory,descriptor.packaging?.validation?.files,absoluteRoot));
+  const validationIntegrity=detachedValidation?.integrity??sha(validation);
+  if (expected && (expected.runtime!==sha(runtime)||expected.validation!==validationIntegrity)) fail('lock_artifact');
   return Object.freeze({runtime:cacheArchive(absoluteRoot,moduleId,'runtime',runtime,cacheRoot,writeCache),
-    validation:cacheArchive(absoluteRoot,moduleId,'validation',validation,cacheRoot,writeCache),
+    validation:detachedValidation??cacheArchive(absoluteRoot,moduleId,'validation',validation,cacheRoot,writeCache),
     capturedRuntimeFiles:Object.freeze(capturedRuntimeFiles)});
 }

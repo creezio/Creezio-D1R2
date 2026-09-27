@@ -161,3 +161,11 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - `app/approvals/` : entrée native de décision humaine, indépendante du client MCP qui a demandé l'action.
 - [extensions/widgets-witness](extensions/widgets-witness/) : module optionnel de recette avec plusieurs widgets, absent du démarrage standard.
 - [tests/widgets](tests/widgets/) et [réalisation T16](docs/IMPLEMENTATION-T16.md) : contrôles des transports, droits, hôtes et périmètres à qualifier.
+
+## Distribution indépendante T30
+
+- [sdk/package.json](sdk/package.json), `sdk/public-declarations/` et [scripts/sdk](scripts/sdk/) : paquet SDK public compilé, types autonomes, exports contrôlés et licence embarquée.
+- `sdk/workspace/*-impl.tsx` et `sdk/ui/assistant-provider-impl.tsx` : contextes uniques partagés par l'hôte et ses modules installés ; les anciens points d'entrée réexportent le paquet.
+- [scripts/modules/package-receipt.mjs](scripts/modules/package-receipt.mjs) : vérification du reçu détaché, des archives et de leurs octets installés ; `module-inventory.json` relie explicitement le reçu à son module.
+- [scripts/data/install-composition.mjs](scripts/data/install-composition.mjs) : installation locale du schéma composé complet et du premier compte natif, avec inspection et conservation des états existants.
+- `tests/modules/package-receipt.test.mjs`, `tests/workspace/package-context.test.mjs` et `tests/local/composed-installation.test.mjs` : preuves ciblées ; [réalisation T30](docs/IMPLEMENTATION-T30.md) pour la portée d'intégration.
