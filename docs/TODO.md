@@ -21,13 +21,13 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-06 — Opérations | Registre/exécuteur intégrés PR #15 ; bindings HTTP et suivi par clé PR #16 | Événements, approbations, interopérations et autres transports | Fondations disponibles ; compléments au backlog |
 | T-07 — Workspace | Composants originaux adaptés, panneaux/états/titres et recette navigateur intégrés PR #16 | Qualification Sites et raccordement des modules produit | Livrable local disponible |
 | T-08 — Registre central | PR #17 intégrée ; Worker Cloudflare, service/client/journal et reprise réelle sans redéploiement | Configuration fournisseur GitHub/email, raccords des publishers et onboarding produit | Fournisseur GitHub en attente d'autorisation ; travaux indépendants poursuivis |
-| T-09 — Sites | Sonde antérieure conservée ; nouvelle cible publique créée sur le compte courant | Publication et recette de l'app, compte natif et persistance | **Adaptateur de publication en cours ; nouveau Site non publié** |
+| T-09 — Sites | Nouvelle cible publique, schéma et propriétaire natif installés par l'opérateur séparé | Publication du Worker applicatif et recette de l'app | **Installation hébergée vérifiée ; application encore à publier** |
 | T-10 — MCP/OAuth | PR #19 : deux catalogues, OAuth natif, PKCE/rotation et clients SDK réels ; 866 tests | Connexion réelle ChatGPT et recette Site public, ressources/widgets T-16 | Fondations locales qualifiées |
 | T-11 — Modules | PR #20 : catalogue, dépendances, plans D1 et UI originale ; recettes locales et CI, 908 tests | Raccords publication et hébergements ; distribution complète T-30 | Livrable local disponible |
 | T-12 — Documentation | PR #21 : README/PRD/changelog exacts, UI/API/MCP et recettes locales/CI, 923 tests | Recettes hébergées transversales ; édition des PRD de travail en T-23 | Documents installés vérifiés localement |
 | T-13 — Fronts et thèmes | PR #22 : deux thèmes, projection native app, headless, recettes navigateur et CI ; 953 tests | Recette Sites | Livrable local disponible |
 | T-14 — Conversations | PR #23 : chat original, historique, brouillons D1, fichiers R2, autorisations ; 974 tests et navigateur | Qualification hébergée ; progression fournisseur couplée à T15 | Livrable local disponible |
-| T-15 — OpenAI | Préflight API réel réussi avec la clé de test | Module, coffre, tours, reprise et recettes intégrées | **Implémentation en parallèle API/SDK/UI** |
+| T-15 — OpenAI | Module, coffre et tours implémentés ; réponses et reprise réelles observées localement | Corrections de revue, recette finale et hébergée | **PR #24 en qualification API/SDK/UI** |
 | T-31 — Docker local | PR #17 intégrée ; compte/D1/R2, redémarrage/recréation/restauration vérifiés en Docker | Recettes des futurs modules et routes de fichiers | Livrable local disponible |
 | Autres lots T-16 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, widgets, publications et recette finale | À réaliser selon le jalon prioritaire |
 
@@ -250,12 +250,12 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-15"></a>
 ## T-15 — Module OpenAI et contrat fournisseur
 
-- Lot : **P4** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P4** ; état : **en qualification, PR #24** ; responsables : orchestrateur et agents API, SDK, UI.
 - Dépendances : [T-14](#T-14).
 - Travail/livrables : Module OpenAI, configuration/modèle, adaptation Responses/outils et quotas ; ports autres fournisseurs/voix.
 - Besoin : [US-15](USER-STORIES.md#US-15). Acceptation : [REQ-1501](EXIGENCES.md#REQ-1501), [REQ-1502](EXIGENCES.md#REQ-1502).
 - Validation : implémenter puis exécuter les recettes liées, sur **OpenAI réel et chats app/workspace** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : réponses OpenAI réelles et reprise par reçu connu observées en local ; compteurs du contrôle précédent, défauts de recette et revues conservés séparément. La correction du candidat, les contrôles finaux et la recette des deux interfaces conditionnent la clôture ; voir [réalisation T15](IMPLEMENTATION-T15.md).
 
 <a id="T-16"></a>
 ## T-16 — Widgets et plugins conversationnels compatibles GPT

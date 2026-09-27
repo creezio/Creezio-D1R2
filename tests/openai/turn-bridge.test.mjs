@@ -80,6 +80,7 @@ test('client drive persists one confirmed assistant and never recreates an unkno
     const provider={withTransport:async(_request,callback)=>callback({
       async create(){creates++;return {receipt:{responseId:'resp_one',cursor:0},
         events:(async function*(){yield {cursor:1,kind:'text_delta',text:'Hi'};
+          yield {cursor:2,kind:'usage',inputTokens:3,outputTokens:4};
           yield {cursor:2,kind:'terminal',state:'succeeded'};})()};},
       async *resume(){throw new Error('Unexpected resume');},
       async status(){throw new Error('Unexpected status');},async cancel(){throw new Error('Unexpected cancel');}
@@ -93,6 +94,9 @@ test('client drive persists one confirmed assistant and never recreates an unkno
     const messages=await invoke('message.list',{conversationId,limit:50});
     assert.equal(messages.execution.output.items.filter(item=>item.role==='assistant').length,1);
     assert.equal(messages.execution.output.items.find(item=>item.role==='assistant').body,'Hi');
+    const firstEvents=await invoke('event.list',{conversationId,turnId,limit:50,afterSequence:0});
+    assert.deepEqual({...firstEvents.execution.output.items.find(item=>item.kind==='completed').payload.usage},
+      {inputTokens:3,outputTokens:4});
     assert.equal((await bridge.drive(driveRequest)).turn.state,'succeeded');
     assert.equal(creates,1);
 
@@ -127,11 +131,14 @@ test('client drive persists one confirmed assistant and never recreates an unkno
           return {receipt:{responseId:`resp_${label}_1`,cursor:0},events:(async function*(){
             yield {cursor:1,kind:'function_call',callId:`call_${label}`,name,
               arguments:{conversationId:toolConversationId}};
+            if(allowed)yield {cursor:2,kind:'usage',inputTokens:7,outputTokens:8};
+            yield {cursor:2,kind:'terminal',state:'succeeded'};
           })()};
         }
         continued=input.inputItems;
         return {receipt:{responseId:`resp_${label}_2`,cursor:0},events:(async function*(){
           yield {cursor:1,kind:'text_delta',text:'Read complete'};
+          yield {cursor:2,kind:'usage',inputTokens:13,outputTokens:14};
           yield {cursor:2,kind:'terminal',state:'succeeded'};
         })()};
       },async *resume(){throw new Error('Unexpected resume');},
@@ -150,6 +157,13 @@ test('client drive persists one confirmed assistant and never recreates an unkno
       else assert.equal(parsed.error,'forbidden');
       const finalMessages=await invoke('message.list',{conversationId:toolConversationId,limit:50});
       assert.equal(finalMessages.execution.output.items.filter(item=>item.role==='assistant').length,1);
+      const toolEvents=await invoke('event.list',{conversationId:toolConversationId,
+        turnId:toolTurnId,limit:50,afterSequence:0});
+      const firstUsage=toolEvents.execution.output.items.find(item=>item.kind==='tool_result').payload.usage;
+      if(allowed)assert.deepEqual({...firstUsage},{inputTokens:7,outputTokens:8});
+      else assert.equal(firstUsage,undefined);
+      assert.deepEqual({...toolEvents.execution.output.items.find(item=>item.kind==='completed').payload.usage},
+        {inputTokens:13,outputTokens:14});
     }
     const newTurn=async(label,revision=1,body='Question')=>{
       const conversation=await invoke('conversation.create',{requestKey:`create-${label}`,mode:'chat',title:label});
@@ -188,12 +202,17 @@ test('client drive persists one confirmed assistant and never recreates an unkno
         })()};},
         async status(){statuses++;return {responseId:'resp_eof',state:'succeeded',cursor:null,
           events:[{cursor:0,kind:'text_delta',text:'Final answer'},
+            {cursor:0,kind:'usage',inputTokens:9,outputTokens:5},
             {cursor:0,kind:'terminal',state:'succeeded'}]};}
       },'model-a')}});
     assert.equal((await eof.drive(eofRequest)).turn.state,'succeeded');
     assert.equal(statuses,1);
     const eofMessages=await invoke('message.list',{conversationId:eofRequest.conversationId,limit:50});
     assert.equal(eofMessages.execution.output.items.find(item=>item.role==='assistant').body,'Final answer');
+    const eofEvents=await invoke('event.list',{conversationId:eofRequest.conversationId,
+      turnId:eofRequest.turnId,limit:50,afterSequence:0});
+    assert.deepEqual({...eofEvents.execution.output.items.find(item=>item.kind==='completed').payload.usage},
+      {inputTokens:9,outputTokens:5});
 
     const cancelRequest=await newTurn('cancel');
     let cancelCalls=0;
@@ -244,6 +263,98 @@ test('client drive persists one confirmed assistant and never recreates an unkno
       assert.equal(terminalEvents.execution.output.items.some(item=>item.kind==='tool_result'),false);
     }
 
+    const beforeReadRequest=await newTurn('cancel-before-read');
+    let beforeReadCancels=0;
+    const beforeReadBridge=createTurnBridge({db,catalog,permissions,registry:reg,toolCatalog:[],
+      provider:{withTransport:async(_request,callback)=>callback({
+        async create(){return {receipt:{responseId:'resp_cancel_before',cursor:0},events:(async function*(){
+          const read=await invoke('turn.read',{conversationId:beforeReadRequest.conversationId,
+            turnId:beforeReadRequest.turnId});
+          const cancelled=await invoke('turn.cancel',{requestKey:'cancel-before-progress',
+            conversationId:beforeReadRequest.conversationId,turnId:beforeReadRequest.turnId,
+            revision:read.execution.output.turn.revision});
+          assert.equal(cancelled.execution.state,'succeeded');
+          yield {cursor:1,kind:'text_delta',text:'Must not appear'};
+        })()};},
+        async cancel(){beforeReadCancels++;return {responseId:'resp_cancel_before',state:'cancelled',
+          cursor:null,events:[{cursor:0,kind:'terminal',state:'cancelled'}]};}
+      },'model-a')}});
+    assert.equal((await beforeReadBridge.drive(beforeReadRequest)).turn.state,'cancelled');
+    assert.equal(beforeReadCancels,1);
+    const beforeReadEvents=await invoke('event.list',{conversationId:beforeReadRequest.conversationId,
+      turnId:beforeReadRequest.turnId,limit:50,afterSequence:0});
+    assert.equal(beforeReadEvents.execution.output.items.some(item=>item.kind==='text_delta'),false);
+
+    const afterReadRequest=await newTurn('cancel-after-read');
+    let afterReadCancels=0,injectCancel=true;
+    const prepared=new WeakMap();
+    const delayedDb=new Proxy(db,{get(target,key){
+      if(key==='prepare')return sql=>new Proxy(target.prepare(sql),{get(statement,method){
+        if(method==='bind')return (...values)=>{const bound=statement.bind(...values);
+          prepared.set(bound,{sql,values});return bound;};
+        const value=statement[method];return typeof value==='function'?value.bind(statement):value;
+      }});
+      if(key==='batch')return async statements=>{
+        if(injectCancel&&statements.some(statement=>prepared.get(statement)?.values.includes('text_delta'))){
+          injectCancel=false;
+          const read=await invoke('turn.read',{conversationId:afterReadRequest.conversationId,
+            turnId:afterReadRequest.turnId});
+          const cancelled=await invoke('turn.cancel',{requestKey:'cancel-after-progress-read',
+            conversationId:afterReadRequest.conversationId,turnId:afterReadRequest.turnId,
+            revision:read.execution.output.turn.revision});
+          assert.equal(cancelled.execution.state,'succeeded');
+        }
+        return target.batch(statements);
+      };
+      const value=target[key];return typeof value==='function'?value.bind(target):value;
+    }});
+    const afterReadBridge=createTurnBridge({db:delayedDb,catalog,permissions,registry:reg,toolCatalog:[],
+      provider:{withTransport:async(_request,callback)=>callback({
+        async create(){return {receipt:{responseId:'resp_cancel_after',cursor:0},events:(async function*(){
+          yield {cursor:1,kind:'text_delta',text:'Must not appear'};
+        })()};},
+        async cancel(){afterReadCancels++;return {responseId:'resp_cancel_after',state:'cancelled',
+          cursor:null,events:[{cursor:0,kind:'terminal',state:'cancelled'}]};}
+      },'model-a')}});
+    assert.equal((await afterReadBridge.drive(afterReadRequest)).turn.state,'cancelled');
+    assert.equal(injectCancel,false);
+    assert.equal(afterReadCancels,1);
+    const afterReadEvents=await invoke('event.list',{conversationId:afterReadRequest.conversationId,
+      turnId:afterReadRequest.turnId,limit:50,afterSequence:0});
+    assert.equal(afterReadEvents.execution.output.items.some(item=>item.kind==='text_delta'),false);
+
+    const switchedRequest=await newTurn('model-switched');
+    let currentModel='model-a',switchCreates=0,switchResumes=0;
+    const switchedBridge=createTurnBridge({db,catalog,permissions,registry:reg,toolCatalog:[],
+      provider:{withTransport:async(_request,callback)=>callback({
+        async create(){switchCreates++;return {receipt:{responseId:'resp_model_switched',cursor:0},
+          events:(async function*(){})()};},
+        async status(){return {responseId:'resp_model_switched',state:'running',cursor:null,events:[]};},
+        async *resume(){switchResumes++;yield {cursor:1,kind:'terminal',state:'succeeded'};}
+      },currentModel)}});
+    assert.equal((await switchedBridge.drive(switchedRequest)).turn.state,'running');
+    currentModel='model-b';
+    await db.prepare(`UPDATE "${OPERATION_TABLES.outbox}" SET claim_expires_at_ms=0 WHERE intent_id=?`)
+      .bind(switchedRequest.turnId).run();
+    assert.equal((await switchedBridge.drive(switchedRequest)).turn.state,'succeeded');
+    assert.equal(switchCreates,1);
+    assert.equal(switchResumes,1);
+
+    const diagnosticRequest=await newTurn('tool-diagnostics');
+    const diagnosticsBridge=createTurnBridge({db,catalog,permissions,registry:reg,
+      toolCatalog:[{moduleId:id,operationId:'draft.read',inputSchema:{type:'object',properties:{},
+        required:[],additionalProperties:true},schemaDigest:`sha256-${'a'.repeat(64)}`,audiences:['admin']}],
+      provider:{withTransport:async(_request,callback)=>callback({async create(){return {
+        receipt:{responseId:'resp_diagnostics',cursor:0},events:(async function*(){
+          yield {cursor:1,kind:'terminal',state:'succeeded'};})()};}},'model-a')}});
+    assert.equal((await diagnosticsBridge.drive(diagnosticRequest)).turn.state,'succeeded');
+    const diagnosticEvents=await invoke('event.list',{conversationId:diagnosticRequest.conversationId,
+      turnId:diagnosticRequest.turnId,limit:50,afterSequence:0});
+    const diagnosticPayload=diagnosticEvents.execution.output.items.find(item=>item.kind==='started').payload;
+    assert.deepEqual(diagnosticPayload.toolDiagnostics.map(item=>({...item})),
+      [{code:'unsupported_schema',count:1}]);
+    assert.doesNotMatch(JSON.stringify(diagnosticPayload),/draft\.read/);
+
     const historyRequest=await newTurn('history',18,'Newest prompt');
     let capturedHistory;
     const historyBridge=createTurnBridge({db,catalog,permissions,registry:reg,toolCatalog:[],
@@ -271,6 +382,8 @@ test('client drive persists one confirmed assistant and never recreates an unkno
           return {receipt:{responseId:'resp_pending_1',cursor:0},events:(async function*(){
             yield {cursor:1,kind:'function_call',callId:'call_pending',name,
               arguments:{conversationId:pendingRequest.conversationId}};
+            yield {cursor:2,kind:'usage',inputTokens:11,outputTokens:12};
+            yield {cursor:2,kind:'terminal',state:'succeeded'};
           })()};}
         return {receipt:{responseId:'resp_pending_2',cursor:0},events:(async function*(){
           yield {cursor:1,kind:'terminal',state:'succeeded'};})()};
@@ -283,11 +396,16 @@ test('client drive persists one confirmed assistant and never recreates an unkno
     const receipt=await db.prepare(`SELECT receipt FROM "${OPERATION_TABLES.outbox}" WHERE intent_id=?`)
       .bind(pendingRequest.turnId).first();
     assert.equal(JSON.parse(receipt.receipt).pendingTool.callId,'call_pending');
+    assert.deepEqual(JSON.parse(receipt.receipt).pendingTool.usage,{inputTokens:11,outputTokens:12});
     await db.prepare(`UPDATE "${OPERATION_TABLES.outbox}" SET claim_expires_at_ms=0 WHERE intent_id=?`)
       .bind(pendingRequest.turnId).run();
     assert.equal((await pendingBridge.drive(pendingRequest)).turn.state,'running');
     assert.equal(await toolReads(),readsBefore+1);
     assert.equal((await pendingBridge.drive(pendingRequest)).turn.state,'succeeded');
     assert.equal(pendingCreates,2);
+    const pendingEvents=await invoke('event.list',{conversationId:pendingRequest.conversationId,
+      turnId:pendingRequest.turnId,limit:50,afterSequence:0});
+    assert.deepEqual({...pendingEvents.execution.output.items.find(item=>item.kind==='tool_result').payload.usage},
+      {inputTokens:11,outputTokens:12});
   }finally{await runtime.dispose();}
 });

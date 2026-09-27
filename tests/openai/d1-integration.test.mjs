@@ -90,6 +90,16 @@ test('OpenAI key and config commit atomically in D1 without exposing plaintext',
     assert.equal(vault.state,'active');
     assert.doesNotMatch(JSON.stringify(vault),/Synthetic test key/);
     assert.equal(output(await invoke('config.read',{})).config.state,'ready');
+    const wrongKeyring=createVaultKeyring({activeKeyId:'test',keys:{test:new Uint8Array(32).fill(31)}});
+    const unreadableProvider=createOpenAiProviderHost({db,catalog,permissions,config:openAiConfigStorage,
+      vault:openAiVaultStorage,keyring:wrongKeyring,transport:createOpenAITransport});
+    const providerRequest={credential:{kind:'session',token:login.token},contextId:'application',audience:'admin'};
+    assert.equal((await unreadableProvider.availability(providerRequest)).state,'invalid');
+    let enteredTransport=false;
+    await assert.rejects(unreadableProvider.withTransport(providerRequest,async()=>{
+      enteredTransport=true;return null;
+    }),{code:'unavailable'});
+    assert.equal(enteredTransport,false);
     const stale=await invoke('config.key.set',{requestKey:'key-stale',apiKey:'Synthetic stale key',
       modelId:'model-a',enabled:true,revision:0});
     assert.notEqual(stale.execution.state,'succeeded');

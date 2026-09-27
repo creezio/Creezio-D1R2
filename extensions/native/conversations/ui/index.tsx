@@ -366,6 +366,7 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
     turnState={runningTurn&&['queued','running','cancel_requested','unknown'].includes(runningTurn.state)
       ?runningTurn.state as 'queued'|'running'|'cancel_requested'|'unknown':null}
     assistantPreview={runningTurn?progress.preview:''} progressSteps={runningTurn?progress.steps:[]}
+    toolDiagnostics={selectedTurn?progress.toolDiagnostics:null}
     onDraftChange={text => {
       if (!selectedId) return;
       controller.setDraft(selectedId,text);

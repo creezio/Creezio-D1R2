@@ -81,6 +81,20 @@ test('progress projection exposes bounded text and known steps without raw provi
   assert.doesNotMatch(JSON.stringify(projected),/private_operation|hidden|configured/);
 });
 
+test('tool exclusions remain visible after a turn without exposing operation names or payloads',()=>{
+  const projected=projectTurnEvents([{turnId:'t',sequence:1,kind:'started',payload:{body:'',
+    toolDiagnostics:[{code:'forbidden',count:2,name:'private_operation'},
+      {code:'unsupported_schema',count:1,secret:'hidden'}],toolDiagnosticsTruncated:false},createdAt:''}]);
+  assert.match(projected.toolDiagnostics,/2 sans autorisation/);
+  assert.match(projected.toolDiagnostics,/1 schéma non compatible/);
+  assert.doesNotMatch(JSON.stringify(projected),/private_operation|hidden/);
+  const terminal=renderToStaticMarkup(React.createElement(ConversationPanel,{...props,
+    messages:[{id:'answer',role:'assistant',content:'Réponse'}],turnState:null,
+    toolDiagnostics:projected.toolDiagnostics}));
+  assert.match(terminal,/Outils non proposés/);
+  assert.match(terminal,/Réponse/);
+});
+
 test('active turn drives a continuation serially until it reaches a terminal state',async()=>{
   let state='queued',calls=0,active=0,maximumActive=0,refreshes=0;
   let finished;const done=new Promise(resolve=>{finished=resolve;});

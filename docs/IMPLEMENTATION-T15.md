@@ -1,6 +1,6 @@
 # Réalisation T-15 — fournisseur OpenAI et tours du chat
 
-T-15 / US-15. Branche `core/t15-openai-sites`, en réalisation. PR #23 et ses 974 tests qualifient T14 ; ils ne constituent pas une preuve de ce lot. Les contrôles ciblés et l'appel fournisseur de préparation sont acquis, la recette intégrée puis hébergée reste à exécuter.
+T-15 / US-15. Branche `core/t15-openai-sites`, PR #24 en réalisation. PR #23 et ses 974 tests qualifient T14 ; ils ne constituent pas une preuve de ce lot. Le chat a répondu via la vraie API OpenAI en local et une reprise avec reçu connu a retrouvé son résultat. Les défauts relevés par les recettes successives et les revues restent bloquants jusqu'à leur correction et vérification sur le candidat final. La recette hébergée du Worker applicatif reste à exécuter.
 
 Le module natif `creezio.openai` est sélectionné explicitement dans la composition. Il expose sa configuration et ses modèles par les opérations communes, une vue d'administration et son contrat fournisseur public. Son absence laisse fonctionner le socle et les conversations sans simuler de réponse. La clé est chiffrée dans le coffre serveur ; `config.key.set` prépare ensemble les écritures du coffre et de la configuration, validées dans le même batch que l'opération. Les changements suivants comparent la révision et la version du secret. La clé de chiffrement du déploiement est fournie par `CREEZIO_VAULT_KEYRING`, jamais générée ou remplacée silencieusement par le Worker.
 
@@ -13,3 +13,5 @@ Le catalogue d'outils est compilé depuis les schémas d'entrée exacts des opé
 Le SDK et le panneau Conversations original assurent l'envoi, l'observation, l'arrêt demandé et la reprise. Le front utilise les mêmes opérations que le workspace. OAuth/MCP et HTTP injectent le même moteur et les mêmes capacités serveur ; une identité GPT ne remplace pas les comptes applicatifs.
 
 Les suites du module OpenAI et `tests/openai/` font partie du contrôle obligatoire, avec les régressions Conversations et les tests du moteur. La compilation, les contrôles globaux, les recettes avec la vraie clé et la revue du candidat doivent être enregistrés avant intégration. Les preuves hors dépôt distinguent appels API de préparation, D1 synthétique, navigateur local et Sites.
+
+Le harnais global garde une échéance de 600 secondes pour ses 126 fichiers de tests séquentiels. Le contrôle Windows précédent a terminé 992 tests en 329 secondes ; une exécution suivante a dépassé l'ancienne limite de 360 secondes sans produire de compteur final. Cette exécution reste un échec conservé. L'ajustement concerne seulement l'agrégat de développement : les échéances des opérations et des tests individuels sont inchangées, et un TAP incomplet, omis ou annulé reste refusé.

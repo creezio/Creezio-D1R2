@@ -42,6 +42,7 @@ export type ConversationPanelProps = Readonly<{
   turnState?: 'queued' | 'running' | 'cancel_requested' | 'unknown' | null;
   assistantPreview?: string;
   progressSteps?: readonly ConversationProgressStep[];
+  toolDiagnostics?: string | null;
   onCreate: (mode: ConversationMode) => void;
   onSelect: (id: string) => void;
   onArchive: (id: string) => void;
@@ -224,6 +225,7 @@ export function ConversationPanel(props: ConversationPanelProps) {
               <span>{step.label}</span>
             </li>)}
           </ol>}
+          {props.toolDiagnostics && <p role="status" className="text-xs text-slate-600">{props.toolDiagnostics}</p>}
           {props.assistantPreview && <div role="status" aria-label="Réponse en cours"
             className="mr-2 rounded-xl border border-sky-100 bg-sky-50 px-2.5 py-2 text-xs text-slate-800">
             <AssistantMessageContent content={props.assistantPreview} sources={[]} onNavigate={props.onNavigate} />

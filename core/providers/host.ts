@@ -56,7 +56,13 @@ export function createOpenAiProviderHost(options:{readonly db:IdentityDatabase;r
     const secret=await data.internalPort(active,{moduleId:options.vault.moduleId,
       modelId:options.vault.modelId,fields:vaultFields}).get(options.vault.modelId,
       {key:{[vf.id]:row[cf.apiKeyRef]},fields:[vf.id,vf.bindingId,vf.version,vf.state]});
-    return !!secret&&secret[vf.bindingId]===ID&&secret[vf.version]===row[cf.secretVersion]&&secret[vf.state]==='active';
+    if(!secret||secret[vf.bindingId]!==ID||secret[vf.version]!==row[cf.secretVersion]
+      ||secret[vf.state]!=='active')return false;
+    // Metadata alone cannot prove that the deployment keyring can open this key.
+    // The vault checks and decrypts it without returning plaintext to the caller.
+    try{await vault.useSecret(active,{reference:String(row[cf.apiKeyRef]),bindingId:ID},()=>true);}
+    catch(error){if(error instanceof VaultError&&['unreadable','conflict'].includes(error.code))return false;throw error;}
+    return true;
   };
   return Object.freeze({
     async availability(request:Request){

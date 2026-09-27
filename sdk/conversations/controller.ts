@@ -298,11 +298,12 @@ export function createConversationsController(options:ConversationsControllerOpt
         try{storage?.removeItem(storageKey(`draft:${conversationId}`));}catch{}}
       turnIds.set(conversationId,started.id);
       try{storage?.setItem(storageKey(`turn:${conversationId}`),started.id);}catch{}
+      advanceRevision(conversationId);
       if(snapshot.selected?.id===conversationId){
         update({messages:Object.freeze([...snapshot.messages,sent]),activeTurn:started,turnEvents:Object.freeze([]),
           draft:{conversationId,text:newer!==undefined&&newer!==wanted?newer:'',updatedAt:null,revision:draftRevision+1}});
       }
-      if(snapshot.selected?.id===conversationId)await controller.open(conversationId);
+      if(snapshot.selected?.id===conversationId)await controller.refreshTurn(conversationId,started.id);
       return {kind:'ok',value:{message:sent,turn:started}};
     },
     async driveTurn(conversationId,turnId){

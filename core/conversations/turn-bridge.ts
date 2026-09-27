@@ -54,12 +54,14 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
   };
   async function change(lease:DataLease,request:Request,delivery:OperationDelivery,claim:DeliveryClaim,
     event:{cursor:number;kind:string;payload:JsonValue},changes:Record<string,JsonValue>,
-    message?:{body:string},terminal=false){
+    message?:{body:string},terminal=false,confirmedSnapshot=false){
     const {parent,turn}=await checked(lease,request),seq=Number(turn.last_sequence)+1,time=now();
+    if(turn.state==='cancel_requested'&&!confirmedSnapshot)throw new OperationError('conflict');
     const p=port(lease),plans=[];
-    const turnChanges={...changes,updated_at:time,last_sequence:seq};
+    const turnChanges={...changes,...(turn.state==='cancel_requested'&&!terminal?{state:'cancel_requested'}:{}),
+      updated_at:time,last_sequence:seq};
     plans.push(p.planPatch('turn',{key:childKey(lease,request.conversationId,request.turnId),
-      compare:{field:'revision',expected:Number(turn.revision)},values:turnChanges}));
+      where:{state:turn.state},compare:{field:'revision',expected:Number(turn.revision)},values:turnChanges}));
     plans.push(p.planCreate('event',{values:{...scope(lease),conversation_id:request.conversationId,
       turn_id:request.turnId,sequence:seq,kind:event.kind,payload:event.payload,created_at:time}}));
     if(message){
@@ -116,14 +118,19 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
       &&Number.isSafeInteger(value.cursor)&&Number(value.cursor)>=0
       ?{providerReference:value.providerReference,cursor:Number(value.cursor)}:null;
   };
-  type PendingTool={callId:string;name:string;arguments:JsonValue;result:JsonValue};
+  type Usage={inputTokens:number;outputTokens:number};
+  type PendingTool={callId:string;name:string;arguments:JsonValue;result:JsonValue;usage?:Usage};
   const pendingTool=(delivery:OperationDelivery):PendingTool|null=>{
     const value=delivery.receipt as Record<string,JsonValue>|null;
     const pending=value?.pendingTool;
     if(!pending||typeof pending!=='object'||Array.isArray(pending))return null;
     const item=pending as Record<string,JsonValue>;
+    const usage=item.usage as Record<string,JsonValue>|undefined;
     return typeof item.callId==='string'&&ID.test(item.callId)&&typeof item.name==='string'
       &&ID.test(item.name)&&Object.hasOwn(item,'arguments')&&Object.hasOwn(item,'result')
+      &&(usage===undefined||usage&&typeof usage==='object'&&!Array.isArray(usage)
+        &&Number.isSafeInteger(usage.inputTokens)&&Number(usage.inputTokens)>=0
+        &&Number.isSafeInteger(usage.outputTokens)&&Number(usage.outputTokens)>=0)
       ?item as PendingTool:null;
   };
   const project=(request:Request)=>projectAuthorizedReadTools({catalog:options.toolCatalog,
@@ -141,14 +148,15 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
         {error:result.execution.errorCode??'unknown'};
     }catch(error){return {error:error instanceof OperationError?error.code:'unavailable'};}
   };
-  const prepareTool=async(request:Request,call:{callId:string;name:string;arguments:JsonValue})=>{
+  const prepareTool=async(request:Request,call:{callId:string;name:string;arguments:JsonValue},usage:Usage|null)=>{
     if(!ID.test(call.callId)||!ID.test(call.name))throw new OperationError('invalid_input');
     const args=JSON.stringify(call.arguments);
     if(new TextEncoder().encode(args).length>4_096)return null;
     let result=await invokeTool(request,call.name,call.arguments);
     if(new TextEncoder().encode(JSON.stringify(result)).length>8_192)
       result={error:'tool_output_too_large'};
-    const tool:PendingTool={callId:call.callId,name:call.name,arguments:call.arguments,result};
+    const tool:PendingTool={callId:call.callId,name:call.name,arguments:call.arguments,result,
+      ...(usage?{usage}:{})};
     if(new TextEncoder().encode(JSON.stringify(tool)).length>12_000)return null;
     return tool;
   };
@@ -168,7 +176,7 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
       p.planCreate('event',{values:{...scope(lease),conversation_id:request.conversationId,
         turn_id:request.turnId,sequence,kind:'tool_result',
         payload:{callId:tool.callId,state:Object.hasOwn(tool.result as object,'output')?'succeeded':'rejected',
-          body:await eventBody(lease,request)},created_at:time}})];
+          body:await eventBody(lease,request),...(tool.usage?{usage:tool.usage}:{})},created_at:time}})];
     await store.appendDelivery(lease,claim,{plans,intent:{id:nextId,provider:PROVIDER,
       providerIdempotencyKey:`${request.turnId}:${tool.callId}`,
       payload:{conversationId:request.conversationId,turnId:request.turnId,modelId,step:1,inputItems}}});
@@ -188,6 +196,7 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
   };
   const failUnsent=async(lease:DataLease,request:Request,claim:DeliveryClaim,code:string)=>{
     const {turn,parent}=await checked(lease,request),time=now(),seq=Number(turn.last_sequence)+1,p=port(lease);
+    if(turn.state==='cancel_requested')return cancelUnsent(lease,request,claim);
     await store.settleDelivery(lease,claim,{state:'failed'},[
       p.planPatch('turn',{key:childKey(lease,request.conversationId,request.turnId),
         compare:{field:'revision',expected:Number(turn.revision)},
@@ -201,14 +210,14 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
   async function markUnknown(lease:DataLease,request:Request,delivery:OperationDelivery,claim:DeliveryClaim){
     try{
       const turn=await readTurn(lease,request);
-      if(turn&&!['succeeded','failed','cancelled','unknown'].includes(String(turn.state))){
+      if(turn&&!['succeeded','failed','cancelled','unknown','cancel_requested'].includes(String(turn.state))){
         const handle=receipt(delivery);
         if(handle)await change(lease,request,delivery,claim,{cursor:handle.cursor,kind:'unknown',payload:{body:await eventBody(lease,request)}},
           {state:'unknown',error_code:'provider_unknown'});
         else{
           const seq=Number(turn.last_sequence)+1,time=now(),p=port(lease);
           await data.commitBatch(lease,[p.planPatch('turn',{key:childKey(lease,request.conversationId,request.turnId),
-            compare:{field:'revision',expected:Number(turn.revision)},values:{state:'unknown',error_code:'provider_unknown',
+            where:{state:turn.state},compare:{field:'revision',expected:Number(turn.revision)},values:{state:'unknown',error_code:'provider_unknown',
               updated_at:time,last_sequence:seq}}),p.planCreate('event',{values:{...scope(lease),
                 conversation_id:request.conversationId,turn_id:request.turnId,sequence:seq,kind:'unknown',payload:{},created_at:time}})]);
         }
@@ -242,12 +251,30 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
           return {turn:view((await readTurn(lease,request))!)};
         }
         const result=await options.provider.withTransport(request,async(transport:ProviderTransport,modelId:string)=>{
-          if(modelId!==payload.modelId)throw new OperationError('conflict');
           const known=receipt(current);
+          if(!known&&modelId!==payload.modelId)throw new OperationError('conflict');
+          const requestedModel=String(payload.modelId);
+          let observedUsage:Usage|null=null;
+          const usagePayload=():Record<string,JsonValue>=>observedUsage
+            ?{usage:{inputTokens:observedUsage.inputTokens,outputTokens:observedUsage.outputTokens}}:{};
+          const diagnosticPayload=(diagnostics:readonly string[])=>{
+            // Progress is visible to the caller. Do not reveal catalog entries that
+            // failed authorization, or their schema/operation names.
+            const allowed=new Set(['invalid_catalog','inactive','unsupported_schema','invalid_schema',
+              'forbidden','collision','limit','unavailable']);
+            const counts=new Map<string,number>();
+            for(const item of diagnostics.slice(0,1000)){
+              const suffix=item.slice(item.lastIndexOf(':')+1);
+              const code=allowed.has(suffix)?suffix:'other';
+              counts.set(code,(counts.get(code)??0)+1);
+            }
+            return {toolDiagnostics:[...counts].map(([code,count])=>({code,count})),
+              toolDiagnosticsTruncated:diagnostics.length>1000};
+          };
           const pending=pendingTool(current);
           if(pending){
             if(step!==0)throw new OperationError('conflict');
-            await appendTool(lease,request,current,acquired.claim,pending,modelId);
+            await appendTool(lease,request,current,acquired.claim,pending,requestedModel);
             return true;
           }
           const reconcileSnapshot=async(snapshot:Awaited<ReturnType<ProviderTransport['status']>>,
@@ -258,18 +285,26 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
             }
             const handle=receipt(current);
             if(!handle||snapshot.responseId!==handle.providerReference)throw new OperationError('conflict');
+            const snapshotUsage=snapshot.events.findLast(item=>item.kind==='usage');
+            if(snapshotUsage?.kind==='usage')observedUsage={inputTokens:snapshotUsage.inputTokens,
+              outputTokens:snapshotUsage.outputTokens};
             const call=snapshot.state==='succeeded'
               ?snapshot.events.find(item=>item.kind==='function_call'):undefined;
             if(call?.kind==='function_call'){
-              if(step!==0||((await readTurn(lease,request))?.state==='cancel_requested'))
-                throw new OperationError('conflict');
-              const tool=await prepareTool(request,call);
+              if((await readTurn(lease,request))?.state==='cancel_requested'){
+                await change(lease,request,current,acquired.claim,{cursor:handle.cursor+1,
+                  kind:'cancelled',payload:usagePayload()},
+                  {state:'cancelled',error_code:null},undefined,true,true);
+                return true;
+              }
+              if(step!==0)throw new OperationError('conflict');
+              const tool=await prepareTool(request,call,observedUsage);
               if(!tool){await change(lease,request,current,acquired.claim,{cursor:handle.cursor+1,
                 kind:'failed',payload:{code:'tool_arguments_too_large'}},
                 {state:'failed',error_code:'tool_arguments_too_large'},undefined,true);return true;}
               current=await store.checkpointDelivery(lease,acquired.claim,{providerReference:handle.providerReference,
                 cursor:handle.cursor+1,pendingTool:tool});
-              await appendTool(lease,request,current,acquired.claim,tool,modelId);
+              await appendTool(lease,request,current,acquired.claim,tool,requestedModel);
               return true;
             }
             if(snapshot.state==='succeeded'){
@@ -282,16 +317,16 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
               let cursor=handle.cursor;
               if(suffix){cursor++;
                 await change(lease,request,current,acquired.claim,{cursor,kind:'text_delta',payload:{text:suffix,body:finalText}},
-                  {state:'running'});
+                  {state:'running'},undefined,false,true);
                 current=(await store.readDelivery(lease,{executionId:delivery.executionId,outboxId:delivery.id}))!;
               }
               await change(lease,request,current,acquired.claim,{cursor:cursor+1,kind:'completed',
-                payload:{messageId:request.turnId}},{state:'succeeded',error_code:null},{body:finalText},true);
+                payload:{messageId:request.turnId,...usagePayload()}},{state:'succeeded',error_code:null},{body:finalText},true,true);
               return true;
             }
             await change(lease,request,current,acquired.claim,{cursor:handle.cursor+1,kind:snapshot.state,
-              payload:snapshot.state==='cancelled'?{}:{code:'provider_failed'}},
-              {state:snapshot.state,error_code:snapshot.state==='cancelled'?null:'provider_failed'},undefined,true);
+              payload:snapshot.state==='cancelled'?usagePayload():{code:'provider_failed',...usagePayload()}},
+              {state:snapshot.state,error_code:snapshot.state==='cancelled'?null:'provider_failed'},undefined,true,true);
             return true;
           };
           if(initial.turn.state==='cancel_requested'&&known){
@@ -303,7 +338,10 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
           let events:AsyncIterable<ProviderEvent>;
           if(known){
             if(initial.turn.state==='queued'){
-              await change(lease,request,current,acquired.claim,{cursor:known.cursor,kind:'started',payload:{body:''}},
+              let diagnostics:readonly string[]=[];
+              try{diagnostics=(await project(request)).diagnostics;}catch{diagnostics=['catalog:unavailable'];}
+              await change(lease,request,current,acquired.claim,{cursor:known.cursor,kind:'started',
+                payload:{body:'',...diagnosticPayload(diagnostics)}},
                 {state:'running'});
               current=(await store.readDelivery(lease,{executionId:delivery.executionId,outboxId:delivery.id}))!;
             }
@@ -328,12 +366,14 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
             const turn=await readTurn(lease,request);
             if(turn?.state==='queued'||turn?.state==='unknown'){
               // The progress row is started under the same durable provider cursor.
-              await change(lease,request,current,acquired.claim,{cursor:stream.receipt.cursor,kind:'started',payload:{body:''}},
+              await change(lease,request,current,acquired.claim,{cursor:stream.receipt.cursor,kind:'started',
+                payload:{body:'',...diagnosticPayload(projected?.diagnostics??[])}},
                 {state:'running'});
               current=(await store.readDelivery(lease,{executionId:delivery.executionId,outboxId:delivery.id}))!;
             }
             events=stream.events;
           }
+          let pendingCall:Extract<ProviderEvent,{kind:'function_call'}>|null=null;
           try{for await(const event of events){
             if(request.signal.aborted)break;
             const handle=receipt(current);
@@ -345,32 +385,44 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
               catch{snapshot=await transport.status(handle.providerReference,request.signal);}
               return reconcileSnapshot(snapshot);
             }
-            if(event.kind==='usage')continue;
+            if(event.kind==='usage'){
+              observedUsage={inputTokens:event.inputTokens,outputTokens:event.outputTokens};
+              continue;
+            }
             if(event.kind==='function_call'){
-              if(step!==0){
+              if(step!==0||pendingCall){
                 await change(lease,request,current,acquired.claim,{cursor:event.cursor,kind:'failed',payload:{code:'tool_limit'}},
                   {state:'failed',error_code:'tool_limit'},undefined,true);
                 return true;
               }
-              const tool=await prepareTool(request,event);
-              if(!tool){await change(lease,request,current,acquired.claim,{cursor:event.cursor,
-                kind:'failed',payload:{code:'tool_arguments_too_large'}},
-                {state:'failed',error_code:'tool_arguments_too_large'},undefined,true);return true;}
-              current=await store.checkpointDelivery(lease,acquired.claim,{providerReference:handle.providerReference,
-                cursor:event.cursor,pendingTool:tool});
-              await appendTool(lease,request,current,acquired.claim,tool,modelId);
-              return true;
+              // Do not run the tool before the provider response reaches its
+              // terminal frame: usage arrives there, and an interrupted stream
+              // can safely replay this uncheckpointed call.
+              pendingCall=event;
+              continue;
             }
             if(event.kind==='text_delta'){
+              if(pendingCall)continue;
               const body=(await eventBody(lease,request))+event.text;
               if(new TextEncoder().encode(body).length>16_000)throw new OperationError('invalid_output');
               await change(lease,request,current,acquired.claim,{cursor:event.cursor,kind:'text_delta',payload:{text:event.text,body}},
                 {state:'running'});
             }else if(event.kind==='terminal'){
               const state=event.state==='succeeded'?'succeeded':event.state==='cancelled'?'cancelled':'failed';
+              if(state==='succeeded'&&pendingCall){
+                const tool=await prepareTool(request,pendingCall,observedUsage);
+                if(!tool){await change(lease,request,current,acquired.claim,{cursor:event.cursor,
+                  kind:'failed',payload:{code:'tool_arguments_too_large',...usagePayload()}},
+                  {state:'failed',error_code:'tool_arguments_too_large'},undefined,true);return true;}
+                current=await store.checkpointDelivery(lease,acquired.claim,{providerReference:handle.providerReference,
+                  cursor:event.cursor,pendingTool:tool});
+                await appendTool(lease,request,current,acquired.claim,tool,requestedModel);
+                return true;
+              }
               const body=state==='succeeded'?await eventBody(lease,request):'';
               await change(lease,request,current,acquired.claim,{cursor:event.cursor,kind:state==='succeeded'?'completed':state,
-                payload:state==='succeeded'?{messageId:request.turnId}:{code:event.errorCode??'provider_failed'}},
+                payload:state==='succeeded'?{messageId:request.turnId,...usagePayload()}
+                  :{code:event.errorCode??'provider_failed',...usagePayload()}},
                 {state,error_code:state==='succeeded'?null:event.errorCode??'provider_failed'},
                 state==='succeeded'?{body}:undefined,true);
               return true;
@@ -380,7 +432,12 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
             if(request.signal.aborted)throw streamError;
             const handle=receipt(current);
             if(!handle)throw streamError;
-            const snapshot=await transport.status(handle.providerReference,request.signal);
+            const cancelled=(await readTurn(lease,request))?.state==='cancel_requested';
+            let snapshot;
+            if(cancelled){
+              try{snapshot=await transport.cancel(handle.providerReference,request.signal);}
+              catch{snapshot=await transport.status(handle.providerReference,request.signal);}
+            }else snapshot=await transport.status(handle.providerReference,request.signal);
             return reconcileSnapshot(snapshot,streamError);
           }
           const handle=receipt(current);

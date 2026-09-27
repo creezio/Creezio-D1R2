@@ -259,6 +259,47 @@ test('terminal turn rereads the conversation revision and final assistant messag
   controller.dispose();
 });
 
+test('two consecutive turns retain both exchanges without reopening the conversation',async()=>{
+  const a=access();let revision=1,turns=0,reads=0,latestAssistant=null;
+  const turnReads=new Map();
+  const client={invoke:async({bindingId,input})=>{
+    if(bindingId.endsWith('conversation.read')){reads++;return execution({conversation:{...summary('thread'),revision},provider:'configured'});}
+    if(bindingId.endsWith('message.list'))return execution({items:latestAssistant?[latestAssistant]:[],nextCursor:null});
+    if(bindingId.endsWith('draft.read'))return execution({conversationId:'thread',text:'',updatedAt:null,revision:0});
+    if(bindingId.endsWith('turn.start')){
+      assert.equal(input.revision,revision);
+      const number=++turns;revision++;
+      return execution({message:{...message(input.messageId),body:input.body},turn:{id:`turn-${number}`,
+        conversationId:'thread',state:'queued',providerId:'openai.responses.v1',
+        updatedAt:'2026-09-27T00:00:00.000Z',lastSequence:1,errorCode:null,revision:1}});
+    }
+    if(bindingId.endsWith('turn.read')){
+      const count=(turnReads.get(input.turnId)??0)+1;turnReads.set(input.turnId,count);
+      if(count===2){revision++;
+        latestAssistant={...message(input.turnId),role:'assistant',body:`Réponse ${turns}`};}
+      return execution({turn:{id:input.turnId,conversationId:'thread',state:count===1?'queued':'succeeded',
+        providerId:'openai.responses.v1',updatedAt:'2026-09-27T00:00:01.000Z',
+        lastSequence:count,errorCode:null,revision:count}});
+    }
+    if(bindingId.endsWith('event.list'))return execution({items:[],nextSequence:null});
+    throw new Error(bindingId);
+  }};
+  const controller=createConversationsController({access:a,client,audience:'app',contextId:'application',active:true});
+  await controller.open('thread');
+  for(const number of [1,2]){
+    const result=await controller.startTurn('thread',`Question ${number}`,'gpt-test');
+    assert.equal(result.kind,'ok');
+    assert.deepEqual(controller.getSnapshot().messages.map(row=>row.body),number===1
+      ?['Question 1']:['Question 1','Réponse 1','Question 2']);
+    await controller.refreshTurn('thread',result.value.turn.id);
+  }
+  assert.deepEqual(controller.getSnapshot().messages.map(row=>row.body),
+    ['Question 1','Réponse 1','Question 2','Réponse 2']);
+  assert.equal(controller.getSnapshot().selected.revision,5);
+  assert.equal(reads,3);
+  controller.dispose();
+});
+
 test('lost turn.start response is reconciled by request key without a second start',async()=>{
   const a=access();let starts=0,revision=1,stored=[];
   const turn={id:'turn-unknown',conversationId:'thread',state:'queued',providerId:'openai.responses.v1',
