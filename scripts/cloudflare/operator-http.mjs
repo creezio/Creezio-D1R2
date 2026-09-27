@@ -394,6 +394,22 @@ export function createLocalDeliveryServer({config,port,operations,fetcher=fetch}
           if(jobs.get(key)===existing){jobs.delete(key);existing=null;}
           else existing=jobs.get(key);
         }
+        if(kind==='prepareUpdate'&&existing?.state==='done'){
+          const previous=grant.updatePrepared;
+          if(!previous||!validUpdatePrepared(existing.value)
+            ||previous.updateId!==existing.value.updateId
+            ||previous.planDigest!==existing.value.planDigest)
+            throw error('invalid_state',409);
+          const owned=await operations.statusUpdate(previous.updateId,{principalId:grant.principalId,
+            sessionId:grant.sessionId,epoch:grant.epoch,requireOwnership:true});
+          if(!validUpdateStatus(owned)||owned.updateId!==previous.updateId
+            ||owned.planDigest!==previous.planDigest)throw error('forbidden',403);
+          if(owned.phase==='delivered'&&owned.registryStatus==='effective'){
+            if(jobs.get(key)===existing){jobs.delete(key);existing=null;
+              grant.updatePrepared=null;grant.updateStarted=null;}
+            else existing=jobs.get(key);
+          }else if(owned.phase!=='prepared')throw error('update_in_progress',409);
+        }
         if(existing&&(kind!=='reconcileUpdate'||existing.state==='running')){
           const output=jobResult(existing);send(response,output.status,output.body,config.origin);return;
         }
