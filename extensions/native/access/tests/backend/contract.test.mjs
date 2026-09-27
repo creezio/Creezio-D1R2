@@ -6,12 +6,30 @@ import {generateD1Schema} from '../../../../../scripts/data/d1-schema.mjs';
 test('access owns private identity models and a deterministic relational schema',()=>{
  const models=JSON.parse(read('module/models.json'));
  assert.deepEqual(manifest.contracts.models,models);
- assert.equal(models.length,22);
+ assert.equal(models.length,28);
  for(const model of models){assert.equal(model.public,false);assert.ok(model.fields.every(field=>field.protected));}
  const generated=generateD1Schema(manifest.identity.id,models);
  assert.equal(Object.keys(generated.tables).length,models.length);
  assert.match(generated.sql,/CREATE TABLE/);
  assert.doesNotMatch(generated.sql,/IF NOT EXISTS/);
+});
+
+test('OAuth models bind private purpose tokens to a client, grant and native principal',()=>{
+ const models=JSON.parse(read('module/models.json')),byId=new Map(models.map(model=>[model.id,model]));
+ for(const id of ['oauth_clients','oauth_requests','oauth_grants','oauth_codes','oauth_access_tokens','oauth_refresh_tokens']){
+  const model=byId.get(id);assert.ok(model);assert.equal(model.public,false);
+  assert.ok(model.fields.every(field=>field.protected));assert.ok(model.relations.every(relation=>relation.onDelete==='restrict'));
+  assert.equal(model.fields.some(field=>['token','password','secret'].includes(field.id)),false);
+ }
+ for(const id of ['oauth_codes','oauth_access_tokens','oauth_refresh_tokens']){
+  const model=byId.get(id);
+  assert.ok(model.indexes.some(index=>index.unique&&index.fields.length===1&&index.fields[0]==='secret_hash'));
+  assert.ok(model.relations.some(relation=>relation.fields[0]==='grant_id'&&relation.target.id==='oauth_grants'));
+ }
+ const fields=new Map(byId.get('oauth_grants').fields.map(field=>[field.id,field]));
+ for(const id of ['auth_version','account_version','credential_version'])assert.equal(fields.get(id).constraints.minimum,1);
+ for(const id of ['resource','audience','context_id','permission_ids_json'])assert.equal(fields.get(id).nullable,false);
+ assert.ok(byId.get('oauth_refresh_tokens').indexes.some(index=>index.unique&&index.fields[0]==='parent_id'));
 });
 
 test('authorization models bind assignments and exceptions to exact principal/context/audience memberships',()=>{
@@ -135,7 +153,7 @@ test('impersonation models preserve distinct source and subject without constrai
  assert.deepEqual(audit.fields.find(f=>f.id==='audience').constraints.enum,[null,'admin','app'],'historical audit permits omitted audience without allowing unknown values');
  for(const id of ['manage','impersonate']){
   const permission=manifest.contracts.permissions.find(p=>p.id===id);
-  assert.deepEqual(permission.actors,['user']);assert.deepEqual(permission.audiences,['admin']);
+  assert.deepEqual(permission.actors,id==='manage'?['user','delegated-user']:['user']);assert.deepEqual(permission.audiences,['admin']);
   assert.equal(permission.context,'application');assert.equal(permission.default,'deny');
  }
 });

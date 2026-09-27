@@ -5,9 +5,10 @@ import { gzipSync } from 'node:zlib';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 
-// Local ceilings: the Access composition adds native operations and original SSR UI.
+// Local ceilings: the Access composition includes native OAuth/MCP transport,
+// operation guards and consent UI. Revisit against each measured full artifact.
 // They are neither provider quotas nor production latency guarantees.
-export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 1_750_000, workerGzipBytes: 500_000,
+export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 2_200_000, workerGzipBytes: 550_000,
   selectedGraphInputs: 32, startupMs: 15_000, routeMs: 3_000 });
 
 export function assertRuntimeBudgets(report) {

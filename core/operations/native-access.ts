@@ -16,7 +16,7 @@ const nativeQueries = new Set(['policy.read', 'permissions.list', 'principals.li
 const nativeCommands = new Set(['policy.apply-delta', 'principals.set-human-status',
   'principals.revoke-sessions', 'sessions.revoke']);
 const identityReads = ['principals', 'human_accounts', 'password_credentials', 'sessions',
-  'authorization_state', 'contexts', 'memberships'];
+  'authorization_state', 'contexts', 'memberships', 'oauth_access_tokens', 'oauth_grants', 'oauth_clients'];
 const policyReads = [...identityReads, 'roles', 'role_parents', 'role_grants', 'role_overrides',
   'role_assignments', 'principal_overrides'];
 const readModels: Readonly<Record<string, readonly string[]>> = Object.freeze({
@@ -48,7 +48,7 @@ export function validNativeAccessDeclaration(op: OperationDeclaration): boolean 
     : op.id === 'principals.set-human-status' || op.id === 'principals.revoke-sessions' ? 'expectedAuthVersion' : null;
   return (query || command) && op.kind === (query ? 'query' : 'command')
     && op.audiences.length === 1 && op.audiences[0] === 'admin'
-    && op.actors.length === 1 && op.actors[0] === 'user' && op.context === 'application'
+    && op.actors.length === 2 && op.actors[0] === 'user' && op.actors[1] === 'delegated-user' && op.context === 'application'
     && op.permissions.length === 1 && op.permissions[0].moduleId === 'creezio.access'
     && op.permissions[0].kind === 'permission' && op.permissions[0].id === 'manage'
     && op.approval.mode === 'none'
@@ -92,7 +92,8 @@ export function createNativeAccessOperationAdapter(db: IdentityDatabase, supplie
   const accounts = createAccountAdministrationService(db, {permissions: ordinaryPermissions});
   const accountPlans = createAccountAdministrationPlanService(db, {permissions: ordinaryPermissions});
   const audit = createAccessAuditService(db, {permissions: ordinaryPermissions});
-  async function execute(operationId: string, token: unknown, inputValue: unknown): Promise<NativeAccessResult> {
+  async function execute(operationId: string, credential: {readonly kind: 'session' | 'oauth'; readonly token: unknown; readonly resource?: string}, inputValue: unknown): Promise<NativeAccessResult> {
+    const token: unknown = credential.kind === 'session' ? credential.token : credential;
     const input = record(inputValue);
     switch (operationId) {
       case 'policy.read': {

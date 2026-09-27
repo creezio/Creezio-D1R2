@@ -158,6 +158,101 @@ CREATE TABLE "cz_637265657a696f2e616363657373_6d656d6265727368697073" (
   FOREIGN KEY ("principal_id") REFERENCES "cz_637265657a696f2e616363657373_7072696e636970616c73" ("id") ON DELETE RESTRICT
 ) WITHOUT ROWID;
 
+CREATE TABLE "cz_637265657a696f2e616363657373_6f617574685f6163636573735f746f6b656e73" (
+  "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
+  "expires_at_ms" INTEGER NOT NULL CHECK ("expires_at_ms" IS NOT NULL AND (typeof("expires_at_ms") = 'integer' AND "expires_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "expires_at_ms" >= 0 AND "expires_at_ms" <= 9007199254740991)),
+  "grant_id" TEXT NOT NULL CHECK ("grant_id" IS NOT NULL AND (typeof("grant_id") = 'text' AND instr("grant_id", char(0)) = 0 AND length("grant_id") >= 1 AND length("grant_id") <= 128)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
+  "revoked_at_ms" INTEGER CHECK ("revoked_at_ms" IS NULL OR (typeof("revoked_at_ms") = 'integer' AND "revoked_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "revoked_at_ms" >= 0 AND "revoked_at_ms" <= 9007199254740991)),
+  "secret_hash" TEXT NOT NULL CHECK ("secret_hash" IS NOT NULL AND (typeof("secret_hash") = 'text' AND instr("secret_hash", char(0)) = 0 AND length("secret_hash") >= 71 AND length("secret_hash") <= 71)),
+  PRIMARY KEY ("id"),
+  FOREIGN KEY ("grant_id") REFERENCES "cz_637265657a696f2e616363657373_6f617574685f6772616e7473" ("id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e616363657373_6f617574685f636c69656e7473" (
+  "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
+  "display_name" TEXT NOT NULL CHECK ("display_name" IS NOT NULL AND (typeof("display_name") = 'text' AND instr("display_name", char(0)) = 0 AND length("display_name") >= 1 AND length("display_name") <= 160)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 2048)),
+  "redirect_uris_json" TEXT NOT NULL CHECK ("redirect_uris_json" IS NOT NULL AND (typeof("redirect_uris_json") = 'text' AND instr("redirect_uris_json", char(0)) = 0 AND length("redirect_uris_json") >= 2 AND length("redirect_uris_json") <= 65536)),
+  "registration_kind" TEXT NOT NULL CHECK ("registration_kind" IS NOT NULL AND (typeof("registration_kind") = 'text' AND instr("registration_kind", char(0)) = 0 AND "registration_kind" IN ('predefined', 'dcr'))),
+  "revoked_at_ms" INTEGER CHECK ("revoked_at_ms" IS NULL OR (typeof("revoked_at_ms") = 'integer' AND "revoked_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "revoked_at_ms" >= 0 AND "revoked_at_ms" <= 9007199254740991)),
+  "scope_allowlist_json" TEXT NOT NULL CHECK ("scope_allowlist_json" IS NOT NULL AND (typeof("scope_allowlist_json") = 'text' AND instr("scope_allowlist_json", char(0)) = 0 AND length("scope_allowlist_json") >= 2 AND length("scope_allowlist_json") <= 65536)),
+  "token_endpoint_auth_method" TEXT NOT NULL CHECK ("token_endpoint_auth_method" IS NOT NULL AND (typeof("token_endpoint_auth_method") = 'text' AND instr("token_endpoint_auth_method", char(0)) = 0 AND "token_endpoint_auth_method" IN ('none'))),
+  PRIMARY KEY ("id")
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e616363657373_6f617574685f636f646573" (
+  "code_challenge" TEXT NOT NULL CHECK ("code_challenge" IS NOT NULL AND (typeof("code_challenge") = 'text' AND instr("code_challenge", char(0)) = 0 AND length("code_challenge") >= 43 AND length("code_challenge") <= 43)),
+  "consumed_at_ms" INTEGER CHECK ("consumed_at_ms" IS NULL OR (typeof("consumed_at_ms") = 'integer' AND "consumed_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "consumed_at_ms" >= 0 AND "consumed_at_ms" <= 9007199254740991)),
+  "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
+  "expires_at_ms" INTEGER NOT NULL CHECK ("expires_at_ms" IS NOT NULL AND (typeof("expires_at_ms") = 'integer' AND "expires_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "expires_at_ms" >= 0 AND "expires_at_ms" <= 9007199254740991)),
+  "grant_id" TEXT NOT NULL CHECK ("grant_id" IS NOT NULL AND (typeof("grant_id") = 'text' AND instr("grant_id", char(0)) = 0 AND length("grant_id") >= 1 AND length("grant_id") <= 128)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
+  "redirect_uri" TEXT NOT NULL CHECK ("redirect_uri" IS NOT NULL AND (typeof("redirect_uri") = 'text' AND instr("redirect_uri", char(0)) = 0 AND length("redirect_uri") >= 1 AND length("redirect_uri") <= 2048)),
+  "resource" TEXT NOT NULL CHECK ("resource" IS NOT NULL AND (typeof("resource") = 'text' AND instr("resource", char(0)) = 0 AND length("resource") >= 1 AND length("resource") <= 2048)),
+  "secret_hash" TEXT NOT NULL CHECK ("secret_hash" IS NOT NULL AND (typeof("secret_hash") = 'text' AND instr("secret_hash", char(0)) = 0 AND length("secret_hash") >= 71 AND length("secret_hash") <= 71)),
+  PRIMARY KEY ("id"),
+  FOREIGN KEY ("grant_id") REFERENCES "cz_637265657a696f2e616363657373_6f617574685f6772616e7473" ("id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e616363657373_6f617574685f6772616e7473" (
+  "account_version" INTEGER NOT NULL CHECK ("account_version" IS NOT NULL AND (typeof("account_version") = 'integer' AND "account_version" BETWEEN -9007199254740991 AND 9007199254740991 AND "account_version" >= 1 AND "account_version" <= 9007199254740991)),
+  "audience" TEXT NOT NULL CHECK ("audience" IS NOT NULL AND (typeof("audience") = 'text' AND instr("audience", char(0)) = 0 AND "audience" IN ('admin', 'app'))),
+  "auth_version" INTEGER NOT NULL CHECK ("auth_version" IS NOT NULL AND (typeof("auth_version") = 'integer' AND "auth_version" BETWEEN -9007199254740991 AND 9007199254740991 AND "auth_version" >= 1 AND "auth_version" <= 9007199254740991)),
+  "client_id" TEXT NOT NULL CHECK ("client_id" IS NOT NULL AND (typeof("client_id") = 'text' AND instr("client_id", char(0)) = 0 AND length("client_id") >= 1 AND length("client_id") <= 2048)),
+  "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
+  "credential_version" INTEGER NOT NULL CHECK ("credential_version" IS NOT NULL AND (typeof("credential_version") = 'integer' AND "credential_version" BETWEEN -9007199254740991 AND 9007199254740991 AND "credential_version" >= 1 AND "credential_version" <= 9007199254740991)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
+  "permission_ids_json" TEXT NOT NULL CHECK ("permission_ids_json" IS NOT NULL AND (typeof("permission_ids_json") = 'text' AND instr("permission_ids_json", char(0)) = 0 AND length("permission_ids_json") >= 2 AND length("permission_ids_json") <= 65536)),
+  "principal_id" TEXT NOT NULL CHECK ("principal_id" IS NOT NULL AND (typeof("principal_id") = 'text' AND instr("principal_id", char(0)) = 0 AND length("principal_id") >= 1 AND length("principal_id") <= 128)),
+  "resource" TEXT NOT NULL CHECK ("resource" IS NOT NULL AND (typeof("resource") = 'text' AND instr("resource", char(0)) = 0 AND length("resource") >= 1 AND length("resource") <= 2048)),
+  "revoked_at_ms" INTEGER CHECK ("revoked_at_ms" IS NULL OR (typeof("revoked_at_ms") = 'integer' AND "revoked_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "revoked_at_ms" >= 0 AND "revoked_at_ms" <= 9007199254740991)),
+  "scopes_json" TEXT NOT NULL CHECK ("scopes_json" IS NOT NULL AND (typeof("scopes_json") = 'text' AND instr("scopes_json", char(0)) = 0 AND length("scopes_json") >= 2 AND length("scopes_json") <= 65536)),
+  PRIMARY KEY ("id"),
+  FOREIGN KEY ("client_id") REFERENCES "cz_637265657a696f2e616363657373_6f617574685f636c69656e7473" ("id") ON DELETE RESTRICT,
+  FOREIGN KEY ("context_id") REFERENCES "cz_637265657a696f2e616363657373_636f6e7465787473" ("id") ON DELETE RESTRICT,
+  FOREIGN KEY ("principal_id") REFERENCES "cz_637265657a696f2e616363657373_7072696e636970616c73" ("id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e616363657373_6f617574685f726566726573685f746f6b656e73" (
+  "consumed_at_ms" INTEGER CHECK ("consumed_at_ms" IS NULL OR (typeof("consumed_at_ms") = 'integer' AND "consumed_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "consumed_at_ms" >= 0 AND "consumed_at_ms" <= 9007199254740991)),
+  "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
+  "expires_at_ms" INTEGER NOT NULL CHECK ("expires_at_ms" IS NOT NULL AND (typeof("expires_at_ms") = 'integer' AND "expires_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "expires_at_ms" >= 0 AND "expires_at_ms" <= 9007199254740991)),
+  "family_id" TEXT NOT NULL CHECK ("family_id" IS NOT NULL AND (typeof("family_id") = 'text' AND instr("family_id", char(0)) = 0 AND length("family_id") >= 1 AND length("family_id") <= 128)),
+  "grant_id" TEXT NOT NULL CHECK ("grant_id" IS NOT NULL AND (typeof("grant_id") = 'text' AND instr("grant_id", char(0)) = 0 AND length("grant_id") >= 1 AND length("grant_id") <= 128)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
+  "parent_id" TEXT CHECK ("parent_id" IS NULL OR (typeof("parent_id") = 'text' AND instr("parent_id", char(0)) = 0 AND length("parent_id") >= 1 AND length("parent_id") <= 128)),
+  "revoked_at_ms" INTEGER CHECK ("revoked_at_ms" IS NULL OR (typeof("revoked_at_ms") = 'integer' AND "revoked_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "revoked_at_ms" >= 0 AND "revoked_at_ms" <= 9007199254740991)),
+  "secret_hash" TEXT NOT NULL CHECK ("secret_hash" IS NOT NULL AND (typeof("secret_hash") = 'text' AND instr("secret_hash", char(0)) = 0 AND length("secret_hash") >= 71 AND length("secret_hash") <= 71)),
+  PRIMARY KEY ("id"),
+  FOREIGN KEY ("grant_id") REFERENCES "cz_637265657a696f2e616363657373_6f617574685f6772616e7473" ("id") ON DELETE RESTRICT,
+  FOREIGN KEY ("parent_id") REFERENCES "cz_637265657a696f2e616363657373_6f617574685f726566726573685f746f6b656e73" ("id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e616363657373_6f617574685f7265717565737473" (
+  "audience" TEXT NOT NULL CHECK ("audience" IS NOT NULL AND (typeof("audience") = 'text' AND instr("audience", char(0)) = 0 AND "audience" IN ('admin', 'app'))),
+  "client_id" TEXT NOT NULL CHECK ("client_id" IS NOT NULL AND (typeof("client_id") = 'text' AND instr("client_id", char(0)) = 0 AND length("client_id") >= 1 AND length("client_id") <= 2048)),
+  "code_challenge" TEXT NOT NULL CHECK ("code_challenge" IS NOT NULL AND (typeof("code_challenge") = 'text' AND instr("code_challenge", char(0)) = 0 AND length("code_challenge") >= 43 AND length("code_challenge") <= 43)),
+  "consumed_at_ms" INTEGER CHECK ("consumed_at_ms" IS NULL OR (typeof("consumed_at_ms") = 'integer' AND "consumed_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "consumed_at_ms" >= 0 AND "consumed_at_ms" <= 9007199254740991)),
+  "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
+  "csrf_digest" TEXT CHECK ("csrf_digest" IS NULL OR (typeof("csrf_digest") = 'text' AND instr("csrf_digest", char(0)) = 0 AND length("csrf_digest") >= 71 AND length("csrf_digest") <= 71)),
+  "expires_at_ms" INTEGER NOT NULL CHECK ("expires_at_ms" IS NOT NULL AND (typeof("expires_at_ms") = 'integer' AND "expires_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "expires_at_ms" >= 0 AND "expires_at_ms" <= 9007199254740991)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
+  "principal_id" TEXT CHECK ("principal_id" IS NULL OR (typeof("principal_id") = 'text' AND instr("principal_id", char(0)) = 0 AND length("principal_id") >= 1 AND length("principal_id") <= 128)),
+  "redirect_uri" TEXT NOT NULL CHECK ("redirect_uri" IS NOT NULL AND (typeof("redirect_uri") = 'text' AND instr("redirect_uri", char(0)) = 0 AND length("redirect_uri") >= 1 AND length("redirect_uri") <= 2048)),
+  "resource" TEXT NOT NULL CHECK ("resource" IS NOT NULL AND (typeof("resource") = 'text' AND instr("resource", char(0)) = 0 AND length("resource") >= 1 AND length("resource") <= 2048)),
+  "scopes_json" TEXT NOT NULL CHECK ("scopes_json" IS NOT NULL AND (typeof("scopes_json") = 'text' AND instr("scopes_json", char(0)) = 0 AND length("scopes_json") >= 2 AND length("scopes_json") <= 65536)),
+  "session_id" TEXT CHECK ("session_id" IS NULL OR (typeof("session_id") = 'text' AND instr("session_id", char(0)) = 0 AND length("session_id") >= 1 AND length("session_id") <= 128)),
+  "state" TEXT NOT NULL CHECK ("state" IS NOT NULL AND (typeof("state") = 'text' AND instr("state", char(0)) = 0 AND length("state") >= 0 AND length("state") <= 1024)),
+  PRIMARY KEY ("id"),
+  FOREIGN KEY ("client_id") REFERENCES "cz_637265657a696f2e616363657373_6f617574685f636c69656e7473" ("id") ON DELETE RESTRICT,
+  FOREIGN KEY ("context_id") REFERENCES "cz_637265657a696f2e616363657373_636f6e7465787473" ("id") ON DELETE RESTRICT,
+  FOREIGN KEY ("principal_id") REFERENCES "cz_637265657a696f2e616363657373_7072696e636970616c73" ("id") ON DELETE RESTRICT,
+  FOREIGN KEY ("session_id") REFERENCES "cz_637265657a696f2e616363657373_73657373696f6e73" ("id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
 CREATE TABLE "cz_637265657a696f2e616363657373_70617373776f72645f63726564656e7469616c73" (
   "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
   "expires_at_ms" INTEGER CHECK ("expires_at_ms" IS NULL OR (typeof("expires_at_ms") = 'integer' AND "expires_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "expires_at_ms" >= 0 AND "expires_at_ms" <= 9007199254740991)),
@@ -289,6 +384,38 @@ CREATE UNIQUE INDEX "cz_637265657a696f2e616363657373_696d706572736f6e6174696f6e7
 CREATE UNIQUE INDEX "cz_637265657a696f2e616363657373_696d706572736f6e6174696f6e73_idx_7365637265742d68617368" ON "cz_637265657a696f2e616363657373_696d706572736f6e6174696f6e73" ("secret_hash");
 
 CREATE INDEX "cz_637265657a696f2e616363657373_696d706572736f6e6174696f6e73_idx_7375626a656374" ON "cz_637265657a696f2e616363657373_696d706572736f6e6174696f6e73" ("subject_principal_id");
+
+CREATE INDEX "cz_637265657a696f2e616363657373_6f617574685f6163636573735f746f6b656e73_idx_657870697265732d6964" ON "cz_637265657a696f2e616363657373_6f617574685f6163636573735f746f6b656e73" ("expires_at_ms", "id");
+
+CREATE INDEX "cz_637265657a696f2e616363657373_6f617574685f6163636573735f746f6b656e73_idx_6772616e742d6964" ON "cz_637265657a696f2e616363657373_6f617574685f6163636573735f746f6b656e73" ("grant_id", "id");
+
+CREATE UNIQUE INDEX "cz_637265657a696f2e616363657373_6f617574685f6163636573735f746f6b656e73_idx_736563726574" ON "cz_637265657a696f2e616363657373_6f617574685f6163636573735f746f6b656e73" ("secret_hash");
+
+CREATE INDEX "cz_637265657a696f2e616363657373_6f617574685f636c69656e7473_idx_637265617465642d6964" ON "cz_637265657a696f2e616363657373_6f617574685f636c69656e7473" ("created_at_ms", "id");
+
+CREATE INDEX "cz_637265657a696f2e616363657373_6f617574685f636f646573_idx_657870697265732d6964" ON "cz_637265657a696f2e616363657373_6f617574685f636f646573" ("expires_at_ms", "id");
+
+CREATE INDEX "cz_637265657a696f2e616363657373_6f617574685f636f646573_idx_6772616e742d6964" ON "cz_637265657a696f2e616363657373_6f617574685f636f646573" ("grant_id", "id");
+
+CREATE UNIQUE INDEX "cz_637265657a696f2e616363657373_6f617574685f636f646573_idx_736563726574" ON "cz_637265657a696f2e616363657373_6f617574685f636f646573" ("secret_hash");
+
+CREATE INDEX "cz_637265657a696f2e616363657373_6f617574685f6772616e7473_idx_636c69656e742d6964" ON "cz_637265657a696f2e616363657373_6f617574685f6772616e7473" ("client_id", "id");
+
+CREATE INDEX "cz_637265657a696f2e616363657373_6f617574685f6772616e7473_idx_7072696e636970616c2d6964" ON "cz_637265657a696f2e616363657373_6f617574685f6772616e7473" ("principal_id", "id");
+
+CREATE INDEX "cz_637265657a696f2e616363657373_6f617574685f726566726573685f746f6b656e73_idx_657870697265732d6964" ON "cz_637265657a696f2e616363657373_6f617574685f726566726573685f746f6b656e73" ("expires_at_ms", "id");
+
+CREATE INDEX "cz_637265657a696f2e616363657373_6f617574685f726566726573685f746f6b656e73_idx_66616d696c792d6964" ON "cz_637265657a696f2e616363657373_6f617574685f726566726573685f746f6b656e73" ("family_id", "id");
+
+CREATE INDEX "cz_637265657a696f2e616363657373_6f617574685f726566726573685f746f6b656e73_idx_6772616e742d6964" ON "cz_637265657a696f2e616363657373_6f617574685f726566726573685f746f6b656e73" ("grant_id", "id");
+
+CREATE UNIQUE INDEX "cz_637265657a696f2e616363657373_6f617574685f726566726573685f746f6b656e73_idx_706172656e74" ON "cz_637265657a696f2e616363657373_6f617574685f726566726573685f746f6b656e73" ("parent_id");
+
+CREATE UNIQUE INDEX "cz_637265657a696f2e616363657373_6f617574685f726566726573685f746f6b656e73_idx_736563726574" ON "cz_637265657a696f2e616363657373_6f617574685f726566726573685f746f6b656e73" ("secret_hash");
+
+CREATE INDEX "cz_637265657a696f2e616363657373_6f617574685f7265717565737473_idx_657870697265732d6964" ON "cz_637265657a696f2e616363657373_6f617574685f7265717565737473" ("expires_at_ms", "id");
+
+CREATE INDEX "cz_637265657a696f2e616363657373_6f617574685f7265717565737473_idx_73657373696f6e2d6964" ON "cz_637265657a696f2e616363657373_6f617574685f7265717565737473" ("session_id", "id");
 
 CREATE INDEX "cz_637265657a696f2e616363657373_7072696e636970616c73_idx_6b696e642d6964" ON "cz_637265657a696f2e616363657373_7072696e636970616c73" ("kind", "id");
 

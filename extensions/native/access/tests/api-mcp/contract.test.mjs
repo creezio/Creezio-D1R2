@@ -16,17 +16,18 @@ test('native Access exposes the same ten reviewed operation IDs through API and 
     assert.equal(validNativeAccessDeclaration(operation),true,operation.id);
     assert.deepEqual(operation.permissions,[{moduleId:'creezio.access',kind:'permission',id:'manage'}]);
     assert.deepEqual(operation.audiences,['admin']);
-    assert.deepEqual(operation.actors,['user']);
+    assert.deepEqual(operation.actors,['user','delegated-user']);
     assert.equal(operation.context,'application');
     assert.equal(operation.public,false);
   }
   for (const binding of manifest.contracts.api) {
     assert.match(binding.path,/^\/api\/admin\/access\//);
-    assert.deepEqual(binding.auth,['session']);
+    assert.deepEqual(binding.auth,['session','oauth']);
     assert.equal(binding.audience,'admin');
     assert.equal(binding.input.schemaId,refs.find(item=>item.id===binding.operation.id).input.schemaId);
   }
   assert.deepEqual(JSON.parse(read('plugin/mcp.json')),{mcpServers:{}});
+  for (const tool of manifest.contracts.mcp.tools) assert.deepEqual(tool.auth,['oauth']);
   assert.deepEqual(manifest.contracts.publicContracts,[]);
 });
 

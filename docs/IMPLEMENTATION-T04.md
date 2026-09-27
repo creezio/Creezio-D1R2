@@ -10,7 +10,7 @@ Un delta de politique contient au plus 32 changements et 12 Kio d'entrée, avec 
 
 L'actualisation de la session ou des droits suspend la vue : données et brouillons restent montés mais masqués et inertes, et les opérations sont bloquées. Le retour de la même session conserve aussi la clé d'une commande incertaine sans relire un panneau dont la projection n'est pas encore disponible. Une perte d'identité confirmée, une connexion/déconnexion engagée ou un changement de session purge cet état ; le retrait confirmé du droit de vue la retire du workspace. Une panne de vérification ne vaut donc ni autorisation ni abandon du brouillon.
 
-Les tests, la revue et la recette navigateur de cette tranche sont encore en cours. Elle ne clôt pas T-04 : remise des liens d'invitation/récupération, autres transports, OAuth et hébergements restent à qualifier. Les détails ci-dessous conservent la provenance des fondations déjà intégrées.
+Cette tranche est intégrée par la PR #18, main `a2f6081f` : 837 tests locaux et CI, trois revues et recette navigateur sur l'artefact corrigé. Brouillon conservé après interruption de vérification, commande réconciliée après acquittement perdu et reload sans double écriture, journal détaillé, mobile et purge de déconnexion vérifiés. Elle ne clôt pas T-04 : remise des liens d'invitation/récupération et hébergements restent à qualifier ; OAuth est poursuivi dans [T-10](IMPLEMENTATION-T10.md). Les détails ci-dessous conservent la provenance des fondations déjà intégrées.
 
 ## Fondations intégrées
 

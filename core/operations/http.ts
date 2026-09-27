@@ -10,6 +10,7 @@ import { dispatchWorkspaceHttp } from '../workspace/http.ts';
 import type { WorkspaceAuthorizationCatalog } from '../workspace/authorization.ts';
 import { OperationError } from './types.ts';
 import type { OperationHttpBinding, OperationHttpExecution } from './http-types.ts';
+import { oauthResource } from '../oauth/protocol.ts';
 
 type Engine = ReturnType<typeof createOperationEngine>;
 const encoder = new TextEncoder();
@@ -81,30 +82,28 @@ function decodedRequestKey(request: Request): string {
     return key;
   } catch { return fail('invalid_input', 400); }
 }
-function bearer(request: Request): string {
+function bearer(request: Request): {kind: 'api-token' | 'oauth'; token: string} {
   const value = request.headers.get('authorization');
-  const found = value && /^Bearer (cz1a_[A-Za-z0-9_-]{43})$/.exec(value);
+  const found = value && /^Bearer (cz1([ao])_[A-Za-z0-9_-]{43})$/.exec(value);
   if (!found) throw new AccessHttpError('authentication_required', 401);
-  return found[1];
+  return {kind: found[2] === 'o' ? 'oauth' : 'api-token', token: found[1]};
 }
 function credential(request: Request, binding: OperationHttpBinding, configuration: NonNullable<ReturnType<typeof resolveAccessHttpConfiguration>>) {
   // Presence of Authorization chooses machine auth irrevocably, even when malformed.
   if (request.headers.has('authorization')) {
-    if (!binding.auth.includes('api-token')) {
-      if (binding.auth.includes('oauth')) fail('capability_unavailable', 501);
-      fail('authentication_required', 401);
-    }
-    return { kind: 'api-token' as const, token: bearer(request) };
+    const issued = bearer(request);
+    if (!binding.auth.includes(issued.kind)) fail('authentication_required', 401);
+    return issued.kind === 'oauth'
+      ? {kind: 'oauth' as const, token: issued.token, resource: oauthResource(configuration.origin, binding.audience)}
+      : {kind: 'api-token' as const, token: issued.token};
   }
   if (!binding.auth.includes('session')) {
-    if (binding.auth.some(value => ['anonymous', 'oauth', 'impersonation', 'webhook-signature'].includes(value)))
+    if (binding.auth.some(value => ['anonymous', 'impersonation', 'webhook-signature'].includes(value)))
       fail('capability_unavailable', 501);
     fail('authentication_required', 401);
   }
   const token = readAccessCookie(request, configuration, binding.audience);
   if (!token) {
-    if (binding.auth.some(value => ['anonymous', 'oauth', 'impersonation', 'webhook-signature'].includes(value)))
-      fail('capability_unavailable', 501);
     throw new AccessHttpError('authentication_required', 401);
   }
   return { kind: 'session' as const, token };

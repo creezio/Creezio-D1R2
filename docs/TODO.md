@@ -1,5 +1,5 @@
 # Backlog de réalisation
-Révision 20 — 27 septembre 2026. **Chantier actif : T-04/T-06/T-07, écrans Access originaux et opérations communes.** Les PR #1 à #17 sont intégrées ; le main `a8e2a969` passe 809 tests locaux et CI (candidat 36290765380, main 36290972553). Le registre Worker a été publié sur Cloudflare avec reprise de déclaration sans redéploiement ; Docker a sa recette de persistance/restauration. La branche `core/t04-access-workspace` raccorde les écrans originaux Matrice des rôles, Comptes et Journal, sans changer les exigences. Ce fichier reste la liste de travail canonique ; les qualifications partielles ne ferment pas les lots complets.
+Révision 21 — 27 septembre 2026. **Chantier actif : T-10, MCP admin/app et OAuth natif.** Les PR #1 à #18 sont intégrées ; le main `a2f6081f` passe 837 tests locaux et CI (candidat 36293845140, main 36294427239). Matrice des rôles, Comptes et Journal originaux sont raccordés et qualifiés localement, y compris les brouillons lors d'une revalidation des droits. La branche `core/t10-mcp-oauth` poursuit le code commun pendant l'attente des accès Sites et du fournisseur GitHub du registre. Les exigences restent inchangées ; ce fichier reste la liste canonique et les qualifications partielles ne ferment pas les lots complets.
 
 ## Avancement lisible
 
@@ -10,13 +10,15 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-01 — Gouvernance | Branches/PR, protections GitHub, revue indépendante, CI et refus d'un candidat invalide | Qualification des futurs parcours de release et de publication | Suivi transversal ; fondations acquises |
 | T-02 — Contrats | Schémas, validateurs, dépendances et verrous ; cas valides et invalides | Intégration complète des vrais modules et paquets tiers en T-11/T-30 | Fondations acquises |
 | T-03 — Runtime | Worker commun, composition, build, démarrage local, persistance et budgets | Qualification du workspace/front complets au fil de leur construction | Fondations acquises |
-| T-04 — Comptes et droits | Comptes, sessions, rôles, tokens machine, impersonation, connexion et installation locales | Administration visuelle, remise des liens, raccords API/MCP/OAuth et recettes hébergées | **Raccordement des écrans originaux en cours** |
+| T-04 — Comptes et droits | Comptes, sessions, rôles, tokens machine, impersonation, connexion/installation et écrans Access originaux locaux | Autres parcours d'administration, remise des liens, OAuth et recettes hébergées | Raccordement OAuth avec T-10 |
 | T-05 — Données | Compilation SQL centrale, accès D1 protégé, fichiers R2 et coffre | Explorateur, recherche, export/restauration, évolutions de modèles restantes et recettes hébergées | Fondations acquises ; autres fonctions à construire |
 | T-06 — Opérations | Registre/exécuteur intégrés PR #15 ; bindings HTTP et suivi par clé PR #16 | Événements, approbations, interopérations et autres transports | Fondations disponibles ; compléments au backlog |
 | T-07 — Workspace | Composants originaux adaptés, panneaux/états/titres et recette navigateur intégrés PR #16 | Qualification Sites et raccordement des modules produit | Livrable local disponible |
 | T-08 — Registre central | PR #17 intégrée ; Worker Cloudflare, service/client/journal et reprise réelle sans redéploiement | Configuration fournisseur GitHub/email, raccords des publishers et onboarding produit | Fournisseur GitHub en attente d'autorisation ; travaux indépendants poursuivis |
+| T-09 — Sites | Sonde de capacités antérieure conservée | Recette produit publique et accès au Site existant | Bloqué sur l'accès Sites du compte courant ; choix de destination demandé |
+| T-10 — MCP/OAuth | Contrats et moteur d'opérations communs disponibles | Deux catalogues, délégation native, consentement et clients réels | **Implémentation locale en cours** |
 | T-31 — Docker local | PR #17 intégrée ; compte/D1/R2, redémarrage/recréation/restauration vérifiés en Docker | Recettes des futurs modules et routes de fichiers | Livrable local disponible |
-| Autres lots T-09 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, fronts/chat/widgets, publications et recette finale | À réaliser |
+| Autres lots T-11 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, fronts/chat/widgets, publications et recette finale | À réaliser |
 
 ## Règles de suivi
 États autorisés : à faire, en cours, bloqué (raison/prérequis), en revue, vérifié, livré. Enregistrer responsable réel, branche/issue ou tâche locale, PR, SHA, tests/profils et preuves à chaque transition. « Livré » exige version et livraison vérifiée ; fusionner ne suffit pas. Une dépendance fournisseur manquante bloque sa recette, pas toutes les tâches indépendantes.
@@ -52,8 +54,8 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-06](#T-06) | P2 | Opérations, événements et exécutions bornées | [T-04](#T-04), [T-05](#T-05) | En cours |
 | [T-07](#T-07) | P1 | Workspace et conservation des onglets | [T-03](#T-03), [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | En cours |
 | [T-08](#T-08) | P1 | Registre minimal et identité de publication | [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | En cours |
-| [T-09](#T-09) | P1 | Première tranche sur Sites | [T-07](#T-07), [T-08](#T-08) | À faire |
-| [T-10](#T-10) | P2 | MCP, OAuth et accès machine | [T-06](#T-06), [T-09](#T-09) | À faire |
+| [T-09](#T-09) | P1 | Première tranche sur Sites | [T-07](#T-07), [T-08](#T-08) | Bloqué — accès Sites |
+| [T-10](#T-10) | P2 | MCP, OAuth et accès machine | [T-06](#T-06), [T-09](#T-09) | En cours — code local |
 | [T-11](#T-11) | P3 | SDK et cycle de vie des modules | [T-02](#T-02), [T-06](#T-06), [T-10](#T-10) | À faire |
 | [T-12](#T-12) | P3 | Documentation vivante des modules | [T-11](#T-11) | À faire |
 | [T-13](#T-13) | P4 | Fronts, thèmes et headless | [T-07](#T-07), [T-11](#T-11) | À faire |
@@ -173,7 +175,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-09"></a>
 ## T-09 — Première tranche sur Sites
 
-- Lot : **P1** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P1** ; état : **bloqué — accès Sites** ; responsable : orchestrateur. Le compte courant liste zéro Site et refuse l'identifiant existant ; choix demandé entre reconnexion et autre Site public. Aucun nouveau Site créé implicitement. La préparation locale de T-10 peut avancer, sa qualification hébergée reste dépendante de cette recette.
 - Dépendances : [T-07](#T-07), [T-08](#T-08).
 - Travail/livrables : Site A réutilisé si adapté : compte, module témoin, onglets, opération et fichier ; comparaison local/Sites.
 - Besoin : [US-09](USER-STORIES.md#US-09). Acceptation : [REQ-0901](EXIGENCES.md#REQ-0901), [REQ-0902](EXIGENCES.md#REQ-0902).
@@ -183,9 +185,9 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-10"></a>
 ## T-10 — MCP, OAuth et accès machine
 
-- Lot : **P2** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P2** ; état : **en cours — code local** ; responsables : orchestrateur (modèles/raccordements), chat API (transport/catalogues), chat SDK (OAuth D1), chat Workspace (consentement original). Branche `core/t10-mcp-oauth` depuis `a2f6081f`.
 - Dépendances : [T-06](#T-06), [T-09](#T-09).
-- Travail/livrables : Endpoints admin/app, découverte, ressources, OAuth natif et tokens machine ; clients de recette figés.
+- Travail/livrables : Endpoints admin/app, découverte, ressources, OAuth natif et tokens machine ; clients de recette figés. Raccords et limites suivis dans [IMPLEMENTATION-T10](IMPLEMENTATION-T10.md).
 - Besoin : [US-10](USER-STORIES.md#US-10). Acceptation : [REQ-1001](EXIGENCES.md#REQ-1001), [REQ-1002](EXIGENCES.md#REQ-1002), [REQ-1003](EXIGENCES.md#REQ-1003).
 - Validation : implémenter puis exécuter les recettes liées, sur **clients MCP réels et Site public** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.

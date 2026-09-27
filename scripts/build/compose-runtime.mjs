@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, lstatSync, realpath
 import { compileCompositionSchema } from '../data/composition-schema.mjs';
 import { compileOperationSchemas } from '../operations/schemas.mjs';
 import { compileHttpBindings } from '../operations/http-bindings.mjs';
+import { compileMcpBindings } from '../mcp/bindings.mjs';
 import { createOperationRegistry } from '../../core/operations/registry.ts';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -119,6 +120,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   const active = (moduleId, pointer) => !inactive.some(item => item.moduleId === moduleId && (item.path === pointer || pointer.startsWith(`${item.path}/`)));
   const resolveOperation = reference => indexes.get(reference.moduleId)?.descriptor.contracts.operations.find(item => item.id === reference.id);
   const serverImports = [], clientImports = [], operationImports = [], operationHandlers = [], modules = [], views = [], navigation = [], permissions = [];
+  const permissionTitles = Object.create(null);
   let importIndex = 0;
   function importCode(destination, owner, reference, imports) {
     const source = codeFile(root, owner, reference), name = `contribution_${importIndex++}`;
@@ -139,6 +141,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     for (const [index, permission] of descriptor.contracts.permissions.entries()) {
       if (!active(selection.moduleId, `/contracts/permissions/${index}`)) continue;
       const id = `${selection.moduleId}:${permission.id}`;
+      permissionTitles[id] = permission.title;
       // These two definitions are owned and checked by the native resolver.
       if (id === 'creezio.access:manage' || id === 'creezio.access:impersonate') continue;
       permissions.push({ id, audiences: permission.audiences,
@@ -161,8 +164,8 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     for (const [index, view] of descriptor.contracts.ui.views.entries()) {
       if (!active(selection.moduleId, `/contracts/ui/views/${index}`)) continue;
       const firstSegment = view.route.split('/')[1];
-      if (['access', 'workspace'].includes(firstSegment) || firstSegment.includes('{')) {
-        fail('view.reserved', 'Native access and workspace entry routes belong to the host.');
+      if (['access', 'workspace', 'oauth', 'mcp', '.well-known'].includes(firstSegment) || firstSegment.includes('{')) {
+        fail('view.reserved', 'Native access, OAuth, MCP and workspace entry routes belong to the host.');
       }
       const component = importCode(output, item, view.component, clientImports);
       const validator = operationPlan.catalog.modules.find(module => module.moduleId === selection.moduleId)
@@ -210,6 +213,8 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   }
   const httpBindings = compileHttpBindings({composition, modules: located.map(item => item.descriptor),
     operationCatalog: operationPlan.catalog, disabledContributions: inactive});
+  const mcpCatalog = compileMcpBindings({composition, modules: located.map(item => item.descriptor),
+    operationCatalog: operationPlan.catalog, disabledContributions: inactive});
   const workspaceViews = views.filter(view => view.surfaces.includes('workspace') && view.audiences.length > 0);
   const workspaceIds = new Set(workspaceViews.map(view => view.id));
   const workspaceCatalog = { compositionDigest,
@@ -240,7 +245,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     'operation-validators.mjs': `${banner}${operationPlan.validatorsCode}`,
     'operations.ts': `${banner}import type { RuntimeOperationCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/operations/types.ts')))};\nimport * as compiledValidators from './operation-validators.mjs';\n${operationImports.join('\n')}\nconst freeze = <T>(value: T): T => { if (value && typeof value === 'object') { for (const child of Object.values(value)) freeze(child); Object.freeze(value); } return value; };\nexport const operationCatalog: RuntimeOperationCatalog = freeze(${JSON.stringify(operationPlan.catalog)});\nexport const operationValidators = Object.freeze({${validatorEntries}});\nexport const operationHandlers = Object.freeze({${operationHandlers.map(item => `${JSON.stringify(item.name)}: ${item.handler}`).join(',\n')}});\n`,
     'data-catalog.ts': `${banner}import type { RuntimeDataCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/data/types.ts')))};\nconst freeze = <T>(value: T): T => { if (value && typeof value === 'object') { for (const child of Object.values(value)) freeze(child); Object.freeze(value); } return value; };\nexport const dataCatalog: RuntimeDataCatalog = freeze(${JSON.stringify(dataPlan.runtimeCatalog)});\n`,
-    'server.ts': `${banner}import type { RuntimeModule, RuntimeNativeAccess } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/runtime/types.ts')))};\nimport type { OperationHttpBinding } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/operations/http-types.ts')))};\nimport type { PermissionDefinition } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/authorization/types.ts')))};\nimport type { WorkspaceAuthorizationCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/workspace/authorization.ts')))};\n${serverImports.join('\n')}\n${freezeSource}export const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess: RuntimeNativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const modules: readonly RuntimeModule[] = [${serverModules.join(',\n')}];\nexport const httpBindings: readonly OperationHttpBinding[] = freeze(${JSON.stringify(httpBindings)});\nexport const permissions: readonly PermissionDefinition[] = freeze(${JSON.stringify(permissions)});\nexport const workspaceCatalog: WorkspaceAuthorizationCatalog = freeze(${JSON.stringify(workspaceCatalog)});\n`,
+    'server.ts': `${banner}import type { RuntimeModule, RuntimeNativeAccess } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/runtime/types.ts')))};\nimport type { OperationHttpBinding } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/operations/http-types.ts')))};\nimport type { PermissionDefinition } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/authorization/types.ts')))};\nimport type { WorkspaceAuthorizationCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/workspace/authorization.ts')))};\nimport type { McpCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/mcp/types.ts')))};\n${serverImports.join('\n')}\n${freezeSource}export const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess: RuntimeNativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const modules: readonly RuntimeModule[] = [${serverModules.join(',\n')}];\nexport const httpBindings: readonly OperationHttpBinding[] = freeze(${JSON.stringify(httpBindings)});\nexport const mcpCatalog: McpCatalog = freeze(${JSON.stringify(mcpCatalog)});\nexport const permissions: readonly PermissionDefinition[] = freeze(${JSON.stringify(permissions)});\nexport const permissionTitles: Readonly<Record<string, string>> = freeze(${JSON.stringify(permissionTitles)});\nexport const workspaceCatalog: WorkspaceAuthorizationCatalog = freeze(${JSON.stringify(workspaceCatalog)});\n`,
     'client.tsx': `${banner}import type { RuntimeView, RuntimeNavigation } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/runtime/ui.ts')))};\nimport type { OperationHttpBinding } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/operations/http-types.ts')))};\n${clientImports.join('\n')}\n${freezeSource}export const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const views: readonly RuntimeView[] = freeze([${clientViews.join(',\n')}]);\nexport const navigation: readonly RuntimeNavigation[] = freeze(${JSON.stringify(navigation)});\nexport const httpBindings: readonly OperationHttpBinding[] = freeze(${JSON.stringify(httpBindings)});\n`,
     'composition.json': `${stringify({ schemaVersion: 1, compositionDigest, nativeAccess, applicationId: composition.application.id, hostProfile: composition.host.profile,
       operations: { schemasDigest: operationPlan.schemasDigest, validatorsDigest: operationPlan.validatorsDigest, ...operationPlan.metrics },

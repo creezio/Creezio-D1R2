@@ -45,6 +45,16 @@ export interface RuntimeDefinition {
   readonly declaredHttp?: {
     dispatch(request: Request, resolved: RuntimeEnvironment, environment: unknown, requestId: string): Promise<Response | null>;
   };
+  /** Host-owned OAuth authorization server and protected-resource metadata. */
+  readonly oauthHttp?: {
+    dispatch(request: Request, resolved: RuntimeEnvironment, environment: unknown, requestId: string,
+      path: string): Promise<Response | null>;
+  };
+  /** Host-owned MCP endpoints; no module route can replace these. */
+  readonly mcpHttp?: {
+    dispatch(request: Request, resolved: RuntimeEnvironment, environment: unknown, requestId: string,
+      audience: 'admin' | 'app'): Promise<Response>;
+  };
 }
 export interface RuntimeExecutionContext {
   waitUntil(promise: Promise<unknown>): void;

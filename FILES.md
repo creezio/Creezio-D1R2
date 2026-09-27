@@ -1,6 +1,6 @@
 # Repères du dépôt
 
-État : PR #1 à #17 intégrées ; main `a8e2a969` qualifié avec 809 tests. Le [TODO](docs/TODO.md) distingue acquis et fonctions restantes. Le registre séparé et Docker local sont qualifiés dans leurs périmètres ; la tranche active raccorde l’interface Access originale aux opérations communes.
+État : PR #1 à #18 intégrées ; main `a2f6081f` qualifié avec 837 tests. Le [TODO](docs/TODO.md) distingue acquis et fonctions restantes. Le registre séparé et Docker local sont qualifiés dans leurs périmètres ; l’interface Access originale est intégrée et la tranche active raccorde MCP/OAuth natifs.
 
 | Emplacement | Responsabilité |
 |---|---|
@@ -33,6 +33,14 @@
 | [docs/QUALIFICATION-SITES.md](docs/QUALIFICATION-SITES.md) | Preuves techniques limitées, distinctes du CMS. |
 | [docs/INSTALLATION-LOCALE.md](docs/INSTALLATION-LOCALE.md) | Inspection, premier compte local, configuration commune et reprises sans écrasement. |
 | [docs/AUDIT-AVANT-DEVELOPPEMENT.md](docs/AUDIT-AVANT-DEVELOPPEMENT.md) | Audit croisé et conditions de démarrage/livraison. |
+
+## MCP et OAuth natifs T-10
+
+- [core/mcp](core/mcp/) : catalogue vérifié, transport officiel stateless, authentification native et découverte filtrée.
+- [core/oauth](core/oauth/) : protocole, consentement, clients, codes, rotation et révocation D1.
+- [sdk/oauth](sdk/oauth/) et [consentement Access](extensions/native/access/ui/consent.tsx) : client de transaction et carte originale adaptée ; montage [hôte](app/oauth/consent/).
+- [scripts/mcp](scripts/mcp/) : compilation des contributions ; [tests/oauth](tests/oauth/) et [tests/mcp](tests/mcp/) : suites obligatoires du contrôle global.
+- [Réalisation T-10](docs/IMPLEMENTATION-T10.md) : contrats, provenance et limites de qualification.
 
 ## Contrôleurs P0 en cours
 

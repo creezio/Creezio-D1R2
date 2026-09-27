@@ -9,7 +9,7 @@
     "source": {
       "kind": "snapshot",
       "revision": "t04-access-models-v1",
-      "integrity": "sha256-0390b76b9e4f5210f38efa0694f68555069a30ea6995c72bf8c0d02dcff1bf61"
+      "integrity": "sha256-1199c369429ab962f7603928d3eb2ff38149b9a63f08b155812a54d67660759f"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -3879,6 +3879,1117 @@
           "requiresApproval": true
         },
         "public": false
+      },
+      {
+        "id": "oauth_clients",
+        "title": "Registered OAuth clients",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "id": "display_name",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 160
+            }
+          },
+          {
+            "id": "redirect_uris_json",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 2,
+              "maxLength": 65536
+            }
+          },
+          {
+            "id": "token_endpoint_auth_method",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "none"
+              ]
+            }
+          },
+          {
+            "id": "scope_allowlist_json",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 2,
+              "maxLength": 65536
+            }
+          },
+          {
+            "id": "registration_kind",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "predefined",
+                "dcr"
+              ]
+            }
+          },
+          {
+            "id": "created_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "revoked_at_ms",
+            "type": "integer",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "created-id",
+            "fields": [
+              "created_at_ms",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
+      },
+      {
+        "id": "oauth_requests",
+        "title": "Pending native OAuth consent requests",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "client_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "id": "redirect_uri",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "id": "resource",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "id": "audience",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "admin",
+                "app"
+              ]
+            }
+          },
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "scopes_json",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 2,
+              "maxLength": 65536
+            }
+          },
+          {
+            "id": "state",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 1024
+            }
+          },
+          {
+            "id": "code_challenge",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 43,
+              "maxLength": 43
+            }
+          },
+          {
+            "id": "principal_id",
+            "type": "string",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "session_id",
+            "type": "string",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "csrf_digest",
+            "type": "string",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "created_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "expires_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "consumed_at_ms",
+            "type": "integer",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "expires-id",
+            "fields": [
+              "expires_at_ms",
+              "id"
+            ],
+            "unique": false
+          },
+          {
+            "id": "session-id",
+            "fields": [
+              "session_id",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [
+          {
+            "id": "client",
+            "fields": [
+              "client_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_clients"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          },
+          {
+            "id": "principal",
+            "fields": [
+              "principal_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principals"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          },
+          {
+            "id": "session",
+            "fields": [
+              "session_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "sessions"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          },
+          {
+            "id": "context",
+            "fields": [
+              "context_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "contexts"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
+      },
+      {
+        "id": "oauth_grants",
+        "title": "Consent-bound delegated OAuth grants",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "principal_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "client_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "id": "resource",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "id": "audience",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "admin",
+                "app"
+              ]
+            }
+          },
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "scopes_json",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 2,
+              "maxLength": 65536
+            }
+          },
+          {
+            "id": "permission_ids_json",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 2,
+              "maxLength": 65536
+            }
+          },
+          {
+            "id": "auth_version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "account_version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "credential_version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "created_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "revoked_at_ms",
+            "type": "integer",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "principal-id",
+            "fields": [
+              "principal_id",
+              "id"
+            ],
+            "unique": false
+          },
+          {
+            "id": "client-id",
+            "fields": [
+              "client_id",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [
+          {
+            "id": "principal",
+            "fields": [
+              "principal_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principals"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          },
+          {
+            "id": "client",
+            "fields": [
+              "client_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_clients"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          },
+          {
+            "id": "context",
+            "fields": [
+              "context_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "contexts"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
+      },
+      {
+        "id": "oauth_codes",
+        "title": "Single-use PKCE authorization codes",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "secret_hash",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "grant_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "redirect_uri",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "id": "resource",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "id": "code_challenge",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 43,
+              "maxLength": 43
+            }
+          },
+          {
+            "id": "created_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "expires_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "consumed_at_ms",
+            "type": "integer",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "secret",
+            "fields": [
+              "secret_hash"
+            ],
+            "unique": true
+          },
+          {
+            "id": "grant-id",
+            "fields": [
+              "grant_id",
+              "id"
+            ],
+            "unique": false
+          },
+          {
+            "id": "expires-id",
+            "fields": [
+              "expires_at_ms",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [
+          {
+            "id": "grant",
+            "fields": [
+              "grant_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_grants"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
+      },
+      {
+        "id": "oauth_access_tokens",
+        "title": "Opaque delegated OAuth access tokens",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "secret_hash",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "grant_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "created_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "expires_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "revoked_at_ms",
+            "type": "integer",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "secret",
+            "fields": [
+              "secret_hash"
+            ],
+            "unique": true
+          },
+          {
+            "id": "grant-id",
+            "fields": [
+              "grant_id",
+              "id"
+            ],
+            "unique": false
+          },
+          {
+            "id": "expires-id",
+            "fields": [
+              "expires_at_ms",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [
+          {
+            "id": "grant",
+            "fields": [
+              "grant_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_grants"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
+      },
+      {
+        "id": "oauth_refresh_tokens",
+        "title": "Rotating OAuth refresh token families",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "secret_hash",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "grant_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "family_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "parent_id",
+            "type": "string",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "created_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "expires_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "consumed_at_ms",
+            "type": "integer",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "revoked_at_ms",
+            "type": "integer",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "secret",
+            "fields": [
+              "secret_hash"
+            ],
+            "unique": true
+          },
+          {
+            "id": "grant-id",
+            "fields": [
+              "grant_id",
+              "id"
+            ],
+            "unique": false
+          },
+          {
+            "id": "family-id",
+            "fields": [
+              "family_id",
+              "id"
+            ],
+            "unique": false
+          },
+          {
+            "id": "parent",
+            "fields": [
+              "parent_id"
+            ],
+            "unique": true
+          },
+          {
+            "id": "expires-id",
+            "fields": [
+              "expires_at_ms",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [
+          {
+            "id": "grant",
+            "fields": [
+              "grant_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_grants"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          },
+          {
+            "id": "parent",
+            "fields": [
+              "parent_id"
+            ],
+            "target": {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_refresh_tokens"
+            },
+            "targetFields": [
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
       }
     ],
     "files": [],
@@ -3890,7 +5001,8 @@
           "admin"
         ],
         "actors": [
-          "user"
+          "user",
+          "delegated-user"
         ],
         "scopes": [
           "access.manage"
@@ -3977,6 +5089,36 @@
             "moduleId": "creezio.access",
             "kind": "model",
             "id": "account_capabilities"
+          },
+          {
+            "moduleId": "creezio.access",
+            "kind": "model",
+            "id": "oauth_clients"
+          },
+          {
+            "moduleId": "creezio.access",
+            "kind": "model",
+            "id": "oauth_requests"
+          },
+          {
+            "moduleId": "creezio.access",
+            "kind": "model",
+            "id": "oauth_grants"
+          },
+          {
+            "moduleId": "creezio.access",
+            "kind": "model",
+            "id": "oauth_codes"
+          },
+          {
+            "moduleId": "creezio.access",
+            "kind": "model",
+            "id": "oauth_access_tokens"
+          },
+          {
+            "moduleId": "creezio.access",
+            "kind": "model",
+            "id": "oauth_refresh_tokens"
           }
         ],
         "actions": [
@@ -4036,7 +5178,8 @@
           "admin"
         ],
         "actors": [
-          "user"
+          "user",
+          "delegated-user"
         ],
         "context": "application",
         "handler": {
@@ -4109,6 +5252,21 @@
               "moduleId": "creezio.access",
               "kind": "model",
               "id": "principal_overrides"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_access_tokens"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_clients"
             }
           ],
           "writes": [],
@@ -4199,7 +5357,8 @@
           "admin"
         ],
         "actors": [
-          "user"
+          "user",
+          "delegated-user"
         ],
         "context": "application",
         "handler": {
@@ -4272,6 +5431,21 @@
               "moduleId": "creezio.access",
               "kind": "model",
               "id": "principal_overrides"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_access_tokens"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_clients"
             }
           ],
           "writes": [],
@@ -4365,7 +5539,8 @@
           "admin"
         ],
         "actors": [
-          "user"
+          "user",
+          "delegated-user"
         ],
         "context": "application",
         "handler": {
@@ -4408,6 +5583,21 @@
               "moduleId": "creezio.access",
               "kind": "model",
               "id": "memberships"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_access_tokens"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_clients"
             }
           ],
           "writes": [],
@@ -4501,7 +5691,8 @@
           "admin"
         ],
         "actors": [
-          "user"
+          "user",
+          "delegated-user"
         ],
         "context": "application",
         "handler": {
@@ -4544,6 +5735,21 @@
               "moduleId": "creezio.access",
               "kind": "model",
               "id": "memberships"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_access_tokens"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_clients"
             }
           ],
           "writes": [],
@@ -4637,7 +5843,8 @@
           "admin"
         ],
         "actors": [
-          "user"
+          "user",
+          "delegated-user"
         ],
         "context": "application",
         "handler": {
@@ -4690,6 +5897,21 @@
               "moduleId": "creezio.access",
               "kind": "model",
               "id": "access_policy_audit_details"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_access_tokens"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_clients"
             }
           ],
           "writes": [],
@@ -4783,7 +6005,8 @@
           "admin"
         ],
         "actors": [
-          "user"
+          "user",
+          "delegated-user"
         ],
         "context": "application",
         "handler": {
@@ -4836,6 +6059,21 @@
               "moduleId": "creezio.access",
               "kind": "model",
               "id": "access_policy_audit_details"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_access_tokens"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_clients"
             }
           ],
           "writes": [],
@@ -4929,7 +6167,8 @@
           "admin"
         ],
         "actors": [
-          "user"
+          "user",
+          "delegated-user"
         ],
         "context": "application",
         "handler": {
@@ -5002,6 +6241,21 @@
               "moduleId": "creezio.access",
               "kind": "model",
               "id": "principal_overrides"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_access_tokens"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_clients"
             }
           ],
           "writes": [
@@ -5152,7 +6406,8 @@
           "admin"
         ],
         "actors": [
-          "user"
+          "user",
+          "delegated-user"
         ],
         "context": "application",
         "handler": {
@@ -5200,6 +6455,21 @@
               "moduleId": "creezio.access",
               "kind": "model",
               "id": "account_capabilities"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_access_tokens"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_clients"
             }
           ],
           "writes": [
@@ -5315,7 +6585,8 @@
           "admin"
         ],
         "actors": [
-          "user"
+          "user",
+          "delegated-user"
         ],
         "context": "application",
         "handler": {
@@ -5363,6 +6634,21 @@
               "moduleId": "creezio.access",
               "kind": "model",
               "id": "account_capabilities"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_access_tokens"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_clients"
             }
           ],
           "writes": [
@@ -5478,7 +6764,8 @@
           "admin"
         ],
         "actors": [
-          "user"
+          "user",
+          "delegated-user"
         ],
         "context": "application",
         "handler": {
@@ -5521,6 +6808,21 @@
               "moduleId": "creezio.access",
               "kind": "model",
               "id": "memberships"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_access_tokens"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_clients"
             }
           ],
           "writes": [
@@ -5617,7 +6919,8 @@
         },
         "audience": "admin",
         "auth": [
-          "session"
+          "session",
+          "oauth"
         ],
         "parameters": [],
         "input": {
@@ -5642,7 +6945,8 @@
         },
         "audience": "admin",
         "auth": [
-          "session"
+          "session",
+          "oauth"
         ],
         "parameters": [
           {
@@ -5680,7 +6984,8 @@
         },
         "audience": "admin",
         "auth": [
-          "session"
+          "session",
+          "oauth"
         ],
         "parameters": [
           {
@@ -5724,7 +7029,8 @@
         },
         "audience": "admin",
         "auth": [
-          "session"
+          "session",
+          "oauth"
         ],
         "parameters": [
           {
@@ -5768,7 +7074,8 @@
         },
         "audience": "admin",
         "auth": [
-          "session"
+          "session",
+          "oauth"
         ],
         "parameters": [
           {
@@ -5812,7 +7119,8 @@
         },
         "audience": "admin",
         "auth": [
-          "session"
+          "session",
+          "oauth"
         ],
         "parameters": [
           {
@@ -5856,7 +7164,8 @@
         },
         "audience": "admin",
         "auth": [
-          "session"
+          "session",
+          "oauth"
         ],
         "parameters": [],
         "input": {
@@ -5881,7 +7190,8 @@
         },
         "audience": "admin",
         "auth": [
-          "session"
+          "session",
+          "oauth"
         ],
         "parameters": [
           {
@@ -5913,7 +7223,8 @@
         },
         "audience": "admin",
         "auth": [
-          "session"
+          "session",
+          "oauth"
         ],
         "parameters": [
           {
@@ -5945,7 +7256,8 @@
         },
         "audience": "admin",
         "auth": [
-          "session"
+          "session",
+          "oauth"
         ],
         "parameters": [
           {
@@ -5981,7 +7293,7 @@
             "admin"
           ],
           "auth": [
-            "session"
+            "oauth"
           ],
           "input": {
             "schemaId": "access-empty-input"
@@ -6009,7 +7321,7 @@
             "admin"
           ],
           "auth": [
-            "session"
+            "oauth"
           ],
           "input": {
             "schemaId": "access-permissions-list-input"
@@ -6037,7 +7349,7 @@
             "admin"
           ],
           "auth": [
-            "session"
+            "oauth"
           ],
           "input": {
             "schemaId": "access-principals-list-input"
@@ -6065,7 +7377,7 @@
             "admin"
           ],
           "auth": [
-            "session"
+            "oauth"
           ],
           "input": {
             "schemaId": "access-sessions-list-input"
@@ -6093,7 +7405,7 @@
             "admin"
           ],
           "auth": [
-            "session"
+            "oauth"
           ],
           "input": {
             "schemaId": "access-audit-list-input"
@@ -6121,7 +7433,7 @@
             "admin"
           ],
           "auth": [
-            "session"
+            "oauth"
           ],
           "input": {
             "schemaId": "access-audit-detail-input"
@@ -6149,7 +7461,7 @@
             "admin"
           ],
           "auth": [
-            "session"
+            "oauth"
           ],
           "input": {
             "schemaId": "access-policy-delta-input"
@@ -6177,7 +7489,7 @@
             "admin"
           ],
           "auth": [
-            "session"
+            "oauth"
           ],
           "input": {
             "schemaId": "access-human-status-input"
@@ -6205,7 +7517,7 @@
             "admin"
           ],
           "auth": [
-            "session"
+            "oauth"
           ],
           "input": {
             "schemaId": "access-revoke-all-input"
@@ -6233,7 +7545,7 @@
             "admin"
           ],
           "auth": [
-            "session"
+            "oauth"
           ],
           "input": {
             "schemaId": "access-revoke-session-input"
@@ -6515,7 +7827,9 @@
         "plugin/plugin.json",
         "plugin/mcp.json",
         "plugin/contributions.ts",
-        "ui/persistence.ts"
+        "ui/persistence.ts",
+        "ui/consent.tsx",
+        "ui/consent.css"
       ],
       "references": []
     },

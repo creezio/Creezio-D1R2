@@ -1,0 +1,36 @@
+.creezio-consent-card { box-sizing: border-box; width: min(100% - 32px, 560px); margin: min(8vh, 72px) auto 48px; padding: clamp(24px, 5vw, 36px); border: 1px solid #e2e8f0; border-radius: 18px; background: #fff; color: #0f172a; box-shadow: 0 16px 48px rgba(15,23,42,.08); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+.creezio-consent-card * { box-sizing: border-box; }
+.creezio-consent-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 26px; color: #0f172a; font-size: 18px; }
+.creezio-consent-brand span { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: #0284c7; color: #fff; font-weight: 800; }
+.creezio-consent-eyebrow { margin: 0 0 5px; color: #0369a1; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.creezio-consent-card h1 { margin: 0 0 8px; font-size: clamp(22px, 4vw, 27px); line-height: 1.2; }
+.creezio-consent-subtitle, .creezio-consent-card > p { color: #475569; line-height: 1.55; }
+.creezio-consent-subtitle { margin: 0 0 24px; }
+.creezio-consent-details { margin: 0 0 22px; padding: 14px 16px; border: 1px solid #dbeafe; border-radius: 12px; background: #f0f9ff; }
+.creezio-consent-details div { display: grid; grid-template-columns: 115px minmax(0,1fr); gap: 10px; padding: 5px 0; }
+.creezio-consent-details dt { color: #475569; font-size: 13px; }
+.creezio-consent-details dd { min-width: 0; margin: 0; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.creezio-consent-details code, .creezio-consent-permissions code, .creezio-consent-scopes code { font-size: 12px; overflow-wrap: anywhere; }
+.creezio-consent-permissions { padding: 0; border: 0; }
+.creezio-consent-permissions h2 { margin: 0 0 4px; font-size: 16px; }
+.creezio-consent-permissions p { margin: 0 0 12px; color: #64748b; font-size: 13px; }
+.creezio-consent-permissions ul, .creezio-consent-scopes ul { margin: 0; padding: 0; list-style: none; }
+.creezio-consent-permissions li { border: 1px solid #e2e8f0; border-radius: 10px; margin: 8px 0; }
+.creezio-consent-permissions label { display: flex; gap: 12px; align-items: flex-start; padding: 12px; cursor: pointer; }
+.creezio-consent-permissions input { width: 17px; height: 17px; margin: 2px 0 0; flex: none; accent-color: #0284c7; }
+.creezio-consent-permissions label span { display: grid; gap: 3px; min-width: 0; }
+.creezio-consent-permissions label strong { font-size: 14px; }
+.creezio-consent-permissions label code { color: #64748b; }
+.creezio-consent-scopes { margin-top: 14px; color: #64748b; font-size: 12px; }
+.creezio-consent-scopes summary { cursor: pointer; }
+.creezio-consent-scopes li { padding: 4px 0 0 12px; }
+.creezio-consent-actions { display: flex; gap: 10px; margin-top: 24px; }
+.creezio-consent-actions button, .creezio-consent-card > button { flex: 1; min-height: 43px; padding: 10px 14px; border-radius: 10px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.creezio-consent-deny { border: 1px solid #cbd5e1; background: #fff; color: #334155; }
+.creezio-consent-approve { border: 1px solid #0284c7; background: #0284c7; color: #fff; }
+.creezio-consent-actions button:disabled { opacity: .5; cursor: not-allowed; }
+.creezio-consent-actions button:focus-visible, .creezio-consent-permissions input:focus-visible, .creezio-consent-card > button:focus-visible { outline: 3px solid #38bdf8; outline-offset: 2px; }
+.creezio-consent-error { color: #b91c1c !important; font-size: 13px; }
+.creezio-consent-note { color: #64748b !important; font-size: 13px; }
+.creezio-consent-footer { margin: 18px 0 0; font-size: 12px; text-align: center; }
+@media (max-width: 520px) { .creezio-consent-details div { grid-template-columns: 1fr; gap: 0; } }

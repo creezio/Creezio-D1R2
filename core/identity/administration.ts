@@ -4,7 +4,6 @@ import { createD1IdentityStore, type IdentityDatabase } from './d1-store.ts';
 import { identityAdmissionKey, identityInputFields, validIdentityId } from './input.ts';
 import { ACCESS_MANAGEMENT, createNativeAuthorizationResolver } from '../authorization/resolver.ts';
 import { authorize } from '../authorization/authorize.ts';
-import { policySnapshot } from '../authorization/policy.ts';
 import type { AuthorizationDecision, PermissionDefinition } from '../authorization/types.ts';
 
 export const ADMINISTRATION_POLICY = Object.freeze({
@@ -31,12 +30,12 @@ const validStatus = (value: unknown): value is HumanStatusInput['status'] => val
 function createAccountAdministrationServices(db: IdentityDatabase, options: { permissions: readonly PermissionDefinition[] }) {
   const store = createD1AccountAdministrationStore(db);
   const identity = createD1IdentityStore(db);
-  const { resolve, permissions } = createNativeAuthorizationResolver(db, options);
+  const { resolveAdminAuthority } = createNativeAuthorizationResolver(db, options);
 
   async function administration(token: unknown) {
-    const current = await resolve(token, 'admin');
+    const current = await resolveAdminAuthority(token);
     if (!current) return fail('unauthorized');
-    const decision: AuthorizationDecision = authorize(policySnapshot(current.policy, permissions, current.session), ACCESS_MANAGEMENT, current.nowMs);
+    const decision: AuthorizationDecision = authorize(current.snapshot, ACCESS_MANAGEMENT, current.nowMs);
     if (!decision.allowed) return fail('forbidden');
     const windowMs = ADMINISTRATION_POLICY.admissionWindowMs;
     const global = await identity.consumeThrottle({
@@ -47,15 +46,14 @@ function createAccountAdministrationServices(db: IdentityDatabase, options: { pe
     if (!global.allowed) return fail('rate_limited');
     const actor = await identity.consumeThrottle({
       // Share the existing account-lifecycle admission bucket for this actor.
-      key: await identityAdmissionKey('account-administration-subject', current.session.principalId),
+      key: await identityAdmissionKey('account-administration-subject', current.principalId),
       limit: ADMINISTRATION_POLICY.administrationActorLimit,
       windowMs,
     });
     if (!actor.allowed) return fail('rate_limited');
     return Object.freeze({
       ok: true as const,
-      guard: Object.freeze({ sessionDigest: current.digest, sessionId: current.session.id,
-        principalId: current.session.principalId, epoch: current.epoch }),
+      guard: current.guard,
     });
   }
 

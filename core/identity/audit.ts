@@ -3,7 +3,6 @@ import type {IdentityDatabase} from './d1-store.ts';
 import {identityInputFields, validIdentityId} from './input.ts';
 import {createNativeAuthorizationResolver, ACCESS_MANAGEMENT} from '../authorization/resolver.ts';
 import {authorize} from '../authorization/authorize.ts';
-import {policySnapshot} from '../authorization/policy.ts';
 import type {PermissionDefinition} from '../authorization/types.ts';
 import type {AccessAdminAuditCursor, AccessAdminAuditDetailPage,
   AccessAdminAuditPage} from '../../sdk/access/admin-types.ts';
@@ -19,14 +18,13 @@ const validCursor = (value: unknown): value is AccessAdminAuditCursor | null => 
 /** Authorized native audit reads, independent of the HTTP/T06 adapter. */
 export function createAccessAuditService(db: IdentityDatabase, options: {permissions: readonly PermissionDefinition[]}) {
   const store = createD1AccessAuditStore(db);
-  const {resolve, permissions} = createNativeAuthorizationResolver(db, options);
+  const {resolveAdminAuthority} = createNativeAuthorizationResolver(db, options);
   async function actor(token: unknown) {
-    const current = await resolve(token, 'admin');
+    const current = await resolveAdminAuthority(token);
     if (!current) return fail('unauthorized');
-    if (!authorize(policySnapshot(current.policy, permissions, current.session), ACCESS_MANAGEMENT, current.nowMs).allowed)
+    if (!authorize(current.snapshot, ACCESS_MANAGEMENT, current.nowMs).allowed)
       return fail('forbidden');
-    return Object.freeze({ok: true as const, guard: Object.freeze({sessionDigest: current.digest,
-      sessionId: current.session.id, principalId: current.session.principalId, epoch: current.epoch})});
+    return Object.freeze({ok: true as const, guard: current.guard});
   }
   async function list(token: unknown, input: unknown): Promise<Failure | (Readonly<{ok: true}> & AccessAdminAuditPage)> {
     if (!identityInputFields(input, ['limit', 'before']) || !validLimit(input.limit, ACCESS_AUDIT_LIMITS.listPage)

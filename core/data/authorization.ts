@@ -7,18 +7,20 @@ import { ACCESS_TABLES, type IdentityDatabase } from '../identity/d1-store.ts';
 import { digestOpaqueToken } from '../identity/tokens.ts';
 import { copyJson, keys, quote, record } from './input.ts';
 import { DATA_LIMITS, DataAccessError, type DataCredential } from './types.ts';
+import { oauthAccessCondition, type OAuthAccessGuard } from '../authorization/oauth-guard.ts';
 
 export interface ResolvedDataAuthorization {
   readonly snapshot: AuthorizationSnapshot; readonly target: AuthorizationTarget; readonly epoch: number;
   readonly digest: string; readonly nowMs: number; readonly validUntilMs: number;
   readonly actorPrincipalId: string; readonly subjectPrincipalId: string;
+  readonly oauth?: OAuthAccessGuard;
 }
 export interface SqlStatement { readonly sql: string; readonly bindings: readonly (string | number | null)[] }
 const table = Object.fromEntries(Object.entries(ACCESS_TABLES).map(([id, name]) => [id, quote(name)])) as Record<keyof typeof ACCESS_TABLES, string>;
 const NOW = "(CAST(unixepoch('now') AS INTEGER) * 1000)";
 
 /** Same policy projection as native machine/impersonation checks, without a fictitious human session. */
-function scopedSnapshot(policy: AccessPolicy, permissions: readonly PermissionDefinition[], subjectId: string,
+export function scopedSnapshot(policy: AccessPolicy, permissions: readonly PermissionDefinition[], subjectId: string,
   credential: AuthorizationSnapshot['credential'], target: AuthorizationTarget): AuthorizationSnapshot {
   const member = policy.contexts.some(c => c.id === target.contextId && c.status === 'active')
     && policy.memberships.some(m => m.principalId === subjectId && m.contextId === target.contextId
@@ -39,18 +41,33 @@ export function createDataAuthorization(db: IdentityDatabase, suppliedPermission
   async function resolve(input: DataCredential, targetInput: AuthorizationTarget): Promise<ResolvedDataAuthorization> {
     const target = copyAuthorizationTarget(targetInput);
     if (!target || target.purpose !== 'operation') throw new DataAccessError('invalid_input');
-    const credential = copyJson(input); record(credential); keys(credential, ['kind', 'token']);
-    if (!['session', 'api-token', 'impersonation'].includes(String(credential.kind)) || typeof credential.token !== 'string')
+    const credential = copyJson(input); record(credential);
+    keys(credential, credential.kind === 'oauth' ? ['kind', 'token', 'resource'] : ['kind', 'token']);
+    if (!['session', 'api-token', 'impersonation', 'oauth'].includes(String(credential.kind)) || typeof credential.token !== 'string'
+      || credential.kind === 'oauth' && (typeof credential.resource !== 'string' || credential.resource.length > 2048))
       throw new DataAccessError('invalid_input');
     const kind = credential.kind as DataCredential['kind'];
-    const digest = await digestOpaqueToken(credential.token, kind === 'api-token' ? 'api-token' : kind);
+    const digest = await digestOpaqueToken(credential.token, kind === 'oauth' ? 'oauth-access' : kind);
     if (!digest) throw new DataAccessError('unauthorized');
     let snapshot: AuthorizationSnapshot, policy: AccessPolicy, epoch: number, nowMs: number, actorPrincipalId: string;
+    let oauth: OAuthAccessGuard | undefined;
     if (kind === 'session') {
       const current = await store.read(digest, target.audience);
       if (!current) throw new DataAccessError('unauthorized');
       ({ policy, epoch, nowMs } = current); actorPrincipalId = current.session.principalId;
       snapshot = policySnapshot(policy, permissions, current.session);
+    } else if (kind === 'oauth') {
+      const current = await store.readOAuthAccess(digest, target.contextId, target.audience, credential.resource as string);
+      if (!current) throw new DataAccessError('unauthorized');
+      ({policy, epoch, nowMs} = current); actorPrincipalId = current.principal.id;
+      const scope = current.credential;
+      snapshot = scopedSnapshot(policy, permissions, actorPrincipalId, {
+        id: scope.id, subjectId: actorPrincipalId, kind, enabled: true, expiresAtMs: scope.expiresAtMs,
+        contextIds: [scope.contextId], audiences: [scope.audience], permissionIds: scope.permissionIds,
+      }, target);
+      oauth = Object.freeze({digest, credentialId: scope.id, grantId: scope.grantId, clientId: scope.clientId,
+        principalId: actorPrincipalId, epoch, contextId: scope.contextId, audience: scope.audience,
+        resource: scope.resource, permissionIds: scope.permissionIds});
     } else if (kind === 'api-token') {
       const current = await store.readMachine(digest, target.contextId, target.audience);
       if (!current || !current.credential.scope) throw new DataAccessError('unauthorized');
@@ -81,7 +98,7 @@ export function createDataAuthorization(db: IdentityDatabase, suppliedPermission
     // Captured server state is private to the request-local lease; no reference comes from the caller.
     return Object.freeze({ snapshot, target, epoch, digest, nowMs,
       validUntilMs: Math.min(nowMs + DATA_LIMITS.leaseMs, snapshot.credential.expiresAtMs),
-      actorPrincipalId, subjectPrincipalId: snapshot.actor.id });
+      actorPrincipalId, subjectPrincipalId: snapshot.actor.id, ...(oauth ? {oauth} : {}) });
   }
   return Object.freeze({ resolve, permissions });
 }
@@ -104,6 +121,10 @@ export function freshDataGuard(state: ResolvedDataAuthorization): SqlStatement {
     sql = `EXISTS(SELECT 1 ${humanFrom} WHERE s.secret_hash=? AND s.id=? AND p.id=? AND s.audience=?
       AND a.epoch=? AND ${human} AND ${member('p.id', '?', '?')})`;
     bindings = [state.digest, c.id, c.subjectId, t.audience, state.epoch, t.contextId, t.audience];
+  } else if (c.kind === 'oauth') {
+    if (!state.oauth) throw new DataAccessError('unauthorized');
+    const condition = oauthAccessCondition(state.oauth);
+    sql = condition.sql; bindings = [...condition.bindings];
   } else if (c.kind === 'api-token') {
     sql = `EXISTS(SELECT 1 FROM ${table.api_credentials} k JOIN ${table.principals} p ON p.id=k.principal_id
       JOIN ${table.authorization_state} a ON a.id='application' WHERE k.secret_hash=? AND k.id=? AND p.id=?

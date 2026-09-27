@@ -12,7 +12,7 @@ type Failure = { readonly ok: false; readonly error: 'invalid_input' | 'unauthor
 const fail = (error: Failure['error']): Failure => Object.freeze({ ok: false, error });
 /** Server composition supplies the catalog; callers never choose permission definitions or actor identities. */
 export function createAuthorizationService(db: IdentityDatabase, options: { permissions: readonly PermissionDefinition[] }) {
-  const { permissions, resolve: state } = createNativeAuthorizationResolver(db, options);
+  const { permissions, resolve: state, resolveAdminAuthority: adminState } = createNativeAuthorizationResolver(db, options);
   const store = createD1AuthorizationStore(db);
   async function check(token: unknown, target: AuthorizationTarget): Promise<AuthorizationDecision> {
     try {
@@ -26,9 +26,9 @@ export function createAuthorizationService(db: IdentityDatabase, options: { perm
   }
   async function readPolicy(token: unknown): Promise<{ok: true; epoch: number; policy: AccessPolicy} | Failure> {
     try {
-      const current = await state(token, 'admin');
+      const current = await adminState(token);
       if (!current) return fail('unauthorized');
-      if (!authorize(policySnapshot(current.policy, permissions, current.session), MANAGEMENT, current.nowMs).allowed)
+      if (!authorize(current.snapshot, MANAGEMENT, current.nowMs).allowed)
         return fail('forbidden');
       return Object.freeze({ ok: true, epoch: current.epoch, policy: current.policy });
     } catch { return fail('storage_error'); }
@@ -40,9 +40,9 @@ export function createAuthorizationService(db: IdentityDatabase, options: { perm
     const policy = parseAccessPolicy(input.policy);
     if (!policy || !validPolicyCatalog(policy, permissions)) return fail('invalid_input');
     try {
-      const current = await state(token, 'admin');
+      const current = await adminState(token);
       if (!current) return fail('unauthorized');
-      if (!authorize(policySnapshot(current.policy, permissions, current.session), MANAGEMENT, current.nowMs).allowed)
+      if (!authorize(current.snapshot, MANAGEMENT, current.nowMs).allowed)
         return fail('forbidden');
       if (current.epoch !== expectedEpoch) return fail('conflict');
       const principals = new Set(current.principals.map(p => p.id));
@@ -50,10 +50,9 @@ export function createAuthorizationService(db: IdentityDatabase, options: { perm
         || current.policy.contexts.some(c => !policy.contexts.some(next => next.id === c.id))) return fail('invalid_input');
       // Initial administrative editor cannot lock itself out. Transfer/delegated
       // administration needs a separate operation, not an implicit exception.
-      if (!authorize(policySnapshot(policy, permissions, current.session), MANAGEMENT, current.nowMs).allowed)
+      if (!authorize(current.snapshotFor(policy), MANAGEMENT, current.nowMs).allowed)
         return fail('forbidden');
-      const committed = await store.commitPolicy({ sessionDigest: current.digest, sessionId: current.session.id,
-        principalId: current.session.principalId, epoch: current.epoch, policy, beforePolicy: current.policy });
+      const committed = await store.commitPolicy({ guard: current.guard, policy, beforePolicy: current.policy });
       return committed ? Object.freeze({ ok: true, epoch: current.epoch + 1 }) : fail('conflict');
     } catch { return fail('storage_error'); }
   }
@@ -69,19 +68,18 @@ export function createAuthorizationService(db: IdentityDatabase, options: { perm
     const changes = parseAccessPolicyChanges(input.changes);
     if (!changes) return fail('invalid_input');
     try {
-      const current = await state(token, 'admin');
+      const current = await adminState(token);
       if (!current) return fail('unauthorized');
-      if (!authorize(policySnapshot(current.policy, permissions, current.session), MANAGEMENT, current.nowMs).allowed)
+      if (!authorize(current.snapshot, MANAGEMENT, current.nowMs).allowed)
         return fail('forbidden');
       if (current.epoch !== input.expectedEpoch) return fail('conflict');
       const policy = applyAccessPolicyChanges(current.policy, changes);
       if (!policy || !validPolicyCatalog(policy, permissions)) return fail('invalid_input');
       const principals = new Set(current.principals.map(p => p.id));
       if (policy.memberships.some(m => !principals.has(m.principalId))) return fail('invalid_input');
-      if (!authorize(policySnapshot(policy, permissions, current.session), MANAGEMENT, current.nowMs).allowed)
+      if (!authorize(current.snapshotFor(policy), MANAGEMENT, current.nowMs).allowed)
         return fail('forbidden');
-      const plan = store.preparePolicyCommit({sessionDigest: current.digest, sessionId: current.session.id,
-        principalId: current.session.principalId, epoch: current.epoch, policy, beforePolicy: current.policy});
+      const plan = store.preparePolicyCommit({guard: current.guard, policy, beforePolicy: current.policy});
       return Object.freeze({ok: true as const, statements: Object.freeze([...plan.statements, plan.assertion]),
         output: Object.freeze({epoch: current.epoch + 1, auditId: plan.auditId, changedCount: changes.length})});
     } catch { return fail('storage_error'); }

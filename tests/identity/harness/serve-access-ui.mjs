@@ -11,6 +11,7 @@ import {createAccountLifecycleService} from '../../../core/identity/lifecycle.ts
 import {createMachineAccountService} from '../../../core/identity/machines.ts';
 import {createAuthorizationService} from '../../../core/authorization/service.ts';
 import {ACCESS_TABLES} from '../../../core/identity/d1-store.ts';
+import {startOAuthBrowserClient} from '../../oauth/harness/browser-client.mjs';
 
 const root = fileURLToPath(new URL('../../../',import.meta.url));
 const origin = 'http://127.0.0.1:8793';
@@ -27,6 +28,7 @@ const runtime = new Miniflare({host:'127.0.0.1',port:8793,cf:false,d1Persist:fal
     assetConfig:{html_handling:'none',not_found_handling:'none'}},
 });
 const requireOk = result=>{if(!result?.ok)throw new Error(`Synthetic setup failed: ${result?.code}`);return result;};
+let oauthClient;
 try {
   await runtime.ready;
   const db=await runtime.getD1Database('DB');
@@ -59,11 +61,15 @@ try {
     policy.assignments.push({principalId:person.principalId,contextId,audience,roleId:'lecture'});
   }
   requireOk(await authorization.replacePolicy(session.token,{expectedEpoch:current.epoch,policy}));
+  if(process.argv.includes('--oauth')) oauthClient=await startOAuthBrowserClient(origin);
   console.log(JSON.stringify({ready:true,url:`${origin}/workspace/admin?context=application&view=%2Fadmin%2Faccess`,
     loginIdentifier,password,owner:owner.principalId,people,machine:machine.principal.id,artifact:artifact.digest}));
+  if(oauthClient)console.log(JSON.stringify({oauthAuthorizeUrl:oauthClient.begin()}));
   const lines=createInterface({input:process.stdin});
   for await(const line of lines) {
     if(line.trim()==='stop'){lines.close();break;}
+    if(line.trim()==='oauth' && oauthClient)console.log(JSON.stringify({oauthAuthorizeUrl:oauthClient.begin()}));
+    if(line.trim()==='oauth-empty' && oauthClient)console.log(JSON.stringify({oauthAuthorizeUrl:oauthClient.begin('')}));
     if(line.trim()==='policy')console.log(JSON.stringify(requireOk(await authorization.readPolicy(session.token))));
     if(line.trim()==='audit')console.log(JSON.stringify(await db.prepare(`SELECT id,action,created_at_ms FROM "${ACCESS_TABLES.access_audit}" ORDER BY created_at_ms DESC,id DESC LIMIT 20`).all()));
     if(line.trim()==='external-change') {
@@ -73,4 +79,4 @@ try {
       console.log(JSON.stringify(await authorization.replacePolicy(session.token,{expectedEpoch:current.epoch,policy:changed})));
     }
   }
-} finally {await runtime.dispose();}
+} finally {await oauthClient?.close();await runtime.dispose();}

@@ -5,6 +5,8 @@ import { MACHINE_SCOPE_LIMITS, parseStoredMachineScopeRows, type MachineScope } 
 import { decodeImpersonationMeta, type ImpersonationMeta } from '../identity/impersonation-store.ts';
 import { IMPERSONATION_LIMITS } from '../identity/impersonation-policy.ts';
 import type { SqlStatement } from '../data/authorization.ts';
+import {accessAdminCondition, captureAccessAdminGuard, type AccessAdminGuard} from './admin-authority.ts';
+import { OAUTH_AUTHORIZATION_FROM, OAUTH_AUTHORIZATION_LIVE } from './oauth-guard.ts';
 
 export interface StoredPrincipal {
   readonly id: string;
@@ -34,6 +36,14 @@ export interface StoredMachineAuthorizationState {
   };
 }
 
+export interface StoredOAuthAuthorizationState {
+  readonly epoch: number; readonly nowMs: number; readonly policy: AccessPolicy;
+  readonly principals: readonly StoredPrincipal[];
+  readonly principal: {readonly id: string; readonly authVersion: number; readonly accountVersion: number; readonly credentialVersion: number};
+  readonly credential: {readonly id: string; readonly grantId: string; readonly clientId: string; readonly resource: string;
+    readonly contextId: string; readonly audience: AuthorizationAudience; readonly permissionIds: readonly string[]; readonly expiresAtMs: number};
+}
+
 /** Current target identity metadata; deliberately not a target session. */
 export interface StoredImpersonationSubject {
   readonly id: string;
@@ -50,15 +60,14 @@ export interface StoredImpersonationAuthorizationState extends StoredImpersonati
   readonly impersonation: ImpersonationMeta;
 }
 
-export interface CommitAccessPolicyInput {
-  readonly sessionDigest: string;
-  readonly sessionId: string;
-  readonly principalId: string;
-  readonly epoch: number;
+export type CommitAccessPolicyInput = ({ readonly guard: AccessAdminGuard } | {
+  /** Existing T04 session-only direct store callers. */
+  readonly sessionDigest: string; readonly sessionId: string; readonly principalId: string; readonly epoch: number;
+}) & {
   readonly policy: AccessPolicy;
   /** The checked snapshot from the same administrative read, for lossless audit detail. */
   readonly beforePolicy: AccessPolicy;
-}
+};
 
 export class AuthorizationStoreInputError extends Error {
   constructor() { super('Invalid authorization store input.'); this.name = 'AuthorizationStoreInputError'; }
@@ -82,9 +91,10 @@ function inputShape(value: unknown): value is CommitAccessPolicyInput {
   try {
     if (value === null || typeof value !== 'object' || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) return false;
     const descriptors = Object.getOwnPropertyDescriptors(value);
-    const keys = ['sessionDigest', 'sessionId', 'principalId', 'epoch', 'policy', 'beforePolicy'];
-    return Reflect.ownKeys(descriptors).length === keys.length
-      && keys.every(key => Object.hasOwn(descriptors, key) && Object.hasOwn(descriptors[key], 'value'));
+    const keys = Object.hasOwn(descriptors, 'guard') ? ['guard', 'policy', 'beforePolicy']
+      : ['sessionDigest', 'sessionId', 'principalId', 'epoch', 'policy', 'beforePolicy'];
+    return Reflect.ownKeys(descriptors).length === keys.length && keys.every(key =>
+      descriptors[key]?.enumerable && Object.hasOwn(descriptors[key], 'value'));
   } catch { return false; }
 }
 
@@ -220,6 +230,48 @@ export function createD1AuthorizationStore(db: IdentityDatabase) {
     return Object.freeze({ epoch: row.epoch, nowMs: row.nowMs, session, principals, policy });
   }
 
+  /** null context is used only by the trusted transport to recover the grant's single bound context. */
+  async function readOAuthAccess(tokenDigest: string, contextId: string | null,
+    requestedAudience: AuthorizationAudience, resource: string): Promise<StoredOAuthAuthorizationState | null> {
+    if (!digest(tokenDigest) || contextId !== null && !identifier(contextId) || !audience(requestedAudience)
+      || typeof resource !== 'string' || resource.length > 2048) return null;
+    try {
+      const url = new URL(resource);
+      if (url.href !== resource || url.username || url.password || url.search || url.hash
+        || url.pathname !== `/mcp/${requestedAudience}`
+        || url.protocol !== 'https:' && !(url.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname))) return null;
+    } catch { return null; }
+    const results = await batch([
+      statement(`SELECT ot.id, og.id AS grantId, og.client_id AS clientId, og.principal_id AS principalId,
+        og.resource, og.context_id AS contextId, og.audience, og.permission_ids_json AS permissionIds,
+        og.auth_version AS authVersion, og.account_version AS accountVersion, og.credential_version AS credentialVersion,
+        MIN(ot.expires_at_ms, COALESCE(pc.expires_at_ms, ot.expires_at_ms)) AS expiresAtMs, a.epoch, ${NOW} AS nowMs
+        ${OAUTH_AUTHORIZATION_FROM} WHERE ot.secret_hash=? AND og.resource=? AND og.audience=?
+          AND (? IS NULL OR og.context_id=?) AND ${OAUTH_AUTHORIZATION_LIVE} LIMIT 2`,
+      [tokenDigest, resource, requestedAudience, contextId, contextId]), ...policyQueries(),
+    ]);
+    if (results[0].results.length === 0) return null;
+    const row = results[0].results[0];
+    if (!identifier(row.id) || !identifier(row.grantId) || !identifier(row.principalId) || !identifier(row.contextId)
+      || typeof row.clientId !== 'string' || !row.clientId || row.clientId.length > 2048
+      || row.resource !== resource || row.audience !== requestedAudience || contextId !== null && row.contextId !== contextId
+      || !positive(row.authVersion) || !positive(row.accountVersion) || !positive(row.credentialVersion)
+      || !positive(row.epoch) || !instant(row.nowMs) || !instant(row.expiresAtMs) || row.expiresAtMs <= row.nowMs
+      || typeof row.permissionIds !== 'string' || row.permissionIds.length > 65536) throw new AuthorizationStoreError();
+    let ids: unknown;
+    try { ids = JSON.parse(row.permissionIds); } catch { throw new AuthorizationStoreError(); }
+    if (!Array.isArray(ids) || ids.length > 128 || new Set(ids).size !== ids.length
+      || ids.some(id => typeof id !== 'string' || id.length > 256
+        || !/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(id))
+      || JSON.stringify(ids) !== row.permissionIds) throw new AuthorizationStoreError();
+    const {principals, policy} = decodePolicy(results, row.principalId);
+    return Object.freeze({epoch: row.epoch, nowMs: row.nowMs, principals, policy,
+      principal: Object.freeze({id: row.principalId, authVersion: row.authVersion,
+        accountVersion: row.accountVersion, credentialVersion: row.credentialVersion}),
+      credential: Object.freeze({id: row.id, grantId: row.grantId, clientId: row.clientId, resource,
+        contextId: row.contextId, audience: requestedAudience, permissionIds: Object.freeze(ids as string[]), expiresAtMs: row.expiresAtMs})});
+  }
+
   async function readMachine(tokenDigest: string, contextId: string,
     requestedAudience: AuthorizationAudience): Promise<StoredMachineAuthorizationState | null> {
     if (!digest(tokenDigest) || !identifier(contextId) || !audience(requestedAudience)) return null;
@@ -335,26 +387,31 @@ export function createD1AuthorizationStore(db: IdentityDatabase) {
 
   const planned = (sql: string, bindings: (string | number | null)[] = []): SqlStatement => ({sql, bindings});
   function preparePolicyCommit(input: CommitAccessPolicyInput) {
-    if (!inputShape(input) || !digest(input.sessionDigest) || !identifier(input.sessionId)
-      || !identifier(input.principalId) || !positive(input.epoch) || input.epoch >= MAX_EPOCH) throw new AuthorizationStoreInputError();
+    if (!inputShape(input)) throw new AuthorizationStoreInputError();
+    let authority: AccessAdminGuard;
+    try { authority = captureAccessAdminGuard('guard' in input ? input.guard : {
+      sessionDigest: input.sessionDigest, sessionId: input.sessionId, principalId: input.principalId, epoch: input.epoch}); }
+    catch { throw new AuthorizationStoreInputError(); }
+    if (authority.epoch >= MAX_EPOCH) throw new AuthorizationStoreInputError();
     // Copy/freeze the candidate before awaiting I/O. The caller cannot alter the
     // serialized effects while claim acquisition is pending.
     const policy = parseAccessPolicy(input.policy);
     const beforePolicy = parseAccessPolicy(input.beforePolicy);
     if (!policy || !beforePolicy) throw new AuthorizationStoreInputError();
     const claim = crypto.randomUUID(), auditId = crypto.randomUUID();
+    const current = accessAdminCondition(authority);
     const claimExists = `EXISTS (SELECT 1 FROM ${table.access_audit}
       WHERE id = ? AND claim_nonce = ? AND action = 'authorization-updated')`;
     const guard = () => [auditId, claim];
     const rolesJson = JSON.stringify(policy.roles);
     const statements: SqlStatement[] = [
-      planned(`INSERT INTO ${table.access_audit} (id, action, principal_id, session_id, claim_nonce, created_at_ms)
-        SELECT ?, 'authorization-updated', p.id, s.id, ?, ${NOW} ${sessionFrom}
-        WHERE ${liveSession} AND s.id = ? AND p.id = ? AND a.epoch = ? AND a.epoch < ${MAX_EPOCH}
-          AND EXISTS (SELECT 1 FROM ${table.contexts} WHERE id = 'application' AND status = 'active')
-          AND EXISTS (SELECT 1 FROM ${table.memberships} WHERE principal_id = p.id
-            AND context_id = 'application' AND audience = 'admin' AND status = 'active')`,
-      [auditId, claim, input.sessionDigest, 'admin', input.sessionId, input.principalId, input.epoch]),
+      planned(`INSERT INTO ${table.access_audit}
+        (id, action, principal_id, session_id, credential_id, context_id, audience, claim_nonce, created_at_ms)
+        SELECT ?, 'authorization-updated', ?, ?, ?, ?, ?, ?, ${NOW} WHERE ${current.sql}`,
+      [auditId, authority.principalId, authority.kind === 'session' ? authority.sessionId : null,
+        authority.kind === 'oauth' ? authority.credentialId : null,
+        authority.kind === 'oauth' ? 'application' : null, authority.kind === 'oauth' ? 'admin' : null,
+        claim, ...current.bindings]),
       ...(['role_assignments', 'principal_overrides', 'role_parents', 'role_grants', 'role_overrides', 'memberships'] as const)
         .map(id => planned(`DELETE FROM ${table[id]} WHERE ${claimExists}`, guard())),
       planned(`INSERT INTO ${table.contexts} (id, status)
@@ -387,14 +444,14 @@ export function createD1AuthorizationStore(db: IdentityDatabase) {
           json_extract(value, '$.permissionId'), json_extract(value, '$.effect') FROM json_each(?) WHERE ${claimExists}`,
       [JSON.stringify(policy.overrides), ...guard()]),
       planned(`UPDATE ${table.authorization_state} SET epoch = epoch + 1, updated_at_ms = ${NOW}
-        WHERE id = 'application' AND epoch = ? AND ${claimExists}`, [input.epoch, ...guard()]),
+        WHERE id = 'application' AND epoch = ? AND ${claimExists}`, [authority.epoch, ...guard()]),
     ];
     const changesJson = JSON.stringify({version: 1, beforePolicy, afterPolicy: policy});
     if (new TextEncoder().encode(changesJson).length > 524_288) throw new AuthorizationStoreInputError();
     statements.push(planned(`INSERT INTO ${table.access_policy_audit_details}
       (audit_id, from_epoch, to_epoch, changes_json)
       SELECT ?, ?, ?, ? WHERE ${claimExists}`,
-    [auditId, input.epoch, input.epoch + 1, changesJson, ...guard()]));
+    [auditId, authority.epoch, authority.epoch + 1, changesJson, ...guard()]));
     return Object.freeze({auditId, claim, statements: Object.freeze(statements),
       assertion: planned(`SELECT CASE WHEN ${claimExists} THEN 1 ELSE json('creezio_access_policy_conflict') END AS accepted`, guard())});
   }
@@ -410,5 +467,5 @@ export function createD1AuthorizationStore(db: IdentityDatabase) {
     return acquired === 1;
   }
 
-  return Object.freeze({ read, readMachine, readForImpersonation, readImpersonation, commitPolicy, preparePolicyCommit });
+  return Object.freeze({ read, readMachine, readOAuthAccess, readForImpersonation, readImpersonation, commitPolicy, preparePolicyCommit });
 }

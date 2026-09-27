@@ -11,7 +11,7 @@ const started = new Date().toISOString();
 const evidencePath = resolve(root, '.quality/latest.json');
 mkdirSync(dirname(evidencePath), { recursive: true });
 const write = value => writeFileSync(evidencePath, JSON.stringify(value, null, 2) + '\n');
-const profile = 't04-access-original-workspace';
+const profile = 't10-native-mcp-oauth';
 write({ schemaVersion: 1, profile, started, state: 'running', success: false, mergeReady: false });
 try {
 const source = sourceIdentity(root);
@@ -46,7 +46,7 @@ const report = { schemaVersion: 1, profile, started, finished: new Date().toISOS
   source, results: { docs, commands, tests: { ...tap, files: tests, exitCode: result.status }, runtime,
     runtimeEvidenceCurrent: runtimeCurrent, sourceUnchanged: unchanged },
   success, state: success ? 'passed' : 'failed', mergeReady: false,
-  limits: ['Native Access operations, SDK and original UI are tested within the listed suites; the real browser recipe is recorded separately',
+  limits: ['Native Access, OAuth and MCP transports are tested within the listed suites; the browser and ChatGPT recipes are recorded separately',
     'This aggregate does not certify all native modules, hosted CMS parity, provider onboarding or remote CI provenance'] };
 write(report);
 console.log(JSON.stringify({ success, mergeReady: false, source: source.sha256, docs: docs.metrics,

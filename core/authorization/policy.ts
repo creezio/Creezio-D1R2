@@ -7,7 +7,7 @@ export const ADMIN_CONTEXT = 'application';
 export const MANAGE_ACCESS = 'creezio.access:manage';
 export const IMPERSONATE_ACCESS = 'creezio.access:impersonate';
 export const ACCESS_PERMISSION: PermissionDefinition = Object.freeze({ id: MANAGE_ACCESS,
-  audiences: Object.freeze(['admin'] as const), actors: Object.freeze(['user'] as const) });
+  audiences: Object.freeze(['admin'] as const), actors: Object.freeze(['user', 'delegated-user'] as const) });
 export const IMPERSONATION_PERMISSION: PermissionDefinition = Object.freeze({ id: IMPERSONATE_ACCESS,
   audiences: Object.freeze(['admin'] as const), actors: Object.freeze(['user'] as const) });
 export const NATIVE_ACCESS_PERMISSIONS: readonly PermissionDefinition[] = Object.freeze([ACCESS_PERMISSION, IMPERSONATION_PERMISSION]);

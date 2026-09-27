@@ -29,6 +29,8 @@
     "test:workspace": "node --test --test-concurrency=1 tests/workspace/*.test.mjs",
     "test:registry": "node --test --test-concurrency=1 tests/registry/*.test.mjs",
     "test:local": "node --test --test-concurrency=1 tests/local/*.test.mjs",
+    "test:oauth": "node --test --test-concurrency=1 tests/oauth/*.test.mjs",
+    "test:mcp": "node --test --test-concurrency=1 tests/mcp/*.test.mjs",
     "registry:build": "node scripts/registry/build.mjs",
     "registry:configure": "node scripts/registry/configure.mjs",
     "registry:operator": "node scripts/registry/operator.mjs"
@@ -36,6 +38,7 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
     "@cloudflare/workers-types": "4.20260515.1",
+    "@modelcontextprotocol/client": "2.1.0",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
@@ -56,6 +59,7 @@
     "wrangler": "4.92.0"
   },
   "dependencies": {
+    "@modelcontextprotocol/server": "2.1.0",
     "@noble/hashes": "2.4.0",
     "@radix-ui/react-avatar": "1.1.11",
     "@radix-ui/react-select": "2.3.7",

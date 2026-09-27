@@ -6,11 +6,15 @@ import {Miniflare} from 'miniflare';
 import {contractIntegrity} from '../../sdk/contracts/validate.mjs';
 import {compileCompositionSchema} from '../../scripts/data/composition-schema.mjs';
 import {compileOperationSchemas} from '../../scripts/operations/schemas.mjs';
+import {compileHttpBindings} from '../../scripts/operations/http-bindings.mjs';
 import {createOperationRegistry} from '../../core/operations/registry.ts';
 import {createOperationEngine} from '../../core/operations/service.ts';
+import {createOperationHttpTransport} from '../../core/operations/http.ts';
 import {OPERATION_TABLES} from '../../core/operations/models.ts';
 import {ACCESS_TABLES} from '../../core/identity/d1-store.ts';
 import {createAccountService, provisionBootstrapCapability} from '../../core/identity/accounts.ts';
+import {createAccountLifecycleService} from '../../core/identity/lifecycle.ts';
+import {issueOpaqueToken} from '../../core/identity/tokens.ts';
 import {hostOnly} from '../../extensions/native/access/module/operations.ts';
 
 const json = path => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
@@ -43,6 +47,14 @@ test('native Access effects, audit detail and T06 result commit together in real
     assert.equal(owner.ok,true,JSON.stringify(owner));
     const session=await accounts.login({loginIdentifier:'access-operations@example.invalid',password,audience:'admin'});
     assert.equal(session.ok,true,JSON.stringify(session));
+    const lifecycle=createAccountLifecycleService(db,{permissions:[]});
+    const invitation=await lifecycle.issueInvitation(session.token,{loginIdentifier:'access-operations-user@example.invalid',
+      displayName:'Access operations target'});
+    assert.equal(invitation.ok,true,JSON.stringify(invitation));
+    const target=await lifecycle.redeem({token:invitation.token,purpose:'invitation',password});
+    assert.equal(target.ok,true,JSON.stringify(target));
+    const targetSession=await accounts.login({loginIdentifier:'access-operations-user@example.invalid',password,audience:'app'});
+    assert.equal(targetSession.ok,true,JSON.stringify(targetSession));
     const engine=createOperationEngine({db,registry,catalog:schema.runtimeCatalog,permissions:[]});
     const invoke=(operationId, value) => engine.invoke({credential:{kind:'session',token:session.token},
       moduleId,operationId,contextId:'application',audience:'admin',input:value});
@@ -104,5 +116,97 @@ test('native Access effects, audit detail and T06 result commit together in real
     const row=await db.prepare(`SELECT revoked_at_ms FROM ${quote(ACCESS_TABLES.sessions)} WHERE id=?`)
       .bind(session.session.id).first();
     assert.ok(row.revoked_at_ms!==null);
+
+    // A consented delegated user executes the same ten Access operations. The
+    // access token is an OAuth credential, never a synthetic browser session.
+    const versions=await db.prepare(`SELECT p.auth_version AS authVersion,h.version AS accountVersion,
+      pc.version AS credentialVersion FROM ${quote(ACCESS_TABLES.principals)} p
+      JOIN ${quote(ACCESS_TABLES.human_accounts)} h ON h.principal_id=p.id
+      JOIN ${quote(ACCESS_TABLES.password_credentials)} pc ON pc.principal_id=p.id WHERE p.id=?`)
+      .bind(owner.principalId).first();
+    const oauth=await issueOpaqueToken('oauth-access');
+    const resource='https://access-operations.example.invalid/mcp/admin';
+    const clientId='client-access-test',grantId='grant-access-test',tokenId='token-access-test',now=Date.now();
+    await db.batch([
+      db.prepare(`INSERT INTO ${quote(ACCESS_TABLES.oauth_clients)}
+        (id,display_name,redirect_uris_json,token_endpoint_auth_method,scope_allowlist_json,registration_kind,created_at_ms,revoked_at_ms)
+        VALUES (?,?,?,?,?,?,?,NULL)`).bind(clientId,'Access test client','[]','none','["creezio.access:manage"]','predefined',now),
+      db.prepare(`INSERT INTO ${quote(ACCESS_TABLES.oauth_grants)}
+        (id,principal_id,client_id,resource,audience,context_id,scopes_json,permission_ids_json,
+          auth_version,account_version,credential_version,created_at_ms,revoked_at_ms)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,NULL)`).bind(grantId,owner.principalId,clientId,resource,'admin','application',
+          '["creezio.access:manage"]','["creezio.access:manage"]',versions.authVersion,versions.accountVersion,
+          versions.credentialVersion,now),
+      db.prepare(`INSERT INTO ${quote(ACCESS_TABLES.oauth_access_tokens)}
+        (id,secret_hash,grant_id,created_at_ms,expires_at_ms,revoked_at_ms)
+        VALUES (?,?,?,?,?,NULL)`).bind(tokenId,oauth.digest,grantId,now,now+3_600_000),
+    ]);
+    const delegated=(operationId,value)=>engine.invoke({credential:{kind:'oauth',token:oauth.token,resource},
+      moduleId,operationId,contextId:'application',audience:'admin',input:value});
+    const delegatedRead=await delegated('policy.read',{});
+    assert.equal(delegatedRead.execution.state,'succeeded');
+    const httpBinding=compileHttpBindings({composition,modules:[manifest],operationCatalog:compiled.catalog})
+      .find(item=>item.id==='policy.read' && item.audience==='admin');
+    assert.ok(httpBinding);
+    const http=createOperationHttpTransport([httpBinding],engine);
+    const httpRequest=new Request('https://access-operations.example.invalid/api/admin/access/policy',
+      {headers:{authorization:`Bearer ${oauth.token}`}});
+    const httpResponse=await http.dispatch(httpRequest,{profile:'sites',bindings:{DB:db}},
+      {CREEZIO_APP_ORIGIN:'https://access-operations.example.invalid'},'oauth-http-read');
+    assert.equal(httpResponse.status,200,await httpResponse.clone().text());
+    assert.equal((await httpResponse.json()).execution.state,'succeeded');
+    await assert.rejects(engine.invoke({credential:{kind:'oauth',token:oauth.token,
+      resource:'https://access-operations.example.invalid/mcp/app'},moduleId,operationId:'policy.read',
+      contextId:'application',audience:'admin',input:{}}),{code:'unauthorized'});
+    await assert.rejects(engine.invoke({credential:{kind:'api-token',token:oauth.token},moduleId,
+      operationId:'policy.read',contextId:'application',audience:'admin',input:{}}),{code:'forbidden'});
+    assert.equal((await delegated('permissions.list',{limit:50})).execution.state,'succeeded');
+    assert.equal((await delegated('principals.list',{limit:50,kind:'all'})).execution.state,'succeeded');
+    assert.equal((await delegated('sessions.list',{principalId:target.principalId,limit:50})).execution.state,'succeeded');
+    assert.equal((await delegated('audit.list',{limit:50})).execution.state,'succeeded');
+    assert.equal((await delegated('audit.detail',{auditId,limit:32})).execution.state,'succeeded');
+    const lockout=await delegated('policy.apply-delta',{requestKey:'oauth-self-lockout',
+      expectedEpoch:delegatedRead.execution.output.epoch,
+      changes:[{kind:'principal-override',principalId:owner.principalId,contextId:'application',audience:'admin',
+        permissionId:'creezio.access:manage',effect:'deny'}]});
+    assert.equal(lockout.execution.state,'failed');
+    assert.equal(lockout.execution.errorCode,'forbidden');
+    const changed=await delegated('policy.apply-delta',{requestKey:'oauth-policy-1',
+      expectedEpoch:delegatedRead.execution.output.epoch,
+      changes:[{kind:'role-override',roleId:'administrator',permissionId:'creezio.access:impersonate',effect:'deny'}]});
+    assert.equal(changed.execution.state,'succeeded',JSON.stringify(changed.execution));
+    const oauthAudit=await db.prepare(`SELECT session_id AS sessionId,principal_id AS principalId,
+      credential_id AS credentialId,context_id AS contextId,audience
+      FROM ${quote(ACCESS_TABLES.access_audit)} WHERE id=?`).bind(changed.execution.output.auditId).first();
+    assert.equal(oauthAudit.sessionId,null);
+    assert.equal(oauthAudit.principalId,owner.principalId);
+    assert.equal(oauthAudit.credentialId,tokenId);
+    assert.equal(oauthAudit.contextId,'application');
+    assert.equal(oauthAudit.audience,'admin');
+    assert.equal((await delegated('sessions.revoke',{sessionId:targetSession.session.id,requestKey:'oauth-revoke-session'}))
+      .execution.state,'succeeded');
+    const targetVersion=await db.prepare(`SELECT auth_version AS authVersion FROM ${quote(ACCESS_TABLES.principals)} WHERE id=?`)
+      .bind(target.principalId).first();
+    assert.equal((await delegated('principals.set-human-status',{principalId:target.principalId,
+      expectedAuthVersion:targetVersion.authVersion,status:'disabled',requestKey:'oauth-disable-target'}))
+      .execution.state,'succeeded');
+    const ownerVersion=await db.prepare(`SELECT auth_version AS authVersion FROM ${quote(ACCESS_TABLES.principals)} WHERE id=?`)
+      .bind(owner.principalId).first();
+    assert.equal((await delegated('principals.revoke-sessions',{principalId:owner.principalId,
+      expectedAuthVersion:ownerVersion.authVersion,requestKey:'oauth-self-revoke'})).execution.state,'succeeded');
+    const auditRows=(await db.prepare(`SELECT action,session_id AS sessionId,credential_id AS credentialId,
+      context_id AS contextId,audience FROM ${quote(ACCESS_TABLES.access_audit)} WHERE credential_id=? ORDER BY action`)
+      .bind(tokenId).all()).results;
+    assert.deepEqual(auditRows.map(row=>row.action),['authorization-updated','human-session-revoked',
+      'human-sessions-revoked','human-status-updated']);
+    for(const row of auditRows){
+      assert.equal(row.sessionId,null);
+      assert.equal(row.credentialId,tokenId);
+      assert.equal(row.contextId,'application');
+      assert.equal(row.audience,'admin');
+      assert.ok(!JSON.stringify(row).includes(oauth.token));
+      assert.ok(!JSON.stringify(row).includes(oauth.digest));
+    }
+    await assert.rejects(delegated('policy.read',{}),{code:'unauthorized'});
   } finally {await runtime.dispose();}
 });

@@ -26,7 +26,8 @@ type Route = {
 function parseRoute(path: string): readonly Segment[] {
   if (typeof path !== 'string' || path.length > 512 || !/^\/(?:[A-Za-z0-9_.{}-]+\/)*[A-Za-z0-9_.{}-]*$/.test(path) || path.includes('//')) throw new RuntimeConfigurationError('route.invalid', 'Routes must use explicit absolute API paths.');
   const normalized = path.replace(/\/$/, '') || '/';
-  if (!isApi(normalized) || normalized === '/api/health') throw new RuntimeConfigurationError('route.reserved', 'This route belongs to the host or health endpoint.');
+  if (!isApi(normalized) || normalized === '/api/health' || normalized === '/mcp' || normalized.startsWith('/mcp/'))
+    throw new RuntimeConfigurationError('route.reserved', 'This route belongs to the host or health endpoint.');
   const names = new Set<string>();
   const segments = normalized.slice(1).split('/').map(segment => {
     if (/^\{[A-Za-z][A-Za-z0-9_]*\}$/.test(segment)) {
@@ -153,7 +154,7 @@ export function createRuntime(definition: RuntimeDefinition): CreezioRuntime {
       // No host environment is needed to render a non-API page through the UI adapter.
       let namespace: string;
       try { namespace = decodeURIComponent(url.pathname.split('/')[1] ?? ''); } catch { return null; }
-      if (!['api','mcp'].some(name=>namespace===name||namespace.startsWith(`${name}/`)||namespace.startsWith(`${name}\\`))) return null;
+      if (!['api','mcp','oauth','.well-known'].some(name=>namespace===name||namespace.startsWith(`${name}/`)||namespace.startsWith(`${name}\\`))) return null;
       const requestId = crypto.randomUUID();
       if(request.url.length>RUNTIME_LIMITS.maxUrlBytes||encoder.encode(request.url).byteLength>RUNTIME_LIMITS.maxUrlBytes)return error('request_too_large','Request URL exceeds its limit.',414,requestId,head);
       const segments = requestPath(url.pathname);
@@ -163,6 +164,28 @@ export function createRuntime(definition: RuntimeDefinition): CreezioRuntime {
       const resolved = resolveRuntimeEnvironment(environment);
       if (!resolved) return error('runtime_unavailable','Runtime unavailable.',503,requestId,head);
       const path = `/${segments.join('/')}`;
+      if (namespace === 'oauth' || namespace === '.well-known') {
+        if (!nativeAccess.admin && !nativeAccess.app)
+          return error('not_found','OAuth route not found.',404,requestId,head);
+        // The GET consent document is rendered by the host UI. Its preview and
+        // decision endpoints, metadata and token endpoints stay in the runtime.
+        if (namespace === 'oauth' && (request.method === 'GET' || head)
+          && /^\/oauth\/consent\/[A-Za-z0-9_-]{16,128}$/.test(path)) return null;
+        if (definition.oauthHttp) {
+          try {
+            const response = await definition.oauthHttp.dispatch(request, resolved, environment, requestId, path);
+            if (response) return response;
+          } catch { return error('runtime_unavailable','Runtime unavailable.',503,requestId,head); }
+        }
+        return error('not_found','OAuth route not found.',404,requestId,head);
+      }
+      if (namespace === 'mcp') {
+        const audience = path === '/mcp/admin' ? 'admin' : path === '/mcp/app' ? 'app' : null;
+        if (!audience || !nativeAccess[audience] || !definition.mcpHttp)
+          return error('not_found','MCP route not found.',404,requestId,head);
+        try { return await definition.mcpHttp.dispatch(request, resolved, environment, requestId, audience); }
+        catch { return error('runtime_unavailable','Runtime unavailable.',503,requestId,head); }
+      }
       if (path === '/api/health') return request.method === 'GET' || head
         ? json({status:'ok'},200,requestId,head)
         : error('method_not_allowed','Method not allowed.',405,requestId,head,{allow:'GET, HEAD'});

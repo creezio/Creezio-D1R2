@@ -2,6 +2,8 @@
 
 ## 0.0.0 — travail non publié
 
+T-10 : six modèles OAuth privés, permission native manage ouverte à la délégation humaine explicite, dix outils MCP OAuth et API communes session/OAuth. La carte de consentement reprend l'original avec les comptes natifs. Les grants conservent un contexte, une audience, une ressource et un plafond de permissions ; qualification locale en cours, sans annonce de connexion GPT réelle.
+
 Raccordement des trois panneaux Access originaux, composants SDK UI publics et opérations natives déclarées. Deltas de politique avec epoch, comparaison des versions des comptes et révocations atomiques avec l'exécution T-06. Nouveau modèle privé de détail d'audit, index chronologique, lectures et détail paginés. Les qualifications de la tranche sont suivies dans TODO et T-04 ; les parcours MCP et hébergés restent distincts.
 
 Conservation du brouillon et du suivi de commande pendant une vérification temporaire des droits : vue masquée et inerte, aucune action autorisée ; purge sur changement ou perte confirmée d'identité.
@@ -24,4 +26,4 @@ Impersonation : ajout de deux modèles privés et des références d'audit acteu
 
 Raccordement du transport HTTP natif login/session/logout du cœur à la composition : module access activé et audiences admin/app exposées explicitement, drapeaux générés fermés par défaut et namespace réservé. Aucun nouveau modèle, SQL ni contrat API métier artificiel. Les garanties d'origine, cookies et parsing borné se qualifient avec les recettes du transport ; aucun bootstrap ou parcours administratif n'est ajouté aux routes natives.
 
-Gestion visuelle des droits, interfaces et qualification hébergée encore à construire ; aucune publication produit ni version de paquet distribuée annoncée.
+Gestion visuelle des droits intégrée par PR #18 ; interfaces de cycle de compte, impersonation et qualification hébergée restent à construire. Aucune version de paquet distribuée annoncée.

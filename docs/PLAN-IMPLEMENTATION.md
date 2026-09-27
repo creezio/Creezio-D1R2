@@ -4,9 +4,9 @@
 
 ## État et documents de pilotage
 
-GO complet reçu le 26 septembre 2026 : **T-01 en cours, runtime non construit**. L'[état P0](IMPLEMENTATION-P0.md) décrit les premières réalisations et prérequis. Les formulations fonctionnelles décrivent la cible à livrer, pas des fonctions déjà disponibles. Les preuves de la sonde gardent leur portée limitée.
+GO complet reçu le 26 septembre 2026. Les états et preuves courants sont suivis exclusivement dans le [backlog](TODO.md) ; les sections de ce plan décrivent la cible et ses critères, pas un statut de livraison. L'[état P0](IMPLEMENTATION-P0.md) conserve la provenance des premières réalisations. Les preuves de la sonde gardent leur portée limitée.
 
-Le [PRD produit](PRD.md) exprime les usages ; [EXIGENCES.md](EXIGENCES.md) fixe 83 critères identifiés ; [USER-STORIES.md](USER-STORIES.md) décrit 39 parcours ; [TODO.md](TODO.md) suit 39 lots de travail, leurs dépendances, acceptations et preuves. Ce backlog est la source unique des états, sans case fonctionnelle cochée à ce stade. L'[audit avant développement](AUDIT-AVANT-DEVELOPPEMENT.md) distingue préparation, prérequis et validations futures.
+Le [PRD produit](PRD.md) exprime les usages ; [EXIGENCES.md](EXIGENCES.md) fixe 89 critères identifiés ; [USER-STORIES.md](USER-STORIES.md) décrit 39 parcours ; [TODO.md](TODO.md) suit 39 lots de travail, leurs dépendances, acceptations et preuves. Ce backlog est la source unique des états. L'[audit avant développement](AUDIT-AVANT-DEVELOPPEMENT.md) conserve la préparation et les prérequis initiaux.
 
 L'[architecture des dépôts](ARCHITECTURE-DEPOTS.md) fixe les frontières entre socle, app dérivée, modules tiers et registre. Le [standard des modules](STANDARD-MODULE.md), le [standard de développement](DEVELOPMENT-STANDARD.md), le [Git flow](GIT-FLOW.md), [CONTRIBUTING](../CONTRIBUTING.md) et les [skills de développement](../skills/README.md) font partie du contrat. Les gabarits documentaires ne sont pas des contrôles CI déjà actifs.
 

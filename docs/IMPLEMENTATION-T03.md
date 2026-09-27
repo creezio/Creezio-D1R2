@@ -43,8 +43,8 @@ Sur la machine de qualification : initialisation workerd autour de **525 ms**, r
 
 | Mesure | Plafond local |
 |---|---:|
-| JavaScript Worker total, composition Access | 1 750 000 octets |
-| Somme gzip JavaScript Worker | 500 000 octets |
+| JavaScript Worker total, composition Access avec OAuth/MCP | 2 200 000 octets |
+| Somme gzip JavaScript Worker | 550 000 octets |
 | Entrées du graphe applicatif sélectionné | 32 |
 | Initialisation ou redémarrage workerd | 15 000 ms |
 | Chaque route qualifiée, y compris le roundtrip interne | 3 000 ms |
@@ -52,6 +52,8 @@ Sur la machine de qualification : initialisation workerd autour de **525 ms**, r
 Ces plafonds sont des critères locaux de T-03, **pas les quotas d'une offre Cloudflare ni un SLA**. Une nouvelle composition peut nécessiter un budget explicitement revu et mesuré ; elle ne supprime pas le contrôle. Les limites de durée d'opération et de taille des entrées du dispatch restent indépendantes de ces budgets de recette.
 
 Révision mesurée du 27 septembre, tranche Access : la première composition avec dix opérations natives et la vraie interface originale produit 1 583 134 octets JavaScript Worker (396 126 gzip). Les contributions principales ajoutées sont l'interface SSR avec ses primitives (247 475 octets) et les validateurs statiques des opérations (145 199 octets). Le plafond initial de 1 500 000 est donc relevé à 1 750 000 pour cette composition, avec revue indépendante ; plafond gzip de 500 000, graphe témoin, temps et test de refus d'un dépassement conservés. Ces mesures initiales ne remplacent pas celles de l'artefact final ni une qualification hébergée.
+
+Révision locale T-10, après raccord OAuth/MCP et écran de consentement : l'artefact complet mesuré par `.quality/runtime-latest.json` contient 48 fichiers JavaScript Worker, **1 978 526 octets** au total et **492 516 octets gzip**. Le graphe témoin sélectionné compte 19 entrées ; démarrage/redémarrage 346/300 ms, routes mesurées entre 5 et 48 ms. Depuis la tranche Access, la hausse est de 395 392 octets bruts et 96 390 gzip. Le plafond brut de 1 750 000 est dépassé et le plafond gzip de 500 000 ne laisse que 7 484 octets de marge. Les plafonds locaux deviennent 2 200 000 octets bruts et 550 000 gzip, environ 11 % au-dessus de l'artefact observé. Le contrôle de graphe, les plafonds de durée et les tests qui refusent un dépassement restent appliqués. Cette mesure couvre le bundle local avec le SDK MCP, le service OAuth et le consentement ; elle n'établit ni un quota fournisseur ni une qualification hébergée.
 
 ## Preuves et limites
 

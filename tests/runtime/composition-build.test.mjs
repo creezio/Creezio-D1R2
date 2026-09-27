@@ -88,9 +88,15 @@ test('default native access composition enables native audiences and the declare
   assert.equal(result.moduleCount,1);assert.equal(result.viewCount,1);
   assert.deepEqual(f.composition.modules.map(module=>module.moduleId),['creezio.access']);
   assert.equal(f.module.contracts.operations.length,10);
-  assert.ok(f.module.contracts.api.every(api=>api.audience==='admin'&&api.auth.length===1&&api.auth[0]==='session'));
+  assert.ok(f.module.contracts.api.every(api=>api.audience==='admin'
+    && JSON.stringify(api.auth)==='["session","oauth"]'));
   const registry=await import(pathToFileURL(generated(f.root,'server.ts')).href);
   assert.deepEqual(registry.nativeAccess,{admin:true,app:true});assert.ok(Object.isFrozen(registry.nativeAccess));
+  assert.equal(registry.mcpCatalog.tools.length,10);
+  assert.ok(registry.mcpCatalog.tools.every(tool=>tool.audience==='admin'
+    && JSON.stringify(tool.auth)==='["oauth"]'));
+  assert.equal(registry.permissionTitles['creezio.access:manage'],
+    f.module.contracts.permissions.find(permission=>permission.id==='manage').title);
   assert.throws(()=>{registry.nativeAccess.admin=false;},TypeError);
   const client = await clientRegistry(f.root);
   assert.deepEqual(client.nativeAccess, registry.nativeAccess);

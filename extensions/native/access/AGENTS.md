@@ -1,6 +1,6 @@
 # Développer le module access
 
-Appliquer les [instructions du dépôt](../../../AGENTS.md) et le [standard](../../../docs/STANDARD-MODULE.md). Travail rattaché à T-04 et REQ-0401/REQ-0402 ; OAuth complet demeure T-10.
+Appliquer les [instructions du dépôt](../../../AGENTS.md) et le [standard](../../../docs/STANDARD-MODULE.md). Travail rattaché à T-04 et REQ-0401/REQ-0402 ; OAuth natif se réalise dans T-10 : six modèles privés et transport commun, sans identité GPT. Réutiliser ACCESS_TABLES et les résolveurs/gardes existants ; une délégation n’est jamais une session fabriquée. Les scopes sont les identifiants de permissions canoniques.
 
 La vue Rôles & accès reprend l'interface originale : matrice, comptes, journal. Son input est un objet vide strict ; le contexte d'autorisation vient du workspace, pas d'un paramètre métier. Utiliser le SDK public et les dix opérations déclarées. Toute nouvelle politique conserve avant/après dans le même batch que ses effets et son résultat. Une commande incertaine conserve sa clé, y compris si la lecture de réconciliation est refusée ou indisponible ; seul un résultat terminal confirmé permet de la libérer. Les six CI et l'agrégat d'hôte incluent les tests de projection, navigation et persistance du panneau.
 

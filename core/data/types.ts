@@ -34,7 +34,8 @@ export interface RuntimeDataCatalog {
 /** Opaque request-local capabilities. Their shape alone never authenticates them. */
 export interface DataLease { readonly kind: 'data-lease' }
 export interface DataPlan { readonly kind: 'data-plan' }
-export type DataCredential = { readonly kind: 'session' | 'api-token' | 'impersonation'; readonly token: unknown };
+export type DataCredential = { readonly kind: 'session' | 'api-token' | 'impersonation'; readonly token: unknown }
+  | { readonly kind: 'oauth'; readonly token: unknown; readonly resource: string };
 export type DataRecord = Readonly<Record<string, JsonValue>>;
 export interface DataRead { readonly key: DataRecord; readonly fields?: readonly string[]; readonly where?: DataRecord; readonly required?: boolean }
 export interface DataList { readonly limit: number; readonly after?: DataRecord | null; readonly where?: DataRecord; readonly fields?: readonly string[] }

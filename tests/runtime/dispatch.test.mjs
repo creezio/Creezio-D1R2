@@ -20,6 +20,29 @@ test('non-API routes pass to the UI, while unknown API and MCP paths return JSON
   }
 });
 
+test('host owns OAuth and both MCP endpoints while the consent document reaches the UI',async()=>{
+  const calls=[];
+  const app=createRuntime({compositionDigest:digest,modules:[{id:'creezio.access',version:'1.0.0',operations:[]}],
+    nativeAccess:{admin:true,app:true},
+    oauthHttp:{async dispatch(request,_resolved,_raw,requestId,path){
+      calls.push(['oauth',path,request.method,requestId]);return Response.json({path});}},
+    mcpHttp:{async dispatch(request,_resolved,_raw,requestId,audience){
+      calls.push(['mcp',audience,request.method,requestId]);return Response.json({audience});}}});
+  const id='VYVJFvWR6E2wg8xSMUQAcQ';
+  assert.equal(await app.fetch(request(`/oauth/consent/${id}`),environment()),null);
+  assert.equal((await app.fetch(request(`/oauth/consent/${id}/preview`),environment())).status,200);
+  assert.equal((await app.fetch(request(`/oauth/consent/${id}`,{method:'POST'}),environment())).status,200);
+  assert.equal((await app.fetch(request('/oauth/token',{method:'POST'}),environment())).status,200);
+  assert.equal((await app.fetch(request('/.well-known/oauth-authorization-server'),environment())).status,200);
+  assert.deepEqual(await (await app.fetch(request('/mcp/admin',{method:'POST'}),environment())).json(),{audience:'admin'});
+  assert.deepEqual(await (await app.fetch(request('/mcp/app',{method:'POST'}),environment())).json(),{audience:'app'});
+  assert.equal((await app.fetch(request('/mcp/unknown',{method:'POST'}),environment())).status,404);
+  assert.equal(calls.length,6);
+  assert.ok(calls.every(call=>/^[a-f0-9-]{36}$/.test(call[3])));
+  assert.throws(()=>createRuntime({compositionDigest:digest,modules:[moduleOf([operation({path:'/mcp/admin'})])]}),
+    error=>error instanceof RuntimeConfigurationError&&error.code==='route.reserved');
+});
+
 test('health checks structure only, does not expose environment or composition and generates its own request identity',async()=>{
   const app=runtime([]),env=environment();
   const response=await app.fetch(request('/api/health',{headers:{'x-creezio-request-id':'forged','oai-authenticated-user-id':'owner'}}),env);

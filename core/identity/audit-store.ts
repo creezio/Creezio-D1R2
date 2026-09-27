@@ -5,16 +5,15 @@ import type {AccessAdminAuditChange, AccessAdminAuditCursor, AccessAdminAuditDet
   AccessAdminAuditEntry, AccessAdminAuditPage, AccessAdminChangeValue,
   AccessAdminPolicyChange} from '../../sdk/access/admin-types.ts';
 import type {LifecycleGuard} from './lifecycle-store.ts';
+import {accessAdminCondition, captureAccessAdminGuard, type AccessAdminGuard} from '../authorization/admin-authority.ts';
 
 export const ACCESS_AUDIT_LIMITS = Object.freeze({listPage: 50, detailPage: 32, detailBytes: 524_288});
 export class AccessAuditStoreError extends Error {
   constructor() {super('Access audit storage unavailable.'); this.name = 'AccessAuditStoreError';}
 }
 const table = Object.fromEntries(Object.entries(ACCESS_TABLES).map(([id, name]) => [id, `"${name}"`])) as Record<keyof typeof ACCESS_TABLES, string>;
-const NOW = "(CAST(unixepoch('now') AS INTEGER) * 1000)";
 const instant = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) >= 0;
 const epoch = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) > 0;
-const credentialDigest = (value: unknown): value is string => typeof value === 'string' && /^sha256:[a-f0-9]{64}$/.test(value);
 const action = (value: unknown): value is string => typeof value === 'string' && /^[a-z][a-z0-9-]{0,63}$/.test(value);
 const displayName = (value: unknown): value is string => typeof value === 'string' && value.length > 0
   && value.length <= 200 && value.isWellFormed() && !/[\u0000-\u001f\u007f]/.test(value);
@@ -26,11 +25,9 @@ const validCursor = (value: unknown): value is AccessAdminAuditCursor | null => 
 const validLimit = (value: unknown, max: number): value is number => Number.isSafeInteger(value)
   && Number(value) >= 1 && Number(value) <= max;
 
-function captureGuard(value: unknown): LifecycleGuard {
-  if (!identityInputFields(value, ['sessionDigest', 'sessionId', 'principalId', 'epoch'])
-    || !credentialDigest(value.sessionDigest) || !validIdentityId(value.sessionId)
-    || !validIdentityId(value.principalId) || !epoch(value.epoch)) throw new AccessAuditStoreError();
-  return Object.freeze({...value}) as unknown as LifecycleGuard;
+function captureGuard(value: unknown): AccessAdminGuard {
+  try { return captureAccessAdminGuard(value); }
+  catch { throw new AccessAuditStoreError(); }
 }
 
 type ChangeWithoutIndex = AccessAdminPolicyChange;
@@ -103,20 +100,6 @@ function detailEnvelope(value: unknown): {before: AccessPolicy; after: AccessPol
 /** Read-only D1 projection; an already-resolved admin guard is rechecked in each coherent batch. */
 export function createD1AccessAuditStore(db: IdentityDatabase) {
   const statement = (sql: string, values: (string | number | null)[] = []) => db.prepare(sql).bind(...values);
-  const adminFrom = `FROM ${table.sessions} s JOIN ${table.principals} p ON p.id=s.principal_id
-    JOIN ${table.human_accounts} h ON h.principal_id=p.id
-    JOIN ${table.password_credentials} c ON c.principal_id=p.id
-    JOIN ${table.authorization_state} state ON state.id='application'`;
-  const liveAdmin = `s.secret_hash=? AND s.id=? AND p.id=? AND state.epoch=? AND s.audience='admin'
-    AND s.revoked_at_ms IS NULL AND s.expires_at_ms>${NOW}
-    AND p.kind='human' AND p.status='active' AND h.status='active'
-    AND s.auth_version=p.auth_version AND s.account_version=h.version AND s.credential_version=c.version
-    AND (c.expires_at_ms IS NULL OR c.expires_at_ms>${NOW})
-    AND EXISTS(SELECT 1 FROM ${table.contexts} WHERE id='application' AND status='active')
-    AND EXISTS(SELECT 1 FROM ${table.memberships} WHERE principal_id=p.id
-      AND context_id='application' AND audience='admin' AND status='active')`;
-  const guarded = `EXISTS(SELECT 1 ${adminFrom} WHERE ${liveAdmin})`;
-  const args = (guard: LifecycleGuard) => [guard.sessionDigest, guard.sessionId, guard.principalId, guard.epoch];
   async function read(statements: D1PreparedStatement[]): Promise<D1Result<Record<string, unknown>>[] | null> {
     try {
       const results = await db.batch<Record<string, unknown>>(statements);
@@ -127,25 +110,27 @@ export function createD1AccessAuditStore(db: IdentityDatabase) {
       return results;
     } catch {throw new AccessAuditStoreError();}
   }
-  function header(guard: LifecycleGuard) {
-    return statement(`SELECT 1 AS allowed ${adminFrom} WHERE ${liveAdmin} LIMIT 2`, args(guard));
+  function header(guard: AccessAdminGuard) {
+    const authority = accessAdminCondition(guard);
+    return statement(`SELECT 1 AS allowed WHERE ${authority.sql} LIMIT 2`, [...authority.bindings]);
   }
-  async function list(guardValue: LifecycleGuard, input: {limit: number; before: AccessAdminAuditCursor | null}):
+  async function list(guardValue: LifecycleGuard | AccessAdminGuard, input: {limit: number; before: AccessAdminAuditCursor | null}):
     Promise<AccessAdminAuditPage | null> {
     const guard = captureGuard(guardValue);
     if (!identityInputFields(input, ['limit', 'before']) || !validLimit(input.limit, ACCESS_AUDIT_LIMITS.listPage)
       || !validCursor(input.before)) throw new AccessAuditStoreError();
     const cursor = input.before, limit = input.limit;
+    const authority = accessAdminCondition(guard);
     const results = await read([header(guard), statement(`SELECT audit.id, audit.action,
       audit.principal_id AS principalId, actor.display_name AS actorDisplayName,
       audit.target_principal_id AS targetPrincipalId, audit.created_at_ms AS createdAtMs,
       CASE WHEN detail.audit_id IS NULL THEN 0 ELSE 1 END AS detailAvailable
       FROM ${table.access_audit} audit JOIN ${table.principals} actor ON actor.id=audit.principal_id
       LEFT JOIN ${table.access_policy_audit_details} detail ON detail.audit_id=audit.id
-      WHERE (? IS NULL OR audit.created_at_ms<? OR (audit.created_at_ms=? AND audit.id<?)) AND ${guarded}
+      WHERE (? IS NULL OR audit.created_at_ms<? OR (audit.created_at_ms=? AND audit.id<?)) AND ${authority.sql}
       ORDER BY audit.created_at_ms DESC,audit.id DESC LIMIT ?`,
     [cursor?.createdAtMs ?? null, cursor?.createdAtMs ?? null, cursor?.createdAtMs ?? null,
-      cursor?.id ?? null, ...args(guard), limit + 1])]);
+      cursor?.id ?? null, ...authority.bindings, limit + 1])]);
     if (!results) return null;
     if (results[1].results.length > limit + 1) throw new AccessAuditStoreError();
     const rows = results[1].results.map(row => {
@@ -168,18 +153,19 @@ export function createD1AccessAuditStore(db: IdentityDatabase) {
     return Object.freeze({items, nextCursor: rows.length > limit && last
       ? Object.freeze({createdAtMs: last.createdAtMs, id: last.id}) : null});
   }
-  async function detail(guardValue: LifecycleGuard, input: {auditId: string; limit: number; afterIndex: number | null}):
+  async function detail(guardValue: LifecycleGuard | AccessAdminGuard, input: {auditId: string; limit: number; afterIndex: number | null}):
     Promise<AccessAdminAuditDetailPage | null | undefined> {
     const guard = captureGuard(guardValue);
     if (!identityInputFields(input, ['auditId', 'limit', 'afterIndex']) || !validIdentityId(input.auditId)
       || !validLimit(input.limit, ACCESS_AUDIT_LIMITS.detailPage)
       || input.afterIndex !== null && (!Number.isSafeInteger(input.afterIndex) || input.afterIndex < 0))
       throw new AccessAuditStoreError();
+    const authority = accessAdminCondition(guard);
     const results = await read([header(guard), statement(`SELECT detail.from_epoch AS fromEpoch,
       detail.to_epoch AS toEpoch, detail.changes_json AS changesJson
       FROM ${table.access_policy_audit_details} detail
       JOIN ${table.access_audit} audit ON audit.id=detail.audit_id
-      WHERE detail.audit_id=? AND ${guarded} LIMIT 2`, [input.auditId, ...args(guard)])]);
+      WHERE detail.audit_id=? AND ${authority.sql} LIMIT 2`, [input.auditId, ...authority.bindings])]);
     if (!results) return null;
     if (results[1].results.length === 0) return undefined;
     if (results[1].results.length !== 1) throw new AccessAuditStoreError();

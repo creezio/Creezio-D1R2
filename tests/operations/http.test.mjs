@@ -180,11 +180,26 @@ test('HEAD has no body and workspace projection refuses bearer and absent browse
   assert.equal(workspaceHead.status, 405); assert.equal(await workspaceHead.text(), '');
 });
 
-test('declared but unqualified transport auth reports unavailable without invoking the engine', async () => {
+test('OAuth Bearer reaches the engine with its canonical audience resource and cannot fall back to a cookie', async () => {
   const binding = {...compile()[0], auth: ['oauth']}, f = fixture(binding);
-  const response = await f.transport.dispatch(request('/api/records/42', {headers: {'x-creezio-context': 'client-a'}}),
-    f.environment, f.raw, 'request-unsupported');
-  assert.equal(response.status, 501);
-  assert.equal((await response.json()).error.code, 'capability_unavailable');
-  assert.equal(f.calls.length, 0);
+  const oauth = (await issueOpaqueToken('oauth-access')).token;
+  const headers = {'x-creezio-context': 'client-a', authorization: `Bearer ${oauth}`};
+  const response = await f.transport.dispatch(request('/api/records/42', {headers}),
+    f.environment, f.raw, 'request-oauth');
+  assert.equal(response.status, 200);
+  assert.deepEqual(f.calls[0][1].credential,
+    {kind: 'oauth', token: oauth, resource: `${origin}/mcp/app`});
+  const status = await f.transport.dispatch(request('/api/operations/status/example.record/read-http/execution-1', {headers}),
+    f.environment, f.raw, 'request-oauth-status');
+  assert.equal(status.status, 200);
+  assert.deepEqual(f.calls[1][1].credential,
+    {kind: 'oauth', token: oauth, resource: `${origin}/mcp/app`});
+  const machine = (await issueOpaqueToken('api-token')).token;
+  const rejected = await f.transport.dispatch(request('/api/records/42', {headers: {...headers,
+    authorization: `Bearer ${machine}`, cookie: cookie(oauth)}}), f.environment, f.raw, 'request-wrong-kind');
+  assert.equal(rejected.status, 401);
+  const missing = await f.transport.dispatch(request('/api/records/42', {headers: {'x-creezio-context': 'client-a'}}),
+    f.environment, f.raw, 'request-missing');
+  assert.equal(missing.status, 401);
+  assert.equal(f.calls.length, 2);
 });

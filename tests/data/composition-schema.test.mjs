@@ -21,8 +21,8 @@ function relock(input) {
 
 test('composed compiler reuses exact central Access SQL definitions and freezes the runtime projection', async () => {
   const input = inputs(), plan = compileCompositionSchema(input);
-  assert.equal(plan.runtimeCatalog.modules[0].models.length, 22);
-  assert.equal(plan.objects.length, 52 + hostObjects);
+  assert.equal(plan.runtimeCatalog.modules[0].models.length, 28);
+  assert.equal(plan.objects.length, 74 + hostObjects);
   assert.equal(plan.host.moduleId, OPERATION_STORAGE_MODULE_ID);
   assert.equal(plan.host.models.length, 4);
   assert.equal(plan.runtimeCatalog.modules.some(module => module.moduleId === OPERATION_STORAGE_MODULE_ID), false);
@@ -39,7 +39,7 @@ test('disabled selection preserves data declarations while the catalog closes it
   input.composition.exposure.admin.moduleIds = []; input.composition.exposure.app.moduleIds = [];
   const plan = compileCompositionSchema(relock(input));
   assert.equal(plan.runtimeCatalog.modules[0].enabled, false);
-  assert.equal(plan.objects.length, 52 + hostObjects);
+  assert.equal(plan.objects.length, 74 + hostObjects);
 });
 
 test('empty composition is explicit and still locked', () => {

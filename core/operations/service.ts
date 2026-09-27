@@ -71,7 +71,7 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
   async function authorize(request: OperationRequest | OperationStatusRequest | OperationLookupRequest, operation: RegisteredOperation): Promise<DataLease> {
     const declaration = operation.declaration;
     if (operation.moduleId === 'creezio.access' && (!validNativeAccessDeclaration(declaration)
-      || request.credential.kind !== 'session')) throw new OperationError('forbidden');
+      || !['session', 'oauth'].includes(request.credential.kind))) throw new OperationError('forbidden');
     if (!declaration.audiences.includes(request.audience) || declaration.context === 'application' && request.contextId !== 'application') throw new OperationError('forbidden');
     const actors = declaration.actors.filter((actor): actor is AuthorizationActor => ['user', 'machine', 'delegated-user', 'impersonated-user'].includes(actor));
     if (!actors.length) throw new OperationError('unsupported');
@@ -161,7 +161,7 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           const execution = Promise.resolve().then(async () => {
             ensure();
             if (operation.moduleId !== 'creezio.access') return operation.handler(input, context);
-            const prepared = await nativeAccess.execute(op.id, request.credential.token, input);
+            const prepared = await nativeAccess.execute(op.id, request.credential as Extract<typeof request.credential, {kind: 'session' | 'oauth'}>, input);
             nativeStatements = prepared.nativeStatements;
             nativeCompared = prepared.compared === true;
             return {output: prepared.output};

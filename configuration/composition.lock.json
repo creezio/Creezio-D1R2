@@ -17,9 +17,9 @@
       "source": {
         "kind": "snapshot",
         "revision": "t04-access-models-v1",
-        "integrity": "sha256-0390b76b9e4f5210f38efa0694f68555069a30ea6995c72bf8c0d02dcff1bf61"
+        "integrity": "sha256-1199c369429ab962f7603928d3eb2ff38149b9a63f08b155812a54d67660759f"
       },
-      "contractIntegrity": "sha256-cf080e5a60230990be50b4036d45008805cb2e7235ac72008591c44b2a75561c",
+      "contractIntegrity": "sha256-cc9b9bf2efa3b53d9e20b13f065d982b0731d738ee59a899e93280032333c0d7",
       "runtime": {
         "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000",
         "location": {

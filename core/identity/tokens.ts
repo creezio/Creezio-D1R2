@@ -7,6 +7,10 @@ const prefixes = {
   'password-reset': 'cz1r_',
   bootstrap: 'cz1b_',
   impersonation: 'cz1p_',
+  'oauth-request': 'cz1q_',
+  'oauth-code': 'cz1c_',
+  'oauth-access': 'cz1o_',
+  'oauth-refresh': 'cz1f_',
 } as const;
 
 export type TokenPurpose = keyof typeof prefixes;
