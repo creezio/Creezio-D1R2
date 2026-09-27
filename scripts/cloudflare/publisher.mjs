@@ -176,12 +176,16 @@ export async function inspectCloudflareDelivery({artifactRoot,target,transferId,
   if(local.digest!==artifact.artifactDigest)fail('artifact_changed');
   const remoteModules=await verifyRemoteModules({artifactRoot,target,versionId,token,fetcher,local});
   const remoteAssets=await verifyPublicAssets({root:artifactRoot,target,fetcher,local});
-  const session=await fetcher(`${target.origin}/api/access/admin/session`,{redirect:'error',signal:AbortSignal.timeout(15000)});
-  if(session.status!==200||session.headers.get('set-cookie'))fail('probe_failed');
-  const text=await session.text();
-  if(Buffer.byteLength(text)>4096)fail('probe_failed');
-  let body;try{body=JSON.parse(text);}catch{fail('probe_failed');}
-  if(body.session!==null)fail('probe_failed');
+  let session;
+  try{session=await fetcher(`${target.origin}/api/access/admin/session`,
+    {redirect:'error',signal:AbortSignal.timeout(15000)});}
+  catch{fail('probe_failed');}
+  if(session?.status!==401||session.redirected||session.headers.get('set-cookie'))fail('probe_failed');
+  let body;
+  try{body=JSON.parse((await bounded(session,4096)).toString('utf8'));}
+  catch{fail('probe_failed');}
+  if(!body||typeof body!=='object'||Array.isArray(body)||Object.hasOwn(body,'session')
+    ||body.error?.code!=='authentication_required')fail('probe_failed');
   const after=await controlPlane.deployments(target.workerName);
   if(after.deployments?.[0]?.id!==current.id)fail('deployment_changed');
   return {deploymentId:current.id,url:target.origin,publishedSha:versionId,artifact,

@@ -34,7 +34,8 @@ function fixture(t){
     {type:'plain_text',name:'CREEZIO_APP_ORIGIN',text:target.origin},
     {type:'plain_text',name:'CREEZIO_WIDGET_SANDBOX_ORIGIN',text:target.widgetSandboxOrigin}]};
   const flags={wrongModule:false,missingDependency:false,extraModule:false,
-    wrongAsset:false,wrongSession:false,wrongVersion:false};
+    wrongAsset:false,wrongVersion:false,sessionReply:()=>Response.json(
+      {error:{code:'authentication_required'},requestId:'anonymous-probe'},{status:401})};
   const seen=[];
   function version(){
     const modules=[{name:'index.js',content_type:'application/javascript+module',
@@ -57,7 +58,8 @@ function fixture(t){
     }
     if(url===target.origin+'/favicon.svg')return new Response(flags.wrongAsset?'other':'<svg/>\n');
     assert.equal(url,target.origin+'/api/access/admin/session');
-    return Response.json({session:flags.wrongSession?{id:'unexpected'}:null});
+    assert.equal(options.headers?.cookie,undefined);
+    return flags.sessionReply();
   };
   return {root,artifactRoot,target,artifact,token:'x'.repeat(24),transferId:'transfer1',flags,seen,settings,
     controlPlane:{deployments:async()=>({deployments:[delivery]}),
@@ -85,7 +87,7 @@ test('version-specific readback rejects a response for any other version',async 
   const wrong=fixture(t);wrong.flags.wrongVersion=true;
   await assert.rejects(inspectCloudflareDelivery(wrong),{code:'content_format'});
 });
-test('wrong marker, rebound database, deployment race and invalid session block confirmation',async t=>{
+test('wrong marker, rebound database and deployment race block confirmation',async t=>{
   const tag=fixture(t);tag.settings.annotations['workers/message']='other';
   await assert.rejects(inspectCloudflareDelivery(tag),{code:'not_confirmed'});
   const database=fixture(t);database.settings.bindings[0].id='other';
@@ -95,6 +97,21 @@ test('wrong marker, rebound database, deployment race and invalid session block 
   const race=fixture(t);let count=0;
   race.controlPlane.deployments=async()=>({deployments:[{...delivery,id:++count===1?'deployment-1':'other'}]});
   await assert.rejects(inspectCloudflareDelivery(race),{code:'deployment_changed'});
-  const auth=fixture(t);auth.flags.wrongSession=true;
-  await assert.rejects(inspectCloudflareDelivery(auth),{code:'probe_failed'});
+});
+test('anonymous session probe rejects other statuses, errors, sessions, cookies and malformed replies',async t=>{
+  const input=fixture(t);
+  const replies=[
+    ()=>Response.json({session:null}),
+    ()=>Response.json({error:{code:'authentication_required'}},{status:500}),
+    ()=>Response.json({error:{code:'other'}},{status:401}),
+    ()=>Response.json({error:{code:'authentication_required'},session:null},{status:401}),
+    ()=>Response.json({error:{code:'authentication_required'}},
+      {status:401,headers:{'set-cookie':'__Host-creezio-admin=unexpected'}}),
+    ()=>new Response('not json',{status:401}),
+    ()=>Response.json({unknown:true},{status:401}),
+  ];
+  for(const reply of replies){
+    input.flags.sessionReply=reply;
+    await assert.rejects(inspectCloudflareDelivery(input),{code:'probe_failed'});
+  }
 });
