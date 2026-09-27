@@ -327,6 +327,190 @@
           "requiresApproval": true
         },
         "public": true
+      },
+      {
+        "id": "attachment-metadata",
+        "title": "Private attachment metadata",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "owner_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "object_key",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          },
+          {
+            "id": "digest",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 64,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "byte_size",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0
+            }
+          },
+          {
+            "id": "content_type",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "filename",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          {
+            "id": "version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "state",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "staging",
+                "staged",
+                "available",
+                "abandoned",
+                "deleted"
+              ]
+            }
+          },
+          {
+            "id": "intent_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "generation",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "by-intent",
+            "fields": [
+              "context_id",
+              "intent_id",
+              "generation"
+            ],
+            "unique": true
+          },
+          {
+            "id": "by-key",
+            "fields": [
+              "context_id",
+              "object_key"
+            ],
+            "unique": true
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "permission",
+            "id": "read"
+          },
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "permission",
+            "id": "write"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": false
+        },
+        "public": false
       }
     ],
     "files": [
@@ -335,7 +519,7 @@
         "metadataModel": {
           "moduleId": "creezio.tasks",
           "kind": "model",
-          "id": "task"
+          "id": "attachment-metadata"
         },
         "ownerField": "owner_id",
         "contextField": "context_id",
@@ -367,7 +551,19 @@
           "multiple": true
         },
         "deletion": "restrict",
-        "public": false
+        "public": false,
+        "storageFields": {
+          "id": "id",
+          "objectKey": "object_key",
+          "digest": "digest",
+          "byteSize": "byte_size",
+          "contentType": "content_type",
+          "filename": "filename",
+          "version": "version",
+          "state": "state",
+          "intentId": "intent_id",
+          "generation": "generation"
+        }
       }
     ],
     "permissions": [
@@ -393,6 +589,16 @@
             "moduleId": "creezio.tasks",
             "kind": "model",
             "id": "task"
+          },
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "model",
+            "id": "attachment-metadata"
+          },
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "file",
+            "id": "attachment"
           }
         ],
         "actions": [
@@ -426,6 +632,16 @@
             "moduleId": "creezio.tasks",
             "kind": "model",
             "id": "task"
+          },
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "model",
+            "id": "attachment-metadata"
+          },
+          {
+            "moduleId": "creezio.tasks",
+            "kind": "file",
+            "id": "attachment"
           }
         ],
         "actions": [

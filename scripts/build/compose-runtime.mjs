@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync, mkdirSync, existsSync, lstatSync, realpathSync } from 'node:fs';
+import { compileCompositionSchema } from '../data/composition-schema.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadJson } from '../../sdk/contracts/load.mjs';
@@ -95,15 +96,16 @@ export function loadRuntimeComposition({ root = process.cwd(), compositionPath =
   const located = composition.modules.map(selection => locateModule(root, selection));
   const result = validateComposition(composition, { modules: located.map(item => item.descriptor), lock });
   if (result.errors.length) throw new CompositionBuildError('composition.invalid', 'Composition and lock validation failed.', result.errors);
-  return { root, compositionFile, lockFile, composition, located, result };
+  return { root, compositionFile, lockFile, composition, lock, located, result };
 }
 
 export async function composeRuntime({ root = process.cwd(), compositionPath = 'configuration/composition.json', lockPath, outputDir = '.creezio/generated' } = {}) {
   const loaded = loadRuntimeComposition({ root, compositionPath, lockPath });
   root = loaded.root;
-  const { compositionFile, lockFile, composition, located, result } = loaded;
+  const { compositionFile, lockFile, composition, lock, located, result } = loaded;
+  const dataPlan = compileCompositionSchema({ composition, lock, modules: located.map(item => item.descriptor) });
   const output = confined(root, outputDir, { directory: true, missing: true });
-  const destinations = Object.fromEntries(['server.ts', 'client.tsx', 'composition.json'].map(name => [name, confined(root, path.join(output, name), { missing: true })]));
+  const destinations = Object.fromEntries(['server.ts', 'client.tsx', 'data-catalog.ts', 'composition.json'].map(name => [name, confined(root, path.join(output, name), { missing: true })]));
   if (located.some(item => contained(item.directory, output))
     || Object.values(destinations).some(destination => destination === compositionFile || destination === lockFile)) {
     fail('output.source-collision', 'Generated output must not overwrite selected module sources or composition inputs.');
@@ -174,6 +176,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   }).join(',\n')}] }`);
   const clientViews = views.map(view => { const { component, ...metadata } = view; return `{ ...${JSON.stringify(metadata)}, component: ${component} }`; });
   const rendered = {
+    'data-catalog.ts': `${banner}import type { RuntimeDataCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/data/types.ts')))};\nconst freeze = <T>(value: T): T => { if (value && typeof value === 'object') { for (const child of Object.values(value)) freeze(child); Object.freeze(value); } return value; };\nexport const dataCatalog: RuntimeDataCatalog = freeze(${JSON.stringify(dataPlan.runtimeCatalog)});\n`,
     'server.ts': `${banner}import type { RuntimeModule, RuntimeNativeAccess } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/runtime/types.ts')))};\n${serverImports.join('\n')}\nexport const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess: RuntimeNativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const modules: readonly RuntimeModule[] = [${serverModules.join(',\n')}];\n`,
     'client.tsx': `${banner}import type { RuntimeView } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/runtime/ui.ts')))};\n${clientImports.join('\n')}\nexport const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const views: readonly RuntimeView[] = [${clientViews.join(',\n')}];\n`,
     'composition.json': `${stringify({ schemaVersion: 1, compositionDigest, nativeAccess, applicationId: composition.application.id, hostProfile: composition.host.profile,

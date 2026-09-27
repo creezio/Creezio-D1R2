@@ -70,3 +70,11 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - [core/authorization](core/authorization/) : moteur pur, résolveur natif partagé, contrat de politique, lecture D1 cohérente et service de remplacement des droits protégé par session/epoch/claim ; décision pure distincte d'une écriture autorisée.
 - [tests/identity](tests/identity/) : tokens, droits et qualification cryptographique ; données exclusivement synthétiques.
 - [État T-04](docs/IMPLEMENTATION-T04.md) : tranches, portée des contrôles et garanties restant à raccorder.
+
+## Fondations des données T-05
+
+- [core/data](core/data/) : catalogue runtime, capacités par module/contexte et plans D1 sous garde fraîche ; aucune API SQL publique.
+- [core/files](core/files/) : métadonnées de fichiers privés, préparation R2, publication D1 et reprise explicite.
+- [core/vault](core/vault/) : références opaques et chiffrement des secrets côté serveur.
+- [tests/data](tests/data/) : recettes synthétiques SQL/D1/R2/coffre et intégration indépendante aux comptes natifs.
+- [État T-05](docs/IMPLEMENTATION-T05.md) : travail, contrats et limites de cette première tranche.

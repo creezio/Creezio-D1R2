@@ -2,6 +2,8 @@
 
 ## Non publié
 
+- T-05 : catalogue de modèles composé, SQL central additif avec reçu, ports D1 par module/contexte et gardes fraîches, fichiers privés à mapping explicite et coffre serveur. Les primitives réutilisent les comptes natifs ; aucune opération métier publique ni interface supplémentaire n'est ouverte par cette tranche. Recherche, explorateur et export/restauration restent suivis au backlog.
+
 - T-04 : parcours opérateur d'installation locale explicite, inspection du schéma central et création du premier administrateur avec les services natifs. Aucun compte par défaut, endpoint de provisionnement ou réinitialisation. Configuration locale partagée et exclusion des accès concurrents des commandes officielles ; port du serveur aligné sur son origine.
 
 - T-04 : entrées navigateur natives par audience et SDK de session partagé. Une identité affichée vient d'une lecture de session fraîche ; les mutations et leurs réponses tardives sont coordonnées. Le front peut réutiliser ou remplacer la présentation sans réécrire le backend d'identité. Administration visuelle et recettes hébergées restent distinctes.

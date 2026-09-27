@@ -11,7 +11,7 @@ const started = new Date().toISOString();
 const evidencePath = resolve(root, '.quality/latest.json');
 mkdirSync(dirname(evidencePath), { recursive: true });
 const write = value => writeFileSync(evidencePath, JSON.stringify(value, null, 2) + '\n');
-const profile = 't04-local-installation';
+const profile = 't05-data-foundations';
 write({ schemaVersion: 1, profile, started, state: 'running', success: false, mergeReady: false });
 try {
 const source = sourceIdentity(root);
@@ -42,7 +42,7 @@ const report = { schemaVersion: 1, profile, started, finished: new Date().toISOS
   source, results: { docs, commands, tests: { ...tap, files: tests, exitCode: result.status }, runtime,
     runtimeEvidenceCurrent: runtimeCurrent, sourceUnchanged: unchanged },
   success, state: success ? 'passed' : 'failed', mergeReady: false,
-  limits: ['Local operator installation and native login/session/logout; hosted installation, other identity transports, recipient delivery, administrative access UI and business mutation guards remain unimplemented',
+  limits: ['Internal D1/data, file and vault foundations; public business operations, administrative UI, search and export/restore remain outside this tranche',
     'Hosted Sites/Cloudflare, archive installation and module dependency lifecycle are not qualified by this aggregate; remote CI provenance is verified separately'] };
 write(report);
 console.log(JSON.stringify({ success, mergeReady: false, source: source.sha256, docs: docs.metrics,

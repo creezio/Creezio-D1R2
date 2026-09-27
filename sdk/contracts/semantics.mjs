@@ -83,6 +83,23 @@ export function checkModule(module, report) {
     const p = `/contracts/files/${i}`; needKind(file.metadataModel, ['model'], `${p}/metadataModel`);
     if(file.metadataModel.moduleId!==ownId)report('ref.private',`${p}/metadataModel`,'A file category must own its metadata storage model.');
     if (get(file.metadataModel,'model') && ![file.ownerField,file.contextField].every(field => fieldsOf(file.metadataModel).includes(field))) report('file.field', p, 'File owner and context fields must exist in its metadata model.');
+    const model=get(file.metadataModel,'model'), mapping=file.storageFields;
+    if(model && mapping){
+      const fields=new Map(model.fields.map(field=>[field.id,field]));
+      const names=[file.ownerField,file.contextField,...Object.values(mapping)];
+      if(new Set(names).size!==names.length)report('file.mapping',p,'File storage columns must be distinct.');
+      if(model.public || model.scope!=='context' || model.contextField!==file.contextField || !same(model.primaryKey,[file.contextField,mapping.id]))report('file.model',p,'File metadata must be private and keyed by context and file identifier.');
+      for(const name of names){const field=fields.get(name);if(!field || field.nullable || !field.protected || field.computed)report('file.field',p,'File storage columns must exist and be protected, required and persisted.');}
+      for(const [role,name] of Object.entries(mapping))if(fields.get(name)?.type!==(['byteSize','version'].includes(role)?'integer':'string'))report('file.type',`${p}/storageFields/${role}`,'File storage column type is incompatible.');
+      for(const name of [file.ownerField,file.contextField])if(fields.get(name)?.type!=='string')report('file.type',p,'Owner and context columns must be strings.');
+      if(!(fields.get(mapping.byteSize)?.constraints?.minimum>=0) || !(fields.get(mapping.version)?.constraints?.minimum>=1))report('file.bounds',p,'File size and version need nonnegative and positive bounds respectively.');
+      const digest=fields.get(mapping.digest)?.constraints;
+      if(digest?.minLength!==64 || digest?.maxLength!==64)report('file.bounds',p,'File digests need exactly 64 characters; the runtime validates hexadecimal content.');
+      const states=fields.get(mapping.state)?.constraints?.enum;
+      if(!Array.isArray(states) || !same([...states].sort(),['abandoned','available','deleted','staged','staging']))report('file.state',p,'File state must describe the complete publication and cleanup lifecycle.');
+      for(const names of [[file.contextField,mapping.intentId,mapping.generation],[file.contextField,mapping.objectKey]])if(!model.indexes.some(index=>index.unique&&same(index.fields,names)))report('file.index',p,'File intent generations and object keys need explicit unique context indexes.');
+      if(!file.permissions.length)report('file.permissions',p,'A file category requires explicit permissions.');
+    }
   });
   c.operations.forEach((op, i) => {
     const p = `/contracts/operations/${i}`;

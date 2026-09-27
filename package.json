@@ -22,7 +22,8 @@
     "access:install": "node scripts/local/install.mjs install",
     "typecheck": "node scripts/build/compose-runtime.mjs && tsc --noEmit",
     "test:runtime": "node --test --test-concurrency=1 tests/runtime/*.test.mjs",
-    "test:identity": "node --test --test-concurrency=1 tests/identity/*.test.mjs"
+    "test:identity": "node --test --test-concurrency=1 tests/identity/*.test.mjs",
+    "test:data": "node --test --test-concurrency=1 tests/data/*.test.mjs"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",

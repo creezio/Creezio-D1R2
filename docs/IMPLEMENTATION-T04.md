@@ -1,6 +1,6 @@
 # T-04 — Identités et droits natifs
 
-Fondations, comptes, droits D1, cycle de comptes, machines, administration humaine, impersonation, transport HTTP et entrée navigateur sont intégrés jusqu’à la PR #12, main qualifié `94194a9` (575 tests). Le lot [T-04](TODO.md#T-04) reste **en cours**. La tranche `core/t04-installation` construit le parcours opérateur local ; les autres transports, la livraison des liens et l'administration visuelle restent à construire. [REQ-0401](EXIGENCES.md#REQ-0401), [REQ-0402](EXIGENCES.md#REQ-0402) et [REQ-0403](EXIGENCES.md#REQ-0403) restent partiellement ou non qualifiées selon leurs parcours.
+Fondations, comptes, droits D1, cycle de comptes, machines, administration humaine, impersonation, transport HTTP et entrée navigateur sont intégrés jusqu’à la PR #13, main qualifié `db9dd50` (613 tests), avec l’installation opérateur locale explicite. Le lot [T-04](TODO.md#T-04) reste **en cours**. Le parcours opérateur local est qualifié par terminal et navigateur sur données synthétiques ; les autres transports, la livraison des liens et l'administration visuelle restent à construire. [REQ-0401](EXIGENCES.md#REQ-0401), [REQ-0402](EXIGENCES.md#REQ-0402) et [REQ-0403](EXIGENCES.md#REQ-0403) restent partiellement ou non qualifiées selon leurs parcours.
 
 ## Tranches et critères
 

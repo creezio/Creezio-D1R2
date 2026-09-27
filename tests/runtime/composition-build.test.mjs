@@ -168,7 +168,7 @@ test('invalid declarations and colliding routes cannot reach generated code', as
 
 test('host operation budget is validated before replacing an existing generated composition', async t => {
   const f = fixture(t); await composeRuntime({ root: f.root });
-  const names = ['server.ts', 'client.tsx', 'composition.json'];
+  const names = ['server.ts', 'client.tsx', 'composition.json', 'data-catalog.ts'];
   const before = names.map(name => readFileSync(generated(f.root, name), 'utf8'));
   f.module.contracts.operations[0].execution.maxDurationMs = 30001; f.save();
   await assert.rejects(composeRuntime({ root: f.root }), error => error.code === 'build.operation-budget');
@@ -193,7 +193,7 @@ test('runtime route conflicts and reserved routes fail host preflight without wr
 
 test('native access entry views are reserved without replacing the previous valid composition', async t => {
   const f = fixture(t); await composeRuntime({ root: f.root });
-  const names = ['server.ts', 'client.tsx', 'composition.json'];
+  const names = ['server.ts', 'client.tsx', 'composition.json', 'data-catalog.ts'];
   const before = names.map(name => readFileSync(generated(f.root, name), 'utf8'));
   for (const route of ['/access', '/access/admin', '/access/app', '/{surface}/admin', '/:surface/admin']) {
     f.module.contracts.ui.views[0].route = route; f.save();
@@ -204,7 +204,7 @@ test('native access entry views are reserved without replacing the previous vali
 
 test('native access namespace is reserved even when access is absent, including parameter captures', async t => {
   const f=fixture(t);await composeRuntime({root:f.root});
-  const names=['server.ts','client.tsx','composition.json'],before=names.map(name=>readFileSync(generated(f.root,name),'utf8'));
+  const names=['server.ts','client.tsx','composition.json','data-catalog.ts'],before=names.map(name=>readFileSync(generated(f.root,name),'utf8'));
   f.module.contracts.schemas.find(schema=>schema.id==='empty-input').schema.properties={area:{type:'string'}};
   for(const route of ['/api/access','/api/access/app/login','/api/{area}','/api/{area}/app/login','/api/{area}/elsewhere']) {
     f.module.contracts.api[0].path=route;

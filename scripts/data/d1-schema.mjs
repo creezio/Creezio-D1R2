@@ -255,6 +255,9 @@ export function generateD1Schema(moduleId, models) {
   return { sql, statements, tables };
 }
 
+/** The same compiler, with inert schema-object metadata for central composition/receipts. */
+export function describeD1Schema(moduleId, models) { return compile(moduleId, models); }
+
 const storedSQL = sql => sql.trim().replace(/;$/, '').trimEnd();
 
 /** Read-only conservative drift check. This does not assert data integrity or apply SQL. */

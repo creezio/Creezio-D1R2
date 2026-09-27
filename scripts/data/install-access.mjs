@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { generateD1Schema, inspectD1Schema } from './d1-schema.mjs';
+import { inspectManagedSchema, managedSchemaGuard } from './apply-schema.mjs';
 import { validateModule, contractIntegrity } from '../../sdk/contracts/validate.mjs';
 import { loadRuntimeComposition } from '../build/compose-runtime.mjs';
 import { ACCESS_TABLES, normalizeLoginIdentifier } from '../../core/identity/d1-store.ts';
@@ -102,7 +103,7 @@ export function loadAccessInstallPlan(root = DEFAULT_ROOT) {
     const plan = freeze({ moduleId: MODULE_ID, modelDigest: sha256(bytes[0]), sqlDigest: sha256(bytes[2]),
       compositionDigest: contractIntegrity(runtime.composition), lockDigest: sha256(lockBytes),
       sql: generated.sql, statements: generated.statements, tables: generated.tables });
-    plans.set(plan, freeze({ models, objects, expectedObjects: JSON.stringify(objects) }));
+    plans.set(plan, freeze({ models, objects, expectedObjects: JSON.stringify(objects), applicationId: runtime.composition.application.id }));
     return plan;
   } catch { throw new AccessInstallPlanError(); }
 }
@@ -186,14 +187,23 @@ async function inspect(db, plan) {
       if (row.tbl_name !== object.table || typeof row.sql !== 'string' || storedSql(row.sql) !== object.sql) mismatch = true;
       expected.delete(`${row.type}:${row.name}`);
     }
-    if (foreign) return { public: inspection('blocked', 'unknown', 'foreign_data', plan), marker: null };
-    if (mismatch || expected.size) return { public: inspection('blocked', 'unknown', 'schema_mismatch', plan), marker: null };
+    let managed = null;
+    if (foreign) {
+      // A centrally approved additive publication may retain other modules. It can only prove
+      // permanent installation closure here, never reopen or provision an unconsumed bootstrap.
+      managed = await inspectManagedSchema(db);
+      if (!managed.ok || !managed.receipt || managed.receipt.applicationId !== internal.applicationId
+        || internal.objects.some(wanted => !managed.objects.some(object => object.type === wanted.type
+          && object.name === wanted.name && object.table === wanted.table && object.sql === wanted.sql)))
+        return { public: inspection('blocked', 'unknown', 'foreign_data', plan), marker: null };
+    }
+    if (!managed && (mismatch || expected.size)) return { public: inspection('blocked', 'unknown', 'schema_mismatch', plan), marker: null };
     const drift = await inspectD1Schema(db, MODULE_ID, internal.models);
     if (!drift.ok) return { public: inspection(drift.errors.some(error => error.code === 'sql.inspect-unavailable') ? 'unavailable' : 'blocked',
       'unknown', drift.errors.some(error => error.code === 'sql.inspect-unavailable') ? 'storage_unavailable' : 'schema_mismatch', plan), marker: null };
     // One coherent D1 transaction for guard, marker, data facts and database time.
     const responses = successfulBatch(await db.batch([
-      schemaGuard(db, plan),
+      managed ? managedSchemaGuard(db, managed.objects) : schemaGuard(db, plan),
       db.prepare(`SELECT id, capability_digest AS digest, created_at_ms AS createdAtMs, expires_at_ms AS expiresAtMs,
         claim_nonce AS claimNonce, claimed_at_ms AS claimedAtMs, principal_id AS principalId FROM ${quote(plan.tables.bootstrap)} LIMIT 2`),
       db.prepare(`SELECT ${NOW} AS nowMs, CASE WHEN ${noApplicationData(plan)} THEN 0 ELSE 1 END AS hasData`),
@@ -215,6 +225,7 @@ async function inspect(db, plan) {
         return { public: inspection('blocked', 'unknown', 'foreign_data', plan), marker: null };
       }
     }
+    if (managed) return { public: inspection('blocked', 'unknown', 'foreign_data', plan), marker: null };
     if (facts[0].hasData) return { public: inspection('blocked', 'unknown', 'foreign_data', plan), marker: null };
     if (!marker) return { public: inspection('schema_ready', 'none', 'ready', plan), marker: null };
     const live = marker.expiresAtMs > facts[0].nowMs;

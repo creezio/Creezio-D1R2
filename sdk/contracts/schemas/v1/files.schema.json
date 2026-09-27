@@ -19,6 +19,24 @@
       "contextField": {
         "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
       },
+      "storageFields": {
+        "type": "object",
+        "description": "Explicit protected columns of this category's private metadata model; no column names are inferred.",
+        "properties": {
+          "id": { "$ref": "urn:creezio:contracts:v1:common#/$defs/id" },
+          "objectKey": { "$ref": "urn:creezio:contracts:v1:common#/$defs/id" },
+          "digest": { "$ref": "urn:creezio:contracts:v1:common#/$defs/id" },
+          "byteSize": { "$ref": "urn:creezio:contracts:v1:common#/$defs/id" },
+          "contentType": { "$ref": "urn:creezio:contracts:v1:common#/$defs/id" },
+          "filename": { "$ref": "urn:creezio:contracts:v1:common#/$defs/id" },
+          "version": { "$ref": "urn:creezio:contracts:v1:common#/$defs/id" },
+          "state": { "$ref": "urn:creezio:contracts:v1:common#/$defs/id" },
+          "intentId": { "$ref": "urn:creezio:contracts:v1:common#/$defs/id" },
+          "generation": { "$ref": "urn:creezio:contracts:v1:common#/$defs/id" }
+        },
+        "required": ["id", "objectKey", "digest", "byteSize", "contentType", "filename", "version", "state", "intentId", "generation"],
+        "additionalProperties": false
+      },
       "mimeTypes": {
         "type": "array",
         "items": {
@@ -80,6 +98,7 @@
       "metadataModel",
       "ownerField",
       "contextField",
+      "storageFields",
       "mimeTypes",
       "maxBytes",
       "permissions",
