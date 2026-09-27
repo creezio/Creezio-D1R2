@@ -29,7 +29,9 @@ export function startTurnDriveLoop(options:{
   };
   const schedule=()=>{
     clearTimer();
-    if(active&&current()&&failures<maxFailures)timer=setTimeout(()=>{timer=null;void tick();},delay);
+    const turn=active?current():null;
+    if(turn&&turn.state!=='unknown'&&failures<maxFailures)
+      timer=setTimeout(()=>{timer=null;void tick();},delay);
   };
   const tick=(force=false):Promise<DriveResult|null>=>{
     if(tickPromise)return tickPromise;

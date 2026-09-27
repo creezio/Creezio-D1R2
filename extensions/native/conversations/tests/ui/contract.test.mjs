@@ -127,6 +127,26 @@ test('active turn drives a continuation serially until it reaches a terminal sta
   }finally{clearTimeout(timeout);loop.stop();}
 });
 
+test('unknown turn stops automatic polling and resumes only on explicit request',async()=>{
+  let state='unknown',calls=0,refreshes=0;
+  const loop=startTurnDriveLoop({turnId:'turn-unknown',delayMs:1,
+    getTurn:()=>({id:'turn-unknown',state}),
+    drive:async()=>{calls++;state='succeeded';return {kind:'ok',value:{id:'turn-unknown',state}};},
+    refresh:async()=>{refreshes++;},onIssue:()=>assert.fail('No drive issue expected')});
+  try{
+    await new Promise(resolve=>setTimeout(resolve,25));
+    assert.equal(calls,0);
+    assert.equal(refreshes,1);
+    const resumed=await loop.resume();
+    assert.equal(resumed?.kind,'ok');
+    assert.equal(calls,1);
+    assert.equal(refreshes,2);
+    await new Promise(resolve=>setTimeout(resolve,10));
+    assert.equal(calls,1);
+    assert.equal(refreshes,2);
+  }finally{loop.stop();}
+});
+
 test('uncertain attachment is announced without implying the file was linked', () => {
   const html = renderToStaticMarkup(React.createElement(ConversationPanel,{...props,onAttach:noop,
     attachments:[{fileId:'f1',filename:'document.pdf',byteSize:1024}],onDownloadAttachment:noop,

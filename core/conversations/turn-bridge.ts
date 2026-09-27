@@ -207,22 +207,25 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
         where:{active_turn_id:request.turnId},compare:{field:'revision',expected:Number(parent.revision)},
         values:{active_turn_id:null,updated_at:time}})]);
   };
+  async function projectNoReceiptUnknown(lease:DataLease,request:Request){
+    const turn=await readTurn(lease,request);
+    if(!turn||['succeeded','failed','cancelled','unknown'].includes(String(turn.state)))return;
+    const seq=Number(turn.last_sequence)+1,time=now(),p=port(lease);
+    await data.commitBatch(lease,[p.planPatch('turn',{key:childKey(lease,request.conversationId,request.turnId),
+      where:{state:turn.state},compare:{field:'revision',expected:Number(turn.revision)},values:{state:'unknown',error_code:'provider_unknown',
+        updated_at:time,last_sequence:seq}}),p.planCreate('event',{values:{...scope(lease),
+          conversation_id:request.conversationId,turn_id:request.turnId,sequence:seq,kind:'unknown',
+          payload:turn.state==='cancel_requested'?{cancelRequested:true}:{},created_at:time}})]);
+  }
   async function markUnknown(lease:DataLease,request:Request,delivery:OperationDelivery,claim:DeliveryClaim){
     try{
-      const turn=await readTurn(lease,request);
       const handle=receipt(delivery);
-      if(turn&&!['succeeded','failed','cancelled','unknown'].includes(String(turn.state))
-        &&(turn.state!=='cancel_requested'||!handle)){
-        if(handle)await change(lease,request,delivery,claim,{cursor:handle.cursor,kind:'unknown',payload:{body:await eventBody(lease,request)}},
-          {state:'unknown',error_code:'provider_unknown'});
-        else{
-          const seq=Number(turn.last_sequence)+1,time=now(),p=port(lease);
-          await data.commitBatch(lease,[p.planPatch('turn',{key:childKey(lease,request.conversationId,request.turnId),
-            where:{state:turn.state},compare:{field:'revision',expected:Number(turn.revision)},values:{state:'unknown',error_code:'provider_unknown',
-              updated_at:time,last_sequence:seq}}),p.planCreate('event',{values:{...scope(lease),
-                conversation_id:request.conversationId,turn_id:request.turnId,sequence:seq,kind:'unknown',
-                payload:turn.state==='cancel_requested'?{cancelRequested:true}:{},created_at:time}})]);
-        }
+      if(!handle)await projectNoReceiptUnknown(lease,request);
+      else{
+        const turn=await readTurn(lease,request);
+        if(turn&&!['succeeded','failed','cancelled','unknown','cancel_requested'].includes(String(turn.state)))
+          await change(lease,request,delivery,claim,{cursor:handle.cursor,kind:'unknown',payload:{body:await eventBody(lease,request)}},
+            {state:'unknown',error_code:'provider_unknown'});
       }
     }catch{/* Retain the durable outbox uncertainty even if the UI projection cannot be updated. */}
     try{await store.settleDelivery(lease,claim,{state:'unknown'});}catch{}
@@ -236,6 +239,10 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
       const delivery=await store.findDelivery(lease,request.turnId);
       if(!delivery||delivery.provider!==PROVIDER)throw new OperationError('not_found');
       if(delivery.state==='succeeded'||delivery.state==='failed')return {turn:view((await readTurn(lease,request))!)};
+      if(delivery.state==='unknown'&&!receipt(delivery)){
+        try{await projectNoReceiptUnknown(lease,request);}catch{/* A concurrent turn update can be retried by the next drive. */}
+        return {turn:view((await readTurn(lease,request))!)};
+      }
       if(delivery.state!=='queued'&&!receipt(delivery))return {turn:view(initial.turn)};
       const acquired=delivery.state==='queued'
         ?await store.claimDelivery(lease,{executionId:delivery.executionId,outboxId:delivery.id,claimTtlMs:30_000})

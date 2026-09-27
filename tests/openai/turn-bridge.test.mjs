@@ -217,6 +217,67 @@ test('client drive persists one confirmed assistant and never recreates an unkno
     assert.deepEqual({...uncertainCancelEvents.execution.output.items.find(item=>item.kind==='unknown')?.payload},
       {cancelRequested:true});
 
+    const lateCancelRequest=await newTurn('cancel-after-unknown');
+    let lateCancelCreates=0;
+    const lateCancelBridge=createTurnBridge({db,catalog,permissions,registry:reg,toolCatalog:[],
+      provider:{withTransport:async(_request,callback)=>callback({async create(){
+        lateCancelCreates++;throw new Error('lost create acknowledgement');
+      }},'model-a')}});
+    const lateUnknown=await lateCancelBridge.drive(lateCancelRequest);
+    assert.equal(lateUnknown.turn.state,'unknown');
+    const lateCancelled=await invoke('turn.cancel',{requestKey:'cancel-after-unknown',
+      conversationId:lateCancelRequest.conversationId,turnId:lateCancelRequest.turnId,
+      revision:lateUnknown.turn.revision});
+    assert.equal(lateCancelled.execution.state,'succeeded');
+    const lateReconciled=await lateCancelBridge.drive(lateCancelRequest);
+    assert.equal(lateReconciled.turn.state,'unknown');
+    assert.equal(lateReconciled.turn.errorCode,'provider_unknown');
+    assert.equal(lateCancelCreates,1);
+    const lateCancelEvents=await invoke('event.list',{conversationId:lateCancelRequest.conversationId,
+      turnId:lateCancelRequest.turnId,limit:50,afterSequence:0});
+    assert.equal(lateCancelEvents.execution.output.items.filter(item=>item.kind==='unknown').length,2);
+    assert.deepEqual({...lateCancelEvents.execution.output.items.findLast(item=>item.kind==='unknown').payload},
+      {cancelRequested:true});
+
+    const casCancelRequest=await newTurn('cancel-before-unknown-cas');
+    const casPrepared=new WeakMap();
+    let injectCasCancel=true,casCreates=0;
+    const casDb=new Proxy(db,{get(target,key){
+      if(key==='prepare')return sql=>new Proxy(target.prepare(sql),{get(statement,method){
+        if(method==='bind')return (...values)=>{const bound=statement.bind(...values);
+          casPrepared.set(bound,{sql,values});return bound;};
+        const value=statement[method];return typeof value==='function'?value.bind(statement):value;
+      }});
+      if(key==='batch')return async statements=>{
+        if(injectCasCancel&&statements.some(statement=>
+          casPrepared.get(statement)?.values.includes('provider_unknown'))){
+          injectCasCancel=false;
+          const read=await invoke('turn.read',{conversationId:casCancelRequest.conversationId,
+            turnId:casCancelRequest.turnId});
+          const cancelled=await invoke('turn.cancel',{requestKey:'cancel-before-unknown-cas',
+            conversationId:casCancelRequest.conversationId,turnId:casCancelRequest.turnId,
+            revision:read.execution.output.turn.revision});
+          assert.equal(cancelled.execution.state,'succeeded');
+        }
+        return target.batch(statements);
+      };
+      const value=target[key];return typeof value==='function'?value.bind(target):value;
+    }});
+    const casCancelBridge=createTurnBridge({db:casDb,catalog,permissions,registry:reg,toolCatalog:[],
+      provider:{withTransport:async(_request,callback)=>callback({async create(){
+        casCreates++;throw new Error('lost create acknowledgement');
+      }},'model-a')}});
+    assert.equal((await casCancelBridge.drive(casCancelRequest)).turn.state,'cancel_requested');
+    assert.equal(injectCasCancel,false);
+    const casReconciled=await casCancelBridge.drive(casCancelRequest);
+    assert.equal(casReconciled.turn.state,'unknown');
+    assert.equal(casReconciled.turn.errorCode,'provider_unknown');
+    assert.equal(casCreates,1);
+    const casCancelEvents=await invoke('event.list',{conversationId:casCancelRequest.conversationId,
+      turnId:casCancelRequest.turnId,limit:50,afterSequence:0});
+    assert.deepEqual({...casCancelEvents.execution.output.items.find(item=>item.kind==='unknown')?.payload},
+      {cancelRequested:true});
+
     const eofRequest=await newTurn('eof');
     let statuses=0;
     const eof=createTurnBridge({db,catalog,permissions,registry:reg,toolCatalog:[],
