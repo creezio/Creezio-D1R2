@@ -11,4 +11,6 @@ Le thème reçoit `children`, la navigation et `renderSlot`. Il n'a pas à coder
 
 Le client headless exige une origine HTTPS explicite (HTTP réservé au local), des bindings issus de la composition et une fonction `credential` qui lit le coffre de son appelant. Une clé d'application reste côté serveur, jamais dans le bundle du front. Le serveur vérifie l'audience, le contexte et les droits à chaque appel. Le client ne rend pas possible une requête cross-origin interdite par l'hôte.
 
+Dans un Worker ou un BFF, le client demande des redirections manuelles et refuse tout statut 3xx ou réponse opaque avant de lire le corps. Il ne suit donc jamais une destination choisie par le fournisseur avec le jeton Bearer.
+
 `invoke` retourne une exécution, un refus certain, ou un résultat inconnu. Après une réponse perdue, `status` relit l'exécution ou sa clé d'idempotence sans renvoyer le corps de mutation. Une lecture absente n'est pas une preuve d'annulation ; `execution_not_observed` reste incertain. Les réponses d'une ancienne identité ou projection ne sont pas réintroduites dans la vue courante.

@@ -71,7 +71,9 @@ export function validateComposition(composition, options={}) {
   const ctx=context(),metrics={scope:'supplied-contracts-only',moduleCount:0};
   const compositionValid=shape('composition',composition,ctx);
   const lockValid=options.lock === undefined ? (ctx.report('lock.missing','/lock','A composition lock is required.'),false) : shape('composition-lock',options.lock,ctx,'/lock');
-  const inspected=inspectJson(options.modules);
+  // Inspect the closed set as one inert value. Several individually valid modules can
+  // exceed the single-document node budget; keep a separate bounded aggregate budget.
+  const inspected=inspectJson(options.modules,{maxNodes:100000});
   if(inspected.errors.length || !Array.isArray(options.modules)) { ctx.report('composition.modules','/descriptors','An explicit bounded list of module descriptors is required.'); return {errors:ctx.errors,metrics}; }
   let modulesValid=true;
   options.modules.forEach((module,i)=>{

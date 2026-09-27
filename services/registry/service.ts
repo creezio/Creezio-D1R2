@@ -99,7 +99,8 @@ async function githubJson(fetcher: typeof fetch, url: string, init: RequestInit)
   const timer = setTimeout(() => {controller.abort(); rejectDeadline(new Refusal('service_unavailable', 503));}, 10_000);
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   try {
-    const response = await Promise.race([fetcher(url, {...init, redirect: 'error', cache: 'no-store',
+    // Workers support manual redirects; the status guard below rejects every 3xx response.
+    const response = await Promise.race([fetcher(url, {...init, redirect: 'manual', cache: 'no-store',
       credentials: 'omit', signal: controller.signal}), deadline]);
     if (!response.ok || !response.body) refuse('service_unavailable', 503);
     const length = response.headers.get('content-length');

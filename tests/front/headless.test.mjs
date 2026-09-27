@@ -1,5 +1,9 @@
+import '../../scripts/local-environment.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {fileURLToPath} from 'node:url';
+import {build} from 'esbuild';
+import {Miniflare} from 'miniflare';
 import {createHeadlessOperationClient} from '../../sdk/front/headless.ts';
 
 const origin='https://headless.example',token='SyntheticOnlyApiToken_1234567890';
@@ -18,11 +22,62 @@ test('headless uses declared app bindings with bearer, exact mapping and no cook
   const client=createHeadlessOperationClient({origin,bindings:[binding()],credential:credentials,fetcher:async(url,init)=>{
     calls++;assert.equal(url,`${origin}/api/notes/note?revision=1`);assert.equal(init.method,'PATCH');
     assert.equal(init.headers.get('authorization'),`Bearer ${token}`);assert.equal(init.headers.has('cookie'),false);
-    assert.equal(init.headers.get('x-creezio-context'),'application');assert.equal(init.credentials,'omit');assert.equal(init.redirect,'error');
+    assert.equal(init.headers.get('x-creezio-context'),'application');assert.equal(init.credentials,'omit');assert.equal(init.redirect,'manual');
     assert.deepEqual(JSON.parse(init.body),{title:'A',request_id:'request-1'});return json({execution:record});
   }});
   assert.equal(client.audience,'app');assert.deepEqual(await client.invoke(request),{kind:'execution',execution:record});assert.equal(calls,1);
   assert.equal(JSON.stringify(client).includes(token),false);
+});
+
+test('headless reads in a Worker and refuses provider redirects without following them',async()=>{
+  const providerOrigin='https://provider.example.invalid';
+  const selected=binding({method:'GET',kind:'query',parameters:[
+    {name:'id',inputField:'id',in:'path',required:true,codec:'string'}]});
+  const source=`import {createHeadlessOperationClient} from './sdk/front/headless.ts';
+    const client=createHeadlessOperationClient({origin:${JSON.stringify(providerOrigin)},
+      bindings:[${JSON.stringify(selected)}],credential:()=>({kind:'api-token',token:${JSON.stringify(token)}})});
+    export default {async fetch(){return Response.json(await client.invoke({
+      bindingId:'example.notes:write-http',contextId:'application',input:{id:'note'}}));}};`;
+  const root=fileURLToPath(new URL('../../',import.meta.url));
+  const bundle=await build({absWorkingDir:root,
+    stdin:{contents:source,resolveDir:root,
+      sourcefile:'headless-worker.ts',loader:'ts'},bundle:true,write:false,
+    platform:'browser',format:'esm',target:'es2022',logLevel:'silent'});
+  let provider='success';const outbound=[];
+  const runtime=new Miniflare({host:'127.0.0.1',port:0,cf:false,modules:true,
+    compatibilityDate:'2026-05-15',script:bundle.outputFiles[0].text,
+    outboundService:async request=>{
+      outbound.push({url:request.url,method:request.method});
+      return provider==='success' ? Response.json({execution:record})
+        : new Response(null,{status:302,headers:{location:'https://unexpected.example.invalid/target'}});
+    }});
+  try{
+    const url='https://client.example.invalid/read';
+    const success=await runtime.dispatchFetch(url);
+    assert.equal(success.status,200);
+    assert.deepEqual(await success.json(),{kind:'execution',execution:record});
+    provider='redirect';
+    const denied=await runtime.dispatchFetch(url);
+    assert.equal(denied.status,200);
+    assert.deepEqual(await denied.json(),{kind:'unknown',code:'invalid_response'});
+    assert.deepEqual(outbound,[
+      {url:`${providerOrigin}/api/notes/note`,method:'GET'},
+      {url:`${providerOrigin}/api/notes/note`,method:'GET'}]);
+  }finally{await runtime.dispose();}
+});
+
+test('headless refuses 3xx, status zero and opaque redirects before reading a body',async()=>{
+  let reads=0;
+  const unreadable=response=>Object.defineProperty(response,'body',{get(){reads++;throw Error('body read');}});
+  const opaque=unreadable(json({execution:record}));
+  Object.defineProperty(opaque,'type',{value:'opaqueredirect'});
+  const replies=[unreadable(new Response(null,{status:302,headers:{location:'https://elsewhere.invalid/'}})),
+    unreadable(Response.error()),opaque];
+  const client=createHeadlessOperationClient({origin,bindings:[binding()],credential:credentials,
+    fetcher:async()=>replies.shift()});
+  for(let index=0;index<3;index++)
+    assert.deepEqual(await client.invoke(request),{kind:'unknown',code:'invalid_response'});
+  assert.equal(reads,0);
 });
 
 test('headless rejects admin, session-only, duplicate and reserved bindings before network',()=>{

@@ -33,7 +33,7 @@ test('server client sends only bounded metadata with installation Bearer token t
   ]);
   for (const call of calls) {
     assert.equal(call.init.method, 'POST');
-    assert.equal(call.init.redirect, 'error');
+    assert.equal(call.init.redirect, 'manual');
     assert.equal(call.init.credentials, 'omit');
     assert.equal(call.init.cache, 'no-store');
     assert.equal(call.init.referrerPolicy, 'no-referrer');

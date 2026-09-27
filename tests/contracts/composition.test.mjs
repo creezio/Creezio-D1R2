@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateComposition, validateCompositionTransition } from '../../sdk/contracts/validate.mjs';
+import { inspectJson } from '../../sdk/contracts/load.mjs';
 import { accepted, refused, namedModule, dependsOn, compositionCase, lockFor } from './helpers.mjs';
 
 /** Three independent publishers, one app: cart -> catalogue -> stock provider. */
@@ -14,6 +15,31 @@ function commerce() {
 }
 const validate = value => validateComposition(value.composition, { modules: value.modules, lock: value.lock });
 const refresh = value => { value.lock = lockFor(value.composition, value.modules); return value; };
+
+test('valid selected descriptors can exceed the single-document node budget together', () => {
+  const value=compositionCase(Array.from({length:12},(_,index)=>
+    namedModule(`vendor.descriptor-${index+1}`,'vendor')));
+  const measured=inspectJson(value.modules,{maxNodes:100000});
+  accepted(measured);
+  assert.ok(measured.metrics.nodes>20000&&measured.metrics.nodes<100000);
+  accepted(validate(value));
+});
+
+test('descriptor inspection still refuses an excessive aggregate and never reads accessors', () => {
+  const excess=compositionCase(Array.from({length:58},(_,index)=>
+    namedModule(`vendor.descriptor-${index+1}`,'vendor')));
+  const measured=inspectJson(excess.modules,{maxNodes:100000});
+  refused(measured,'json.nodes');
+  assert.ok(measured.metrics.bytes<2*1024*1024,'The node limit must be reached before the byte limit');
+  refused(validate(excess),'composition.modules');
+
+  const unsafe=compositionCase([namedModule('vendor.unsafe','vendor')]);
+  let calls=0;
+  Object.defineProperty(unsafe.modules[0],'contracts',{enumerable:true,configurable:true,
+    get(){calls++;throw new Error('Descriptor accessor must not execute');}});
+  refused(validate(unsafe),'composition.modules');
+  assert.equal(calls,0);
+});
 function remove(value, id) {
   value.composition.modules = value.composition.modules.filter(item => item.moduleId !== id);
   value.modules = value.modules.filter(item => item.identity.id !== id);

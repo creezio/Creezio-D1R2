@@ -80,10 +80,10 @@
         }
       },
       "validation": {
-        "integrity": "sha256-c00b88676fcdd571501861bf518e6fbf1e1311e976f1f9e167f8756e7e464684",
+        "integrity": "sha256-f4ad074a9e08570f0f03f0a22a83b22846d1c5dd60f0293f66ed6777ee528fea",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.conversations/validation-c00b88676fcdd571501861bf518e6fbf1e1311e976f1f9e167f8756e7e464684.tgz"
+          "path": ".creezio/module-artifacts/creezio.conversations/validation-f4ad074a9e08570f0f03f0a22a83b22846d1c5dd60f0293f66ed6777ee528fea.tgz"
         }
       },
       "dependencies": [
@@ -111,10 +111,10 @@
         }
       },
       "validation": {
-        "integrity": "sha256-54df2150ef36f4a21758e6d72036f5e13146a3bbce3aa256a72c5f5b6682695a",
+        "integrity": "sha256-7b4a92a0f94a8f89bd1c04ef7732b0f945cf3a6062575009bcfecfdc9d50c612",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.openai/validation-54df2150ef36f4a21758e6d72036f5e13146a3bbce3aa256a72c5f5b6682695a.tgz"
+          "path": ".creezio/module-artifacts/creezio.openai/validation-7b4a92a0f94a8f89bd1c04ef7732b0f945cf3a6062575009bcfecfdc9d50c612.tgz"
         }
       },
       "dependencies": [

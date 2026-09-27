@@ -366,8 +366,8 @@ test('GitHub web flow binds state and PKCE, rechecks user identity, and refuses 
     assert.equal(done.status, 200, await done.clone().text());
     assert.equal(calls.length, 2);
     assert.equal(JSON.parse(calls[0][1].body).code_verifier.length, 43);
-    assert.equal(calls[0][1].redirect, 'error');
-    assert.equal(calls[1][1].redirect, 'error');
+    assert.equal(calls[0][1].redirect, 'manual');
+    assert.equal(calls[1][1].redirect, 'manual');
     assert.equal(calls[1][1].headers.authorization, 'Bearer gho_test');
     assert.equal((await service.fetch(new Request(url, {headers: {cookie: stateCookie}}))).status, 403);
     const oversized = createRegistryService(f.environment, {fetch: async () => new Response('x'.repeat(16_385),

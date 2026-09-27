@@ -189,8 +189,10 @@ export function createRegistryClient(options: RegistryClientOptions): RegistryCl
     try {
       response = await Promise.race([fetcher(`${base}${path}`, { method: 'POST',
         headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json; charset=utf-8', accept: 'application/json' },
-        body: boundedBody(payload), redirect: 'error', credentials: 'omit', cache: 'no-store',
+        body: boundedBody(payload), redirect: 'manual', credentials: 'omit', cache: 'no-store',
         referrerPolicy: 'no-referrer', signal: controller.signal }), expired]);
+      if (response.status >= 300 && response.status < 400)
+        throw new RegistryClientError('invalid_response', response.status);
       const value = await Promise.race([readResponse(response, controller.signal), expired]);
       if (response.status === 200) return value;
       const data = responseObject(value, ['error']);

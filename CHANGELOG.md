@@ -6,6 +6,8 @@ Distribution autonome du SDK public et premier module métier témoin dans le d�
 
 Catégories de fichiers avec propriétaire commun aux audiences sur déclaration explicite, sans changer l'isolation des catégories existantes. Installation locale du schéma composé et consommation de paquets avec reçu de validation détaché. Le widget Modules est maintenant vérifié dans ChatGPT avec OAuth natif et CSP activée.
 
+Qualification de l'application indépendante : budget de validation propre à l'ensemble des descripteurs, sans relâcher les bornes individuelles des modules, et actualisation des verrous des compositions distribuées. Le retour OAuth GitHub du registre utilise le transport compatible Worker et refuse les redirections du fournisseur ; la configuration distante et la connexion réelle sont suivies séparément.
+
 ## 27 septembre 2026 — widgets T16
 
 PR #25 intégrée ; main `8736c340`, 1 019 tests locaux et CI réussis. Hôte MCP Apps du chat existant, ressources compilées des modules et comportements message/contexte/direct. Recette locale des widgets de deux modules avec OpenAI réel et reprise d'une mutation après perte de réponse ; qualification Sites et ChatGPT suivie séparément. Périmètre et limites dans [la réalisation T16](docs/IMPLEMENTATION-T16.md).

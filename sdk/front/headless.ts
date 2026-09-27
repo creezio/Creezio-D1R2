@@ -55,8 +55,12 @@ export function createHeadlessOperationClient(options: HeadlessClientOptions) {
     try {
       const headers = new Headers(init.headers);
       headers.set('authorization', `Bearer ${before.token}`);
-      const response = await fetcher(url, {...init, headers, signal: abort.signal, credentials: 'omit', redirect: 'error', cache: 'no-store'});
-      if (!(response instanceof Response) || response.redirected || response.url && new URL(response.url).origin !== origin)
+      // Workers support manual redirects. Refuse the response before reading any body;
+      // a bearer token must never be sent to a provider-selected destination.
+      const response = await fetcher(url, {...init, headers, signal: abort.signal, credentials: 'omit', redirect: 'manual', cache: 'no-store'});
+      if (!(response instanceof Response) || response.status === 0 || response.type === 'opaqueredirect'
+        || response.status >= 300 && response.status < 400 || response.redirected
+        || response.url && new URL(response.url).origin !== origin)
         return unknown('invalid_response');
       const value = await readJson(response);
       if (!fresh(before, isCurrent)) return unknown('stale');
