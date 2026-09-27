@@ -1,24 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import Module from 'node:module';
-import {dirname} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {randomUUID} from 'node:crypto';
+import {unlinkSync,writeFileSync} from 'node:fs';
+import {fileURLToPath,pathToFileURL} from 'node:url';
 import {build} from 'esbuild';
 import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 
 const bundle = await build({
   entryPoints: [fileURLToPath(new URL('../../sdk/workspace/metadata.tsx', import.meta.url))],
-  bundle: true, write: false, format: 'cjs', platform: 'node', packages: 'external',
+  bundle: true, write: false, format: 'esm', platform: 'node', packages: 'external',
   target: 'es2022', logLevel: 'silent',
 });
-const bundlePath = fileURLToPath(new URL('../../work/metadata-test-bundle.cjs', import.meta.url));
-const compiled = new Module(bundlePath);
-compiled.filename = bundlePath;
-compiled.paths = Module._nodeModulePaths(dirname(bundlePath));
-compiled._compile(bundle.outputFiles[0].text, bundlePath);
+const bundlePath = fileURLToPath(new URL(`./.metadata-render-${randomUUID()}.mjs`,import.meta.url));
+let compiled,written=false;
+try {
+  writeFileSync(bundlePath,bundle.outputFiles[0].text,{flag:'wx'});written=true;
+  compiled=await import(pathToFileURL(bundlePath).href);
+} finally {if(written)unlinkSync(bundlePath);}
 const {createWorkspaceMetadataStore, WorkspaceMetadataProvider, useWorkspaceMetadata,
-  useWorkspaceMetadataForPanels} = compiled.exports;
+  useWorkspaceMetadataForPanels} = compiled;
 
 test('metadata is scoped to panel and owner, updates only on change, and cleans up', () => {
   const store = createWorkspaceMetadataStore(), first = Symbol('first'), second = Symbol('second');

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import Module from 'node:module';
-import {dirname} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {randomUUID} from 'node:crypto';
+import {unlinkSync,writeFileSync} from 'node:fs';
+import {fileURLToPath,pathToFileURL} from 'node:url';
 import {build} from 'esbuild';
 import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
@@ -10,13 +10,13 @@ import {renderToStaticMarkup} from 'react-dom/server';
 async function loadShellModule(name) {
   const source = fileURLToPath(new URL(`../../admin/workspace/${name}.tsx`, import.meta.url));
   const bundle = await build({entryPoints: [source], bundle: true, write: false,
-    format: 'cjs', platform: 'node', packages: 'external', target: 'es2022', logLevel: 'silent'});
-  const bundlePath = fileURLToPath(new URL(`../../work/${name}-test-bundle.cjs`, import.meta.url));
-  const compiled = new Module(bundlePath);
-  compiled.filename = bundlePath;
-  compiled.paths = Module._nodeModulePaths(dirname(bundlePath));
-  compiled._compile(bundle.outputFiles[0].text, bundlePath);
-  return compiled.exports;
+    format: 'esm', platform: 'node', packages: 'external', target: 'es2022', logLevel: 'silent'});
+  const bundlePath = fileURLToPath(new URL(`./.shell-render-${name}-${randomUUID()}.mjs`, import.meta.url));
+  let written=false;
+  try {
+    writeFileSync(bundlePath,bundle.outputFiles[0].text,{flag:'wx'});written=true;
+    return await import(pathToFileURL(bundlePath).href);
+  } finally {if(written)unlinkSync(bundlePath);}
 }
 
 const {WorkspaceTabBar} = await loadShellModule('workspace-tab-bar');

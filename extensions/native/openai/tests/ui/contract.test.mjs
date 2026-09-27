@@ -1,17 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createRequire} from 'node:module';
-import {fileURLToPath} from 'node:url';
+import {randomUUID} from 'node:crypto';
+import {unlinkSync,writeFileSync} from 'node:fs';
+import {fileURLToPath,pathToFileURL} from 'node:url';
 import {build} from 'esbuild';
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 
-const require=createRequire(import.meta.url);
 const bundle=await build({entryPoints:[fileURLToPath(new URL('../../ui/config-panel.tsx',import.meta.url))],
-  bundle:true,platform:'node',format:'cjs',packages:'external',write:false,logLevel:'silent'});
-const module={exports:{}};
-new Function('require','module','exports',bundle.outputFiles[0].text)(require,module,module.exports);
-const {OpenAIConfigPanel}=module.exports;
+  bundle:true,platform:'node',format:'esm',packages:'external',write:false,logLevel:'silent'});
+const rendered=fileURLToPath(new URL(`./.contract-render-${randomUUID()}.mjs`,import.meta.url));
+let OpenAIConfigPanel,written=false;
+try{
+  writeFileSync(rendered,bundle.outputFiles[0].text,{flag:'wx'});written=true;
+  ({OpenAIConfigPanel}=await import(pathToFileURL(rendered).href));
+}finally{if(written)unlinkSync(rendered);}
 const noop=async()=>({kind:'ok'});
 
 test('admin configuration offers an editable model identifier and never echoes a stored key',()=>{
