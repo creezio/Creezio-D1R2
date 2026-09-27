@@ -8,6 +8,8 @@ import { createOperationStore } from './store.ts';
 import { OperationStoreError, type OperationExecution, type OperationOutboxIntent } from './store-types.ts';
 import type { OperationRegistry } from './registry.ts';
 import { OperationError, OPERATION_LIMITS, type OperationContext, type OperationDataPort, type OperationHandlerResult, type RegisteredOperation } from './types.ts';
+import { createNativeAccessOperationAdapter, validNativeAccessDeclaration } from './native-access.ts';
+import type { SqlStatement } from '../data/authorization.ts';
 
 export interface OperationRequest {
   readonly credential: DataCredential; readonly moduleId: string; readonly operationId: string;
@@ -65,8 +67,11 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
   const { registry } = options, catalog = copyJson(options.catalog, 4 * 1024 * 1024) as unknown as RuntimeDataCatalog;
   if (catalog.compositionDigest !== registry.compositionDigest) throw new OperationError('invalid_catalog');
   const data = createDataAccess(options.db, { catalog, permissions: options.permissions }), store = createOperationStore({ db: options.db, data });
+  const nativeAccess = createNativeAccessOperationAdapter(options.db, options.permissions, catalog);
   async function authorize(request: OperationRequest | OperationStatusRequest | OperationLookupRequest, operation: RegisteredOperation): Promise<DataLease> {
     const declaration = operation.declaration;
+    if (operation.moduleId === 'creezio.access' && (!validNativeAccessDeclaration(declaration)
+      || request.credential.kind !== 'session')) throw new OperationError('forbidden');
     if (!declaration.audiences.includes(request.audience) || declaration.context === 'application' && request.contextId !== 'application') throw new OperationError('forbidden');
     const actors = declaration.actors.filter((actor): actor is AuthorizationActor => ['user', 'machine', 'delegated-user', 'impersonated-user'].includes(actor));
     if (!actors.length) throw new OperationError('unsupported');
@@ -150,8 +155,17 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           executionId: start.execution.id, contextId: identity.contextId, audience: identity.audience, principalId: identity.principalId,
           actorPrincipalId: identity.actorPrincipalId, signal: controller.signal, data: operationData });
         let attemptingCommit = false;
+        let nativeStatements: readonly SqlStatement[] | undefined;
+        let nativeCompared = false;
         try {
-          const execution = Promise.resolve().then(() => { ensure(); return operation.handler(input, context); });
+          const execution = Promise.resolve().then(async () => {
+            ensure();
+            if (operation.moduleId !== 'creezio.access') return operation.handler(input, context);
+            const prepared = await nativeAccess.execute(op.id, request.credential.token, input);
+            nativeStatements = prepared.nativeStatements;
+            nativeCompared = prepared.compared === true;
+            return {output: prepared.output};
+          });
           // A late planner cannot commit anything: only this executor owns the opaque batch plans.
           const result = object(await Promise.race([execution, cancellation])) as unknown as OperationHandlerResult;
           ensure();
@@ -167,12 +181,14 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
             if (!descriptor || !Object.hasOwn(descriptor, 'value') || !issued.has(token) || plans.includes(token)) throw new OperationError('invalid_output');
             plans.push(token);
           }
-          if (op.concurrency.mode === 'object-version' && !plans.some(token => issued.get(token)!.compared)) throw new OperationError('conflict');
+          if (op.concurrency.mode === 'object-version' && !nativeCompared
+            && !plans.some(token => issued.get(token)!.compared)) throw new OperationError('conflict');
           const outbox = copyJson(result.outbox ?? [], 65_536) as unknown as readonly OperationOutboxIntent[];
           if (!Array.isArray(outbox) || outbox.length && op.kind !== 'command'
             || outbox.some(intent => !op.effects.providers.includes(intent.provider))) throw new OperationError('invalid_output');
           ensure(); attemptingCommit = true;
-          const committed = await Promise.race([store.commit(lease, start.claim, { plans, output, outbox }), cancellation]);
+          const committed = await Promise.race([store.commit(lease, start.claim, { plans, output, outbox,
+            ...(nativeStatements ? {nativeStatements} : {}) }), cancellation]);
           return Object.freeze({ execution: checkedExecution(committed, operation), replayed: false });
         } catch (error) {
           const code = errorCode(error);

@@ -1033,7 +1033,7 @@
         "context": "required",
         "handler": {
           "path": "module/operations.ts",
-          "export": "admin-configure"
+          "export": "adminConfigure"
         },
         "effects": {
           "reads": [
@@ -1126,7 +1126,7 @@
         "context": "required",
         "handler": {
           "path": "module/operations.ts",
-          "export": "rebuild-index"
+          "export": "rebuildIndex"
         },
         "effects": {
           "reads": [
@@ -1219,7 +1219,7 @@
         "context": "required",
         "handler": {
           "path": "module/operations.ts",
-          "export": "delete-index"
+          "export": "deleteIndex"
         },
         "effects": {
           "reads": [

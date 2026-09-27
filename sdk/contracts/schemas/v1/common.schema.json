@@ -155,7 +155,7 @@
           "$ref": "#/$defs/filePath"
         },
         "export": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/exportName"
         }
       },
       "required": [
@@ -285,6 +285,25 @@
           }
         }
       ]
+    },
+    "fieldName": {
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[A-Za-z][A-Za-z0-9_]*)$",
+      "not": {
+        "enum": [
+          "__proto__",
+          "prototype",
+          "constructor"
+        ]
+      },
+      "description": "A JSON field reference, including camelCase; distinct from a canonical contract ID."
+    },
+    "exportName": {
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*$",
+      "description": "A static JavaScript export identifier, not an expression or a contract ID."
     }
   }
 }

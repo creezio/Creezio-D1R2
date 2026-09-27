@@ -4,6 +4,8 @@ export class HttpBindingError extends Error {
 }
 const fail = code => { throw new HttpBindingError(code); };
 const id = value => typeof value === 'string' && /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(value);
+const inputField = value => typeof value === 'string' && value.length <= 128
+  && (id(value) || /^[A-Za-z][A-Za-z0-9_]*$/.test(value)) && !['constructor', 'prototype', '__proto__'].includes(value);
 const auth = new Set(['session', 'api-token', 'oauth', 'impersonation', 'anonymous', 'webhook-signature']);
 const actorFor = {session: 'user', 'api-token': 'machine', oauth: 'delegated-user', impersonation: 'impersonated-user',
   anonymous: 'anonymous', 'webhook-signature': 'signed-webhook'};
@@ -46,7 +48,7 @@ export function compileHttpBindings({ composition, modules, operationCatalog, di
       if (!inputSchema || inputSchema.type !== 'object' || !inputSchema.properties || typeof inputSchema.properties !== 'object') fail('schema');
       const compiledParameters = [];
       for (const parameter of api.parameters) {
-        if (!id(parameter.name) || !id(parameter.inputField) || !['path', 'query', 'header'].includes(parameter.in)
+        if (!id(parameter.name) || !inputField(parameter.inputField) || !['path', 'query', 'header'].includes(parameter.in)
           || typeof parameter.required !== 'boolean' || fields.has(parameter.inputField)
           || locations.has(`${parameter.in}:${parameter.name}`) || parameter.in === 'path' && (!pathNames.includes(parameter.name) || !parameter.required)
           || parameter.in === 'header' && !/^x-[a-z0-9-]+$/.test(parameter.name)) fail('parameters');

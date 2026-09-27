@@ -1,5 +1,17 @@
 # T-04 — Identités et droits natifs
 
+## Raccordement de l'interface originale
+
+La tranche `core/t04-access-workspace`, issue du main `a8e2a969` qualifié, reprend le composant original Access avec ses trois panneaux : Matrice des rôles, Comptes et Journal. Les primitives communes deviennent des exports du SDK UI ; la vue est déclarée dans le module et montée automatiquement par le workspace, sans branche spécifique dans chaque application. Le rendu original reste la référence. Les rôles multiples, contextes et audiences du nouveau modèle doivent être préservés lors de chaque action.
+
+Les requêtes et commandes utilisent les opérations déclarées et le transport T-06. Le pont de stockage natif prépare les écritures protégées avec les services T-04 existants puis les joint au même batch que le résultat d'exécution et son audit. Une déclaration de module ne peut assouplir les droits du pont. Les commandes indiquent explicitement les modèles concernés, leur concurrence et leur clé d'idempotence. Aucun credential ou SQL n'est remis au composant ou au handler d'un module.
+
+Un delta de politique contient au plus 32 changements et 12 Kio d'entrée, avec epoch attendu ; les tuples rôle/permission/utilisateur/contexte/audience sont structurés. Le journal détaillé stocke une enveloppe versionnée des politiques avant et après, atomiquement avec le changement. Les instantanés sont limités chacun à 98 304 octets, dans un champ borné à 524 288 octets ; le lecteur valide l'enveloppe et calcule les différences paginées de 32 éléments. Les anciennes lignes dépourvues de détail sont signalées comme telles, sans reconstitution supposée.
+
+Les tests, la revue et la recette navigateur de cette tranche sont encore en cours. Elle ne clôt pas T-04 : remise des liens d'invitation/récupération, autres transports, OAuth et hébergements restent à qualifier. Les détails ci-dessous conservent la provenance des fondations déjà intégrées.
+
+## Fondations intégrées
+
 Fondations, comptes, droits D1, cycle de comptes, machines, administration humaine, impersonation, transport HTTP et entrée navigateur sont intégrés jusqu’à la PR #13, main qualifié `db9dd50` (613 tests), avec l’installation opérateur locale explicite. Le lot [T-04](TODO.md#T-04) reste **en cours**. Le parcours opérateur local est qualifié par terminal et navigateur sur données synthétiques ; les autres transports, la livraison des liens et l'administration visuelle restent à construire. [REQ-0401](EXIGENCES.md#REQ-0401), [REQ-0402](EXIGENCES.md#REQ-0402) et [REQ-0403](EXIGENCES.md#REQ-0403) restent partiellement ou non qualifiées selon leurs parcours.
 
 ## Tranches et critères

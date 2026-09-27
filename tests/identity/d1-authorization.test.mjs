@@ -182,7 +182,8 @@ test('persistent authorization in real D1 enforces roles, fresh claims and atomi
       assert.ok(after.policy.roles.some(role => role.id === `winner-${winner === 0 ? 'a' : 'b'}`));
       assert.equal(after.policy.roles.some(role => role.id === `winner-${winner === 0 ? 'b' : 'a'}`), false);
       assert.equal(await aclAudits(), audits + 1);
-      assert.equal(await call('commitStore', admin.token, { epoch: before.epoch, policy: addRole(after.policy, 'stale-replay') }), false);
+      assert.equal(await call('commitStore', admin.token, { epoch: before.epoch,
+        beforePolicy: after.policy, policy: addRole(after.policy, 'stale-replay') }), false);
       assert.deepEqual(await read(), after); assert.equal(await aclAudits(), audits + 1);
     });
 

@@ -21,6 +21,8 @@ export interface DataModel {
 export type DataAction = 'read' | 'create' | 'update' | 'delete';
 export interface DataPermission {
   readonly id: string; readonly audiences: PermissionDefinition['audiences']; readonly actors: readonly string[];
+  /** Presentation from the module contract; never participates in authorization. */
+  readonly title?: string;
   readonly actions: readonly string[]; readonly resources: readonly ContractReference[];
 }
 export interface RuntimeDataCatalog {

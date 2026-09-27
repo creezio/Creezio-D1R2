@@ -1,5 +1,6 @@
 import type { DataAccess, DataLease, DataPlan, JsonValue } from '../data/types.ts';
 import type { IdentityDatabase } from '../identity/d1-store.ts';
+import type { SqlStatement } from '../data/authorization.ts';
 
 export type ExecutionState = 'running' | 'waiting' | 'succeeded' | 'failed' | 'unknown';
 export type DeliveryState = 'queued' | 'claimed' | 'succeeded' | 'failed' | 'unknown';
@@ -35,6 +36,8 @@ export interface OperationStore {
   lookup(lease: DataLease, input: { readonly operationId: string; readonly keyHash: string }): Promise<OperationExecution | null>;
   commit(lease: DataLease, claim: OperationClaim, input: {
     readonly plans: readonly DataPlan[]; readonly output: JsonValue; readonly outbox?: readonly OperationOutboxIntent[];
+    /** Trusted host Access statements; never accepted from an operation handler. */
+    readonly nativeStatements?: readonly SqlStatement[];
   }): Promise<OperationExecution>;
   /** Rejection is allowed only before any business commit attempt or external emission. */
   fail(lease: DataLease, claim: OperationClaim, code: string): Promise<OperationExecution>;

@@ -1,9 +1,5 @@
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+/** Compatibility entry point for workspace consumers. */
+export { cn } from '../../sdk/ui/utils.ts';
 
 export function formatDate(value?: string | null) {
   if (!value) return "—";

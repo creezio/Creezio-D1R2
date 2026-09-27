@@ -100,8 +100,8 @@ test('normal application build refuses incompatible server and UI imports before
       }
     }
   } finally {
-    await composeRuntime({ root, compositionPath: 'configuration/composition.json', lockPath: 'configuration/composition.lock.json' });
-    scratch.cleanup();
+    try { await composeRuntime({ root, compositionPath: 'configuration/composition.json', lockPath: 'configuration/composition.lock.json' }); }
+    finally { scratch.cleanup(); }
   }
 });
 

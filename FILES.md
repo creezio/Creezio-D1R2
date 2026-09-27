@@ -1,6 +1,6 @@
 # Repères du dépôt
 
-État : PR #1 à #16 intégrées ; main `56eb0159` qualifié avec 779 tests et recette navigateur API/workspace. Le [TODO](docs/TODO.md) distingue acquis et fonctions restantes. T-08/T-31 avancent sur `core/t08-publication-foundations` ; aucun service central ou profil Docker complet n’est encore qualifié.
+État : PR #1 à #17 intégrées ; main `a8e2a969` qualifié avec 809 tests. Le [TODO](docs/TODO.md) distingue acquis et fonctions restantes. Le registre séparé et Docker local sont qualifiés dans leurs périmètres ; la tranche active raccorde l’interface Access originale aux opérations communes.
 
 | Emplacement | Responsabilité |
 |---|---|
@@ -64,7 +64,12 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - [sdk/access](sdk/access/) : contrat public de session navigateur, client HTTP, contrôleur et coordination, composants React réutilisables ; aucune lecture directe de cookie, table ou secret, aucun couplage au routeur hôte.
 
 - [core/identity](core/identity/) : credentials opaques, cryptographie, stockage D1 et services natifs de comptes, droits et impersonation ; transport natif login/session/logout dans http.ts et ses règles d'origine, corps et cookies dans http-policy.ts.
-- [extensions/native/access](extensions/native/access/) : vingt et un modèles privés d'identité et de droits, contrat, documentation et six suites ; module sélectionné par la composition pour activer le transport natif, sans contributions UI/API métier/MCP encore exposées.
+- [extensions/native/access](extensions/native/access/) : vingt-deux modèles privés d'identité, de droits et d'audit, contrat, documentation et six suites ; vue native Rôles & accès déclarée et dix opérations HTTP administratives. MCP reste à raccorder.
+- [sdk/access/admin-client.ts](sdk/access/admin-client.ts) et [admin-controller.ts](sdk/access/admin-controller.ts) : accès paginés au graphe, aux comptes et au journal, commandes avec clé persistée avant émission et réconciliation sans nouvel envoi.
+- [sdk/ui](sdk/ui/) : primitives publiques reprises du Creezio original ; les modules n'importent pas les composants privés de l'administration.
+- [core/identity/audit.ts](core/identity/audit.ts) et [audit-store.ts](core/identity/audit-store.ts) : pages du journal et détails des changements sous garde native fraîche.
+- [core/authorization/delta.ts](core/authorization/delta.ts) : changements explicites du graphe sans écraser les autres contextes, audiences ou rôles.
+- [tests/identity/harness/serve-access-ui.mjs](tests/identity/harness/serve-access-ui.mjs) : recette de l'écran produit sur données synthétiques en mémoire ; aucune base utilisateur ouverte.
 - [scripts/data](scripts/data/) et [data/schema/access.sql](data/schema/access.sql) : génération centrale inspectable, contrôle de dérive et moteur d'installation opérateur explicite ; aucune application SQL au démarrage du Worker.
 - [scripts/local](scripts/local/) : configuration et stockage locaux communs, verrou des commandes officielles, saisie terminal sans écho et parcours opérateur ; aucun accès fournisseur.
 - [core/authorization](core/authorization/) : moteur pur, résolveur natif partagé, contrat de politique, lecture D1 cohérente et service de remplacement des droits protégé par session/epoch/claim ; décision pure distincte d'une écriture autorisée.
@@ -76,6 +81,7 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - [core/data](core/data/) : catalogue runtime, capacités par module/contexte et plans D1 sous garde fraîche ; aucune API SQL publique.
 - [core/files](core/files/) : métadonnées de fichiers privés, préparation R2, publication D1 et reprise explicite.
 - [core/operations](core/operations/) : registre canonique, exécutions internes, validation statique, stockage technique et transport HTTP déclaré intégré.
+- [core/operations/native-access.ts](core/operations/native-access.ts) : raccordement hôte fermé des services Access existants aux mêmes transactions d'exécution ; aucun SQL ni accès privilégié ajouté aux handlers publics de modules.
 - [scripts/operations](scripts/operations/) : compilation centrale des validateurs d'opérations pour le Worker.
 - [data/schema/runtime.sql](data/schema/runtime.sql) et [scripts/data/prepare-runtime.mjs](scripts/data/prepare-runtime.mjs) : quatre modèles techniques des exécutions et contrôle central de leur SQL ; aucun changement automatique de base.
 - [tests/operations](tests/operations/) : registre, schémas compilés, exécutions D1 et Worker, refus et idempotence ; famille obligatoire de l'agrégat.
@@ -92,7 +98,7 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - [app/workspace](app/workspace/) : routes et hôte natif par audience. [admin/workspace](admin/workspace/) adapte les composants du Creezio original (sidebar, barre d'onglets, recherche, chrome de page), distincts du SDK public. Parité produit complète encore à qualifier.
 - [tests/workspace](tests/workspace/) : recettes ciblées de composition, droits, contrôleur, client et interface ; [état T-07](docs/IMPLEMENTATION-T07.md) pour leurs limites.
 
-## Registre et Docker en construction
+## Registre séparé et Docker local
 
 - [sdk/registry](sdk/registry/) : protocole public partagé, sans serveur embarqué.
 - [services/registry](services/registry/) : service central à déployer séparément ; [état T-08](docs/IMPLEMENTATION-T08.md).

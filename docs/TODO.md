@@ -1,5 +1,5 @@
 # Backlog de réalisation
-Révision 19 — 27 septembre 2026. **Chantier actif : T-08/T-31, registre central et Docker local.** Les PR #1 à #16 sont intégrées ; le main `56eb0159` passe 779 tests en CI. La tranche API/workspace original a sa recette navigateur locale ; les modules produit et hébergements restent à compléter. La branche `core/t08-publication-foundations` réalise le registre séparé, son client de publication et le profil Docker persistant. Ce fichier reste la liste de travail canonique ; les qualifications partielles ne ferment pas les lots complets.
+Révision 20 — 27 septembre 2026. **Chantier actif : T-04/T-06/T-07, écrans Access originaux et opérations communes.** Les PR #1 à #17 sont intégrées ; le main `a8e2a969` passe 809 tests locaux et CI (candidat 36290765380, main 36290972553). Le registre Worker a été publié sur Cloudflare avec reprise de déclaration sans redéploiement ; Docker a sa recette de persistance/restauration. La branche `core/t04-access-workspace` raccorde les écrans originaux Matrice des rôles, Comptes et Journal, sans changer les exigences. Ce fichier reste la liste de travail canonique ; les qualifications partielles ne ferment pas les lots complets.
 
 ## Avancement lisible
 
@@ -10,12 +10,12 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-01 — Gouvernance | Branches/PR, protections GitHub, revue indépendante, CI et refus d'un candidat invalide | Qualification des futurs parcours de release et de publication | Suivi transversal ; fondations acquises |
 | T-02 — Contrats | Schémas, validateurs, dépendances et verrous ; cas valides et invalides | Intégration complète des vrais modules et paquets tiers en T-11/T-30 | Fondations acquises |
 | T-03 — Runtime | Worker commun, composition, build, démarrage local, persistance et budgets | Qualification du workspace/front complets au fil de leur construction | Fondations acquises |
-| T-04 — Comptes et droits | Comptes, sessions, rôles, tokens machine, impersonation, connexion et installation locales | Administration visuelle, remise des liens, raccords API/MCP/OAuth et recettes hébergées | Attend les raccords T-06/T-07/T-10 |
+| T-04 — Comptes et droits | Comptes, sessions, rôles, tokens machine, impersonation, connexion et installation locales | Administration visuelle, remise des liens, raccords API/MCP/OAuth et recettes hébergées | **Raccordement des écrans originaux en cours** |
 | T-05 — Données | Compilation SQL centrale, accès D1 protégé, fichiers R2 et coffre | Explorateur, recherche, export/restauration, évolutions de modèles restantes et recettes hébergées | Fondations acquises ; autres fonctions à construire |
 | T-06 — Opérations | Registre/exécuteur intégrés PR #15 ; bindings HTTP et suivi par clé PR #16 | Événements, approbations, interopérations et autres transports | Fondations disponibles ; compléments au backlog |
 | T-07 — Workspace | Composants originaux adaptés, panneaux/états/titres et recette navigateur intégrés PR #16 | Qualification Sites et raccordement des modules produit | Livrable local disponible |
-| T-08 — Registre central | Service/client/journal, propriétaires et tokens ; bootstrap mainteneur sur Cloudflare réel | Configuration fournisseur GitHub/email, raccords des publishers et onboarding produit | **En revue et qualification** |
-| T-31 — Docker local | Compte/D1/R2, redémarrage/recréation/restauration vérifiés en Docker | Recettes des futurs modules et routes de fichiers | **En revue** |
+| T-08 — Registre central | PR #17 intégrée ; Worker Cloudflare, service/client/journal et reprise réelle sans redéploiement | Configuration fournisseur GitHub/email, raccords des publishers et onboarding produit | Fournisseur GitHub en attente d'autorisation ; travaux indépendants poursuivis |
+| T-31 — Docker local | PR #17 intégrée ; compte/D1/R2, redémarrage/recréation/restauration vérifiés en Docker | Recettes des futurs modules et routes de fichiers | Livrable local disponible |
 | Autres lots T-09 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, fronts/chat/widgets, publications et recette finale | À réaliser |
 
 ## Règles de suivi

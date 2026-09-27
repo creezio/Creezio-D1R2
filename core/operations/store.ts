@@ -169,10 +169,10 @@ export function createOperationStore({ db, data }: OperationStoreOptions): Opera
     return result.after[1].results[0] ? execution(result.after[1].results[0]) : null;
   }
   async function commit(lease: DataLease, claim: OperationClaim, input: { readonly plans: readonly DataPlan[]; readonly output: JsonValue;
-    readonly outbox?: readonly OperationOutboxIntent[] }) {
+    readonly outbox?: readonly OperationOutboxIntent[]; readonly nativeStatements?: readonly SqlStatement[] }) {
     // Plans are opaque: capture their container without recursively copying capabilities.
     const desc = input && typeof input === 'object' ? Object.getOwnPropertyDescriptors(input) : null;
-    if (!desc || Object.getPrototypeOf(input) !== Object.prototype || Reflect.ownKeys(desc).some(key => !['plans','output','outbox'].includes(String(key)))
+    if (!desc || Object.getPrototypeOf(input) !== Object.prototype || Reflect.ownKeys(desc).some(key => !['plans','output','outbox','nativeStatements'].includes(String(key)))
       || !desc.plans || !desc.output || Object.values(desc).some(d => !Object.hasOwn(d, 'value'))) return fail('invalid_input');
     const output = capture(desc.output.value, LIMITS.outputBytes), outbox = capture(desc.outbox?.value ?? [], LIMITS.outbox * LIMITS.payloadBytes + 8192);
     if (!Array.isArray(outbox) || outbox.length > LIMITS.outbox) return fail('invalid_input');
@@ -184,6 +184,9 @@ export function createOperationStore({ db, data }: OperationStoreOptions): Opera
       capture(item.payload, LIMITS.payloadBytes); intents.add(item.id);
     }
     const state = ownClaim(lease, claim, true), who = state.identity;
+    const nativeStatements = desc.nativeStatements?.value ?? [];
+    if (!Array.isArray(nativeStatements) || nativeStatements.length && (who.moduleId !== 'creezio.access'
+      || !Array.isArray(desc.plans.value) || desc.plans.value.length !== 0 || outbox.length !== 0)) return fail('invalid_input');
     const statements: SqlStatement[] = [
       sql(`UPDATE ${T.executions} SET state=?,output=?,error_code=NULL,updated_at_ms=${NOW} WHERE id=? AND claim_nonce=?`,
         outbox.length ? 'waiting' : 'succeeded', JSON.stringify(output), state.executionId, state.nonce),
@@ -194,7 +197,8 @@ export function createOperationStore({ db, data }: OperationStoreOptions): Opera
        VALUES(?,?,?,?,?,?,'queued',NULL,NULL,${NOW},${NOW},NULL)`, id(), state.executionId, item.id, item.provider, item.providerIdempotencyKey, JSON.stringify(item.payload)));
     // A late audit failure must roll back every business write, result and outbox row.
     statements.push(audit(state.executionId, who, 'committed', state.nonce), executionQuery(state.executionId, who));
-    const result = await run(lease, { write: true, before: [assert(claimCondition(state))], plans: desc.plans.value, after: statements });
+    const result = await run(lease, { write: true, before: [assert(claimCondition(state))], plans: desc.plans.value,
+      after: [...nativeStatements, ...statements] });
     const row = result.after.at(-1)?.results[0]; if (!row) return fail('unavailable'); return execution(row);
   }
   async function finish(lease: DataLease, claim: OperationClaim, code: string, unknown: boolean) {

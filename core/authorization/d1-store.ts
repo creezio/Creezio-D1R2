@@ -4,6 +4,7 @@ import type { AuthorizationAudience } from './types.ts';
 import { MACHINE_SCOPE_LIMITS, parseStoredMachineScopeRows, type MachineScope } from '../identity/machine-policy.ts';
 import { decodeImpersonationMeta, type ImpersonationMeta } from '../identity/impersonation-store.ts';
 import { IMPERSONATION_LIMITS } from '../identity/impersonation-policy.ts';
+import type { SqlStatement } from '../data/authorization.ts';
 
 export interface StoredPrincipal {
   readonly id: string;
@@ -55,6 +56,8 @@ export interface CommitAccessPolicyInput {
   readonly principalId: string;
   readonly epoch: number;
   readonly policy: AccessPolicy;
+  /** The checked snapshot from the same administrative read, for lossless audit detail. */
+  readonly beforePolicy: AccessPolicy;
 }
 
 export class AuthorizationStoreInputError extends Error {
@@ -79,7 +82,7 @@ function inputShape(value: unknown): value is CommitAccessPolicyInput {
   try {
     if (value === null || typeof value !== 'object' || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) return false;
     const descriptors = Object.getOwnPropertyDescriptors(value);
-    const keys = ['sessionDigest', 'sessionId', 'principalId', 'epoch', 'policy'];
+    const keys = ['sessionDigest', 'sessionId', 'principalId', 'epoch', 'policy', 'beforePolicy'];
     return Reflect.ownKeys(descriptors).length === keys.length
       && keys.every(key => Object.hasOwn(descriptors, key) && Object.hasOwn(descriptors[key], 'value'));
   } catch { return false; }
@@ -330,20 +333,22 @@ export function createD1AuthorizationStore(db: IdentityDatabase) {
     return Object.freeze({ ...state, impersonation });
   }
 
-  async function commitPolicy(input: CommitAccessPolicyInput): Promise<boolean> {
+  const planned = (sql: string, bindings: (string | number | null)[] = []): SqlStatement => ({sql, bindings});
+  function preparePolicyCommit(input: CommitAccessPolicyInput) {
     if (!inputShape(input) || !digest(input.sessionDigest) || !identifier(input.sessionId)
       || !identifier(input.principalId) || !positive(input.epoch) || input.epoch >= MAX_EPOCH) throw new AuthorizationStoreInputError();
     // Copy/freeze the candidate before awaiting I/O. The caller cannot alter the
     // serialized effects while claim acquisition is pending.
     const policy = parseAccessPolicy(input.policy);
-    if (!policy) throw new AuthorizationStoreInputError();
+    const beforePolicy = parseAccessPolicy(input.beforePolicy);
+    if (!policy || !beforePolicy) throw new AuthorizationStoreInputError();
     const claim = crypto.randomUUID(), auditId = crypto.randomUUID();
     const claimExists = `EXISTS (SELECT 1 FROM ${table.access_audit}
       WHERE id = ? AND claim_nonce = ? AND action = 'authorization-updated')`;
     const guard = () => [auditId, claim];
     const rolesJson = JSON.stringify(policy.roles);
-    const statements = [
-      statement(`INSERT INTO ${table.access_audit} (id, action, principal_id, session_id, claim_nonce, created_at_ms)
+    const statements: SqlStatement[] = [
+      planned(`INSERT INTO ${table.access_audit} (id, action, principal_id, session_id, claim_nonce, created_at_ms)
         SELECT ?, 'authorization-updated', p.id, s.id, ?, ${NOW} ${sessionFrom}
         WHERE ${liveSession} AND s.id = ? AND p.id = ? AND a.epoch = ? AND a.epoch < ${MAX_EPOCH}
           AND EXISTS (SELECT 1 FROM ${table.contexts} WHERE id = 'application' AND status = 'active')
@@ -351,45 +356,59 @@ export function createD1AuthorizationStore(db: IdentityDatabase) {
             AND context_id = 'application' AND audience = 'admin' AND status = 'active')`,
       [auditId, claim, input.sessionDigest, 'admin', input.sessionId, input.principalId, input.epoch]),
       ...(['role_assignments', 'principal_overrides', 'role_parents', 'role_grants', 'role_overrides', 'memberships'] as const)
-        .map(id => statement(`DELETE FROM ${table[id]} WHERE ${claimExists}`, guard())),
-      statement(`INSERT INTO ${table.contexts} (id, status)
+        .map(id => planned(`DELETE FROM ${table[id]} WHERE ${claimExists}`, guard())),
+      planned(`INSERT INTO ${table.contexts} (id, status)
         SELECT json_extract(value, '$.id'), json_extract(value, '$.status') FROM json_each(?) WHERE ${claimExists}
         ON CONFLICT(id) DO UPDATE SET status = excluded.status`, [JSON.stringify(policy.contexts), ...guard()]),
-      statement(`INSERT INTO ${table.roles} (id)
+      planned(`INSERT INTO ${table.roles} (id)
         SELECT json_extract(value, '$.id') FROM json_each(?) WHERE ${claimExists}
         ON CONFLICT(id) DO NOTHING`, [rolesJson, ...guard()]),
-      statement(`DELETE FROM ${table.roles} WHERE id NOT IN (SELECT json_extract(value, '$.id') FROM json_each(?))
+      planned(`DELETE FROM ${table.roles} WHERE id NOT IN (SELECT json_extract(value, '$.id') FROM json_each(?))
         AND ${claimExists}`, [rolesJson, ...guard()]),
-      statement(`INSERT INTO ${table.memberships} (principal_id, context_id, audience, status)
+      planned(`INSERT INTO ${table.memberships} (principal_id, context_id, audience, status)
         SELECT json_extract(value, '$.principalId'), json_extract(value, '$.contextId'),
           json_extract(value, '$.audience'), json_extract(value, '$.status') FROM json_each(?) WHERE ${claimExists}`,
       [JSON.stringify(policy.memberships), ...guard()]),
-      statement(`INSERT INTO ${table.role_parents} (role_id, parent_role_id)
+      planned(`INSERT INTO ${table.role_parents} (role_id, parent_role_id)
         SELECT json_extract(r.value, '$.id'), p.value FROM json_each(?) r, json_each(r.value, '$.inherits') p WHERE ${claimExists}`,
       [rolesJson, ...guard()]),
-      statement(`INSERT INTO ${table.role_grants} (role_id, permission_id)
+      planned(`INSERT INTO ${table.role_grants} (role_id, permission_id)
         SELECT json_extract(r.value, '$.id'), g.value FROM json_each(?) r, json_each(r.value, '$.permissionIds') g WHERE ${claimExists}`,
       [rolesJson, ...guard()]),
-      statement(`INSERT INTO ${table.role_overrides} (role_id, permission_id, effect)
+      planned(`INSERT INTO ${table.role_overrides} (role_id, permission_id, effect)
         SELECT json_extract(r.value, '$.id'), json_extract(o.value, '$.permissionId'), json_extract(o.value, '$.effect')
         FROM json_each(?) r, json_each(r.value, '$.permissionOverrides') o WHERE ${claimExists}`, [rolesJson, ...guard()]),
-      statement(`INSERT INTO ${table.role_assignments} (principal_id, context_id, audience, role_id)
+      planned(`INSERT INTO ${table.role_assignments} (principal_id, context_id, audience, role_id)
         SELECT json_extract(value, '$.principalId'), json_extract(value, '$.contextId'),
           json_extract(value, '$.audience'), json_extract(value, '$.roleId') FROM json_each(?) WHERE ${claimExists}`,
       [JSON.stringify(policy.assignments), ...guard()]),
-      statement(`INSERT INTO ${table.principal_overrides} (principal_id, context_id, audience, permission_id, effect)
+      planned(`INSERT INTO ${table.principal_overrides} (principal_id, context_id, audience, permission_id, effect)
         SELECT json_extract(value, '$.principalId'), json_extract(value, '$.contextId'), json_extract(value, '$.audience'),
           json_extract(value, '$.permissionId'), json_extract(value, '$.effect') FROM json_each(?) WHERE ${claimExists}`,
       [JSON.stringify(policy.overrides), ...guard()]),
-      statement(`UPDATE ${table.authorization_state} SET epoch = epoch + 1, updated_at_ms = ${NOW}
+      planned(`UPDATE ${table.authorization_state} SET epoch = epoch + 1, updated_at_ms = ${NOW}
         WHERE id = 'application' AND epoch = ? AND ${claimExists}`, [input.epoch, ...guard()]),
     ];
-    const results = await batch(statements);
+    const changesJson = JSON.stringify({version: 1, beforePolicy, afterPolicy: policy});
+    if (new TextEncoder().encode(changesJson).length > 524_288) throw new AuthorizationStoreInputError();
+    statements.push(planned(`INSERT INTO ${table.access_policy_audit_details}
+      (audit_id, from_epoch, to_epoch, changes_json)
+      SELECT ?, ?, ?, ? WHERE ${claimExists}`,
+    [auditId, input.epoch, input.epoch + 1, changesJson, ...guard()]));
+    return Object.freeze({auditId, claim, statements: Object.freeze(statements),
+      assertion: planned(`SELECT CASE WHEN ${claimExists} THEN 1 ELSE json('creezio_access_policy_conflict') END AS accepted`, guard())});
+  }
+
+  async function commitPolicy(input: CommitAccessPolicyInput): Promise<boolean> {
+    const plan = preparePolicyCommit(input);
+    const results = await batch(plan.statements.map(item => statement(item.sql, [...item.bindings])));
     const acquired = results[0].meta.changes;
     if (acquired !== 0 && acquired !== 1) throw new AuthorizationStoreError();
-    if (results.at(-1)!.meta.changes !== acquired) throw new AuthorizationStoreError();
+    // The authorization state update precedes the required detail insert.
+    if (results.at(-2)!.meta.changes !== acquired || results.at(-1)!.meta.changes !== acquired)
+      throw new AuthorizationStoreError();
     return acquired === 1;
   }
 
-  return Object.freeze({ read, readMachine, readForImpersonation, readImpersonation, commitPolicy });
+  return Object.freeze({ read, readMachine, readForImpersonation, readImpersonation, commitPolicy, preparePolicyCommit });
 }

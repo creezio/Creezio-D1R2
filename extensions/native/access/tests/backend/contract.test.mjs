@@ -6,7 +6,7 @@ import {generateD1Schema} from '../../../../../scripts/data/d1-schema.mjs';
 test('access owns private identity models and a deterministic relational schema',()=>{
  const models=JSON.parse(read('module/models.json'));
  assert.deepEqual(manifest.contracts.models,models);
- assert.equal(models.length,21);
+ assert.equal(models.length,22);
  for(const model of models){assert.equal(model.public,false);assert.ok(model.fields.every(field=>field.protected));}
  const generated=generateD1Schema(manifest.identity.id,models);
  assert.equal(Object.keys(generated.tables).length,models.length);

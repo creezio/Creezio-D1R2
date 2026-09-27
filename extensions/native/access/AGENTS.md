@@ -2,6 +2,8 @@
 
 Appliquer les [instructions du dépôt](../../../AGENTS.md) et le [standard](../../../docs/STANDARD-MODULE.md). Travail rattaché à T-04 et REQ-0401/REQ-0402 ; OAuth complet demeure T-10.
 
+La vue Rôles & accès reprend l'interface originale : matrice, comptes, journal. Son input est un objet vide strict ; le contexte d'autorisation vient du workspace, pas d'un paramètre métier. Utiliser le SDK public et les dix opérations déclarées. Toute nouvelle politique conserve avant/après dans le même batch que ses effets et son résultat. Une commande incertaine conserve sa clé, y compris si la lecture de réconciliation est refusée ou indisponible ; seul un résultat terminal confirmé permet de la libérer. Les six CI et l'agrégat d'hôte incluent les tests de projection, navigation et persistance du panneau.
+
 Modifier les modèles actuels dans `module/models.json`, puis régénérer explicitement le manifeste et le SQL central ; ne pas écrire de scripts de transformation SQL dans ce module. Tous les champs d'identité restent protégés et privés ; aucun port public de stockage n'est fourni.
 
 Préserver les six suites, le PRD de travail, les décisions et le changelog. La tranche de stockage n'autorise ni un faux écran de connexion ni une exposition anonyme du provisionnement. Le marqueur d'installation consommée ne disparaît jamais lors de la suppression d'un compte. Aucun cookie, header GPT ou email déclaré ne donne de rôle.

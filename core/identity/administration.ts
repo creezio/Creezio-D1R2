@@ -28,7 +28,7 @@ const validStatus = (value: unknown): value is HumanStatusInput['status'] => val
  * own transport and then call these methods. A session or authorization snapshot
  * is never returned as a write permit; the D1 store rechecks it in each batch.
  */
-export function createAccountAdministrationService(db: IdentityDatabase, options: { permissions: readonly PermissionDefinition[] }) {
+function createAccountAdministrationServices(db: IdentityDatabase, options: { permissions: readonly PermissionDefinition[] }) {
   const store = createD1AccountAdministrationStore(db);
   const identity = createD1IdentityStore(db);
   const { resolve, permissions } = createNativeAuthorizationResolver(db, options);
@@ -136,7 +136,45 @@ export function createAccountAdministrationService(db: IdentityDatabase, options
     } catch { return fail('storage_error'); }
   }
 
+  /** Host executor only: prepare T04's guarded writes for the T06 commit batch. */
+  async function prepareSetHumanStatus(token: unknown, input: unknown) {
+    const captured = statusInput(input);
+    if (!captured) return fail('invalid_input');
+    try {
+      const current = await administration(token); if (!current.ok) return current;
+      const plan = store.prepareSetHumanStatus(current.guard, captured);
+      return plan ? Object.freeze({ok: true as const, ...plan}) : fail('conflict');
+    } catch { return fail('storage_error'); }
+  }
+  async function prepareRevokeAllHumanSessions(token: unknown, input: unknown) {
+    const captured = versionInput(input);
+    if (!captured) return fail('invalid_input');
+    try {
+      const current = await administration(token); if (!current.ok) return current;
+      return Object.freeze({ok: true as const, ...store.prepareRevokeAllHumanSessions(current.guard, captured)});
+    } catch { return fail('storage_error'); }
+  }
+  async function prepareRevokeSessionById(token: unknown, input: unknown) {
+    const captured = sessionInput(input);
+    if (!captured) return fail('invalid_input');
+    try {
+      const current = await administration(token); if (!current.ok) return current;
+      return Object.freeze({ok: true as const, ...store.prepareRevokeSessionById(current.guard, captured)});
+    } catch { return fail('storage_error'); }
+  }
+
   // Keep the explicit store verb in the service surface so the transport cannot
   // confuse a targeted session revocation with the version-wide operation.
-  return Object.freeze({ listPrincipals, listSessions, setHumanStatus, revokeAllHumanSessions, revokeSessionById });
+  return Object.freeze({publicService: Object.freeze({ listPrincipals, listSessions, setHumanStatus,
+    revokeAllHumanSessions, revokeSessionById }), hostPlans: Object.freeze({prepareSetHumanStatus,
+    prepareRevokeAllHumanSessions, prepareRevokeSessionById})});
+}
+
+export function createAccountAdministrationService(db: IdentityDatabase, options: { permissions: readonly PermissionDefinition[] }) {
+  return createAccountAdministrationServices(db, options).publicService;
+}
+
+/** Host-only bridge for committing T04 effects with an operation execution. */
+export function createAccountAdministrationPlanService(db: IdentityDatabase, options: { permissions: readonly PermissionDefinition[] }) {
+  return createAccountAdministrationServices(db, options).hostPlans;
 }

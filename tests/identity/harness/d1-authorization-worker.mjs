@@ -46,6 +46,7 @@ export default {
           value = await createD1AuthorizationStore(env.DB).commitPolicy({
             sessionDigest: await digestOpaqueToken(body.args[0], 'session'), sessionId: session.id,
             principalId: session.principalId, epoch: body.args[1].epoch, policy: body.args[1].policy,
+            beforePolicy: body.args[1].beforePolicy,
           });
           break;
         }

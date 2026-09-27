@@ -1,6 +1,7 @@
 import { ACCESS_TABLES, normalizeLoginIdentifier, type IdentityDatabase } from './d1-store.ts';
 import { identityInputFields, normalizeDisplayName, validIdentityId } from './input.ts';
 import type { LifecycleGuard } from './lifecycle-store.ts';
+import type { SqlStatement } from '../data/authorization.ts';
 
 export interface AdministrativePrincipal {
   readonly id: string;
@@ -77,6 +78,7 @@ export function createD1AccountAdministrationStore(db: IdentityDatabase) {
   const statement = (sql: string, values: (string | number | null)[] = []) => {
     try { return db.prepare(sql).bind(...values); } catch { throw new AdministrationStoreError(); }
   };
+  const planned = (sql: string, bindings: (string | number | null)[] = []): SqlStatement => ({sql, bindings});
   async function batch(statements: D1PreparedStatement[]): Promise<D1Result<Record<string, unknown>>[]> {
     try {
       const results = await db.batch<Record<string, unknown>>(statements);
@@ -84,6 +86,7 @@ export function createD1AccountAdministrationStore(db: IdentityDatabase) {
       return results;
     } catch { throw new AdministrationStoreError(); }
   }
+  const execute = (plans: readonly SqlStatement[]) => batch(plans.map(item => statement(item.sql, [...item.bindings])));
   const adminFrom = `FROM ${table.sessions} s JOIN ${table.principals} p ON p.id = s.principal_id
     JOIN ${table.human_accounts} h ON h.principal_id = p.id
     JOIN ${table.password_credentials} c ON c.principal_id = p.id
@@ -157,13 +160,13 @@ export function createD1AccountAdministrationStore(db: IdentityDatabase) {
     const auditId = crypto.randomUUID(), nonce = crypto.randomUUID();
     const exists = `EXISTS (SELECT 1 FROM ${table.access_audit} WHERE id = ? AND claim_nonce = ? AND action = ?)`;
     const args = () => [auditId, nonce, action];
-    return { auditId, nonce, exists, args, query: statement(`INSERT INTO ${table.access_audit}
+    return { auditId, nonce, exists, args, query: planned(`INSERT INTO ${table.access_audit}
       (id, action, principal_id, session_id, claim_nonce, created_at_ms, target_principal_id, target_session_id)
       SELECT ?, ?, p.id, s.id, ?, ${NOW}, NULL, NULL ${adminFrom} WHERE ${liveAdmin} AND (${extra})`,
     [auditId, action, nonce, ...guardArgs(guard), ...values]) };
   }
   type Claim = ReturnType<typeof acquire>;
-  const recordTarget = (claim: Claim, principalId: string, sessionId: string | null = null) => statement(
+  const recordTarget = (claim: Claim, principalId: string, sessionId: string | null = null) => planned(
     `UPDATE ${table.access_audit} SET target_principal_id = ?, target_session_id = ? WHERE id = ? AND claim_nonce = ?`,
     [principalId, sessionId, claim.auditId, claim.nonce]);
   function targetVersion(value: unknown): HumanVersionInput {
@@ -173,14 +176,14 @@ export function createD1AccountAdministrationStore(db: IdentityDatabase) {
   }
   const humanTarget = `EXISTS (SELECT 1 ${principalFrom} WHERE tp.id = ? AND tp.kind = 'human'
     AND th.principal_id IS NOT NULL AND tp.auth_version = ?)`;
-  function markers(claim: Claim, target: HumanVersionInput): D1PreparedStatement[] {
+  function markers(claim: Claim, target: HumanVersionInput): SqlStatement[] {
     // The version change invalidates ALL old sessions and capabilities. These
     // physical markers intentionally leave historical/expired rows untouched.
-    return [statement(`UPDATE ${table.sessions} SET revoked_at_ms = ${NOW}, revocation_nonce = ?
+    return [planned(`UPDATE ${table.sessions} SET revoked_at_ms = ${NOW}, revocation_nonce = ?
       WHERE id IN (SELECT id FROM ${table.sessions} WHERE principal_id = ? AND auth_version = ?
         AND revoked_at_ms IS NULL AND expires_at_ms > ${NOW} LIMIT ${ADMINISTRATION_STORE_LIMITS.sessionMarkers}) AND ${claim.exists}`,
     [claim.nonce, target.principalId, target.expectedAuthVersion, ...claim.args()]),
-    statement(`UPDATE ${table.account_capabilities} SET revoked_at_ms = ${NOW}
+    planned(`UPDATE ${table.account_capabilities} SET revoked_at_ms = ${NOW}
       WHERE id IN (SELECT id FROM ${table.account_capabilities} WHERE principal_id = ? AND auth_version = ?
         AND revoked_at_ms IS NULL AND consumed_at_ms IS NULL AND expires_at_ms > ${NOW}
         LIMIT ${ADMINISTRATION_STORE_LIMITS.capabilityMarkers}) AND ${claim.exists}`,
@@ -191,7 +194,7 @@ export function createD1AccountAdministrationStore(db: IdentityDatabase) {
     if (count !== 0 && count !== 1) throw new AdministrationStoreError();
     return count === 1;
   }
-  async function setHumanStatus(guardValue: LifecycleGuard, input: HumanStatusInput): Promise<AdministrativePrincipal | null> {
+  function prepareSetHumanStatus(guardValue: LifecycleGuard, input: HumanStatusInput) {
     const guard = captureGuard(guardValue);
     if (!identityInputFields(input, ['principalId', 'expectedAuthVersion', 'status']) || !principalStatus(input.status)) throw new AdministrationStoreInputError();
     const target = targetVersion({ principalId: input.principalId, expectedAuthVersion: input.expectedAuthVersion }), nextStatus = input.status;
@@ -200,53 +203,76 @@ export function createD1AccountAdministrationStore(db: IdentityDatabase) {
       AND EXISTS (SELECT 1 FROM ${table.principals} WHERE id = ? AND status <> ?)
       AND (? <> 'disabled' OR p.id <> ?)`,
     [target.principalId, target.expectedAuthVersion, target.principalId, nextStatus, nextStatus, target.principalId]);
-    const results = await batch([
+    const statements: SqlStatement[] = [
       claim.query,
-      statement(`UPDATE ${table.principals} SET status = ?, auth_version = auth_version + 1, updated_at_ms = ${NOW}
+      planned(`UPDATE ${table.principals} SET status = ?, auth_version = auth_version + 1, updated_at_ms = ${NOW}
         WHERE id = ? AND ${claim.exists}`, [nextStatus, target.principalId, ...claim.args()]),
       ...markers(claim, target), recordTarget(claim, target.principalId),
-      statement(`SELECT ${principalColumns} ${principalFrom} WHERE tp.id = ? AND ${claim.exists}`, [target.principalId, ...claim.args()]),
-    ]);
+      planned(`SELECT ${principalColumns} ${principalFrom} WHERE tp.id = ? AND ${claim.exists}`, [target.principalId, ...claim.args()]),
+    ];
+    return Object.freeze({statements: Object.freeze(statements),
+      assertion: planned(`SELECT CASE WHEN ${claim.exists} THEN 1 ELSE json('creezio_access_admin_conflict') END AS accepted`, claim.args()),
+      output: Object.freeze({principalId: target.principalId, status: nextStatus, authVersion: target.expectedAuthVersion + 1})});
+  }
+  async function setHumanStatus(guardValue: LifecycleGuard, input: HumanStatusInput): Promise<AdministrativePrincipal | null> {
+    const plan = prepareSetHumanStatus(guardValue, input);
+    if (!plan) return null;
+    const results = await execute(plan.statements);
     if (!didAcquire(results)) return null;
     if (results.at(-1)!.results.length !== 1) throw new AdministrationStoreError();
     return principalRow(results.at(-1)!.results[0]);
   }
+  function prepareRevokeAllHumanSessions(guardValue: LifecycleGuard, input: HumanVersionInput) {
+    const guard = captureGuard(guardValue), target = targetVersion(input);
+    const claim = acquire(guard, 'human-sessions-revoked', humanTarget, [target.principalId, target.expectedAuthVersion]);
+    const statements: SqlStatement[] = [
+      claim.query,
+      planned(`UPDATE ${table.principals} SET auth_version = auth_version + 1, updated_at_ms = ${NOW}
+        WHERE id = ? AND ${claim.exists}`, [target.principalId, ...claim.args()]),
+      ...markers(claim, target), recordTarget(claim, target.principalId),
+      planned(`SELECT id AS principalId, auth_version AS authVersion FROM ${table.principals}
+        WHERE id = ? AND ${claim.exists}`, [target.principalId, ...claim.args()]),
+    ];
+    return Object.freeze({statements: Object.freeze(statements),
+      assertion: planned(`SELECT CASE WHEN ${claim.exists} THEN 1 ELSE json('creezio_access_admin_conflict') END AS accepted`, claim.args()),
+      output: Object.freeze({principalId: target.principalId, authVersion: target.expectedAuthVersion + 1})});
+  }
   async function revokeAllHumanSessions(guardValue: LifecycleGuard, input: HumanVersionInput): Promise<{
     readonly principalId: string; readonly authVersion: number;
   } | null> {
-    const guard = captureGuard(guardValue), target = targetVersion(input);
-    const claim = acquire(guard, 'human-sessions-revoked', humanTarget, [target.principalId, target.expectedAuthVersion]);
-    const results = await batch([
-      claim.query,
-      statement(`UPDATE ${table.principals} SET auth_version = auth_version + 1, updated_at_ms = ${NOW}
-        WHERE id = ? AND ${claim.exists}`, [target.principalId, ...claim.args()]),
-      ...markers(claim, target), recordTarget(claim, target.principalId),
-      statement(`SELECT id AS principalId, auth_version AS authVersion FROM ${table.principals}
-        WHERE id = ? AND ${claim.exists}`, [target.principalId, ...claim.args()]),
-    ]);
+    const plan = prepareRevokeAllHumanSessions(guardValue, input);
+    const results = await execute(plan.statements);
     if (!didAcquire(results)) return null;
     const rows = results.at(-1)!.results;
-    if (rows.length !== 1 || rows[0].principalId !== target.principalId || rows[0].authVersion !== target.expectedAuthVersion + 1) throw new AdministrationStoreError();
-    return Object.freeze({ principalId: target.principalId, authVersion: target.expectedAuthVersion + 1 });
+    if (rows.length !== 1 || rows[0].principalId !== plan.output.principalId || rows[0].authVersion !== plan.output.authVersion) throw new AdministrationStoreError();
+    return plan.output;
   }
-  async function revokeSessionById(guardValue: LifecycleGuard, input: { readonly sessionId: string }): Promise<boolean> {
+  function prepareRevokeSessionById(guardValue: LifecycleGuard, input: { readonly sessionId: string }) {
     const guard = captureGuard(guardValue);
     if (!identityInputFields(input, ['sessionId']) || !validIdentityId(input.sessionId)) throw new AdministrationStoreInputError();
     const sessionId = input.sessionId;
     const claim = acquire(guard, 'human-session-revoked', `EXISTS (SELECT 1 FROM ${table.sessions} ts
       JOIN ${table.principals} tp ON tp.id = ts.principal_id JOIN ${table.human_accounts} th ON th.principal_id = tp.id
       WHERE ts.id = ? AND tp.kind = 'human' AND ts.revoked_at_ms IS NULL)`, [sessionId]);
-    const results = await batch([
+    const statements: SqlStatement[] = [
       claim.query,
-      statement(`UPDATE ${table.sessions} SET revoked_at_ms = ${NOW}, revocation_nonce = ?
+      planned(`UPDATE ${table.sessions} SET revoked_at_ms = ${NOW}, revocation_nonce = ?
         WHERE id = ? AND ${claim.exists}`, [claim.nonce, sessionId, ...claim.args()]),
-      statement(`UPDATE ${table.access_audit} SET target_principal_id =
+      planned(`UPDATE ${table.access_audit} SET target_principal_id =
         (SELECT principal_id FROM ${table.sessions} WHERE id = ?), target_session_id = ?
         WHERE id = ? AND claim_nonce = ?`, [sessionId, sessionId, claim.auditId, claim.nonce]),
-    ]);
+    ];
+    return Object.freeze({statements: Object.freeze(statements),
+      assertion: planned(`SELECT CASE WHEN ${claim.exists} THEN 1 ELSE json('creezio_access_admin_conflict') END AS accepted`, claim.args()),
+      output: Object.freeze({sessionId, revoked: true as const})});
+  }
+  async function revokeSessionById(guardValue: LifecycleGuard, input: { readonly sessionId: string }): Promise<boolean> {
+    const plan = prepareRevokeSessionById(guardValue, input);
+    const results = await execute(plan.statements);
     const acquired = didAcquire(results);
     if (results[1].meta.changes !== Number(acquired) || results[2].meta.changes !== Number(acquired)) throw new AdministrationStoreError();
     return acquired;
   }
-  return Object.freeze({ listPrincipals, listSessions, setHumanStatus, revokeAllHumanSessions, revokeSessionById });
+  return Object.freeze({ listPrincipals, listSessions, setHumanStatus, revokeAllHumanSessions, revokeSessionById,
+    prepareSetHumanStatus, prepareRevokeAllHumanSessions, prepareRevokeSessionById });
 }

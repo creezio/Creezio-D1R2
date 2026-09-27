@@ -1,6 +1,8 @@
 // The root gate executes every native module family; a module cannot silently opt out.
 import '../../extensions/native/access/tests/backend/contract.test.mjs';
 import '../../extensions/native/access/tests/ui/contract.test.mjs';
+import '../../extensions/native/access/tests/ui/projection.test.mjs';
+import '../../extensions/native/access/tests/ui/persistence.test.mjs';
 import '../../extensions/native/access/tests/api-mcp/contract.test.mjs';
 import '../../extensions/native/access/tests/widgets/contract.test.mjs';
 import '../../extensions/native/access/tests/package/contract.test.mjs';

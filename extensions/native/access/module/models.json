@@ -953,6 +953,14 @@
           "principal_id"
         ],
         "unique": false
+      },
+      {
+        "id": "chronological",
+        "fields": [
+          "created_at_ms",
+          "id"
+        ],
+        "unique": false
       }
     ],
     "relations": [
@@ -2556,6 +2564,90 @@
           "moduleId": "creezio.access",
           "kind": "model",
           "id": "impersonations"
+        },
+        "targetFields": [
+          "id"
+        ],
+        "onDelete": "restrict"
+      }
+    ],
+    "permissions": [
+      {
+        "moduleId": "creezio.access",
+        "kind": "permission",
+        "id": "manage"
+      }
+    ],
+    "deletion": {
+      "mode": "hard",
+      "requiresApproval": true
+    },
+    "public": false
+  },
+  {
+    "id": "access_policy_audit_details",
+    "title": "Detailed authorization policy changes",
+    "scope": "application",
+    "fields": [
+      {
+        "id": "audit_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "from_epoch",
+        "type": "integer",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "to_epoch",
+        "type": "integer",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minimum": 2,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "changes_json",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 2,
+          "maxLength": 524288
+        }
+      }
+    ],
+    "primaryKey": [
+      "audit_id"
+    ],
+    "indexes": [],
+    "relations": [
+      {
+        "id": "audit",
+        "fields": [
+          "audit_id"
+        ],
+        "target": {
+          "moduleId": "creezio.access",
+          "kind": "model",
+          "id": "access_audit"
         },
         "targetFields": [
           "id"

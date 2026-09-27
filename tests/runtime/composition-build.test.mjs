@@ -51,7 +51,11 @@ const generated = (root, name) => path.join(root, '.creezio/generated', name);
 const generatedNames = ['server.ts', 'client.tsx', 'composition.json', 'data-catalog.ts', 'operations.ts', 'operation-validators.mjs'];
 async function clientRegistry(root) {
   const source = readFileSync(generated(root, 'client.tsx'), 'utf8');
-  const { code } = await transform(source, { loader: 'tsx', format: 'esm' });
+  // This unit qualifies the emitted audience flags; full component imports are
+  // exercised by the application build and native UI recipe, not this temp root.
+  const declaration = source.match(/^export const nativeAccess = Object\.freeze\([^\r\n]+\);$/m)?.[0];
+  assert.ok(declaration, 'Generated client must expose explicit immutable native audiences');
+  const { code } = await transform(declaration, { loader: 'tsx', format: 'esm' });
   return import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 }
 
@@ -79,11 +83,12 @@ test('an explicitly empty composition builds no module, view, native access or w
   assert.doesNotMatch(readFileSync(generated(f.root, 'client.tsx'), 'utf8'), /fixtures\/module-witness/);
 });
 
-test('default native access composition explicitly enables both audiences without synthetic module APIs', async t => {
+test('default native access composition enables native audiences and the declared administration view', async t => {
   const f=fixture(t,'access'), result=await composeRuntime({root:f.root});
-  assert.equal(result.moduleCount,1);assert.equal(result.viewCount,0);
+  assert.equal(result.moduleCount,1);assert.equal(result.viewCount,1);
   assert.deepEqual(f.composition.modules.map(module=>module.moduleId),['creezio.access']);
-  assert.deepEqual(f.module.contracts.api,[]);assert.deepEqual(f.module.contracts.operations,[]);
+  assert.equal(f.module.contracts.operations.length,10);
+  assert.ok(f.module.contracts.api.every(api=>api.audience==='admin'&&api.auth.length===1&&api.auth[0]==='session'));
   const registry=await import(pathToFileURL(generated(f.root,'server.ts')).href);
   assert.deepEqual(registry.nativeAccess,{admin:true,app:true});assert.ok(Object.isFrozen(registry.nativeAccess));
   assert.throws(()=>{registry.nativeAccess.admin=false;},TypeError);
@@ -91,7 +96,8 @@ test('default native access composition explicitly enables both audiences withou
   assert.deepEqual(client.nativeAccess, registry.nativeAccess);
   assert.ok(Object.isFrozen(client.nativeAccess));
   assert.throws(() => { client.nativeAccess.app = false; }, TypeError);
-  assert.deepEqual(registry.modules,[{id:'creezio.access',version:'0.0.0',operations:[]}]);
+  assert.equal(registry.modules[0].id,'creezio.access');
+  assert.deepEqual(registry.modules[0].operations.map(operation=>operation.operationId),f.module.contracts.api.map(api=>api.operation.id));
   assert.deepEqual(result.nativeAccess,registry.nativeAccess);assert.ok(Object.isFrozen(result.nativeAccess));
   assert.deepEqual(read(generated(f.root,'composition.json')).nativeAccess,registry.nativeAccess);
   assert.doesNotMatch(readFileSync(generated(f.root,'server.ts'),'utf8'),/module\/entry\.server|example\.witness|fixtures\/module-witness/);
@@ -290,7 +296,8 @@ test('an undeclared handler and a non-static export are rejected before import',
   const f = fixture(t); f.module.packaging.runtime.files=f.module.packaging.runtime.files.filter(name=>name!=='module/operations.ts');f.save();
   await assert.rejects(composeRuntime({root:f.root}),error=>error.code==='composition.invalid'&&error.diagnostics.some(item=>item.code==='path.missing'));
   f.module.packaging.runtime.files.push('module/operations.ts');f.module.contracts.operations[0].handler.export='private.entry';f.save();
-  await assert.rejects(composeRuntime({root:f.root}),error=>error.code==='source.export');
+  await assert.rejects(composeRuntime({root:f.root}),error=>error.code==='composition.invalid'
+    && error.diagnostics.some(item=>item.code==='schema.invalid'&&item.path.endsWith('/handler/export')));
 });
 
 test('composition reads declarations without evaluating module factories or handlers', async t => {

@@ -337,6 +337,28 @@ test('impersonation D1 models preserve source/subject relations, immutable scope
   assert.deepEqual(await inspectD1Schema(db,'creezio.access',models),{ok:true,errors:[]});
 });
 
+test('policy audit details remain private, bounded and attached to retained access history', { timeout: 30000 }, async t => {
+  const db = await database(t);
+  const models = JSON.parse(readFileSync(new URL('../../extensions/native/access/module/models.json', import.meta.url), 'utf8'));
+  const generated = generateD1Schema('creezio.access', models);
+  const table = id => quote(generated.tables[id]);
+  await apply(db, generated);
+  await db.prepare(`INSERT INTO ${table('principals')} (id,kind,status,display_name,auth_version,created_at_ms,updated_at_ms) VALUES ('auditor','human','active','Auditor',1,0,0)`).run();
+  await db.prepare(`INSERT INTO ${table('access_audit')} (id,action,principal_id,claim_nonce,created_at_ms) VALUES ('audit','authorization-updated','auditor','audit-claim',0)`).run();
+  const insert = (auditId, fromEpoch, toEpoch, changes) => db.prepare(`INSERT INTO ${table('access_policy_audit_details')} (audit_id,from_epoch,to_epoch,changes_json) VALUES (?,?,?,?)`).bind(auditId,fromEpoch,toEpoch,changes).run();
+  await assert.rejects(insert('missing',1,2,'{}'), /FOREIGN KEY constraint failed/);
+  await assert.rejects(insert('audit',0,2,'{}'), /CHECK constraint failed/);
+  await assert.rejects(insert('audit',1,1,'{}'), /CHECK constraint failed/);
+  await assert.rejects(insert('audit',1,2,'x'.repeat(524289)), /CHECK constraint failed/);
+  await insert('audit',1,2,'{}');
+  await assert.rejects(db.prepare(`DELETE FROM ${table('access_audit')} WHERE id='audit'`).run(), /FOREIGN KEY constraint failed/);
+  const indexes = await db.prepare(`PRAGMA index_list(${table('access_audit')})`).all();
+  const columns = await Promise.all(indexes.results.map(index => db.prepare(`PRAGMA index_info("${String(index.name).replaceAll('"','""')}")`).all()));
+  assert.ok(columns.some(result => JSON.stringify(result.results.map(column=>column.name)) === '["created_at_ms","id"]'));
+  const owned = models.find(model => model.id === 'access_policy_audit_details');
+  assert.equal(owned.public, false); assert.ok(owned.fields.every(field => field.protected));
+});
+
 test('read-only schema inspection refuses missing, changed and extra module objects, not other modules', { timeout: 30000 }, async t => {
   const db = await database(t), models = [model()];
   const generated = generateD1Schema(moduleId, models), table = quote(generated.tables.items);

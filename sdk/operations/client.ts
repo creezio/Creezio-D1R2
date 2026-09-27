@@ -90,7 +90,8 @@ function requestParts(origin: string, binding: OperationHttpBinding, contextId: 
   const headers = new Headers({'accept': 'application/json', 'x-creezio-context': contextId});
   if (binding.method !== 'GET') { headers.set('content-type', 'application/json'); headers.set('x-creezio-request', '1'); }
   for (const parameter of binding.parameters) {
-    const value = input[parameter.inputField]; fields.add(parameter.inputField);
+    const value = Object.hasOwn(input, parameter.inputField) ? input[parameter.inputField] : undefined;
+    fields.add(parameter.inputField);
     if (value === undefined || value === null) { if (parameter.required) return null; continue; }
     const encoded = primitive(value, parameter.codec); if (encoded === null) return null;
     if (parameter.in === 'path') path = path.replace(`{${parameter.name}}`, encodeURIComponent(encoded));

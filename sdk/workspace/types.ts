@@ -12,6 +12,8 @@ export interface WorkspacePanelPolicy {
   readonly inactiveEffects: 'suspend' | 'explicit-read-only';
 }
 export interface WorkspaceViewProps {
+  /** Host-owned session controller; views may observe revocation, never mint identity. */
+  readonly access: AccessController;
   readonly input: WorkspaceInput;
   /** Stable identity of the containing retained panel. */
   readonly panelId: string;
@@ -19,6 +21,8 @@ export interface WorkspaceViewProps {
   readonly location: WorkspaceLocation;
   readonly contextId: string;
   readonly audience: AccessAudience;
+  /** Fresh host projection still permits this retained pane. */
+  readonly authorized: boolean;
   readonly active: boolean;
   readonly navigation: WorkspaceNavigation;
   readonly client: WorkspaceOperationClient;

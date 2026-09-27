@@ -163,10 +163,10 @@
                 "const": "cursor"
               },
               "cursorField": {
-                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/fieldName"
               },
               "limitField": {
-                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/fieldName"
               },
               "maxItems": {
                 "type": "integer",
@@ -205,7 +205,7 @@
                 "const": "required"
               },
               "keyField": {
-                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/fieldName"
               },
               "scope": {
                 "type": "string",
@@ -293,7 +293,7 @@
             ]
           },
           "versionField": {
-            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/fieldName"
           }
         },
         "required": [
@@ -343,7 +343,7 @@
           "redactFields": {
             "type": "array",
             "items": {
-              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/fieldName"
             },
             "minItems": 0,
             "maxItems": 1000

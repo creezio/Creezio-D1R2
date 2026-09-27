@@ -39,6 +39,19 @@ test('client fixes a declared same-origin session route, primitive mapping and m
   for (const name of ['authorization', 'cookie', 'origin']) assert.equal(headers.has(name), false);
 });
 
+test('optional mapped fields never read inherited Object methods', async () => {
+  const calls = [];
+  const client = createOperationClient({origin, audience: 'app', access: access(), bindings: [binding({
+    method: 'GET', path: '/api/notes', kind: 'query', parameters: [
+      {name: 'label', in: 'query', inputField: 'toString', required: false, codec: 'string'}]
+  })], fetcher: async url => {calls.push(url); return json({execution: execution()});}});
+  for (const input of [{}, {toString: 'explicit'}]) {
+    const result = await client.invoke({bindingId: 'example.notes:patch-http', contextId: 'workspace-a', input});
+    assert.equal(result.kind, 'execution');
+  }
+  assert.deepEqual(calls, [`${origin}/api/notes`, `${origin}/api/notes?label=explicit`]);
+});
+
 test('client refuses undeclared bindings, audience mismatch, invalid mapped fields and anonymous sessions before fetch', async () => {
   let calls = 0; const observed = access();
   const client = createOperationClient({origin, audience: 'app', access: observed, bindings: [binding()], fetcher: async () => {

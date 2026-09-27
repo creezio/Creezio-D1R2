@@ -65,7 +65,7 @@
               "identityFields": {
                 "type": "array",
                 "items": {
-                  "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+                  "$ref": "urn:creezio:contracts:v1:common#/$defs/fieldName"
                 },
                 "minItems": 0,
                 "maxItems": 1000

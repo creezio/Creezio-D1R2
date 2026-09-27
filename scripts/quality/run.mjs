@@ -11,7 +11,7 @@ const started = new Date().toISOString();
 const evidencePath = resolve(root, '.quality/latest.json');
 mkdirSync(dirname(evidencePath), { recursive: true });
 const write = value => writeFileSync(evidencePath, JSON.stringify(value, null, 2) + '\n');
-const profile = 't08-t31-publication-foundations';
+const profile = 't04-access-original-workspace';
 write({ schemaVersion: 1, profile, started, state: 'running', success: false, mergeReady: false });
 try {
 const source = sourceIdentity(root);
@@ -31,6 +31,9 @@ execute('typecheck', ['node_modules/typescript/bin/tsc', '--noEmit']);
 execute('build', ['scripts/run-framework.mjs', 'build']);
 const result = spawnSync(process.execPath, ['--test', '--test-concurrency=1', '--test-reporter=tap', ...tests],
   { cwd: root, encoding: 'utf8', timeout: 240_000, maxBuffer: 8 * 1024 * 1024 });
+// Preserve failing diagnostics before a bounded console tail hides early failures.
+writeFileSync(resolve(root, '.quality/tests-latest.tap'), result.stdout ?? '');
+writeFileSync(resolve(root, '.quality/tests-latest.stderr.log'), result.stderr ?? '');
 const tap = inspectTap(result.stdout ?? '', result.status);
 const unchanged = sameSourceIdentity(source, sourceIdentity(root));
 let runtime;
@@ -43,8 +46,8 @@ const report = { schemaVersion: 1, profile, started, finished: new Date().toISOS
   source, results: { docs, commands, tests: { ...tap, files: tests, exitCode: result.status }, runtime,
     runtimeEvidenceCurrent: runtimeCurrent, sourceUnchanged: unchanged },
   success, state: success ? 'passed' : 'failed', mergeReady: false,
-  limits: ['Registry service/client/journal and Docker adapter are tested; real provider onboarding, app publishers and all native product modules remain distinct qualifications',
-    'Live Cloudflare registry and Docker persistence recipes are recorded separately; this aggregate does not certify a complete CMS on Sites/Cloudflare or remote CI provenance'] };
+  limits: ['Native Access operations, SDK and original UI are tested within the listed suites; the real browser recipe is recorded separately',
+    'This aggregate does not certify all native modules, hosted CMS parity, provider onboarding or remote CI provenance'] };
 write(report);
 console.log(JSON.stringify({ success, mergeReady: false, source: source.sha256, docs: docs.metrics,
   tests: tap, runtimeEvidenceCurrent: runtimeCurrent, sourceUnchanged: unchanged, evidence: '.quality/latest.json' }, null, 2));

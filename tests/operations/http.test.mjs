@@ -47,6 +47,25 @@ test('canonical HTTP compiler selects only active exposure, resolves primitive c
   assert.equal(cross[0].parameters[0].codec, 'integer');
 });
 
+test('HTTP mappings accept camelCase input fields without admitting prototype keys or changing URL names', () => {
+  for (const field of ['principalId', 'beforeCreatedAtMs', 'record_id', 'record-id']) {
+    const value = structuredClone(descriptor);
+    value.contracts.schemas[0].schema.properties = {[field]: {type: 'integer'}};
+    value.contracts.schemas[0].schema.required = [field];
+    value.contracts.api[0].parameters[0].inputField = field;
+    const [binding] = compile([value]);
+    assert.equal(binding.parameters[0].inputField, field);
+    assert.equal(binding.parameters[0].name, 'id');
+  }
+  for (const field of ['__proto__', 'constructor', 'prototype', 'id/name', 'x'.repeat(129)]) {
+    const value = structuredClone(descriptor);
+    value.contracts.schemas[0].schema.properties = {[field]: {type: 'integer'}};
+    value.contracts.schemas[0].schema.required = [field];
+    value.contracts.api[0].parameters[0].inputField = field;
+    assert.throws(() => compile([value]), error => error instanceof HttpBindingError && error.code === 'parameters');
+  }
+});
+
 function db() {
   const calls = [];
   return {calls, prepare(sql) {return {bind(...args) {return {sql, args};}};},

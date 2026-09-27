@@ -24,6 +24,14 @@ function planFor(models, { enabled = true, removed = false, access = false } = {
   const original = json('../../extensions/native/access/module/manifest.json');
   const module = JSON.parse(JSON.stringify(original).replaceAll('creezio.access', 'example.data'));
   module.contracts.models = models;
+  // This fixture exercises additive data publication, not Access contributions.
+  // Drop references to the native models replaced by the synthetic declarations.
+  module.contracts.schemas = [];
+  module.contracts.permissions = [];
+  module.contracts.operations = [];
+  module.contracts.api = [];
+  module.contracts.mcp = { tools: [], resources: [], prompts: [], skills: [] };
+  module.contracts.ui = { ...module.contracts.ui, views: [], navigation: [], slots: [], styles: [] };
   const selection = { ...structuredClone(composition.modules[0]), moduleId: module.identity.id, enabled };
   const pinned = { ...structuredClone(lock.modules[0]), moduleId: module.identity.id, contractIntegrity: contractIntegrity(module) };
   const descriptors = access ? [original] : [];

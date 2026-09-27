@@ -43,13 +43,15 @@ Sur la machine de qualification : initialisation workerd autour de **525 ms**, r
 
 | Mesure | Plafond local |
 |---|---:|
-| JavaScript Worker total | 1 500 000 octets |
+| JavaScript Worker total, composition Access | 1 750 000 octets |
 | Somme gzip JavaScript Worker | 500 000 octets |
 | Entrées du graphe applicatif sélectionné | 32 |
 | Initialisation ou redémarrage workerd | 15 000 ms |
 | Chaque route qualifiée, y compris le roundtrip interne | 3 000 ms |
 
 Ces plafonds sont des critères locaux de T-03, **pas les quotas d'une offre Cloudflare ni un SLA**. Une nouvelle composition peut nécessiter un budget explicitement revu et mesuré ; elle ne supprime pas le contrôle. Les limites de durée d'opération et de taille des entrées du dispatch restent indépendantes de ces budgets de recette.
+
+Révision mesurée du 27 septembre, tranche Access : la première composition avec dix opérations natives et la vraie interface originale produit 1 583 134 octets JavaScript Worker (396 126 gzip). Les contributions principales ajoutées sont l'interface SSR avec ses primitives (247 475 octets) et les validateurs statiques des opérations (145 199 octets). Le plafond initial de 1 500 000 est donc relevé à 1 750 000 pour cette composition, avec revue indépendante ; plafond gzip de 500 000, graphe témoin, temps et test de refus d'un dépassement conservés. Ces mesures initiales ne remplacent pas celles de l'artefact final ni une qualification hébergée.
 
 ## Preuves et limites
 

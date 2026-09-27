@@ -31,6 +31,8 @@ Une référence métier a la forme `{ "moduleId": "creezio.tasks", "kind": "oper
 
 Une référence de schéma a la forme `{ "schemaId": "get-input" }` et désigne une entrée locale `contracts.schemas[]`. Les liaisons API/MCP utilisent les mêmes schémas que leurs opérations. Un chemin est relatif à son artefact, au format POSIX ; une référence de code ajoute un nom d'export. Le contrôle filesystem doit vérifier confinement, existence et absence de liens/jonctions, en plus du contrôle syntaxique.
 
+Les identifiants de contrats restent canoniques en minuscules. Les références à des champs JSON (`inputField`, clé d'idempotence, pagination, version et état de panneau) acceptent aussi camelCase, avec une borne de 128 caractères et exclusion des clés de prototype. Un export statique suit la syntaxe d'un identifiant JavaScript, comme `AccessAdminView` ; ce n'est ni un identifiant de module ni une expression à évaluer. Ces distinctions évitent d'imposer des noms artificiels aux DTO et composants React.
+
 ## Dépendances et transitions
 
 Toutes les origines utilisent le même contrat de dépendance : module natif, commun, applicatif ou tiers. `optional: false` signifie obligatoire ; `optional: true` permet l'absence uniquement avec `whenAbsent: "disable-contributions"`. Une dépendance obligatoire utilise `whenAbsent: "block"`. `autoInstall: false` interdit à un paquet d'imposer une installation non sélectionnée par le consommateur.

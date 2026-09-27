@@ -2,8 +2,10 @@
 
 Le [SDK de session navigateur](../../../sdk/access/) fournit les entrées natives de connexion ; les routes hôte sont dans [app/access](../../../app/access/). Elles ne constituent pas des vues métier anonymes du module. Client/contrôleur, rendu React et recettes navigateur ont leurs contrôles d'hôte distincts.
 
-- `module/models.json` : source canonique des vingt et un modèles actuels d'identité et d'autorisation ; relations ACL, capacités de cycle de compte, credentials API/scopes, impersonations et références d'audit incluses.
-- `module/manifest.json` : descripteur dérivé, modèles et contrat de validation.
+- `module/models.json` : source canonique des vingt-deux modèles actuels d'identité et d'autorisation ; relations ACL, capacités de cycle de compte, credentials API/scopes, impersonations et détails d'audit inclus.
+- `module/manifest.json` : modèles synchronisés par la chaîne centrale, opérations/API, vue et contrat de validation.
+- `ui/` : port original Matrice des rôles, Comptes et Journal, wrapper SDK et projections de présentation.
+- `module/operations.ts` : entrées statiques des opérations natives, exécutées par le pont privilégié du cœur ; aucune clé ni SQL transmis aux extensions.
 - `module/entry.server.ts` : métadonnées de phase HTTP sans effets de démarrage ; les audiences natives sont sélectionnées par la composition du cœur.
 - `plugin/` : projection explicitement vide, sans publication GPT annoncée.
 - `ci/`, `tests/`, `gate.mjs` : six familles de contrôles locales.

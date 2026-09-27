@@ -18,6 +18,7 @@ export interface WorkspaceRenderProps {
 const ActivityContext = createContext(true);
 const PortalHostContext = createContext<HTMLElement | null>(null);
 export const useWorkspaceActivity = () => useContext(ActivityContext);
+export const useWorkspacePortalHost = () => useContext(PortalHostContext);
 
 /** Portals remain descendants of the retained pane's hidden/inert boundary. */
 export function WorkspacePortal({children}: {children: ReactNode}) {
@@ -44,11 +45,11 @@ export function RetainedSubViews({active, views}: {active: string;
   })}</>;
 }
 
-function Pane({controller, tab, active, views, contextId, audience, client}: {
+function Pane({controller, tab, active, authorized, views, contextId, audience, client, access}: {
   controller: WorkspaceController;
   tab: ReturnType<WorkspaceController['getSnapshot']>['tabs'][number];
-  active: boolean; views: WorkspaceProps['views']; contextId: string;
-  audience: WorkspaceViewProps['audience']; client: WorkspaceProps['client'];
+  active: boolean; authorized: boolean; views: WorkspaceProps['views']; contextId: string;
+  audience: WorkspaceViewProps['audience']; client: WorkspaceProps['client']; access: WorkspaceProps['access'];
 }) {
   const view = views.find(item => viewKey(item) === tab.location.viewId);
   const element = view?.component;
@@ -122,6 +123,7 @@ function Pane({controller, tab, active, views, contextId, audience, client}: {
       onFocusCapture={event => { if (event.target instanceof HTMLElement) lastFocus.current = event.target; }}
       hidden={!active} inert={!active}>
       <View panelId={tab.id} location={tab.location} input={tab.location.input} contextId={contextId} audience={audience}
+        access={access} authorized={authorized}
         active={active} navigation={navigation} client={guardedClient} />
       <div ref={setPortalHost} className="creezio-workspace-portal-host" />
     </section>
@@ -176,7 +178,8 @@ export function Workspace(props: WorkspaceProps & {
       return view && (!authorized || permittedViews.has(tab.location.viewId))
         && (tab.id === snapshot.activeTabId || view.panel.retention === 'preserve')
         ? <Pane key={tab.id} controller={controller} tab={tab} active={authorized && tab.id === snapshot.activeTabId}
-            views={views} contextId={contextId} audience={access.audience} client={props.client} /> : null;
+            authorized={authorized && permittedViews.has(tab.location.viewId)}
+            views={views} contextId={contextId} audience={access.audience} client={props.client} access={access} /> : null;
     })}
   </div>;
   return props.renderShell ? props.renderShell({controller, snapshot, authorized, items, children}) : children;

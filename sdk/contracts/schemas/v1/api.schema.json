@@ -56,7 +56,7 @@
               ]
             },
             "inputField": {
-              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/fieldName"
             },
             "required": {
               "type": "boolean"

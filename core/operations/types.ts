@@ -56,7 +56,7 @@ export interface RegisteredOperation {
   readonly validateInput: OperationValidator; readonly validateOutput: OperationValidator; readonly handler: OperationHandler;
 }
 export type OperationErrorCode = 'invalid_catalog' | 'not_found' | 'invalid_input' | 'invalid_output' | 'unsupported'
-  | 'unauthorized' | 'forbidden' | 'conflict' | 'unavailable' | 'unknown' | 'cancelled' | 'timeout';
+  | 'unauthorized' | 'forbidden' | 'conflict' | 'rate_limited' | 'unavailable' | 'unknown' | 'cancelled' | 'timeout';
 export class OperationError extends Error {
   readonly code: OperationErrorCode;
   constructor(code: OperationErrorCode) { super(`Operation refused (${code}).`); this.name = 'OperationError'; this.code = code; }

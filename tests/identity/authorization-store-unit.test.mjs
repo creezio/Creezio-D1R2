@@ -10,7 +10,8 @@ const policy = () => ({
   assignments: [{ principalId: 'principal-1', contextId: 'application', audience: 'admin', roleId: 'administrator' }],
   overrides: [],
 });
-const commitInput = () => ({ sessionDigest: digest, sessionId: 'session-1', principalId: 'principal-1', epoch: 1, policy: policy() });
+const commitInput = () => ({ sessionDigest: digest, sessionId: 'session-1', principalId: 'principal-1', epoch: 1,
+  policy: policy(), beforePolicy: policy() });
 const result = (rows, changes = 0) => ({ success: true, results: rows, meta: { changes } });
 const rows = () => [
   result([{ id: 'session-1', principalId: 'principal-1', displayName: 'Synthetic user', audience: 'admin',
@@ -40,7 +41,9 @@ test('authorization store rejects malformed credentials and executable commit in
   for (const input of [null, [], accessor, { ...commitInput(), sessionId: 'session-1\n' },
     { ...commitInput(), principalId: 'principal-1\u2028' }, { ...commitInput(), epoch: 0 },
     { ...commitInput(), epoch: Number.MAX_SAFE_INTEGER }, { ...commitInput(), extra: 'admin' },
-    { ...commitInput(), policy: null }]) {
+    { ...commitInput(), policy: null }, { ...commitInput(), beforePolicy: null },
+    { ...commitInput(), beforePolicy: undefined },
+    Object.fromEntries(Object.entries(commitInput()).filter(([key])=>key!=='beforePolicy'))]) {
     await assert.rejects(store.commitPolicy(input), AuthorizationStoreInputError);
   }
   assert.equal(fake.prepareCalls(), 0);
@@ -100,7 +103,8 @@ test('unsuccessful, incomplete and vendor-failed batches never become a successf
 
 test('commit result depends on both claim acquisition and matching epoch write, never an UPDATE-zero assumption', async () => {
   for (const acquired of [0, 1]) {
-    const fake = fakeDatabase(statements => statements.map((_, index) => result([], index === 0 || index === statements.length - 1 ? acquired : 0)));
+    const fake = fakeDatabase(statements => statements.map((_, index) => result([],
+      index === 0 || index >= statements.length - 2 ? acquired : 0)));
     assert.equal(await createD1AuthorizationStore(fake.db).commitPolicy(commitInput()), acquired === 1);
     assert.equal(fake.batchCalls(), 1);
     assert.ok(fake.prepareCalls() < 50);

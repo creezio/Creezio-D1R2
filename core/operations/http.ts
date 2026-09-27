@@ -174,6 +174,7 @@ function errorStatus(error: OperationError): number {
     case 'forbidden': return 403;
     case 'not_found': return 404;
     case 'conflict': return 409;
+    case 'rate_limited': return 429;
     case 'unsupported': return 501;
     case 'cancelled': return 499;
     case 'timeout': return 504;
