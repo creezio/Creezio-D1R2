@@ -41,7 +41,7 @@ export function compileHttpBindings({ composition, modules, operationCatalog, di
       if (typeof path !== 'string' || path.length > 512 || !/^\/(?:[A-Za-z0-9_.{}-]+\/)*[A-Za-z0-9_.{}-]*$/.test(path)
         || path.includes('//') || path.endsWith('/') || !path.startsWith('/api/') || path.startsWith('/api/access/')
         || path.startsWith('/api/operations/') || path.startsWith('/api/workspace/')
-        || path === '/api/front' || path.startsWith('/api/front/') || path === '/api/health') fail('path');
+        || path === '/api/front' || path.startsWith('/api/front/') || path === '/api/files' || path.startsWith('/api/files/') || path === '/api/health') fail('path');
       const segments = named(path), pathNames = [...path.matchAll(/\{([A-Za-z][A-Za-z0-9_]*)\}/g)].map(match => match[1]);
       if (segments[1] === null || ['access','operations','workspace','front'].includes(segments[1])) fail('path');
       if (pathNames.length !== new Set(pathNames).size || path.split('/').slice(1).some(segment => /[{}]/.test(segment) && !/^\{[A-Za-z][A-Za-z0-9_]*\}$/.test(segment))) fail('path');

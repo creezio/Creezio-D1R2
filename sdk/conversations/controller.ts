@@ -1,0 +1,326 @@
+import type {OperationClientResult} from '../operations/client.ts';
+import type {ConversationActionResult, ConversationAttachment, ConversationDraft, ConversationEvent, ConversationMessage, ConversationPage,
+  ConversationsController, ConversationsControllerOptions, ConversationsSnapshot, ConversationSummary, ConversationTurn} from './types.ts';
+
+type JsonObject=Record<string,unknown>;
+const object=(value:unknown):JsonObject|null=>value&&typeof value==='object'&&!Array.isArray(value)?value as JsonObject:null;
+const id=(value:unknown):value is string=>typeof value==='string'&&/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
+const text=(value:unknown,max:number):value is string=>typeof value==='string'&&value.length<=max&&value.isWellFormed();
+const summary=(value:unknown)=>{const row=object(value);return !!row&&id(row.id)&&text(row.title,240)
+  &&['chat','work'].includes(String(row.mode))&&text(row.updatedAt,35)
+  &&(row.archivedAt===null||text(row.archivedAt,35))&&Number.isSafeInteger(row.revision);};
+const message=(value:unknown)=>{const row=object(value);return !!row&&id(row.id)&&id(row.conversationId)
+  &&['user','assistant','tool','system'].includes(String(row.role))&&text(row.body,16000)
+  &&text(row.createdAt,35)&&Number.isSafeInteger(row.revision);};
+const attachment=(value:unknown)=>{const row=object(value),reference=object(row?.reference);return !!row
+  &&id(row.fileId)&&id(row.conversationId)&&text(row.filename,255)&&text(row.contentType,128)
+  &&Number.isSafeInteger(row.byteSize)&&Number(row.byteSize)>=0&&text(row.createdAt,35)
+  &&!!reference&&reference.fileId===row.fileId&&id(reference.intentId)&&id(reference.generation)
+  &&typeof reference.digest==='string'&&/^[0-9a-f]{64}$/i.test(reference.digest);};
+function validOutput(name:string,value:JsonObject):boolean {
+  try{if(JSON.stringify(value).length>262144)return false;}catch{return false;}
+  if(['conversation.list','conversation.search'].includes(name))return Array.isArray(value.items)&&value.items.length<=50
+    &&value.items.every(summary)&&(value.nextCursor===null||text(value.nextCursor,2048));
+  if(['conversation.create','conversation.rename','conversation.archive','conversation.restore'].includes(name))return summary(value.conversation);
+  if(name==='conversation.read')return summary(value.conversation)&&['no_provider','configured'].includes(String(value.provider));
+  if(name==='message.list')return Array.isArray(value.items)&&value.items.length<=50&&value.items.every(message)
+    &&(value.nextCursor===null||text(value.nextCursor,2048));
+  if(name==='message.add')return message(value.message);
+  if(['draft.read','draft.save'].includes(name))return id(value.conversationId)&&text(value.text,16000)
+    &&(value.updatedAt===null||text(value.updatedAt,35))&&Number.isSafeInteger(value.revision);
+  if(['turn.read','turn.cancel'].includes(name))return value.turn===null||!!object(value.turn)&&id(object(value.turn)?.id);
+  if(name==='event.list')return Array.isArray(value.items)&&value.items.length<=50
+    &&value.items.every(item=>Number.isSafeInteger(object(item)?.sequence)&&id(object(item)?.turnId))
+    &&(value.nextSequence===null||Number.isSafeInteger(value.nextSequence));
+  if(name==='attachment.link')return id(value.fileId)&&id(value.conversationId);
+  if(name==='attachment.list')return Array.isArray(value.items)&&value.items.length<=50
+    &&value.items.every(attachment)&&(value.nextCursor===null||text(value.nextCursor,2048));
+  return false;
+}
+const binding=(audience:'admin'|'app',name:string)=>`creezio.conversations:${audience}.${name}`;
+const empty:ConversationsSnapshot=Object.freeze({phase:'loading',provider:'no_provider',conversations:Object.freeze([]),
+  nextCursor:null,selected:null,messages:Object.freeze([]),messagesNextCursor:null,draft:null,searchQuery:'',archived:false,pending:false,
+  unknown:null,error:null});
+
+/** Host-bound conversation state; themes receive only the rendered view. */
+export function createConversationsController(options:ConversationsControllerOptions):ConversationsController {
+  if(!options||options.access.audience!==options.audience||!id(options.contextId))
+    throw new TypeError('Invalid conversation controller scope.');
+  const listeners=new Set<()=>void>();
+  let snapshot=empty, disposed=false, active=options.active??false,
+    generation=0, listGeneration=0, openGeneration=0, identity='',restoreSelection:string|null=null;
+  const localDrafts=new Map<string,string>();
+  const cache=new Map<string,ConversationSummary>();
+  let storage:Storage|null=null;
+  try {storage=globalThis.sessionStorage;}catch{/* optional browser persistence */}
+  const scope=()=>{
+    const state=options.access.getSnapshot(),session=state.session;
+    return state.phase==='authenticated'&&session?`${session.id}:${session.principalId}:${options.audience}:${options.contextId}`:'';
+  };
+  const storageKey=(name:string)=>`creezio.conversations.v1:${identity}:${name}`;
+  const update=(change:Partial<ConversationsSnapshot>)=>{
+    if(disposed)return;
+    snapshot=Object.freeze({...snapshot,...change});
+    for(const listener of listeners)listener();
+  };
+  const clear=()=>{
+    const old=identity;
+    if(old&&storage)try{
+      for(let index=storage.length-1;index>=0;index--){const key=storage.key(index);
+        if(key?.startsWith(`creezio.conversations.v1:${old}:`))storage.removeItem(key);}
+    }catch{/* optional storage */}
+    identity='';restoreSelection=null;localDrafts.clear();cache.clear();generation++;listGeneration++;openGeneration++;
+    update({...empty,phase:'anonymous'});
+  };
+  const purgeAuthorized=(code:string)=>{
+    const old=identity;
+    if(old&&storage)try{for(let index=storage.length-1;index>=0;index--){const name=storage.key(index);
+      if(name?.startsWith(`creezio.conversations.v1:${old}:`))storage.removeItem(name);}}catch{}
+    restoreSelection=null;localDrafts.clear();cache.clear();generation++;listGeneration++;openGeneration++;
+    update({...empty,phase:'ready',error:code});
+    void options.access.refresh().catch(()=>{});
+  };
+  const observe=()=>{
+    const access=options.access.getSnapshot(),current=scope();
+    if(access.phase==='anonymous'){clear();return;}
+    if(access.phase==='unavailable'){update({phase:'unavailable',pending:false});return;}
+    if(access.phase==='loading'||access.pending){
+      if(snapshot.phase!=='loading'){generation++;listGeneration++;openGeneration++;}
+      update({phase:'loading',pending:false});return;
+    }
+    if(!current){clear();return;}
+    if(identity!==current){
+      identity=current;localDrafts.clear();cache.clear();generation++;listGeneration++;openGeneration++;
+      update({...empty,phase:'ready'});
+      try {const raw=storage?.getItem(storageKey('unknown'));const pending=raw&&object(JSON.parse(raw));
+        if(pending&&typeof pending.bindingId==='string'&&typeof pending.requestKey==='string'&&typeof pending.code==='string')
+          update({unknown:{bindingId:pending.bindingId,requestKey:pending.requestKey,code:pending.code}});
+      }catch{/* malformed optional state */}
+      try {const remembered=storage?.getItem(storageKey('selected'));
+        restoreSelection=id(remembered)?remembered:null;}catch{restoreSelection=null;}
+    } else if(snapshot.phase!=='ready')update({phase:'ready'});
+  };
+  const unsubscribe=options.access.subscribe(observe);observe();
+  const current=(stamp:number)=>!disposed&&active&&stamp===generation&&snapshot.phase==='ready'&&scope()===identity;
+  async function invoke(name:string,args:JsonObject,command=false,stillCurrent:()=>boolean=()=>true):Promise<ConversationActionResult<JsonObject>> {
+    const stamp=generation, requestKey=command?crypto.randomUUID():undefined;
+    const bindingId=binding(options.audience,name);
+    if(command&&(snapshot.pending||snapshot.unknown))return {kind:'rejected',code:'pending_resolution'};
+    if(!current(stamp)||!stillCurrent())return {kind:'rejected',code:'stale'};
+    if(command){
+      const unknown={bindingId,requestKey:requestKey!,code:'pending'};
+      update({pending:true,unknown,error:null});
+      try{storage?.setItem(storageKey('unknown'),JSON.stringify(unknown));}catch{/* pending remains in memory */}
+    }
+    const response=await options.client.invoke({bindingId,contextId:options.contextId,
+      input:command?{...args,requestKey}:args,isCurrent:()=>current(stamp)&&stillCurrent()});
+    if(!current(stamp)||!stillCurrent())return {kind:'unknown',code:'stale',requestKey:requestKey??''};
+    if(response.kind==='execution'&&response.execution.state==='succeeded'){
+      const output=object(response.execution.output);
+      if(!output||!validOutput(name,output)){
+        if(command){const unknown={bindingId,requestKey:requestKey!,code:'invalid_output'};
+          update({pending:false,unknown,error:'invalid_output'});
+          try{storage?.setItem(storageKey('unknown'),JSON.stringify(unknown));}catch{}}
+        return {kind:'unknown',code:'invalid_output',requestKey:requestKey??''};
+      }
+      if(command){update({pending:false,unknown:null,error:null});try{storage?.removeItem(storageKey('unknown'));}catch{}}
+      return {kind:'ok',value:output};
+    }
+    if(response.kind==='rejected'){
+      if(['forbidden','unauthorized'].includes(response.code)){purgeAuthorized(response.code);return {kind:'rejected',code:response.code};}
+      if(command){update({pending:false,unknown:null,error:response.code});try{storage?.removeItem(storageKey('unknown'));}catch{}}
+      else update({error:response.code});
+      return {kind:'rejected',code:response.code};
+    }
+    if(response.kind==='execution'&&response.execution.state==='failed'){
+      const code=response.execution.errorCode??'failed';
+      if(command){update({pending:false,unknown:null,error:code});try{storage?.removeItem(storageKey('unknown'));}catch{}}
+      else update({error:code});
+      return {kind:'rejected',code};
+    }
+    const code=response.kind==='unknown'?response.code:response.execution.state;
+    if(command){const unknown={bindingId,requestKey:requestKey!,code};update({pending:false,unknown,error:code});
+      try{storage?.setItem(storageKey('unknown'),JSON.stringify(unknown));}catch{}}
+    else update({error:code});
+    return {kind:'unknown',code,requestKey:requestKey??''};
+  }
+  const query=async(name:string,args:JsonObject,stillCurrent?:()=>boolean):Promise<JsonObject|null>=>{
+    const result=await invoke(name,args,false,stillCurrent);return result.kind==='ok'?result.value:null;
+  };
+  const advanceRevision=(conversationId:string)=>{
+    const prior=cache.get(conversationId);if(!prior)return;
+    const next=Object.freeze({...prior,revision:prior.revision+1});cache.set(conversationId,next);
+    update({selected:snapshot.selected?.id===conversationId?next:snapshot.selected,
+      conversations:Object.freeze(snapshot.conversations.map(item=>item.id===conversationId?next:item))});
+  };
+  async function list(args:{query?:string;cursor?:string|null;limit?:number;archived?:boolean},append:boolean):Promise<ConversationPage<ConversationSummary>|null>{
+    const stamp=generation, serial=++listGeneration;
+    const searchQuery=args.query??'', archived=args.archived??false;
+    if(append&&(snapshot.searchQuery!==searchQuery||snapshot.archived!==archived||snapshot.nextCursor!==args.cursor))return null;
+    const name=args.query?'conversation.search':'conversation.list';
+    const result=await query(name,{limit:args.limit??25,...(args.cursor?{cursor:args.cursor}:{}),
+      ...(args.query?{query:args.query}:{}),...(args.archived===undefined?{}:{archived:args.archived})},()=>serial===listGeneration);
+    const items=Array.isArray(result?.items)?result.items.filter(item=>id(object(item)?.id)) as ConversationSummary[]:null;
+    if(!current(stamp)||serial!==listGeneration||!items||result?.nextCursor!==null&&typeof result?.nextCursor!=='string')return null;
+    for(const item of items)cache.set(item.id,item);
+    const page={items:Object.freeze(items),nextCursor:result.nextCursor as string|null};
+    const existing=new Set<string>();
+    const combined=(append?[...snapshot.conversations,...items]:items).filter(item=>{
+      if(existing.has(item.id))return false;existing.add(item.id);return true;});
+    update({conversations:Object.freeze(combined),nextCursor:page.nextCursor,
+      searchQuery,archived,error:null});
+    return page;
+  }
+  async function commandSummary(name:string,args:JsonObject):Promise<ConversationActionResult<ConversationSummary>>{
+    const result=await invoke(name,args,true);
+    if(result.kind!=='ok')return result;
+    const value=object(result.value.conversation);
+    if(!value||!id(value.id))return {kind:'unknown',code:'invalid_output',requestKey:''};
+    const summary=value as unknown as ConversationSummary;
+    cache.set(summary.id,summary);
+    update({conversations:Object.freeze([summary,...snapshot.conversations.filter(item=>item.id!==summary.id)]),
+      selected:snapshot.selected?.id===summary.id?summary:snapshot.selected});
+    return {kind:'ok',value:summary};
+  }
+  const controller:ConversationsController={
+    getSnapshot:()=>snapshot,
+    subscribe(listener){listeners.add(listener);return()=>{listeners.delete(listener);};},
+    setActive(value){
+      if(disposed||active===value)return;
+      active=value;generation++;listGeneration++;openGeneration++;
+      if(!active&&snapshot.pending)update({pending:false,error:'outcome_unknown'});
+      if(active&&restoreSelection&&!snapshot.selected){const remembered=restoreSelection;void controller.open(remembered);}
+    },
+    async refresh(){if(snapshot.phase!=='ready')return;await list({query:snapshot.searchQuery,archived:snapshot.archived},false);},
+    async loadMore(){if(snapshot.nextCursor)await list({query:snapshot.searchQuery,archived:snapshot.archived,cursor:snapshot.nextCursor},true);},
+    search:args=>list(args,false),
+    async open(conversationId){
+      if(!id(conversationId))return;
+      const stamp=generation,serial=++openGeneration;
+      const detail=await query('conversation.read',{conversationId},()=>serial===openGeneration);
+      if(!current(stamp)||serial!==openGeneration)return;
+      if(!detail){
+        if(restoreSelection===conversationId&&snapshot.error==='not_found'){
+          restoreSelection=null;try{storage?.removeItem(storageKey('selected'));}catch{}}
+        return;
+      }
+      const item=object(detail.conversation);
+      if(!item||!id(item.id))return;
+      const selected=item as unknown as ConversationSummary;
+      restoreSelection=null;try{storage?.setItem(storageKey('selected'),conversationId);}catch{}
+      cache.set(selected.id,selected);
+      update({selected,messages:Object.freeze([]),messagesNextCursor:null,draft:null,
+        provider:detail.provider==='configured'?'configured':'no_provider'});
+      const [messages,draft]=await Promise.all([query('message.list',{conversationId,limit:25},()=>serial===openGeneration),
+        query('draft.read',{conversationId},()=>serial===openGeneration)]);
+      if(!current(stamp)||serial!==openGeneration||snapshot.selected?.id!==conversationId)return;
+      const msg=Array.isArray(messages?.items)?messages.items as ConversationMessage[]:[];
+      const storedDraft=object(draft);
+      let local=localDrafts.get(conversationId);
+      if(local===undefined)try{local=storage?.getItem(storageKey(`draft:${conversationId}`))??undefined;}catch{}
+      update({messages:Object.freeze(msg),messagesNextCursor:typeof messages?.nextCursor==='string'?messages.nextCursor:null,
+        draft:{conversationId,text:local??(typeof storedDraft?.text==='string'?storedDraft.text:''),
+          updatedAt:typeof storedDraft?.updatedAt==='string'?storedDraft.updatedAt:null,
+          revision:typeof storedDraft?.revision==='number'?storedDraft.revision:0}});
+    },
+    async loadMoreMessages(){
+      const selected=snapshot.selected,cursor=snapshot.messagesNextCursor;
+      if(!selected||!cursor)return;
+      const result=await query('message.list',{conversationId:selected.id,limit:25,cursor});
+      if(snapshot.selected?.id!==selected.id||!Array.isArray(result?.items))return;
+      update({messages:Object.freeze([...snapshot.messages,...result.items as ConversationMessage[]]),
+        messagesNextCursor:typeof result.nextCursor==='string'?result.nextCursor:null});
+    },
+    create:args=>commandSummary('conversation.create',args),
+    rename:(conversationId,title)=>commandSummary('conversation.rename',{conversationId,title,revision:cache.get(conversationId)?.revision??0}),
+    archive:conversationId=>commandSummary('conversation.archive',{conversationId,revision:cache.get(conversationId)?.revision??0}),
+    restore:conversationId=>commandSummary('conversation.restore',{conversationId,revision:cache.get(conversationId)?.revision??0}),
+    async addMessage(conversationId,body){
+      const result=await invoke('message.add',{conversationId,id:crypto.randomUUID(),body,
+        revision:cache.get(conversationId)?.revision??0},true);
+      if(result.kind!=='ok')return result;
+      const message=object(result.value.message);
+      if(!message||!id(message.id))return {kind:'unknown',code:'invalid_output',requestKey:''};
+      advanceRevision(conversationId);
+      if(snapshot.selected?.id===conversationId)update({messages:Object.freeze([...snapshot.messages,message as unknown as ConversationMessage])});
+      return {kind:'ok',value:message as unknown as ConversationMessage};
+    },
+    setDraft(conversationId,text){
+      if(!id(conversationId)||!text.isWellFormed()||text.length>16000||snapshot.selected?.id!==conversationId)return;
+      localDrafts.set(conversationId,text);
+      try{storage?.setItem(storageKey(`draft:${conversationId}`),text);}catch{}
+      update({draft:{conversationId,text,updatedAt:snapshot.draft?.updatedAt??null,revision:snapshot.draft?.revision??0}});
+    },
+    async saveDraft(conversationId,text){
+      const value=text??localDrafts.get(conversationId)??snapshot.draft?.text??'';
+      if(!id(conversationId)||!value.isWellFormed()||value.length>16000)return {kind:'rejected',code:'invalid_input'};
+      const result=await invoke('draft.save',{conversationId,text:value,revision:snapshot.draft?.revision??0},true);
+      if(result.kind!=='ok')return result;
+      const draft=result.value as unknown as ConversationDraft;
+      const newer=localDrafts.get(conversationId);
+      if(newer===undefined||newer===value){
+        localDrafts.delete(conversationId);try{storage?.removeItem(storageKey(`draft:${conversationId}`));}catch{}
+      }
+      if(snapshot.selected?.id===conversationId)update({draft:newer!==undefined&&newer!==value
+        ?{...draft,text:newer}:draft});
+      return {kind:'ok',value:draft};
+    },
+    async readTurn(conversationId,turnId){const result=await query('turn.read',{conversationId,turnId});
+      return object(result?.turn) as unknown as ConversationTurn|null;},
+    async readEvents(conversationId,turnId,afterSequence=0){const result=await query('event.list',{conversationId,turnId,
+      limit:50,afterSequence});return Array.isArray(result?.items)?{items:result.items as ConversationEvent[],
+      nextSequence:typeof result.nextSequence==='number'?result.nextSequence:null}:null;},
+    async cancelTurn(conversationId,turnId,revision){const result=await invoke('turn.cancel',{conversationId,turnId,revision},true);
+      return result.kind==='ok'?{kind:'ok',value:object(result.value.turn) as unknown as ConversationTurn|null}:result;},
+    async linkAttachment(conversationId,staged){
+      const result=await invoke('attachment.link',{conversationId,staged,
+        revision:cache.get(conversationId)?.revision??0},true);
+      if(result.kind!=='ok')return result;
+      if(!id(result.value.fileId)||result.value.conversationId!==conversationId)
+        return {kind:'unknown',code:'invalid_output',requestKey:''};
+      advanceRevision(conversationId);
+      return {kind:'ok',value:{fileId:result.value.fileId,conversationId}};
+    },
+    async listAttachments(conversationId,cursor,limit=25){
+      if(!id(conversationId))return null;
+      const result=await query('attachment.list',{conversationId,limit,...(cursor?{cursor}:{})});
+      return Array.isArray(result?.items)?{items:result.items as ConversationAttachment[],
+        nextCursor:typeof result.nextCursor==='string'?result.nextCursor:null}:null;
+    },
+    async reconcileUnknown():Promise<OperationClientResult|null>{
+      const pending=snapshot.unknown;if(!pending)return null;
+      if(!active||snapshot.phase!=='ready')return null;
+      const result=await options.client.status({bindingId:pending.bindingId,contextId:options.contextId,
+        requestKey:pending.requestKey,isCurrent:()=>active&&snapshot.phase==='ready'&&scope()===identity});
+      if(result.kind==='rejected'&&['forbidden','unauthorized'].includes(result.code)){
+        purgeAuthorized(result.code);return result;
+      }
+      if(result.kind==='execution'&&['succeeded','failed'].includes(result.execution.state)){
+        const name=pending.bindingId.slice(`creezio.conversations:${options.audience}.`.length);
+        if(result.execution.state==='succeeded'){
+          const output=object(result.execution.output);
+          if(!output||!validOutput(name,output)){update({error:'invalid_output'});return result;}
+        }
+        update({unknown:null,error:result.execution.state==='failed'?result.execution.errorCode:null});
+        try{storage?.removeItem(storageKey('unknown'));}catch{}
+        if(result.execution.state==='succeeded'){
+          const selectedId=snapshot.selected?.id;
+          await controller.refresh();
+          if(selectedId&&snapshot.selected?.id===selectedId){
+            const detail=await query('conversation.read',{conversationId:selectedId});
+            const row=object(detail?.conversation);
+            if(row&&id(row.id)&&snapshot.selected?.id===selectedId){
+              const fresh=row as unknown as ConversationSummary;cache.set(selectedId,fresh);
+              update({selected:fresh,conversations:Object.freeze(snapshot.conversations.map(item=>
+                item.id===selectedId?fresh:item))});
+            }
+          }
+        }
+      }
+      return result;
+    },
+    dispose(){if(disposed)return;disposed=true;generation++;unsubscribe();listeners.clear();}
+  };
+  if(active&&restoreSelection)queueMicrotask(()=>{if(!disposed&&restoreSelection&&active)void controller.open(restoreSelection);});
+  return Object.freeze(controller);
+}

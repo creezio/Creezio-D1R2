@@ -2,7 +2,7 @@
 
 /** Creezio shell-ui/workspace/workspace-shell.tsx, adapted to the public panel SDK.
  * The original layout/classes and sidebar preference remain; URL and access are host-owned. */
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode} from 'react';
 import {FileText, Menu} from 'lucide-react';
 import type {WorkspaceRenderProps} from '../../sdk/workspace/components';
 import {WorkspaceMetadataProvider, useWorkspaceMetadataForPanels} from '../../sdk/workspace/metadata';
@@ -12,18 +12,28 @@ import {WorkspaceTabBar} from './workspace-tab-bar';
 import {PageToolbarProvider} from './page-toolbar-context';
 import {DestinationSearchDialog} from './destination-search';
 import {cn} from './utils';
+import {AssistantProvider, ASSISTANT_PANEL_WIDTH_PX, useAssistantUiOptional} from '../../sdk/ui/assistant-provider.tsx';
 
 export interface CreezioShellProps extends WorkspaceRenderProps {
   readonly account: {displayName: string} | null;
   readonly onLogout: () => void;
   readonly onRefreshAccess: () => void;
+  /** Compiled and authorized module contribution supplied by the host. */
+  readonly assistant?: ReactNode;
+  /** Native session scope; never a credential. */
+  readonly assistantScopeKey?: string;
 }
 
 export function CreezioShell(props: CreezioShellProps) {
-  return <WorkspaceMetadataProvider><PageToolbarProvider><CreezioShellContent {...props} /></PageToolbarProvider></WorkspaceMetadataProvider>;
+  const shell = <WorkspaceMetadataProvider><PageToolbarProvider><CreezioShellContent {...props} /></PageToolbarProvider></WorkspaceMetadataProvider>;
+  return <AssistantProvider key={props.assistantScopeKey ?? 'anonymous'} scopeKey={props.assistantScopeKey ?? 'anonymous'}>
+    {shell}{props.assistant}
+  </AssistantProvider>;
 }
 
-function CreezioShellContent({controller,snapshot,authorized,items,children,account,onLogout,onRefreshAccess}: CreezioShellProps) {
+function CreezioShellContent({controller,snapshot,authorized,items,children,account,onLogout,onRefreshAccess,assistant}: CreezioShellProps) {
+  const assistantUi = useAssistantUiOptional();
+  const rightChromePx = assistant && assistantUi?.hydrated && assistantUi.open ? ASSISTANT_PANEL_WIDTH_PX : 0;
   const metadata = useWorkspaceMetadataForPanels(snapshot.tabs.map(tab => tab.id));
   const [navOpen,setNavOpen] = useState(false);
   const [sidebarCollapsed,setSidebarCollapsed] = useState(false);
@@ -63,8 +73,10 @@ function CreezioShellContent({controller,snapshot,authorized,items,children,acco
   });
 
   return <div
-    className="flex h-dvh max-h-dvh overflow-hidden bg-gradient-to-br from-slate-50 via-white to-sky-50/40 transition-[padding] duration-200 ease-out"
-    data-creezio-workspace="original-shell">
+    className={cn('flex h-dvh max-h-dvh overflow-hidden bg-gradient-to-br from-slate-50 via-white to-sky-50/40 transition-[padding] duration-200 ease-out',
+      rightChromePx > 0 && 'md:pr-[var(--assistant-chrome-right)]')}
+    style={{'--assistant-chrome-right': `${rightChromePx}px`} as CSSProperties}
+    data-creezio-workspace="original-shell" data-creezio-assistant-chrome={rightChromePx > 0 ? 'panel' : 'fab-overlay'}>
     <Sidebar collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebarCollapsed}
       mobileOpen={navOpen} onMobileClose={closeNav} account={authorized ? account : null} onLogout={onLogout}
       activeItemId={activeItem?.id} primaryItems={items.map(item => ({id:item.id,label:item.title,icon:FileText,

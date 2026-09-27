@@ -1,5 +1,11 @@
 # Backlog de réalisation
-Révision 24 — 27 septembre 2026. **Chantier actif : T-13, fronts, thèmes et headless.** PR #1 à #21 intégrées ; main `20d48fda` qualifié avec 923 tests locaux et CI. Documents installés consultables par UI/API/MCP depuis le Product Hub original. Chantier actif : T-13, fronts, thèmes et headless, sur `core/t13-front-themes`. Les attentes Sites/registre restent séparées. Les exigences demeurent inchangées.
+Révision 26 — 27 septembre 2026. **Chantier actif : T-14, conversations natives ; priorité à une première app utilisable.** PR #1 à #22 intégrées ; main `d12ab795` qualifié avec 953 tests locaux et CI. Fronts standard/ChatGPT-like et headless vérifiés localement. Les attentes Sites/registre restent séparées. Les exigences demeurent inchangées.
+
+## Jalon prioritaire : première app utilisable
+
+Achever T-14, puis T-15 (OpenAI réel), T-16 (outils/widgets), et la tranche T-30 qui installe depuis un vrai paquet un **seul module métier témoin** avec son starter et sa démo. Raccorder l'enregistrement et la publication nécessaires (T-08, T-09 pour Sites, T-31 et T-32 pour Docker → Cloudflare), puis produire une **version initiale** de l'original A et du vrai fork B (T-36/T-37), prouver installation et mise à jour du paquet et du socle (T-38), et exécuter une recette **ciblée** des deux apps et des parcours retenus (T-39). Sites et Cloudflare sont deux qualifications indépendantes du même code ; l'une ne sert pas de prérequis technique artificiel à l'autre.
+
+Après ce jalon viennent T-17 à T-29 (dont le catalogue métier complet T-25), T-33 à T-35, puis les compléments et la recette exhaustive de T-36/T-39. Cela conserve leurs exigences et leurs preuves futures. Une tranche initiale livrée ne fait pas passer automatiquement le lot entier à « vérifié » ; seuls les critères et profils réellement exercés le sont.
 
 ## Avancement lisible
 
@@ -15,17 +21,18 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-06 — Opérations | Registre/exécuteur intégrés PR #15 ; bindings HTTP et suivi par clé PR #16 | Événements, approbations, interopérations et autres transports | Fondations disponibles ; compléments au backlog |
 | T-07 — Workspace | Composants originaux adaptés, panneaux/états/titres et recette navigateur intégrés PR #16 | Qualification Sites et raccordement des modules produit | Livrable local disponible |
 | T-08 — Registre central | PR #17 intégrée ; Worker Cloudflare, service/client/journal et reprise réelle sans redéploiement | Configuration fournisseur GitHub/email, raccords des publishers et onboarding produit | Fournisseur GitHub en attente d'autorisation ; travaux indépendants poursuivis |
-| T-09 — Sites | Sonde de capacités antérieure conservée | Recette produit publique et accès au Site existant | Bloqué sur l'accès Sites du compte courant ; choix de destination demandé |
+| T-09 — Sites | Sonde de capacités antérieure conservée | Publication et recette de l'app sur un Site public du compte courant | Qualification à exécuter ; nouveau Site autorisé si l'ancien n'est plus accessible |
 | T-10 — MCP/OAuth | PR #19 : deux catalogues, OAuth natif, PKCE/rotation et clients SDK réels ; 866 tests | Connexion réelle ChatGPT et recette Site public, ressources/widgets T-16 | Fondations locales qualifiées |
 | T-11 — Modules | PR #20 : catalogue, dépendances, plans D1 et UI originale ; recettes locales et CI, 908 tests | Raccords publication et hébergements ; distribution complète T-30 | Livrable local disponible |
 | T-12 — Documentation | PR #21 : README/PRD/changelog exacts, UI/API/MCP et recettes locales/CI, 923 tests | Recettes hébergées transversales ; édition des PRD de travail en T-23 | Documents installés vérifiés localement |
-| T-13 — Fronts et thèmes | Contrats, deux thèmes, projection native app et client headless écrits | Intégration, navigateur des deux thèmes, revue/CI ; recette Sites | **Implémentation et qualification en cours** |
+| T-13 — Fronts et thèmes | PR #22 : deux thèmes, projection native app, headless, recettes navigateur et CI ; 953 tests | Recette Sites | Livrable local disponible |
+| T-14 — Conversations | Ports de données et module en construction ; chat original en cours de raccordement | Recettes UI/données/fichiers/progression et fournisseur T15 | **Implémentation en cours** |
 | T-31 — Docker local | PR #17 intégrée ; compte/D1/R2, redémarrage/recréation/restauration vérifiés en Docker | Recettes des futurs modules et routes de fichiers | Livrable local disponible |
-| Autres lots T-14 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, fronts/chat/widgets, publications et recette finale | À réaliser |
+| Autres lots T-15 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, fronts/chat/widgets, publications et recette finale | À réaliser |
 
 ## Règles de suivi
 États autorisés : à faire, en cours, bloqué (raison/prérequis), en revue, vérifié, livré. Enregistrer responsable réel, branche/issue ou tâche locale, PR, SHA, tests/profils et preuves à chaque transition. « Livré » exige version et livraison vérifiée ; fusionner ne suffit pas. Une dépendance fournisseur manquante bloque sa recette, pas toutes les tâches indépendantes.
-Après GO, commencer P0 puis la tranche P1/P2 nécessaire au premier Site ; les dépendances ci-dessous priment sur le numéro du lot. Qualifier Cloudflare tôt dès disponibilité, mais ne pas bloquer le travail local sur son accès. P3/P4 peuvent avancer par tranches couplées : installer un module témoin d’abord, finaliser le starter après widgets/front. Le socle complet et les preuves restent requis avant P7.
+Après GO, commencer P0 puis les fondations P1/P2 consommables par la première app ; les dépendances ci-dessous priment sur le numéro du lot. Qualifier Sites et Cloudflare dès que leurs accès respectifs le permettent, sans bloquer les travaux locaux ni l'un par l'autre. P3/P4 avancent par tranches couplées : achever chat/widgets, installer un module métier témoin et valider son paquet. Le jalon initial T-36/T-39 exige les capacités et preuves de cette première app ; le périmètre complet des lots reste ouvert jusqu'à ses propres recettes.
 Chaque ligne constitue un lot de PR de taille révisable, pas une autorisation de tout coder dans une seule branche. Avant son exécution, décomposer les sous-tâches dans le PRD/TODO du module avec critères hérités ; enregistrer leurs liens ici. Cette décomposition ne peut ni retirer une exigence ni faire passer un lot partiel à « vérifié ».
 ## Jalons de dépendance et qualifications différées
 
@@ -38,11 +45,12 @@ Une dépendance consomme un **livrable précis et testé**, pas automatiquement 
 | T-04 → T-05 | Identités et droits persistants, transport et entrée natifs, installation locale explicite qualifiés sur main | T-04 reste ouvert : administration visuelle, remise des capacités, profils hébergés et autorisations transversales nécessitent T-06/T-07/T-10. Aucun jalon ne vaut clôture de ces exigences. |
 | T-05 → T-06 | Sous-ensemble D1/R2/coffre et modèles composés nécessaire aux opérations, avec garanties et preuves propres | Explorateur, recherche, export/restauration et autres critères T-05 restent ouverts jusqu'à leurs recettes. Les opérations administratives Access utilisent le registre commun de T-06. |
 | T-04/T-05/T-06/T-07 → T-08/T-09/T-31 | Comptes, modèles, fichiers, opérations et workspace construits et testés localement | T-09 teste la tranche sur Sites ; T-32 sur Cloudflare. Les fonctions ajoutées ensuite repassent la recette hôte avant T-36. |
-| T-10 à T-29 → lots consommateurs | Contrats et code testés sur l’environnement disponible, avec refus ; aucune intégration fournisseur annoncée réelle sans accès | Compléter tous les profils et fournisseurs déclarés avant T-36 ; leurs preuves peuvent avancer en parallèle des tâches indépendantes. |
+| T-10 à T-16 → première app | Contrats et code testés sur l’environnement disponible, avec refus ; aucune intégration fournisseur annoncée réelle sans accès | Les profils requis par la première app sont qualifiés au jalon initial ; les autres modules et fournisseurs T-17 à T-29 gardent leurs preuves et leur clôture propres après ce jalon. |
 | T-12 → T-23 | Documentation installée, lecture autorisée et distinction des révisions prouvées | Édition/validation/immutabilité du PRD de travail réalisées en T-23. |
-| T-30 → T-32 | Tarball dans app hôte locale et démo locale autonomes ; docs/tests/artefacts complets | Démo Cloudflare en T-32 ; installation/update dans le vrai fork après création de B, en T-38. |
-| T-32/T-33 → T-36 | Original et démo sur Cloudflare, transfert/reprise/isolation prouvés | Même parcours du fork après sa création, en T-38. |
-| T-36 → T-37 | Toutes les capacités de l’original et recettes disponibles sur A/Cloudflare validées, politique de distribution examinée | B n’existe pas avant ce jalon ; ses scénarios de filiation/update sont T-37/T-38, puis validation globale T-39. |
+| T-30 → T-32 | Paquet du module métier témoin installé dans une app hôte locale indépendante et démo locale autonome ; docs/tests/artefacts de cette tranche | Démo Cloudflare en T-32 ; installation/update dans le vrai fork après création de B, en T-38. Les compléments du starter restent suivis dans T-30. |
+| T-08/T-30/T-31 → T-32 | Publication Cloudflare de l'original et de la démo avec transfert/reprise sur leurs ressources autorisées | La qualification Sites de T-09 se fait séparément ; T-33 multiressource hors Sites vient après la première app. |
+| T-09/T-32 → T-36 initial | Site A et parcours Cloudflare du périmètre initial, avec chat OpenAI, widgets et module témoin testés ; politique de distribution examinée | Les modules différés et les profils exhaustifs de T-36 restent ouverts. |
+| T-36 initial → T-37/T-38/T-39 ciblé | Version initiale de l'original publiée ; fork réel B, installation/update et recette ciblée de la première app | La recette exhaustive T-39 et les compléments de T-36 suivent les lots différés ; aucun lot partiel n'est déclaré « vérifié ». |
 
 Les droits de distribution sont vérifiés **avant chaque première publication concernée**, y compris starter/démo/paquet s’ils précèdent la release finale. Cette vérification ne demande pas de choisir maintenant les futurs tarifs ou les fonctions premium. Toute publication externe conserve son mandat propre.
 
@@ -57,37 +65,37 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-06](#T-06) | P2 | Opérations, événements et exécutions bornées | [T-04](#T-04), [T-05](#T-05) | En cours |
 | [T-07](#T-07) | P1 | Workspace et conservation des onglets | [T-03](#T-03), [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | En cours |
 | [T-08](#T-08) | P1 | Registre minimal et identité de publication | [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | En cours |
-| [T-09](#T-09) | P1 | Première tranche sur Sites | [T-07](#T-07), [T-08](#T-08) | Bloqué — accès Sites |
-| [T-10](#T-10) | P2 | MCP, OAuth et accès machine | [T-06](#T-06), [T-09](#T-09) | En cours — code local |
+| [T-09](#T-09) | P1 | Première tranche sur Sites | [T-07](#T-07), [T-08](#T-08) | À faire — publication autorisée |
+| [T-10](#T-10) | P2 | MCP, OAuth et accès machine | [T-06](#T-06) ; recette Sites : [T-09](#T-09) | En cours — code local |
 | [T-11](#T-11) | P3 | SDK et cycle de vie des modules | [T-02](#T-02), [T-06](#T-06), [T-10](#T-10) | En cours — code local |
 | [T-12](#T-12) | P3 | Documentation vivante des modules | [T-11](#T-11) | Vérifié |
 | [T-13](#T-13) | P4 | Fronts, thèmes et headless | [T-07](#T-07), [T-11](#T-11) | En cours |
-| [T-14](#T-14) | P4 | Conversations et progression persistante | [T-06](#T-06), [T-07](#T-07), [T-11](#T-11) | À faire |
+| [T-14](#T-14) | P4 | Conversations et progression persistante | [T-06](#T-06), [T-07](#T-07), [T-11](#T-11) | En cours |
 | [T-15](#T-15) | P4 | Module OpenAI et contrat fournisseur | [T-14](#T-14) | À faire |
 | [T-16](#T-16) | P4 | Widgets et plugins conversationnels compatibles GPT | [T-10](#T-10), [T-13](#T-13), [T-15](#T-15) | À faire |
-| [T-17](#T-17) | P5 | Tâches humaines et travail | [T-11](#T-11), [T-14](#T-14) | À faire |
-| [T-18](#T-18) | P5 | Messagerie native | [T-11](#T-11), [T-14](#T-14) | À faire |
-| [T-19](#T-19) | P5 | Support | [T-11](#T-11), [T-17](#T-17), [T-18](#T-18) | À faire |
-| [T-20](#T-20) | P5 | CRM | [T-11](#T-11) | À faire |
-| [T-21](#T-21) | P5 | Pages et navigation | [T-11](#T-11), [T-13](#T-13) | À faire |
-| [T-22](#T-22) | P5 | Analytics et diagnostics | [T-11](#T-11), [T-17](#T-17) | À faire |
-| [T-23](#T-23) | P5 | Intentions et développement piloté | [T-12](#T-12), [T-17](#T-17) | À faire |
-| [T-24](#T-24) | P5 | Règles et automatisation sans scheduler | [T-11](#T-11), [T-17](#T-17) | À faire |
-| [T-25](#T-25) | P5 | Catalogue métier réutilisable | [T-11](#T-11), [T-13](#T-13), [T-16](#T-16) | À faire |
-| [T-26](#T-26) | P5 | Connecteur n8n | [T-10](#T-10), [T-11](#T-11), [T-16](#T-16), [T-24](#T-24) | À faire |
-| [T-27](#T-27) | P5 | Connecteur Stripe | [T-11](#T-11), [T-16](#T-16) | À faire |
-| [T-28](#T-28) | P5 | Connecteur Meili | [T-05](#T-05), [T-11](#T-11) | À faire |
-| [T-29](#T-29) | P5 | Autres connecteurs et frontières externes | [T-11](#T-11), [T-16](#T-16), [T-18](#T-18), [T-23](#T-23) | À faire |
 | [T-30](#T-30) | P3 | Starter, paquets et extension externe | [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-16](#T-16) | À faire |
 | [T-31](#T-31) | P1 | Docker local persistant | [T-03](#T-03), [T-05](#T-05), [T-07](#T-07) | En cours |
-| [T-32](#T-32) | P6 | Publication complète Cloudflare | [T-08](#T-08), [T-09](#T-09), [T-30](#T-30), [T-31](#T-31) | À faire |
-| [T-33](#T-33) | P6 | Stockages distincts hors Sites | [T-32](#T-32) | À faire |
-| [T-34](#T-34) | P6 | Éditions, politiques et activation | [T-08](#T-08), [T-11](#T-11), [T-27](#T-27) | À faire |
-| [T-35](#T-35) | P6 | Accompagnement avec accès consenti | [T-23](#T-23), [T-34](#T-34) | À faire |
-| [T-36](#T-36) | P7 | Release de l’original | [T-09](#T-09), [T-10](#T-10), [T-12](#T-12), [T-13](#T-13), [T-14](#T-14), [T-15](#T-15), [T-16](#T-16), [T-17](#T-17), [T-18](#T-18), [T-19](#T-19), [T-20](#T-20), [T-21](#T-21), [T-22](#T-22), [T-23](#T-23), [T-24](#T-24), [T-25](#T-25), [T-26](#T-26), [T-27](#T-27), [T-28](#T-28), [T-29](#T-29), [T-30](#T-30), [T-32](#T-32), [T-33](#T-33), [T-34](#T-34), [T-35](#T-35) | À faire |
-| [T-37](#T-37) | P7 | Vrai fork Creezio Lab et Site B | [T-36](#T-36) | À faire |
-| [T-38](#T-38) | P8 | Adoption des mises à jour et contributions | [T-37](#T-37) | À faire |
-| [T-39](#T-39) | P9 | Recette finale et validation utilisateur | [T-38](#T-38) | À faire |
+| [T-32](#T-32) | P6 | Publication complète Cloudflare | [T-08](#T-08), [T-30](#T-30), [T-31](#T-31) | À faire |
+| [T-36](#T-36) | P7 | Version initiale de l’original, puis compléments | Jalon initial : [T-08](#T-08), [T-09](#T-09), [T-10](#T-10), [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-14](#T-14), [T-15](#T-15), [T-16](#T-16), tranche témoin [T-30](#T-30), [T-31](#T-31), [T-32](#T-32) | À faire — tranche initiale prioritaire |
+| [T-37](#T-37) | P7 | Vrai fork Creezio Lab et Site B | Version initiale publiée de [T-36](#T-36) | À faire |
+| [T-38](#T-38) | P8 | Adoption des mises à jour et contributions | Fork initial de [T-37](#T-37) | À faire — preuve installation/update prioritaire |
+| [T-39](#T-39) | P9 | Recette ciblée puis exhaustive | Preuves initiales de [T-38](#T-38) | À faire — recette ciblée prioritaire |
+| [T-17](#T-17) | P5 | Tâches humaines et travail | [T-11](#T-11), [T-14](#T-14) | À faire — après première app |
+| [T-18](#T-18) | P5 | Messagerie native | [T-11](#T-11), [T-14](#T-14) | À faire — après première app |
+| [T-19](#T-19) | P5 | Support | [T-11](#T-11), [T-17](#T-17), [T-18](#T-18) | À faire — après première app |
+| [T-20](#T-20) | P5 | CRM | [T-11](#T-11) | À faire — après première app |
+| [T-21](#T-21) | P5 | Pages et navigation | [T-11](#T-11), [T-13](#T-13) | À faire — après première app |
+| [T-22](#T-22) | P5 | Analytics et diagnostics | [T-11](#T-11), [T-17](#T-17) | À faire — après première app |
+| [T-23](#T-23) | P5 | Intentions et développement piloté | [T-12](#T-12), [T-17](#T-17) | À faire — après première app |
+| [T-24](#T-24) | P5 | Règles et automatisation sans scheduler | [T-11](#T-11), [T-17](#T-17) | À faire — après première app |
+| [T-25](#T-25) | P5 | Catalogue métier réutilisable complet | [T-11](#T-11), [T-13](#T-13), [T-16](#T-16) | À faire — après module témoin |
+| [T-26](#T-26) | P5 | Connecteur n8n | [T-10](#T-10), [T-11](#T-11), [T-16](#T-16), [T-24](#T-24) | À faire — après première app |
+| [T-27](#T-27) | P5 | Connecteur Stripe | [T-11](#T-11), [T-16](#T-16) | À faire — après première app |
+| [T-28](#T-28) | P5 | Connecteur Meili | [T-05](#T-05), [T-11](#T-11) | À faire — après première app |
+| [T-29](#T-29) | P5 | Autres connecteurs et frontières externes | [T-11](#T-11), [T-16](#T-16), [T-18](#T-18), [T-23](#T-23) | À faire — après première app |
+| [T-33](#T-33) | P6 | Stockages distincts hors Sites | [T-32](#T-32) | À faire — après première app |
+| [T-34](#T-34) | P6 | Éditions, politiques et activation | [T-08](#T-08), [T-11](#T-11), [T-27](#T-27) | À faire — après première app |
+| [T-35](#T-35) | P6 | Accompagnement avec accès consenti | [T-23](#T-23), [T-34](#T-34) | À faire — après première app |
 
 <a id="T-01"></a>
 ## T-01 — Gouvernance effective et revue indépendante
@@ -178,9 +186,9 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-09"></a>
 ## T-09 — Première tranche sur Sites
 
-- Lot : **P1** ; état : **bloqué — accès Sites** ; responsable : orchestrateur. Le compte courant liste zéro Site et refuse l'identifiant existant ; choix demandé entre reconnexion et autre Site public. Aucun nouveau Site créé implicitement. La préparation locale de T-10 peut avancer, sa qualification hébergée reste dépendante de cette recette.
+- Lot : **P1** ; état : **à faire — publication autorisée** ; responsable : orchestrateur. Si le compte GPT courant ne retrouve plus l'ancien Site (404), créer un nouveau Site public sous ce compte, raccorder le nouveau `project_id` et conserver les identifiants et preuves de l'ancien Site dans l'historique. L'absence de cet ancien Site ne bloque plus la publication de la première app ; la recette produit sur le nouveau Site reste à exécuter.
 - Dépendances : [T-07](#T-07), [T-08](#T-08).
-- Travail/livrables : Site A réutilisé si adapté : compte, module témoin, onglets, opération et fichier ; comparaison local/Sites.
+- Travail/livrables : Site A réutilisé s'il est accessible et adapté, sinon nouveau Site public du compte courant : compte, module témoin, onglets, opération et fichier ; comparaison local/Sites et traçabilité du changement de `project_id`.
 - Besoin : [US-09](USER-STORIES.md#US-09). Acceptation : [REQ-0901](EXIGENCES.md#REQ-0901), [REQ-0902](EXIGENCES.md#REQ-0902).
 - Validation : implémenter puis exécuter les recettes liées, sur **Site public réel** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
@@ -189,7 +197,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 ## T-10 — MCP, OAuth et accès machine
 
 - Lot : **P2** ; état : **en cours — livrable local qualifié**. PR #19 intégrée, main `f52a17b9`, 866/866 local et CI candidat/main. Recettes ChatGPT et Site public restantes ; limites dans IMPLEMENTATION-T10.
-- Dépendances : [T-06](#T-06), [T-09](#T-09).
+- Dépendances : [T-06](#T-06) pour le code et les tests locaux ; [T-09](#T-09) pour la recette Sites du transport.
 - Travail/livrables : Endpoints admin/app, découverte, ressources, OAuth natif et tokens machine ; clients de recette figés. Raccords et limites suivis dans [IMPLEMENTATION-T10](IMPLEMENTATION-T10.md).
 - Besoin : [US-10](USER-STORIES.md#US-10). Acceptation : [REQ-1001](EXIGENCES.md#REQ-1001), [REQ-1002](EXIGENCES.md#REQ-1002), [REQ-1003](EXIGENCES.md#REQ-1003).
 - Validation : implémenter puis exécuter les recettes liées, sur **clients MCP réels et Site public** ; inclure les cas négatifs et les contrôles communs appropriés.
@@ -219,19 +227,20 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-13"></a>
 ## T-13 — Fronts, thèmes et headless
 
-- Lot : **P4** ; état : **en cours** ; responsable : Codex et trois chats Sol ; branche `core/t13-front-themes`.
+- Lot : **P4** ; état : **en cours** ; responsable : Codex et trois chats Sol ; PR #22 intégrée, qualification locale disponible ; recette Sites restante.
 - Dépendances : [T-07](#T-07), [T-11](#T-11).
 - Réalisation : [périmètre T13](IMPLEMENTATION-T13.md), réemploi Certivan V5 et primitives Creezio ; comptes/permissions communs, aucun second backend.
 - Travail/livrables : Thèmes standard/ChatGPT-like, moteur de composition, composants et client headless ; personnalisation dans application/.
 - Besoin : [US-13](USER-STORIES.md#US-13). Acceptation : [REQ-1301](EXIGENCES.md#REQ-1301), [REQ-1302](EXIGENCES.md#REQ-1302).
 - Validation : implémenter puis exécuter les recettes liées, sur **navigateur et Site** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : PR #22, candidat `b950fba3`, main `d12ab795`, 953/953 local et CI ; recette navigateur des deux thèmes et reprise de mutation vérifiées. Sites reste non qualifié.
 
 <a id="T-14"></a>
 ## T-14 — Conversations et progression persistante
 
-- Lot : **P4** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P4** ; état : **en cours** ; responsable : Codex et trois chats Sol ; branche `core/t14-conversations`.
 - Dépendances : [T-06](#T-06), [T-07](#T-07), [T-11](#T-11).
+- Réalisation : [périmètre T14](IMPLEMENTATION-T14.md), UI originale Creezio, données et fichiers par ports communs.
 - Travail/livrables : Module conversations, états partagés SDK, historique/recherche/archive et transport adapté ; OpenAI indépendant.
 - Besoin : [US-14](USER-STORIES.md#US-14). Acceptation : [REQ-1401](EXIGENCES.md#REQ-1401), [REQ-1402](EXIGENCES.md#REQ-1402).
 - Validation : implémenter puis exécuter les recettes liées, sur **navigateur local et Sites** ; inclure les cas négatifs et les contrôles communs appropriés.
@@ -392,7 +401,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 
 - Lot : **P3** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
 - Dépendances : [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-16](#T-16).
-- Travail/livrables : Starter destiné à un dépôt public, paquet runtime, validation autonome, plugin et démo locale ; comparateur fournisseur de référence, chaîne de dépendances interéditeurs et intégration facultative depuis les archives réelles. Vérifier les droits avant toute distribution concernée ; publication de la démo qualifiée en T-32.
+- Travail/livrables : Première tranche prioritaire : starter, paquet runtime réel, validation autonome, plugin et démo locale d'un seul module métier témoin, installé hors du checkout source. Les comparateurs, dépendances interéditeurs et intégrations facultatives restent dans le lot pour la suite ; ils ne conditionnent pas cette première app. Vérifier les droits avant toute distribution concernée ; publication de la démo qualifiée en T-32.
 - Besoin : [US-30](USER-STORIES.md#US-30). Acceptation : [REQ-3001](EXIGENCES.md#REQ-3001), [REQ-3002](EXIGENCES.md#REQ-3002), [REQ-3003](EXIGENCES.md#REQ-3003), [REQ-3004](EXIGENCES.md#REQ-3004).
 - Validation : implémenter puis exécuter les recettes liées, sur **tarball dans app de validation indépendante et démo locale** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
@@ -411,7 +420,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 ## T-32 — Publication complète Cloudflare
 
 - Lot : **P6** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
-- Dépendances : [T-08](#T-08), [T-09](#T-09), [T-30](#T-30), [T-31](#T-31).
+- Dépendances : [T-08](#T-08), tranche témoin [T-30](#T-30), [T-31](#T-31). La publication Sites [T-09](#T-09) suit son propre parcours et n'est pas un prérequis technique de Cloudflare.
 - Travail/livrables : Module livraison locale et exécuteur limité, Worker/assets, bindings D1/R2, transfert cohérent et reprise ; original et démo du starter publiés. Le fork sera exercé en T-38.
 - Besoin : [US-32](USER-STORIES.md#US-32). Acceptation : [REQ-3201](EXIGENCES.md#REQ-3201), [REQ-3202](EXIGENCES.md#REQ-3202), [REQ-3203](EXIGENCES.md#REQ-3203).
 - Validation : implémenter puis exécuter les recettes liées, sur **compte Cloudflare autorisé réel** ; inclure les cas négatifs et les contrôles communs appropriés.
@@ -451,8 +460,9 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 ## T-36 — Release de l’original
 
 - Lot : **P7** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
-- Dépendances : [T-09](#T-09), [T-10](#T-10), [T-12](#T-12), [T-13](#T-13), [T-14](#T-14), [T-15](#T-15), [T-16](#T-16), [T-17](#T-17), [T-18](#T-18), [T-19](#T-19), [T-20](#T-20), [T-21](#T-21), [T-22](#T-22), [T-23](#T-23), [T-24](#T-24), [T-25](#T-25), [T-26](#T-26), [T-27](#T-27), [T-28](#T-28), [T-29](#T-29), [T-30](#T-30), [T-32](#T-32), [T-33](#T-33), [T-34](#T-34), [T-35](#T-35).
-- Travail/livrables : Release de l’original, manifeste versions/propriété, docs, artefacts et adoption selon Git flow.
+- Dépendances : pour le **jalon initial consommable**, [T-08](#T-08), [T-09](#T-09), [T-10](#T-10), [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-14](#T-14), [T-15](#T-15), [T-16](#T-16), tranche témoin [T-30](#T-30), [T-31](#T-31), [T-32](#T-32).
+- Suite du lot : la clôture complète de T-36 attend les lots différés T-17 à T-29 et T-33 à T-35 et leurs propres profils.
+- Travail/livrables : Version initiale de l’original avec manifeste versions/propriété, docs, artefacts et provenance selon Git flow ; compléter la release au fil des modules et qualifications différés. La première version publiée peut être consommée par T-37 sans déclarer T-36 entièrement vérifié.
 - Besoin : [US-36](USER-STORIES.md#US-36). Acceptation : [REQ-3601](EXIGENCES.md#REQ-3601), [REQ-3602](EXIGENCES.md#REQ-3602).
 - Validation : implémenter puis exécuter les recettes liées, sur **CI, Site A et artefacts publiés** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
@@ -461,8 +471,8 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 ## T-37 — Vrai fork Creezio Lab et Site B
 
 - Lot : **P7** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
-- Dépendances : [T-36](#T-36).
-- Travail/livrables : Fork public Creez-io/Creezio-Lab après validation du socle, Site B, thème et demandes d’achat/validation budget.
+- Dépendances : version initiale publiée et qualifiée de [T-36](#T-36), sans attendre la clôture exhaustive de ce lot.
+- Travail/livrables : Vrai fork public Creez-io/Creezio-Lab de la version initiale, Site B et **un module métier témoin** avec thème/front propre ; les modules supplémentaires et le parcours complet de validation de budget suivent après la première app.
 - Besoin : [US-37](USER-STORIES.md#US-37). Acceptation : [REQ-3701](EXIGENCES.md#REQ-3701), [REQ-3702](EXIGENCES.md#REQ-3702).
 - Validation : implémenter puis exécuter les recettes liées, sur **GitHub et deux Sites publics** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
@@ -471,8 +481,8 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 ## T-38 — Adoption des mises à jour et contributions
 
 - Lot : **P8** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
-- Dépendances : [T-37](#T-37).
-- Travail/livrables : Release A→B, update individuelle de module/thème, starter installé, issue/PR amont, refus d’update/retrait cassant les consommateurs et preuves des intégrations facultatives ; publication Cloudflare du fork via le parcours T-32.
+- Dépendances : fork initial utilisable de [T-37](#T-37).
+- Travail/livrables : Pour la première app, installation du vrai paquet témoin puis adoption, par le fork B, d'une nouvelle version issue de l'original A et mise à jour du module/thème sans perte des données ni du front, avec refus d'une mise à jour incompatible ; publication Cloudflare du fork via le parcours T-32. Les contributions amont et intégrations facultatives restantes gardent leurs preuves propres dans T-38.
 - Besoin : [US-38](USER-STORIES.md#US-38). Acceptation : [REQ-3801](EXIGENCES.md#REQ-3801), [REQ-3802](EXIGENCES.md#REQ-3802), [REQ-3803](EXIGENCES.md#REQ-3803).
 - Validation : implémenter puis exécuter les recettes liées, sur **A/B, Cloudflare, tarballs et GitHub** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
@@ -481,8 +491,8 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 ## T-39 — Recette finale et validation utilisateur
 
 - Lot : **P9** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
-- Dépendances : [T-38](#T-38).
-- Travail/livrables : Rapport associé à ses preuves : versions/SHA/profils, scénarios positifs/négatifs, limites et démonstration utilisateur.
+- Dépendances : preuves initiales d'installation et de mise à jour de [T-38](#T-38).
+- Travail/livrables : **Recette ciblée de la première app** : deux Sites publics, chat OpenAI, widget/outil autorisé et refusé, module témoin issu du paquet, mise à jour original→fork, publication Cloudflare et retour utilisateur, avec versions/SHA/profils et limites. La **recette exhaustive** de tous les modules, fournisseurs et profils suit les lots différés ; le jalon ciblé ne vaut pas clôture de T-39.
 - Besoin : [US-39](USER-STORIES.md#US-39). Acceptation : [REQ-3901](EXIGENCES.md#REQ-3901).
 - Validation : implémenter puis exécuter les recettes liées, sur **deux Sites, Cloudflare et clients GPT/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
@@ -508,7 +518,7 @@ Ces sous-tâches sont toutes à faire, sous la responsabilité et les dépendanc
 |---|---|---|
 | GO de développement | T-01 et suivants | Attendre la décision utilisateur après lecture du dossier. |
 | Revue technique et règles GitHub | T-01 ; première fusion | Compte unique creezio autorisé ; revue d’un autre agent liée au SHA, origine du workflow vérifiée et protections qualifiées. Aucune approbation GitHub indépendante inventée. |
-| Accès au Site courant | T-09 | Relire accès/outils ; réutiliser le Site de qualification si adapté. Pas de nouveau Site par essai. |
+| Site public du compte courant | T-09 | Réutiliser le Site de qualification s'il est accessible et adapté ; si l'ancien renvoie 404 après changement de compte GPT, créer un nouveau Site public, mettre à jour le `project_id` courant et conserver l'ancien identifiant et ses preuves. Éviter les Sites de test dupliqués. |
 | Docker fonctionnel | T-31 | Moteur inaccessible lors du relevé : diagnostiquer au démarrage du lot, sans lancer un service utilisateur implicitement. |
 | Compte Cloudflare connecté | T-32/T-33 | Un nouveau jeton du compte autorisé a permis les lectures Workers/D1/R2 ; sa politique confirme leurs droits d'écriture. Accès suffisant pour préparer la recette sur workers.dev, mais aucune écriture, publication ou limite de quotas qualifiée. Les droits DNS de ce jeton sont insuffisants : vérifier les accès de zone existants si domaine personnalisé. L'ancien échec OAuth n'est plus un préalable obligatoire. Pour le transfert multipart par S3 R2, qualifier les credentials et permissions S3 distincts d’OAuth ; ne pas réclamer automatiquement une nouvelle clé. |
 | Accès fournisseurs | T-15/T-26 à T-29 | Réutiliser les secrets autorisés conservés ; affectation explicite à chaque environnement, jamais copie automatique des secrets de la sonde. Accès manquant = recette concernée non qualifiée. |

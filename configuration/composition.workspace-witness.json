@@ -51,6 +51,18 @@
       "enabled": true,
       "configuration": [],
       "integrations": []
+    },
+    {
+      "moduleId": "creezio.conversations",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/native/conversations"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
     }
   ],
   "front": {
@@ -60,13 +72,15 @@
     "admin": {
       "moduleIds": [
         "creezio.access",
-        "example.workspace-witness"
+        "example.workspace-witness",
+        "creezio.conversations"
       ]
     },
     "app": {
       "moduleIds": [
         "creezio.access",
-        "example.workspace-witness"
+        "example.workspace-witness",
+        "creezio.conversations"
       ]
     }
   }

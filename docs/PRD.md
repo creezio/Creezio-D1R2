@@ -1,6 +1,6 @@
 # Creezio — PRD produit
 
-Version de cadrage : 2, 26 septembre 2026. **GO reçu, implémentation en cours ; aucun CMS complet livré à ce stade.** Le backlog distingue preuves locales et qualification du produit ; le GO ne vaut pas recette.
+Version de cadrage : 3, 27 septembre 2026. **GO reçu, implémentation en cours ; aucun CMS complet livré à ce stade.** Le backlog distingue preuves locales et qualification du produit ; le GO ne vaut pas recette.
 
 ## Produit et résultat recherché
 
@@ -25,6 +25,12 @@ La référence fonctionnelle et visuelle de l'administration est le Creezio orig
 | Mainteneur Creezio | Faire évoluer le produit, suivre les installations officielles et accompagner | Registre séparé, versions datées, contributions revues, releases puis adoption testée ; accès d'assistance uniquement consenti. |
 
 L'accès au workspace n'est pas un rôle administrateur. Une même personne peut cumuler plusieurs rôles, mais chaque opération vérifie ses droits actuels. Le choix d'un front ne change pas ce modèle.
+
+## Ordre de livraison
+
+Le premier jalon est **une app réellement utilisable**, sans attendre toutes les familles de modules. Il achève les conversations natives (T-14), l'appel OpenAI réel (T-15) et les outils/widgets (T-16), puis installe depuis un vrai paquet le starter et **un seul module métier témoin** (T-30). La publication requise comprend le registre T-08, deux Sites publics via T-09/T-36/T-37, le parcours Docker local T-31 et la publication complète Cloudflare T-32. La version initiale de l'original et du vrai fork est suivie d'une preuve d'installation/mise à jour T-38 et d'une recette ciblée T-39. Le parcours Sites et le parcours Cloudflare qualifient le même code indépendamment : l'ancien Site devenu inaccessible après changement de compte GPT peut être remplacé par un nouveau Site public du compte courant, avec son nouveau `project_id` et l'historique précédent préservé.
+
+Les modules natifs et connecteurs T-17 à T-29, le catalogue complet T-25, les ressources distinctes T-33, les offres T-34 et l'assistance T-35 suivent ce premier jalon. Les exigences ci-dessous et dans [EXIGENCES.md](EXIGENCES.md) gardent leur portée ; la première version ne vaut ni clôture globale de T-36 ni recette exhaustive T-39. Chaque tranche annonce seulement les profils et critères effectivement prouvés.
 
 ## Périmètre fonctionnel à livrer
 
@@ -62,7 +68,7 @@ Recréer les applications métier existantes avant validation du socle et du for
 
 ## Mesure de réussite et recette
 
-La réussite exige des parcours utilisables, pas seulement un nombre de fichiers, un build ou une CI verte :
+La première app est jugée sur les parcours ciblés ci-dessus : conversation avec fournisseur réel, outil/widget et permissions, module témoin issu d'un paquet, original et vrai fork publics, mise à jour conservant données/personnalisation et publication Cloudflare vérifiée. La réussite **exhaustive** du produit exige ensuite tous les parcours ci-dessous, pas seulement un nombre de fichiers, un build ou une CI verte :
 
 1. Une app fraîche fonctionne avec ses modules natifs, son workspace, ses comptes et ses données, sans service optionnel configuré.
 2. Une nouvelle vue de module apparaît dans les deux thèmes officiels sans modification du routeur de l'app ; la même opération respecte les mêmes permissions depuis UI/API/MCP/widgets.
@@ -81,7 +87,7 @@ La chaîne normative est : **PRD → exigence → user story → tâche → test
 
 Une décision modifie les documents concernés et les liens de traçabilité, sans multiplier des listes de travail concurrentes. Une story regroupe un besoin ; une tâche décrit un travail livrable ; les tests prouvent les critères des exigences. Une case cochée signifie que ses preuves existent pour la version et le profil concernés. Les dépendances externes ne doivent pas disparaître derrière une case « terminé ».
 
-Le [rapport avant développement](AUDIT-AVANT-DEVELOPPEMENT.md) expose les corrections, les preuves existantes, les limites et les prérequis restants. Le GO utilisateur autorisera le lot de démarrage. La validation finale des deux Sites et du parcours Cloudflare précédera les autres applications métier.
+Le [rapport avant développement](AUDIT-AVANT-DEVELOPPEMENT.md) expose les corrections, les preuves existantes, les limites et les prérequis restants. Le GO utilisateur est acquis. La recette ciblée de l'original et du vrai fork précède les autres applications métier ; la recette exhaustive suit les modules et profils différés.
 
 ## Composition fiable des fonctionnalités
 

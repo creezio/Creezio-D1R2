@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Miniflare } from 'miniflare';
 import { loadAccessInstallPlan } from '../../scripts/data/install-access.mjs';
-import { generateD1Schema } from '../../scripts/data/d1-schema.mjs';
+import { describeD1Schema, generateD1Schema } from '../../scripts/data/d1-schema.mjs';
 import { createAccountService, provisionBootstrapCapability } from '../../core/identity/accounts.ts';
 import { createAccountLifecycleService } from '../../core/identity/lifecycle.ts';
 import { createMachineAccountService } from '../../core/identity/machines.ts';
@@ -20,7 +20,8 @@ const f = (id, type = 'string', extra = {}) => ({id,type,nullable:false,protecte
 const model = {id:'record',title:'Qualification record',scope:'context',contextField:'context_id',
   fields:[f('context_id','string',{protected:true}),f('id'),f('title'),f('revision','integer',{constraints:{minimum:0}}),
     f('secret','string',{protected:true,default:'sealed'}),f('flag','boolean',{default:false}),f('payload','json',{default:{}})],
-  primaryKey:['context_id','id'],indexes:[],relations:[],permissions:[ref('permission','view'),ref('permission','edit')],
+  primaryKey:['context_id','id'],indexes:[{id:'by-title',fields:['context_id','title'],unique:false}],relations:[],
+  permissions:[ref('permission','view'),ref('permission','edit')],
   deletion:{mode:'hard',requiresApproval:false},public:false};
 const declarations = [
   {id:'view',actions:['read']}, {id:'edit',actions:['create','update','delete']},
@@ -89,6 +90,18 @@ test('data ports use live native credentials, exact scopes and atomic D1 plans',
       const first=await port.list('record',{limit:2}),second=await port.list('record',{limit:2,after:first.nextAfter});
       assert.deepEqual(first.items.map(r=>r.id),['record-a','record-b']);assert.deepEqual(second.items.map(r=>r.id),['record-c']);
       assert.equal(second.nextAfter,null);assert.ok(Object.isFrozen(first.items));
+      await port.patch('record',{key:{id:'record-b'},values:{title:'shared'}});
+      await port.patch('record',{key:{id:'record-c'},values:{title:'shared'}});
+      const desc=await port.list('record',{limit:1,where:{title:'shared'},order:{indexId:'by-title',direction:'desc'}});
+      assert.deepEqual(desc.items.map(r=>r.id),['record-c']);
+      assert.deepEqual({...desc.nextAfter},{title:'shared',id:'record-c'});
+      const descNext=await port.list('record',{limit:1,where:{title:'shared'},order:{indexId:'by-title',direction:'desc'},after:desc.nextAfter});
+      assert.deepEqual(descNext.items.map(r=>r.id),['record-b']);assert.equal(descNext.nextAfter,null);
+      assert.throws(()=>port.planList('record',{limit:1,order:{indexId:'unknown',direction:'desc'}}),code('invalid_input'));
+      assert.throws(()=>port.planList('record',{limit:1,order:{indexId:'by-title',direction:'up'}}),code('invalid_input'));
+      assert.throws(()=>port.planList('record',{limit:1,fields:['id'],order:{indexId:'by-title',direction:'desc'}}),code('invalid_input'));
+      assert.throws(()=>port.planList('record',{limit:1,order:{indexId:'by-title',direction:'desc'},after:{id:'record-c'}}),code('invalid_input'));
+      assert.throws(()=>port.planList('record',{limit:1,order:{indexId:'by-title',direction:'desc'},after:{title:null,id:'record-c'}}),code('unsupported'));
       assert.throws(()=>port.planList('record',{limit:51}),code('invalid_input'));
       assert.throws(()=>port.planGet('record',{key:{id:'record-a'},fields:['secret']}),code('forbidden'));
       assert.throws(()=>port.planPatch('record',{key:{id:'record-a'},values:{secret:'leaked'}}),code('forbidden'));
@@ -165,9 +178,52 @@ test('data ports use live native credentials, exact scopes and atomic D1 plans',
       }
       assert.equal(await db.prepare(`SELECT count(*) AS n FROM "${generated.tables.record}" WHERE id LIKE 'rejected-%'`).first('n'),0);
     });
-    await t.test('unimplemented deletion/relations/computed capabilities fail closed before database access',async()=>{
-      for(const change of [m=>{m.deletion.mode='soft';},m=>{m.deletion.requiresApproval=true;},
-        m=>{m.relations.push({id:'parent',fields:['id'],target:ref('model','record'),targetFields:['id'],onDelete:'restrict'});}]) {
+    await t.test('same-module parent checks are authorized, contextual and atomic with child writes',async()=>{
+      const detail={id:'detail',title:'Related detail',scope:'context',contextField:'context_id',
+        fields:[f('context_id','string',{protected:true}),f('id'),f('parent_id'),f('note')],
+        primaryKey:['context_id','id'],indexes:[],relations:[{id:'parent',fields:['context_id','parent_id'],
+          target:ref('model','record'),targetFields:['context_id','id'],onDelete:'restrict'}],
+        permissions:[ref('permission','view'),ref('permission','edit')],deletion:{mode:'hard',requiresApproval:false},public:false};
+      const schema=describeD1Schema(moduleId,[model,detail]);
+      await db.batch(schema.objects.filter(object=>object.table===schema.tables.detail).map(object=>db.prepare(object.sql)));
+      const relatedCatalog=structuredClone(catalog);
+      relatedCatalog.modules[0].models.push({modelId:'detail',table:schema.tables.detail,model:detail});
+      for(const permission of relatedCatalog.modules[0].permissions) permission.resources.push(ref('model','detail'));
+      const related=createDataAccess(db,{catalog:relatedCatalog,permissions});
+      const x=await fresh(undefined,undefined,related);
+      await x.port.create('detail',{values:{id:'child-a',parent_id:'record-a',note:'linked'}});
+      const parent=x.port.planCreate('record',{values:{id:'batch-parent',title:'parent',revision:0}});
+      const child=x.port.planCreate('detail',{values:{id:'batch-child',parent_id:'batch-parent',note:'child'}});
+      await related.commitBatch(x.lease,[parent,child]);
+      assert.equal((await x.port.get('detail',{key:{id:'batch-child'}})).parent_id,'batch-parent');
+      const rolledParent=x.port.planCreate('record',{values:{id:'rolled-parent',title:'rolled',revision:0}});
+      const orphan=x.port.planCreate('detail',{values:{id:'orphan',parent_id:'missing',note:'must roll back'}});
+      await assert.rejects(()=>related.commitBatch(x.lease,[rolledParent,orphan]),code('storage_error'));
+      assert.equal(await x.port.get('record',{key:{id:'rolled-parent'}}),null);
+      assert.equal(await x.port.get('detail',{key:{id:'orphan'}}),null);
+      const y=await fresh(undefined,target('context-y'),related);
+      await assert.rejects(()=>y.port.create('detail',{values:{id:'cross-context',parent_id:'record-a',note:'refused'}}),code('storage_error'));
+      const unreadable=structuredClone(relatedCatalog);
+      unreadable.modules[0].models[0].model.permissions=[ref('permission','edit')];
+      const noParentRead=(await fresh(undefined,undefined,createDataAccess(db,{catalog:unreadable,permissions}))).port;
+      assert.throws(()=>noParentRead.planCreate('detail',{values:{id:'unreadable',parent_id:'record-a',note:'refused'}}),code('forbidden'));
+      const external=structuredClone(relatedCatalog);
+      external.modules[0].models[1].model.relations[0].target.moduleId='other.module';
+      const externalPort=(await fresh(undefined,undefined,createDataAccess(db,{catalog:external,permissions}))).port;
+      assert.throws(()=>externalPort.planCreate('detail',{values:{id:'external',parent_id:'record-a',note:'refused'}}),code('unsupported'));
+      const cascading=structuredClone(relatedCatalog);
+      cascading.modules[0].models[1].model.relations[0].onDelete='cascade';
+      const cascadingPort=(await fresh(undefined,undefined,createDataAccess(db,{catalog:cascading,permissions}))).port;
+      assert.throws(()=>cascadingPort.planDelete('record',{key:{id:'record-a'}}),code('unsupported'));
+      await x.port.patch('detail',{key:{id:'child-a'},values:{parent_id:'batch-parent'}});
+      assert.equal((await x.port.get('detail',{key:{id:'child-a'}})).parent_id,'batch-parent');
+      await assert.rejects(()=>x.port.patch('detail',{key:{id:'child-a'},values:{parent_id:'missing'}}),code('storage_error'));
+      assert.equal((await x.port.get('detail',{key:{id:'child-a'}})).parent_id,'batch-parent');
+      await x.port.patch('detail',{key:{id:'child-a'},values:{note:'edited'}});
+      assert.equal((await x.port.get('detail',{key:{id:'child-a'}})).note,'edited');
+    });
+    await t.test('unimplemented deletion/computed capabilities fail closed before database access',async()=>{
+      for(const change of [m=>{m.deletion.mode='soft';},m=>{m.deletion.requiresApproval=true;}]) {
         const variant=structuredClone(catalog);change(variant.modules[0].models[0].model);
         const service=createDataAccess(db,{catalog:variant,permissions}),{port}=await fresh(undefined,undefined,service);
         assert.throws(()=>port.planDelete('record',{key:{id:'record-a'}}),code('unsupported'));
@@ -186,6 +242,17 @@ test('data ports use live native credentials, exact scopes and atomic D1 plans',
       await assert.rejects(()=>fresh({kind:'api-token',token:signed.token}),code('unauthorized'));
       await assert.rejects(()=>fresh(undefined,{...target(),purpose:'human-approval'}),code('invalid_input'));
     });
+    await t.test('read guard counts multibyte text and escaped controls without a sixfold false refusal',async()=>{
+      const {port}=await fresh();
+      for(const value of [Array.from({length:32},(_,i)=>String.fromCharCode(i)).join('')+'"\\','漢😀']) {
+        const quoted=await db.prepare('SELECT length(CAST(json_quote(?) AS BLOB)) AS bytes').bind(value).first('bytes');
+        assert.ok(quoted>=new TextEncoder().encode(JSON.stringify(value)).length);
+      }
+      for(const value of ['漢'.repeat(16000),'\u0001'.repeat(8000)]) {
+        await port.patch('record',{key:{id:'record-a'},values:{title:value}});
+        assert.equal((await port.get('record',{key:{id:'record-a'}})).title,value);
+      }
+    });
     await t.test('oversized selected payload aborts in D1 before the row is transferred',async()=>{
       await db.prepare(`UPDATE "${generated.tables.record}" SET title=? WHERE context_id='context-x' AND id='record-a'`)
         .bind('x'.repeat(300000)).run();
@@ -199,6 +266,20 @@ test('data ports use live native credentials, exact scopes and atomic D1 plans',
       await assert.rejects(()=>port.get('record',{key:{id:'record-a'}}),code('storage_error'));
       assert.equal(oversizedTransferred,false);
       assert.equal((await port.get('record',{key:{id:'record-a'},fields:['id','revision']})).id,'record-a');
+      const noncanonical=`[${Array(13000).fill('1e20').join(',')}]`;
+      assert.ok(new TextEncoder().encode(noncanonical).length<262144);
+      assert.ok(new TextEncoder().encode(JSON.stringify(JSON.parse(noncanonical))).length>262144);
+      await db.prepare(`UPDATE "${generated.tables.record}" SET title='small',payload=? WHERE context_id='context-x' AND id='record-a'`)
+        .bind(noncanonical).run();
+      let jsonTransferred=false;
+      const observedJson={prepare:sql=>db.prepare(sql),batch:async statements=>{
+        const result=await db.batch(statements);
+        jsonTransferred=result.some(r=>r.results.some(row=>row.payload===noncanonical));
+        return result;
+      }};
+      const jsonPort=(await fresh(undefined,undefined,createDataAccess(observedJson,{catalog,permissions}))).port;
+      await assert.rejects(()=>jsonPort.get('record',{key:{id:'record-a'}}),code('storage_error'));
+      assert.equal(jsonTransferred,false);
     });
   } finally {await runtime.dispose();}
 });

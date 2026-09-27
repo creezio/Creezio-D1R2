@@ -1,6 +1,6 @@
 # Réalisation T-13 — Fronts, thèmes et headless
 
-T-13 / US-13 / REQ-1301 et REQ-1302. Branche `core/t13-front-themes`, base main PR #21 `20d48fda` qualifiée avec 923 tests. Implémentation et qualification en cours ; aucune recette Sites ou parité complète du CMS n'est revendiquée.
+T-13 / US-13 / REQ-1301 et REQ-1302. Branche `core/t13-front-themes`, base main PR #21 `20d48fda` qualifiée avec 923 tests. PR #22 intégrée, main `d12ab795` et candidat `b950fba3` de même arbre. 953 tests réussis en local et CI (candidat 36304940073, main 36305223665). Les recettes navigateur des deux thèmes, conservation des brouillons, écriture inconnue réconciliée sans rejeu et révocation sont qualifiées localement. Aucune recette Sites ou parité complète du CMS n'est revendiquée.
 
 ## Présentation facultative, backend commun
 
@@ -34,6 +34,6 @@ Les recettes navigateur des deux thèmes ont été exécutées sur le Worker com
 
 Deux défauts de recette ont été corrigés : retour vers l'ancienne URL publique après connexion, et panneaux absolus du workspace sans hauteur dans le front. Le raccord CSS du front laisse le panneau actif participer au flux sans modifier le workspace d'administration. Les essais initiaux restent conservés comme échecs ; aucune parité visuelle d'un module produit n'est déduite des fiches synthétiques.
 
-Preuves locales séparées : `CREEZIO-T13-NAVIGATEUR-2026-09-27.json`, captures STANDARD/CHATGPT/MOBILE et empreintes de source/artefacts, hors commit. Les contrôles complets exacts, les revues et la CI restent en cours. Le harnais refuse un schéma ou état partiel inconnu et n'ouvre ni `.wrangler/state` ni une donnée produit. Ses serveurs et onglets sont arrêtés ; le petit état synthétique est conservé.
+Preuves locales séparées : `CREEZIO-T13-NAVIGATEUR-2026-09-27.json`, captures STANDARD/CHATGPT/MOBILE et empreintes de source/artefacts, hors commit. Contrôles complets, trois revues techniques et CI du candidat et du main réussis. Le harnais refuse un schéma ou état partiel inconnu et n'ouvre ni `.wrangler/state` ni une donnée produit. Ses serveurs et onglets sont arrêtés ; le petit état synthétique est conservé.
 
 Les recettes Sites restent séparées et attendent l'accès au compte. Conversations, fichiers, événements et widgets headless seront raccordés à leurs opérations communes au fil des lots correspondants ; le client actuel ne les simule pas.

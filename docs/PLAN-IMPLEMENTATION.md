@@ -338,22 +338,26 @@ Le parcours obligatoire utilise Docker comme environnement local de développeme
 
 Le [backlog](TODO.md) porte les dépendances exécutables, les exigences et les preuves de chaque tâche. Les lots ci-dessous regroupent le travail ; leur numéro n'autorise pas à ignorer une dépendance. La première tranche P1 utilise le minimum P2 nécessaire aux comptes/données/opérations. Le GO complet est acquis. Les contrôleurs locaux P0 permettent la suite selon les jalons consommables ; la décision explicite de poursuivre localement pendant le blocage Actions est décrite dans GIT-FLOW. Aucune fusion ne contourne les contrôles distants.
 
+**Priorité de livraison : une première app utilisable.** Après T-14, réaliser T-15 OpenAI et T-16 outils/widgets ; qualifier avec T-30 le starter et un seul module métier témoin installé depuis son vrai paquet. Publier le périmètre nécessaire via T-08/T-09 sur Sites et T-31/T-32 sur Docker → Cloudflare, puis sortir la version initiale de l'original et le vrai fork (T-36/T-37), prouver installation/mise à jour (T-38) et mener une recette ciblée (T-39). Le parcours Sites et le parcours Cloudflare ont des prérequis d'accès et des preuves propres ; un Site existant inaccessible après changement de compte GPT peut être remplacé par un nouveau Site public du compte courant, avec nouveau `project_id` et historique conservé. La publication Cloudflare ne dépend pas techniquement de cette publication Sites.
+
+T-17 à T-29 (dont le catalogue complet T-25) et T-33 à T-35 suivent cette première app. Les exigences correspondantes restent à réaliser et à qualifier ; la version initiale et la recette ciblée n'attribuent pas l'état « vérifié » aux lots T-36/T-39 dans leur entier. Leurs compléments et la recette exhaustive suivent les modules et profils différés.
+
 T-05 consomme l'identité locale qualifiée de T-04 (comptes/droits persistants, installation explicite, transport et entrée natifs), sans attendre la qualification de tous les canaux futurs. T-06 consomme ensuite les fondations de stockage dont ses opérations ont besoin. Les critères transversaux de T-04 restent ouverts jusqu'aux interfaces et transports T-06/T-07/T-10 ; aucune clôture artificielle pour débloquer la suite. L'administration Access déclare ses opérations dans le registre commun ; seules les routes de handshake d'identité restent une responsabilité native distincte.
 
 | Lot | Tâches canoniques | Résultat et sortie |
 |---|---|---|
 | P0 — Méthode et contrats exécutables | T-01, T-02 | Activer/qualifier règles GitHub, revue distincte, premiers contrôles de documentation/contrats/gouvernance et cas invalides. Ne pas annoncer des suites runtime exécutées avant leur construction. |
-| P1 — Tranche fonctionnelle précoce | T-03, T-07, T-08, T-09, T-31 | Runtime commun, workspace/onglets, identité/donnée/fichier/opération témoins et registre minimal avant publication officielle. Local puis Site A. Docker/Cloudflare qualifiés dès accès disponibles sans bloquer les travaux indépendants. |
+| P1 — Tranche fonctionnelle précoce | T-03, T-07, T-08, T-09, T-31 | Runtime commun, workspace/onglets, identité/donnée/fichier/opération témoins et registre minimal avant publication officielle. Local, Site A et Docker avancent selon leurs capacités ; un ancien Site inaccessible peut être remplacé sous le compte GPT courant en conservant sa trace. |
 | P2 — Identités, données et opérations | T-04, T-05, T-06, T-10 | Sécurité complète, stockage/coffre/recherche/export, registre d'opérations, API/MCP et OAuth ; refus, droits au commit et reprise prouvés. |
-| P3 — Modules et distribution | T-11, T-12, T-30 | Contrat/SDK/cycle de vie, docs par version et six CI ; première extension témoin puis starter complet avec paquet réel et démo locale, après disponibilité des interfaces/widgets. |
+| P3 — Modules et distribution | T-11, T-12, T-30 | Contrat/SDK/cycle de vie, docs par version et six CI ; starter et paquet réel d'un seul module métier témoin, puis compléments du lot après la première app. |
 | P4 — Interfaces et chat | T-13 à T-16 | Front facultatif, deux thèmes dynamiques/headless, chat standard complet, module OpenAI, widgets et plugins réellement qualifiés dans Creezio et GPT. |
-| P5 — Natif et connecteurs | T-17 à T-29 | Tâches, messagerie, support, CRM, pages/navigation, analytics, intentions, règles ; catalogue, n8n, Stripe, Meili et connecteurs recensés avec leurs PRD/tests/preuves propres. |
-| P6 — Livraison et offres | T-32 à T-35 | Application et démo publiées sur Cloudflare avec transfert/reprise, multiressource hors Sites, politiques Community/Enterprise et assistance limitée/révocable. Décisions commerciales restent différées. |
-| P7 — Release et vrai fork | T-36, T-37 | Original qualifié, conditions de distribution examinées, version publiable puis vrai fork public Creez-io/Creezio-Lab et Site B. |
-| P8 — Adoption et communauté | T-38 | Mise à jour A/B, update individuelle de module/thème, véritable paquet tiers installé puis actualisé, contribution amont et parcours Cloudflare du fork. |
-| P9 — Validation utilisateur | T-39 | Démonstration reproductible et preuves complètes des deux Sites, clients MCP/GPT, données et parcours Cloudflare, avant toute nouvelle app métier. |
+| P6 — Publication nécessaire à la première app | T-32 | Original et démo du module témoin publiés sur Cloudflare avec transfert/reprise depuis Docker. Cette qualification est indépendante de T-09 Sites. |
+| P7 — Version initiale et vrai fork | T-36, T-37 | Version initiale de l'original avec provenance et conditions de distribution vérifiées, puis vrai fork public Creez-io/Creezio-Lab et Site B avec un module métier témoin. Compléments de T-36 ensuite. |
+| P8 — Adoption initiale | T-38 | Installer le vrai paquet dans le fork, mettre à jour socle et module/thème sans perte ; contribution amont et intégrations facultatives suivent leur périmètre. |
+| P9 — Recette ciblée | T-39 | Démonstration reproductible de la première app sur A/B, MCP/GPT et Cloudflare, avec refus et limites ; recette exhaustive après les lots différés. |
+| P5 et suite P6 — Modules et capacités différés | T-17 à T-29, T-33 à T-35 | Tâches, messagerie, support, CRM, pages/navigation, analytics, intentions, règles, catalogue complet, connecteurs, multiressource, offres et assistance avec leurs PRD/tests/preuves propres. |
 
-Le local et le développement des contrats ne nécessitent pas de nouvelle clé Cloudflare. L'accès manquant bloque sa recette de publication, qui reste obligatoire avant validation finale. La démo du starter est d'abord vérifiée localement (T-30), puis publiée avec le parcours Cloudflare (T-32) : aucune dépendance circulaire entre starter et publication. Les preuves préexistantes de sonde et de composants réemployables ne cochent pas les fonctionnalités de ces lots.
+Le local et le développement des contrats ne nécessitent pas de nouvelle clé Cloudflare. L'accès manquant bloque seulement sa recette de publication, qui reste obligatoire pour le jalon initial. La démo du module témoin est d'abord vérifiée localement (T-30), puis publiée avec le parcours Cloudflare (T-32) : aucune dépendance circulaire entre starter et publication. Les preuves préexistantes de sonde et de composants réemployables ne cochent pas les fonctionnalités de ces lots.
 
 Le registre central est un service distinct : T-08 construit sa tranche d'enregistrement/vérification et documente son bootstrap, T-34 ses politiques/droits et T-35 l'accompagnement. Aucune dépendance métier à un serveur de flotte. Les frontières techniques et les politiques de test sont nécessaires dès la conception ; licence finale, tarifs, fonctions premium et accès SaaS ne sont pas des décisions exigées pour commencer le développement. Le contrat de distribution applicable devra être examiné avant publication du code concerné.
 
@@ -361,7 +365,7 @@ Chaque tâche livre code, documents à jour, tests proportionnés et limites. Le
 
 ## 11. Première application dérivée : Creezio Lab
 
-Métier de recette : demandes d'achat contenant titre, description, statut, montant proposé et pièce jointe. Un module métier apporte données, API/MCP et widget ; un module de validation de budget démontre un échange intermodules par contrat public. Le comparateur fournisseur externe et le catalogue commun complètent la recette sans devenir obligatoires pour créer une demande. Le [dossier d'architecture](ARCHITECTURE-DEPOTS.md) fixe ces frontières.
+Métier de la première recette : demandes d'achat contenant titre, description, statut, montant proposé et pièce jointe. **Un seul module métier témoin** apporte données, API/MCP et widget, depuis un paquet installé dans le vrai fork. Le module de validation de budget, le comparateur fournisseur externe et le catalogue commun complètent ultérieurement la recette ; ils ne conditionnent pas cette première app. Le [dossier d'architecture](ARCHITECTURE-DEPOTS.md) fixe ces frontières sans réduire leur périmètre futur.
 
 Le front du fork utilise le thème ChatGPT-like, avec son propre écran d'accueil et son organisation conversationnelle. Son administration reste Creezio, avec le même chat et le même comportement d'onglets que l'original. Une extension commune de recherche Meili, si configurée, indexe les demandes avec les droits ; le même contrat fonctionne sans cette extension et annonce clairement l'absence de recherche Meili.
 
@@ -416,7 +420,7 @@ Ces points ne demandent pas de redéfinir le métier des applications. L'absence
 
 ## 14. Références et limites de cette conception
 
-Le runtime, les bindings D1/R2, l'authentification et la publication utilisent les capacités effectivement disponibles dans GPT Sites. Les vérifications de plateforme des tâches T-03, T-09 et T-32 restent nécessaires sur les versions retenues. La publication Sites est effectuée dans le parcours GPT, hors du runtime de l'application.
+Le runtime, les bindings D1/R2 et l'authentification utilisent les capacités effectivement disponibles dans GPT Sites, qualifiées par T-03 et T-09 sur les versions retenues. T-32 qualifie séparément la publication Cloudflare directe du même code, avec ses propres bindings et accès. La publication Sites est effectuée dans le parcours GPT, hors du runtime de l'application.
 
 Sources techniques primaires :
 

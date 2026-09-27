@@ -41,7 +41,8 @@ async function objectBytes(bucket: FileBucket, key: string, expectedSize: number
   try {
     while (true) {
       const { done, value } = await reader.read(); if (done) break;
-      if (!(value instanceof Uint8Array) || value.byteLength > maximum - size || value.byteLength > expectedSize - size) throw new FileError('conflict');
+      if (!(value instanceof Uint8Array) || chunks.length >= FILE_POLICY.maximumChunks
+        || value.byteLength > maximum - size || value.byteLength > expectedSize - size) throw new FileError('conflict');
       chunks.push(new Uint8Array(value)); size += value.byteLength;
     }
     if (size !== expectedSize) throw new FileError('conflict');
@@ -55,7 +56,9 @@ async function objectBytes(bucket: FileBucket, key: string, expectedSize: number
 }
 
 /** Internal host service. Neither this factory nor its protected data port is a module API. */
-export function createFileService(options: { data: DataAccess; catalog: RuntimeDataCatalog; moduleId: string; category: FileCategory; bucket: FileBucket }) {
+export function createFileService(options: { data: DataAccess; catalog: RuntimeDataCatalog; moduleId: string; category: FileCategory; bucket: FileBucket;
+  /** Transport-issued owner restriction, additional to module/context permissions. */
+  ownerId?: string }) {
   const category = captureFileCategory(options.catalog, options.moduleId, options.category);
   const { data, bucket } = options, moduleId = options.moduleId, m = category.storageFields, modelId = category.metadataModel.id;
   const maximum = Math.min(category.maxBytes, FILE_POLICY.maximumBytes);
@@ -84,7 +87,7 @@ export function createFileService(options: { data: DataAccess; catalog: RuntimeD
     const expected = `f1_${await digest(encoder.encode(JSON.stringify([moduleId, category.id, contextId, ref.intentId, ref.generation])))}`;
     if (expected !== ref.fileId) throw new FileError('not_found');
     const row = await port(lease, action).get(modelId, { key: key(ref), where: exact(ref) });
-    if (!row) throw new FileError('not_found'); return row;
+    if (!row || options.ownerId !== undefined && row[category.ownerField] !== options.ownerId) throw new FileError('not_found'); return row;
   }
   function version(row: DataRecord): number {
     const value = row[m.version]; if (!Number.isSafeInteger(value) || Number(value) < 1 || Number(value) >= Number.MAX_SAFE_INTEGER) throw new FileError('conflict');
@@ -104,6 +107,7 @@ export function createFileService(options: { data: DataAccess; catalog: RuntimeD
       if (!plainRecord(input) || Object.keys(input).sort().join(',') !== 'bytes,contentType,filename,generation,intentId,ownerId'
         || !(input.bytes instanceof Uint8Array) || input.bytes.byteLength > maximum) throw new FileError('invalid_input');
       const bytes = new Uint8Array(input.bytes), ownerId = string(input.ownerId, 128), intentId = string(input.intentId, 128), generation = string(input.generation, 128);
+      if (options.ownerId !== undefined && ownerId !== options.ownerId) throw new FileError('invalid_input');
       const filename = string(input.filename, FILE_POLICY.maximumNameBytes).replace(/[\\/]/g, '_'), contentType = string(input.contentType, 128);
       if (!category.mimeTypes.includes(contentType)) throw new FileError('invalid_input');
       const contextId = data.describeLease(lease).contextId;
@@ -146,14 +150,18 @@ export function createFileService(options: { data: DataAccess; catalog: RuntimeD
       }
       return ref;
     },
-    async publicationProof(lease: DataLease, value: StagedFile): Promise<DataPlan> {
+    async preparePublication(lease: DataLease, value: StagedFile) {
       const ref = captureRef(value), row = await read(lease, ref, 'update');
       if (!['staged', 'available'].includes(String(row[m.state]))) throw new FileError('conflict');
       await verifiedObject(row);
       // The plan is opaque and executes with the same fresh guard and transaction as business writes.
-      if (row[m.state] === 'available') return port(lease, 'update').planGet(modelId, { key: key(ref), where: snapshot(row), required: true });
-      return port(lease, 'update').planPatch(modelId, { key: key(ref), where: snapshot(row),
+      const plan = row[m.state] === 'available' ? port(lease, 'update').planGet(modelId, { key: key(ref), where: snapshot(row), required: true })
+        : port(lease, 'update').planPatch(modelId, { key: key(ref), where: snapshot(row),
         compare: { field: m.version, expected: version(row) }, values: { [m.state]: 'available' } });
+      return Object.freeze({plan,file:Object.freeze({fileId:ref.fileId,filename:String(row[m.filename]),contentType:String(row[m.contentType]),byteSize:Number(row[m.byteSize])})});
+    },
+    async publicationProof(lease: DataLease, value: StagedFile): Promise<DataPlan> {
+      return (await this.preparePublication(lease, value)).plan;
     },
     async readPrivate(lease: DataLease, value: StagedFile): Promise<PrivateFile> {
       const ref = captureRef(value), row = await read(lease, ref);

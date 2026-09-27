@@ -19,6 +19,18 @@ test('native front namespace cannot be shadowed and requires app authentication 
   assert.equal((await app.fetch(request('/api/front/projection'),environment())).status,404);assert.equal(calls,0);
 });
 
+test('private file routes are host-owned and require their own enabled native audience',async()=>{
+  for(const path of ['/api/files','/api/files/admin/example.test/attachment','/api/{scope}/app/example.test/attachment'])
+    assert.throws(()=>runtime([moduleOf([operation({path})])]),error=>error instanceof RuntimeConfigurationError&&error.code==='route.reserved');
+  let calls=0;
+  const app=createRuntime({compositionDigest:digest,modules:[{id:'creezio.access',version:'1.0.0',operations:[]}],
+    nativeAccess:{admin:true,app:false},declaredHttp:{dispatch:async()=>{calls++;return Response.json({});}}});
+  assert.equal((await app.fetch(request('/api/files/app/example.test/attachment'),environment())).status,404);
+  assert.equal(calls,0);
+  assert.equal((await app.fetch(request('/api/files/admin/example.test/attachment'),environment())).status,200);
+  assert.equal(calls,1);
+});
+
 test('non-API routes pass to the UI, while unknown API and MCP paths return JSON 404',async()=>{
   const app=runtime();
   for(const path of ['/','/witness','/assets/main.js','/apiary','/mcp-not-a-route','/landing/%ZZ'])assert.equal(await app.fetch(request(path),null),null);

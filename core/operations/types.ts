@@ -2,6 +2,7 @@ import type { AuthorizationActor, AuthorizationAudience } from '../authorization
 import type { ContractReference, DataPlan, DataPort, JsonValue } from '../data/types.ts';
 import type { OperationOutboxIntent } from './store-types.ts';
 import type { ModuleSettingsHostInventory } from '../../sdk/module-settings/types.ts';
+import type {OperationFilesPort} from '../../sdk/files/types.ts';
 
 /** The canonical v1 declaration is compiled once; transports do not invent an operation policy. */
 export interface OperationDeclaration {
@@ -44,6 +45,7 @@ export interface OperationContext {
   readonly contextId: string; readonly audience: AuthorizationAudience;
   readonly principalId: string; readonly actorPrincipalId: string; readonly signal: AbortSignal;
   readonly data: OperationDataPort;
+  readonly files?: OperationFilesPort;
   /** Build-owned inventory; supplied only to the trusted native modules-settings implementation. */
   readonly hostInventory?: ModuleSettingsHostInventory;
 }

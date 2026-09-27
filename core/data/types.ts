@@ -38,7 +38,11 @@ export type DataCredential = { readonly kind: 'session' | 'api-token' | 'imperso
   | { readonly kind: 'oauth'; readonly token: unknown; readonly resource: string };
 export type DataRecord = Readonly<Record<string, JsonValue>>;
 export interface DataRead { readonly key: DataRecord; readonly fields?: readonly string[]; readonly where?: DataRecord; readonly required?: boolean }
-export interface DataList { readonly limit: number; readonly after?: DataRecord | null; readonly where?: DataRecord; readonly fields?: readonly string[] }
+export interface DataList {
+  readonly limit: number; readonly after?: DataRecord | null; readonly where?: DataRecord; readonly fields?: readonly string[];
+  /** A declared index followed by missing primary-key fields; the same direction applies to every field. */
+  readonly order?: { readonly indexId: string; readonly direction: 'asc' | 'desc' };
+}
 export interface DataCreate { readonly values: DataRecord }
 export interface DataCompare { readonly field: string; readonly expected: number }
 export interface DataPatch { readonly key: DataRecord; readonly values: DataRecord; readonly compare?: DataCompare;

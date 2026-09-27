@@ -1,7 +1,7 @@
 import '../../../scripts/local-environment.mjs';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import { Miniflare } from 'miniflare';
-import { loadAccessInstallPlan } from '../../../scripts/data/install-access.mjs';
 import { generateD1Schema } from '../../../scripts/data/d1-schema.mjs';
 import { createAccountService, provisionBootstrapCapability } from '../../../core/identity/accounts.ts';
 import { createAuthorizationService } from '../../../core/authorization/service.ts';
@@ -37,6 +37,12 @@ const definitions = [
 ].map(p => ({ ...p, actions: ['read', 'create', 'update', 'delete'], audiences: ['admin', 'app'], actors: ['user'] }));
 export const permissions = definitions.map(p => ({ id: `${moduleId}:${p.id}`, audiences: p.audiences, actors: p.actors }));
 export const schema = generateD1Schema(moduleId, models);
+// This synthetic fixture needs the canonical native Access tables in real D1.
+// Product installation and composition-lock qualification have separate tests.
+const accessModels=JSON.parse(readFileSync(new URL('../../../extensions/native/access/module/models.json',import.meta.url),'utf8'));
+const accessSchema=generateD1Schema('creezio.access',accessModels);
+assert.equal(Object.keys(accessSchema.tables).length,Object.keys(ACCESS_TABLES).length);
+for(const [id,name] of Object.entries(ACCESS_TABLES))assert.equal(accessSchema.tables[id],name);
 export const catalog = { schemaVersion: 1, compositionDigest: `sha256-${'f'.repeat(64)}`, modules: [{ moduleId,
   enabled: true, version: '1.0.0', permissions: definitions, models: models.map(model => ({ modelId: model.id, model, table: schema.tables[model.id] })) }] };
 export const table = id => `"${schema.tables[id]}"`;
@@ -49,7 +55,7 @@ export async function createStorageFixture() {
     r2Buckets: ['BUCKET'], d1Persist: false, r2Persist: false });
   try {
     const db = await runtime.getD1Database('DB'), bucket = await runtime.getR2Bucket('BUCKET');
-    await db.batch([...loadAccessInstallPlan().statements, ...schema.statements].map(sql => db.prepare(sql)));
+    await db.batch([...accessSchema.statements, ...schema.statements].map(sql => db.prepare(sql)));
     const accounts = createAccountService(db), capability = await provisionBootstrapCapability(db);
     const password = 'Synthetic storage qualification password';
     const owner = good(await accounts.bootstrap({ token: capability.token, loginIdentifier: 'storage@example.invalid', displayName: 'Storage fixture', password }));

@@ -1,8 +1,14 @@
 # Changelog
 
-## Non publié — T13
+## Non publié — T14
 
-Front facultatif avec thèmes standard et ChatGPT-like, registre dynamique de vues/navigation/slots et projection native app. Réemploi des composants Creezio et de la présentation Certivan V5 ; personnalisations sous application/. Client headless sur bindings API/OAuth existants, sans seconde logique métier. Qualification en cours. PR #21 a intégré les documents installés T12 (923 tests locaux/CI et recette navigateur).
+Priorité de livraison précisée : première app dérivée, module témoin, chat/widgets, déploiement et mise à jour avant les modules non nécessaires. T17–T22 et T26–T29 sont différés sans retrait d'exigence. Le changement de compte ChatGPT autorise une nouvelle cible Sites publique, avec identifiant et provenance conservés par cible.
+
+Module natif Conversations avec historique, recherche, archives, brouillons D1 et pièces jointes privées R2. Le panneau flottant, Chat/Work et le composeur reprennent le Creezio original ; workspace et front utilisent les mêmes opérations HTTP/MCP. Ports de données ordonnés et publication atomique des références de fichiers. Qualification T14 en cours ; le fournisseur OpenAI et les widgets restent suivis en T15/T16.
+
+## 27 septembre 2026 — Fronts et thèmes T13
+
+Front facultatif avec thèmes standard et ChatGPT-like, registre dynamique de vues/navigation/slots et projection native app. Réemploi des composants Creezio et de la présentation Certivan V5 ; personnalisations sous application/. Client headless sur bindings API/OAuth existants, sans seconde logique métier. PR #22 intégrée ; 953 tests locaux et CI réussis, deux thèmes qualifiés en navigateur local. Recette Sites encore attendue. PR #21 a intégré les documents installés T12 (923 tests locaux/CI et recette navigateur).
 
 ## 27 septembre 2026 — Documentation installée T12
 

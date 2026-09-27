@@ -1,0 +1,6 @@
+{
+  "name": "creezio-conversations",
+  "version": "0.0.0",
+  "description": "Conversations Creezio avec operations canoniques partagees entre workspace et front.",
+  "mcpServers": {}
+}

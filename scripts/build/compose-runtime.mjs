@@ -7,6 +7,7 @@ import { compileMcpBindings } from '../mcp/bindings.mjs';
 import { createOperationRegistry } from '../../core/operations/registry.ts';
 import { compileModuleInventoryWithDocuments } from '../../sdk/modules/inventory.mjs';
 import { captureHostInventory } from '../../core/operations/host-inventory.ts';
+import {captureFileCategory} from '../../core/files/mapping.ts';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadJson } from '../../sdk/contracts/load.mjs';
@@ -158,7 +159,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   const dataPlan = compileCompositionSchema({ composition, lock, modules: located.map(item => item.descriptor) });
   const operationPlan = compileOperationSchemas({ composition, lock, modules: located.map(item => item.descriptor) });
   const output = confined(root, outputDir, { directory: true, missing: true });
-  const destinations = Object.fromEntries(['server.ts', 'client.tsx', 'data-catalog.ts', 'module-inventory.ts', 'operations.ts', 'operation-validators.mjs', 'composition.json'].map(name => [name, confined(root, path.join(output, name), { missing: true })]));
+  const destinations = Object.fromEntries(['server.ts', 'client.tsx', 'data-catalog.ts', 'file-catalog.ts', 'module-inventory.ts', 'operations.ts', 'operation-validators.mjs', 'composition.json'].map(name => [name, confined(root, path.join(output, name), { missing: true })]));
   if (located.some(item => contained(item.directory, output))
     || Object.values(destinations).some(destination => destination === compositionFile || destination === lockFile)) {
     fail('output.source-collision', 'Generated output must not overwrite selected module sources or composition inputs.');
@@ -253,6 +254,13 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     }
   }
   const compositionDigest = contractIntegrity(composition);
+  const fileCatalog = {compositionDigest, categories: located.flatMap(item => {
+    const moduleId = item.descriptor.identity.id;
+    if (!composition.modules.some(selection => selection.moduleId === moduleId && selection.enabled)) return [];
+    return item.descriptor.contracts.files.map(category => ({moduleId,
+      category: captureFileCategory(dataPlan.runtimeCatalog, moduleId, category),
+      audiences: ['admin','app'].filter(audience => composition.exposure[audience].moduleIds.includes(moduleId))}));
+  })};
   let runtimeInventory;
   if (composition.modules.some(selection => selection.moduleId === 'creezio.modules-settings' && selection.enabled)) {
     const config = loadJson(confined(root, inventoryPath), {root});
@@ -361,6 +369,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   const validatorEntries = operationPlan.catalog.modules.flatMap(module => module.schemas)
     .map(schema => `${JSON.stringify(schema.validator)}: compiledValidators.${schema.validator}`).join(',\n');
   const rendered = {
+    'file-catalog.ts': `${banner}import type {RuntimeFileCatalog} from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/files/catalog.ts')))};\n${freezeSource}export const fileCatalog: RuntimeFileCatalog = freeze(${JSON.stringify(fileCatalog)});\n`,
     'module-inventory.ts': `${banner}import type { ModuleSettingsHostInventory } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/module-settings/types.ts')))};\n${freezeSource}${runtimeInventory
       ? `const inventory: ModuleSettingsHostInventory['inventory'] = freeze(${JSON.stringify(runtimeInventory.inventory)});\nexport const runtimeInventory: ModuleSettingsHostInventory = freeze({current: {composition: ${JSON.stringify(composition)}, lock: ${JSON.stringify(lock)}, descriptors: ${JSON.stringify(currentModuleCandidateKeys(composition,lock,runtimeInventory.inventory))}.map(key => inventory.candidates.find(candidate => candidate.candidateKey === key)!.descriptor)}, inventory, currentInstalledDocuments: ${JSON.stringify(runtimeInventory.currentInstalledDocuments)}});\n`
       : 'export const runtimeInventory: ModuleSettingsHostInventory | undefined = undefined;\n'}`,

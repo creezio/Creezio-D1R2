@@ -39,11 +39,33 @@ export function compileDataCatalog(input: RuntimeDataCatalog): ReadonlyMap<strin
           || new Set(model.primaryKey).size !== model.primaryKey.length
           || model.scope === 'context' && (!model.contextField || !fields.has(model.contextField)
             || fields.get(model.contextField)!.type !== 'string' || fields.get(model.contextField)!.computed)) throw new Error();
+        if (new Set(model.indexes.map((index: DataModel['indexes'][number]) => index.id)).size !== model.indexes.length
+          || model.indexes.some((index: DataModel['indexes'][number]) => !validId(index.id) || typeof index.unique !== 'boolean'
+            || !Array.isArray(index.fields) || !index.fields.length || new Set(index.fields).size !== index.fields.length
+            || index.fields.some((id: string) => !fields.has(id) || fields.get(id)!.computed))) throw new Error();
         const key = fullId(module.moduleId, entry.modelId);
         if (models.has(key)) throw new Error();
         models.set(key, Object.freeze({ moduleId: module.moduleId, modelId: entry.modelId, table: entry.table,
           model, enabled: module.enabled, permissions: module.permissions })); tables.add(entry.table);
       }
+    }
+    for (const source of models.values()) for (const relation of source.model.relations) {
+      if (!validId(relation.id) || !Array.isArray(relation.fields) || !Array.isArray(relation.targetFields)
+        || !relation.fields.length || relation.fields.length !== relation.targetFields.length
+        || !['restrict', 'cascade', 'set-null'].includes(relation.onDelete)) throw new Error();
+      if (relation.target.moduleId !== source.moduleId) continue; // Cross-module writes remain unavailable.
+      const target = models.get(fullId(source.moduleId, relation.target.id));
+      if (relation.target.kind !== 'model' || !target) throw new Error();
+      const sourceFields = new Map(source.model.fields.map(field => [field.id, field]));
+      const targetFields = new Map(target.model.fields.map(field => [field.id, field]));
+      if (relation.fields.some((id, i) => !sourceFields.has(id) || !targetFields.has(relation.targetFields[i])
+        || sourceFields.get(id)!.type !== targetFields.get(relation.targetFields[i])!.type)) throw new Error();
+      const same = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((id, i) => id === b[i]);
+      if (![target.model.primaryKey, ...target.model.indexes.filter(index => index.unique).map(index => index.fields)]
+        .some(fields => same(fields, relation.targetFields))) throw new Error();
+      if (target.model.scope === 'context' && (source.model.scope !== 'context'
+        || !relation.fields.some((id, i) => id === source.model.contextField
+          && relation.targetFields[i] === target.model.contextField))) throw new Error();
     }
     return models;
   } catch { throw new DataAccessError('invalid_catalog'); }
@@ -52,6 +74,15 @@ export function compileDataCatalog(input: RuntimeDataCatalog): ReadonlyMap<strin
 // Stored/editable separation is portable; no implicit metadata columns or JSON record fallback.
 export const storedFields = (model: DataModel) => model.fields.filter(field => !field.computed);
 export const editableFields = (model: DataModel) => storedFields(model).filter(field => !field.protected);
+
+function permits(entry: CompiledModel, state: ResolvedDataAuthorization, action: DataAction): boolean {
+  return entry.permissions.some(permission => entry.model.permissions.some(ref => ref.kind === 'permission'
+    && ref.moduleId === entry.moduleId && ref.id === permission.id) && permission.actions.includes(action)
+    && permission.resources.some(ref => ref.kind === 'model' && ref.moduleId === entry.moduleId && ref.id === entry.modelId)
+    && authorize(state.snapshot, { ...state.target, requiredPermissionIds: [...new Set([
+      ...state.target.requiredPermissionIds, fullId(entry.moduleId, permission.id),
+    ])] }, state.nowMs).allowed);
+}
 
 function jsonEqual(a: JsonValue, b: JsonValue): boolean {
   if (a === b) return true;
@@ -103,20 +134,17 @@ export function decodeRows(rows: readonly Record<string, unknown>[], fields: rea
 
 /** Build only fixed SQL shapes from the validated catalogue; identifiers never come from bound data. */
 export function compileDataPlan(entry: CompiledModel, state: ResolvedDataAuthorization, action: DataAction,
-  input: unknown, list: boolean, internal?: InternalDataPortOptions): CompiledDataPlan {
+  input: unknown, list: boolean, internal?: InternalDataPortOptions,
+  catalog?: ReadonlyMap<string, CompiledModel>): CompiledDataPlan {
   const { model } = entry;
   if (!entry.enabled || model.scope === 'application' && state.target.contextId !== 'application') throw new DataAccessError('forbidden');
-  const allowedPermissions = entry.permissions.filter(permission => model.permissions.some(ref => ref.kind === 'permission'
-    && ref.moduleId === entry.moduleId && ref.id === permission.id) && permission.actions.includes(action)
-    && permission.resources.some(ref => ref.kind === 'model' && ref.moduleId === entry.moduleId && ref.id === entry.modelId));
   // Explicit actions/resources, never role names or a permission-id naming convention.
-  const permitted = allowedPermissions.some(permission => authorize(state.snapshot, { ...state.target,
-    requiredPermissionIds: [...new Set([...state.target.requiredPermissionIds, fullId(entry.moduleId, permission.id)])] }, state.nowMs).allowed);
-  if (!permitted) throw new DataAccessError('forbidden');
+  if (!permits(entry, state, action)) throw new DataAccessError('forbidden');
   if (action === 'delete' && (model.deletion.mode !== 'hard' || model.deletion.requiresApproval)) throw new DataAccessError('unsupported');
-  // A foreign key proves referential integrity, not authority over its target.
-  // Relational mutations wait for the shared referenced-object authorization path.
-  if (action !== 'read' && model.relations.length) throw new DataAccessError('unsupported');
+  // Foreign keys establish integrity. This port additionally requires a readable
+  // same-module parent and proves its presence in the write transaction.
+  if (action !== 'read' && model.relations.some(relation => relation.target.moduleId !== entry.moduleId))
+    throw new DataAccessError('unsupported');
   const captured = copyJson(input); record(captured);
   const fieldMap = new Map(model.fields.map(field => [field.id, field]));
   const internalFields = new Set(internal?.fields ?? []);
@@ -151,50 +179,94 @@ export function compileDataPlan(entry: CompiledModel, state: ResolvedDataAuthori
     if (values.length > DATA_LIMITS.bindings) throw new DataAccessError('invalid_input');
     statements.push(Object.freeze({ sql, bindings: Object.freeze([...values]) }));
   };
+  const guardRelation = (relation: DataModel['relations'][number], values: Readonly<Record<string, JsonValue>>) => {
+    const parent = catalog?.get(fullId(entry.moduleId, relation.target.id));
+    if (!parent || relation.target.kind !== 'model' || !parent.enabled
+      || relation.fields.length !== relation.targetFields.length) throw new DataAccessError('invalid_catalog');
+    if (!permits(parent, state, 'read')) throw new DataAccessError('forbidden');
+    const relationValues = relation.fields.map(id => values[id]);
+    if (relationValues.some(value => value === undefined)) throw new DataAccessError('unsupported');
+    // SQLite composite foreign keys intentionally permit an optional (NULL)
+    // relation; otherwise the parent must exist in this same atomic batch.
+    if (relationValues.some(value => value === null)) return;
+    const parentFields = new Map(parent.model.fields.map(field => [field.id, field]));
+    if (relation.fields.some((id, i) => !fieldMap.has(id) || !parentFields.has(relation.targetFields[i])
+      || fieldMap.get(id)!.type !== parentFields.get(relation.targetFields[i])!.type)
+      || parent.model.scope === 'context' && !relation.fields.some((id, i) =>
+        id === model.contextField && relation.targetFields[i] === parent.model.contextField))
+      throw new DataAccessError('invalid_catalog');
+    add(`SELECT CASE WHEN EXISTS(SELECT 1 FROM ${quote(parent.table)} WHERE ${relation.targetFields.map(id => `${quote(id)} IS ?`).join(' AND ')})
+      THEN 1 ELSE json('creezio_data_relation') END AS allowed`, relation.fields.map(id => encode(fieldMap.get(id)!, values[id])));
+  };
   if (action === 'read') {
-    keys(captured, list ? ['limit'] : ['key'], list ? ['after','where','fields'] : ['where','fields','required']);
+    keys(captured, list ? ['limit'] : ['key'], list ? ['after','where','fields','order'] : ['where','fields','required']);
     if (captured.required !== undefined && typeof captured.required !== 'boolean') throw new DataAccessError('invalid_input');
     const fields = projection(captured.fields);
     if (captured.where !== undefined) equalities(captured.where);
     let limit = 1;
+    let listKeys: readonly string[] = primaryKey, listDirection: 'asc' | 'desc' = 'asc';
     if (list) {
       if (!Number.isSafeInteger(captured.limit) || Number(captured.limit) < 1 || Number(captured.limit) > DATA_LIMITS.page) throw new DataAccessError('invalid_input');
       limit = Number(captured.limit);
-      for (const id of primaryKey) {
+      let orderedKeys = primaryKey, direction: 'asc' | 'desc' = 'asc';
+      if (captured.order !== undefined) {
+        const order = captured.order;
+        record(order); keys(order, ['indexId', 'direction']);
+        if (!validId(order.indexId) || !['asc', 'desc'].includes(String(order.direction)))
+          throw new DataAccessError('invalid_input');
+        const index = model.indexes.find(item => item.id === order.indexId);
+        if (!index) throw new DataAccessError('invalid_input');
+        if (model.scope === 'context' && index.fields[0] !== model.contextField) throw new DataAccessError('unsupported');
+        orderedKeys = [...new Set([...index.fields, ...model.primaryKey])].filter(id => id !== model.contextField);
+        direction = order.direction as 'asc' | 'desc';
+      }
+      for (const id of orderedKeys) {
         if (['boolean','json'].includes(usable(id).type)) throw new DataAccessError('unsupported');
+        if (usable(id).nullable) throw new DataAccessError('unsupported');
         if (!fields.some(f => f.id === id)) throw new DataAccessError('invalid_input');
       }
       if (captured.after !== undefined && captured.after !== null) {
-        record(captured.after); keys(captured.after, primaryKey);
+        record(captured.after); keys(captured.after, orderedKeys);
         const alternatives: string[] = [];
-        for (let i = 0; i < primaryKey.length; i++) {
+        for (let i = 0; i < orderedKeys.length; i++) {
           const terms: string[] = [];
           for (let j = 0; j <= i; j++) {
-            const field = usable(primaryKey[j]), value = captured.after[field.id];
+            const field = usable(orderedKeys[j]), value = captured.after[field.id];
             if (value === null || ['boolean','json'].includes(field.type)) throw new DataAccessError('unsupported');
-            terms.push(`${quote(field.id)} ${j === i ? '>' : '='} ?`); bindings.push(encode(field, value));
+            terms.push(`${quote(field.id)} ${j === i ? direction === 'asc' ? '>' : '<' : '='} ?`);
+            bindings.push(encode(field, value));
           }
           alternatives.push(`(${terms.join(' AND ')})`);
         }
         conditions.push(`(${alternatives.join(' OR ')})`);
       }
+      listKeys = orderedKeys; listDirection = direction;
     } else equalities(captured.key, true);
     if (captured.required === true) add(`SELECT CASE WHEN EXISTS(SELECT 1 FROM ${table} WHERE ${conditions.join(' AND ') || '1'})
       THEN 1 ELSE json('creezio_data_required') END AS allowed`, bindings);
     const pageSql = `SELECT ${fields.map(f => quote(f.id)).join(',')} FROM ${table} WHERE ${conditions.join(' AND ') || '1'}
-      ORDER BY ${primaryKey.map(quote).join(',')} LIMIT ?`;
+      ORDER BY ${(list ? listKeys : primaryKey).map(id => `${quote(id)} ${list ? listDirection.toUpperCase() : 'ASC'}`).join(',')} LIMIT ?`;
     const pageBindings = [...bindings, list ? limit + 1 : 1];
-    // Bound the selected payload BEFORE transfer to the Worker. Six is a safe
-    // JSON-escaping expansion bound; names/punctuation are also accounted for.
-    // This conservative estimate may refuse a page below the final JSON limit.
+    // Bound the selected payload BEFORE transfer to the Worker. SQLite's JSON
+    // quoting accounts for UTF-8 and escaped control characters at their actual
+    // size. Booleans decode to words, and JS may print a number more expansively
+    // than SQLite (for example 1e20), so reserve fixed safe widths for those.
+    // A JSON column may contain noncanonical numeric text written outside this
+    // port (1e20 expands when JS serializes it); retain the general bound there.
     const names = fields.reduce((n, field) => n + new TextEncoder().encode(JSON.stringify(field.id)).length + 4, 3);
-    const bytes = fields.map(field => `(6 * COALESCE(length(CAST(${quote(field.id)} AS BLOB)), 4))`).join(' + ');
+    const bytes = fields.map(field => {
+      const column = quote(field.id);
+      if (field.type === 'boolean') return `(CASE WHEN ${column} IS NULL THEN 4 ELSE 5 END)`;
+      if (field.type === 'integer' || field.type === 'number') return `(CASE WHEN ${column} IS NULL THEN 4 ELSE 32 END)`;
+      if (field.type === 'json') return `(6 * COALESCE(length(CAST(${column} AS BLOB)), 4))`;
+      return `length(CAST(json_quote(${column}) AS BLOB))`;
+    }).join(' + ');
     add(`SELECT CASE WHEN COALESCE(SUM(${names} + ${bytes}), 0) <= ? THEN 1
       ELSE json('creezio_data_result_limit') END AS allowed FROM (${pageSql}) AS bounded_page`,
     [DATA_LIMITS.resultBytes, ...pageBindings]);
     add(pageSql, pageBindings);
     return Object.freeze({ statements: Object.freeze(statements), resultIndex: statements.length - 1, write: false, fields,
-      ...(list ? { list: Object.freeze({limit, keyFields: Object.freeze(primaryKey)}) } : {}) });
+      ...(list ? { list: Object.freeze({limit, keyFields: Object.freeze(listKeys)}) } : {}) });
   }
   keys(captured, action === 'create' ? ['values'] : action === 'update' ? ['key','values'] : ['key'],
     action === 'create' ? [] : ['compare','where']);
@@ -214,11 +286,23 @@ export function compileDataPlan(entry: CompiledModel, state: ResolvedDataAuthori
         else throw new DataAccessError('invalid_input');
         encode(field, writeValues[field.id]);
       }
+      for (const relation of model.relations) guardRelation(relation, writeValues);
       const fields = Object.keys(writeValues);
       add(`INSERT INTO ${table} (${fields.map(quote).join(',')}) VALUES (${fields.map(() => '?').join(',')})`,
         fields.map(id => encode(fieldMap.get(id)!, writeValues[id])));
-      return Object.freeze({ statements: Object.freeze(statements), resultIndex: 0, write: true, fields: Object.freeze([]) });
+      return Object.freeze({ statements: Object.freeze(statements), resultIndex: statements.length - 1,
+        write: true, fields: Object.freeze([]) });
     }
+  }
+  if (action === 'update') for (const relation of model.relations) {
+    if (!relation.fields.some(id => own(writeValues, id))) continue;
+    record(captured.key); keys(captured.key, primaryKey);
+    const relatedValues: Record<string, JsonValue> = { ...writeValues };
+    for (const id of relation.fields) {
+      if (id === model.contextField) relatedValues[id] = state.target.contextId;
+      else if (!own(relatedValues, id) && own(captured.key, id)) relatedValues[id] = captured.key[id];
+    }
+    guardRelation(relation, relatedValues);
   }
   equalities(captured.key, true);
   if (captured.where !== undefined) equalities(captured.where);

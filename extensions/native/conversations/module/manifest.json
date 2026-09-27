@@ -1,0 +1,6594 @@
+{
+  "schemaVersion": "1.0.0",
+  "identity": {
+    "id": "creezio.conversations",
+    "title": "Conversations natives",
+    "publisher": "creezio",
+    "origin": "https://github.com/creezio/Creezio-D1R2",
+    "version": "0.0.0",
+    "source": {
+      "kind": "snapshot",
+      "revision": "t14-conversations-v1",
+      "integrity": "sha256-fc0483720cafbc7e3d33b23e1ef7fd504a1ea82abb75856c1fee2fcb12d00046"
+    },
+    "license": {
+      "expression": "NOASSERTION",
+      "file": "LICENSE"
+    }
+  },
+  "compatibility": {
+    "core": "^0.0.0",
+    "sdk": "^1.0.0",
+    "requiredCapabilities": [
+      "runtime.worker",
+      "data.d1.shared"
+    ],
+    "optionalCapabilities": [
+      "files.r2.private"
+    ]
+  },
+  "entrypoints": {
+    "server": {
+      "path": "module/entry.server.ts",
+      "export": "conversations"
+    },
+    "ui": {
+      "path": "ui/index.tsx",
+      "export": "ConversationsAdminView"
+    },
+    "plugin": {
+      "manifest": "plugin/plugin.json",
+      "mcp": "plugin/mcp.json",
+      "contributions": {
+        "path": "plugin/contributions.ts",
+        "export": "contributions"
+      }
+    }
+  },
+  "dependencies": [
+    {
+      "moduleId": "creezio.access",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "optional": false,
+      "contracts": [],
+      "whenAbsent": "block",
+      "whenIncompatible": "block",
+      "autoInstall": false
+    }
+  ],
+  "contracts": {
+    "schemas": [
+      {
+        "id": "empty-input",
+        "schema": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "conversation-id-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "conversationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "conversationId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "conversation-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "archived": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "conversation-search-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "archived": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "limit",
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "conversation-page-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 240
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "chat",
+                      "work"
+                    ]
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  },
+                  "archivedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 35
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "mode",
+                  "updatedAt",
+                  "archivedAt",
+                  "revision"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 50
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "conversation-create-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "chat",
+                "work"
+              ]
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            }
+          },
+          "required": [
+            "requestKey",
+            "mode"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "conversation-summary-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "conversation": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "chat",
+                    "work"
+                  ]
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "archivedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 35
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "mode",
+                "updatedAt",
+                "archivedAt",
+                "revision"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "conversation"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "conversation-read-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "conversation": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "chat",
+                    "work"
+                  ]
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "archivedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 35
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "mode",
+                "updatedAt",
+                "archivedAt",
+                "revision"
+              ],
+              "additionalProperties": false
+            },
+            "provider": {
+              "type": "string",
+              "enum": [
+                "no_provider",
+                "configured"
+              ]
+            }
+          },
+          "required": [
+            "conversation",
+            "provider"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "conversation-rename-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "conversationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "conversationId",
+            "title",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "conversation-state-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "conversationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "conversationId",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "message-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "conversationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          "required": [
+            "conversationId",
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "message-page-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "conversationId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "user",
+                      "assistant",
+                      "tool",
+                      "system"
+                    ]
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 0,
+                    "maxLength": 16000
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "id",
+                  "conversationId",
+                  "role",
+                  "body",
+                  "createdAt",
+                  "revision"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 50
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "message-add-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "conversationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "body": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16000
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "conversationId",
+            "id",
+            "body",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "message-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "message": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "conversationId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "user",
+                    "assistant",
+                    "tool",
+                    "system"
+                  ]
+                },
+                "body": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 16000
+                },
+                "createdAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "id",
+                "conversationId",
+                "role",
+                "body",
+                "createdAt",
+                "revision"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "message"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "draft-read-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "conversationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "conversationId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "draft-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "conversationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "text": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 16000
+            },
+            "updatedAt": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "conversationId",
+            "text",
+            "updatedAt",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "draft-save-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "conversationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "text": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 16000
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "conversationId",
+            "text",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "turn-read-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "conversationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "turnId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "conversationId",
+            "turnId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "turn-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "turn": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "conversationId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "running",
+                        "succeeded",
+                        "failed",
+                        "cancel_requested",
+                        "cancelled",
+                        "no_provider",
+                        "unknown"
+                      ]
+                    },
+                    "providerId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 35
+                    },
+                    "lastSequence": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "errorCode": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "conversationId",
+                    "state",
+                    "providerId",
+                    "updatedAt",
+                    "lastSequence",
+                    "errorCode"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "turn"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "event-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "conversationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "turnId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "afterSequence": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "conversationId",
+            "turnId",
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "event-page-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "turnId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "sequence": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "kind": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "payload": {},
+                  "createdAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  }
+                },
+                "required": [
+                  "turnId",
+                  "sequence",
+                  "kind",
+                  "payload",
+                  "createdAt"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 50
+            },
+            "nextSequence": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextSequence"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "turn-cancel-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "conversationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "turnId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "conversationId",
+            "turnId",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "attachment-link-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "conversationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "staged": {
+              "type": "object",
+              "properties": {
+                "fileId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 67
+                },
+                "intentId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "generation": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "digest": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                }
+              },
+              "required": [
+                "fileId",
+                "intentId",
+                "generation",
+                "digest"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestKey",
+            "conversationId",
+            "revision",
+            "staged"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "attachment-link-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "fileId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 67
+            },
+            "conversationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "fileId",
+            "conversationId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "attachment-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "conversationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          "required": [
+            "conversationId",
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "attachment-page-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "fileId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 67
+                  },
+                  "conversationId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "filename": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "contentType": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "byteSize": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  },
+                  "reference": {
+                    "type": "object",
+                    "properties": {
+                      "fileId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 67
+                      },
+                      "intentId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "generation": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "digest": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      }
+                    },
+                    "required": [
+                      "fileId",
+                      "intentId",
+                      "generation",
+                      "digest"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "fileId",
+                  "conversationId",
+                  "filename",
+                  "contentType",
+                  "byteSize",
+                  "createdAt",
+                  "reference"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 50
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "conversation-view-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "conversationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "presentation": {
+              "type": "string",
+              "enum": [
+                "assistant",
+                "page"
+              ]
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "conversation-panel-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "conversationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "draft": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 16000
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "conversation",
+        "title": "Conversations",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "owner_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "audience",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "admin",
+                "app"
+              ]
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "title",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 240
+            }
+          },
+          {
+            "id": "mode",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "chat",
+                "work"
+              ]
+            }
+          },
+          {
+            "id": "created_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "archived_at",
+            "type": "date-time",
+            "nullable": true,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "owner_id",
+          "audience",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "recent",
+            "fields": [
+              "context_id",
+              "owner_id",
+              "audience",
+              "updated_at",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "message",
+        "title": "Messages",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "owner_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "audience",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "admin",
+                "app"
+              ]
+            }
+          },
+          {
+            "id": "conversation_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "role",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "user",
+                "assistant",
+                "tool",
+                "system"
+              ]
+            }
+          },
+          {
+            "id": "body",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 16000
+            }
+          },
+          {
+            "id": "content",
+            "type": "json",
+            "nullable": true,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "created_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "owner_id",
+          "audience",
+          "conversation_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "chronology",
+            "fields": [
+              "context_id",
+              "owner_id",
+              "audience",
+              "conversation_id",
+              "created_at",
+              "id"
+            ],
+            "unique": false
+          },
+          {
+            "id": "search-chronology",
+            "fields": [
+              "context_id",
+              "owner_id",
+              "audience",
+              "created_at",
+              "conversation_id",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [
+          {
+            "id": "conversation",
+            "fields": [
+              "context_id",
+              "owner_id",
+              "audience",
+              "conversation_id"
+            ],
+            "target": {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            },
+            "targetFields": [
+              "context_id",
+              "owner_id",
+              "audience",
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "draft",
+        "title": "Brouillons",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "owner_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "audience",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "admin",
+                "app"
+              ]
+            }
+          },
+          {
+            "id": "conversation_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "text",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 16000
+            }
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "owner_id",
+          "audience",
+          "conversation_id"
+        ],
+        "indexes": [],
+        "relations": [
+          {
+            "id": "conversation",
+            "fields": [
+              "context_id",
+              "owner_id",
+              "audience",
+              "conversation_id"
+            ],
+            "target": {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            },
+            "targetFields": [
+              "context_id",
+              "owner_id",
+              "audience",
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "turn",
+        "title": "Tours de conversation",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "owner_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "audience",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "admin",
+                "app"
+              ]
+            }
+          },
+          {
+            "id": "conversation_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "state",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "queued",
+                "running",
+                "succeeded",
+                "failed",
+                "cancel_requested",
+                "cancelled",
+                "no_provider",
+                "unknown"
+              ]
+            }
+          },
+          {
+            "id": "provider_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "created_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "last_sequence",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "error_code",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "owner_id",
+          "audience",
+          "conversation_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "recent-turns",
+            "fields": [
+              "context_id",
+              "owner_id",
+              "audience",
+              "conversation_id",
+              "created_at",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [
+          {
+            "id": "conversation",
+            "fields": [
+              "context_id",
+              "owner_id",
+              "audience",
+              "conversation_id"
+            ],
+            "target": {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            },
+            "targetFields": [
+              "context_id",
+              "owner_id",
+              "audience",
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "event",
+        "title": "Événements de progression",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "owner_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "audience",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "admin",
+                "app"
+              ]
+            }
+          },
+          {
+            "id": "conversation_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "turn_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "sequence",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "kind",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "payload",
+            "type": "json",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "created_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "owner_id",
+          "audience",
+          "conversation_id",
+          "turn_id",
+          "sequence"
+        ],
+        "indexes": [
+          {
+            "id": "by-turn",
+            "fields": [
+              "context_id",
+              "owner_id",
+              "audience",
+              "conversation_id",
+              "turn_id",
+              "sequence"
+            ],
+            "unique": true
+          }
+        ],
+        "relations": [
+          {
+            "id": "conversation",
+            "fields": [
+              "context_id",
+              "owner_id",
+              "audience",
+              "conversation_id"
+            ],
+            "target": {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            },
+            "targetFields": [
+              "context_id",
+              "owner_id",
+              "audience",
+              "id"
+            ],
+            "onDelete": "restrict"
+          },
+          {
+            "id": "turn",
+            "fields": [
+              "context_id",
+              "owner_id",
+              "audience",
+              "conversation_id",
+              "turn_id"
+            ],
+            "target": {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "turn"
+            },
+            "targetFields": [
+              "context_id",
+              "owner_id",
+              "audience",
+              "conversation_id",
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "file_metadata",
+        "title": "Private file metadata",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "file_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 67
+            }
+          },
+          {
+            "id": "file_owner",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 260
+            }
+          },
+          {
+            "id": "object_key",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "id": "digest",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 64,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "byte_size",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "content_type",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "filename",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 255
+            }
+          },
+          {
+            "id": "version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "state",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "staging",
+                "staged",
+                "available",
+                "abandoned",
+                "deleted"
+              ]
+            }
+          },
+          {
+            "id": "intent_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "generation",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "file_id"
+        ],
+        "indexes": [
+          {
+            "id": "intent",
+            "fields": [
+              "context_id",
+              "intent_id",
+              "generation"
+            ],
+            "unique": true
+          },
+          {
+            "id": "object-key",
+            "fields": [
+              "context_id",
+              "object_key"
+            ],
+            "unique": true
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "conversation_attachment",
+        "title": "Pièces jointes des conversations",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "owner_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "audience",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "admin",
+                "app"
+              ]
+            }
+          },
+          {
+            "id": "conversation_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "file_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 67
+            }
+          },
+          {
+            "id": "filename",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 255
+            }
+          },
+          {
+            "id": "content_type",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "byte_size",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 64,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "intent_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "generation",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "created_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "owner_id",
+          "audience",
+          "conversation_id",
+          "file_id"
+        ],
+        "indexes": [
+          {
+            "id": "by-conversation",
+            "fields": [
+              "context_id",
+              "owner_id",
+              "audience",
+              "conversation_id",
+              "created_at",
+              "file_id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [
+          {
+            "id": "conversation",
+            "fields": [
+              "context_id",
+              "owner_id",
+              "audience",
+              "conversation_id"
+            ],
+            "target": {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            },
+            "targetFields": [
+              "context_id",
+              "owner_id",
+              "audience",
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      }
+    ],
+    "files": [
+      {
+        "id": "attachments",
+        "metadataModel": {
+          "moduleId": "creezio.conversations",
+          "kind": "model",
+          "id": "file_metadata"
+        },
+        "contextField": "context_id",
+        "ownerField": "file_owner",
+        "storageFields": {
+          "id": "file_id",
+          "objectKey": "object_key",
+          "digest": "digest",
+          "byteSize": "byte_size",
+          "contentType": "content_type",
+          "filename": "filename",
+          "version": "version",
+          "state": "state",
+          "intentId": "intent_id",
+          "generation": "generation"
+        },
+        "mimeTypes": [
+          "text/plain",
+          "application/pdf",
+          "image/png",
+          "image/jpeg"
+        ],
+        "maxBytes": 10485760,
+        "public": false,
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "attachment": {
+          "models": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            }
+          ],
+          "multiple": true
+        },
+        "deletion": "restrict"
+      }
+    ],
+    "events": [],
+    "settings": [],
+    "search": [],
+    "permissions": [
+      {
+        "id": "use",
+        "title": "Utiliser ses conversations",
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "scopes": [
+          "conversations.use"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "model",
+            "id": "conversation"
+          },
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "model",
+            "id": "message"
+          },
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "model",
+            "id": "draft"
+          },
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "model",
+            "id": "turn"
+          },
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "model",
+            "id": "event"
+          },
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "model",
+            "id": "file_metadata"
+          },
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "model",
+            "id": "conversation_attachment"
+          },
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "file",
+            "id": "attachments"
+          }
+        ],
+        "actions": [
+          "read",
+          "create",
+          "update",
+          "delete",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      }
+    ],
+    "operations": [
+      {
+        "id": "conversation.list",
+        "title": "Lister les conversations",
+        "kind": "query",
+        "input": {
+          "schemaId": "conversation-list-input"
+        },
+        "output": {
+          "schemaId": "conversation-page-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "conversationList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 50
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 50,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "text",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "conversation.search",
+        "title": "Chercher les conversations",
+        "kind": "query",
+        "input": {
+          "schemaId": "conversation-search-input"
+        },
+        "output": {
+          "schemaId": "conversation-page-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "conversationSearch"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "message"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 50
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 50,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "text",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "conversation.create",
+        "title": "Créer une conversation",
+        "kind": "command",
+        "input": {
+          "schemaId": "conversation-create-input"
+        },
+        "output": {
+          "schemaId": "conversation-summary-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "conversationCreate"
+        },
+        "effects": {
+          "reads": [],
+          "writes": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "text",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "conversation.read",
+        "title": "Lire une conversation",
+        "kind": "query",
+        "input": {
+          "schemaId": "conversation-id-input"
+        },
+        "output": {
+          "schemaId": "conversation-read-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "conversationRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "text",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "conversation.rename",
+        "title": "Renommer une conversation",
+        "kind": "command",
+        "input": {
+          "schemaId": "conversation-rename-input"
+        },
+        "output": {
+          "schemaId": "conversation-summary-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "conversationRename"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "text",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "conversation.archive",
+        "title": "Archiver une conversation",
+        "kind": "command",
+        "input": {
+          "schemaId": "conversation-state-input"
+        },
+        "output": {
+          "schemaId": "conversation-summary-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "conversationArchive"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "text",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "conversation.restore",
+        "title": "Restaurer une conversation",
+        "kind": "command",
+        "input": {
+          "schemaId": "conversation-state-input"
+        },
+        "output": {
+          "schemaId": "conversation-summary-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "conversationRestore"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "text",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "message.list",
+        "title": "Lister les messages",
+        "kind": "query",
+        "input": {
+          "schemaId": "message-list-input"
+        },
+        "output": {
+          "schemaId": "message-page-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "messageList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "message"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 50
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 50,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "text",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "message.add",
+        "title": "Ajouter un message utilisateur",
+        "kind": "command",
+        "input": {
+          "schemaId": "message-add-input"
+        },
+        "output": {
+          "schemaId": "message-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "messageAdd"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "message"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "text",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "draft.read",
+        "title": "Lire un brouillon",
+        "kind": "query",
+        "input": {
+          "schemaId": "draft-read-input"
+        },
+        "output": {
+          "schemaId": "draft-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "draftRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "draft"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "text",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "draft.save",
+        "title": "Enregistrer un brouillon",
+        "kind": "command",
+        "input": {
+          "schemaId": "draft-save-input"
+        },
+        "output": {
+          "schemaId": "draft-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "draftSave"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "draft"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "draft"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "text",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "turn.read",
+        "title": "Lire le statut d’un tour",
+        "kind": "query",
+        "input": {
+          "schemaId": "turn-read-input"
+        },
+        "output": {
+          "schemaId": "turn-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "turnRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "turn"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "text",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "event.list",
+        "title": "Lire la progression",
+        "kind": "query",
+        "input": {
+          "schemaId": "event-list-input"
+        },
+        "output": {
+          "schemaId": "event-page-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "eventList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "turn"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "event"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "afterSequence",
+          "limitField": "limit",
+          "maxItems": 50
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 50,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "text",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "turn.cancel",
+        "title": "Demander l’annulation d’un tour",
+        "kind": "command",
+        "input": {
+          "schemaId": "turn-cancel-input"
+        },
+        "output": {
+          "schemaId": "turn-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "turnCancel"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "turn"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "turn"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "event"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "text",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "attachment.link",
+        "title": "Lier une pièce jointe",
+        "kind": "command",
+        "input": {
+          "schemaId": "attachment-link-input"
+        },
+        "output": {
+          "schemaId": "attachment-link-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "attachmentLink"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation_attachment"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "file",
+              "id": "attachments"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "text",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "attachment.list",
+        "title": "Lister les pièces jointes",
+        "kind": "query",
+        "input": {
+          "schemaId": "attachment-list-input"
+        },
+        "output": {
+          "schemaId": "attachment-page-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "attachmentList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation_attachment"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 50
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 50,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "text",
+            "query"
+          ]
+        },
+        "public": false
+      }
+    ],
+    "api": [
+      {
+        "id": "admin.conversation.list",
+        "method": "GET",
+        "path": "/api/admin/conversations/conversation/list",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "conversation.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "inputField": "archived",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "conversation-list-input"
+        },
+        "output": {
+          "schemaId": "conversation-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.conversation.search",
+        "method": "GET",
+        "path": "/api/admin/conversations/conversation/search",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "conversation.search"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": true
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "inputField": "archived",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "conversation-search-input"
+        },
+        "output": {
+          "schemaId": "conversation-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.conversation.create",
+        "method": "POST",
+        "path": "/api/admin/conversations/conversation/create",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "conversation.create"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "conversation-create-input"
+        },
+        "output": {
+          "schemaId": "conversation-summary-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.conversation.read",
+        "method": "GET",
+        "path": "/api/admin/conversations/conversation/read",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "conversation.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "query",
+            "inputField": "conversationId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "conversation-id-input"
+        },
+        "output": {
+          "schemaId": "conversation-read-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.conversation.rename",
+        "method": "POST",
+        "path": "/api/admin/conversations/conversation/rename",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "conversation.rename"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "conversation-rename-input"
+        },
+        "output": {
+          "schemaId": "conversation-summary-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.conversation.archive",
+        "method": "POST",
+        "path": "/api/admin/conversations/conversation/archive",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "conversation.archive"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "conversation-state-input"
+        },
+        "output": {
+          "schemaId": "conversation-summary-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.conversation.restore",
+        "method": "POST",
+        "path": "/api/admin/conversations/conversation/restore",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "conversation.restore"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "conversation-state-input"
+        },
+        "output": {
+          "schemaId": "conversation-summary-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.message.list",
+        "method": "GET",
+        "path": "/api/admin/conversations/message/list",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "message.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "query",
+            "inputField": "conversationId",
+            "required": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "message-list-input"
+        },
+        "output": {
+          "schemaId": "message-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.message.add",
+        "method": "POST",
+        "path": "/api/admin/conversations/message/add",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "message.add"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "message-add-input"
+        },
+        "output": {
+          "schemaId": "message-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.draft.read",
+        "method": "GET",
+        "path": "/api/admin/conversations/draft/read",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "draft.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "query",
+            "inputField": "conversationId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "draft-read-input"
+        },
+        "output": {
+          "schemaId": "draft-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.draft.save",
+        "method": "POST",
+        "path": "/api/admin/conversations/draft/save",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "draft.save"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "draft-save-input"
+        },
+        "output": {
+          "schemaId": "draft-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.turn.read",
+        "method": "GET",
+        "path": "/api/admin/conversations/turn/read",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "turn.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "query",
+            "inputField": "conversationId",
+            "required": true
+          },
+          {
+            "name": "turn_id",
+            "in": "query",
+            "inputField": "turnId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "turn-read-input"
+        },
+        "output": {
+          "schemaId": "turn-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.event.list",
+        "method": "GET",
+        "path": "/api/admin/conversations/event/list",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "event.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "query",
+            "inputField": "conversationId",
+            "required": true
+          },
+          {
+            "name": "turn_id",
+            "in": "query",
+            "inputField": "turnId",
+            "required": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "after_sequence",
+            "in": "query",
+            "inputField": "afterSequence",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "event-list-input"
+        },
+        "output": {
+          "schemaId": "event-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.turn.cancel",
+        "method": "POST",
+        "path": "/api/admin/conversations/turn/cancel",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "turn.cancel"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "turn-cancel-input"
+        },
+        "output": {
+          "schemaId": "turn-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.attachment.link",
+        "method": "POST",
+        "path": "/api/admin/conversations/attachment/link",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "attachment.link"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "attachment-link-input"
+        },
+        "output": {
+          "schemaId": "attachment-link-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.attachment.list",
+        "method": "GET",
+        "path": "/api/admin/conversations/attachment/list",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "attachment.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "query",
+            "inputField": "conversationId",
+            "required": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "attachment-list-input"
+        },
+        "output": {
+          "schemaId": "attachment-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.conversation.list",
+        "method": "GET",
+        "path": "/api/app/conversations/conversation/list",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "conversation.list"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "inputField": "archived",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "conversation-list-input"
+        },
+        "output": {
+          "schemaId": "conversation-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.conversation.search",
+        "method": "GET",
+        "path": "/api/app/conversations/conversation/search",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "conversation.search"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": true
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "inputField": "archived",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "conversation-search-input"
+        },
+        "output": {
+          "schemaId": "conversation-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.conversation.create",
+        "method": "POST",
+        "path": "/api/app/conversations/conversation/create",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "conversation.create"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "conversation-create-input"
+        },
+        "output": {
+          "schemaId": "conversation-summary-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.conversation.read",
+        "method": "GET",
+        "path": "/api/app/conversations/conversation/read",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "conversation.read"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "query",
+            "inputField": "conversationId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "conversation-id-input"
+        },
+        "output": {
+          "schemaId": "conversation-read-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.conversation.rename",
+        "method": "POST",
+        "path": "/api/app/conversations/conversation/rename",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "conversation.rename"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "conversation-rename-input"
+        },
+        "output": {
+          "schemaId": "conversation-summary-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.conversation.archive",
+        "method": "POST",
+        "path": "/api/app/conversations/conversation/archive",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "conversation.archive"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "conversation-state-input"
+        },
+        "output": {
+          "schemaId": "conversation-summary-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.conversation.restore",
+        "method": "POST",
+        "path": "/api/app/conversations/conversation/restore",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "conversation.restore"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "conversation-state-input"
+        },
+        "output": {
+          "schemaId": "conversation-summary-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.message.list",
+        "method": "GET",
+        "path": "/api/app/conversations/message/list",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "message.list"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "query",
+            "inputField": "conversationId",
+            "required": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "message-list-input"
+        },
+        "output": {
+          "schemaId": "message-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.message.add",
+        "method": "POST",
+        "path": "/api/app/conversations/message/add",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "message.add"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "message-add-input"
+        },
+        "output": {
+          "schemaId": "message-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.draft.read",
+        "method": "GET",
+        "path": "/api/app/conversations/draft/read",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "draft.read"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "query",
+            "inputField": "conversationId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "draft-read-input"
+        },
+        "output": {
+          "schemaId": "draft-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.draft.save",
+        "method": "POST",
+        "path": "/api/app/conversations/draft/save",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "draft.save"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "draft-save-input"
+        },
+        "output": {
+          "schemaId": "draft-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.turn.read",
+        "method": "GET",
+        "path": "/api/app/conversations/turn/read",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "turn.read"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "query",
+            "inputField": "conversationId",
+            "required": true
+          },
+          {
+            "name": "turn_id",
+            "in": "query",
+            "inputField": "turnId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "turn-read-input"
+        },
+        "output": {
+          "schemaId": "turn-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.event.list",
+        "method": "GET",
+        "path": "/api/app/conversations/event/list",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "event.list"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "query",
+            "inputField": "conversationId",
+            "required": true
+          },
+          {
+            "name": "turn_id",
+            "in": "query",
+            "inputField": "turnId",
+            "required": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "after_sequence",
+            "in": "query",
+            "inputField": "afterSequence",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "event-list-input"
+        },
+        "output": {
+          "schemaId": "event-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.turn.cancel",
+        "method": "POST",
+        "path": "/api/app/conversations/turn/cancel",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "turn.cancel"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "turn-cancel-input"
+        },
+        "output": {
+          "schemaId": "turn-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.attachment.link",
+        "method": "POST",
+        "path": "/api/app/conversations/attachment/link",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "attachment.link"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "attachment-link-input"
+        },
+        "output": {
+          "schemaId": "attachment-link-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.attachment.list",
+        "method": "GET",
+        "path": "/api/app/conversations/attachment/list",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "attachment.list"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "query",
+            "inputField": "conversationId",
+            "required": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "attachment-list-input"
+        },
+        "output": {
+          "schemaId": "attachment-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      }
+    ],
+    "mcp": {
+      "tools": [
+        {
+          "id": "conversation.list",
+          "name": "conversations_conversation_list",
+          "operation": {
+            "moduleId": "creezio.conversations",
+            "kind": "operation",
+            "id": "conversation.list"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "conversation-list-input"
+          },
+          "output": {
+            "schemaId": "conversation-page-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "conversation.search",
+          "name": "conversations_conversation_search",
+          "operation": {
+            "moduleId": "creezio.conversations",
+            "kind": "operation",
+            "id": "conversation.search"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "conversation-search-input"
+          },
+          "output": {
+            "schemaId": "conversation-page-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "conversation.create",
+          "name": "conversations_conversation_create",
+          "operation": {
+            "moduleId": "creezio.conversations",
+            "kind": "operation",
+            "id": "conversation.create"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "conversation-create-input"
+          },
+          "output": {
+            "schemaId": "conversation-summary-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "conversation.read",
+          "name": "conversations_conversation_read",
+          "operation": {
+            "moduleId": "creezio.conversations",
+            "kind": "operation",
+            "id": "conversation.read"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "conversation-id-input"
+          },
+          "output": {
+            "schemaId": "conversation-read-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "conversation.rename",
+          "name": "conversations_conversation_rename",
+          "operation": {
+            "moduleId": "creezio.conversations",
+            "kind": "operation",
+            "id": "conversation.rename"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "conversation-rename-input"
+          },
+          "output": {
+            "schemaId": "conversation-summary-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "conversation.archive",
+          "name": "conversations_conversation_archive",
+          "operation": {
+            "moduleId": "creezio.conversations",
+            "kind": "operation",
+            "id": "conversation.archive"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "conversation-state-input"
+          },
+          "output": {
+            "schemaId": "conversation-summary-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "conversation.restore",
+          "name": "conversations_conversation_restore",
+          "operation": {
+            "moduleId": "creezio.conversations",
+            "kind": "operation",
+            "id": "conversation.restore"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "conversation-state-input"
+          },
+          "output": {
+            "schemaId": "conversation-summary-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "message.list",
+          "name": "conversations_message_list",
+          "operation": {
+            "moduleId": "creezio.conversations",
+            "kind": "operation",
+            "id": "message.list"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "message-list-input"
+          },
+          "output": {
+            "schemaId": "message-page-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "message.add",
+          "name": "conversations_message_add",
+          "operation": {
+            "moduleId": "creezio.conversations",
+            "kind": "operation",
+            "id": "message.add"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "message-add-input"
+          },
+          "output": {
+            "schemaId": "message-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "draft.read",
+          "name": "conversations_draft_read",
+          "operation": {
+            "moduleId": "creezio.conversations",
+            "kind": "operation",
+            "id": "draft.read"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "draft-read-input"
+          },
+          "output": {
+            "schemaId": "draft-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "draft.save",
+          "name": "conversations_draft_save",
+          "operation": {
+            "moduleId": "creezio.conversations",
+            "kind": "operation",
+            "id": "draft.save"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "draft-save-input"
+          },
+          "output": {
+            "schemaId": "draft-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "turn.read",
+          "name": "conversations_turn_read",
+          "operation": {
+            "moduleId": "creezio.conversations",
+            "kind": "operation",
+            "id": "turn.read"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "turn-read-input"
+          },
+          "output": {
+            "schemaId": "turn-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "event.list",
+          "name": "conversations_event_list",
+          "operation": {
+            "moduleId": "creezio.conversations",
+            "kind": "operation",
+            "id": "event.list"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "event-list-input"
+          },
+          "output": {
+            "schemaId": "event-page-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "turn.cancel",
+          "name": "conversations_turn_cancel",
+          "operation": {
+            "moduleId": "creezio.conversations",
+            "kind": "operation",
+            "id": "turn.cancel"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "turn-cancel-input"
+          },
+          "output": {
+            "schemaId": "turn-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "attachment.link",
+          "name": "conversations_attachment_link",
+          "operation": {
+            "moduleId": "creezio.conversations",
+            "kind": "operation",
+            "id": "attachment.link"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "attachment-link-input"
+          },
+          "output": {
+            "schemaId": "attachment-link-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "attachment.list",
+          "name": "conversations_attachment_list",
+          "operation": {
+            "moduleId": "creezio.conversations",
+            "kind": "operation",
+            "id": "attachment.list"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "attachment-list-input"
+          },
+          "output": {
+            "schemaId": "attachment-page-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        }
+      ],
+      "resources": [],
+      "prompts": [],
+      "skills": []
+    },
+    "ui": {
+      "views": [
+        {
+          "id": "admin",
+          "title": "Conversations",
+          "surfaces": [
+            "workspace"
+          ],
+          "route": "/admin/conversations",
+          "component": {
+            "path": "ui/index.tsx",
+            "export": "ConversationsAdminView"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "permission",
+              "id": "use"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "conversation.list"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "conversation.search"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "conversation.create"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "conversation.read"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "conversation.rename"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "conversation.archive"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "conversation.restore"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "message.list"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "message.add"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "draft.read"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "draft.save"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "turn.read"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "event.list"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "turn.cancel"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "attachment.link"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "attachment.list"
+            }
+          ],
+          "input": {
+            "schemaId": "conversation-view-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend",
+            "stateSchema": {
+              "schemaId": "conversation-panel-state"
+            }
+          }
+        },
+        {
+          "id": "front",
+          "title": "Conversations",
+          "surfaces": [
+            "front"
+          ],
+          "route": "/conversations",
+          "component": {
+            "path": "ui/index.tsx",
+            "export": "ConversationsFrontView"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "permission",
+              "id": "use"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "conversation.list"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "conversation.search"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "conversation.create"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "conversation.read"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "conversation.rename"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "conversation.archive"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "conversation.restore"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "message.list"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "message.add"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "draft.read"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "draft.save"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "turn.read"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "event.list"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "turn.cancel"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "attachment.link"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "attachment.list"
+            }
+          ],
+          "input": {
+            "schemaId": "conversation-view-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend",
+            "stateSchema": {
+              "schemaId": "conversation-panel-state"
+            }
+          }
+        }
+      ],
+      "navigation": [
+        {
+          "id": "conversations-admin",
+          "title": "Conversations",
+          "view": {
+            "moduleId": "creezio.conversations",
+            "kind": "view",
+            "id": "admin"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "permission",
+              "id": "use"
+            }
+          ],
+          "surfaces": [
+            "workspace"
+          ],
+          "order": 20
+        },
+        {
+          "id": "conversations-front",
+          "title": "Conversations",
+          "view": {
+            "moduleId": "creezio.conversations",
+            "kind": "view",
+            "id": "front"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "permission",
+              "id": "use"
+            }
+          ],
+          "surfaces": [
+            "front"
+          ],
+          "order": 20
+        }
+      ],
+      "slots": [],
+      "front": {
+        "mode": "provided"
+      },
+      "themes": [],
+      "styles": []
+    },
+    "widgets": [],
+    "publicContracts": []
+  },
+  "documentation": {
+    "installed": {
+      "readme": {
+        "path": "README.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "prd": {
+        "path": "prd.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "changelog": {
+        "path": "CHANGELOG.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      }
+    },
+    "development": {
+      "agents": {
+        "path": "AGENTS.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "files": {
+        "path": "FILES.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "interview": {
+        "path": "interview.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "todo": {
+        "path": "TODO.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      }
+    },
+    "versionBinding": {
+      "moduleVersion": "0.0.0",
+      "sourceRevision": "t14-conversations-v1"
+    },
+    "localRevisions": {
+      "installedVersionDistinct": true,
+      "approvedImmutable": true
+    },
+    "installationHistory": {
+      "distinctFromPackageChangelog": true
+    }
+  },
+  "validation": {
+    "gate": "gate.mjs",
+    "suites": {
+      "backend": {
+        "mode": "required",
+        "script": "ci/backend.mjs",
+        "tests": [
+          "tests/backend/contract.test.mjs"
+        ]
+      },
+      "ui": {
+        "mode": "required",
+        "script": "ci/ui.mjs",
+        "tests": [
+          "tests/ui/contract.test.mjs"
+        ]
+      },
+      "api-mcp": {
+        "mode": "required",
+        "script": "ci/api-mcp.mjs",
+        "tests": [
+          "tests/api-mcp/contract.test.mjs"
+        ]
+      },
+      "widgets": {
+        "mode": "not-applicable",
+        "script": "ci/widgets.mjs",
+        "tests": [
+          "tests/widgets/contract.test.mjs"
+        ],
+        "justification": {
+          "reason": "Conversation widgets and GPT bridge follow in T16.",
+          "policyRule": "conversations.widgets-t16"
+        }
+      },
+      "package": {
+        "mode": "required",
+        "script": "ci/package.mjs",
+        "tests": [
+          "tests/package/contract.test.mjs"
+        ]
+      },
+      "docs": {
+        "mode": "required",
+        "script": "ci/docs.mjs",
+        "tests": [
+          "tests/docs/contract.test.mjs"
+        ]
+      }
+    },
+    "policy": {
+      "id": "creezio.local-contracts",
+      "version": "1.0.0",
+      "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
+    },
+    "isolation": {
+      "productionSecrets": false,
+      "publicationRights": false
+    },
+    "evidence": {
+      "sourceIntegrity": true,
+      "artifactIntegrity": true,
+      "profile": true,
+      "executedSuites": true
+    }
+  },
+  "packaging": {
+    "runtime": {
+      "files": [
+        "module/manifest.json",
+        "module/models.json",
+        "module/entry.server.ts",
+        "module/operations.ts",
+        "module/service.ts",
+        "ui/index.tsx",
+        "ui/panel.tsx",
+        "ui/message-content.tsx",
+        "ui/entity-links.ts",
+        "ui/source-links.ts",
+        "README.md",
+        "prd.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "plugin/plugin.json",
+        "plugin/mcp.json",
+        "plugin/contributions.ts"
+      ],
+      "references": []
+    },
+    "validation": {
+      "files": [
+        "AGENTS.md",
+        "FILES.md",
+        "interview.md",
+        "TODO.md",
+        "gate.mjs",
+        "module/generate-manifest.mjs",
+        "ci/run-suite.mjs",
+        "tests/helpers.mjs",
+        "ci/backend.mjs",
+        "tests/backend/contract.test.mjs",
+        "ci/ui.mjs",
+        "tests/ui/contract.test.mjs",
+        "ci/api-mcp.mjs",
+        "tests/api-mcp/contract.test.mjs",
+        "ci/widgets.mjs",
+        "tests/widgets/contract.test.mjs",
+        "ci/package.mjs",
+        "tests/package/contract.test.mjs",
+        "ci/docs.mjs",
+        "tests/docs/contract.test.mjs"
+      ],
+      "references": []
+    },
+    "validationBinding": {
+      "moduleId": "creezio.conversations",
+      "moduleVersion": "0.0.0",
+      "sourceRevision": "t14-conversations-v1"
+    },
+    "noRuntimeTests": true,
+    "installation": "build-and-publish",
+    "providerInstallation": false
+  },
+  "lifecycle": {
+    "deactivation": "preserve-data",
+    "configuration": "explicit-state",
+    "uninstall": "explicit-approved-action",
+    "activationRequirements": [],
+    "absent": {
+      "widgets": {
+        "reason": "Conversation widgets and GPT bridge follow in T16.",
+        "policyRule": "conversations.widgets-t16"
+      }
+    },
+    "dependencyChanges": {
+      "install": "resolve-explicit-consumer-selection",
+      "activate": "require-active-dependencies",
+      "update": "validate-dependent-contracts",
+      "deactivate": "block-or-explicit-dependent-plan",
+      "uninstall": "block-or-explicit-dependent-plan",
+      "data": "preserve"
+    }
+  }
+}

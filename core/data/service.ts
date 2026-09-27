@@ -123,7 +123,7 @@ export function createDataAccess(db: IdentityDatabase,
       if (action === 'delete' && [...models.values()].some(source => source.model.relations.some(relation =>
         relation.target.moduleId === moduleId && relation.target.kind === 'model' && relation.target.id === modelId
         && relation.onDelete !== 'restrict'))) throw new DataAccessError('unsupported');
-      const compiled = compileDataPlan(model, fresh.authorization, action, input, list, internal);
+      const compiled = compileDataPlan(model, fresh.authorization, action, input, list, internal, models);
       const token: DataPlan = Object.freeze({ kind: 'data-plan' });
       plans.set(token, { lease, compiled, attempted: false }); return token;
     }

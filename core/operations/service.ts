@@ -12,6 +12,10 @@ import { createNativeAccessOperationAdapter, validNativeAccessDeclaration } from
 import type { SqlStatement } from '../data/authorization.ts';
 import {captureHostInventory} from './host-inventory.ts';
 import type {ModuleSettingsHostInventory} from '../../sdk/module-settings/types.ts';
+import {createFileService, type FileBucket} from '../files/service.ts';
+import {fileOwnerId, resolveFileCategory, type RuntimeFileCatalog} from '../files/catalog.ts';
+import {FileError} from '../files/mapping.ts';
+import type {OperationFilesPort} from '../../sdk/files/types.ts';
 
 export interface OperationRequest {
   readonly credential: DataCredential; readonly moduleId: string; readonly operationId: string;
@@ -60,12 +64,15 @@ function errorCode(error: unknown): OperationError['code'] {
   if (error instanceof DataAccessError) return ['unauthorized', 'forbidden'].includes(error.code) ? error.code as 'unauthorized' | 'forbidden'
     : error.code === 'unsupported' ? 'unsupported' : 'unavailable';
   if (error instanceof OperationStoreError) return error.code === 'conflict' ? 'conflict' : 'unavailable';
+  if (error instanceof FileError) return ['not_found', 'conflict', 'invalid_input', 'unsupported'].includes(error.code)
+    ? error.code as 'not_found' | 'conflict' | 'invalid_input' | 'unsupported' : 'unavailable';
   return 'unavailable';
 }
 
 /** Internal common executor. API/MCP adapters supply native credentials; a channel never grants rights. */
 export function createOperationEngine(options: { readonly db: IdentityDatabase; readonly catalog: RuntimeDataCatalog;
   readonly registry: OperationRegistry; readonly permissions: readonly PermissionDefinition[];
+  readonly files?: {readonly catalog: RuntimeFileCatalog; readonly bucket: FileBucket};
   readonly runtimeInventory?: ModuleSettingsHostInventory }) {
   const { registry } = options, catalog = copyJson(options.catalog, 4 * 1024 * 1024) as unknown as RuntimeDataCatalog;
   if (catalog.compositionDigest !== registry.compositionDigest) throw new OperationError('invalid_catalog');
@@ -97,7 +104,9 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
       if (operation.validateInput(request.input) !== true) throw new OperationError('invalid_input');
       // Unimplemented effects never silently execute as an ordinary mutation.
       if (op.approval.mode !== 'none' || op.effects.calls.length || op.effects.emits.length
-        || op.effects.reads.concat(op.effects.writes).some(ref => ref.moduleId !== operation.moduleId || ref.kind !== 'model')) throw new OperationError('unsupported');
+        || op.effects.reads.concat(op.effects.writes).some(ref => ref.moduleId !== operation.moduleId || !['model','file'].includes(ref.kind))
+        || op.effects.reads.some(ref => ref.kind === 'file')
+        || op.effects.writes.some(ref => ref.kind === 'file') && !options.files) throw new OperationError('unsupported');
       const lease = await authorize(request, operation);
       let close: () => void = () => {};
       try {
@@ -115,7 +124,7 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           claimTtlMs: Math.min(OPERATION_LIMITS.maxDurationMs, Math.max(1000, op.execution.maxDurationMs + 5000)),
           retentionMs: op.idempotency.mode === 'required' ? op.idempotency.retentionSeconds * 1000 : 86400_000 });
         if (start.kind === 'existing') return Object.freeze({ execution: checkedExecution(start.execution, operation), replayed: true });
-        const controller = new AbortController(), issued = new Map<DataPlan, { write: boolean; compared: boolean }>();
+        const controller = new AbortController(), issued = new Map<DataPlan, { write: boolean; compared: boolean; file?: boolean }>();
         let active = true, usedItems = 0, failure: OperationError | undefined;
         const ensure = () => { if (!active || controller.signal.aborted) throw failure ?? new OperationError('cancelled'); };
         const spend = (amount: number) => { ensure(); if (!Number.isSafeInteger(amount) || amount < 1 || (usedItems += amount) > op.execution.maxItems) throw new OperationError('invalid_input'); };
@@ -158,6 +167,24 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
         const identity = data.describeLease(lease), context: OperationContext = Object.freeze({ moduleId: operation.moduleId, operationId: op.id,
           executionId: start.execution.id, contextId: identity.contextId, audience: identity.audience, principalId: identity.principalId,
           actorPrincipalId: identity.actorPrincipalId, signal: controller.signal, data: operationData,
+          ...(options.files ? {files: Object.freeze({async preparePublication(categoryId, reference) {
+            ensure();
+            if (op.kind !== 'command' || !op.effects.writes.some(ref => ref.moduleId === operation.moduleId && ref.kind === 'file' && ref.id === categoryId))
+              throw new OperationError('forbidden');
+            // Charge work before I/O, then recheck the plan budget after concurrent completions.
+            spend(1);
+            if (issued.size >= OPERATION_LIMITS.maxPlans) throw new OperationError('invalid_input');
+            const category = resolveFileCategory(catalog, options.files!.catalog, operation.moduleId, categoryId, identity.audience);
+            const service = createFileService({data, catalog, moduleId: operation.moduleId, category,
+              bucket: options.files!.bucket, ownerId: await fileOwnerId(identity.principalId, identity.audience)});
+            const result = await service.preparePublication(lease, reference), token=result.plan;
+            ensure();
+            if (issued.size >= OPERATION_LIMITS.maxPlans) throw new OperationError('invalid_input');
+            issued.set(token, {write: true, compared: false, file: true});
+            return result;
+          }, async publicationProof(categoryId, reference) {
+            return (await this.preparePublication(categoryId,reference)).plan;
+          }} satisfies OperationFilesPort)} : {}),
           ...(operation.moduleId === 'creezio.modules-settings' && hostInventory ? {hostInventory} : {}) });
         let attemptingCommit = false;
         let nativeStatements: readonly SqlStatement[] | undefined;
@@ -186,6 +213,9 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
             if (!descriptor || !Object.hasOwn(descriptor, 'value') || !issued.has(token) || plans.includes(token)) throw new OperationError('invalid_output');
             plans.push(token);
           }
+          const filePlans=[...issued].filter(([,metadata])=>metadata.file).map(([token])=>token);
+          if (filePlans.length && (filePlans.some(token=>!plans.includes(token))
+            || !plans.some(token=>issued.get(token)!.write && !issued.get(token)!.file))) throw new OperationError('invalid_output');
           if (op.concurrency.mode === 'object-version' && !nativeCompared
             && !plans.some(token => issued.get(token)!.compared)) throw new OperationError('conflict');
           const outbox = copyJson(result.outbox ?? [], 65_536) as unknown as readonly OperationOutboxIntent[];

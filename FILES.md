@@ -133,3 +133,12 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - [themes/standard](themes/standard/) et [themes/chatgpt-like](themes/chatgpt-like/) : modules de thème et six suites propres.
 - [application/frontend](application/frontend/) et [application/config](application/config/) : fichiers appartenant à l’application, préservés par les mises à jour.
 - [tests/front](tests/front/) : contrats de transport, données et accès du front ; [réalisation T13](docs/IMPLEMENTATION-T13.md).
+
+## Conversations natives T14
+
+- [extensions/native/conversations](extensions/native/conversations/) : modèles, opérations, UI originale, API/MCP et six suites du module.
+- [sdk/conversations](sdk/conversations/) : contrôleur des conversations, brouillons et commandes incertaines partagé entre interfaces.
+- [sdk/files](sdk/files/) : client binaire natif et contrats de publication des pièces jointes.
+- [core/files](core/files/) : catalogue compilé, intentions privées D1/R2 et transport natif lié au propriétaire effectif.
+- [scripts/data/prepare-native-module.mjs](scripts/data/prepare-native-module.mjs) : création SQL centrale des modèles natifs, sans accès à une base.
+- [tests/conversations](tests/conversations/) et [réalisation T14](docs/IMPLEMENTATION-T14.md) : preuves du module, de son SDK et recettes synthétiques.

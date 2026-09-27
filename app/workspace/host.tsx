@@ -6,8 +6,8 @@ import {createBrowserAccessController} from '../../sdk/access/controller';
 import {NativeAccessPanel} from '../../sdk/access/components';
 import type {AccessAudience, AccessController} from '../../sdk/access/types';
 import {createOperationClient} from '../../sdk/operations/client';
-import {Workspace} from '../../sdk/workspace/components';
-import type {WorkspaceProjection} from '../../sdk/workspace/types';
+import {Workspace, type WorkspaceRenderProps} from '../../sdk/workspace/components';
+import type {WorkspaceProjection, WorkspaceNavigation} from '../../sdk/workspace/types';
 import {readProjection, WorkspaceAccessRefused} from './projection-client';
 import {CreezioShell} from '../../admin/workspace/workspace-shell';
 
@@ -36,6 +36,9 @@ function BoundWorkspace({access}: {access: AccessController}) {
   }, []);
   const {contextId, initialUrl} = selection;
   const currentProjection = useRef(projection); currentProjection.current = projection;
+  const assistantSession = useRef<string | null>(null);
+  if (state.phase === 'authenticated' && state.session && !state.pending) assistantSession.current=state.session.id;
+  else if (state.phase === 'anonymous' || state.pending === 'logout' || state.pending === 'login') assistantSession.current=null;
   const client = useMemo(() => {
     const base = createOperationClient({origin: access.origin, audience: access.audience, access,
       bindings: httpBindings.filter(binding => binding.audience === access.audience && binding.auth.includes('session'))});
@@ -72,6 +75,28 @@ function BoundWorkspace({access}: {access: AccessController}) {
     return () => { current = false; clearTimeout(timer); abort.abort(); };
   }, [access, state, contextId, attempt]);
   const authenticated = state.phase === 'authenticated' && state.session && !state.pending;
+  const assistantView = views.find(view => view.id === 'creezio.conversations:admin' && view.moduleId === 'creezio.conversations'
+    && view.audiences.includes(access.audience) && view.surfaces.includes('workspace'));
+  const renderShell = (shell: WorkspaceRenderProps) => {
+    const Assistant = assistantView?.component;
+    const input = {presentation:'assistant'};
+    const viewId='creezio.conversations:admin';
+    const allowed=!!(shell.authorized && projection?.viewIds.includes(viewId));
+    const navigation: WorkspaceNavigation = {
+      open:(...args)=>allowed&&shell.controller.open(...args),visit:(...args)=>allowed&&shell.controller.visit(...args),
+      back:()=>allowed&&shell.controller.back(),forward:()=>allowed&&shell.controller.forward(),
+      readPanelState:()=>null,savePanelState:()=>false,
+    };
+    return <CreezioShell {...shell} account={state.session ? {displayName: state.session.displayName} : null}
+      assistantScopeKey={assistantSession.current ? `${assistantSession.current}:${access.audience}:${contextId}` : 'anonymous'}
+      assistant={Assistant && assistantView?.validateInput(input) ? <div hidden={!allowed} inert={!allowed}>
+        <Assistant key={revocationVersion} access={access} client={client} audience={access.audience} contextId={contextId} input={input}
+          panelId="creezio-native-assistant" location={{viewId,input,url:assistantView.route,identity:'creezio-native-assistant'}}
+          authorized={allowed} active={allowed} navigation={navigation} />
+      </div> : undefined}
+      onRefreshAccess={() => {setProjection(null);void access.refresh();}}
+      onLogout={() => {setProjection(null);void access.logout();}} />;
+  };
   return <>
     {!authenticated && <section className="workspace-host-access"><NativeAccessPanel audience={access.audience} controller={access} /></section>}
     {!contextId ? <p role="alert">Le contexte demandé est invalide.</p> : error ? <div role="alert">Impossible de vérifier l’accès aux vues.
@@ -80,9 +105,7 @@ function BoundWorkspace({access}: {access: AccessController}) {
     <Workspace access={access} projection={projection} views={views} navigation={navigation} client={client} contextId={contextId}
       revocationVersion={revocationVersion}
       homeViewId={navigation.find(item => item.viewId.endsWith(':dashboard') || item.viewId.endsWith(':home'))?.viewId}
-      renderShell={shell => <CreezioShell {...shell} account={state.session ? {displayName: state.session.displayName} : null}
-        onRefreshAccess={() => {setProjection(null);void access.refresh();}}
-        onLogout={() => {setProjection(null);void access.logout();}} />}
+      renderShell={renderShell}
       initialUrl={initialUrl} onLocationChange={url => {
         const current = new URL(window.location.href); current.searchParams.set('context', contextId); current.searchParams.set('view', url);
         window.history.replaceState(null, '', current);

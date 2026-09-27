@@ -2,7 +2,7 @@ import type { DataModel, RuntimeDataCatalog } from '../data/types.ts';
 import { plainRecord } from '../vault/crypto.ts';
 
 export const FILE_STATES = Object.freeze(['staging', 'staged', 'available', 'abandoned', 'deleted'] as const);
-export const FILE_POLICY = Object.freeze({ maximumBytes: 10 * 1024 * 1024, maximumNameBytes: 255 });
+export const FILE_POLICY = Object.freeze({ maximumBytes: 10 * 1024 * 1024, maximumNameBytes: 255, maximumChunks: 16384 });
 export class FileError extends Error {
   readonly code: 'invalid_input' | 'invalid_mapping' | 'unsupported' | 'conflict' | 'unavailable' | 'not_found';
   constructor(code: FileError['code']) { super('File operation refused.'); this.name = 'FileError'; this.code = code; }
