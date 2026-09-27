@@ -1,19 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createRequire} from 'node:module';
-import {fileURLToPath} from 'node:url';
+import {randomUUID} from 'node:crypto';
+import {unlinkSync,writeFileSync} from 'node:fs';
+import {fileURLToPath,pathToFileURL} from 'node:url';
 import {build} from 'esbuild';
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {projectTurnEvents} from '../../ui/turn-projection.ts';
 import {startTurnDriveLoop} from '../../ui/drive-loop.ts';
 
-const require = createRequire(import.meta.url);
 const bundle = await build({entryPoints:[fileURLToPath(new URL('../../ui/panel.tsx',import.meta.url))],
-  bundle:true,platform:'node',format:'cjs',packages:'external',write:false,logLevel:'silent'});
-const module = {exports:{}};
-new Function('require','module','exports',bundle.outputFiles[0].text)(require,module,module.exports);
-const {ConversationPanel} = module.exports;
+  bundle:true,platform:'node',format:'esm',packages:'external',write:false,logLevel:'silent'});
+// Load beside this test so bare package imports resolve through the SDK's ESM exports.
+const rendered = fileURLToPath(new URL(`./.contract-render-${randomUUID()}.mjs`,import.meta.url));
+let ConversationPanel;
+let written = false;
+try {
+  writeFileSync(rendered,bundle.outputFiles[0].text,{flag:'wx'});
+  written = true;
+  ({ConversationPanel} = await import(pathToFileURL(rendered).href));
+} finally {
+  if (written) unlinkSync(rendered);
+}
 const noop = () => {};
 const props = {variant:'embedded',open:true,onOpenChange:noop,mode:'chat',onModeChange:noop,
   selectedId:'c1',conversations:[{id:'c1',title:'Test',mode:'chat',updatedAt:new Date().toISOString(),archivedAt:null}],

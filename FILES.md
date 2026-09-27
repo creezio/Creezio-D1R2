@@ -1,6 +1,6 @@
 # Repères du dépôt
 
-État : PR #1 à #21 intégrées ; main `20d48fda` qualifié avec 923 tests locaux et CI. Documents installés consultables par UI/API/MCP depuis le Product Hub original. Chantier actif : T-13, fronts, thèmes et headless, sur `core/t13-front-themes`. Le [TODO](docs/TODO.md) distingue acquis, travaux et qualifications restantes.
+État : PR #1 à #25 intégrées ; main `8736c340` qualifié avec 1 019 tests locaux et CI. Workspace original, documents installés, fronts, conversations, OpenAI et widgets intégrés par tranches. Chantier actif : T-30, SDK et starter, sur `core/t30-sdk-starter`, avec qualification hébergée T16. Le [TODO](docs/TODO.md) distingue acquis, travaux et qualifications restantes.
 
 | Emplacement | Responsabilité |
 |---|---|
