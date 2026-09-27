@@ -10,7 +10,7 @@ import { startLocalWidgetSandbox } from './local/widget-sandbox.mjs';
 /** The parent retains its lock until the real child closes, including cancellation. */
 export async function runLockedLocalRuntime(command, config, { spawnChild = spawn,
   acquireLock = acquireLocalRuntimeLock, startSandbox = startLocalWidgetSandbox,
-  handshakeTimeoutMs = 120_000 } = {}) {
+  handshakeTimeoutMs = 120_000, signal } = {}) {
   if (!['dev', 'start'].includes(command)) throw new Error('Expected a local runtime command.');
   const lock = await acquireLock(config, command);
   let sandbox = null, sandboxStarting = null;
@@ -28,6 +28,7 @@ export async function runLockedLocalRuntime(command, config, { spawnChild = spaw
       path.join(config.root, 'node_modules/vinext/dist/cli.js'), 'dev', '--host', config.host, '--port', String(config.port)];
     if (command === 'start') sandbox = await startSandbox(config);
     const result = await new Promise((resolve, reject) => {
+      if(signal?.aborted){resolve(0);return;}
       const child = spawnChild(process.execPath, args, { cwd: config.root, stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
         env: { ...process.env, CREEZIO_APP_ORIGIN: config.origin,
           CREEZIO_WIDGET_SANDBOX_ORIGIN: config.sandboxOrigin,
@@ -63,13 +64,16 @@ export async function runLockedLocalRuntime(command, config, { spawnChild = spaw
       }
       const onInt = interrupt, onTerm = interrupt;
       process.on('SIGINT', onInt); process.on('SIGTERM', onTerm);
+      signal?.addEventListener('abort',interrupt,{once:true});
+      if(signal?.aborted)interrupt();
       child.once('error', error => { failed = error; });
-      child.once('close', (code, signal) => {
+      child.once('close', (code, closeSignal) => {
         closed=true;clearTimeout(startupTimer);
         process.removeListener('SIGINT', onInt); process.removeListener('SIGTERM', onTerm);
+        signal?.removeEventListener('abort',interrupt);
         if (failed) reject(new Error('Local runtime could not be launched.'));
         else if(command==='dev'&&!compositionSeen)reject(new Error('Local widget composition did not complete.'));
-        else resolve(code ?? (signal === 'SIGINT' ? 130 : 143));
+        else resolve(code ?? (closeSignal === 'SIGINT' ? 130 : 143));
       });
     });
     if(sandboxStarting)await sandboxStarting;

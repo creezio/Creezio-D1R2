@@ -11,6 +11,7 @@ export const LOCAL_COMPATIBILITY_DATE = '2026-05-15';
 export function loadLocalConfiguration({ root = LOCAL_REPOSITORY_ROOT,
   origin = process.env.CREEZIO_APP_ORIGIN ?? 'http://127.0.0.1:5173',
   sandboxOrigin = process.env.CREEZIO_WIDGET_SANDBOX_ORIGIN ?? 'http://127.0.0.1:5175',
+  operatorOrigin = process.env.CREEZIO_LOCAL_DELIVERY_ORIGIN ?? 'http://127.0.0.1:5176',
   sandboxBindHost = process.env.CREEZIO_WIDGET_SANDBOX_BIND_HOST ?? '127.0.0.1' } = {}) {
   if (typeof root !== 'string' || !path.isAbsolute(root) || /[\u0000-\u001f\u007f]/u.test(root) || typeof origin !== 'string') throw new Error('Invalid local configuration.');
   let url;
@@ -26,6 +27,11 @@ export function loadLocalConfiguration({ root = LOCAL_REPOSITORY_ROOT,
     !Number.isInteger(Number(sandboxUrl.port)) || Number(sandboxUrl.port) < 1024 ||
     Number(sandboxUrl.port) > 65535 || !['127.0.0.1', '0.0.0.0'].includes(sandboxBindHost))
     throw new Error('Widget sandbox needs a distinct canonical loopback origin and local bind host.');
+  const operatorUrl = new URL(operatorOrigin);
+  if (operatorUrl.origin !== operatorOrigin || operatorUrl.protocol !== 'http:'
+    || operatorUrl.hostname !== '127.0.0.1' || [origin,sandboxOrigin].includes(operatorOrigin)
+    || Number(operatorUrl.port) < 1024 || Number(operatorUrl.port) > 65535 || !operatorUrl.port)
+    throw new Error('Delivery operator needs a distinct canonical loopback origin.');
   const canonicalRoot = path.resolve(root), statePath = path.join(canonicalRoot, '.wrangler', 'state');
   const hostingPath = path.join(canonicalRoot, '.openai', 'hosting.json');
   for (const target of [canonicalRoot, path.dirname(hostingPath), hostingPath]) {
@@ -35,6 +41,7 @@ export function loadLocalConfiguration({ root = LOCAL_REPOSITORY_ROOT,
   const hosting = JSON.parse(readFileSync(hostingPath, 'utf8'));
   if (!hosting || hosting.d1 !== LOCAL_BINDINGS.database || hosting.r2 !== LOCAL_BINDINGS.bucket) throw new Error('Local bindings differ from the hosting contract.');
   return Object.freeze({ root: canonicalRoot, origin, host: '127.0.0.1', port,
+    operatorOrigin, operatorPort: Number(operatorUrl.port),
     sandboxOrigin, sandboxHost: sandboxBindHost, sandboxPort: Number(sandboxUrl.port),
     statePath, persistenceRoot: path.join(statePath, 'v3'), d1Path: path.join(statePath, 'v3', 'd1'),
     lockPath: path.join(canonicalRoot, '.wrangler', 'creezio-local.lock'),
@@ -45,6 +52,7 @@ export function localWorkerConfiguration(config) {
   return { name: 'creezio', main: 'worker.ts', compatibility_date: config.compatibilityDate,
     compatibility_flags: ['nodejs_compat'],
     vars: { CREEZIO_RUNTIME_PROFILE: 'local', CREEZIO_APP_ORIGIN: config.origin,
+      CREEZIO_LOCAL_DELIVERY_ORIGIN: config.operatorOrigin,
       CREEZIO_WIDGET_SANDBOX_ORIGIN: config.sandboxOrigin },
     d1_databases: [{ binding: config.bindings.database, database_name: config.bindings.databaseName, database_id: config.bindings.databaseId }],
     r2_buckets: [{ binding: config.bindings.bucket, bucket_name: config.bindings.bucketName }] };
@@ -58,6 +66,7 @@ export function assertLocalBuiltConfiguration(value, config) {
       && Object.keys(wanted[i]).every(key => binding[key] === wanted[i][key]));
   if (!value || value.vars?.CREEZIO_RUNTIME_PROFILE !== 'local' || value.vars?.CREEZIO_APP_ORIGIN !== config.origin
     || value.vars?.CREEZIO_WIDGET_SANDBOX_ORIGIN !== config.sandboxOrigin
+    || value.vars?.CREEZIO_LOCAL_DELIVERY_ORIGIN !== config.operatorOrigin
     || value.compatibility_date !== expected.compatibility_date
     || !sameBindings(value.d1_databases, expected.d1_databases)
     || !sameBindings(value.r2_buckets, expected.r2_buckets)) {

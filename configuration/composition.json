@@ -19,7 +19,7 @@
     ]
   },
   "sdk": {
-    "version": "1.0.0",
+    "version": "1.1.0",
     "coreVersion": "0.0.0",
     "policy": {
       "id": "creezio.local-contracts",
@@ -75,6 +75,18 @@
       "enabled": true,
       "configuration": [],
       "integrations": []
+    },
+    {
+      "moduleId": "creezio.delivery",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/native/delivery"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
     }
   ],
   "front": {
@@ -86,7 +98,8 @@
         "creezio.access",
         "creezio.modules-settings",
         "creezio.conversations",
-        "creezio.openai"
+        "creezio.openai",
+        "creezio.delivery"
       ]
     },
     "app": {

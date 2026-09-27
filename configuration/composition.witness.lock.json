@@ -1,14 +1,14 @@
 {
   "schemaVersion": "1.0.0",
   "applicationId": "creezio.app",
-  "sdkVersion": "1.0.0",
+  "sdkVersion": "1.1.0",
   "coreVersion": "0.0.0",
   "policy": {
     "id": "creezio.local-contracts",
     "version": "1.0.0",
     "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
   },
-  "compositionIntegrity": "sha256-14adc690b10fe7581710fe69dd6612fce11e4a91b25c05e2d6d5fe0bcb5afd69",
+  "compositionIntegrity": "sha256-44e8a170a24f993fe296141a433c9609bd48580e05091dc1aae6ba361dc7e360",
   "modules": [
     {
       "moduleId": "example.witness",
@@ -21,17 +21,17 @@
       },
       "contractIntegrity": "sha256-3da074a6d2305bce5d5065c2dead5306210a2bfe36b3d486426f9f8f92b7d609",
       "runtime": {
-        "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000",
+        "integrity": "sha256-198ed73c2dd2ff4c6f4f905bf23ad96222ba7f00af773f947b622f73587ea41c",
         "location": {
           "kind": "local",
-          "path": "tests/runtime/fixtures/module-witness/unbuilt-runtime.tgz"
+          "path": ".creezio/module-artifacts/example.witness/runtime-198ed73c2dd2ff4c6f4f905bf23ad96222ba7f00af773f947b622f73587ea41c.tgz"
         }
       },
       "validation": {
-        "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000",
+        "integrity": "sha256-46b64a493744c1dde778569af68df5500ccd9ba47f13a0c8259d94216c851254",
         "location": {
           "kind": "local",
-          "path": "tests/runtime/fixtures/module-witness/unbuilt-validation.tgz"
+          "path": ".creezio/module-artifacts/example.witness/validation-46b64a493744c1dde778569af68df5500ccd9ba47f13a0c8259d94216c851254.tgz"
         }
       },
       "dependencies": []

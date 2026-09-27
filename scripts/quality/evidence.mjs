@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve, relative, isAbsolute, sep, dirname } from 'node:path';
+import { verifyPortableSource } from '../local/source-manifest.mjs';
 
 /** TAP counters are necessary as well as process success: skipped/empty is not a pass. */
 export function inspectTap(output, exitCode) {
@@ -42,7 +43,7 @@ export function tapFailureExcerpt(output, {maxFailures = 5, maxChars = 12000} = 
 
 /** Each approved suite is mandatory; a missing directory cannot silently shrink coverage. */
 export function collectRequiredTests(root) {
-  const suites = ['quality', 'contracts', 'runtime', 'identity', 'data', 'operations', 'workspace', 'registry', 'local', 'oauth', 'mcp', 'modules', 'front', 'conversations', 'openai', 'widgets'];
+  const suites = ['quality', 'contracts', 'runtime', 'identity', 'data', 'operations', 'workspace', 'registry', 'local', 'oauth', 'mcp', 'modules', 'front', 'conversations', 'openai', 'widgets', 'cloudflare'];
   const files = [];
   for (const suite of suites) {
     const directory = resolve(root, 'tests', suite);
@@ -64,7 +65,19 @@ export function collectRequiredTests(root) {
 /** Includes untracked sources, excludes ignored evidence, and never follows symlinks. */
 export function sourceIdentity(root) {
   root = resolve(root);
+  // Docker images omit .git. Their source manifest was exported from a clean Git
+  // checkout before build and is checked against every source file here.
+  if (!lstatSync(resolve(root, '.git'), {throwIfNoEntry: false})) return verifyPortableSource(root);
   const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  // Git status may trust assume-unchanged and skip-worktree index entries without
+  // inspecting their working-tree bytes. Refuse those flags before assigning HEAD
+  // provenance to the bytes that will be built or exported.
+  const flags = git('ls-files', '--cached', '-v', '-z').split('\0').filter(Boolean);
+  if (flags.some(entry => entry[0] !== 'H' || entry[1] !== ' ')) {
+    const error = new Error('Source index flags hide working-tree changes.');
+    error.code = 'source_index_flags';
+    throw error;
+  }
   const paths = [...new Set(git('ls-files', '--cached', '--others', '--exclude-standard', '-z').split('\0').filter(Boolean))].sort();
   const files = [];
   const aggregate = createHash('sha256');

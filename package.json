@@ -3,7 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "workspaces": ["sdk"],
+  "workspaces": [
+    "sdk"
+  ],
   "engines": {
     "node": ">=24 <25"
   },
@@ -18,10 +20,11 @@
     "data:access": "node scripts/data/prepare-access.mjs --write",
     "data:runtime": "node scripts/data/prepare-runtime.mjs --write",
     "check:data": "node scripts/data/prepare-access.mjs && node scripts/data/prepare-runtime.mjs && node scripts/data/prepare-modules-settings.mjs && node scripts/data/prepare-native-module.mjs conversations && node scripts/data/prepare-native-module.mjs openai",
-    "dev": "node scripts/run-framework.mjs dev",
+    "dev": "node scripts/local/serve.mjs dev",
     "build": "node scripts/run-framework.mjs build",
     "build:sites": "node scripts/sites/build.mjs",
-    "start": "node scripts/run-framework.mjs start",
+    "build:cloudflare": "node scripts/cloudflare/build.mjs",
+    "start": "node scripts/local/serve.mjs start",
     "access:inspect": "node scripts/local/install.mjs inspect",
     "access:install": "node scripts/local/install.mjs install",
     "typecheck": "node scripts/build/compose-runtime.mjs && tsc --noEmit",
@@ -44,7 +47,8 @@
     "data:conversations": "node scripts/data/prepare-native-module.mjs conversations --write",
     "test:conversations": "node --test --test-concurrency=1 tests/conversations/*.test.mjs",
     "data:openai": "node scripts/data/prepare-native-module.mjs openai --write",
-    "test:widgets": "node --test --test-concurrency=1 tests/widgets/*.test.mjs"
+    "test:widgets": "node --test --test-concurrency=1 tests/widgets/*.test.mjs",
+    "test:cloudflare": "node --test --test-concurrency=1 tests/cloudflare/*.test.mjs"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
@@ -58,9 +62,11 @@
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
     "autoprefixer": "10.4.21",
+    "aws4fetch": "1.0.20",
     "drizzle-kit": "0.31.11",
     "drizzle-orm": "0.45.3",
     "esbuild": "0.27.3",
+    "fast-xml-parser": "5.11.1",
     "miniflare": "4.20260515.0",
     "postcss": "8.5.6",
     "react-server-dom-webpack": "19.2.8",

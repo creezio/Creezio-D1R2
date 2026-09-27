@@ -1,5 +1,5 @@
 # Backlog de réalisation
-Révision 30 — 27 septembre 2026. **Chantier actif : T-30 SDK/starter et application indépendante.** PR #1 à #25 intégrées ; main `8736c340` qualifié en local et en CI avec 1 019 tests. Chat OpenAI réel et conservation des données après publication vérifiés sur Sites en T15 ; widgets de deux modules qualifiés localement en T16. Le widget natif Modules est également vérifié sur le nouveau Site et dans ChatGPT avec OAuth natif et CSP activée. Les exigences demeurent inchangées.
+Révision 31 — 27 septembre 2026. **Chantier actif : T-32, livraison Docker local vers Cloudflare.** PR #1 à #26 intégrées ; main `e67636635a526daa544ea3573b271e1822f3f4fe` qualifié par la CI avec 1 039/1 039 tests. SDK `sdk-v1.0.0` et starter `module-v0.1.0` publics, démo T30 réelle qualifiée localement avec limites documentées. Le callback OAuth GitHub du registre a réussi avec l'utilisateur réel. Les exigences demeurent inchangées ; aucune publication de l'application originale sur Cloudflare n'est encore qualifiée.
 
 ## Jalon prioritaire : première app utilisable
 
@@ -20,7 +20,7 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-05 — Données | Compilation SQL centrale, accès D1 protégé, fichiers R2 et coffre | Explorateur, recherche, export/restauration, évolutions de modèles restantes et recettes hébergées | Fondations acquises ; autres fonctions à construire |
 | T-06 — Opérations | Registre/exécuteur intégrés PR #15 ; bindings HTTP et suivi par clé PR #16 | Événements, approbations, interopérations et autres transports | Fondations disponibles ; compléments au backlog |
 | T-07 — Workspace | Composants originaux adaptés, panneaux/états/titres et recette navigateur intégrés PR #16 | Qualification Sites et raccordement des modules produit | Livrable local disponible |
-| T-08 — Registre central | PR #17 intégrée ; Worker Cloudflare, service/client/journal et reprise réelle sans redéploiement ; fournisseur GitHub configuré | Qualification du callback GitHub corrigé, raccords des publishers et onboarding produit ; email non configuré | Correction du transport OAuth Worker révélée par la recette réelle |
+| T-08 — Registre central | PR #17 intégrée ; Worker Cloudflare, service/client/journal et reprise réelle ; callback OAuth GitHub réel vérifié après correction du transport Worker | Raccords des publishers et onboarding produit ; email non configuré | Identité GitHub réelle acquise ; autres parcours ouverts |
 | T-09 — Sites | Worker commun publié ; compte natif, chat admin/front et données D1/R2 conservés après publication T15 ; nouvelle cible et widget Modules vérifiés T16 | Module métier et application dérivée | Première tranche hébergée qualifiée |
 | T-10 — MCP/OAuth | Deux catalogues et OAuth natif intégrés ; connexion réelle ChatGPT au MCP admin, consentement limité et widget Modules vérifiés sur le nouveau Site | Recette ChatGPT du MCP applicatif et autres interactions | Première connexion hébergée qualifiée |
 | T-11 — Modules | PR #20 : catalogue, dépendances, plans D1 et UI originale ; recettes locales et CI, 908 tests | Raccords publication et hébergements ; distribution complète T-30 | Livrable local disponible |
@@ -29,8 +29,9 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-14 — Conversations | PR #23 : chat original, historique, brouillons D1, fichiers R2, autorisations ; recette Sites avec T15 | Enrichissement widgets et autres compléments | Livrable local et Sites disponible |
 | T-15 — OpenAI | PR #24 intégrée ; réponses réelles locales/Sites, front/workspace ; reprise et arrêt locaux ; CI 993 tests | Outils widgets T16, compléments fournisseur/voix | Première tranche locale et Sites qualifiée |
 | T-16 — Widgets | PR #25 intégrée ; hôte MCP Apps, trois modes, trois widgets de deux modules, reprise et droits ; 1 019 tests locaux/CI ; widget natif et lecture directe sur Sites et ChatGPT avec CSP activée | Module métier, autres interactions ChatGPT et approbation humaine en navigateur | Première recette ChatGPT qualifiée ; compléments avec le témoin |
-| T-30 — SDK/starter | Dépôt public, véritable paquet SDK et module témoin avec vues/widgets ; six suites du starter passées (24 tests) sur le candidat documenté | Corriger et qualifier l'installation indépendante, publication SDK/CI starter puis démo | **Développement actif, PR #26 et PR starter #1 ouvertes** |
+| T-30 — SDK/starter | PR #26 fusionnée, CI main 1 039/1 039 ; SDK `sdk-v1.0.0` public ; PR starter #1 fusionnée, release publique `module-v0.1.0` ; démo indépendante locale API/D1/R2/OpenAI/deux widgets/UI originale | Boutons internes des iframes et publication Cloudflare de la démo ; extensions du lot au-delà du premier témoin | Distribution initiale acquise ; qualification Cloudflare suivie en T-32 |
 | T-31 — Docker local | PR #17 intégrée ; compte/D1/R2, redémarrage/recréation/restauration vérifiés en Docker | Recettes des futurs modules et routes de fichiers | Livrable local disponible |
+| T-32 — Cloudflare direct | Ports build/provision/transfert D1/R2, opérateur local et module de livraison en développement avec contrôles ciblés | Intégration hôte/pipeline, PR/CI, publication réelle de l'original puis de la démo et vérification après arrêt du local | **En cours sur `core/t32-cloudflare` ; aucune publication réelle acquise** |
 | Autres lots T-17 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, publications et recette finale | À réaliser selon le jalon prioritaire |
 
 ## Règles de suivi
@@ -76,9 +77,9 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-14](#T-14) | P4 | Conversations et progression persistante | [T-06](#T-06), [T-07](#T-07), [T-11](#T-11) | En cours |
 | [T-15](#T-15) | P4 | Module OpenAI et contrat fournisseur | [T-14](#T-14) | En cours — première tranche qualifiée, compléments différés |
 | [T-16](#T-16) | P4 | Widgets et plugins conversationnels compatibles GPT | [T-10](#T-10), [T-13](#T-13), [T-15](#T-15) | Tranche intégrée — qualification hébergée |
-| [T-30](#T-30) | P3 | Starter, paquets et extension externe | [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-16](#T-16) | En cours — SDK, starter et installation indépendante |
+| [T-30](#T-30) | P3 | Starter, paquets et extension externe | [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-16](#T-16) | En cours — distribution initiale publique et recette locale acquises, autres critères ouverts |
 | [T-31](#T-31) | P1 | Docker local persistant | [T-03](#T-03), [T-05](#T-05), [T-07](#T-07) | En cours |
-| [T-32](#T-32) | P6 | Publication complète Cloudflare | [T-08](#T-08), [T-30](#T-30), [T-31](#T-31) | À faire |
+| [T-32](#T-32) | P6 | Publication complète Cloudflare | [T-08](#T-08), [T-30](#T-30), [T-31](#T-31) | En cours — intégration, aucune publication réelle |
 | [T-36](#T-36) | P7 | Version initiale de l’original, puis compléments | Jalon initial : [T-08](#T-08), [T-09](#T-09), [T-10](#T-10), [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-14](#T-14), [T-15](#T-15), [T-16](#T-16), tranche témoin [T-30](#T-30), [T-31](#T-31), [T-32](#T-32) | À faire — tranche initiale prioritaire |
 | [T-37](#T-37) | P7 | Vrai fork Creezio Lab et Site B | Version initiale publiée de [T-36](#T-36) | À faire |
 | [T-38](#T-38) | P8 | Adoption des mises à jour et contributions | Fork initial de [T-37](#T-37) | À faire — preuve installation/update prioritaire |
@@ -403,12 +404,12 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-30"></a>
 ## T-30 — Starter, paquets et extension externe
 
-- Lot : **P3** ; état : **en cours — SDK et starter** ; responsables : orchestrateur, agents API/SDK, UI et hôte, sur `core/t30-sdk-starter` et le dépôt public Creezio-Extension-Starter.
+- Lot : **P3** ; état : **en cours — distribution initiale acquise, critères restants ouverts** ; responsables : orchestrateur, agents API/SDK, UI et hôte. PR #26 fusionnée sur main `e67636635a526daa544ea3573b271e1822f3f4fe` ; dépôt public Creezio-Extension-Starter, PR #1 fusionnée sur `527a1bc1446a529ad6e560e3a25dea13a12001e9`.
 - Dépendances : [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-16](#T-16).
 - Travail/livrables : Première tranche prioritaire : starter, paquet runtime réel, validation autonome, plugin et démo locale d'un seul module métier témoin, installé hors du checkout source. Les comparateurs, dépendances interéditeurs et intégrations facultatives restent dans le lot pour la suite ; ils ne conditionnent pas cette première app. Vérifier les droits avant toute distribution concernée ; publication de la démo qualifiée en T-32.
 - Besoin : [US-30](USER-STORIES.md#US-30). Acceptation : [REQ-3001](EXIGENCES.md#REQ-3001), [REQ-3002](EXIGENCES.md#REQ-3002), [REQ-3003](EXIGENCES.md#REQ-3003), [REQ-3004](EXIGENCES.md#REQ-3004).
 - Validation : implémenter puis exécuter les recettes liées, sur **tarball dans app de validation indépendante et démo locale** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : CI main Core 1 039/1 039 ; archives publiques SDK `sdk-v1.0.0` (SHA-256 `12671aa9bd8ddd480c6cb8e04975843ee10616f1ec3ecfe77d3beebbc52350c1`) et starter `module-v0.1.0`. Démo indépendante locale : API admin/app, D1/R2, OpenAI réel, deux widgets et UI originale vérifiés ; boutons internes des iframes non qualifiés. [Réalisation et limites](IMPLEMENTATION-T30.md). Publication Cloudflare de la démo suivie en T-32.
 
 <a id="T-31"></a>
 ## T-31 — Docker local persistant
@@ -423,12 +424,12 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-32"></a>
 ## T-32 — Publication complète Cloudflare
 
-- Lot : **P6** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P6** ; état : **en cours** ; responsables : orchestrateur et agents T32 sur `core/t32-cloudflare` ; aucune PR #27 créée à ce stade.
 - Dépendances : [T-08](#T-08), tranche témoin [T-30](#T-30), [T-31](#T-31). La publication Sites [T-09](#T-09) suit son propre parcours et n'est pas un prérequis technique de Cloudflare.
 - Travail/livrables : Module livraison locale et exécuteur limité, Worker/assets, bindings D1/R2, transfert cohérent et reprise ; original et démo du starter publiés. Le fork sera exercé en T-38.
 - Besoin : [US-32](USER-STORIES.md#US-32). Acceptation : [REQ-3201](EXIGENCES.md#REQ-3201), [REQ-3202](EXIGENCES.md#REQ-3202), [REQ-3203](EXIGENCES.md#REQ-3203).
 - Validation : implémenter puis exécuter les recettes liées, sur **compte Cloudflare autorisé réel** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : contrôles ciblés des ports de build/provisionnement/transfert et du module natif de livraison ; compilation SDK et TypeScript vérifiée. Intégration hôte/pipeline, CI candidate et recette sur le compte Cloudflare réel restent à faire ; aucun Worker applicatif, D1/R2 ou front T32 publié à ce stade. [Réalisation T32](IMPLEMENTATION-T32.md).
 
 <a id="T-33"></a>
 ## T-33 — Stockages distincts hors Sites

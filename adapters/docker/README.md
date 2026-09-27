@@ -5,7 +5,7 @@ Cet adaptateur exécute les commandes locales existantes dans un conteneur Node 
 Depuis la racine du dépôt :
 
 ```sh
-docker compose -f adapters/docker/compose.yaml build
+node adapters/docker/build.mjs
 docker compose -f adapters/docker/compose.yaml run --rm --no-deps --entrypoint node app scripts/local/install.mjs inspect
 docker compose -f adapters/docker/compose.yaml run --rm --no-deps --interactive --tty --entrypoint node app scripts/local/install.mjs install
 docker compose -f adapters/docker/compose.yaml up -d --no-build
@@ -13,7 +13,11 @@ docker compose -f adapters/docker/compose.yaml up -d --no-build
 
 Ouvrir `http://127.0.0.1:5173/access/admin`. L'installation interactive demande le premier compte et une confirmation explicite. Aucun mot de passe n'est fourni par image, variable ou argument. Le proxy TCP sur le port interne 5174 transmet HTTP et WebSocket au serveur local qui conserve son origine canonique `127.0.0.1:5173`. Le port publié reste limité au loopback de l'hôte.
 
+Le lanceur de build exige un checkout Git propre, exporte dans `.creezio/docker-source.json` l'identité du commit, de l'arbre et l'inventaire des octets source, puis construit l'image sans y copier `.git`. L'image vérifie ce manifeste avant de démarrer ; les lectures de provenance dans le conteneur revérifient les fichiers. Un `docker compose build` direct avec un manifeste absent ou périmé échoue. Le dossier `.creezio` entier ne passe pas dans l'image : seul ce manifeste est inclus.
+
 Les widgets utilisent une seconde origine d'affichage, `http://127.0.0.1:5175`, publiée uniquement sur le loopback hôte. Le relais statique démarre et s'arrête dans le même conteneur avec le serveur ; il ne possède ni D1, ni R2, ni session, ni clé fournisseur. Il n'ajoute aucune instance métier ni service tiers à maintenir.
+
+L'opérateur local de livraison, lorsqu'il est activé, garde son origine canonique `http://127.0.0.1:5176`. Un second pont TCP interne sur 5177 expose uniquement ce service au loopback de l'hôte ; ni le port de Miniflare ni celui de l'opérateur ne deviennent publics sur l'interface réseau du conteneur.
 
 Pour vérifier la persistance, installer un compte synthétique avec la commande ci-dessus, puis arrêter le service et écrire un objet R2 synthétique via le même binding local et le même verrou :
 

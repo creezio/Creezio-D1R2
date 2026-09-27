@@ -3,13 +3,16 @@
 .quality
 node_modules
 .wrangler
-.creezio
+.creezio/*
+!.creezio/docker-source.json
 .next
 .next-*
 dist
 coverage
 outputs
 work
+private
+docker-data
 *.log
 *.pem
 *.key

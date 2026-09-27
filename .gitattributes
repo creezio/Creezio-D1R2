@@ -27,3 +27,4 @@ themes/**/*.md text eol=lf
 themes/**/*.css text eol=lf
 themes/**/LICENSE text eol=lf
 tests/workspace/fixtures/module-witness/** text eol=lf
+tests/runtime/fixtures/module-witness/** text eol=lf

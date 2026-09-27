@@ -12,6 +12,8 @@ const entries={
   'operations/error':'operations/error.ts',
   'operations/handler':'operations/handler.ts',
   'operations/client':'operations/client.ts',
+  'delivery/context':'delivery/context.tsx',
+  'delivery/transport':'delivery/transport.ts',
   'files/types':'files/types.ts',
   'files/client':'files/client.ts',
   'workspace/types':'workspace/types.ts',

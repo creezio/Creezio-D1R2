@@ -19,6 +19,8 @@
     "operations/error.ts",
     "operations/handler.ts",
     "operations/client.ts",
+    "delivery/context.tsx",
+    "delivery/transport.ts",
     "files/types.ts",
     "files/client.ts",
     "workspace/types.ts",

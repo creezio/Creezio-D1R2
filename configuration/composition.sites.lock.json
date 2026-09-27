@@ -1,14 +1,14 @@
 {
   "schemaVersion": "1.0.0",
   "applicationId": "creezio.app",
-  "sdkVersion": "1.0.0",
+  "sdkVersion": "1.1.0",
   "coreVersion": "0.0.0",
   "policy": {
     "id": "creezio.local-contracts",
     "version": "1.0.0",
     "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
   },
-  "compositionIntegrity": "sha256-008ddb8ad9b1548334fe87cc7e4c0e9d7e9f1555d94cfffdbcb3afacd1b0f60a",
+  "compositionIntegrity": "sha256-cb86666ec41038f9b162a850d9405554b00cf883f7c34a9f173130081ceb332f",
   "modules": [
     {
       "moduleId": "creezio.access",
@@ -151,6 +151,32 @@
         "location": {
           "kind": "local",
           "path": ".creezio/module-artifacts/creezio.theme-chatgpt/validation-cf9a91437630778ce21d286e1b66388520c872de304e288b04f4fc0e4ca035e0.tgz"
+        }
+      },
+      "dependencies": []
+    },
+    {
+      "moduleId": "creezio.delivery",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "version": "0.0.0",
+      "source": {
+        "kind": "snapshot",
+        "revision": "t32-local-delivery-v1",
+        "integrity": "sha256-b0aa38d3948972d4978593cf9c40fc8ce2dafc42b597f2cedcd4b08d128853e8"
+      },
+      "contractIntegrity": "sha256-3e411f0c68d9a491f7cb72a35de54c83768c15139d5752b72820c859b0127d4c",
+      "runtime": {
+        "integrity": "sha256-3508b8e63f1dd310799126fe7ab1720f7aca0e35862a0d08c408693315a0fee2",
+        "location": {
+          "kind": "local",
+          "path": ".creezio/module-artifacts/creezio.delivery/runtime-3508b8e63f1dd310799126fe7ab1720f7aca0e35862a0d08c408693315a0fee2.tgz"
+        }
+      },
+      "validation": {
+        "integrity": "sha256-e78699611a5866009acb337feee403d1cc865293719780ee323e678493454625",
+        "location": {
+          "kind": "local",
+          "path": ".creezio/module-artifacts/creezio.delivery/validation-e78699611a5866009acb337feee403d1cc865293719780ee323e678493454625.tgz"
         }
       },
       "dependencies": []

@@ -159,7 +159,7 @@ Les résultats et limites sont détaillés dans [Qualification Sites](QUALIFICAT
 - [Commandes R2](https://developers.cloudflare.com/r2/reference/wrangler-commands/) : lecture/écriture des objets locaux et distants.
 - [Données locales](https://developers.cloudflare.com/workers/local-development/local-data/) : persistance des ressources de développement.
 
-État du parcours Cloudflare personnel : faisabilité documentaire ; aucun déploiement ni transfert vers ce compte réalisé. Les sondes Sites publiées et leurs preuves réelles sont consignées dans Qualification Sites.
+État du parcours Cloudflare personnel : développement T32 en cours avec tests ciblés des ports de build, provisionnement et transfert ; aucun déploiement ni transfert de l'application vers ce compte réalisé. Voir [réalisation T32](IMPLEMENTATION-T32.md). Les sondes Sites publiées et leurs preuves réelles sont consignées dans Qualification Sites.
 
 ## Qualification des accès de publication
 

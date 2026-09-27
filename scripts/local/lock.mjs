@@ -46,7 +46,7 @@ export async function assertLocalStoragePaths(config, { createParent = false } =
 
 /** Cooperative exclusion for official dev/start/operator commands, not an OS database lock. */
 export async function acquireLocalRuntimeLock(config, purpose) {
-  if (!['dev', 'start', 'inspect', 'install'].includes(purpose)) throw new LocalRuntimeLockError('local_path');
+  if (!['dev', 'start', 'inspect', 'install', 'export'].includes(purpose)) throw new LocalRuntimeLockError('local_path');
   const canonical = loadLocalConfiguration({ root: config.root, origin: config.origin });
   await assertLocalStoragePaths(canonical, { createParent: true });
   const owner = Object.freeze({ version: 1, nonce: randomUUID(), pid: process.pid, purpose,

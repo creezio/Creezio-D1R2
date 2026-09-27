@@ -17,20 +17,24 @@ function configFixture(t) {
   const root = temporaryDirectory(t, 'creezio-local-operator-');
   mkdirSync(path.join(root, '.openai'));
   writeFileSync(path.join(root, '.openai/hosting.json'), JSON.stringify({ d1: 'DB', r2: 'BUCKET' }));
-  return loadLocalConfiguration({ root, origin: 'http://127.0.0.1:5173' });
+  return loadLocalConfiguration({ root, origin: 'http://127.0.0.1:5173',
+    operatorOrigin: 'http://127.0.0.1:5176' });
 }
 
 test('local configuration ties origin, port and persistent D1 identity to one installation', t => {
   const config = configFixture(t), worker = localWorkerConfiguration(config);
   assert.equal(config.port, 5173);
+  assert.equal(config.operatorPort, 5176);
   assert.equal(config.d1Path, path.join(config.root, '.wrangler/state/v3/d1'));
   assert.equal(worker.vars.CREEZIO_APP_ORIGIN, config.origin);
+  assert.equal(worker.vars.CREEZIO_LOCAL_DELIVERY_ORIGIN, config.operatorOrigin);
   assert.equal(worker.d1_databases[0].database_id, config.bindings.databaseId);
   assert.equal(worker.d1_databases[0].binding, 'DB');
   assert.ok(Object.isFrozen(config)); assert.ok(Object.isFrozen(config.bindings));
   assert.doesNotThrow(() => assertLocalBuiltConfiguration(worker, config));
   for (const alter of [
     value => { value.vars.CREEZIO_APP_ORIGIN = 'http://127.0.0.1:8787'; },
+    value => { value.vars.CREEZIO_LOCAL_DELIVERY_ORIGIN = 'http://127.0.0.1:8787'; },
     value => { value.vars.CREEZIO_RUNTIME_PROFILE = 'cloudflare'; },
     value => { value.d1_databases[0].database_id = 'different-database'; },
     value => { value.r2_buckets[0].bucket_name = 'different-bucket'; },
@@ -48,6 +52,10 @@ test('local configuration refuses remote targets, ambiguous origins and mismatch
     'http://127.0.0.1', 'http://127.0.0.1:999', 'http://127.0.0.1:99999', 'invalid']) {
     assert.throws(() => loadLocalConfiguration({ root: config.root, origin }), undefined, origin);
   }
+  for (const operatorOrigin of [config.origin,config.sandboxOrigin,'https://example.com',
+    'http://0.0.0.0:5176','http://127.0.0.1:5176/path','http://127.0.0.1:999'])
+    assert.throws(() => loadLocalConfiguration({ root: config.root, origin: config.origin,
+      operatorOrigin }), undefined, operatorOrigin);
   assert.throws(() => loadLocalConfiguration({ root: './relative' }));
   writeFileSync(path.join(config.root, '.openai/hosting.json'), JSON.stringify({ d1: 'OTHER', r2: 'BUCKET' }));
   assert.throws(() => loadLocalConfiguration({ root: config.root, origin: config.origin }));

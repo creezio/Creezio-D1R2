@@ -23,6 +23,7 @@ import {createTurnBridge} from '../conversations/turn-bridge.ts';
 import type {ProviderOperationSchema} from '../providers/tools.ts';
 import {dispatchWidgetHttp} from '../widgets/http.ts';
 import {createWidgetApprovalService} from '../widgets/approval.ts';
+import {dispatchDeliveryAuthorizationHttp} from '../delivery/http.ts';
 import type {CompiledWidgetCatalog, WidgetValidatorMap} from '../../sdk/widgets/catalog.ts';
 
 type Engine = ReturnType<typeof createOperationEngine>;
@@ -291,6 +292,9 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
   return Object.freeze({async dispatch(request: Request, environment: RuntimeEnvironment, rawEnvironment: unknown,
     requestId: string): Promise<Response | null> {
     const path = new URL(request.url).pathname;
+    if (path === '/api/delivery/admin/authorization'||path === '/api/delivery/admin/connections')
+      return dispatchDeliveryAuthorizationHttp(request,environment,rawEnvironment,requestId,
+        options.permissions,options.dataCatalog);
     if (path.startsWith('/api/widgets/')) return options.widgetCatalog
       ? dispatchWidgetHttp(request, environment, rawEnvironment, requestId, {permissions:options.permissions,catalog:options.widgetCatalog,
         approvals:createWidgetApprovalService({db:environment.bindings.DB,catalog:options.dataCatalog,permissions:options.permissions,registry:options.registry})}) : null;

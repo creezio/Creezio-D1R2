@@ -11,6 +11,7 @@ import type {WorkspaceProjection, WorkspaceNavigation} from '../../sdk/workspace
 import {readProjection, WorkspaceAccessRefused} from './projection-client';
 import {CreezioShell} from '../../admin/workspace/workspace-shell';
 import {WidgetHostProvider} from '../../sdk/widgets/provider';
+import {createLocalDeliveryTransport} from '../../admin/delivery/transport';
 
 export function WorkspaceHost({audience}: {audience: AccessAudience}) {
   const [access, setAccess] = useState<AccessController | null>(null);
@@ -25,6 +26,11 @@ export function WorkspaceHost({audience}: {audience: AccessAudience}) {
 }
 
 function BoundWorkspace({access}: {access: AccessController}) {
+  const [deliveryTransport,setDeliveryTransport]=useState<ReturnType<typeof createLocalDeliveryTransport>|null>(null);
+  useEffect(() => {
+    const transport=createLocalDeliveryTransport({access});setDeliveryTransport(transport);
+    return () => transport.dispose();
+  },[access]);
   const state = useSyncExternalStore(access.subscribe, access.getSnapshot, access.getSnapshot);
   const [projection, setProjection] = useState<WorkspaceProjection | null>(null);
   const [error, setError] = useState(false);
@@ -89,6 +95,7 @@ function BoundWorkspace({access}: {access: AccessController}) {
       readPanelState:()=>null,savePanelState:()=>false,
     };
     return <CreezioShell {...shell} account={state.session ? {displayName: state.session.displayName} : null}
+      deliveryTransport={access.audience==='admin'&&access.origin.startsWith('http://127.0.0.1:')?deliveryTransport:null}
       assistantScopeKey={assistantSession.current ? `${assistantSession.current}:${access.audience}:${contextId}` : 'anonymous'}
       assistant={Assistant && assistantView?.validateInput(input) ? <div hidden={!allowed} inert={!allowed}>
         <Assistant key={revocationVersion} access={access} client={client} audience={access.audience} contextId={contextId} input={input}

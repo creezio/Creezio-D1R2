@@ -1,14 +1,14 @@
 {
   "schemaVersion": "1.0.0",
   "applicationId": "creezio.app",
-  "sdkVersion": "1.0.0",
+  "sdkVersion": "1.1.0",
   "coreVersion": "0.0.0",
   "policy": {
     "id": "creezio.local-contracts",
     "version": "1.0.0",
     "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
   },
-  "compositionIntegrity": "sha256-9eacd904c891ebbb69a90c5b9a6410098d5c81b5eea6f402aa14a1ac2b24932c",
+  "compositionIntegrity": "sha256-18f59d48d6a82b3e2bb1ee05d5636b6daac72aa92f03f3578f610cda69d04d51",
   "modules": [
     {
       "moduleId": "creezio.access",

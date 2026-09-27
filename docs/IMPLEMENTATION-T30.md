@@ -1,6 +1,6 @@
 # Réalisation T30 — SDK distribué et starter de module
 
-T-30 / US-30, REQ-3001 à REQ-3003. Branche `core/t30-sdk-starter` depuis main `8736c340`. Le dépôt public [Creezio-Extension-Starter](https://github.com/creezio/Creezio-Extension-Starter) contient le module métier témoin `creezio.purchase-requests` ; la publication finale, l'installation indépendante et la démo restent à qualifier.
+T-30 / US-30, REQ-3001 à REQ-3004. PR Core #26 fusionnée sur main `e67636635a526daa544ea3573b271e1822f3f4fe` (arbre `9afac6683bdf9c60e1e102d21e636e8202ea6936`) ; CI main 1 039/1 039. Le dépôt public [Creezio-Extension-Starter](https://github.com/creezio/Creezio-Extension-Starter) contient le module métier témoin `creezio.purchase-requests` ; sa PR #1 est fusionnée sur main `527a1bc1446a529ad6e560e3a25dea13a12001e9`. La distribution initiale et la démo locale sont acquises dans le périmètre ci-dessous ; la publication Cloudflare et la preuve d'un fork restent ouvertes en T32/T38.
 
 Le paquet `@creezio/sdk` 1.0.0 expose les contrats, ports d'opérations, clients, contributions et composants publics nécessaires à un module autonome. Sa compilation produit JavaScript ESM et déclarations TypeScript, sans types de stockage privés du cœur ni import vers un checkout voisin. Le contexte React du workspace, de ses métadonnées, de sa barre d'outils et de l'assistant est partagé entre hôte et paquet : les points d'entrée historiques réexportent le même SDK. La classe d'erreur d'opération est également unique.
 
@@ -18,7 +18,15 @@ Le runtime npm et l'archive de validation sont distincts. Un reçu explicite lie
 
 L'installation locale utilise désormais le même plan de schéma composé que les autres hébergements avant la création explicite du premier compte. Le CLI conserve l'inspection, le verrou local et les contrôles natifs. Une base étrangère ou une composition partielle existante est conservée et refusée ; le schéma vide déjà préparé peut reprendre l'installation. Les modules ne fournissent aucun script SQL de transformation.
 
-Contrôles ciblés acquis avant intégration : types stricts du SDK et d'un consommateur externe, identité des contextes, validation du reçu réel du starter et cas négatifs, installation composée Miniflare D1 et CLI. La qualification globale, la CI de la candidate finale, une opération réelle du paquet dans l'application indépendante et les recettes navigateur restent distinctes. La démo télécharge une révision publique précise du socle et installe les archives vérifiées ; elle n'utilise pas de lien vers les sources privées de l'orchestrateur.
+Contrôles acquis : types stricts du SDK et d'un consommateur externe, identité des contextes, reçu réel du starter et cas négatifs, installation composée Miniflare D1 et CLI. Le candidat final Core et son main ont une CI 1 039/1 039. La démo télécharge une révision publique précise du socle et installe les archives vérifiées ; elle n'utilise pas de lien vers les sources privées de l'orchestrateur.
+
+## Distribution et recette locale du 27 septembre 2026
+
+Le [SDK `sdk-v1.0.0`](https://github.com/creezio/Creezio-D1R2/releases/tag/sdk-v1.0.0) est public. Son archive `creezio-sdk-1.0.0.tgz` a le SHA-256 `12671aa9bd8ddd480c6cb8e04975843ee10616f1ec3ecfe77d3beebbc52350c1`. La [release starter `module-v0.1.0`](https://github.com/creezio/Creezio-Extension-Starter/releases/tag/module-v0.1.0) publie runtime, validation et manifeste. Sa provenance et ses téléchargements vérifiés sont consignés dans `outputs/CREEZIO-T30-STARTER-PUBLIC-RELEASE-2026-09-27.json` du workspace de travail.
+
+La démo indépendante a installé le SDK et le module par leurs archives, compilé le même socle et adopté son schéma D1 composé sans réinitialiser les données déjà présentes. La recette locale a exercé les API admin et app, les données D1, le fichier R2 avec lecture autorisée, OpenAI réel, deux widgets et l'interface originale. Les actions des boutons internes aux iframes des widgets restent **non qualifiées** : la capture ne permettait pas de conclure à leur exécution. Les preuves locales figurent notamment dans `outputs/CREEZIO-T30-DEMO-RECIPE-5A5D3C9-2026-09-27.json` et `outputs/CREEZIO-T30-DEMO-WIDGETS-5A5D3C9-2026-09-27.txt` du workspace. Les données et dépendances de démo sont conservées, les serveurs de recette ont été arrêtés.
+
+Le fournisseur GitHub du registre a ensuite été corrigé et son callback OAuth réel a réussi avec le compte utilisateur vérifié le 27 septembre à 19:03 UTC. Cette preuve d'identité n'est pas une preuve de publication Cloudflare de l'application ; celle-ci relève de [T32](IMPLEMENTATION-T32.md).
 
 Les besoins, modèles métier natifs, droits et interactions approuvés ne changent pas. Cette tranche réalise la distribution déjà prévue dans le PRD ; elle ne clôt ni la publication Cloudflare T32 ni l'adoption des mises à jour T38.
 
