@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { Miniflare } from 'miniflare';
 import { temporaryDirectory } from '../quality/temporary.mjs';
 import { compileCompositionSchema } from '../../scripts/data/composition-schema.mjs';
-import { applyCompositionSchema, inspectCompositionSchema, inspectManagedSchema, SCHEMA_RECEIPT_TABLE } from '../../scripts/data/apply-schema.mjs';
+import { applyCompositionSchema, inspectCompositionSchema, inspectManagedSchema, managedSchemaGuard, SCHEMA_RECEIPT_TABLE, D1_INTERNAL_SCHEMA_OBJECTS } from '../../scripts/data/apply-schema.mjs';
 import { loadAccessInstallPlan, installAccess, inspectAccessInstallation } from '../../scripts/data/install-access.mjs';
 import { contractIntegrity } from '../../sdk/contracts/validate.mjs';
 import { describeD1Schema } from '../../scripts/data/d1-schema.mjs';
@@ -53,6 +53,34 @@ const apply = (db, plan) => applyCompositionSchema(db, plan, { expectedPlanDiges
 const table = (plan, id = 'items') => plan.runtimeCatalog.modules.find(module => module.moduleId === 'example.data').models.find(item => item.modelId === id).table;
 const objects = async db => (await db.prepare("SELECT name FROM sqlite_schema WHERE name NOT LIKE '_cf_%' ORDER BY name").all()).results.map(row => row.name);
 function wrapBatch(db, intercept) { return { prepare: sql => db.prepare(sql), batch: statements => intercept(statements) }; }
+
+test('hosted D1 provider table is accepted only with its exact sqlite_schema definition', async () => {
+  const plan=planFor([model('items')]);
+  const provider=D1_INTERNAL_SCHEMA_OBJECTS.find(item=>item.name==='_cf_KV');
+  assert.deepEqual(provider,{type:'table',name:'_cf_KV',table:'_cf_KV',
+    sql:'CREATE TABLE _cf_KV (\n        key TEXT PRIMARY KEY,\n        value BLOB\n      ) WITHOUT ROWID'});
+  const inspected=[];
+  const db=(sql,name='_cf_KV')=>({prepare(query){
+    const statement={bind(...params){inspected.push({query,params});return statement;},
+      async all(){
+        if(query.startsWith('SELECT COUNT(*) AS count'))return {success:true,results:[
+          {count:1,bytes:Buffer.byteLength(sql)}]};
+        if(query.startsWith('SELECT type, name, tbl_name'))return {success:true,results:[
+          {type:'table',name,tbl_name:name,sql}]};
+        throw new Error('Unexpected schema query.');
+      }};
+    return statement;
+  }});
+  assert.equal((await inspectCompositionSchema(db(provider.sql),plan)).state,'additive');
+  const guard=managedSchemaGuard(db(provider.sql),[]);
+  assert.ok(guard);
+  assert.ok(inspected.some(item=>item.query.includes('FROM sqlite_schema s')
+    &&JSON.parse(item.params[1]).some(object=>object.name==='_cf_KV'&&object.sql===provider.sql)));
+  assert.equal((await inspectCompositionSchema(db(provider.sql.replace('value BLOB','value TEXT')),plan)).code,
+    'schema.foreign');
+  assert.equal((await inspectCompositionSchema(db('CREATE TABLE _cf_EXTRA (value BLOB)','_cf_EXTRA'),plan)).code,
+    'schema.foreign');
+});
 
 test('central additive publication with real D1, isolated ephemeral bindings', async t => {
   const names = Array.from({ length: 16 }, (_, i) => `DB${i}`);

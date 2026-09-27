@@ -13,9 +13,13 @@ const RECEIPT_SQL = `CREATE TABLE "${SCHEMA_RECEIPT_TABLE}" (
   PRIMARY KEY (sequence)
 ) WITHOUT ROWID`;
 export const SCHEMA_RECEIPT_OBJECT = Object.freeze({ type: 'table', name: SCHEMA_RECEIPT_TABLE, table: SCHEMA_RECEIPT_TABLE, sql: RECEIPT_SQL });
-// Exact optional provider definition qualified in the local D1 profile, including lazy creation.
-export const D1_INTERNAL_SCHEMA_OBJECTS = Object.freeze([Object.freeze({ type: 'table', name: '_cf_METADATA', table: '_cf_METADATA',
-  sql: 'CREATE TABLE _cf_METADATA (\n        key INTEGER PRIMARY KEY,\n        value BLOB\n      )' })]);
+// Exact provider definitions observed in local D1 and Cloudflare-hosted D1.
+export const D1_INTERNAL_SCHEMA_OBJECTS = Object.freeze([
+  Object.freeze({ type: 'table', name: '_cf_METADATA', table: '_cf_METADATA',
+    sql: 'CREATE TABLE _cf_METADATA (\n        key INTEGER PRIMARY KEY,\n        value BLOB\n      )' }),
+  Object.freeze({ type: 'table', name: '_cf_KV', table: '_cf_KV',
+    sql: 'CREATE TABLE _cf_KV (\n        key TEXT PRIMARY KEY,\n        value BLOB\n      ) WITHOUT ROWID' }),
+]);
 const HASH = /^sha256-[a-f0-9]{64}$/;
 const quote = name => `"${name.replaceAll('"', '""')}"`;
 const key = object => `${object.type}:${object.name}`;
