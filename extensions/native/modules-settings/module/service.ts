@@ -1,5 +1,5 @@
 import {OperationError, type OperationContext, type OperationHandlerResult,
-  type JsonValue} from '../../../../sdk/operations/handler.ts';
+  type JsonValue} from '@creezio/sdk/operations/handler';
 // The runtime already bundles semver for the T02 solver; this projection uses its validated versions.
 // @ts-expect-error semver has no local declaration in this workspace.
 import semver from 'semver';

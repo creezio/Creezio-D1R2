@@ -2,7 +2,7 @@
 
 import {useEffect, useRef, useState} from 'react';
 import {Bot, KeyRound, Loader2, RefreshCw, Save} from 'lucide-react';
-import {Button, Card, CardContent, CardDescription, CardHeader, CardTitle} from '../../../../sdk/ui/index.ts';
+import {Button, Card, CardContent, CardDescription, CardHeader, CardTitle} from '@creezio/sdk/ui';
 
 export interface OpenAIConfigurationView {
   readonly providerId:'openai.responses.v1';

@@ -3,7 +3,7 @@
 import { createElement, useEffect, useMemo } from 'react';
 import type { RuntimeViewProps } from '../../../../sdk/runtime/ui.ts';
 import { createAccessAdminController } from '../../../../sdk/access/admin-controller.ts';
-import { useWorkspacePortalHost } from '../../../../sdk/workspace/components.tsx';
+import { useWorkspacePortalHost } from '@creezio/sdk/workspace/components';
 import { AccessAdminClient } from './access-admin-client.tsx';
 import { createPanelCommandPersistence } from './persistence.ts';
 

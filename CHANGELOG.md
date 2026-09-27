@@ -8,6 +8,8 @@ Catégories de fichiers avec propriétaire commun aux audiences sur déclaration
 
 Qualification de l'application indépendante : budget de validation propre à l'ensemble des descripteurs, sans relâcher les bornes individuelles des modules, et actualisation des verrous des compositions distribuées. Le retour OAuth GitHub du registre utilise le transport compatible Worker et refuse les redirections du fournisseur ; la configuration distante et la connexion réelle sont suivies séparément.
 
+Résolution des composants et ports partagés depuis le paquet SDK installé dans l'application indépendante, sans dépendance à un build des sources locales du SDK. Les assets des widgets du starter sont exportés explicitement par son paquet.
+
 ## 27 septembre 2026 — widgets T16
 
 PR #25 intégrée ; main `8736c340`, 1 019 tests locaux et CI réussis. Hôte MCP Apps du chat existant, ressources compilées des modules et comportements message/contexte/direct. Recette locale des widgets de deux modules avec OpenAI réel et reprise d'une mutation après perte de réponse ; qualification Sites et ChatGPT suivie séparément. Périmètre et limites dans [la réalisation T16](docs/IMPLEMENTATION-T16.md).

@@ -1,7 +1,7 @@
 'use client';
 
 import type {FrontThemeProps} from '../../../sdk/front/types.ts';
-import {Button} from '../../../sdk/ui/index.ts';
+import {Button} from '@creezio/sdk/ui';
 import styles from './theme.module.css';
 
 /** Creezio's cream-and-ink presentation around host-authorized contributions. */

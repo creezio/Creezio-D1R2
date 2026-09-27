@@ -2,13 +2,13 @@
 
 import {useEffect, useRef, useState, useSyncExternalStore} from 'react';
 import type {WorkspaceViewProps} from '../../../../sdk/workspace/types.ts';
-import {useWorkspaceActivity} from '../../../../sdk/workspace/components.tsx';
+import {useWorkspaceActivity} from '@creezio/sdk/workspace/components';
 import {createConversationsController} from '../../../../sdk/conversations/controller.ts';
 import type {ConversationsController, ConversationsSnapshot, ConversationActionResult,
   ConversationAttachment, ConversationDraft} from '../../../../sdk/conversations/types.ts';
 import {createFileClient} from '../../../../sdk/files/client.ts';
 import type {StagedFileReference} from '../../../../sdk/files/types.ts';
-import {useAssistantUiOptional} from '../../../../sdk/ui/assistant-provider.tsx';
+import {useAssistantUiOptional} from '@creezio/sdk/ui/assistant-provider';
 import {ConversationPanel, type ConversationMode, type ConversationPanelProps} from './panel.tsx';
 import {projectTurnEvents} from './turn-projection.ts';
 import {startTurnDriveLoop} from './drive-loop.ts';

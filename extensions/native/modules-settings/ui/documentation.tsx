@@ -2,7 +2,7 @@
 
 /** Installed-document cards follow Product Hub's PRD, Documents and Changelog layout. */
 import {Loader2} from 'lucide-react';
-import {Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle} from '../../../../sdk/ui/index.ts';
+import {Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle} from '@creezio/sdk/ui';
 import type {InstalledModuleDocument, InstalledModuleDocumentMetadata} from '../../../../sdk/modules/documents.ts';
 
 export type InstalledDocumentKind = 'readme' | 'prd' | 'changelog';

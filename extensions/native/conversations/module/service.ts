@@ -1,4 +1,5 @@
-import {OperationError, type OperationContext, type JsonValue} from '../../../../sdk/operations/handler.ts';
+import {OperationError} from '@creezio/sdk/operations/error';
+import type {OperationContext, JsonValue} from '../../../../sdk/operations/handler.ts';
 
 type Input = Record<string, unknown>;
 type Row = Record<string, JsonValue>;

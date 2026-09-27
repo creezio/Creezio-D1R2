@@ -4,15 +4,15 @@
  * The original layout/classes and sidebar preference remain; URL and access are host-owned. */
 import {useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode} from 'react';
 import {FileText, Menu} from 'lucide-react';
-import type {WorkspaceRenderProps} from '../../sdk/workspace/components';
-import {WorkspaceMetadataProvider, useWorkspaceMetadataForPanels} from '../../sdk/workspace/metadata';
+import type {WorkspaceRenderProps} from '@creezio/sdk/workspace/components';
+import {WorkspaceMetadataProvider, useWorkspaceMetadataForPanels} from '@creezio/sdk/workspace/metadata';
 import {Button} from './primitives/button';
 import {Sidebar} from './sidebar';
 import {WorkspaceTabBar} from './workspace-tab-bar';
 import {PageToolbarProvider} from './page-toolbar-context';
 import {DestinationSearchDialog} from './destination-search';
 import {cn} from './utils';
-import {AssistantProvider, ASSISTANT_PANEL_WIDTH_PX, useAssistantUiOptional} from '../../sdk/ui/assistant-provider.tsx';
+import {AssistantProvider, ASSISTANT_PANEL_WIDTH_PX, useAssistantUiOptional} from '@creezio/sdk/ui/assistant-provider';
 
 export interface CreezioShellProps extends WorkspaceRenderProps {
   readonly account: {displayName: string} | null;

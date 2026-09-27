@@ -1,9 +1,9 @@
 'use client';
 
 import {useEffect, useRef, useState} from 'react';
-import {RetainedSubViews, WorkspacePortal, useWorkspaceActivity} from '../../../../../../sdk/workspace/components.tsx';
-import {useRegisterWorkspaceMetadata} from '../../../../../../sdk/workspace/metadata.tsx';
-import {useRegisterPageToolbar} from '../../../../../../sdk/workspace/toolbar.tsx';
+import {RetainedSubViews, WorkspacePortal, useWorkspaceActivity} from '@creezio/sdk/workspace/components';
+import {useRegisterWorkspaceMetadata} from '@creezio/sdk/workspace/metadata';
+import {useRegisterPageToolbar} from '@creezio/sdk/workspace/toolbar';
 import type {WorkspaceViewProps} from '../../../../../../sdk/workspace/types.ts';
 
 const recordView = 'example.workspace-witness:record';

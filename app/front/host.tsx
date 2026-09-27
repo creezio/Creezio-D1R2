@@ -8,7 +8,7 @@ import {createBrowserAccessController} from '../../sdk/access/controller';
 import {NativeAccessPanel} from '../../sdk/access/components';
 import type {AccessController} from '../../sdk/access/types';
 import {createOperationClient} from '../../sdk/operations/client';
-import {Workspace} from '../../sdk/workspace/components';
+import {Workspace} from '@creezio/sdk/workspace/components';
 import {createWorkspaceLocation, resolveWorkspaceLocation, type WorkspaceController}
   from '../../sdk/workspace/controller';
 import type {WorkspaceInput, WorkspaceLocation, WorkspaceView, WorkspaceViewProps} from '../../sdk/workspace/types';

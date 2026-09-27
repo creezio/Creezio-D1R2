@@ -8,7 +8,7 @@ import {Archive, ArchiveRestore, Bot, Check, ChevronDown, Loader2, MessageCircle
 import {differenceInCalendarDays, formatDistanceToNow, isToday, isYesterday} from 'date-fns';
 import {fr} from 'date-fns/locale';
 import {Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
-  DropdownMenuSeparator, DropdownMenuTrigger, ScrollArea, cn} from '../../../../sdk/ui/index.ts';
+  DropdownMenuSeparator, DropdownMenuTrigger, ScrollArea, cn} from '@creezio/sdk/ui';
 import {AssistantMessageContent} from './message-content';
 import {WidgetMessage} from './widget-message';
 import type {WidgetMessageContentV1} from '../../../../sdk/widgets/types.ts';

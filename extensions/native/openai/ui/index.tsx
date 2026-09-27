@@ -3,7 +3,7 @@
 import {useCallback, useEffect, useRef, useState, useSyncExternalStore} from 'react';
 import type {WorkspaceViewProps} from '../../../../sdk/workspace/types.ts';
 import type {OperationClientResult} from '../../../../sdk/operations/client.ts';
-import {Button} from '../../../../sdk/ui/index.ts';
+import {Button} from '@creezio/sdk/ui';
 import {OpenAIConfigPanel, type OpenAIConfigurationAction,
   type OpenAIConfigurationView} from './config-panel.tsx';
 

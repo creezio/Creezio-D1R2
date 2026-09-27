@@ -6,7 +6,7 @@ import {createBrowserAccessController} from '../../sdk/access/controller';
 import {NativeAccessPanel} from '../../sdk/access/components';
 import type {AccessAudience, AccessController} from '../../sdk/access/types';
 import {createOperationClient} from '../../sdk/operations/client';
-import {Workspace, type WorkspaceRenderProps} from '../../sdk/workspace/components';
+import {Workspace, type WorkspaceRenderProps} from '@creezio/sdk/workspace/components';
 import type {WorkspaceProjection, WorkspaceNavigation} from '../../sdk/workspace/types';
 import {readProjection, WorkspaceAccessRefused} from './projection-client';
 import {CreezioShell} from '../../admin/workspace/workspace-shell';

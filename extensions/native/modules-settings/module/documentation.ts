@@ -1,6 +1,6 @@
 /** Read the exact installed runtime documents captured by the host at composition. */
 import {OperationError, type OperationContext, type OperationHandlerResult,
-  type JsonValue} from '../../../../sdk/operations/handler.ts';
+  type JsonValue} from '@creezio/sdk/operations/handler';
 import {contractIntegrity} from '../../../../sdk/contracts/semantics.mjs';
 import {installedDocumentMetadata, readInstalledDocumentBlock,
   type InstalledModuleDocument, type InstalledDocumentKind} from '../../../../sdk/modules/documents.ts';

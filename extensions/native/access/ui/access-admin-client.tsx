@@ -5,7 +5,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { Check, Loader2, Minus, RefreshCw, RotateCcw, Save, ShieldCheck, UserRound } from 'lucide-react';
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, cn,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Tabs, TabsContent,
-  TabsList, TabsTrigger, Toaster, toast } from '../../../../sdk/ui/index.ts';
+  TabsList, TabsTrigger, Toaster, toast } from '@creezio/sdk/ui';
 import type { AccessAdminAuditCursor, AccessAdminAuditDetailPage, AccessAdminAuditEntry,
   AccessAdminAudience, AccessAdminCommandOutcome, AccessAdminController, AccessAdminDeltaInput,
   AccessAdminPolicyRead, AccessAdminPrincipal, AccessAdminSession } from '../../../../sdk/access/admin-types.ts';

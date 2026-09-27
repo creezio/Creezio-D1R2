@@ -1,4 +1,4 @@
-import {OperationError,type OperationContext,type JsonValue} from '../../../../sdk/operations/handler.ts';
+import {OperationError,type OperationContext,type JsonValue} from '@creezio/sdk/operations/handler';
 import type {ProviderSecretsPort} from '../../../../sdk/providers/types.ts';
 import {OPENAI_PROVIDER_ID} from './storage.ts';
 

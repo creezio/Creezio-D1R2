@@ -3,7 +3,7 @@
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {ArrowLeft, Loader2, RefreshCw} from 'lucide-react';
 import {Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle,
-  Tabs, TabsContent, TabsList, TabsTrigger} from '../../../../sdk/ui/index.ts';
+  Tabs, TabsContent, TabsList, TabsTrigger} from '@creezio/sdk/ui';
 import {createModuleSettingsController} from '../../../../sdk/module-settings/controller.ts';
 import type {ModuleSettingsController, ModuleSettingsSnapshot, ModuleCatalogPage, ModuleCatalogItem,
   ModuleDetail, ModuleIntent, ModuleJournalEntry, ModulePlanAcceptance, ModulePlanPreview,
@@ -11,7 +11,7 @@ import type {ModuleSettingsController, ModuleSettingsSnapshot, ModuleCatalogPage
 import type {ModuleActionKind} from '../../../../sdk/modules/types.ts';
 import type {InstalledModuleDocument} from '../../../../sdk/modules/documents.ts';
 import type {RuntimeViewProps} from '../../../../sdk/runtime/ui.ts';
-import {useRegisterWorkspaceMetadata} from '../../../../sdk/workspace/metadata.tsx';
+import {useRegisterWorkspaceMetadata} from '@creezio/sdk/workspace/metadata';
 import {CatalogCards, DependencyCard, DiagnosticCard, JournalCard, ModuleStatus, PlanPreviewCard,
   moduleWorkspaceLabel} from './presentation.tsx';
 import {InstalledDocumentCard, InstalledDocumentsPanel, sameInstalledDocument,

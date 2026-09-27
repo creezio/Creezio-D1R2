@@ -2,7 +2,7 @@
 
 /** Product Hub cards adapted to the verified Creezio module catalogue. */
 import { GitBranch, History, Puzzle, ShieldCheck } from 'lucide-react';
-import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../sdk/ui/index.ts';
+import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@creezio/sdk/ui';
 import type { ModuleCatalogItem, ModuleDependency, ModuleDiagnostic, ModuleJournalEntry,
   ModulePlanPreview } from '../../../../sdk/module-settings/types.ts';
 
