@@ -429,7 +429,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Travail/livrables : Module livraison locale et exécuteur limité, Worker/assets, bindings D1/R2, transfert cohérent et reprise ; original et démo du starter publiés. Le fork sera exercé en T-38.
 - Besoin : [US-32](USER-STORIES.md#US-32). Acceptation : [REQ-3201](EXIGENCES.md#REQ-3201), [REQ-3202](EXIGENCES.md#REQ-3202), [REQ-3203](EXIGENCES.md#REQ-3203).
 - Validation : implémenter puis exécuter les recettes liées, sur **compte Cloudflare autorisé réel** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : contrôles ciblés des ports de build/provisionnement/transfert et du module natif de livraison ; compilation SDK et TypeScript vérifiée. Intégration hôte/pipeline, CI candidate et recette sur le compte Cloudflare réel restent à faire ; aucun Worker applicatif, D1/R2 ou front T32 publié à ce stade. [Réalisation T32](IMPLEMENTATION-T32.md).
+- Preuves : ports et module de livraison testés ; CI du candidat 39a9ec5 à 1 124/1 124. Docker Linux vérifié pour la connexion, l'UI originale, la persistance et l'arrêt propre. La première tentative réelle a créé D1/R2 et compilé, puis a révélé les corrections de copie entre volumes et de table interne D1 ; aucun Worker applicatif ou front T32 publié à ce stade. Recette automatique du candidat corrigé, démo, mise à jour conservatrice et revue finale restent à terminer. [Réalisation T32](IMPLEMENTATION-T32.md).
 
 <a id="T-33"></a>
 ## T-33 — Stockages distincts hors Sites

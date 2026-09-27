@@ -125,7 +125,7 @@ async function removeGeneratedDist(root,artifact){
 /** Keeps the active local dist and one durable Cloudflare artifact across filesystems. */
 export function createCloudflareBuildPort(config,{run=runBuild,
   freeBytes=async root=>{const space=await statfs(root);return space.bavail*space.bsize;},
-  move=rename}={}){
+  move=rename,removeReport=unlink}={}){
   let building=false;
   return async({target,projection,sourceSha,transferId})=>{
     if(building)fail('build_busy');
@@ -224,17 +224,28 @@ export function createCloudflareBuildPort(config,{run=runBuild,
     }finally{
       // Failed overlay and destination staging are retained for same-intent retry.
       // A process crash leaves local-dist in place for explicit recovery.
-      if(await optionalDirectory(localDist)){
-        if(complete){
-          await removeGeneratedDist(config.root,builtArtifact);
-          await unlink(path.join(config.root,'.quality/cloudflare-build.json'));
+      if(complete){
+        let cleanupError=null;
+        try{
+          if(await optionalDirectory(localDist))await removeGeneratedDist(config.root,builtArtifact);
+          await removeReport(path.join(config.root,'.quality/cloudflare-build.json'));
+        }catch(error){cleanupError=error;}
+        let residue;
+        try{residue=await optionalDirectory(localDist);}catch{fail('build_recovery_required');}
+        if(residue)fail('build_recovery_required'); // Never overwrite a residual build.
+        if(hadLocal){
+          try{await move(localBackup,localDist);}catch{fail('build_recovery_required');}
         }
-        else{
-          if(await optionalDirectory(failedDist))fail('build_recovery_required');
-          await move(localDist,failedDist);
-        }
+        if(cleanupError)fail('artifact_cleanup_failed');
+      }else{
+        try{
+          if(await optionalDirectory(localDist)){
+            if(await optionalDirectory(failedDist))fail('build_recovery_required');
+            await move(localDist,failedDist);
+          }
+          if(hadLocal)await move(localBackup,localDist);
+        }catch{fail('build_recovery_required');}
       }
-      if(hadLocal)await move(localBackup,localDist);
     }
     }finally{building=false;}
   };
@@ -251,6 +262,16 @@ export function createLocalRegistryContext(config,journal){
     return {registryIdentity:{projectId:value.projectId,installationId:value.installationId},registryClient,
       publicationJournal:journal,publicationGate:createPublicationGate({client:registryClient,journal})};
   };
+}
+export function superviseDeliveryOperations(pipeline,supervisor){
+  const operations={...pipeline};
+  for(const kind of ['start','reconcile'])operations[kind]=async(...args)=>{
+    let recoveryRequired=false;
+    try{return await pipeline[kind](...args);}
+    catch(error){recoveryRequired=error?.code==='build_recovery_required';throw error;}
+    finally{if(!supervisor.closing&&!recoveryRequired)supervisor.start();}
+  };
+  return operations;
 }
 async function localSourceKeyring(root){
   let environment={CREEZIO_VAULT_KEYRING:process.env.CREEZIO_VAULT_KEYRING};
@@ -277,9 +298,6 @@ export async function createLocalDeliveryService({config,supervisor}){
       return context.secretConnections;
     },
   });
-  const operations={...pipeline};
-  for(const kind of ['start','reconcile'])operations[kind]=async(...args)=>{
-    try{return await pipeline[kind](...args);}finally{if(!supervisor.closing)supervisor.start();}
-  };
-  return createLocalDeliveryServer({config,port:config.operatorPort,operations});
+  return createLocalDeliveryServer({config,port:config.operatorPort,
+    operations:superviseDeliveryOperations(pipeline,supervisor)});
 }

@@ -8,7 +8,7 @@ import path from 'node:path';
 import {temporaryDirectory} from '../quality/temporary.mjs';
 import {sourceIdentity} from '../../scripts/quality/evidence.mjs';
 import {measureRuntimeArtifacts} from '../../scripts/quality/runtime.mjs';
-import {createCloudflareBuildPort} from '../../scripts/cloudflare/local-service.mjs';
+import {createCloudflareBuildPort,superviseDeliveryOperations} from '../../scripts/cloudflare/local-service.mjs';
 
 const gigabytes=1024**3;
 function git(root,...args){return execFileSync('git',args,{cwd:root,encoding:'utf8',
@@ -109,6 +109,39 @@ test('unmeasured build files refuse publication before the active local build is
   assert.equal(existsSync(f.artifactRoot),false);
   assert.equal(readFileSync(path.join(f.root,'dist/server/index.js'),'utf8'),'local build');
   assert.equal(readFileSync(path.join(f.root,'.quality/delivery-build/failed-dist/other.txt'),'utf8'),'unmeasured');
+});
+
+test('a report cleanup failure still restores the old build after verified publication',async t=>{
+  const f=fixture(t);
+  const port=createCloudflareBuildPort({root:f.root},{freeBytes:async()=>21*gigabytes,
+    move:separateVolumeMoves(f.root),run:async root=>built(root,f.input.projection.targetPlan.compositionDigest),
+    removeReport:async()=>{throw Object.assign(new Error('Synthetic report permission failure'),{code:'EACCES'});}});
+  await assert.rejects(port(f.input),error=>error.code==='artifact_cleanup_failed');
+  assert.equal(readFileSync(path.join(f.root,'dist/server/index.js'),'utf8'),'local build');
+  assert.equal(existsSync(path.join(f.root,'.quality/delivery-build/local-dist')),false);
+  assert.equal(existsSync(path.join(f.root,'.quality/cloudflare-build.json')),true);
+  assert.equal(existsSync(path.join(f.artifactRoot,'receipt.json')),true);
+});
+
+test('a residual generated build preserves the old build and prevents automatic runtime restart',async t=>{
+  const f=fixture(t),staging=path.join(f.root,'.wrangler/delivery/build/artifact-staging');
+  const moveWithinVolume=separateVolumeMoves(f.root);
+  const port=createCloudflareBuildPort({root:f.root},{freeBytes:async()=>21*gigabytes,
+    run:async root=>built(root,f.input.projection.targetPlan.compositionDigest),
+    move:async(from,to)=>{
+      await moveWithinVolume(from,to);
+      if(from===staging&&to===f.artifactRoot)
+        writeFileSync(path.join(f.root,'dist/foreign.txt'),'arrived during cleanup');
+    }});
+  let starts=0;
+  const operations=superviseDeliveryOperations({start:()=>port(f.input),reconcile:()=>port(f.input)},
+    {closing:false,start:()=>{starts++;}});
+  await assert.rejects(operations.start(),error=>error.code==='build_recovery_required');
+  assert.equal(starts,0);
+  assert.equal(readFileSync(path.join(f.root,'dist/foreign.txt'),'utf8'),'arrived during cleanup');
+  assert.equal(readFileSync(path.join(f.root,'.quality/delivery-build/local-dist/server/index.js'),'utf8'),
+    'local build');
+  assert.equal(existsSync(path.join(f.artifactRoot,'receipt.json')),true);
 });
 
 test('failed Cloudflare build restores local dist and reuses one staging directory',async t=>{
