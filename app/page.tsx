@@ -1,7 +1,16 @@
 import { RuntimeStatus } from './runtime-status';
-import { nativeAccess } from '../.creezio/generated/client';
+import { front, nativeAccess } from '../.creezio/generated/client';
+import { FrontHost } from './front/host';
 
-export default function Home() {
+export default async function Home({searchParams}: {searchParams: Promise<Record<string,string|string[]|undefined>>}) {
+  if (front.kind === 'theme') {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(await searchParams)) {
+      if (Array.isArray(value)) for (const item of value) query.append(key, item);
+      else if (value !== undefined) query.append(key, value);
+    }
+    return <FrontHost initialUrl={`/${query.size ? `?${query}` : ''}`} />;
+  }
   return <main className="welcome">
     <header className="brand"><span className="mark" aria-hidden="true">c</span>Creezio</header>
     <section className="welcome-body">

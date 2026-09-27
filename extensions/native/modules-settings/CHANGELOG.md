@@ -1,5 +1,9 @@
 # Changelog
 
+## Non publié — précision des erreurs
+
+Les contrats de lecture de fiche, plan et documentation déclarent explicitement `not_found`, déjà retourné par le service. Aucun changement de données ou de droits.
+
 ## Non publié — T12
 
 Lecture des documents de version installée dans les cartes PRD/Documents/Changelog du Product Hub, ainsi que par les API et outils MCP communs. Les octets sont liés à l'archive runtime verrouillée ; lecture bornée et vérification d'intégrité, sans accès au filesystem ou à GitHub au runtime. Documents de développement, historique d'installation et PRD de travail restent séparés. Qualification en cours.

@@ -1,0 +1,292 @@
+{
+  "schemaVersion": "1.0.0",
+  "identity": {
+    "id": "creezio.theme-chatgpt",
+    "title": "Creezio ChatGPT-like front theme",
+    "publisher": "creezio",
+    "origin": "https://github.com/creezio/Creezio-D1R2",
+    "version": "0.0.0",
+    "source": {
+      "kind": "snapshot",
+      "revision": "t13-chatgpt-theme-v1",
+      "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "license": {
+      "expression": "MIT",
+      "file": "LICENSE"
+    }
+  },
+  "compatibility": {
+    "core": "^0.0.0",
+    "sdk": "^1.0.0",
+    "requiredCapabilities": [
+      "runtime.worker"
+    ],
+    "optionalCapabilities": []
+  },
+  "entrypoints": {
+    "server": {
+      "path": "module/entry.server.ts",
+      "export": "create"
+    },
+    "ui": {
+      "path": "ui/index.tsx",
+      "export": "ChatGptLikeFrontTheme"
+    },
+    "plugin": {
+      "manifest": "plugin/plugin.json",
+      "mcp": "plugin/mcp.json",
+      "contributions": {
+        "path": "plugin/contributions.ts",
+        "export": "contributions"
+      }
+    }
+  },
+  "dependencies": [],
+  "contracts": {
+    "schemas": [],
+    "models": [],
+    "files": [],
+    "permissions": [],
+    "operations": [],
+    "api": [],
+    "mcp": {
+      "tools": [],
+      "resources": [],
+      "prompts": [],
+      "skills": []
+    },
+    "events": [],
+    "settings": [],
+    "search": [],
+    "ui": {
+      "views": [],
+      "navigation": [],
+      "slots": [],
+      "front": {
+        "mode": "absent",
+        "justification": {
+          "reason": "This module supplies a theme and declares no business view.",
+          "policyRule": "theme.no-business-view"
+        }
+      },
+      "themes": [
+        {
+          "id": "chatgpt-like",
+          "component": {
+            "path": "ui/index.tsx",
+            "export": "ChatGptLikeFrontTheme"
+          },
+          "slots": [
+            "front.header",
+            "front.sidebar",
+            "front.context",
+            "front.footer"
+          ]
+        }
+      ],
+      "styles": []
+    },
+    "widgets": [],
+    "publicContracts": []
+  },
+  "documentation": {
+    "installed": {
+      "readme": {
+        "path": "README.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "prd": {
+        "path": "prd.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "changelog": {
+        "path": "CHANGELOG.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      }
+    },
+    "development": {
+      "agents": {
+        "path": "AGENTS.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "files": {
+        "path": "FILES.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "interview": {
+        "path": "interview.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "todo": {
+        "path": "TODO.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      }
+    },
+    "versionBinding": {
+      "moduleVersion": "0.0.0",
+      "sourceRevision": "t13-chatgpt-theme-v1"
+    },
+    "localRevisions": {
+      "installedVersionDistinct": true,
+      "approvedImmutable": true
+    },
+    "installationHistory": {
+      "distinctFromPackageChangelog": true
+    }
+  },
+  "validation": {
+    "gate": "gate.mjs",
+    "suites": {
+      "backend": {
+        "mode": "required",
+        "script": "ci/backend.mjs",
+        "tests": [
+          "tests/backend/contract.test.mjs"
+        ]
+      },
+      "ui": {
+        "mode": "required",
+        "script": "ci/ui.mjs",
+        "tests": [
+          "tests/ui/contract.test.mjs"
+        ]
+      },
+      "api-mcp": {
+        "mode": "not-applicable",
+        "script": "ci/api-mcp.mjs",
+        "tests": [
+          "tests/api-mcp/contract.test.mjs"
+        ],
+        "justification": {
+          "reason": "This presentation-only theme declares no HTTP or MCP contribution. The suite verifies the absence.",
+          "policyRule": "theme.api-mcp.absent"
+        }
+      },
+      "widgets": {
+        "mode": "not-applicable",
+        "script": "ci/widgets.mjs",
+        "tests": [
+          "tests/widgets/contract.test.mjs"
+        ],
+        "justification": {
+          "reason": "This presentation-only theme declares no widget or MCP Apps resource. The suite verifies the absence.",
+          "policyRule": "theme.widgets.absent"
+        }
+      },
+      "package": {
+        "mode": "required",
+        "script": "ci/package.mjs",
+        "tests": [
+          "tests/package/contract.test.mjs"
+        ]
+      },
+      "docs": {
+        "mode": "required",
+        "script": "ci/docs.mjs",
+        "tests": [
+          "tests/docs/contract.test.mjs"
+        ]
+      }
+    },
+    "policy": {
+      "id": "creezio.local-contracts",
+      "version": "1.0.0",
+      "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
+    },
+    "isolation": {
+      "productionSecrets": false,
+      "publicationRights": false
+    },
+    "evidence": {
+      "sourceIntegrity": true,
+      "artifactIntegrity": true,
+      "profile": true,
+      "executedSuites": true
+    }
+  },
+  "packaging": {
+    "runtime": {
+      "files": [
+        "README.md",
+        "prd.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "module/manifest.json",
+        "module/entry.server.ts",
+        "ui/index.tsx",
+        "ui/theme.module.css",
+        "plugin/plugin.json",
+        "plugin/mcp.json",
+        "plugin/contributions.ts"
+      ],
+      "references": []
+    },
+    "validation": {
+      "files": [
+        "AGENTS.md",
+        "FILES.md",
+        "interview.md",
+        "TODO.md",
+        "gate.mjs",
+        "ci/run-suite.mjs",
+        "ci/backend.mjs",
+        "tests/backend/contract.test.mjs",
+        "ci/ui.mjs",
+        "tests/ui/contract.test.mjs",
+        "ci/api-mcp.mjs",
+        "tests/api-mcp/contract.test.mjs",
+        "ci/widgets.mjs",
+        "tests/widgets/contract.test.mjs",
+        "ci/package.mjs",
+        "tests/package/contract.test.mjs",
+        "ci/docs.mjs",
+        "tests/docs/contract.test.mjs"
+      ],
+      "references": []
+    },
+    "validationBinding": {
+      "moduleId": "creezio.theme-chatgpt",
+      "moduleVersion": "0.0.0",
+      "sourceRevision": "t13-chatgpt-theme-v1"
+    },
+    "noRuntimeTests": true,
+    "installation": "build-and-publish",
+    "providerInstallation": false
+  },
+  "lifecycle": {
+    "deactivation": "preserve-data",
+    "configuration": "explicit-state",
+    "uninstall": "explicit-approved-action",
+    "activationRequirements": [],
+    "absent": {
+      "files": {
+        "reason": "No file workflow is supplied by a front theme.",
+        "policyRule": "theme.no-files"
+      },
+      "widgets": {
+        "reason": "No widget workflow is supplied by a front theme.",
+        "policyRule": "theme.no-widgets"
+      },
+      "models": {
+        "reason": "This presentation theme defines no data model.",
+        "policyRule": "theme.no-models"
+      }
+    },
+    "dependencyChanges": {
+      "install": "resolve-explicit-consumer-selection",
+      "activate": "require-active-dependencies",
+      "update": "validate-dependent-contracts",
+      "deactivate": "block-or-explicit-dependent-plan",
+      "uninstall": "block-or-explicit-dependent-plan",
+      "data": "preserve"
+    }
+  }
+}

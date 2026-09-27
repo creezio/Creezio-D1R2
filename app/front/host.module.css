@@ -1,0 +1,15 @@
+.flow { min-width: 0; }
+
+/* The workspace shell sizes retained panes absolutely. A theme contributes
+   content in normal document flow, so the front host lets the active pane
+   determine its height while hidden panes remain mounted. */
+.flow :global(.creezio-workspace-panels) {
+  height: auto;
+  overflow: visible;
+}
+
+.flow :global(.creezio-workspace-pane) {
+  position: relative;
+  inset: auto;
+  overflow: visible;
+}

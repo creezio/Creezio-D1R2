@@ -4,6 +4,8 @@ import {Miniflare} from 'miniflare';
 import {createInterface} from 'node:readline';
 import {fileURLToPath} from 'node:url';
 import {join} from 'node:path';
+import {existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import {measureRuntimeArtifacts} from '../../../scripts/quality/runtime.mjs';
 import {loadCompositionSchema} from '../../../scripts/data/composition-schema.mjs';
 import {createAccountService, provisionBootstrapCapability} from '../../../core/identity/accounts.ts';
@@ -13,9 +15,24 @@ import {seedWitnessRecords} from '../fixtures/seed.mjs';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const origin = 'http://127.0.0.1:8793';
-const plan = await loadCompositionSchema({root, compositionPath:'configuration/composition.workspace-witness.json'});
+const themeArg = process.argv.find(value => value.startsWith('--front='))?.slice('--front='.length);
+if (themeArg && !['standard','chatgpt-like'].includes(themeArg)) throw new Error('Unknown synthetic front theme.');
+const compositionPath = themeArg ? `configuration/composition.front-${themeArg}.json` : 'configuration/composition.workspace-witness.json';
+const plan = await loadCompositionSchema({root, compositionPath});
+const persist = !!themeArg && process.argv.includes('--persist');
+const stateRoot = join(root,'.quality','t13-front-browser');
+if (persist) {
+  for (const folder of [root,join(root,'.quality'),stateRoot]) {
+    if (existsSync(folder) && (!lstatSync(folder).isDirectory() || lstatSync(folder).isSymbolicLink())) throw new Error('Unsafe synthetic state path.');
+  }
+  mkdirSync(stateRoot,{recursive:true});
+}
+const markerPath=join(stateRoot,'synthetic-recipe.json');
+const schemaDigest=createHash('sha256').update(JSON.stringify(plan.statements)).digest('hex');
+const marker=persist&&existsSync(markerPath)?JSON.parse(readFileSync(markerPath,'utf8')):null;
+if(marker&&(marker.recipe!=='t13-front-browser'||marker.schemaDigest!==schemaDigest))throw new Error('Synthetic state schema mismatch; preserving it without changes.');
 const artifact = measureRuntimeArtifacts(root);
-const runtime = new Miniflare({host:'127.0.0.1',port:8793,cf:false,d1Persist:false,r2Persist:false,
+const runtime = new Miniflare({host:'127.0.0.1',port:8793,cf:false,d1Persist:persist?join(stateRoot,'d1'):false,r2Persist:persist?join(stateRoot,'r2'):false,
   modules:[{type:'ESModule',path:join(root,'dist/server/index.js')},
     ...artifact.files.filter(file => file.gzipBytes !== undefined && file.path !== 'dist/server/index.js')
       .map(file => ({type:'ESModule',path:join(root,file.path)}))],
@@ -28,24 +45,37 @@ const requireOk = value => {if (!value.ok) throw new Error(`Fixture refused: ${v
 try {
   await runtime.ready;
   const db = await runtime.getD1Database('DB');
-  await db.batch(plan.statements.map(sql => db.prepare(sql)));
-  const module = plan.runtimeCatalog.modules.find(item => item.moduleId !== 'creezio.access');
+  const tables=await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE '_cf_%' AND name NOT LIKE 'sqlite_%'").all();
+  const restored=!!tables.results.length;
+  if(persist && restored!==!!marker)throw new Error('Incomplete synthetic setup; preserving state for inspection.');
+  if(!restored)await db.batch(plan.statements.map(sql => db.prepare(sql)));
+  const module = plan.runtimeCatalog.modules.find(item => item.moduleId === 'example.workspace-witness');
   const permissions = module.permissions.map(p => ({id:`${module.moduleId}:${p.id}`,audiences:p.audiences,actors:p.actors}));
-  const accounts = createAccountService(db), capability = await provisionBootstrapCapability(db);
+  const accounts = createAccountService(db);
   const loginIdentifier = 'workspace@example.invalid', password = 'Synthetic workspace qualification password';
-  const owner = requireOk(await accounts.bootstrap({token:capability.token,loginIdentifier,password,displayName:'Recette workspace'}));
+  if(!restored){const capability=await provisionBootstrapCapability(db);
+    requireOk(await accounts.bootstrap({token:capability.token,loginIdentifier,password,displayName:'Recette workspace'}));}
   const session = requireOk(await accounts.login({loginIdentifier,password,audience:'admin'}));
+  const owner={principalId:session.session.principalId};
   const authorization = createAuthorizationService(db,{permissions});
   let current = requireOk(await authorization.readPolicy(session.token));
-  const policy = structuredClone(current.policy);
-  policy.roles.push({id:'workspace-witness',inherits:[],permissionIds:permissions.map(p => p.id),permissionOverrides:[]});
-  policy.assignments.push({principalId:owner.principalId,contextId:'application',audience:'admin',roleId:'workspace-witness'});
-  requireOk(await authorization.replacePolicy(session.token,{expectedEpoch:current.epoch,policy}));
-  const data = createDataAccess(db,{catalog:plan.runtimeCatalog,permissions});
-  const lease = await data.authorize({kind:'session',token:session.token},{contextId:'application',audience:'admin',actors:['user'],requiredPermissionIds:permissions.map(p => p.id),purpose:'operation'},{moduleId:module.moduleId});
-  await seedWitnessRecords(data.forModule(lease,module.moduleId)); data.dispose(lease);
+  if(!restored){
+    const policy = structuredClone(current.policy);
+    policy.roles.push({id:'workspace-witness',inherits:[],permissionIds:permissions.map(p => p.id),permissionOverrides:[]});
+    policy.assignments.push({principalId:owner.principalId,contextId:'application',audience:'admin',roleId:'workspace-witness'});
+    if(themeArg){
+      policy.memberships.push({principalId:owner.principalId,contextId:'application',audience:'app',status:'active'});
+      policy.assignments.push({principalId:owner.principalId,contextId:'application',audience:'app',roleId:'workspace-witness'});
+    }
+    requireOk(await authorization.replacePolicy(session.token,{expectedEpoch:current.epoch,policy}));
+    const data = createDataAccess(db,{catalog:plan.runtimeCatalog,permissions});
+    const lease = await data.authorize({kind:'session',token:session.token},{contextId:'application',audience:'admin',actors:['user'],requiredPermissionIds:permissions.map(p => p.id),purpose:'operation'},{moduleId:module.moduleId});
+    await seedWitnessRecords(data.forModule(lease,module.moduleId)); data.dispose(lease);
+    if(persist)writeFileSync(markerPath,JSON.stringify({recipe:'t13-front-browser',schemaDigest})+'\n');
+  }
   const table = module.models.find(model => model.modelId === 'record').table;
-  console.log(JSON.stringify({ready:true,url:`${origin}/workspace/admin`,loginIdentifier,password,artifact:artifact.digest,composition:plan.compositionDigest}));
+  console.log(JSON.stringify({ready:true,url:themeArg?`${origin}/welcome`:`${origin}/workspace/admin`,theme:themeArg??null,restored,persist,
+    loginIdentifier,password,artifact:artifact.digest,composition:plan.compositionDigest}));
   const lines = createInterface({input:process.stdin});
   for await (const command of lines) {
     if (command.trim() === 'stop') {lines.close();break;}

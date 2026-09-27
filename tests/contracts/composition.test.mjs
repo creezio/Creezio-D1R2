@@ -43,6 +43,27 @@ test('workspace-only and headless fronts consume the same module/backend contrac
   assert.deepEqual(value.modules, backend);
 });
 
+test('front theme resolves one enabled export and supports every active front slot',()=>{
+  const module=namedModule('vendor.theme','vendor');
+  module.contracts.ui.themes=[{id:'standard',component:structuredClone(module.contracts.ui.views[0].component),
+    slots:['front.header']}];
+  module.contracts.ui.slots.push({id:'header',slot:'front.header',
+    view:{moduleId:module.identity.id,kind:'view',id:module.contracts.ui.views[0].id},
+    permissions:[],surfaces:['front']});
+  const value=compositionCase([module]);
+  value.composition.front={kind:'theme',moduleId:module.identity.id,theme:'standard'};
+  accepted(validate(refresh(value)));
+  value.composition.front.theme='missing';
+  refused(validate(refresh(value)),'composition.front');
+  value.composition.front.theme='standard';
+  module.contracts.ui.themes[0].slots=['front.footer'];
+  refused(validate(refresh(value)),'composition.front-slot');
+  module.contracts.ui.themes[0].slots=['front.header'];
+  value.composition.modules[0].enabled=false;
+  value.composition.exposure.app.moduleIds=[];value.composition.exposure.admin.moduleIds=[];
+  refused(validate(refresh(value)),'composition.front');
+});
+
 const cases = [
   ['missing required catalogue', value => remove(value, 'creezio.catalogue'), /^dependency\.missing$/],
   ['disabled required catalogue', value => {

@@ -11,7 +11,7 @@ const started = new Date().toISOString();
 const evidencePath = resolve(root, '.quality/latest.json');
 mkdirSync(dirname(evidencePath), { recursive: true });
 const write = value => writeFileSync(evidencePath, JSON.stringify(value, null, 2) + '\n');
-const profile = 't12-installed-documentation';
+const profile = 't13-front-themes';
 write({ schemaVersion: 1, profile, started, state: 'running', success: false, mergeReady: false });
 try {
 const source = sourceIdentity(root);
@@ -29,6 +29,8 @@ execute('data-models', ['scripts/data/prepare-access.mjs']);
 execute('runtime-models', ['scripts/data/prepare-runtime.mjs']);
 execute('module-models', ['scripts/data/prepare-modules-settings.mjs']);
 execute('module-suites', ['extensions/native/modules-settings/gate.mjs']);
+execute('theme-standard-suites', ['themes/standard/gate.mjs']);
+execute('theme-chatgpt-suites', ['themes/chatgpt-like/gate.mjs']);
 execute('typecheck', ['node_modules/typescript/bin/tsc', '--noEmit']);
 execute('build', ['scripts/run-framework.mjs', 'build']);
 // T11's complete Windows run already used ~230s; keep a bounded margin for the expanded suite.

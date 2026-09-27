@@ -4,7 +4,7 @@ import { cpSync, mkdirSync, readFileSync, writeFileSync, existsSync, symlinkSync
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { transform } from 'esbuild';
-import { composeRuntime, loadRuntimeComposition } from '../../scripts/build/compose-runtime.mjs';
+import { composeRuntime, loadRuntimeComposition, checkSurfaceCatalogBounds } from '../../scripts/build/compose-runtime.mjs';
 import { contractIntegrity } from '../../sdk/contracts/validate.mjs';
 import { temporaryDirectory } from '../quality/temporary.mjs';
 
@@ -53,6 +53,29 @@ function fixture(t, witness = true) {
     write(path.join(root, 'configuration/composition.lock.json'), lock);
   };
   return { root, composition, lock, module, save };
+}
+function secondWitness(f) {
+  const secondPath = 'tests/runtime/fixtures/module-second';
+  cpSync(path.join(f.root, witnessPath), path.join(f.root, secondPath), { recursive: true });
+  const module = JSON.parse(JSON.stringify(f.module).replaceAll('example.witness', 'example.second'));
+  module.contracts.ui.views[0].route = '/second';
+  const selection = structuredClone(f.composition.modules[0]);
+  selection.moduleId = 'example.second'; selection.source.path = secondPath;
+  f.composition.modules.push(selection);
+  f.composition.exposure.app.moduleIds.push('example.second');
+  const lockNode = structuredClone(f.lock.modules[0]);
+  lockNode.moduleId = 'example.second';
+  lockNode.runtime.location.path = `${secondPath}/unbuilt-runtime.tgz`;
+  lockNode.validation.location.path = `${secondPath}/unbuilt-validation.tgz`;
+  f.lock.modules.push(lockNode);
+  const save = () => {
+    f.save();
+    write(path.join(f.root, secondPath, 'module/manifest.json'), module);
+    lockNode.contractIntegrity = contractIntegrity(module);
+    write(path.join(f.root, 'configuration/composition.lock.json'), f.lock);
+  };
+  save();
+  return {module, save};
 }
 const generated = (root, name) => path.join(root, '.creezio/generated', name);
 const generatedNames = ['server.ts', 'client.tsx', 'composition.json', 'data-catalog.ts', 'module-inventory.ts', 'operations.ts', 'operation-validators.mjs'];
@@ -151,12 +174,159 @@ test('explicit witness emits static typed imports and an executable public handl
   const metadata = read(generated(f.root, 'composition.json'));
   assert.deepEqual(metadata.nativeAccess,{admin:false,app:false},'another active module does not enable native access');
   assert.equal(metadata.views[0].access, 'public-read'); assert.equal(metadata.packageArchivesVerified, false);
+  assert.equal(metadata.frontCatalog.views[0].moduleIntegrity, f.lock.modules[0].runtime.integrity);
+  assert.match(readFileSync(generated(f.root, 'client.tsx'), 'utf8'), /export const views: readonly RuntimeView\[\] = freeze\(\[\]\)/);
 });
 
 test('a protected view never acquires public access from its front surface', async t => {
   const f = fixture(t); f.module.contracts.ui.views[0].permissions = [{ moduleId: 'example.witness', kind: 'permission', id: 'inspect' }]; f.save();
   await composeRuntime({ root: f.root });
   assert.equal(read(generated(f.root, 'composition.json')).views[0].access, 'protected');
+});
+
+test('a dual-surface view keeps workspace props and protected front access', async t => {
+  const f = fixture(t);
+  f.module.contracts.ui.views[0].surfaces = ['workspace', 'front'];
+  f.save();
+  await composeRuntime({ root: f.root });
+  const metadata = read(generated(f.root, 'composition.json'));
+  assert.equal(metadata.views[0].access, 'protected');
+  assert.equal(metadata.frontCatalog.views[0].access, 'protected');
+  assert.match(readFileSync(generated(f.root, 'client.tsx'), 'utf8'), /export const views: readonly RuntimeView\[\] = freeze\(\[\{/);
+});
+
+test('a selected theme emits only its component and the active front projection', async t => {
+  const f = fixture(t);
+  const ui = f.module.contracts.ui;
+  ui.themes = [
+    { id: 'standard', component: { path: 'ui/front/view.ts', export: 'view' }, slots: ['front.header'] },
+    { id: 'unused', component: { path: 'ui/front/unused.ts', export: 'unused' }, slots: ['front.header'] },
+  ];
+  ui.slots.push({ id: 'header', slot: 'front.header', view: { moduleId: 'example.witness', kind: 'view', id: 'witness-view' },
+    permissions: [], surfaces: ['front'] });
+  f.module.packaging.runtime.files.push('ui/front/unused.ts');
+  writeFileSync(path.join(f.root, witnessPath, 'ui/front/unused.ts'), 'export function unused() { return null; }\n');
+  f.composition.front = { kind: 'theme', moduleId: 'example.witness', theme: 'standard' };
+  f.save();
+  await composeRuntime({ root: f.root });
+  const catalog = read(generated(f.root, 'composition.json')).frontCatalog;
+  assert.deepEqual(catalog.front, f.composition.front);
+  assert.deepEqual(catalog.theme, { id: 'standard', moduleId: 'example.witness', slots: ['front.header'] });
+  assert.deepEqual(catalog.views.map(view => view.id), ['example.witness:witness-view']);
+  assert.deepEqual(catalog.navigation.map(item => item.id), ['example.witness:witness-nav']);
+  assert.deepEqual(catalog.slots.map(item => item.id), ['example.witness:header']);
+  assert.equal(catalog.views[0].access, 'public-read');
+  assert.equal(Object.hasOwn(catalog.views[0], 'component'), false);
+  const client = readFileSync(generated(f.root, 'client.tsx'), 'utf8');
+  assert.match(client, /export const frontViews: readonly RuntimeFrontView\[\]/);
+  assert.match(client, /export const frontSlots: readonly RuntimeFrontSlot\[\]/);
+  assert.match(client, /export const frontTheme: RuntimeFrontTheme \| null = freeze\(/);
+  assert.doesNotMatch(client, /unused\.ts/);
+  const server = readFileSync(generated(f.root, 'server.ts'), 'utf8');
+  assert.match(server, /export const frontCatalog: RuntimeFrontCatalog/);
+  assert.doesNotMatch(server, /ui\/front\/view\.ts|unused\.ts/);
+});
+
+test('a front slot view must accept empty input before replacing generated output', async t => {
+  const f = fixture(t);
+  const ui = f.module.contracts.ui;
+  f.module.contracts.schemas.push({ id: 'front-slot-input', schema: structuredClone(f.module.contracts.schemas[0].schema) });
+  ui.views[0].input.schemaId = 'front-slot-input';
+  ui.themes = [{ id: 'standard', component: { path: 'ui/front/view.ts', export: 'view' }, slots: ['front.header'] }];
+  ui.slots.push({ id: 'header', slot: 'front.header', view: { moduleId: 'example.witness', kind: 'view', id: 'witness-view' },
+    permissions: [], surfaces: ['front'] });
+  f.composition.front = { kind: 'theme', moduleId: 'example.witness', theme: 'standard' };
+  f.save();
+  await composeRuntime({ root: f.root });
+  const before = generatedNames.map(name => readFileSync(generated(f.root, name), 'utf8'));
+  f.module.contracts.schemas.at(-1).schema.properties.id = { type: 'string' };
+  f.module.contracts.schemas.at(-1).schema.required = ['id'];
+  f.save();
+  await assert.rejects(composeRuntime({ root: f.root }), error => error.code === 'front.slot-input');
+  assert.deepEqual(generatedNames.map(name => readFileSync(generated(f.root, name), 'utf8')), before);
+});
+
+test('a front slot view cannot require route placeholders or panel identity', async t => {
+  const f = fixture(t);
+  const ui = f.module.contracts.ui;
+  ui.themes = [{ id: 'standard', component: { path: 'ui/front/view.ts', export: 'view' }, slots: ['front.header'] }];
+  ui.slots.push({ id: 'header', slot: 'front.header', view: { moduleId: 'example.witness', kind: 'view', id: 'witness-view' },
+    permissions: [], surfaces: ['front'] });
+  f.composition.front = { kind: 'theme', moduleId: 'example.witness', theme: 'standard' };
+  f.save();
+  await composeRuntime({ root: f.root });
+  const before = generatedNames.map(name => readFileSync(generated(f.root, name), 'utf8'));
+  ui.views[0].route = '/witness/{id}';
+  f.save();
+  await assert.rejects(composeRuntime({ root: f.root }), error => error.code === 'front.slot-input');
+  ui.views[0].route = '/witness';
+  f.module.contracts.schemas[0].schema.properties.id = { type: 'string' };
+  ui.views[0].panel.identityFields = ['id'];
+  f.save();
+  await assert.rejects(composeRuntime({ root: f.root }), error => error.code === 'front.slot-input');
+  assert.deepEqual(generatedNames.map(name => readFileSync(generated(f.root, name), 'utf8')), before);
+});
+
+test('a selected theme with a missing runtime export is refused before output', async t => {
+  const f = fixture(t);
+  f.module.contracts.ui.themes = [{ id: 'standard', component: { path: 'ui/front/view.ts', export: 'missing' },
+    slots: ['front.header'] }];
+  f.composition.front = { kind: 'theme', moduleId: 'example.witness', theme: 'standard' };
+  f.save();
+  await assert.rejects(composeRuntime({ root: f.root }), error => error.code === 'front.theme-export');
+  assert.equal(existsSync(generated(f.root, 'client.tsx')), false);
+});
+
+test('locally valid view, navigation and slot IDs cannot exceed the runtime composite ID limit', async t => {
+  const f = fixture(t), original = structuredClone(f.module.contracts.ui), longId = 'a'.repeat(128);
+  for (const section of ['views', 'navigation', 'slots']) {
+    f.module.contracts.ui = structuredClone(original);
+    const ui = f.module.contracts.ui;
+    if (section === 'views') {
+      ui.views[0].id = longId;
+      ui.navigation[0].view.id = longId;
+    } else if (section === 'navigation') ui.navigation[0].id = longId;
+    else ui.slots.push({id: longId, slot: 'front.header',
+      view: {moduleId: 'example.witness', kind: 'view', id: 'witness-view'}, permissions: [], surfaces: ['front']});
+    f.save();
+    assert.equal(loadRuntimeComposition({root: f.root}).result.errors.length, 0, `${section} is locally valid`);
+    await assert.rejects(composeRuntime({root: f.root}), error => error.code === 'build.catalog-id', section);
+    assert.equal(existsSync(generated(f.root, 'client.tsx')), false);
+  }
+});
+
+test('locally valid modules cannot exceed aggregate front navigation or slot limits', async t => {
+  const f = fixture(t), second = secondWitness(f);
+  const originalFirst = structuredClone(f.module.contracts.ui);
+  const originalSecond = structuredClone(second.module.contracts.ui);
+  for (const section of ['navigation', 'slots']) {
+    f.module.contracts.ui = structuredClone(originalFirst);
+    second.module.contracts.ui = structuredClone(originalSecond);
+    for (const [module, baseRoute] of [[f.module, '/witness'], [second.module, '/second']]) {
+      const ui = module.contracts.ui;
+      if (section === 'views') for (let index = 0; index < 500; index++)
+        ui.views.push({...structuredClone(ui.views[0]), id: `view-${index}`, route: `${baseRoute}-${index}`});
+      if (section === 'navigation') for (let index = 0; index < 500; index++)
+        ui.navigation.push({...structuredClone(ui.navigation[0]), id: `nav-${index}`, order: index + 1});
+      if (section === 'slots') for (let index = 0; index < 501; index++)
+        ui.slots.push({id: `slot-${index}`, slot: 'front.header',
+          view: {moduleId: module.identity.id, kind: 'view', id: module.contracts.ui.views[0].id},
+          permissions: [], surfaces: ['front']});
+    }
+    second.save();
+    assert.equal(loadRuntimeComposition({root: f.root}).result.errors.length, 0, `${section} modules are locally valid`);
+    await assert.rejects(composeRuntime({root: f.root}), error => error.code === 'build.catalog-limit', section);
+    assert.equal(existsSync(generated(f.root, 'client.tsx')), false);
+  }
+});
+
+test('the generated surface catalog also bounds aggregate view count', () => {
+  const entry = index => ({id: `example.module:view-${index}`});
+  assert.doesNotThrow(() => checkSurfaceCatalogBounds('front',
+    {views: Array.from({length: 1000}, (_, index) => entry(index)), navigation: [], slots: []}));
+  assert.throws(() => checkSurfaceCatalogBounds('front',
+    {views: Array.from({length: 1001}, (_, index) => entry(index)), navigation: [], slots: []}),
+  error => error.code === 'build.catalog-limit');
 });
 
 test('disabled modules are validated but contribute no imports, routes or views', async t => {
@@ -261,7 +431,7 @@ test('native access entry views are reserved without replacing the previous vali
   const f = fixture(t); await composeRuntime({ root: f.root });
   const names = generatedNames;
   const before = names.map(name => readFileSync(generated(f.root, name), 'utf8'));
-  for (const route of ['/access', '/access/admin', '/access/app', '/{surface}/admin', '/:surface/admin']) {
+  for (const route of ['/access', '/access/admin', '/access/app', '/api/front', '/api/front/projection', '/{surface}/admin', '/:surface/admin']) {
     f.module.contracts.ui.views[0].route = route; f.save();
     await assert.rejects(composeRuntime({ root: f.root }), error => error.code === (route.includes(':') ? 'composition.invalid' : 'view.reserved'), route);
     assert.deepEqual(names.map(name => readFileSync(generated(f.root, name), 'utf8')), before);

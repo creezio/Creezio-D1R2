@@ -132,6 +132,8 @@ Le front est facultatif. Une personne ou une équipe peut travailler uniquement 
 
 Chaque module déclare ses vues, routes, entrées de navigation, emplacements, composants et permissions pour les surfaces concernées. Le build compose ce registre ; les thèmes officiels affichent automatiquement les contributions des modules installés, actifs et autorisés. Ajouter un module conforme ne demande pas de modifier les routes ou le code du thème dans chaque application. Une capacité de rendu manquante est détectée avant livraison ; désactivation et liens historiques ont des états explicites. Les modules sans vue front n'exposent pas leur administration par défaut.
 
+Le catalogue d'autorisation de chaque surface accepte au plus 1 000 vues, 1 000 entrées de navigation et 1 000 emplacements dans la composition entière. Chaque identifiant runtime `moduleId:id` doit tenir dans 128 caractères. Le compilateur refuse une composition qui dépasse ces limites, même si les déclarations de chaque module respectent séparément leurs bornes locales.
+
 Le SDK front fournit sessions, clients d'opérations, gestion des conversations, fichiers, événements, widgets et erreurs. Un développeur peut conserver tout le thème, remplacer seulement des composants ou construire son propre front avec ce SDK. Une prévisualisation de brouillons ou données privées exige toujours une autorisation explicite.
 
 Le SDK expose aussi le registre et le moteur de composition des vues de modules. Un front headless peut les adopter ou créer ses propres écrans ; l'intégration automatique des nouvelles vues n'est garantie que s'il respecte ce contrat de composition. Les mêmes API et autorisations restent disponibles dans les deux cas.

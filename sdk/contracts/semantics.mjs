@@ -167,6 +167,8 @@ export function checkModule(module, report) {
   });
   const hasFront = c.ui.views.some(view => view.surfaces.includes('front'));
   if ((c.ui.front.mode === 'provided') !== hasFront) report('ui.front', '/contracts/ui/front', 'Front presence must match its declared views.');
+  unique(c.ui.themes??[], '/contracts/ui/themes', report);
+  (c.ui.themes??[]).forEach((theme,i)=>unique(theme.slots,`/contracts/ui/themes/${i}/slots`,report));
   c.ui.views.forEach((view,i)=>{
     const p=`/contracts/ui/views/${i}`; requireInputFields(view.input,view.panel.identityFields,`${p}/panel/identityFields`);
     for(const ref of view.operations){needKind(ref,['operation'],`${p}/operations`);const op=get(ref,'operation');if(view.surfaces.includes('front')&&op&&!op.audiences.includes('app'))report('ui.audience',p,'A front view cannot expose an administrative-only operation.');}
@@ -386,7 +388,24 @@ export function checkComposition(composition, modules, lock, report) {
     unique(composition.exposure[audience].moduleIds,`/exposure/${audience}/moduleIds`,report);
     for (const id of composition.exposure[audience].moduleIds) if (!selected.get(id)?.enabled) report('composition.exposure',`/exposure/${audience}`,'Exposure may include only selected and enabled modules.');
   }
-  if (composition.front.kind==='theme' && !selected.get(composition.front.moduleId)?.enabled) report('composition.front','/front','A selected theme requires its enabled module.');
+  if (composition.front.kind==='theme') {
+    const themeSelection=selected.get(composition.front.moduleId);
+    const themeModule=descriptors.get(composition.front.moduleId);
+    const matches=themeModule?.contracts.ui.themes?.filter(item=>item.id===composition.front.theme)??[];
+    if (!themeSelection?.enabled || matches.length!==1)
+      report('composition.front','/front','The front theme must resolve to one export of an enabled selected module.');
+    else {
+      const supported=new Set(matches[0].slots);
+      for(const [moduleId,module] of descriptors) {
+        if(!selected.get(moduleId)?.enabled||!composition.exposure.app.moduleIds.includes(moduleId))continue;
+        for(const [index,slot] of module.contracts.ui.slots.entries()) {
+          if(!slot.surfaces.includes('front') || (inactive.get(moduleId)??[]).some(item=>item.path===`/contracts/ui/slots/${index}`))continue;
+          if(!supported.has(slot.slot))report('composition.front-slot',`/descriptors/${moduleId}/contracts/ui/slots/${index}`,
+            'The selected theme does not support this front slot.');
+        }
+      }
+    }
+  }
   const enabledModules=modules.filter(module=>selected.get(module.identity.id)?.enabled).map(module=>{
     const copy=structuredClone(module), disabled=inactive.get(module.identity.id)??[];
     for (const section of new Set(disabled.map(item=>item.section).filter(section=>['api','mcp/tools','mcp/resources','ui/views'].includes(section)))) {

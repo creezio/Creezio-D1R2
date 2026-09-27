@@ -59,13 +59,13 @@ test('the aggregate refuses a missing or empty contracts suite and linked tests'
   mkdirSync(join(root, 'tests', 'local'));
   assert.throws(() => collectRequiredTests(root), /No tests found.*local/);
   writeFileSync(join(root, 'tests', 'local', 'nine.test.mjs'), '// fixture');
-  for (const suite of ['oauth', 'mcp', 'modules']) {
+  for (const suite of ['oauth', 'mcp', 'modules', 'front']) {
     assert.throws(() => collectRequiredTests(root), /ENOENT/);
     mkdirSync(join(root, 'tests', suite));
     assert.throws(() => collectRequiredTests(root), new RegExp(`No tests found.*${suite}`));
     writeFileSync(join(root, 'tests', suite, 'required.test.mjs'), '// fixture');
   }
-  assert.deepEqual(collectRequiredTests(root), ['tests/quality/one.test.mjs', 'tests/contracts/two.test.mjs', 'tests/runtime/three.test.mjs', 'tests/identity/four.test.mjs', 'tests/data/five.test.mjs', 'tests/operations/six.test.mjs', 'tests/workspace/seven.test.mjs', 'tests/registry/eight.test.mjs', 'tests/local/nine.test.mjs', 'tests/oauth/required.test.mjs', 'tests/mcp/required.test.mjs', 'tests/modules/required.test.mjs']);
+  assert.deepEqual(collectRequiredTests(root), ['tests/quality/one.test.mjs', 'tests/contracts/two.test.mjs', 'tests/runtime/three.test.mjs', 'tests/identity/four.test.mjs', 'tests/data/five.test.mjs', 'tests/operations/six.test.mjs', 'tests/workspace/seven.test.mjs', 'tests/registry/eight.test.mjs', 'tests/local/nine.test.mjs', 'tests/oauth/required.test.mjs', 'tests/mcp/required.test.mjs', 'tests/modules/required.test.mjs', 'tests/front/required.test.mjs']);
   renameSync(join(root, 'tests', 'contracts'), join(root, 'saved-contracts'));
   symlinkSync(join(root, 'saved-contracts'), join(root, 'tests', 'contracts'), process.platform === 'win32' ? 'junction' : 'dir');
   try { assert.throws(() => collectRequiredTests(root), /Invalid test directory/); }

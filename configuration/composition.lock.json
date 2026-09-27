@@ -45,12 +45,12 @@
         "revision": "t11-module-models-v1",
         "integrity": "sha256-e3d72387fba5999eb4582bbfe0ba0657fc10285108d312f057587c8fa1c3b57f"
       },
-      "contractIntegrity": "sha256-6b5708d8c6a9e72f319080759fd67041d8cf56c6edae506d649ac95249a42244",
+      "contractIntegrity": "sha256-2448cb92863b09a7b9eb8099b1b8fb107a0a9aca01d221c0e2c7292cf29cd0c2",
       "runtime": {
-        "integrity": "sha256-d6162c0c2ac86e02e37d7f4debf34437b658d130537c1494257165eebe798cda",
+        "integrity": "sha256-e2cc1780a7d43a52a307289e5f52b87980763ab91cf2f50eb8d0ba723c466182",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.modules-settings/runtime-d6162c0c2ac86e02e37d7f4debf34437b658d130537c1494257165eebe798cda.tgz"
+          "path": ".creezio/module-artifacts/creezio.modules-settings/runtime-e2cc1780a7d43a52a307289e5f52b87980763ab91cf2f50eb8d0ba723c466182.tgz"
         }
       },
       "validation": {

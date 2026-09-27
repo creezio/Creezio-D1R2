@@ -139,9 +139,10 @@ export function Workspace(props: WorkspaceProps & {
   const locationCallback = useRef(props.onLocationChange);
   locationCallback.current = props.onLocationChange;
   const controller = useMemo(() => createWorkspaceController({access, views, contextId,
-    storage: (() => { try { return typeof window !== 'undefined' ? window.sessionStorage : undefined; } catch { return undefined; } })(),
+    surface: props.surface,
+    storage: (() => { try { return props.persist !== false && typeof window !== 'undefined' ? window.sessionStorage : undefined; } catch { return undefined; } })(),
     homeViewId: props.homeViewId, onLocationChange: url => locationCallback.current?.(url)}),
-    [access, views, contextId, props.homeViewId]);
+    [access, views, contextId, props.homeViewId, props.surface, props.persist]);
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [accessState, setAccessState] = useState(access.getSnapshot);
   const lastRevocation = useRef(props.revocationVersion);
@@ -164,11 +165,11 @@ export function Workspace(props: WorkspaceProps & {
     && accessState.session && projection && projection.sessionId === accessState.session.id
     && projection.principalId === accessState.session.principalId
     && projection.audience === access.audience && projection.contextId === contextId
-    && controller.isCurrentProjection(projection));
+    && controller.isCurrentProjection(projection) && props.hostActive !== false);
   const permittedViews = new Set(authorized ? projection?.viewIds ?? [] : []);
   const items = props.navigation.filter(item => authorized && projection?.navigationIds.includes(item.id)
     && permittedViews.has(item.viewId) && views.some(view => viewKey(view) === item.viewId
-      && view.surfaces.includes('workspace') && view.audiences.includes(access.audience)))
+      && view.surfaces.includes(props.surface ?? 'workspace') && view.audiences.includes(access.audience)))
     .sort((a, b) => a.order - b.order || a.title.localeCompare(b.title));
   const children = <div className="creezio-workspace-panels" data-audience={access.audience}>
     {!authorized && <p className="creezio-workspace-suspended" role="status">Vérification de l’accès au workspace…</p>}

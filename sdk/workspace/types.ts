@@ -30,6 +30,8 @@ export interface WorkspaceViewProps {
 export interface WorkspaceView {
   readonly id: string;
   readonly moduleId: string;
+  /** Locked runtime fingerprint for front restoration across theme changes. */
+  readonly moduleIntegrity?: string;
   readonly title: string;
   readonly route: string;
   readonly surfaces: readonly ('workspace' | 'front')[];
@@ -102,6 +104,10 @@ export interface WorkspaceProps {
   readonly navigation: readonly WorkspaceNavigationItem[];
   readonly client: WorkspaceOperationClient;
   readonly contextId: string;
+  /** Front reuses retained panels with the same authorization and activity guards. */
+  readonly surface?: 'workspace' | 'front';
+  readonly persist?: boolean;
+  readonly hostActive?: boolean;
   readonly initialUrl?: string;
   /** Optional landing view; opened as the first, non-closable tab. */
   readonly homeViewId?: string;

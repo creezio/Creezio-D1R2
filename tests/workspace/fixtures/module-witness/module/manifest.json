@@ -161,13 +161,35 @@
         "schema": {
           "type": "object",
           "properties": {
-            "draftTitle": {"type": "string", "maxLength": 200},
-            "baseTitle": {"type": "string", "maxLength": 200},
-            "baseRevision": {"type": "integer", "minimum": 0, "maximum": 1000000},
-            "pendingRequestKey": {"type": "string", "minLength": 1, "maxLength": 128},
-            "pendingExecutionId": {"type": "string", "minLength": 1, "maxLength": 128}
+            "draftTitle": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "baseTitle": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "baseRevision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "pendingRequestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "pendingExecutionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
           },
-          "required": ["draftTitle", "baseTitle", "baseRevision"],
+          "required": [
+            "draftTitle",
+            "baseTitle",
+            "baseRevision"
+          ],
           "additionalProperties": false
         }
       }
@@ -632,7 +654,8 @@
           "id": "home",
           "title": "Workspace témoin",
           "surfaces": [
-            "workspace"
+            "workspace",
+            "front"
           ],
           "route": "/witness",
           "component": {
@@ -661,7 +684,8 @@
           "id": "record",
           "title": "Fiche témoin",
           "surfaces": [
-            "workspace"
+            "workspace",
+            "front"
           ],
           "route": "/witness/{id}",
           "component": {
@@ -691,10 +715,64 @@
             "schemaId": "view-input"
           },
           "panel": {
-            "stateSchema": {"schemaId": "panel-state"},
+            "stateSchema": {
+              "schemaId": "panel-state"
+            },
             "identityFields": [
               "id"
             ],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend"
+          }
+        },
+        {
+          "id": "public-info",
+          "title": "Information publique",
+          "surfaces": [
+            "front"
+          ],
+          "route": "/welcome",
+          "component": {
+            "path": "ui/front.tsx",
+            "export": "witness_public"
+          },
+          "permissions": [],
+          "operations": [],
+          "input": {
+            "schemaId": "empty-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend"
+          }
+        },
+        {
+          "id": "private-info",
+          "title": "Contexte autorisé",
+          "surfaces": [
+            "front"
+          ],
+          "route": "/witness-context",
+          "component": {
+            "path": "ui/front.tsx",
+            "export": "witness_private"
+          },
+          "permissions": [
+            {
+              "moduleId": "example.workspace-witness",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "operations": [],
+          "input": {
+            "schemaId": "empty-input"
+          },
+          "panel": {
+            "identityFields": [],
             "navigation": "sdk",
             "retention": "preserve",
             "inactiveEffects": "suspend"
@@ -718,18 +796,62 @@
             }
           ],
           "surfaces": [
-            "workspace"
+            "workspace",
+            "front"
           ],
           "order": 0
+        },
+        {
+          "id": "welcome",
+          "title": "Information publique",
+          "view": {
+            "moduleId": "example.workspace-witness",
+            "kind": "view",
+            "id": "public-info"
+          },
+          "permissions": [],
+          "surfaces": [
+            "front"
+          ],
+          "order": -1
         }
       ],
-      "slots": [],
-      "front": {
-        "mode": "absent",
-        "justification": {
-          "reason": "This test fixture exercises the workspace only.",
-          "policyRule": "witness.workspace-only"
+      "slots": [
+        {
+          "id": "public-context",
+          "slot": "front.context",
+          "view": {
+            "moduleId": "example.workspace-witness",
+            "kind": "view",
+            "id": "public-info"
+          },
+          "permissions": [],
+          "surfaces": [
+            "front"
+          ]
+        },
+        {
+          "id": "private-footer",
+          "slot": "front.footer",
+          "view": {
+            "moduleId": "example.workspace-witness",
+            "kind": "view",
+            "id": "private-info"
+          },
+          "permissions": [
+            {
+              "moduleId": "example.workspace-witness",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "surfaces": [
+            "front"
+          ]
         }
+      ],
+      "front": {
+        "mode": "provided"
       },
       "styles": []
     },
@@ -868,7 +990,8 @@
         "ui/workspace/view.tsx",
         "plugin/plugin.json",
         "plugin/mcp.json",
-        "plugin/contributions.ts"
+        "plugin/contributions.ts",
+        "ui/front.tsx"
       ],
       "references": []
     },

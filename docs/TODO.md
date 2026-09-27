@@ -1,5 +1,5 @@
 # Backlog de réalisation
-Révision 23 — 27 septembre 2026. **Chantier actif : T-12, documentation installée des modules.** PR #1 à #20 intégrées ; main `037c0a0b` qualifié avec 908 tests locaux et CI. Catalogue, dépendances et plans de modules sont raccordés aux opérations communes et au Product Hub original. Chantier actif : T-12, documentation de version installée, sur `core/t12-installed-documentation`. Le code commun continue pendant les attentes Sites/registre. Les exigences restent inchangées ; une preuve locale ne ferme pas la recette hébergée.
+Révision 24 — 27 septembre 2026. **Chantier actif : T-13, fronts, thèmes et headless.** PR #1 à #21 intégrées ; main `20d48fda` qualifié avec 923 tests locaux et CI. Documents installés consultables par UI/API/MCP depuis le Product Hub original. Chantier actif : T-13, fronts, thèmes et headless, sur `core/t13-front-themes`. Les attentes Sites/registre restent séparées. Les exigences demeurent inchangées.
 
 ## Avancement lisible
 
@@ -18,9 +18,10 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-09 — Sites | Sonde de capacités antérieure conservée | Recette produit publique et accès au Site existant | Bloqué sur l'accès Sites du compte courant ; choix de destination demandé |
 | T-10 — MCP/OAuth | PR #19 : deux catalogues, OAuth natif, PKCE/rotation et clients SDK réels ; 866 tests | Connexion réelle ChatGPT et recette Site public, ressources/widgets T-16 | Fondations locales qualifiées |
 | T-11 — Modules | PR #20 : catalogue, dépendances, plans D1 et UI originale ; recettes locales et CI, 908 tests | Raccords publication et hébergements ; distribution complète T-30 | Livrable local disponible |
-| T-12 — Documentation | Contrat documentaire versionné ; sources Product Hub identifiées | Capture des documents installés, lectures API/MCP et onglets, contrôles de contenu et droits | **Implémentation parallèle en cours** |
+| T-12 — Documentation | PR #21 : README/PRD/changelog exacts, UI/API/MCP et recettes locales/CI, 923 tests | Recettes hébergées transversales ; édition des PRD de travail en T-23 | Documents installés vérifiés localement |
+| T-13 — Fronts et thèmes | Contrats, deux thèmes, projection native app et client headless écrits | Intégration, navigateur des deux thèmes, revue/CI ; recette Sites | **Implémentation et qualification en cours** |
 | T-31 — Docker local | PR #17 intégrée ; compte/D1/R2, redémarrage/recréation/restauration vérifiés en Docker | Recettes des futurs modules et routes de fichiers | Livrable local disponible |
-| Autres lots T-13 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, fronts/chat/widgets, publications et recette finale | À réaliser |
+| Autres lots T-14 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, fronts/chat/widgets, publications et recette finale | À réaliser |
 
 ## Règles de suivi
 États autorisés : à faire, en cours, bloqué (raison/prérequis), en revue, vérifié, livré. Enregistrer responsable réel, branche/issue ou tâche locale, PR, SHA, tests/profils et preuves à chaque transition. « Livré » exige version et livraison vérifiée ; fusionner ne suffit pas. Une dépendance fournisseur manquante bloque sa recette, pas toutes les tâches indépendantes.
@@ -59,8 +60,8 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-09](#T-09) | P1 | Première tranche sur Sites | [T-07](#T-07), [T-08](#T-08) | Bloqué — accès Sites |
 | [T-10](#T-10) | P2 | MCP, OAuth et accès machine | [T-06](#T-06), [T-09](#T-09) | En cours — code local |
 | [T-11](#T-11) | P3 | SDK et cycle de vie des modules | [T-02](#T-02), [T-06](#T-06), [T-10](#T-10) | En cours — code local |
-| [T-12](#T-12) | P3 | Documentation vivante des modules | [T-11](#T-11) | En cours |
-| [T-13](#T-13) | P4 | Fronts, thèmes et headless | [T-07](#T-07), [T-11](#T-11) | À faire |
+| [T-12](#T-12) | P3 | Documentation vivante des modules | [T-11](#T-11) | Vérifié |
+| [T-13](#T-13) | P4 | Fronts, thèmes et headless | [T-07](#T-07), [T-11](#T-11) | En cours |
 | [T-14](#T-14) | P4 | Conversations et progression persistante | [T-06](#T-06), [T-07](#T-07), [T-11](#T-11) | À faire |
 | [T-15](#T-15) | P4 | Module OpenAI et contrat fournisseur | [T-14](#T-14) | À faire |
 | [T-16](#T-16) | P4 | Widgets et plugins conversationnels compatibles GPT | [T-10](#T-10), [T-13](#T-13), [T-15](#T-15) | À faire |
@@ -207,19 +208,20 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-12"></a>
 ## T-12 — Documentation vivante des modules
 
-- Lot : **P3** ; état : **en cours** ; responsable : Codex orchestrateur, chats Sol API/SDK/Workspace ; branche `core/t12-installed-documentation`.
+- Lot : **P3** ; état : **vérifié** ; responsable : Codex orchestrateur, chats Sol API/SDK/Workspace ; branche `core/t12-installed-documentation`.
 - Dépendances : [T-11](#T-11).
-- Réalisation : [périmètre T12](IMPLEMENTATION-T12.md). Prérequis consommé : PR #20, main `037c0a0b`, 908 tests locaux et CI ; lecture documentaire encore en construction.
+- Réalisation : [périmètre T12](IMPLEMENTATION-T12.md). Prérequis consommé : PR #20, main `037c0a0b`, 908 tests locaux et CI ; lecture documentaire désormais qualifiée dans PR #21.
 - Travail/livrables : Contrôles docs, documentation embarquée et lecture UI/API/MCP autorisée ; contrats distinguant PRD installé et révisions de travail. L’édition/validation humaine des révisions est construite en T-23.
 - Besoin : [US-12](USER-STORIES.md#US-12). Acceptation : [REQ-1201](EXIGENCES.md#REQ-1201), [REQ-1202](EXIGENCES.md#REQ-1202).
 - Validation : implémenter puis exécuter les recettes liées, sur **package, workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : candidat `ae312982`, main `20d48fda`, arbre `aef9cdb4`, CI 36301642996/36302251823, 923/923 sans omission ; trois revues indépendantes, types/build/Workerd et navigateur sur le même artefact. Lire IMPLEMENTATION-T12 pour les essais initiaux, corrections et limites. État vérifié pour les documents installés ; aucune release ni recette Sites prétendue.
 
 <a id="T-13"></a>
 ## T-13 — Fronts, thèmes et headless
 
-- Lot : **P4** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P4** ; état : **en cours** ; responsable : Codex et trois chats Sol ; branche `core/t13-front-themes`.
 - Dépendances : [T-07](#T-07), [T-11](#T-11).
+- Réalisation : [périmètre T13](IMPLEMENTATION-T13.md), réemploi Certivan V5 et primitives Creezio ; comptes/permissions communs, aucun second backend.
 - Travail/livrables : Thèmes standard/ChatGPT-like, moteur de composition, composants et client headless ; personnalisation dans application/.
 - Besoin : [US-13](USER-STORIES.md#US-13). Acceptation : [REQ-1301](EXIGENCES.md#REQ-1301), [REQ-1302](EXIGENCES.md#REQ-1302).
 - Validation : implémenter puis exécuter les recettes liées, sur **navigateur et Site** ; inclure les cas négatifs et les contrôles communs appropriés.

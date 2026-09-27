@@ -2405,6 +2405,11 @@
             "code": "unknown",
             "retryable": true,
             "outcome": "unknown"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
           }
         ],
         "pagination": {
@@ -2766,6 +2771,11 @@
             "code": "unknown",
             "retryable": true,
             "outcome": "unknown"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
           }
         ],
         "pagination": {
@@ -2981,6 +2991,11 @@
             "code": "unknown",
             "retryable": true,
             "outcome": "unknown"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
           }
         ],
         "pagination": {
@@ -3079,6 +3094,11 @@
             "code": "unknown",
             "retryable": true,
             "outcome": "unknown"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
           }
         ],
         "pagination": {

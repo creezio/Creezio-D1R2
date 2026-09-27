@@ -17,6 +17,18 @@ test('accepts a complete inert module declaration with several widgets and three
   assert.deepEqual(module, before, 'Validation must not rewrite the module declaration');
 });
 
+test('theme declarations use the ordinary runtime code reference and unique slot names',()=>{
+  const module=fixture();
+  const component=structuredClone(module.contracts.ui.views[0].component);
+  module.contracts.ui.themes=[{id:'standard',component,slots:['front.header','front.footer']}];
+  accepted(validateModule(module));
+  module.contracts.ui.themes.push({...module.contracts.ui.themes[0]});
+  refused(validateModule(module),'duplicate.id');
+  module.contracts.ui.themes.pop();
+  module.contracts.ui.themes[0].slots.push('front.header');
+  refused(validateModule(module),'schema.invalid');
+});
+
 const cases = [
   ['duplicate operation identity', m => m.contracts.operations.push(structuredClone(query(m))), 'duplicate.id'],
   ['an API operation removed from the module', m => {

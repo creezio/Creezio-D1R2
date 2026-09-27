@@ -18,6 +18,9 @@ export interface WorkspaceAuthorizationCatalog {
   readonly views: readonly WorkspaceViewDeclaration[];
   readonly navigation: readonly WorkspaceNavigationDeclaration[];
 }
+export interface SurfaceAuthorizationCatalog extends WorkspaceAuthorizationCatalog {
+  readonly slots?: readonly WorkspaceNavigationDeclaration[];
+}
 export interface WorkspaceAuthorizationProjection {
   readonly sessionId: string;
   readonly principalId: string;
@@ -28,6 +31,9 @@ export interface WorkspaceAuthorizationProjection {
   readonly viewIds: readonly string[];
   readonly navigationIds: readonly string[];
 }
+export interface SurfaceAuthorizationProjection extends WorkspaceAuthorizationProjection {
+  readonly slotIds: readonly string[];
+}
 export type WorkspaceAuthorizationResult = Readonly<{ok: true; projection: WorkspaceAuthorizationProjection}>
   | Readonly<{ok: false; error: 'invalid_input' | 'unauthorized' | 'unavailable'}>;
 
@@ -37,33 +43,42 @@ const digest = (value: unknown): value is string => typeof value === 'string' &&
 const audience = (value: unknown): value is AuthorizationAudience => value === 'admin' || value === 'app';
 const permissionId = (ref: WorkspacePermissionRef) => `${ref.moduleId}:${ref.id}`;
 
-function validateCatalog(catalog: WorkspaceAuthorizationCatalog, permissions: readonly PermissionDefinition[]) {
+export function validateSurfaceAuthorizationCatalog(catalog: SurfaceAuthorizationCatalog,
+  permissions: readonly PermissionDefinition[], surface: 'workspace' | 'front') {
   if (!catalog || !digest(catalog.compositionDigest) || !Array.isArray(catalog.views)
-    || !Array.isArray(catalog.navigation) || catalog.views.length > 1000 || catalog.navigation.length > 1000) throw new TypeError('Invalid workspace authorization catalog.');
+    || !Array.isArray(catalog.navigation) || catalog.views.length > 1000 || catalog.navigation.length > 1000
+    || catalog.slots !== undefined && (!Array.isArray(catalog.slots) || catalog.slots.length > 1000))
+    throw new TypeError('Invalid surface authorization catalog.');
   const known = new Set(permissions.map(permission => permission.id));
   const views = new Map<string, WorkspaceViewDeclaration>();
   const valid = (entry: WorkspaceViewDeclaration) => id(entry?.id) && Array.isArray(entry.surfaces)
-    && entry.surfaces.includes('workspace') && Array.isArray(entry.audiences) && entry.audiences.length > 0
+    && entry.surfaces.includes(surface) && Array.isArray(entry.audiences) && entry.audiences.length > 0
     && entry.audiences.length <= 2 && entry.audiences.every(audience)
     && Array.isArray(entry.permissions) && entry.permissions.length <= 1000
     && entry.permissions.every(ref => ref?.kind === 'permission' && id(ref.moduleId) && id(ref.id) && known.has(permissionId(ref)));
   for (const view of catalog.views) {
-    if (!valid(view) || views.has(view.id)) throw new TypeError('Invalid workspace view authorization.');
+    if (!valid(view) || views.has(view.id)) throw new TypeError('Invalid surface view authorization.');
     views.set(view.id, view);
   }
   const navigation = new Set<string>();
   for (const item of catalog.navigation) {
     if (!valid(item) || !id(item.viewId) || !views.has(item.viewId) || navigation.has(item.id))
-      throw new TypeError('Invalid workspace navigation authorization.');
+      throw new TypeError('Invalid surface navigation authorization.');
     navigation.add(item.id);
+  }
+  const slots = new Set<string>();
+  for (const item of catalog.slots ?? []) {
+    if (!valid(item) || !id(item.viewId) || !views.has(item.viewId) || slots.has(item.id))
+      throw new TypeError('Invalid surface slot authorization.');
+    slots.add(item.id);
   }
 }
 
-/** A read projection from one coherent native D1 resolution. It is display state,
- * never a later write permit. The operation engine must recheck its own guard. */
-export function projectWorkspaceAuthorization(state: StoredAuthorizationState,
-  catalog: WorkspaceAuthorizationCatalog, permissions: readonly PermissionDefinition[],
-  contextId: string, requestedAudience: AuthorizationAudience): WorkspaceAuthorizationProjection | null {
+/** Shared ACL projection for workspace and front. The caller fixes the surface. */
+export function projectSurfaceAuthorization(state: StoredAuthorizationState,
+  catalog: SurfaceAuthorizationCatalog, permissions: readonly PermissionDefinition[],
+  contextId: string, requestedAudience: AuthorizationAudience,
+  surface: 'workspace' | 'front'): SurfaceAuthorizationProjection | null {
   if (!id(contextId) || !audience(requestedAudience) || state.session.audience !== requestedAudience) return null;
   const snapshot = policySnapshot(state.policy, permissions, state.session);
   const allowed = (refs: readonly WorkspacePermissionRef[]) => {
@@ -72,13 +87,27 @@ export function projectWorkspaceAuthorization(state: StoredAuthorizationState,
     return authorize(snapshot, target, state.nowMs).allowed;
   };
   if (!allowed([])) return null;
-  const viewIds = catalog.views.filter(view => view.audiences.includes(requestedAudience) && allowed(view.permissions)).map(view => view.id);
+  const viewIds = catalog.views.filter(view => view.surfaces.includes(surface)
+    && view.audiences.includes(requestedAudience) && allowed(view.permissions)).map(view => view.id);
   const visible = new Set(viewIds);
-  const navigationIds = catalog.navigation.filter(item => item.audiences.includes(requestedAudience)
-    && visible.has(item.viewId) && allowed(item.permissions)).map(item => item.id);
+  const navigationIds = catalog.navigation.filter(item => item.surfaces.includes(surface)
+    && item.audiences.includes(requestedAudience) && visible.has(item.viewId) && allowed(item.permissions)).map(item => item.id);
+  const slotIds = (catalog.slots ?? []).filter(item => item.surfaces.includes(surface)
+    && item.audiences.includes(requestedAudience) && visible.has(item.viewId) && allowed(item.permissions)).map(item => item.id);
   return Object.freeze({sessionId: state.session.id, principalId: state.session.principalId,
     audience: requestedAudience, contextId, compositionDigest: catalog.compositionDigest, epoch: state.epoch,
-    viewIds: Object.freeze(viewIds), navigationIds: Object.freeze(navigationIds)});
+    viewIds: Object.freeze(viewIds), navigationIds: Object.freeze(navigationIds), slotIds: Object.freeze(slotIds)});
+}
+
+/** A read projection from one coherent native D1 resolution. It is display state,
+ * never a later write permit. The operation engine must recheck its own guard. */
+export function projectWorkspaceAuthorization(state: StoredAuthorizationState,
+  catalog: WorkspaceAuthorizationCatalog, permissions: readonly PermissionDefinition[],
+  contextId: string, requestedAudience: AuthorizationAudience): WorkspaceAuthorizationProjection | null {
+  const projection = projectSurfaceAuthorization(state, catalog, permissions, contextId, requestedAudience, 'workspace');
+  if (!projection) return null;
+  const {slotIds: _slotIds, ...workspace} = projection;
+  return Object.freeze(workspace);
 }
 
 /** The host supplies a reviewed catalogue and selects the audience from its route.
@@ -87,7 +116,7 @@ export function createWorkspaceAuthorizationService(db: IdentityDatabase, option
   readonly permissions: readonly PermissionDefinition[]; readonly catalog: WorkspaceAuthorizationCatalog;
 }) {
   const resolver = createNativeAuthorizationResolver(db, {permissions: options.permissions});
-  validateCatalog(options.catalog, resolver.permissions);
+  validateSurfaceAuthorizationCatalog(options.catalog, resolver.permissions, 'workspace');
   const catalog = structuredClone(options.catalog);
   return Object.freeze({async read(token: unknown, requestedAudience: AuthorizationAudience, contextId: string): Promise<WorkspaceAuthorizationResult> {
     if (!audience(requestedAudience) || !id(contextId)) return Object.freeze({ok: false, error: 'invalid_input'});

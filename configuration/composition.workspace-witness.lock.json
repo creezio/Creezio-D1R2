@@ -21,17 +21,17 @@
       },
       "contractIntegrity": "sha256-cc9b9bf2efa3b53d9e20b13f065d982b0731d738ee59a899e93280032333c0d7",
       "runtime": {
-        "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000",
+        "integrity": "sha256-c95f6c5da2f5ea63149c8017ef677b5fc7ca4dc5e83a06a1f78ba6203af6a21f",
         "location": {
           "kind": "local",
-          "path": "extensions/native/access/unbuilt-runtime.tgz"
+          "path": ".creezio/module-artifacts/creezio.access/runtime-c95f6c5da2f5ea63149c8017ef677b5fc7ca4dc5e83a06a1f78ba6203af6a21f.tgz"
         }
       },
       "validation": {
-        "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000",
+        "integrity": "sha256-4d0b5f81632c07d43b55f0a160dbb3f3184ec7a29c1d85dd8d395e0a70713bfa",
         "location": {
           "kind": "local",
-          "path": "extensions/native/access/unbuilt-validation.tgz"
+          "path": ".creezio/module-artifacts/creezio.access/validation-4d0b5f81632c07d43b55f0a160dbb3f3184ec7a29c1d85dd8d395e0a70713bfa.tgz"
         }
       },
       "dependencies": []
@@ -45,19 +45,19 @@
         "revision": "t07-workspace-witness-v1",
         "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000"
       },
-      "contractIntegrity": "sha256-3359ecd6f9bff3d29fdec4bab48010805292003c173ff73af7b5d3a30ca6819e",
+      "contractIntegrity": "sha256-6e32923c205b87789459100b0922f2cd46cb89296bb9589f633673e5fb0debb3",
       "runtime": {
-        "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000",
+        "integrity": "sha256-9df6ba022945e631dc4be14f7204260a302cff6ddc44d66668b28c1aa7857456",
         "location": {
           "kind": "local",
-          "path": "tests/workspace/fixtures/module-witness/unbuilt-runtime.tgz"
+          "path": ".creezio/module-artifacts/example.workspace-witness/runtime-9df6ba022945e631dc4be14f7204260a302cff6ddc44d66668b28c1aa7857456.tgz"
         }
       },
       "validation": {
-        "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000",
+        "integrity": "sha256-e83f91d349ab71f3f07f7183670e218279a022c5b03d61c22f7b973f8a15c23e",
         "location": {
           "kind": "local",
-          "path": "tests/workspace/fixtures/module-witness/unbuilt-validation.tgz"
+          "path": ".creezio/module-artifacts/example.workspace-witness/validation-e83f91d349ab71f3f07f7183670e218279a022c5b03d61c22f7b973f8a15c23e.tgz"
         }
       },
       "dependencies": []

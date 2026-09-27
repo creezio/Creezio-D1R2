@@ -10,6 +10,15 @@ const moduleOf=(operations=[operation()],changes={})=>({id:'example.test',versio
 const runtime=(modules=[moduleOf()])=>createRuntime({compositionDigest:digest,modules});
 const request=(path,options={})=>new Request(`https://runtime.example${path}`,options);
 
+test('native front namespace cannot be shadowed and requires app authentication capability',async()=>{
+  for(const path of ['/api/front','/api/front/projection','/api/{scope}/projection'])
+    assert.throws(()=>runtime([moduleOf([operation({path})])]),error=>error instanceof RuntimeConfigurationError&&error.code==='route.reserved');
+  let calls=0;
+  const app=createRuntime({compositionDigest:digest,modules:[],nativeAccess:{admin:false,app:false},
+    declaredHttp:{dispatch:async()=>{calls++;return Response.json({});}}});
+  assert.equal((await app.fetch(request('/api/front/projection'),environment())).status,404);assert.equal(calls,0);
+});
+
 test('non-API routes pass to the UI, while unknown API and MCP paths return JSON 404',async()=>{
   const app=runtime();
   for(const path of ['/','/witness','/assets/main.js','/apiary','/mcp-not-a-route','/landing/%ZZ'])assert.equal(await app.fetch(request(path),null),null);

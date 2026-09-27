@@ -1,16 +1,21 @@
 import { notFound } from 'next/navigation';
-import type { ComponentType } from 'react';
-import { views } from '../../.creezio/generated/client';
+import { front, frontViews } from '../../.creezio/generated/client';
+import { resolveWorkspaceLocation } from '../../sdk/workspace/controller';
+import { FrontHost } from '../front/host';
 
-// T-03 exposes only explicitly anonymous front views. The authenticated
-// workspace and its authorization-aware composition are added by later lots.
-export default async function ModuleView({ params }: { params: Promise<{ path: string[] }> }) {
-  const route = `/${(await params).path.join('/')}`;
-  const view = views.find(item => item.route === route && item.access === 'public-read' && item.surfaces.includes('front'));
-  if (!view) notFound();
-  // This anonymous T-03 entry is a presentational projection. It does not
-  // provide an authenticated workspace controller or execution capability.
-  const Component = view.component as ComponentType;
-  return <main className="welcome"><header className="brand"><a href="/">Creezio</a></header>
-    <section className="welcome-body" aria-label={view.title}><Component /></section></main>;
+export default async function ModuleView({params, searchParams}: {
+  params: Promise<{path: string[]}>;
+  searchParams: Promise<Record<string,string|string[]|undefined>>;
+}) {
+  if (front.kind !== 'theme') notFound();
+  const {path} = await params;
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(await searchParams)) {
+    if (Array.isArray(value)) for (const item of value) query.append(key, item);
+    else if (value !== undefined) query.append(key, value);
+  }
+  const url = `/${path.map(encodeURIComponent).join('/')}${query.size ? `?${query}` : ''}`;
+  const declared = frontViews.filter(view => view.surfaces.includes('front') && view.audiences.includes('app'));
+  if (!resolveWorkspaceLocation(url, declared, new Set(declared.map(view => view.id)), 'front')) notFound();
+  return <FrontHost initialUrl={url} />;
 }

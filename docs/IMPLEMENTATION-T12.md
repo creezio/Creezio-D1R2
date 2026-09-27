@@ -1,6 +1,6 @@
 # T12 — Documents de la version installée
 
-REQ-1201/1202, US-12. Branche `core/t12-installed-documentation`, issue de main `037c0a0b` qualifié avec 908 tests. Implémentation en cours ; les contrôles et recettes de ce lot ne sont pas encore acquis.
+REQ-1201/1202, US-12. Branche `core/t12-installed-documentation`, issue de main `037c0a0b` qualifié avec 908 tests. PR #21 intégrée : candidat `ae312982043971eabe27bc984e15f60451d463db`, main `20d48fda89d570f43c446eee71721b2a8750ab2f`, arbre `aef9cdb412a6adcb68d783e32decf06bd0de82f3`. 923/923 tests locaux et CI candidat 36301642996/main 36302251823, zéro échec/ignoré/annulé/todo ; types/build/Workerd, source inchangée et artefact courant. Trois revues indépendantes et protections vérifiées avant squash sans bypass.
 
 ## Source et lecture
 
@@ -23,3 +23,7 @@ Capture exacte et versions candidates, UTF-8 et plafonds ; refus des documents h
 La première qualification a révélé un dépassement du budget brut local de 3 599 octets : 2 803 599 bruts / 603 357 gzip, contre 2 644 629 / 575 390 en T11. L'attribution indépendante couvre exactement le delta : 33 142 octets de documents, code de lecture, interface et validateurs des deux opérations ; aucun double embarquement des textes observé. Le plafond brut local passe à 2 900 000 ; gzip 625 000, démarrage 15 s et routes 3 s restent inchangés. Ce budget n'est pas un quota Cloudflare ou Sites.
 
 La suite Windows T11 utilisait déjà environ 230 s sur les 240 s autorisées. Le premier parcours T12 a atteint cette borne après le test 700, sans résumé TAP, et reste un échec conservé. La borne de la suite complète passe à 360 s avec durée mesurée ; aucune limite produit, aucun compteur requis et aucun test ne sont retirés. La recette navigateur est arrêtée pendant le nouveau contrôle pour limiter la concurrence locale.
+
+## Recette finale
+
+Le navigateur local a vérifié les trois documents de deux modules, version/source, retour au panneau conservé, réponse HTTP200 perdue puis reprise sans afficher un texte incomplet, révocation des vues et déconnexion. Le premier essai avait révélé une lecture trop tôt lors de la réactivation ; corrigée puis rejouée sur l’artefact final `sha256-18a77b216fc728c229c7457c87a9f9a26a19ee2723b14995500d0907e1be388d`. Preuves CREEZIO-T12-CONTROLES, REVUE-API/SDK/UI/ROOT et NAVIGATEUR conservées hors commit ; essais initiaux échoués conservés séparément. Aucun hébergement ou ChatGPT réel qualifié par cette recette.

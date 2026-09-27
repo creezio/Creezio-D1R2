@@ -17,6 +17,9 @@ export interface WorkspaceStorage {
   key?(index: number): string | null;
 }
 export const viewKey = (view: Pick<WorkspaceView, 'id'>) => view.id;
+/** Route data shared by the workspace and optional front renderers. */
+export type WorkspaceRouteView = Pick<WorkspaceView,
+  'id' | 'moduleId' | 'route' | 'panel' | 'validateInput' | 'surfaces'>;
 const own = (value: object, key: string) => Object.prototype.hasOwnProperty.call(value, key);
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object'
   && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
@@ -83,8 +86,8 @@ function panelState(value: unknown, view?: WorkspaceView): WorkspacePanelState |
     return JSON.stringify(output).length <= MAX_STORED_STATE_BYTES ? Object.freeze(output) : null;
   } catch { return null; }
 }
-function storageKey(audience: string, contextId: string): string {
-  return `${WORKSPACE_STORAGE_KEY}:${audience}:${encodeURIComponent(contextId)}`;
+function storageKey(audience: string, contextId: string, surface: 'workspace' | 'front'): string {
+  return `${WORKSPACE_STORAGE_KEY}:${surface === 'front' ? 'front:' : ''}${audience}:${encodeURIComponent(contextId)}`;
 }
 function forgetStorage(storage: WorkspaceStorage | undefined, key: string, sessionId?: string, principalId?: string): void {
   if (!storage) return;
@@ -123,8 +126,8 @@ function safeInput(input: WorkspaceInput): WorkspaceInput | null {
   return Object.freeze(copy);
 }
 
-function routeParts(view: WorkspaceView): string[] { return view.route.split('/').filter(Boolean); }
-function makeLocation(view: WorkspaceView, input: WorkspaceInput): WorkspaceLocation | null {
+function routeParts(view: WorkspaceRouteView): string[] { return view.route.split('/').filter(Boolean); }
+export function createWorkspaceLocation(view: WorkspaceRouteView, input: WorkspaceInput): WorkspaceLocation | null {
   const values = safeInput(input);
   if (!values) return null;
   try { if (view.validateInput && view.validateInput(values) !== true) return null; }
@@ -151,7 +154,7 @@ function makeLocation(view: WorkspaceView, input: WorkspaceInput): WorkspaceLoca
     identity: JSON.stringify([view.moduleId, view.id, ...identityValues])});
 }
 
-function parseLocation(view: WorkspaceView, url: URL): WorkspaceLocation | null {
+function parseLocation(view: WorkspaceRouteView, url: URL): WorkspaceLocation | null {
   const expected = routeParts(view), actual = url.pathname.split('/').filter(Boolean);
   if (expected.length !== actual.length) return null;
   const input: Record<string, string> = Object.create(null);
@@ -166,17 +169,17 @@ function parseLocation(view: WorkspaceView, url: URL): WorkspaceLocation | null 
     if (own(input, key)) return null;
     input[key] = value;
   }
-  return makeLocation(view, input);
+  return createWorkspaceLocation(view, input);
 }
 
-export function resolveWorkspaceLocation(url: string, views: readonly WorkspaceView[],
-  allowed: ReadonlySet<string>): WorkspaceLocation | null {
+export function resolveWorkspaceLocation(url: string, views: readonly WorkspaceRouteView[],
+  allowed: ReadonlySet<string>, surface: 'workspace' | 'front' = 'workspace'): WorkspaceLocation | null {
   try {
     const parsed = new URL(url, 'https://workspace.invalid');
     if (parsed.origin !== 'https://workspace.invalid' || parsed.hash || !url.startsWith('/')) return null;
     let match: WorkspaceLocation | null = null;
     for (const view of views) {
-      if (!allowed.has(viewKey(view)) || !view.surfaces.includes('workspace')) continue;
+      if (!allowed.has(viewKey(view)) || !view.surfaces.includes(surface)) continue;
       const location = parseLocation(view, parsed);
       if (location) {
         if (match) return null;
@@ -192,7 +195,7 @@ export function resolveWorkspaceLocation(url: string, views: readonly WorkspaceV
  * Stored links are reparsed; stored inputs, titles, permissions and React state
  * are never trusted or hydrated directly. */
 function restoreTabs(storage: WorkspaceStorage | undefined, key: string, projection: WorkspaceProjection,
-  views: readonly WorkspaceView[], homeViewId?: string): WorkspaceSnapshot | null {
+  views: readonly WorkspaceView[], homeViewId?: string, surface: 'workspace' | 'front' = 'workspace'): WorkspaceSnapshot | null {
   if (!storage) return null;
   try {
     const raw = storage.getItem(key);
@@ -201,7 +204,9 @@ function restoreTabs(storage: WorkspaceStorage | undefined, key: string, project
     const saved: unknown = JSON.parse(raw);
     if (!record(saved) || saved.version !== 1 || saved.sessionId !== projection.sessionId
       || saved.principalId !== projection.principalId || saved.audience !== projection.audience
-      || saved.contextId !== projection.contextId || saved.compositionDigest !== projection.compositionDigest
+      || saved.contextId !== projection.contextId
+      || typeof saved.compositionDigest !== 'string' || !/^sha256-[a-f0-9]{64}$/.test(saved.compositionDigest)
+      || surface === 'workspace' && saved.compositionDigest !== projection.compositionDigest
       || !Number.isSafeInteger(saved.epoch) || Number(saved.epoch) > projection.epoch
       || !Array.isArray(saved.tabs) || saved.tabs.length > MAX_WORKSPACE_TABS
       || saved.activeTabId !== null && typeof saved.activeTabId !== 'string') {
@@ -216,12 +221,18 @@ function restoreTabs(storage: WorkspaceStorage | undefined, key: string, project
         || Number(entry.historyIndex) >= entry.history.length) continue;
       ids.add(entry.id);
       const history = entry.history.map(url => typeof url === 'string' && url.length <= 8192
-        ? resolveWorkspaceLocation(url, views, allowed) : null);
+        ? resolveWorkspaceLocation(url, views, allowed, surface) : null);
       if (history.some(item => !item)) continue;
       const locations = history as WorkspaceLocation[], location = locations[entry.historyIndex as number];
       if (locations.some(item => item.identity !== location.identity)) continue;
       const view = views.find(item => item.id === location.viewId && item.audiences.includes(projection.audience));
       if (!view) continue;
+      // A theme may change the composition digest without changing a module,
+      // while module code may change without changing that digest. Restore only
+      // a panel produced by the exact same locked runtime in either case.
+      if (surface === 'front'
+        && (!view.moduleIntegrity || !/^sha256-[a-f0-9]{64}$/.test(view.moduleIntegrity)
+          || entry.moduleIntegrity !== view.moduleIntegrity)) continue;
       const state = entry.panelState === undefined ? undefined : panelState(entry.panelState, view);
       tabs.push(Object.freeze({id: entry.id, title: view.title, locked: entry.locked, pinned: entry.pinned,
         history: Object.freeze(locations), historyIndex: entry.historyIndex as number, location,
@@ -246,13 +257,15 @@ function restoreTabs(storage: WorkspaceStorage | undefined, key: string, project
 }
 
 function persistTabs(storage: WorkspaceStorage | undefined, key: string, projection: WorkspaceProjection,
-  snapshot: WorkspaceSnapshot): boolean {
+  snapshot: WorkspaceSnapshot, views: readonly WorkspaceView[]): boolean {
   if (!storage) return false;
   try {
     const value = JSON.stringify({version: 1, sessionId: projection.sessionId, principalId: projection.principalId,
       audience: projection.audience, contextId: projection.contextId, compositionDigest: projection.compositionDigest,
       epoch: projection.epoch, activeTabId: snapshot.activeTabId,
-      tabs: snapshot.tabs.map(tab => ({id: tab.id, locked: tab.locked, pinned: tab.pinned,
+      tabs: snapshot.tabs.map(tab => ({id: tab.id,
+        moduleIntegrity: views.find(view => view.id === tab.location.viewId)?.moduleIntegrity ?? null,
+        locked: tab.locked, pinned: tab.pinned,
         history: tab.history.map(location => location.url), historyIndex: tab.historyIndex,
         ...(tab.panelState ? {panelState: tab.panelState} : {})}))});
     if (encoder.encode(value).length > MAX_STORED_BYTES) return false;
@@ -289,11 +302,12 @@ export interface WorkspaceController extends WorkspaceNavigation {
 
 export function createWorkspaceController(options: {access: AccessController; views: readonly WorkspaceView[];
   contextId: string; projection?: WorkspaceProjection | null; initialUrl?: string;
-  homeViewId?: string;
+  homeViewId?: string; surface?: 'workspace' | 'front';
   storage?: WorkspaceStorage;
   onLocationChange?: (url: string) => void}): WorkspaceController {
   const {access, views, contextId, onLocationChange} = options;
-  const storage = options.storage, key = storageKey(access.audience, contextId);
+  const surface = options.surface ?? 'workspace';
+  const storage = options.storage, key = storageKey(access.audience, contextId, surface);
   let projection: WorkspaceProjection | null = null;
   let projectionCurrent = false;
   let snapshot: WorkspaceSnapshot = Object.freeze({tabs: Object.freeze([]), activeTabId: null});
@@ -309,7 +323,7 @@ export function createWorkspaceController(options: {access: AccessController; vi
   const available = () => projectionCurrent && !!projection && !!verified();
   const publish = (tabs: readonly WorkspaceTab[], activeTabId: string | null) => {
     snapshot = Object.freeze({tabs: Object.freeze(tabs), activeTabId});
-    const persisted = projectionCurrent && !!projection && persistTabs(storage, key, projection, snapshot);
+    const persisted = projectionCurrent && !!projection && persistTabs(storage, key, projection, snapshot, views);
     for (const listener of listeners) listener();
     const active = tabs.find(tab => tab.id === activeTabId);
     if (active) onLocationChange?.(active.location.url);
@@ -317,7 +331,7 @@ export function createWorkspaceController(options: {access: AccessController; vi
   };
   const purge = () => { if (snapshot.tabs.length || snapshot.activeTabId) publish([], null); };
   const viewFor = (key: string) => views.find(view => viewKey(view) === key
-    && view.surfaces.includes('workspace') && view.audiences.includes(access.audience));
+    && view.surfaces.includes(surface) && view.audiences.includes(access.audience));
   const openLocation = (location: WorkspaceLocation, opts: {newTab?: boolean; replace?: boolean} = {}) => {
     if (!available() || !allowed().has(location.viewId)) return false;
     const view = viewFor(location.viewId);
@@ -380,7 +394,7 @@ export function createWorkspaceController(options: {access: AccessController; vi
       const changed = !projection || projection.sessionId !== next.sessionId
         || projection.principalId !== next.principalId || projection.audience !== next.audience
         || projection.contextId !== next.contextId || projection.compositionDigest !== next.compositionDigest;
-      const restored = changed ? restoreTabs(storage, key, next, views, options.homeViewId) : null;
+      const restored = changed ? restoreTabs(storage, key, next, views, options.homeViewId, surface) : null;
       projection = next;
       projectionCurrent = true;
       if (changed) {
@@ -412,12 +426,12 @@ export function createWorkspaceController(options: {access: AccessController; vi
     },
     open(key, input = {}, opts) {
       if (disposed || !available() || !allowed().has(key)) return false;
-      const view = viewFor(key), location = view && makeLocation(view, input);
+      const view = viewFor(key), location = view && createWorkspaceLocation(view, input);
       return location ? openLocation(location, opts) : false;
     },
     visit(url, opts) {
       if (disposed || !available()) return false;
-      const location = resolveWorkspaceLocation(url, views.filter(view => view.audiences.includes(access.audience)), allowed());
+      const location = resolveWorkspaceLocation(url, views.filter(view => view.audiences.includes(access.audience)), allowed(), surface);
       return location ? openLocation(location, opts) : false;
     },
     back() {

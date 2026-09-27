@@ -1,5 +1,9 @@
 # Changelog
 
+## Non publié — T13
+
+Front facultatif avec thèmes standard et ChatGPT-like, registre dynamique de vues/navigation/slots et projection native app. Réemploi des composants Creezio et de la présentation Certivan V5 ; personnalisations sous application/. Client headless sur bindings API/OAuth existants, sans seconde logique métier. Qualification en cours. PR #21 a intégré les documents installés T12 (923 tests locaux/CI et recette navigateur).
+
 ## 27 septembre 2026 — Documentation installée T12
 
 PR #20 intégrée, main `037c0a0b` qualifié avec 908 tests locaux et CI. Le lot suivant raccorde README, PRD et changelog de la version installée aux fiches Product Hub et aux mêmes opérations HTTP/MCP administratives. Les révisions locales de travail restent distinctes. Qualification T12 suivie dans docs/TODO.md.

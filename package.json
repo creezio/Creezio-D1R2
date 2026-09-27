@@ -27,6 +27,7 @@
     "test:data": "node --test --test-concurrency=1 tests/data/*.test.mjs",
     "test:operations": "node --test --test-concurrency=1 tests/operations/*.test.mjs",
     "test:workspace": "node --test --test-concurrency=1 tests/workspace/*.test.mjs",
+    "test:front": "node --test --test-concurrency=1 tests/front/*.test.mjs",
     "test:registry": "node --test --test-concurrency=1 tests/registry/*.test.mjs",
     "test:local": "node --test --test-concurrency=1 tests/local/*.test.mjs",
     "test:oauth": "node --test --test-concurrency=1 tests/oauth/*.test.mjs",

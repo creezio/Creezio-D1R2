@@ -39,7 +39,7 @@ function parseRoute(path: string): readonly Segment[] {
     return Object.freeze({ literal: segment });
   });
   if (segments.length >= 2 && 'literal' in segments[0] && segments[0].literal === 'api'
-    && (!('literal' in segments[1]) || ['access', 'operations', 'workspace'].includes(segments[1].literal)))
+    && (!('literal' in segments[1]) || ['access', 'operations', 'workspace', 'front'].includes(segments[1].literal)))
     throw new RuntimeConfigurationError('route.reserved', 'Native authentication, execution and workspace paths belong to the host.');
   return Object.freeze(segments);
 }
@@ -196,6 +196,8 @@ export function createRuntime(definition: RuntimeDefinition): CreezioRuntime {
         if ((audience !== 'admin' && audience !== 'app') || !nativeAccess[audience])
           return error('not_found','API route not found.',404,requestId,head);
       }
+      if ((path === '/api/front' || path.startsWith('/api/front/')) && !nativeAccess.app)
+        return error('not_found','API route not found.',404,requestId,head);
       if (definition.declaredHttp) {
         try {
           const response = await definition.declaredHttp.dispatch(request, resolved, environment, requestId);

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { compileHttpBindings, HttpBindingError } from '../../scripts/operations/http-bindings.mjs';
-import { createOperationHttpTransport } from '../../core/operations/http.ts';
+import { createOperationHttpTransport, createDeclaredHttpDispatcher } from '../../core/operations/http.ts';
 import { dispatchWorkspaceHttp } from '../../core/workspace/http.ts';
 import { issueOpaqueToken } from '../../core/identity/tokens.ts';
 
@@ -18,6 +18,20 @@ const composition = {modules: [{moduleId: 'example.record', enabled: true}], exp
 const catalog = {schemaVersion: 1, modules: [{moduleId: 'example.record', operations: [{operation, active: true, contractDigest: digest}]}]};
 const compile = (modules = [descriptor], disabledContributions = []) => compileHttpBindings({composition, modules,
   operationCatalog: catalog, disabledContributions});
+
+test('front projection belongs to the host and is absent in workspace and headless modes', async () => {
+  for (const path of ['/api/front','/api/front/projection','/api/{scope}/projection']) {
+    const changed=structuredClone(descriptor);changed.contracts.api[0].path=path;
+    assert.throws(()=>compile([changed]),error=>error instanceof HttpBindingError&&error.code==='path');
+  }
+  const make=kind=>createDeclaredHttpDispatcher({registry:{},dataCatalog:{},permissions:[],bindings:[],
+    workspaceCatalog:{compositionDigest:digest,views:[],navigation:[]},
+    frontCatalog:{compositionDigest:digest,front:{kind},views:[],navigation:[],slots:[]}});
+  const request=new Request(`${origin}/api/front/projection`),environment={profile:'sites',bindings:{DB:{}}},raw={CREEZIO_APP_ORIGIN:origin};
+  for(const kind of ['workspace','headless'])assert.equal(await make(kind).dispatch(request,environment,raw,'front-check'),null);
+  const protectedReply=await make('theme').dispatch(request,environment,raw,'front-check');
+  assert.equal(protectedReply.status,401);assert.equal(protectedReply.headers.get('cache-control'),'no-store');
+});
 
 test('canonical HTTP compiler selects only active exposure, resolves primitive codecs and refuses overlaps', () => {
   const [binding] = compile();

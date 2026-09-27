@@ -244,6 +244,37 @@
       "minItems": 0,
       "maxItems": 1000
     },
+    "themes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "component": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/codeRef"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "minItems": 1,
+            "maxItems": 1000,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "id",
+          "component",
+          "slots"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 1000
+    },
     "front": {
       "oneOf": [
         {

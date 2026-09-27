@@ -8,6 +8,8 @@ import type { OperationRegistry } from './registry.ts';
 import { createOperationEngine } from './service.ts';
 import { dispatchWorkspaceHttp } from '../workspace/http.ts';
 import type { WorkspaceAuthorizationCatalog } from '../workspace/authorization.ts';
+import { dispatchFrontHttp } from '../front/http.ts';
+import type { FrontAuthorizationCatalog } from '../front/authorization.ts';
 import { OperationError } from './types.ts';
 import type { OperationHttpBinding, OperationHttpExecution } from './http-types.ts';
 import { oauthResource } from '../oauth/protocol.ts';
@@ -256,12 +258,15 @@ export { LOOKUP_PREFIX as OPERATION_HTTP_LOOKUP_PREFIX };
 export function createDeclaredHttpDispatcher(options: {readonly registry: OperationRegistry;
   readonly dataCatalog: RuntimeDataCatalog; readonly permissions: readonly PermissionDefinition[];
   readonly bindings: readonly OperationHttpBinding[]; readonly workspaceCatalog: WorkspaceAuthorizationCatalog;
+  readonly frontCatalog?: FrontAuthorizationCatalog & {readonly front: {readonly kind: 'workspace' | 'headless' | 'theme'}};
   readonly runtimeInventory?: Parameters<typeof createOperationEngine>[0]['runtimeInventory']}) {
   return Object.freeze({async dispatch(request: Request, environment: RuntimeEnvironment, rawEnvironment: unknown,
     requestId: string): Promise<Response | null> {
     const path = new URL(request.url).pathname;
     if (path.startsWith('/api/workspace/')) return dispatchWorkspaceHttp(request, environment, rawEnvironment, requestId,
       {permissions: options.permissions, catalog: options.workspaceCatalog});
+    if (path.startsWith('/api/front/')) return options.frontCatalog?.front.kind === 'theme'
+      ? dispatchFrontHttp(request, environment, rawEnvironment, requestId, {permissions: options.permissions, catalog: options.frontCatalog}) : null;
     if (!path.startsWith('/api/')) return null;
     if (!path.startsWith(STATUS_PREFIX) && !path.startsWith(LOOKUP_PREFIX)
       && !options.bindings.some(binding => match(path, binding.path))) return null;

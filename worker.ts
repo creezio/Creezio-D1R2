@@ -1,6 +1,6 @@
 import renderer from 'vinext/server/fetch-handler';
 import { createRuntime } from './core/runtime/dispatch';
-import { modules, compositionDigest, nativeAccess, httpBindings, mcpCatalog, permissions, permissionTitles, workspaceCatalog } from './.creezio/generated/server';
+import { modules, compositionDigest, nativeAccess, httpBindings, mcpCatalog, permissions, permissionTitles, workspaceCatalog, frontCatalog } from './.creezio/generated/server';
 import { operationCatalog, operationValidators, operationHandlers } from './.creezio/generated/operations';
 import { dataCatalog } from './.creezio/generated/data-catalog';
 import { runtimeInventory } from './.creezio/generated/module-inventory';
@@ -14,7 +14,7 @@ import { oauthResourceMetadataUrl } from './core/oauth/protocol';
 import { resolveAccessHttpConfiguration } from './core/identity/http-policy';
 
 const registry = createOperationRegistry({catalog: operationCatalog, validators: operationValidators, handlers: operationHandlers});
-const declaredHttp = createDeclaredHttpDispatcher({registry, dataCatalog, permissions, bindings: httpBindings, workspaceCatalog, runtimeInventory});
+const declaredHttp = createDeclaredHttpDispatcher({registry, dataCatalog, permissions, bindings: httpBindings, workspaceCatalog, frontCatalog, runtimeInventory});
 const oauthHttp = {dispatch(request: Request, resolved: Parameters<typeof dispatchOAuthHttp>[1], rawEnvironment: unknown,
   requestId: string, path: string) {
   return dispatchOAuthHttp(request, resolved, rawEnvironment, permissions, requestId, path, nativeAccess, permissionTitles);

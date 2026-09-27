@@ -1,6 +1,6 @@
 # Repères du dépôt
 
-État : PR #1 à #20 intégrées ; main `037c0a0b` qualifié avec 908 tests locaux et CI. Catalogue, dépendances et plans de modules sont raccordés aux opérations communes et au Product Hub original. Chantier actif : T-12, documentation de version installée, sur `core/t12-installed-documentation`. Le [TODO](docs/TODO.md) distingue acquis, travaux et qualifications restantes.
+État : PR #1 à #21 intégrées ; main `20d48fda` qualifié avec 923 tests locaux et CI. Documents installés consultables par UI/API/MCP depuis le Product Hub original. Chantier actif : T-13, fronts, thèmes et headless, sur `core/t13-front-themes`. Le [TODO](docs/TODO.md) distingue acquis, travaux et qualifications restantes.
 
 | Emplacement | Responsabilité |
 |---|---|
@@ -62,7 +62,7 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - [adapters](adapters/) : reconnaissance des bindings D1/R2 et profils d'hébergement ; aucun service tiers installé.
 - [configuration](configuration/) : composition explicite et verrou de l'application ; pas de module témoin inclus par défaut.
 - [scripts/build](scripts/build/) : génération des imports sélectionnés et contrôle de compatibilité Worker, sans installation implicite.
-- [app](app/) : page initiale, entrées natives `/access/admin` et `/access/app`, et montage des seules vues front explicitement anonymes ; aucune administration provisoire ouverte.
+- [app](app/) : entrées natives `/access/admin` et `/access/app`, workspace et front facultatif composé ; sessions et projections autorisées précèdent les vues protégées.
 - [vite.config.ts](vite.config.ts), [tsconfig.json](tsconfig.json), [scripts/run-framework.mjs](scripts/run-framework.mjs) : outillage figé et build commun ; un seul `dist` et un seul état local `.wrangler/state`.
 - [.openai/hosting.json](.openai/hosting.json) : noms logiques DB/BUCKET, sans identité de Site ni ressource distante créée.
 - [tests/runtime](tests/runtime/) : contrôles de composition, environnement, routage et workerd ; module témoin avec ses propres docs et six suites.
@@ -125,3 +125,11 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - `core/operations/host-inventory.ts` : capture immuable liée à la composition et au module natif exact.
 - `scripts/data/prepare-modules-settings.mjs`, `data/schema/modules-settings.sql` : création actuelle centralisée des trois modèles.
 - `tests/modules/`, [IMPLEMENTATION-T11](docs/IMPLEMENTATION-T11.md) : recette du graphe, du service et des interfaces.
+
+## Fronts et thèmes T13
+
+- [sdk/front](sdk/front/) : types de thème/projection et client headless, codecs partagés avec [sdk/operations/protocol.ts](sdk/operations/protocol.ts).
+- [core/front](core/front/) et [app/front](app/front/) : projection ACL app et raccord de rendu.
+- [themes/standard](themes/standard/) et [themes/chatgpt-like](themes/chatgpt-like/) : modules de thème et six suites propres.
+- [application/frontend](application/frontend/) et [application/config](application/config/) : fichiers appartenant à l’application, préservés par les mises à jour.
+- [tests/front](tests/front/) : contrats de transport, données et accès du front ; [réalisation T13](docs/IMPLEMENTATION-T13.md).

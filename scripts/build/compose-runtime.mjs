@@ -13,6 +13,9 @@ import { loadJson } from '../../sdk/contracts/load.mjs';
 import { validateComposition, contractIntegrity } from '../../sdk/contracts/validate.mjs';
 import { safePackagePath } from '../../sdk/contracts/references.mjs';
 import { validateRuntimeDefinition, RuntimeConfigurationError } from '../../core/runtime/dispatch.ts';
+import Ajv2020 from 'ajv/dist/2020.js';
+import addFormats from 'ajv-formats';
+import ts from 'typescript';
 
 export class CompositionBuildError extends Error {
   constructor(code, message, diagnostics = []) { super(message); this.name = 'CompositionBuildError'; this.code = code; this.diagnostics = diagnostics; }
@@ -82,10 +85,37 @@ function codeFile(root, located, reference) {
   return moduleFile(root, located, reference.path, { exported: true });
 }
 
+function themeCodeFile(root, located, reference) {
+  const file = codeFile(root, located, reference);
+  const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true,
+    file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+  const exported = source.statements.some(statement => {
+    if (ts.isExportDeclaration(statement) && !statement.isTypeOnly && statement.exportClause
+      && ts.isNamedExports(statement.exportClause))
+      return statement.exportClause.elements.some(element => !element.isTypeOnly && element.name.text === reference.export);
+    if (!statement.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)) return false;
+    if (ts.isVariableStatement(statement)) return statement.declarationList.declarations.some(declaration =>
+      ts.isIdentifier(declaration.name) && declaration.name.text === reference.export);
+    return (ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement))
+      && statement.name?.text === reference.export;
+  });
+  if (!exported) fail('front.theme-export', 'The selected theme component must have a named runtime export.');
+  return file;
+}
+
 const publicOperation = operation => operation?.kind === 'query' && operation.context === 'application'
   && operation.actors.length === 1 && operation.actors[0] === 'anonymous' && operation.permissions.length === 0;
 const importSpecifier = (output, source) => { const rel = slash(path.relative(output, source)); return rel.startsWith('.') ? rel : `./${rel}`; };
 const stringify = value => JSON.stringify(value, null, 2);
+// Keep generated catalogues within validateSurfaceAuthorizationCatalog's runtime bounds.
+export function checkSurfaceCatalogBounds(surface, catalog) {
+  for (const section of ['views', 'navigation', 'slots']) {
+    const entries = catalog[section] ?? [];
+    if (entries.length > 1000) fail('build.catalog-limit', `${surface} ${section} exceeds the runtime catalog limit of 1000 entries.`);
+    if (entries.some(entry => entry.id.length > 128))
+      fail('build.catalog-id', `${surface} ${section} contains an identifier longer than the runtime limit of 128 characters.`);
+  }
+}
 
 /** Match deployed descriptors by their exact lock identity, not catalog ordering. */
 export function currentModuleCandidateKeys(composition, lock, inventory) {
@@ -137,7 +167,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   const inactive = result.metrics.disabledContributions ?? [];
   const active = (moduleId, pointer) => !inactive.some(item => item.moduleId === moduleId && (item.path === pointer || pointer.startsWith(`${item.path}/`)));
   const resolveOperation = reference => indexes.get(reference.moduleId)?.descriptor.contracts.operations.find(item => item.id === reference.id);
-  const serverImports = [], clientImports = [], operationImports = [], operationHandlers = [], modules = [], views = [], navigation = [], permissions = [];
+  const serverImports = [], clientImports = [], operationImports = [], operationHandlers = [], modules = [], views = [], navigation = [], slots = [], permissions = [];
   const permissionTitles = Object.create(null);
   let importIndex = 0;
   function importCode(destination, owner, reference, imports) {
@@ -152,6 +182,9 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     codeFile(root, item, descriptor.entrypoints.server);
     if (descriptor.entrypoints.ui) codeFile(root, item, descriptor.entrypoints.ui);
     if (!selection.enabled) continue;
+    const moduleIntegrity = lock.modules.find(node => node.moduleId === selection.moduleId)?.runtime.integrity;
+    if (!/^sha256-[a-f0-9]{64}$/.test(moduleIntegrity ?? ''))
+      fail('build.module-integrity', 'Every active module view needs the exact locked runtime integrity.');
     for (const stylesheet of descriptor.contracts.ui.styles) {
       const file = moduleFile(root, item, stylesheet, {exported: true});
       clientImports.push(`import ${JSON.stringify(importSpecifier(output, file))};`);
@@ -182,8 +215,8 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     for (const [index, view] of descriptor.contracts.ui.views.entries()) {
       if (!active(selection.moduleId, `/contracts/ui/views/${index}`)) continue;
       const firstSegment = view.route.split('/')[1];
-      if (['access', 'workspace', 'oauth', 'mcp', '.well-known'].includes(firstSegment) || firstSegment.includes('{')) {
-        fail('view.reserved', 'Native access, OAuth, MCP and workspace entry routes belong to the host.');
+      if (['access', 'workspace', 'oauth', 'mcp', '.well-known', 'api'].includes(firstSegment) || firstSegment.includes('{')) {
+        fail('view.reserved', 'Access, API, OAuth, MCP and workspace entry routes belong to the host.');
       }
       const component = importCode(output, item, view.component, clientImports);
       const validator = operationPlan.catalog.modules.find(module => module.moduleId === selection.moduleId)
@@ -193,9 +226,11 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
         .find(module => module.moduleId === selection.moduleId).schemas
         .find(schema => schema.schemaId === view.panel.stateSchema.schemaId)?.validator : undefined;
       if (view.panel.stateSchema && !stateValidator) fail('view.state-schema', 'A persistent panel state requires its compiled declared schema.');
-      const access = view.surfaces.includes('front') && composition.exposure.app.moduleIds.includes(selection.moduleId)
+      const access = view.surfaces.includes('front') && !view.surfaces.includes('workspace')
+        && composition.exposure.app.moduleIds.includes(selection.moduleId)
         && view.permissions.length === 0 && view.operations.every(reference => publicOperation(resolveOperation(reference))) ? 'public-read' : 'protected';
-      views.push({ id: `${selection.moduleId}:${view.id}`, moduleId: selection.moduleId, moduleVersion: descriptor.identity.version, route: view.route,
+      views.push({ id: `${selection.moduleId}:${view.id}`, moduleId: selection.moduleId,
+        moduleVersion: descriptor.identity.version, moduleIntegrity, route: view.route,
         title: view.title, surfaces: view.surfaces, permissions: view.permissions, operations: view.operations,
         input: view.input, panel: view.panel, validator, stateValidator,
         audiences: ['admin', 'app'].filter(audience => composition.exposure[audience].moduleIds.includes(selection.moduleId)
@@ -208,6 +243,13 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
         surfaces: item.surfaces, permissions: item.permissions,
         audiences: ['admin', 'app'].filter(audience => composition.exposure[audience].moduleIds.includes(selection.moduleId)
           && (audience === 'app' || item.surfaces.includes('workspace'))) });
+    }
+    for (const [index, slot] of descriptor.contracts.ui.slots.entries()) {
+      if (!active(selection.moduleId, `/contracts/ui/slots/${index}`)) continue;
+      slots.push({id:`${selection.moduleId}:${slot.id}`,moduleId:selection.moduleId,slot:slot.slot,
+        viewId:`${slot.view.moduleId}:${slot.view.id}`,surfaces:slot.surfaces,permissions:slot.permissions,
+        audiences:['admin','app'].filter(audience=>composition.exposure[audience].moduleIds.includes(selection.moduleId)
+          && (audience==='app'||slot.surfaces.includes('workspace')))});
     }
   }
   const compositionDigest = contractIntegrity(composition);
@@ -253,6 +295,46 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     views: workspaceViews.map(({id, surfaces, audiences, permissions}) => ({id, surfaces, audiences, permissions})),
     navigation: navigation.filter(item => item.surfaces.includes('workspace') && item.audiences.length > 0 && workspaceIds.has(item.viewId))
       .map(({id, viewId, surfaces, audiences, permissions}) => ({id, viewId, surfaces, audiences, permissions})) };
+  const frontViews=views.filter(view=>view.surfaces.includes('front')&&view.audiences.includes('app'));
+  const frontViewIds=new Set(frontViews.map(view=>view.id));
+  const frontNavigation=navigation.filter(item=>item.surfaces.includes('front')&&item.audiences.includes('app')
+    && frontViewIds.has(item.viewId));
+  const frontSlots=slots.filter(item=>item.surfaces.includes('front')&&item.audiences.includes('app')
+    && frontViewIds.has(item.viewId));
+  // Slots have no input mapping. Refuse a view that cannot render with the empty input.
+  const checkedSlotInputs=new Set();
+  for(const slot of frontSlots) {
+    if(checkedSlotInputs.has(slot.viewId))continue;
+    checkedSlotInputs.add(slot.viewId);
+    const view=frontViews.find(item=>item.id===slot.viewId);
+    if(view.panel.identityFields.length>0 || view.route.split('/').some(part=>/^\{[A-Za-z][A-Za-z0-9_-]*\}$/.test(part)))
+      fail('front.slot-input','A front slot view must have no route or panel identity inputs.');
+    const owner=indexes.get(view.moduleId)?.descriptor;
+    const schema=owner?.contracts.schemas.find(item=>item.id===view.input.schemaId)?.schema;
+    try {
+      if(!schema||addFormats(new Ajv2020({strict:true,allErrors:false})).compile(schema)({})!==true)
+        fail('front.slot-input','A front slot view must accept an empty declared input.');
+    }catch(error){
+      if(error instanceof CompositionBuildError)throw error;
+      fail('front.slot-input','A front slot view must accept an empty declared input.');
+    }
+  }
+  let frontTheme=null;
+  if(composition.front.kind==='theme') {
+    const owner=indexes.get(composition.front.moduleId);
+    const themes=owner?.descriptor.contracts.ui.themes??[];
+    const matches=themes.filter(item=>item.id===composition.front.theme);
+    if(!owner||matches.length!==1)fail('front.theme','The selected theme export is unavailable.');
+    themeCodeFile(root,owner,matches[0].component);
+    frontTheme={id:matches[0].id,moduleId:composition.front.moduleId,slots:matches[0].slots,
+      component:importCode(output,owner,matches[0].component,clientImports)};
+  }
+  const frontCatalog={compositionDigest,front:composition.front,
+    views:frontViews.map(({component,validator,stateValidator,...metadata})=>metadata),
+    navigation:frontNavigation,slots:frontSlots,
+    theme:frontTheme?{id:frontTheme.id,moduleId:frontTheme.moduleId,slots:frontTheme.slots}:null};
+  checkSurfaceCatalogBounds('workspace',workspaceCatalog);
+  checkSurfaceCatalogBounds('front',frontCatalog);
   // Validate the complete operation registry, including operations with no HTTP exposure.
   // Only inert sentinels are supplied here; package handlers never execute during composition.
   try {
@@ -267,6 +349,11 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   }).join(',\n')}] }`);
   const clientViews = views.map(view => { const { component, validator, stateValidator, ...metadata } = view;
     return `{ ...${JSON.stringify(metadata)}, component: ${component}, validateInput: compiledValidators.${validator}${stateValidator ? `, validateState: compiledValidators.${stateValidator}` : ''} }`; });
+  const clientWorkspaceViews=workspaceViews.map(view=>clientViews[views.indexOf(view)]);
+  const clientFrontViews=frontViews.map(view=>clientViews[views.indexOf(view)]);
+  const clientFrontTheme=frontTheme
+    ? `{ ...${JSON.stringify({id:frontTheme.id,moduleId:frontTheme.moduleId,slots:frontTheme.slots})}, component: ${frontTheme.component} }`
+    : 'null';
   if (clientViews.length) clientImports.unshift(`import * as compiledValidators from './operation-validators.mjs';`);
   const freezeSource = `const freeze = <T,>(value: T): T => { if (value && typeof value === 'object') { for (const child of Object.values(value)) freeze(child); Object.freeze(value); } return value; };\n`;
   // Select declared exports explicitly. Bundlers may decorate a namespace with
@@ -280,12 +367,13 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     'operation-validators.mjs': `${banner}${operationPlan.validatorsCode}`,
     'operations.ts': `${banner}import type { RuntimeOperationCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/operations/types.ts')))};\nimport * as compiledValidators from './operation-validators.mjs';\n${operationImports.join('\n')}\nconst freeze = <T>(value: T): T => { if (value && typeof value === 'object') { for (const child of Object.values(value)) freeze(child); Object.freeze(value); } return value; };\nexport const operationCatalog: RuntimeOperationCatalog = freeze(${JSON.stringify(operationPlan.catalog)});\nexport const operationValidators = Object.freeze({${validatorEntries}});\nexport const operationHandlers = Object.freeze({${operationHandlers.map(item => `${JSON.stringify(item.name)}: ${item.handler}`).join(',\n')}});\n`,
     'data-catalog.ts': `${banner}import type { RuntimeDataCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/data/types.ts')))};\nconst freeze = <T>(value: T): T => { if (value && typeof value === 'object') { for (const child of Object.values(value)) freeze(child); Object.freeze(value); } return value; };\nexport const dataCatalog: RuntimeDataCatalog = freeze(${JSON.stringify(dataPlan.runtimeCatalog)});\n`,
-    'server.ts': `${banner}import type { RuntimeModule, RuntimeNativeAccess } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/runtime/types.ts')))};\nimport type { OperationHttpBinding } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/operations/http-types.ts')))};\nimport type { PermissionDefinition } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/authorization/types.ts')))};\nimport type { WorkspaceAuthorizationCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/workspace/authorization.ts')))};\nimport type { McpCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/mcp/types.ts')))};\n${serverImports.join('\n')}\n${freezeSource}export const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess: RuntimeNativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const modules: readonly RuntimeModule[] = [${serverModules.join(',\n')}];\nexport const httpBindings: readonly OperationHttpBinding[] = freeze(${JSON.stringify(httpBindings)});\nexport const mcpCatalog: McpCatalog = freeze(${JSON.stringify(mcpCatalog)});\nexport const permissions: readonly PermissionDefinition[] = freeze(${JSON.stringify(permissions)});\nexport const permissionTitles: Readonly<Record<string, string>> = freeze(${JSON.stringify(permissionTitles)});\nexport const workspaceCatalog: WorkspaceAuthorizationCatalog = freeze(${JSON.stringify(workspaceCatalog)});\n`,
-    'client.tsx': `${banner}import type { RuntimeView, RuntimeNavigation } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/runtime/ui.ts')))};\nimport type { OperationHttpBinding } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/operations/http-types.ts')))};\n${clientImports.join('\n')}\n${freezeSource}export const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const views: readonly RuntimeView[] = freeze([${clientViews.join(',\n')}]);\nexport const navigation: readonly RuntimeNavigation[] = freeze(${JSON.stringify(navigation)});\nexport const httpBindings: readonly OperationHttpBinding[] = freeze(${JSON.stringify(httpBindings)});\n`,
+    'server.ts': `${banner}import type { RuntimeModule, RuntimeNativeAccess } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/runtime/types.ts')))};\nimport type { OperationHttpBinding } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/operations/http-types.ts')))};\nimport type { PermissionDefinition } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/authorization/types.ts')))};\nimport type { WorkspaceAuthorizationCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/workspace/authorization.ts')))};\nimport type { McpCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/mcp/types.ts')))};\nimport type { RuntimeFrontCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/runtime/ui.ts')))};\n${serverImports.join('\n')}\n${freezeSource}export const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess: RuntimeNativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const modules: readonly RuntimeModule[] = [${serverModules.join(',\n')}];\nexport const httpBindings: readonly OperationHttpBinding[] = freeze(${JSON.stringify(httpBindings)});\nexport const mcpCatalog: McpCatalog = freeze(${JSON.stringify(mcpCatalog)});\nexport const permissions: readonly PermissionDefinition[] = freeze(${JSON.stringify(permissions)});\nexport const permissionTitles: Readonly<Record<string, string>> = freeze(${JSON.stringify(permissionTitles)});\nexport const workspaceCatalog: WorkspaceAuthorizationCatalog = freeze(${JSON.stringify(workspaceCatalog)});\nexport const frontCatalog: RuntimeFrontCatalog = freeze(${JSON.stringify(frontCatalog)});\n`,
+    'client.tsx': `${banner}import type { RuntimeView, RuntimeNavigation, RuntimeFrontSelection, RuntimeFrontView, RuntimeFrontNavigation, RuntimeFrontSlot, RuntimeFrontTheme } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/runtime/ui.ts')))};\nimport type { OperationHttpBinding } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/operations/http-types.ts')))};\n${clientImports.join('\n')}\n${freezeSource}export const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const views: readonly RuntimeView[] = freeze([${clientWorkspaceViews.join(',\n')}]);\nexport const navigation: readonly RuntimeNavigation[] = freeze(${JSON.stringify(navigation)});\nexport const front: RuntimeFrontSelection = freeze(${JSON.stringify(composition.front)});\nexport const frontViews: readonly RuntimeFrontView[] = freeze([${clientFrontViews.join(',\n')}]);\nexport const frontNavigation: readonly RuntimeFrontNavigation[] = freeze(${JSON.stringify(frontNavigation)});\nexport const frontSlots: readonly RuntimeFrontSlot[] = freeze(${JSON.stringify(frontSlots)});\nexport const frontTheme: RuntimeFrontTheme | null = ${frontTheme ? `freeze(${clientFrontTheme})` : 'null'};\nexport const httpBindings: readonly OperationHttpBinding[] = freeze(${JSON.stringify(httpBindings)});\n`,
     'composition.json': `${stringify({ schemaVersion: 1, compositionDigest, nativeAccess, applicationId: composition.application.id, hostProfile: composition.host.profile,
       operations: { schemasDigest: operationPlan.schemasDigest, validatorsDigest: operationPlan.validatorsDigest, ...operationPlan.metrics },
       modules: modules.map(({ id, version, operations }) => ({ id, version, routes: operations.map(({ handler, ...metadata }) => metadata) })),
-      views: views.map(({ component, ...metadata }) => metadata), navigation, httpBindings, packageArchivesVerified: false })}\n`,
+      views: views.map(({ component, ...metadata }) => metadata), navigation, frontCatalog,
+      httpBindings, packageArchivesVerified: false })}\n`,
   };
   mkdirSync(output, { recursive: true });
   for (const [name, content] of Object.entries(rendered)) {
