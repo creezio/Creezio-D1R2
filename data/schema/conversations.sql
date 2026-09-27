@@ -3,6 +3,7 @@
 -- Inspect before applying to a new database. No automatic repair.
 
 CREATE TABLE "cz_637265657a696f2e636f6e766572736174696f6e73_636f6e766572736174696f6e" (
+  "active_turn_id" TEXT CHECK ("active_turn_id" IS NULL OR (typeof("active_turn_id") = 'text' AND instr("active_turn_id", char(0)) = 0 AND length("active_turn_id") >= 1 AND length("active_turn_id") <= 128)),
   "archived_at" TEXT CHECK ("archived_at" IS NULL OR (typeof("archived_at") = 'text' AND length("archived_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "archived_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "archived_at") = "archived_at")),
   "audience" TEXT NOT NULL CHECK ("audience" IS NOT NULL AND (typeof("audience") = 'text' AND instr("audience", char(0)) = 0 AND "audience" IN ('admin', 'app'))),
   "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),

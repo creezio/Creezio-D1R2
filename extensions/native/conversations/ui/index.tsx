@@ -9,6 +9,8 @@ import {createFileClient} from '../../../../sdk/files/client.ts';
 import type {StagedFileReference} from '../../../../sdk/files/types.ts';
 import {useAssistantUiOptional} from '../../../../sdk/ui/assistant-provider.tsx';
 import {ConversationPanel, type ConversationMode, type ConversationPanelProps} from './panel.tsx';
+import {projectTurnEvents} from './turn-projection.ts';
+import {startTurnDriveLoop} from './drive-loop.ts';
 
 type AttachmentState = NonNullable<ConversationPanelProps['attachmentState']>;
 type Binding = {controller: ConversationsController; snapshot: ConversationsSnapshot;
@@ -87,6 +89,13 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
   const [attachments, setAttachments] = useState<readonly ConversationAttachment[]>([]);
   const [attachmentsNextCursor, setAttachmentsNextCursor] = useState<string | null>(null);
   const [loadingAttachments, setLoadingAttachments] = useState(false);
+  const [modelIds,setModelIds] = useState<readonly string[]>([]);
+  const [selectedModelId,setSelectedModelId] = useState<string|null>(null);
+  const [providerReady,setProviderReady] = useState(false);
+  const [providerChecked,setProviderChecked] = useState(false);
+  const driveLoop=useRef<{key:string;controller:ConversationsController;loop:ReturnType<typeof startTurnDriveLoop>}|null>(null);
+  const driveInFlight=useRef(new Map<string,{controller:ConversationsController;
+    promise:ReturnType<ConversationsController['driveTurn']>}>());
   const pendingUpload = useRef<{file: File; intentId: string; conversationId: string; sessionId: string} | null>(null);
   const pendingLink = useRef<{reference: StagedFileReference; conversationId: string; sessionId: string} | null>(null);
   const objectUrls = useRef(new Set<string>());
@@ -136,6 +145,67 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
     draftTimer.current = setTimeout(() => resumeDraft.current?.(wanted.id), 200);
   }, [controller, selectedIdForEffect]);
   useEffect(() => {
+    setModelIds([]);setSelectedModelId(null);setProviderReady(false);setProviderChecked(false);
+    if(!controller||!activeNow)return;
+    let current=true;
+    const valid=()=>current&&live.current===controller&&activity.current&&
+      props.access.getSnapshot().session?.id===sessionId;
+    void (async()=>{try{
+      const read=await props.client.invoke({bindingId:`creezio.openai:${props.audience}.config.read`,
+        contextId:props.contextId,input:{},isCurrent:valid});
+      if(!valid()||read.kind!=='execution'||read.execution.state!=='succeeded')return;
+      const config=read.execution.output&&typeof read.execution.output==='object'&&!Array.isArray(read.execution.output)
+        ?(read.execution.output as Record<string,unknown>).config:null;
+      if(!config||typeof config!=='object'||Array.isArray(config)||
+        (config as Record<string,unknown>).state!=='ready')return;
+      const configured=(config as Record<string,unknown>).modelId;
+      if(typeof configured!=='string'||!configured.length)return;
+      let cursor:string|null=null;const ids:string[]=[];
+      for(let page=0;page<4;page++){
+        const result=await props.client.invoke({bindingId:`creezio.openai:${props.audience}.models.list`,
+          contextId:props.contextId,input:{limit:50,...(cursor?{cursor}:{})},isCurrent:valid});
+        if(!valid()||result.kind!=='execution'||result.execution.state!=='succeeded')return;
+        const output=result.execution.output as Record<string,unknown>;
+        if(!Array.isArray(output?.items))return;
+        for(const item of output.items){const id=item&&typeof item==='object'&&!Array.isArray(item)
+          ?(item as Record<string,unknown>).id:null;
+          if(typeof id==='string'&&/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(id)&&!ids.includes(id))ids.push(id);}
+        cursor=typeof output.nextCursor==='string'?output.nextCursor:null;
+        if(!cursor)break;
+      }
+      if(valid()&&ids.includes(configured)){
+        setModelIds(ids);setSelectedModelId(configured);setProviderReady(true);
+      }
+    }catch{/* The UI keeps sending disabled if availability cannot be read. */}
+    finally{if(valid())setProviderChecked(true);}})();
+    return ()=>{current=false;};
+  },[controller,activeNow,props.access,props.client,props.audience,props.contextId,sessionId,selectedIdForEffect,live]);
+  const selectedTurn=snapshot?.activeTurn&&snapshot.activeTurn.conversationId===snapshot.selected?.id
+    ?snapshot.activeTurn:null;
+  const runningTurn=selectedTurn&&['queued','running','cancel_requested','unknown'].includes(selectedTurn.state)
+    ?selectedTurn:null;
+  const driveOnce=(selected:ConversationsController,conversationId:string,turnId:string)=>{
+    const key=`${sessionId}:${conversationId}:${turnId}`,existing=driveInFlight.current.get(key);
+    if(existing?.controller===selected)return existing.promise;
+    const promise=selected.driveTurn(conversationId,turnId);
+    driveInFlight.current.set(key,{controller:selected,promise});
+    void promise.finally(()=>{if(driveInFlight.current.get(key)?.promise===promise)driveInFlight.current.delete(key);}).catch(()=>{});
+    return promise;
+  };
+  useEffect(()=>{
+    if(!controller||!activeNow||!runningTurn)return;
+    const turnId=runningTurn.id,conversationId=runningTurn.conversationId;
+    const key=`${sessionId}:${conversationId}:${turnId}`;
+    const loop=startTurnDriveLoop({turnId,
+      getTurn:()=>{const turn=controller.getSnapshot().activeTurn;
+        return turn?.conversationId===conversationId?turn:null;},
+      drive:()=>driveOnce(controller,conversationId,turnId),
+      refresh:()=>controller.refreshTurn(conversationId,turnId),
+      onIssue:result=>setNotice(feedback(result))});
+    driveLoop.current={key,controller,loop};
+    return ()=>{loop.stop();if(driveLoop.current?.loop===loop)driveLoop.current=null;};
+  },[controller,activeNow,runningTurn?.id,sessionId]);
+  useEffect(() => {
     setAttachments([]); setAttachmentsNextCursor(null);
     if (!controller || !selectedIdForEffect) return;
     let current = true;
@@ -150,6 +220,7 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
     <p role="status" className="p-4 text-sm text-slate-600">Chargement des conversations…</p>;
 
   const selectedId = snapshot.selected?.id ?? null;
+  const progress=projectTurnEvents(snapshot.turnEvents);
   const ready = (result: ConversationActionResult<unknown>, refresh = true) => {
     if (live.current !== controller) return;
     setNotice(feedback(result));
@@ -265,9 +336,36 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
     });}}
     selectedId={selectedId} selectedTitle={snapshot.selected?.title}
     selectedArchived={!!snapshot.selected?.archivedAt} conversations={snapshot.conversations}
-    messages={snapshot.messages.map(message => ({id:message.id, role:message.role === 'tool' ? 'system' : message.role,
+    messages={snapshot.messages.filter(message=>!runningTurn||message.id!==runningTurn.id).map(message => ({id:message.id, role:message.role === 'tool' ? 'system' : message.role,
       content:message.body, createdAt:message.createdAt}))}
     draft={snapshot.draft?.conversationId === selectedId ? snapshot.draft.text : ''}
+    modelOptions={modelIds.map(id=>({id,label:id}))} selectedModelId={selectedModelId}
+    onModelChange={id=>setSelectedModelId(modelIds.includes(id)?id:null)}
+    onSend={providerReady&&selectedModelId&&selectedId&&!runningTurn?()=>{void beforeTransition(async()=>{
+      const current=controller.getSnapshot(),body=current.draft?.conversationId===selectedId?current.draft.text:'';
+      if(!body.trim()||!modelIds.includes(selectedModelId))return;
+      const result=await controller.startTurn(selectedId,body,selectedModelId);
+      ready(result,false);
+    });}:undefined}
+    onStop={runningTurn&&selectedId?()=>{void controller.cancelTurn(selectedId,runningTurn.id,runningTurn.revision)
+      .then(async result=>{ready(result,false);
+        if(result.kind==='ok'){
+          const key=`${sessionId}:${selectedId}:${runningTurn.id}`;
+          const resumed=driveLoop.current?.key===key&&driveLoop.current.controller===controller
+            ?await driveLoop.current.loop.resume():await driveOnce(controller,selectedId,runningTurn.id);
+          if(resumed&&resumed.kind!=='ok')ready(resumed,false);
+        }
+      });}:undefined}
+    onResume={runningTurn&&selectedId&&['queued','running','unknown'].includes(runningTurn.state)
+      ?()=>{const key=`${sessionId}:${selectedId}:${runningTurn.id}`;
+        const resumed=driveLoop.current?.key===key&&driveLoop.current.controller===controller
+          ?driveLoop.current.loop.resume():driveOnce(controller,selectedId,runningTurn.id);
+        void resumed.then(result=>{
+        if(result&&result.kind!=='ok')ready(result,false);
+      });}:undefined}
+    turnState={runningTurn&&['queued','running','cancel_requested','unknown'].includes(runningTurn.state)
+      ?runningTurn.state as 'queued'|'running'|'cancel_requested'|'unknown':null}
+    assistantPreview={runningTurn?progress.preview:''} progressSteps={runningTurn?progress.steps:[]}
     onDraftChange={text => {
       if (!selectedId) return;
       controller.setDraft(selectedId,text);
@@ -299,7 +397,8 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
       setLoadingMessages(true);void controller.loadMoreMessages().finally(() => setLoadingMessages(false));
     }}
     loadingList={busyList} busy={snapshot.pending || !!snapshot.unknown}
-    error={notice ?? snapshot.error} providerStatus={snapshot.provider === 'configured' ? 'ready' : 'no_provider'}
+    error={notice ?? snapshot.error} providerStatus={snapshot.provider==='no_provider'?'no_provider'
+      :providerReady?'ready':providerChecked?'unavailable':'checking'}
     onAttach={onAttach} attachmentState={attachmentState}
     attachments={attachments} attachmentsNextCursor={attachmentsNextCursor} loadingAttachments={loadingAttachments}
     onLoadMoreAttachments={() => {if (!selectedId || !attachmentsNextCursor || loadingAttachments) return;

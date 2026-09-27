@@ -13,6 +13,7 @@ import {ACCESS_TABLES} from '../../core/identity/d1-store.ts';
 import {hostOnly} from '../../extensions/native/access/module/operations.ts';
 import * as moduleHandlers from '../../extensions/native/modules-settings/module/operations.ts';
 import * as conversationHandlers from '../../extensions/native/conversations/module/operations.ts';
+import * as openaiHandlers from '../../extensions/native/openai/module/operations.ts';
 import {solveModulePlan} from '../../sdk/modules/solver.mjs';
 import {installedDocumentDigest,splitInstalledDocumentContent} from '../../sdk/modules/documents.ts';
 import {namedModule} from '../contracts/helpers.mjs';
@@ -22,6 +23,7 @@ const quote=value=>`"${value.replaceAll('"','""')}"`;
 const access=json('../../extensions/native/access/module/manifest.json');
 const settings=json('../../extensions/native/modules-settings/module/manifest.json');
 const conversations=json('../../extensions/native/conversations/module/manifest.json');
+const openai=json('../../extensions/native/openai/module/manifest.json');
 const moduleId='creezio.modules-settings';
 function compiledFixture() {
   const composition=json('../../configuration/composition.json');
@@ -29,7 +31,7 @@ function compiledFixture() {
   const witness=namedModule('merchant.example','merchant');
   witness.compatibility.core='^0.0.0';
   witness.validation.policy=structuredClone(composition.sdk.policy);
-  const modules=[access,settings,conversations,witness];
+  const modules=[access,settings,conversations,openai,witness];
   if (!composition.modules.some(item=>item.moduleId===moduleId)) {
     composition.modules.push({moduleId,origin:settings.identity.origin,versionRange:'^0.0.0',
       source:{kind:'workspace',path:'extensions/native/modules-settings'},enabled:true,
@@ -95,6 +97,8 @@ test('modules settings operation commits head, plan, journal and execution in re
         moduleHandlers[item.handler.export]])),
       ...Object.fromEntries(conversations.contracts.operations.map(item=>[`${conversations.identity.id}:${item.id}`,
         conversationHandlers[item.handler.export]])),
+      ...Object.fromEntries(openai.contracts.operations.map(item=>[`${openai.identity.id}:${item.id}`,
+        openaiHandlers[item.handler.export]])),
       ...Object.fromEntries(fixture.witness.contracts.operations.map(item=>
         [`${fixture.witness.identity.id}:${item.id}`,hostOnly]))};
     const registry=createOperationRegistry({catalog:compiled.catalog,validators,handlers});

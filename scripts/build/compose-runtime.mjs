@@ -159,7 +159,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   const dataPlan = compileCompositionSchema({ composition, lock, modules: located.map(item => item.descriptor) });
   const operationPlan = compileOperationSchemas({ composition, lock, modules: located.map(item => item.descriptor) });
   const output = confined(root, outputDir, { directory: true, missing: true });
-  const destinations = Object.fromEntries(['server.ts', 'client.tsx', 'data-catalog.ts', 'file-catalog.ts', 'module-inventory.ts', 'operations.ts', 'operation-validators.mjs', 'composition.json'].map(name => [name, confined(root, path.join(output, name), { missing: true })]));
+  const destinations = Object.fromEntries(['server.ts', 'client.tsx', 'data-catalog.ts', 'file-catalog.ts', 'provider-catalog.ts', 'module-inventory.ts', 'operations.ts', 'operation-validators.mjs', 'composition.json'].map(name => [name, confined(root, path.join(output, name), { missing: true })]));
   if (located.some(item => contained(item.directory, output))
     || Object.values(destinations).some(destination => destination === compositionFile || destination === lockFile)) {
     fail('output.source-collision', 'Generated output must not overwrite selected module sources or composition inputs.');
@@ -254,6 +254,24 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     }
   }
   const compositionDigest = contractIntegrity(composition);
+  // A provider receives the exact input contracts, never schemas reconstructed from UI labels.
+  // Runtime discovery still checks operation exposure, effects and the caller's current rights.
+  const toolCatalog = operationPlan.catalog.modules.flatMap(module => module.operations.filter(entry => entry.active).map(entry => {
+    const reference = entry.operation.input;
+    const inputSchema = indexes.get(module.moduleId)?.descriptor.contracts.schemas.find(schema => schema.id === reference.schemaId)?.schema;
+    if (!inputSchema) fail('provider.input-schema', 'An active operation has no canonical input schema.');
+    return {moduleId: module.moduleId, operationId: entry.operation.id, inputSchema, schemaDigest: contractIntegrity(inputSchema),
+      audiences: ['admin','app'].filter(audience => composition.exposure[audience].moduleIds.includes(module.moduleId))};
+  }));
+  const providerImports = [];
+  let providerDefinition = 'null';
+  const openAi = indexes.get('creezio.openai');
+  if (openAi && composition.modules.some(selection => selection.moduleId === 'creezio.openai' && selection.enabled)) {
+    const config = importCode(output, openAi, {path:'module/storage.ts',export:'openAiConfigStorage'}, providerImports);
+    const vault = importCode(output, openAi, {path:'module/storage.ts',export:'openAiVaultStorage'}, providerImports);
+    const transport = importCode(output, openAi, {path:'module/transport.ts',export:'createOpenAITransport'}, providerImports);
+    providerDefinition = `Object.freeze({config:${config},vault:${vault},transport:${transport}})`;
+  }
   const fileCatalog = {compositionDigest, categories: located.flatMap(item => {
     const moduleId = item.descriptor.identity.id;
     if (!composition.modules.some(selection => selection.moduleId === moduleId && selection.enabled)) return [];
@@ -369,6 +387,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   const validatorEntries = operationPlan.catalog.modules.flatMap(module => module.schemas)
     .map(schema => `${JSON.stringify(schema.validator)}: compiledValidators.${schema.validator}`).join(',\n');
   const rendered = {
+    'provider-catalog.ts': `${banner}import type {ProviderOperationSchema} from ${JSON.stringify(importSpecifier(output, path.join(root,'core/providers/tools.ts')))};\n${providerImports.join('\n')}\n${freezeSource}export const toolCatalog: readonly ProviderOperationSchema[] = freeze(${JSON.stringify(toolCatalog)});\nexport const openAiProvider = ${providerDefinition};\n`,
     'file-catalog.ts': `${banner}import type {RuntimeFileCatalog} from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/files/catalog.ts')))};\n${freezeSource}export const fileCatalog: RuntimeFileCatalog = freeze(${JSON.stringify(fileCatalog)});\n`,
     'module-inventory.ts': `${banner}import type { ModuleSettingsHostInventory } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/module-settings/types.ts')))};\n${freezeSource}${runtimeInventory
       ? `const inventory: ModuleSettingsHostInventory['inventory'] = freeze(${JSON.stringify(runtimeInventory.inventory)});\nexport const runtimeInventory: ModuleSettingsHostInventory = freeze({current: {composition: ${JSON.stringify(composition)}, lock: ${JSON.stringify(lock)}, descriptors: ${JSON.stringify(currentModuleCandidateKeys(composition,lock,runtimeInventory.inventory))}.map(key => inventory.candidates.find(candidate => candidate.candidateKey === key)!.descriptor)}, inventory, currentInstalledDocuments: ${JSON.stringify(runtimeInventory.currentInstalledDocuments)}});\n`

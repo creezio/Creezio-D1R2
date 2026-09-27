@@ -15,9 +15,10 @@
     "compose": "node scripts/build/compose-runtime.mjs",
     "data:access": "node scripts/data/prepare-access.mjs --write",
     "data:runtime": "node scripts/data/prepare-runtime.mjs --write",
-    "check:data": "node scripts/data/prepare-access.mjs && node scripts/data/prepare-runtime.mjs && node scripts/data/prepare-modules-settings.mjs && node scripts/data/prepare-native-module.mjs conversations",
+    "check:data": "node scripts/data/prepare-access.mjs && node scripts/data/prepare-runtime.mjs && node scripts/data/prepare-modules-settings.mjs && node scripts/data/prepare-native-module.mjs conversations && node scripts/data/prepare-native-module.mjs openai",
     "dev": "node scripts/run-framework.mjs dev",
     "build": "node scripts/run-framework.mjs build",
+    "build:sites": "node scripts/sites/build.mjs",
     "start": "node scripts/run-framework.mjs start",
     "access:inspect": "node scripts/local/install.mjs inspect",
     "access:install": "node scripts/local/install.mjs install",
@@ -39,7 +40,8 @@
     "modules:lock": "node scripts/modules/lock.mjs",
     "test:modules": "node --test --test-concurrency=1 tests/modules/*.test.mjs",
     "data:conversations": "node scripts/data/prepare-native-module.mjs conversations --write",
-    "test:conversations": "node --test --test-concurrency=1 tests/conversations/*.test.mjs"
+    "test:conversations": "node --test --test-concurrency=1 tests/conversations/*.test.mjs",
+    "data:openai": "node scripts/data/prepare-native-module.mjs openai --write"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
@@ -53,10 +55,12 @@
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
     "autoprefixer": "10.4.21",
+    "drizzle-kit": "0.31.11",
+    "drizzle-orm": "0.45.3",
     "esbuild": "0.27.3",
     "miniflare": "4.20260515.0",
     "postcss": "8.5.6",
-    "react-server-dom-webpack": "19.2.6",
+    "react-server-dom-webpack": "19.2.8",
     "semver": "7.8.5",
     "tailwindcss": "3.4.17",
     "typescript": "5.9.3",
@@ -77,8 +81,8 @@
     "clsx": "2.1.1",
     "date-fns": "4.4.0",
     "lucide-react": "0.468.0",
-    "react": "19.2.6",
-    "react-dom": "19.2.6",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "sonner": "2.0.8",
     "tailwind-merge": "2.6.0"
   }

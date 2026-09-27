@@ -75,6 +75,18 @@
       "enabled": true,
       "configuration": [],
       "integrations": []
+    },
+    {
+      "moduleId": "creezio.openai",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/native/openai"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
     }
   ],
   "front": {
@@ -87,7 +99,8 @@
       "moduleIds": [
         "creezio.access",
         "example.workspace-witness",
-        "creezio.conversations"
+        "creezio.conversations",
+        "creezio.openai"
       ]
     },
     "app": {
@@ -95,7 +108,8 @@
         "creezio.access",
         "example.workspace-witness",
         "creezio.theme-chatgpt",
-        "creezio.conversations"
+        "creezio.conversations",
+        "creezio.openai"
       ]
     }
   }

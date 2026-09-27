@@ -76,7 +76,45 @@ test('durable host store shares the real credential guard and business transacti
       const unknown = await store.settleDelivery(lease, winner.claim, { state: 'unknown', receipt: { code: 'response-lost' } });
       assert.equal(unknown.state, 'unknown'); assert.equal((await store.read(lease, started.execution.id)).state, 'unknown');
       assert.equal(await store.claimDelivery(lease, attempt), null); assert.equal(sent, 1);
+      assert.equal(await store.resumeKnownDelivery(lease, attempt), null);
       assert.equal((await store.readDelivery(lease, { executionId: attempt.executionId, outboxId: attempt.outboxId })).payload.recordId, 'first');
+    });
+    await t.test('known provider response can be resumed for observation without a second emission', async () => {
+      const lease = await authorize(), started = await store.start(lease, input('b'));
+      await store.commit(lease, started.claim, { plans: [], output: validOutput,
+        outbox: [{ id: 'response', provider: 'synthetic-provider', payload: { recordId: 'known' }, providerIdempotencyKey: 'provider-known-key' }] });
+      const attempt = { executionId: started.execution.id, outboxId: 'response', claimTtlMs: 1000 };
+      const first = await store.claimDelivery(lease, attempt);
+      assert.ok(first);
+      const checkpoint = (await store.checkpointDelivery(lease, first.claim,
+        { providerReference: 'resp_known', cursor: 2 })).receipt;
+      assert.equal(checkpoint.providerReference, 'resp_known'); assert.equal(checkpoint.cursor, 2);
+      await assert.rejects(store.checkpointDelivery(lease, first.claim,
+        { providerReference: 'resp_known', cursor: 1 }), { code: 'unavailable' });
+      await db.prepare(`UPDATE ${quote(OPERATION_TABLES.outbox)} SET claim_expires_at_ms=0 WHERE execution_id=? AND intent_id=?`)
+        .bind(started.execution.id, 'response').run();
+      assert.equal(await store.claimDelivery(lease, attempt), null);
+      const candidates = await Promise.all([store.resumeKnownDelivery(lease, attempt), store.resumeKnownDelivery(lease, attempt)]);
+      assert.equal(candidates.filter(Boolean).length, 1);
+      const resumed = candidates.find(Boolean);
+      assert.equal(resumed.delivery.receipt.providerReference, 'resp_known'); assert.equal(resumed.delivery.receipt.cursor, 2);
+      await assert.rejects(store.checkpointDelivery(lease, first.claim,
+        { providerReference: 'resp_known', cursor: 3 }), { code: 'unavailable' });
+      await store.checkpointDelivery(lease, resumed.claim, { providerReference: 'resp_known', cursor: 3 });
+      const plan = data.forModule(lease, moduleId).planCreate('record',
+        { values: { id: 'tool-known', title: 'Tool result committed once', revision: 0 } });
+      const continuation = await store.appendDelivery(lease, resumed.claim, { plans: [plan],
+        intent: { id: 'continuation', provider: 'synthetic-provider', payload: { callId: 'call-one' },
+          providerIdempotencyKey: 'provider-continuation-key' } });
+      assert.equal(continuation.state, 'queued');
+      assert.equal((await fixture.record('tool-known')).title, 'Tool result committed once');
+      const source = await store.readDelivery(lease, {executionId:attempt.executionId,outboxId:attempt.outboxId});
+      assert.equal(source.receipt.providerReference, 'resp_known'); assert.equal(source.receipt.cursor, 3);
+      const final = await store.claimDelivery(lease, {...attempt,outboxId:'continuation'});
+      await store.checkpointDelivery(lease, final.claim, {providerReference:'resp_next',cursor:4});
+      const done = await store.settleDelivery(lease, final.claim, { state: 'succeeded' });
+      assert.equal(done.receipt.providerReference, 'resp_next'); assert.equal(done.receipt.cursor, 4);
+      assert.equal(await store.resumeKnownDelivery(lease, attempt), null);
     });
     await t.test('expired pure preparation can be resumed explicitly, invalidating the original claim', async () => {
       const lease = await authorize(), started = await store.start(lease, input('5'));

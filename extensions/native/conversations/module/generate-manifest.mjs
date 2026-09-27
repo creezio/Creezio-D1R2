@@ -23,7 +23,8 @@ const models = [
   model('conversation','Conversations',[
     field('id','string',{constraints:S(128)}),field('title','string',{constraints:S(240)}),
     field('mode','string',{constraints:{enum:['chat','work']}}),field('createdAt','date-time'),
-    field('updatedAt','date-time'),field('archivedAt','date-time',{nullable:true}),field('revision','integer',{constraints:I(1)})],
+    field('updatedAt','date-time'),field('archivedAt','date-time',{nullable:true}),
+    field('activeTurnId','string',{nullable:true,constraints:S(128)}),field('revision','integer',{constraints:I(1)})],
     [...common,'id'],[{id:'recent',fields:[...common,'updatedAt','id'],unique:false}]),
   model('message','Messages',[
     field('conversationId','string',{constraints:S(128)}),field('id','string',{constraints:S(128)}),
@@ -98,7 +99,7 @@ const summary = obj({id:str(),title:str(240),mode:{type:'string',enum:['chat','w
 const message = obj({id:str(),conversationId:str(),role:{type:'string',enum:['user','assistant','tool','system']},
   body:str(16000,0),createdAt:str(35),revision:num(1)});
 const turn = obj({id:str(),conversationId:str(),state:{type:'string',enum:['queued','running','succeeded','failed','cancel_requested','cancelled','no_provider','unknown']},
-  providerId:nullable(str()),updatedAt:str(35),lastSequence:num(0),errorCode:nullable(str())});
+  providerId:nullable(str()),updatedAt:str(35),revision:num(1),lastSequence:num(0),errorCode:nullable(str())});
 const event = obj({turnId:str(),sequence:num(1),kind:str(64),payload:{},createdAt:str(35)});
 const page = item => obj({items:{type:'array',items:item,maxItems:50},nextCursor:nullable(str(2048))});
 const schemas = [];
@@ -125,6 +126,9 @@ const turnOutput = schema('turn-output',obj({turn:nullable(turn)}));
 const eventInput = schema('event-list-input',obj({conversationId:str(),turnId:str(),limit:num(1,50),afterSequence:num(0)},['conversationId','turnId','limit']));
 const eventOutput = schema('event-page-output',obj({items:{type:'array',items:event,maxItems:50},nextSequence:nullable(num(1))}));
 const cancelInput = schema('turn-cancel-input',obj({requestKey:str(128),conversationId:str(),turnId:str(),revision:num(1)}));
+const startInput = schema('turn-start-input',obj({requestKey:str(128),conversationId:str(),messageId:str(),
+  body:str(16000),revision:num(1),draftRevision:num(0),modelId:str(128)}));
+const startOutput = schema('turn-start-output',obj({message,turn}));
 const attachInput = schema('attachment-link-input',obj({requestKey:str(128),conversationId:str(),revision:num(1),
   staged:obj({fileId:str(67),intentId:str(),generation:str(),digest:str(64)})}));
 const attachOutput = schema('attachment-link-output',obj({fileId:str(67),conversationId:str()}));
@@ -156,6 +160,7 @@ operation('conversation.list','Lister les conversations','query',listInput,summa
 operation('conversation.search','Chercher les conversations','query',searchInput,summaryPage,['conversation','message'],[],{exportName:'conversationSearch',maxItems:50,pagination:{mode:'cursor',cursorField:'cursor',limitField:'limit',maxItems:50}});
 operation('conversation.create','Créer une conversation','command',createInput,summaryOut,[],['conversation'],{exportName:'conversationCreate'});
 operation('conversation.read','Lire une conversation','query',idInput,readOutput,['conversation'],[],{exportName:'conversationRead'});
+operations.find(op=>op.id==='conversation.read').effects.providers.push('openai.responses.v1');
 operation('conversation.rename','Renommer une conversation','command',renameInput,summaryOut,['conversation'],['conversation'],{exportName:'conversationRename',concurrency:{mode:'object-version',versionField:'revision'}});
 operation('conversation.archive','Archiver une conversation','command',stateInput,summaryOut,['conversation'],['conversation'],{exportName:'conversationArchive',concurrency:{mode:'object-version',versionField:'revision'}});
 operation('conversation.restore','Restaurer une conversation','command',stateInput,summaryOut,['conversation'],['conversation'],{exportName:'conversationRestore',concurrency:{mode:'object-version',versionField:'revision'}});
@@ -164,12 +169,15 @@ operation('message.add','Ajouter un message utilisateur','command',addMessageInp
 operation('draft.read','Lire un brouillon','query',draftInput,draftOutput,['conversation','draft'],[],{exportName:'draftRead'});
 operation('draft.save','Enregistrer un brouillon','command',draftSaveInput,draftOutput,['conversation','draft'],['draft'],{exportName:'draftSave'});
 operation('turn.read','Lire le statut d’un tour','query',turnInput,turnOutput,['conversation','turn'],[],{exportName:'turnRead'});
-operation('event.list','Lire la progression','query',eventInput,eventOutput,['conversation','turn','event'],[],{exportName:'eventList',maxItems:50,pagination:{mode:'cursor',cursorField:'afterSequence',limitField:'limit',maxItems:50}});
+operation('turn.start','Démarrer un tour IA','command',startInput,startOutput,['conversation','draft'],
+  ['conversation','message','draft','turn','event'],{exportName:'turnStart',concurrency:{mode:'object-version',versionField:'revision'}});
+operations.find(op=>op.id==='turn.start').effects.providers.push('openai.responses.v1');
+operation('event.list','Lire la progression','query',eventInput,eventOutput,['conversation','turn','event'],[],{exportName:'eventList',maxItems:52,pagination:{mode:'cursor',cursorField:'afterSequence',limitField:'limit',maxItems:50}});
 operation('turn.cancel','Demander l’annulation d’un tour','command',cancelInput,turnOutput,['conversation','turn'],['turn','event'],{exportName:'turnCancel',concurrency:{mode:'object-version',versionField:'revision'}});
 operation('attachment.link','Lier une pièce jointe','command',attachInput,attachOutput,['conversation'],['conversation','conversation_attachment'],{exportName:'attachmentLink',concurrency:{mode:'object-version',versionField:'revision'}});
 operations.find(op=>op.id==='attachment.link').effects.writes.push(ref('file','attachments'));
 operation('attachment.list','Lister les pièces jointes','query',attachListInput,attachListOutput,['conversation','conversation_attachment'],[],
-  {exportName:'attachmentList',maxItems:50,pagination:{mode:'cursor',cursorField:'cursor',limitField:'limit',maxItems:50}});
+  {exportName:'attachmentList',maxItems:51,pagination:{mode:'cursor',cursorField:'cursor',limitField:'limit',maxItems:50}});
 
 const category = {id:'attachments',metadataModel:ref('model','file_metadata'),contextField:'context_id',ownerField:'file_owner',
   storageFields:{id:'file_id',objectKey:'object_key',digest:'digest',byteSize:'byte_size',contentType:'content_type',
@@ -230,7 +238,7 @@ m.validation.suites.widgets.justification={reason:'Conversation widgets and GPT 
 m.validation.suites.package.tests=['tests/package/contract.test.mjs'];
 m.validation.suites.docs.tests=['tests/docs/contract.test.mjs'];
 m.packaging.runtime.files=['module/manifest.json','module/models.json','module/entry.server.ts','module/operations.ts','module/service.ts',
-  'ui/index.tsx','ui/panel.tsx','ui/message-content.tsx','ui/entity-links.ts','ui/source-links.ts',
+  'ui/index.tsx','ui/panel.tsx','ui/turn-projection.ts','ui/drive-loop.ts','ui/message-content.tsx','ui/entity-links.ts','ui/source-links.ts',
   'README.md','prd.md','CHANGELOG.md','LICENSE','plugin/plugin.json','plugin/mcp.json','plugin/contributions.ts'];
 m.packaging.validation.files=['AGENTS.md','FILES.md','interview.md','TODO.md','gate.mjs','module/generate-manifest.mjs','ci/run-suite.mjs','tests/helpers.mjs',
   ...['backend','ui','api-mcp','widgets','package','docs'].flatMap(name=>[`ci/${name}.mjs`,`tests/${name}/contract.test.mjs`])];

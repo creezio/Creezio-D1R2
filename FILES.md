@@ -142,3 +142,11 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - [core/files](core/files/) : catalogue compilé, intentions privées D1/R2 et transport natif lié au propriétaire effectif.
 - [scripts/data/prepare-native-module.mjs](scripts/data/prepare-native-module.mjs) : création SQL centrale des modèles natifs, sans accès à une base.
 - [tests/conversations](tests/conversations/) et [réalisation T14](docs/IMPLEMENTATION-T14.md) : preuves du module, de son SDK et recettes synthétiques.
+
+## OpenAI et publication Sites
+
+- [extensions/native/openai](extensions/native/openai/) et [sdk/providers](sdk/providers/) : module optionnel, configuration, transport Responses et contrat public fournisseur ; [réalisation T15](docs/IMPLEMENTATION-T15.md).
+- [core/providers](core/providers/) et [core/conversations](core/conversations/) : résolution du coffre, projection autorisée d'outils et étapes des tours, sans ordonnanceur.
+- [tests/openai](tests/openai/) : recettes D1 du fournisseur ; suites obligatoires du contrôle commun.
+- [adapters/sites](adapters/sites/) et [scripts/sites](scripts/sites/) : opérateur temporaire, configuration et schéma central ; [installation Sites](docs/INSTALLATION-SITES.md).
+- `configuration/composition.sites.json` et son verrou : composition Sites sans données ni identifiant personnel de Site.

@@ -79,7 +79,9 @@ test('Conversations operations use real D1 authority, CAS, cursors and atomic fi
       policy.assignments.push({principalId,audience,contextId,roleId:'conversation-user'});
     }
     good(await acl.replacePolicy(ownerAdmin.token,{expectedEpoch:before.epoch,policy}));
-    const engine=createOperationEngine({db,catalog,registry:registry(),permissions,files:{catalog:fileCatalog,bucket}});
+    let providerState='ready';
+    const engine=createOperationEngine({db,catalog,registry:registry(),permissions,files:{catalog:fileCatalog,bucket},
+      providerAvailability:async(_request,providerId)=>({providerId,state:providerState,modelIds:['model-a']})});
     const invoke=(operationId,input,{token=ownerAdmin.token,audience='admin',contextId='application'}={})=>
       engine.invoke({credential:{kind:'session',token},moduleId,operationId,contextId,audience,input});
     const first=success(await invoke('conversation.create',{requestKey:'create-first',mode:'chat',title:'Premier fil'})).conversation;
@@ -145,7 +147,7 @@ test('Conversations operations use real D1 authority, CAS, cursors and atomic fi
     const linked=success(await invoke('attachment.link',{requestKey:'attachment-first',conversationId:first.id,
       revision:5,staged}));
     assert.equal(linked.fileId,staged.fileId);
-    const attachment=success(await invoke('attachment.list',{conversationId:first.id,limit:25}));
+    const attachment=success(await invoke('attachment.list',{conversationId:first.id,limit:50}));
     assert.equal(attachment.items[0].reference.fileId,staged.fileId);
     const metadataTable=`"${generated.tables.file_metadata}"`;
     const metadata=await db.prepare(`SELECT state FROM ${metadataTable} WHERE file_id=?`).bind(staged.fileId).first();
@@ -194,6 +196,71 @@ test('Conversations operations use real D1 authority, CAS, cursors and atomic fi
       text:utf8,revision:2}));
     assert.equal(utf8Draft.revision,3);
     assert.equal(success(await invoke('draft.read',{conversationId:first.id})).text,utf8);
+    const secondDraft=success(await invoke('draft.save',{requestKey:'turn-draft',conversationId:second.id,
+      text:'Question en attente',revision:0}));
+    assert.equal(secondDraft.revision,1);
+    const startInput={conversationId:second.id,messageId:'turn-user-message',body:'Question en attente',
+      revision:1,draftRevision:1,modelId:'model-a'};
+    providerState='missing';
+    const unavailable=await invoke('turn.start',{requestKey:'turn-unavailable',...startInput}).catch(error=>error);
+    assert.notEqual(unavailable?.execution?.state,'succeeded');
+    assert.equal(success(await invoke('draft.read',{conversationId:second.id})).text,'Question en attente');
+    assert.deepEqual(success(await invoke('message.list',{conversationId:second.id,limit:1})).items,[]);
+    providerState='ready';
+    const startedExecution=await invoke('turn.start',{requestKey:'turn-start',...startInput});
+    assert.equal(startedExecution.execution.state,'waiting');
+    const started=startedExecution.execution.output;
+    assert.equal(started.message.id,startInput.messageId);
+    assert.equal(started.turn.state,'queued');
+    assert.equal(started.turn.providerId,'openai.responses.v1');
+    assert.equal(success(await invoke('draft.read',{conversationId:second.id})).text,'');
+    assert.equal(success(await invoke('conversation.read',{conversationId:second.id})).provider,'configured');
+    assert.equal(success(await invoke('conversation.read',{conversationId:second.id})).conversation.revision,2);
+    assert.equal(success(await invoke('turn.read',{conversationId:second.id,turnId:started.turn.id})).turn.state,'queued');
+    const turnEvents=success(await invoke('event.list',{conversationId:second.id,turnId:started.turn.id,
+      limit:50,afterSequence:0}));
+    assert.deepEqual(turnEvents.items.map(item=>item.kind),['queued']);
+    const blocked=await invoke('turn.start',{requestKey:'turn-concurrent',...startInput,
+      messageId:'turn-second-message',revision:2,draftRevision:2}).catch(error=>error);
+    assert.notEqual(blocked?.execution?.state,'succeeded');
+    assert.deepEqual(success(await invoke('message.list',{conversationId:second.id,limit:1})).items.map(item=>item.id),
+      ['turn-user-message']);
+    const outboxTable=`"${technical.tables.outbox}"`;
+    const delivery=await db.prepare(`SELECT provider,intent_id,state,payload FROM ${outboxTable} WHERE intent_id=?`)
+      .bind(started.turn.id).all();
+    assert.equal(delivery.results.length,1);
+    assert.equal(delivery.results[0].provider,'openai.responses.v1');
+    assert.equal(delivery.results[0].state,'queued');
+    assert.equal(JSON.parse(delivery.results[0].payload).messageId,startInput.messageId);
+    const eventTable=`"${generated.tables.event}"`,now=new Date().toISOString();
+    await db.batch(Array.from({length:50},(_,index)=>db.prepare(`INSERT INTO ${eventTable}
+      (context_id,owner_id,audience,conversation_id,turn_id,sequence,kind,payload,created_at)
+      VALUES (?,?,?,?,?,?,?,?,?)`).bind('application',owner.principalId,'admin',second.id,
+      started.turn.id,index+2,'text_delta',JSON.stringify({text:'x'}),now)));
+    const eventPage=success(await invoke('event.list',{conversationId:second.id,turnId:started.turn.id,
+      limit:50,afterSequence:0}));
+    assert.equal(eventPage.items.length,50);
+    assert.equal(eventPage.nextSequence,50);
+    const eventRemainder=success(await invoke('event.list',{conversationId:second.id,turnId:started.turn.id,
+      limit:50,afterSequence:eventPage.nextSequence}));
+    assert.deepEqual(eventRemainder.items.map(item=>item.sequence),[51]);
+    assert.equal(eventRemainder.nextSequence,null);
+    const escapedBody='\\'.repeat(16000);
+    await db.prepare(`UPDATE ${eventTable} SET payload=? WHERE context_id=? AND owner_id=? AND audience=?
+      AND conversation_id=? AND turn_id=? AND sequence>1`).bind(JSON.stringify({text:'x',body:escapedBody}),
+      'application',owner.principalId,'admin',second.id,started.turn.id).run();
+    const escapedEvents=[];let escapedAfter=1;
+    for(let pageNumber=0;pageNumber<20;pageNumber++){
+      const page=success(await invoke('event.list',{conversationId:second.id,turnId:started.turn.id,
+        limit:50,afterSequence:escapedAfter}));
+      assert.ok(new TextEncoder().encode(JSON.stringify(page)).length<=128*1024);
+      assert.ok(page.items.every(item=>item.payload.body===escapedBody));
+      escapedEvents.push(...page.items);
+      if(page.nextSequence===null)break;
+      assert.ok(page.nextSequence>escapedAfter);
+      escapedAfter=page.nextSequence;
+    }
+    assert.deepEqual(escapedEvents.map(item=>item.sequence),Array.from({length:50},(_,index)=>index+2));
     data.dispose(lease);
     assert.equal(second.revision,1);
   }finally{await runtime.dispose();}

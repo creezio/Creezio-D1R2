@@ -11,7 +11,7 @@ const started = new Date().toISOString();
 const evidencePath = resolve(root, '.quality/latest.json');
 mkdirSync(dirname(evidencePath), { recursive: true });
 const write = value => writeFileSync(evidencePath, JSON.stringify(value, null, 2) + '\n');
-const profile = 't14-conversations';
+const profile = 't15-openai-sites';
 write({ schemaVersion: 1, profile, started, state: 'running', success: false, mergeReady: false });
 try {
 const source = sourceIdentity(root);
@@ -31,6 +31,8 @@ execute('module-models', ['scripts/data/prepare-modules-settings.mjs']);
 execute('module-suites', ['extensions/native/modules-settings/gate.mjs']);
 execute('conversations-models', ['scripts/data/prepare-native-module.mjs', 'conversations']);
 execute('conversations-suites', ['extensions/native/conversations/gate.mjs']);
+execute('openai-models', ['scripts/data/prepare-native-module.mjs', 'openai']);
+execute('openai-suites', ['extensions/native/openai/gate.mjs']);
 execute('theme-standard-suites', ['themes/standard/gate.mjs']);
 execute('theme-chatgpt-suites', ['themes/chatgpt-like/gate.mjs']);
 execute('typecheck', ['node_modules/typescript/bin/tsc', '--noEmit']);

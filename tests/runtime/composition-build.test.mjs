@@ -78,7 +78,7 @@ function secondWitness(f) {
   return {module, save};
 }
 const generated = (root, name) => path.join(root, '.creezio/generated', name);
-const generatedNames = ['server.ts', 'client.tsx', 'composition.json', 'data-catalog.ts', 'file-catalog.ts', 'module-inventory.ts', 'operations.ts', 'operation-validators.mjs'];
+const generatedNames = ['server.ts', 'client.tsx', 'composition.json', 'data-catalog.ts', 'file-catalog.ts', 'provider-catalog.ts', 'module-inventory.ts', 'operations.ts', 'operation-validators.mjs'];
 async function clientRegistry(root) {
   const source = readFileSync(generated(root, 'client.tsx'), 'utf8');
   // This unit qualifies the emitted audience flags; full component imports are

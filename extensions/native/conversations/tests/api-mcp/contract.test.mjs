@@ -4,7 +4,7 @@ import {manifest} from '../helpers.mjs';
 
 test('every protected operation has separate admin and app bindings',()=>{
   const operations=manifest.contracts.operations;
-  assert.equal(operations.length,16);
+  assert.equal(operations.length,17);
   for(const op of operations){
     assert.deepEqual(op.audiences,['admin','app']);
     assert.deepEqual(op.permissions.map(ref=>ref.id),['use']);

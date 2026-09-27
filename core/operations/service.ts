@@ -7,7 +7,7 @@ import type { AuthorizationAudience, AuthorizationActor } from '../authorization
 import { createOperationStore } from './store.ts';
 import { OperationStoreError, type OperationExecution, type OperationOutboxIntent } from './store-types.ts';
 import type { OperationRegistry } from './registry.ts';
-import { OperationError, OPERATION_LIMITS, type OperationContext, type OperationDataPort, type OperationHandlerResult, type RegisteredOperation } from './types.ts';
+import { OperationError, OPERATION_LIMITS, type OperationContext, type OperationDataPort, type OperationHandlerResult, type RegisteredOperation, type OperationProviderAvailability } from './types.ts';
 import { createNativeAccessOperationAdapter, validNativeAccessDeclaration } from './native-access.ts';
 import type { SqlStatement } from '../data/authorization.ts';
 import {captureHostInventory} from './host-inventory.ts';
@@ -16,6 +16,9 @@ import {createFileService, type FileBucket} from '../files/service.ts';
 import {fileOwnerId, resolveFileCategory, type RuntimeFileCatalog} from '../files/catalog.ts';
 import {FileError} from '../files/mapping.ts';
 import type {OperationFilesPort} from '../../sdk/files/types.ts';
+import {createProviderSecretsPort} from '../providers/secrets.ts';
+import {VaultError,type VaultKeyring} from '../vault/crypto.ts';
+import type {VaultStorage} from '../vault/service.ts';
 
 export interface OperationRequest {
   readonly credential: DataCredential; readonly moduleId: string; readonly operationId: string;
@@ -66,6 +69,8 @@ function errorCode(error: unknown): OperationError['code'] {
   if (error instanceof OperationStoreError) return error.code === 'conflict' ? 'conflict' : 'unavailable';
   if (error instanceof FileError) return ['not_found', 'conflict', 'invalid_input', 'unsupported'].includes(error.code)
     ? error.code as 'not_found' | 'conflict' | 'invalid_input' | 'unsupported' : 'unavailable';
+  if (error instanceof VaultError) return ['invalid_input', 'conflict', 'forbidden', 'unavailable'].includes(error.code)
+    ? error.code as 'invalid_input' | 'conflict' | 'forbidden' | 'unavailable' : 'unavailable';
   return 'unavailable';
 }
 
@@ -73,6 +78,8 @@ function errorCode(error: unknown): OperationError['code'] {
 export function createOperationEngine(options: { readonly db: IdentityDatabase; readonly catalog: RuntimeDataCatalog;
   readonly registry: OperationRegistry; readonly permissions: readonly PermissionDefinition[];
   readonly files?: {readonly catalog: RuntimeFileCatalog; readonly bucket: FileBucket};
+  readonly providerSecrets?: {readonly storage:VaultStorage;readonly keyring:VaultKeyring;readonly providerId:string};
+  readonly providerAvailability?: (request: OperationRequest, providerId: string) => Promise<OperationProviderAvailability>;
   readonly runtimeInventory?: ModuleSettingsHostInventory }) {
   const { registry } = options, catalog = copyJson(options.catalog, 4 * 1024 * 1024) as unknown as RuntimeDataCatalog;
   if (catalog.compositionDigest !== registry.compositionDigest) throw new OperationError('invalid_catalog');
@@ -110,6 +117,21 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
       const lease = await authorize(request, operation);
       let close: () => void = () => {};
       try {
+        // This snapshot is only a preflight; the delivery bridge checks live configuration again.
+        let providerAvailability: OperationProviderAvailability | undefined;
+        if (op.effects.providers.length) {
+          if (op.effects.providers.length !== 1) throw new OperationError('unsupported');
+          const providerId = op.effects.providers[0];
+          const value = options.providerAvailability
+            ? await options.providerAvailability(request, providerId)
+            : {providerId, state: 'missing' as const, modelIds: []};
+          const snapshot = copyJson(value, 16_384) as unknown as OperationProviderAvailability;
+          if (snapshot.providerId !== providerId || !['ready','missing','invalid','unavailable'].includes(snapshot.state)
+            || !Array.isArray(snapshot.modelIds) || snapshot.modelIds.length > 128
+            || snapshot.modelIds.some(id => typeof id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(id))
+            || new Set(snapshot.modelIds).size !== snapshot.modelIds.length) throw new OperationError('invalid_catalog');
+          providerAvailability = Object.freeze({...snapshot, modelIds:Object.freeze([...snapshot.modelIds])});
+        }
         const input = request.input as JsonValue;
         let idempotencyKey: string;
         if (op.idempotency.mode === 'required') {
@@ -124,7 +146,7 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           claimTtlMs: Math.min(OPERATION_LIMITS.maxDurationMs, Math.max(1000, op.execution.maxDurationMs + 5000)),
           retentionMs: op.idempotency.mode === 'required' ? op.idempotency.retentionSeconds * 1000 : 86400_000 });
         if (start.kind === 'existing') return Object.freeze({ execution: checkedExecution(start.execution, operation), replayed: true });
-        const controller = new AbortController(), issued = new Map<DataPlan, { write: boolean; compared: boolean; file?: boolean }>();
+        const controller = new AbortController(), issued = new Map<DataPlan, { write: boolean; compared: boolean; file?: boolean; secret?: boolean }>();
         let active = true, usedItems = 0, failure: OperationError | undefined;
         const ensure = () => { if (!active || controller.signal.aborted) throw failure ?? new OperationError('cancelled'); };
         const spend = (amount: number) => { ensure(); if (!Number.isSafeInteger(amount) || amount < 1 || (usedItems += amount) > op.execution.maxItems) throw new OperationError('invalid_input'); };
@@ -167,6 +189,16 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
         const identity = data.describeLease(lease), context: OperationContext = Object.freeze({ moduleId: operation.moduleId, operationId: op.id,
           executionId: start.execution.id, contextId: identity.contextId, audience: identity.audience, principalId: identity.principalId,
           actorPrincipalId: identity.actorPrincipalId, signal: controller.signal, data: operationData,
+          ...(providerAvailability ? {providerAvailability} : {}),
+          ...(options.providerSecrets && operation.moduleId === 'creezio.openai' && op.kind === 'command'
+            && op.id.startsWith('config.key.') && options.providerSecrets.storage.moduleId === operation.moduleId
+            && op.effects.writes.some(ref => ref.kind === 'model' && ref.moduleId === operation.moduleId
+              && ref.id === options.providerSecrets!.storage.modelId)
+            ? {providerSecrets:createProviderSecretsPort({data,catalog,lease,...options.providerSecrets,
+              register(token){
+                ensure();if(issued.size >= OPERATION_LIMITS.maxPlans)throw new OperationError('invalid_input');
+                spend(1);issued.set(token,{write:true,compared:false,secret:true});
+              }})} : {}),
           ...(options.files ? {files: Object.freeze({async preparePublication(categoryId, reference) {
             ensure();
             if (op.kind !== 'command' || !op.effects.writes.some(ref => ref.moduleId === operation.moduleId && ref.kind === 'file' && ref.id === categoryId))
@@ -216,6 +248,9 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           const filePlans=[...issued].filter(([,metadata])=>metadata.file).map(([token])=>token);
           if (filePlans.length && (filePlans.some(token=>!plans.includes(token))
             || !plans.some(token=>issued.get(token)!.write && !issued.get(token)!.file))) throw new OperationError('invalid_output');
+          const secretPlans=[...issued].filter(([,metadata])=>metadata.secret).map(([token])=>token);
+          if(secretPlans.length && (secretPlans.some(token=>!plans.includes(token))
+            || !plans.some(token=>issued.get(token)!.write && !issued.get(token)!.secret)))throw new OperationError('invalid_output');
           if (op.concurrency.mode === 'object-version' && !nativeCompared
             && !plans.some(token => issued.get(token)!.compared)) throw new OperationError('conflict');
           const outbox = copyJson(result.outbox ?? [], 65_536) as unknown as readonly OperationOutboxIntent[];

@@ -1,10 +1,14 @@
 # Changelog
 
-## Non publié — T14
+## Non publié — OpenAI et qualification Sites
+
+Raccordement du module OpenAI au chat existant et adaptateur de publication Sites en construction. Installation opérateur séparée du Worker applicatif, réutilisant les comptes natifs ; schéma généré centralement dans l'enveloppe de déploiement Drizzle. Ces nouveaux parcours ne sont pas encore qualifiés en hébergement.
+
+## 27 septembre 2026 — Conversations T14
 
 Priorité de livraison précisée : première app dérivée, module témoin, chat/widgets, déploiement et mise à jour avant les modules non nécessaires. T17–T22 et T26–T29 sont différés sans retrait d'exigence. Le changement de compte ChatGPT autorise une nouvelle cible Sites publique, avec identifiant et provenance conservés par cible.
 
-Module natif Conversations avec historique, recherche, archives, brouillons D1 et pièces jointes privées R2. Le panneau flottant, Chat/Work et le composeur reprennent le Creezio original ; workspace et front utilisent les mêmes opérations HTTP/MCP. Ports de données ordonnés et publication atomique des références de fichiers. Qualification T14 en cours ; le fournisseur OpenAI et les widgets restent suivis en T15/T16.
+Module natif Conversations avec historique, recherche, archives, brouillons D1 et pièces jointes privées R2. Le panneau flottant, Chat/Work et le composeur reprennent le Creezio original ; workspace et front utilisent les mêmes opérations HTTP/MCP. Ports de données ordonnés et publication atomique des références de fichiers. PR #23 intégrée, 974 tests locaux/CI réussis et recettes navigateur qualifiées dans le périmètre documenté ; le fournisseur OpenAI et les widgets restent suivis en T15/T16.
 
 ## 27 septembre 2026 — Fronts et thèmes T13
 

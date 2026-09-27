@@ -1,6 +1,6 @@
 # Réalisation T-14 — Conversations natives
 
-T-14 / US-14 / REQ-1401 et REQ-1402. Branche `core/t14-conversations`, base main PR #22 `d12ab795` qualifiée avec 953 tests. Code et recettes locales ciblées réalisés ; revue et contrôles agrégés du candidat restent à terminer.
+T-14 / US-14 / REQ-1401 et REQ-1402. PR #23 intégrée : candidat `efe476eb`, main `f435fd36`, arbre commun `d43e86e3`. Les 974 tests locaux et CI candidat/main (36309174628/36309958508) réussissent, sans échec, ignoré, annulé ou todo. Les trois revues indépendantes, les recettes navigateur et les contrôles de provenance sont conservés hors sources. La qualification hébergée et le fournisseur se poursuivent dans leurs lots.
 
 ## Module et interface
 
@@ -31,5 +31,7 @@ Les tests ciblés exécutent les permissions intercomptes/audiences/contextes, l
 La recette navigateur locale vérifie panneau original, création/historique/archives, brouillon restauré après redémarrage et rechargement, téléversement R2 associé atomiquement à la conversation, et lecture privée des octets attendus. Une réponse d'archivage perdue après HTTP 200 est retrouvée par lecture de la clé d'exécution sans seconde écriture. Le front conserve puis sauvegarde le brouillon après une navigation en moins de 600 ms ; rechargement et reprise ne produisent plus de faux conflit. L'audience app reste séparée de l'administration. La révocation retire les vues, le chat et leurs données protégées.
 
 Les essais initiaux ont révélé puis corrigé une révision CAS fournie deux fois, des effets incomplets de manifeste, une sélection non restaurée et le délai de sauvegarde traversant une désactivation du panneau. Les preuves initiales sont conservées. Le contrôle de téléchargement confirme HTTP 200, le type binaire et les octets exacts ; l'enregistrement sur disque par le navigateur n'est pas qualifié, l'événement de téléchargement IAB ayant expiré.
+
+La revue finale a aussi corrigé la sauvegarde avant changement de fil, l'ouverture sur les messages récents et la relecture après confirmation d'une commande incertaine. Création en 54 ms et sélection en 141 ms avant la temporisation conservent les brouillons ; une déconnexion/reconnexion relit le texte exact dans D1. Le build de recette `3b8c733` a le même code runtime que le candidat final, dont le dernier delta concerne un test et les verrous de validation. Les serveurs et sessions de recette ont été fermés.
 
 La nouvelle cible Sites publique est autorisée sur le compte courant ; sa publication et sa recette restent distinctes. OpenAI réel, modèles/effort/voix selon fournisseur et widgets sont raccordés dans les lots T15/T16. Aucune réponse IA ni compatibilité ChatGPT réelle n'est déduite des seules recettes T14. Les modules et capacités non nécessaires à la première app suivent le jalon initial selon le TODO, sans retrait d'exigence.

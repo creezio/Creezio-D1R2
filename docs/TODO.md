@@ -1,9 +1,9 @@
 # Backlog de réalisation
-Révision 26 — 27 septembre 2026. **Chantier actif : T-14, conversations natives ; priorité à une première app utilisable.** PR #1 à #22 intégrées ; main `d12ab795` qualifié avec 953 tests locaux et CI. Fronts standard/ChatGPT-like et headless vérifiés localement. Les attentes Sites/registre restent séparées. Les exigences demeurent inchangées.
+Révision 27 — 27 septembre 2026. **Chantier actif : T-15 OpenAI et publication Sites ; priorité à une première app utilisable.** PR #1 à #23 intégrées ; main `f435fd36` qualifié avec 974 tests locaux et CI. Fronts standard/ChatGPT-like et headless vérifiés localement. Les attentes Sites/registre restent séparées. Les exigences demeurent inchangées.
 
 ## Jalon prioritaire : première app utilisable
 
-Achever T-14, puis T-15 (OpenAI réel), T-16 (outils/widgets), et la tranche T-30 qui installe depuis un vrai paquet un **seul module métier témoin** avec son starter et sa démo. Raccorder l'enregistrement et la publication nécessaires (T-08, T-09 pour Sites, T-31 et T-32 pour Docker → Cloudflare), puis produire une **version initiale** de l'original A et du vrai fork B (T-36/T-37), prouver installation et mise à jour du paquet et du socle (T-38), et exécuter une recette **ciblée** des deux apps et des parcours retenus (T-39). Sites et Cloudflare sont deux qualifications indépendantes du même code ; l'une ne sert pas de prérequis technique artificiel à l'autre.
+T-14 est intégré et qualifié localement. Poursuivre T-15 (OpenAI réel), T-16 (outils/widgets), et la tranche T-30 qui installe depuis un vrai paquet un **seul module métier témoin** avec son starter et sa démo. Raccorder l'enregistrement et la publication nécessaires (T-08, T-09 pour Sites, T-31 et T-32 pour Docker → Cloudflare), puis produire une **version initiale** de l'original A et du vrai fork B (T-36/T-37), prouver installation et mise à jour du paquet et du socle (T-38), et exécuter une recette **ciblée** des deux apps et des parcours retenus (T-39). Sites et Cloudflare sont deux qualifications indépendantes du même code ; l'une ne sert pas de prérequis technique artificiel à l'autre.
 
 Après ce jalon viennent T-17 à T-29 (dont le catalogue métier complet T-25), T-33 à T-35, puis les compléments et la recette exhaustive de T-36/T-39. Cela conserve leurs exigences et leurs preuves futures. Une tranche initiale livrée ne fait pas passer automatiquement le lot entier à « vérifié » ; seuls les critères et profils réellement exercés le sont.
 
@@ -21,14 +21,15 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-06 — Opérations | Registre/exécuteur intégrés PR #15 ; bindings HTTP et suivi par clé PR #16 | Événements, approbations, interopérations et autres transports | Fondations disponibles ; compléments au backlog |
 | T-07 — Workspace | Composants originaux adaptés, panneaux/états/titres et recette navigateur intégrés PR #16 | Qualification Sites et raccordement des modules produit | Livrable local disponible |
 | T-08 — Registre central | PR #17 intégrée ; Worker Cloudflare, service/client/journal et reprise réelle sans redéploiement | Configuration fournisseur GitHub/email, raccords des publishers et onboarding produit | Fournisseur GitHub en attente d'autorisation ; travaux indépendants poursuivis |
-| T-09 — Sites | Sonde de capacités antérieure conservée | Publication et recette de l'app sur un Site public du compte courant | Qualification à exécuter ; nouveau Site autorisé si l'ancien n'est plus accessible |
+| T-09 — Sites | Sonde antérieure conservée ; nouvelle cible publique créée sur le compte courant | Publication et recette de l'app, compte natif et persistance | **Adaptateur de publication en cours ; nouveau Site non publié** |
 | T-10 — MCP/OAuth | PR #19 : deux catalogues, OAuth natif, PKCE/rotation et clients SDK réels ; 866 tests | Connexion réelle ChatGPT et recette Site public, ressources/widgets T-16 | Fondations locales qualifiées |
 | T-11 — Modules | PR #20 : catalogue, dépendances, plans D1 et UI originale ; recettes locales et CI, 908 tests | Raccords publication et hébergements ; distribution complète T-30 | Livrable local disponible |
 | T-12 — Documentation | PR #21 : README/PRD/changelog exacts, UI/API/MCP et recettes locales/CI, 923 tests | Recettes hébergées transversales ; édition des PRD de travail en T-23 | Documents installés vérifiés localement |
 | T-13 — Fronts et thèmes | PR #22 : deux thèmes, projection native app, headless, recettes navigateur et CI ; 953 tests | Recette Sites | Livrable local disponible |
-| T-14 — Conversations | Ports de données et module en construction ; chat original en cours de raccordement | Recettes UI/données/fichiers/progression et fournisseur T15 | **Implémentation en cours** |
+| T-14 — Conversations | PR #23 : chat original, historique, brouillons D1, fichiers R2, autorisations ; 974 tests et navigateur | Qualification hébergée ; progression fournisseur couplée à T15 | Livrable local disponible |
+| T-15 — OpenAI | Préflight API réel réussi avec la clé de test | Module, coffre, tours, reprise et recettes intégrées | **Implémentation en parallèle API/SDK/UI** |
 | T-31 — Docker local | PR #17 intégrée ; compte/D1/R2, redémarrage/recréation/restauration vérifiés en Docker | Recettes des futurs modules et routes de fichiers | Livrable local disponible |
-| Autres lots T-15 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, fronts/chat/widgets, publications et recette finale | À réaliser |
+| Autres lots T-16 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, widgets, publications et recette finale | À réaliser selon le jalon prioritaire |
 
 ## Règles de suivi
 États autorisés : à faire, en cours, bloqué (raison/prérequis), en revue, vérifié, livré. Enregistrer responsable réel, branche/issue ou tâche locale, PR, SHA, tests/profils et preuves à chaque transition. « Livré » exige version et livraison vérifiée ; fusionner ne suffit pas. Une dépendance fournisseur manquante bloque sa recette, pas toutes les tâches indépendantes.
@@ -65,13 +66,13 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-06](#T-06) | P2 | Opérations, événements et exécutions bornées | [T-04](#T-04), [T-05](#T-05) | En cours |
 | [T-07](#T-07) | P1 | Workspace et conservation des onglets | [T-03](#T-03), [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | En cours |
 | [T-08](#T-08) | P1 | Registre minimal et identité de publication | [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | En cours |
-| [T-09](#T-09) | P1 | Première tranche sur Sites | [T-07](#T-07), [T-08](#T-08) | À faire — publication autorisée |
+| [T-09](#T-09) | P1 | Première tranche sur Sites | [T-07](#T-07), [T-08](#T-08) | En cours — adaptateur et nouvelle cible |
 | [T-10](#T-10) | P2 | MCP, OAuth et accès machine | [T-06](#T-06) ; recette Sites : [T-09](#T-09) | En cours — code local |
 | [T-11](#T-11) | P3 | SDK et cycle de vie des modules | [T-02](#T-02), [T-06](#T-06), [T-10](#T-10) | En cours — code local |
 | [T-12](#T-12) | P3 | Documentation vivante des modules | [T-11](#T-11) | Vérifié |
 | [T-13](#T-13) | P4 | Fronts, thèmes et headless | [T-07](#T-07), [T-11](#T-11) | En cours |
 | [T-14](#T-14) | P4 | Conversations et progression persistante | [T-06](#T-06), [T-07](#T-07), [T-11](#T-11) | En cours |
-| [T-15](#T-15) | P4 | Module OpenAI et contrat fournisseur | [T-14](#T-14) | À faire |
+| [T-15](#T-15) | P4 | Module OpenAI et contrat fournisseur | [T-14](#T-14) | En cours — API, SDK et UI |
 | [T-16](#T-16) | P4 | Widgets et plugins conversationnels compatibles GPT | [T-10](#T-10), [T-13](#T-13), [T-15](#T-15) | À faire |
 | [T-30](#T-30) | P3 | Starter, paquets et extension externe | [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-16](#T-16) | À faire |
 | [T-31](#T-31) | P1 | Docker local persistant | [T-03](#T-03), [T-05](#T-05), [T-07](#T-07) | En cours |

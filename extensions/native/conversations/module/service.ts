@@ -21,7 +21,8 @@ const summary = (row: Row) => ({id:row.id,title:row.title,mode:row.mode,updatedA
 const message = (row: Row) => ({id:row.id,conversationId:row.conversation_id,role:row.role,
   body:row.body,createdAt:row.created_at,revision:row.revision});
 const turnView = (row: Row) => ({id:row.id,conversationId:row.conversation_id,state:row.state,
-  providerId:row.provider_id,updatedAt:row.updated_at,lastSequence:row.last_sequence,errorCode:row.error_code});
+  providerId:row.provider_id,updatedAt:row.updated_at,revision:row.revision,
+  lastSequence:row.last_sequence,errorCode:row.error_code});
 const eventView = (row: Row) => ({turnId:row.turn_id,sequence:row.sequence,kind:row.kind,
   payload:row.payload,createdAt:row.created_at});
 const attachmentView = (row: Row) => ({fileId:row.file_id,conversationId:row.conversation_id,
@@ -112,13 +113,16 @@ export async function conversationCreate(value: JsonValue, context: OperationCon
   const title=typeof args.title==='string'&&args.title.trim()?args.title.trim():'Nouvelle conversation';
   if(!text(title,240)||!['chat','work'].includes(String(args.mode)))throw new OperationError('invalid_input');
   const row={...scope(context),id:crypto.randomUUID(),title,mode:args.mode as string,
-    created_at:now,updated_at:now,archived_at:null,revision:1};
+    created_at:now,updated_at:now,archived_at:null,active_turn_id:null,revision:1};
   const plan=context.data.planCreate('conversation',{values:row});
   return {output:{conversation:summary(row)},plans:[plan]};
 }
 export async function conversationRead(value: JsonValue, context: OperationContext) {
   const row=await conversation(context,input(value).conversationId);
-  return {output:{conversation:summary(row),provider:'no_provider'}};
+  const available=(context as OperationContext & {providerAvailability?:{
+    providerId:string;state:string;modelIds:readonly string[]}}).providerAvailability;
+  return {output:{conversation:summary(row),provider:available?.providerId==='openai.responses.v1'
+    &&available.state==='ready'&&available.modelIds.length>0?'configured':'no_provider'}};
 }
 async function changeConversation(value: JsonValue,context: OperationContext, action:'rename'|'archive'|'restore') {
   const args=input(value), row=await conversation(context,args.conversationId), revision=Number(args.revision);
@@ -187,15 +191,85 @@ export async function turnRead(value:JsonValue,context:OperationContext) {
   const args=input(value), row=await turn(context,args.conversationId,args.turnId);
   return {output:{turn:row?turnView(row):null}};
 }
+export async function turnStart(value:JsonValue,context:OperationContext) {
+  const args=input(value), conversationId=args.conversationId, parent=await activeConversation(context,conversationId);
+  const revision=Number(args.revision), draftRevision=Number(args.draftRevision);
+  if(!validId(args.messageId)||!validId(args.modelId)||!text(args.body,16000)||!String(args.body).trim()
+    ||!Number.isSafeInteger(revision)||revision!==parent.revision
+    ||!Number.isSafeInteger(draftRevision)||draftRevision<0||parent.active_turn_id!==null)conflict();
+  const candidate=(context as OperationContext & {providerAvailability?:{
+    providerId:string;state:string;modelIds:readonly string[]}}).providerAvailability;
+  const available=candidate?.providerId==='openai.responses.v1'?candidate:undefined;
+  if(!available||available.state!=='ready'||!available.modelIds.includes(String(args.modelId)))
+    throw new OperationError('unavailable');
+  const k={...scope(context),conversation_id:String(conversationId)};
+  const priorDraft=await context.data.get('draft',{key:k}) as Row|null;
+  if((priorDraft?.revision??0)!==draftRevision)conflict();
+  const now=at(),turnId=crypto.randomUUID();
+  const userMessage={...k,id:String(args.messageId),role:'user',body:String(args.body),content:null,
+    created_at:now,revision:1};
+  const turnRow={...k,id:turnId,state:'queued',provider_id:'openai.responses.v1',created_at:now,
+    updated_at:now,revision:1,last_sequence:1,error_code:null};
+  const guard=context.data.planGet('conversation',{key:key(context,String(conversationId)),
+    where:{archived_at:null,active_turn_id:null},required:true});
+  const created=context.data.planCreate('message',{values:userMessage});
+  const cleared=priorDraft?context.data.planPatch('draft',{key:k,compare:{field:'revision',expected:draftRevision},
+    values:{text:'',updated_at:now}}):context.data.planCreate('draft',{
+    values:{...k,text:'',updated_at:now,revision:1}});
+  const begun=context.data.planCreate('turn',{values:turnRow});
+  const event=context.data.planCreate('event',{values:{...k,turn_id:turnId,sequence:1,kind:'queued',
+    payload:{modelId:String(args.modelId)},created_at:now}});
+  const changed=context.data.planPatch('conversation',{key:key(context,String(conversationId)),
+    where:{archived_at:null,active_turn_id:null},compare:{field:'revision',expected:revision},
+    values:{updated_at:now,active_turn_id:turnId}});
+  return {output:{message:message(userMessage),turn:turnView(turnRow)},
+    plans:[guard,created,cleared,begun,event,changed],
+    outbox:[{id:turnId,provider:'openai.responses.v1',providerIdempotencyKey:turnId,
+      payload:{conversationId,turnId,messageId:args.messageId,modelId:args.modelId}}]};
+}
 export async function eventList(value:JsonValue,context:OperationContext) {
   const args=input(value), limit=Number(args.limit), afterSequence=Number(args.afterSequence??0);
   if(!Number.isSafeInteger(limit)||limit<1||limit>50||!Number.isSafeInteger(afterSequence)||afterSequence<0)
     throw new OperationError('invalid_input');
   if(!await turn(context,args.conversationId,args.turnId))missing();
   const where={...scope(context),conversation_id:String(args.conversationId),turn_id:String(args.turnId)};
-  const after=afterSequence?{...where,sequence:afterSequence}:null;
-  const page=await context.data.list('event',{limit,where,after}) as Page;
-  return {output:{items:page.items.map(eventView),nextSequence:page.nextAfter?.sequence??null}};
+  let after:Row|null=afterSequence?{...where,sequence:afterSequence}:null;
+  const items:ReturnType<typeof eventView>[]=[],encoder=new TextEncoder();
+  // Each data page includes a lookahead row. Read one event at a time; when two
+  // escaped payloads exceed the D1 result guard, page over keys and fetch one.
+  let bytes=encoder.encode('{"items":[],"nextSequence":null}').length;
+  let nextSequence:number|null=null,remaining=50;
+  for(let index=0;index<limit;index++){
+    if(remaining<1)break;
+    let page:Page,row:Row|undefined;
+    try {
+      remaining--;
+      page=await context.data.list('event',{limit:1,where,after}) as Page;
+      row=page.items[0];
+    } catch(error) {
+      if(!(error instanceof Error) || error.name!=='DataAccessError'
+        || (error as Error & {code?:string}).code!=='storage_error')throw error;
+      if(remaining<2){if(items.length)break;throw error;}
+      remaining-=2;
+      page=await context.data.list('event',{limit:1,where,after,
+        fields:['owner_id','audience','conversation_id','turn_id','sequence']}) as Page;
+      const keyRow=page.items[0];
+      row=keyRow?await context.data.get('event',{key:{...where,sequence:keyRow.sequence}}) as Row|undefined:undefined;
+    }
+    if(!row){nextSequence=null;break;}
+    const item=eventView(row),size=encoder.encode(JSON.stringify(item)).length+(items.length?1:0);
+    // Never split an event. An oversized single event cannot be represented by
+    // this bounded page contract and must be rejected instead of skipped.
+    if(bytes+size+128>128*1024){
+      if(!items.length)throw new OperationError('invalid_output');
+      break;
+    }
+    items.push(item);bytes+=size;
+    if(!page.nextAfter){nextSequence=null;break;}
+    nextSequence=Number(row.sequence);
+    after={...where,sequence:nextSequence};
+  }
+  return {output:{items,nextSequence}};
 }
 export async function turnCancel(value:JsonValue,context:OperationContext) {
   const args=input(value), row=(await turn(context,args.conversationId,args.turnId))??missing(), revision=Number(args.revision);

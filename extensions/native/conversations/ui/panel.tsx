@@ -17,6 +17,8 @@ export type ConversationSummary = Readonly<{id: string; title: string; mode: Con
   updatedAt: string; archivedAt: string | null}>;
 export type ConversationMessage = Readonly<{id: string; role: 'user' | 'assistant' | 'system';
   content: string; sources?: readonly AssistantSource[]; createdAt?: string}>;
+export type ConversationModelOption = Readonly<{id: string; label: string}>;
+export type ConversationProgressStep = Readonly<{id: string; label: string; state: 'running' | 'done' | 'failed'}>;
 
 export type ConversationPanelProps = Readonly<{
   variant: 'floating' | 'embedded';
@@ -31,6 +33,15 @@ export type ConversationPanelProps = Readonly<{
   messages: readonly ConversationMessage[];
   draft: string;
   onDraftChange: (draft: string) => void;
+  modelOptions?: readonly ConversationModelOption[];
+  selectedModelId?: string | null;
+  onModelChange?: (modelId: string) => void;
+  onSend?: () => void;
+  onStop?: () => void;
+  onResume?: () => void;
+  turnState?: 'queued' | 'running' | 'cancel_requested' | 'unknown' | null;
+  assistantPreview?: string;
+  progressSteps?: readonly ConversationProgressStep[];
   onCreate: (mode: ConversationMode) => void;
   onSelect: (id: string) => void;
   onArchive: (id: string) => void;
@@ -58,7 +69,7 @@ export type ConversationPanelProps = Readonly<{
   busy?: boolean;
   error?: string | null;
   onNavigate?: (href: string) => void;
-  providerStatus: 'no_provider' | 'ready';
+  providerStatus: 'no_provider' | 'checking' | 'unavailable' | 'ready';
 }>;
 
 export function groupConversations(list: readonly ConversationSummary[]) {
@@ -168,7 +179,7 @@ export function ConversationPanel(props: ConversationPanelProps) {
         {props.variant === 'floating' && <Button type="button" variant="ghost" size="icon" aria-label="Fermer l'assistant"
           onClick={() => props.onOpenChange(false)}><X className="h-4 w-4" /></Button>}
       </div>
-      <div className="flex shrink-0 items-center gap-1.5 border-b border-slate-100 px-3 py-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-slate-100 px-3 py-2">
         {(['chat','work'] as const).map(mode => <button key={mode} type="button" disabled={props.busy}
           aria-pressed={props.mode === mode} onClick={() => props.onModeChange(mode)}
           className={cn('rounded-full px-3 py-1 text-xs font-medium', props.mode === mode
@@ -176,6 +187,16 @@ export function ConversationPanel(props: ConversationPanelProps) {
             : 'text-slate-500 hover:bg-slate-100')}>
           {mode === 'work' ? 'Work' : 'Chat'}
         </button>)}
+        {props.providerStatus === 'ready' && <label className="ml-auto flex min-w-0 items-center gap-1.5 text-xs text-slate-600">
+          <span>Modèle</span>
+          <select aria-label="Modèle IA" value={props.selectedModelId ?? ''}
+            onChange={event => props.onModelChange?.(event.target.value)}
+            disabled={props.busy || !!props.turnState || !props.onModelChange || !props.modelOptions?.length}
+            className="max-w-[180px] rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-800">
+            <option value="">Choisir un modèle</option>
+            {props.modelOptions?.map(model => <option key={model.id} value={model.id}>{model.label}</option>)}
+          </select>
+        </label>}
       </div>
       <div className="flex min-h-0 flex-1 flex-col">
         <ScrollArea className="min-h-0 flex-1 px-3"><div className="space-y-2.5 py-3">
@@ -195,6 +216,18 @@ export function ConversationPanel(props: ConversationPanelProps) {
               : <AssistantMessageContent content={message.content} sources={[...(message.sources ?? [])]}
                 onNavigate={props.onNavigate} />}
           </div>)}
+          {!!props.progressSteps?.length && <ol aria-label="Étapes du tour" className="space-y-1 rounded-lg border border-slate-100 bg-slate-50 p-2 text-xs text-slate-600">
+            {props.progressSteps.map(step => <li key={step.id} className="flex items-center gap-2">
+              {step.state === 'running' && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
+              {step.state === 'done' && <Check className="h-3.5 w-3.5 text-emerald-700" aria-hidden="true" />}
+              {step.state === 'failed' && <X className="h-3.5 w-3.5 text-red-700" aria-hidden="true" />}
+              <span>{step.label}</span>
+            </li>)}
+          </ol>}
+          {props.assistantPreview && <div role="status" aria-label="Réponse en cours"
+            className="mr-2 rounded-xl border border-sky-100 bg-sky-50 px-2.5 py-2 text-xs text-slate-800">
+            <AssistantMessageContent content={props.assistantPreview} sources={[]} onNavigate={props.onNavigate} />
+          </div>}
           {!!props.attachments?.length && <section aria-label="Pièces jointes" className="rounded-lg border border-slate-200 p-2">
             <p className="mb-1 text-[11px] font-medium text-slate-500">Pièces jointes</p>
             {props.attachments.map(file => <button key={file.fileId} type="button"
@@ -214,6 +247,10 @@ export function ConversationPanel(props: ConversationPanelProps) {
             <p className="font-medium">Fournisseur IA non configuré</p>
             <p className="mt-0.5 text-amber-900/90">Les conversations et brouillons restent disponibles. L’envoi IA sera activé avec un fournisseur configuré.</p>
           </div>}
+          {props.providerStatus === 'checking' && <p role="status" className="mb-2 text-xs text-slate-600">
+            Vérification du fournisseur IA…</p>}
+          {props.providerStatus === 'unavailable' && <p role="status" className="mb-2 text-xs text-amber-900">
+            Le fournisseur IA est momentanément indisponible. Les conversations et brouillons restent accessibles.</p>}
           {props.selectedArchived && <p role="status" className="mb-2 text-xs text-slate-600">
             Cette conversation est archivée. Restaurez-la pour modifier son brouillon ou joindre un fichier.</p>}
           {props.error && <p role="alert" className="mb-2 text-xs text-red-700">{props.error}</p>}
@@ -223,7 +260,14 @@ export function ConversationPanel(props: ConversationPanelProps) {
             onClick={props.onRetryUpload}>Reprendre le téléversement</Button>}
           {props.onReconcileUnknown && <Button type="button" size="sm" variant="outline"
             className="mb-2" onClick={props.onReconcileUnknown}>Vérifier l’opération en attente</Button>}
-          <form className="flex items-center gap-1.5" onSubmit={event => event.preventDefault()}>
+          {props.turnState && <p role="status" className="mb-2 text-xs text-slate-600">
+            {props.turnState === 'queued' ? 'Tour en attente.' : props.turnState === 'running' ? 'Réponse en cours…'
+              : props.turnState === 'cancel_requested' ? 'Arrêt demandé ; confirmation en attente.'
+              : 'État du tour incertain ; vérifiez ou reprenez explicitement.'}
+          </p>}
+          {props.onResume && <Button type="button" size="sm" variant="outline" className="mb-2"
+            onClick={props.onResume}>Reprendre le tour</Button>}
+          <form className="flex items-center gap-1.5" onSubmit={event => {event.preventDefault();props.onSend?.();}}>
             {props.onAttach && <><input ref={fileInput} type="file" className="sr-only" tabIndex={-1}
               accept="text/plain,application/pdf,image/png,image/jpeg"
               aria-label="Choisir une pièce jointe" onChange={event => {
@@ -239,9 +283,19 @@ export function ConversationPanel(props: ConversationPanelProps) {
               onChange={event => props.onDraftChange(event.target.value)}
               aria-label="Brouillon de message" placeholder="Écrivez un message…"
               className="h-9 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-3 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400" />
-            <Button type="submit" size="icon" disabled aria-label="Envoyer — fournisseur indisponible" title="Fournisseur IA non configuré">
+            {props.turnState && props.onStop ? <Button type="button" size="icon" variant="outline"
+              disabled={props.turnState === 'cancel_requested' || props.busy}
+              onClick={props.onStop} aria-label="Arrêter la réponse" title="Demander l’arrêt de la réponse">
+              <X className="h-4 w-4" />
+            </Button> : <Button type="submit" size="icon"
+              disabled={!props.onSend || props.providerStatus !== 'ready' || !props.selectedModelId ||
+                !props.modelOptions?.some(model => model.id === props.selectedModelId) ||
+                !props.selectedId || !!props.selectedArchived || !!props.busy || !!props.turnState || !props.draft.trim()}
+              aria-label={props.providerStatus === 'ready' ? 'Envoyer le message' : 'Envoyer — fournisseur indisponible'}
+              title={props.providerStatus === 'ready' ? 'Envoyer le message'
+                :props.providerStatus === 'no_provider'?'Fournisseur IA non configuré':'Fournisseur IA indisponible'}>
               <Send className="h-4 w-4" />
-            </Button>
+            </Button>}
           </form>
         </div>
       </div>

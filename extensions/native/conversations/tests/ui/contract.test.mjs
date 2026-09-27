@@ -5,6 +5,8 @@ import {fileURLToPath} from 'node:url';
 import {build} from 'esbuild';
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
+import {projectTurnEvents} from '../../ui/turn-projection.ts';
+import {startTurnDriveLoop} from '../../ui/drive-loop.ts';
 
 const require = createRequire(import.meta.url);
 const bundle = await build({entryPoints:[fileURLToPath(new URL('../../ui/panel.tsx',import.meta.url))],
@@ -39,6 +41,62 @@ test('older history is requested above the visible messages', () => {
   const html = renderToStaticMarkup(React.createElement(ConversationPanel,{...props,
     hasMoreMessages:true,onLoadMoreMessages:noop}));
   assert.ok(html.indexOf('Charger les messages précédents') < html.indexOf('Bonjour'));
+});
+
+test('configured model enables send and an active turn offers stop with visible progress', () => {
+  const ready = renderToStaticMarkup(React.createElement(ConversationPanel,{...props,
+    providerStatus:'ready',modelOptions:[{id:'configured-model',label:'Modèle autorisé'}],
+    selectedModelId:'configured-model',onModelChange:noop,onSend:noop}));
+  assert.match(ready,/Modèle autorisé/);
+  assert.match(ready,/<button[^>]*aria-label="Envoyer le message"/);
+  assert.doesNotMatch(ready,/<button[^>]*disabled=""[^>]*aria-label="Envoyer le message"/);
+  const running = renderToStaticMarkup(React.createElement(ConversationPanel,{...props,
+    providerStatus:'ready',modelOptions:[{id:'configured-model',label:'Modèle autorisé'}],
+    selectedModelId:'configured-model',onModelChange:noop,onSend:noop,onStop:noop,
+    turnState:'running',assistantPreview:'Réponse partielle',progressSteps:[
+      {id:'tool-1',label:'Lecture autorisée',state:'done'}]}));
+  assert.match(running,/aria-label="Arrêter la réponse"/);
+  assert.match(running,/Réponse partielle/);
+  assert.match(running,/Lecture autorisée/);
+  assert.doesNotMatch(running,/aria-label="Envoyer le message"/);
+});
+
+test('configured but unreadable provider is reported as unavailable without enabling send',()=>{
+  const html=renderToStaticMarkup(React.createElement(ConversationPanel,{...props,
+    providerStatus:'unavailable',onSend:noop,modelOptions:[],selectedModelId:null}));
+  assert.match(html,/momentanément indisponible/);
+  assert.doesNotMatch(html,/Fournisseur IA non configuré/);
+  assert.match(html,/<button[^>]*disabled=""[^>]*aria-label="Envoyer — fournisseur indisponible"/);
+});
+
+test('progress projection exposes bounded text and known steps without raw provider payloads',()=>{
+  const events=[
+    {turnId:'t',sequence:1,kind:'queued',payload:{modelId:'configured'},createdAt:''},
+    {turnId:'t',sequence:2,kind:'text_delta',payload:{text:'Bonjour'},createdAt:''},
+    {turnId:'t',sequence:3,kind:'tool_call',payload:{name:'private_operation',arguments:{secret:'hidden'}},createdAt:''},
+    {turnId:'t',sequence:4,kind:'unexpected',payload:{secret:'hidden'},createdAt:''}];
+  const projected=projectTurnEvents(events);
+  assert.equal(projected.preview,'Bonjour');
+  assert.deepEqual(projected.steps.map(step=>step.label),['Tour en attente','Outil en cours']);
+  assert.doesNotMatch(JSON.stringify(projected),/private_operation|hidden|configured/);
+});
+
+test('active turn drives a continuation serially until it reaches a terminal state',async()=>{
+  let state='queued',calls=0,active=0,maximumActive=0,refreshes=0;
+  let finished;const done=new Promise(resolve=>{finished=resolve;});
+  const loop=startTurnDriveLoop({turnId:'turn-1',delayMs:1,getTurn:()=>({id:'turn-1',state}),
+    drive:async()=>{
+      active++;maximumActive=Math.max(maximumActive,active);
+      await new Promise(resolve=>setTimeout(resolve,5));
+      calls++;state=calls===1?'running':'succeeded';active--;
+      if(state==='succeeded')finished();
+      return {kind:'ok',value:{id:'turn-1',state}};
+    },refresh:async()=>{refreshes++;},onIssue:()=>assert.fail('No drive issue expected')});
+  let timeout;
+  try{
+    await Promise.race([done,new Promise((_,reject)=>{timeout=setTimeout(()=>reject(new Error('Continuation stalled')),1000);})]);
+    assert.equal(calls,2);assert.equal(maximumActive,1);assert(refreshes>=1);
+  }finally{clearTimeout(timeout);loop.stop();}
 });
 
 test('uncertain attachment is announced without implying the file was linked', () => {

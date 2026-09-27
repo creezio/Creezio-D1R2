@@ -5,6 +5,7 @@ import {createConversationsController} from '../../sdk/conversations/controller.
 const summary=(id,title=id)=>({id,title,mode:'chat',updatedAt:'2026-09-27T00:00:00.000Z',archivedAt:null,revision:1});
 const message=id=>({id,conversationId:'thread',role:'user',body:id,createdAt:'2026-09-27T00:00:00.000Z',revision:1});
 const execution=output=>({kind:'execution',execution:{id:'execution',state:'succeeded',output,errorCode:null}});
+const waiting=output=>({kind:'execution',execution:{id:'execution',state:'waiting',output,errorCode:null}});
 const deferred=()=>{let resolve;const promise=new Promise(done=>{resolve=done;});return {promise,resolve};};
 function access(){
   let state={phase:'authenticated',session:{id:'session',principalId:'alice',audience:'app'},pending:null};
@@ -13,6 +14,29 @@ function access(){
     subscribe:listener=>{listeners.add(listener);return()=>listeners.delete(listener);},
     refresh:async()=>{},set(next){state=next;for(const listener of listeners)listener();}};
 }
+
+test('a recovered query clears only its own error, never an uncertain mutation',async()=>{
+  const a=access();let eventFails=true;
+  const client={invoke:async({bindingId})=>{
+    if(bindingId.endsWith('event.list'))return eventFails
+      ?{kind:'execution',execution:{id:'execution',state:'failed',output:null,errorCode:'invalid_input'}}
+      :execution({items:[],nextSequence:null});
+    if(bindingId.endsWith('draft.save'))return {kind:'unknown',code:'outcome_unknown'};
+    throw new Error(bindingId);
+  }};
+  const controller=createConversationsController({access:a,client,audience:'app',contextId:'application',active:true});
+  assert.equal(await controller.readEvents('thread','turn'),null);
+  assert.equal(controller.getSnapshot().error,'invalid_input');
+  eventFails=false;
+  assert.deepEqual(await controller.readEvents('thread','turn'),{items:[],nextSequence:null});
+  assert.equal(controller.getSnapshot().error,null);
+  assert.equal((await controller.saveDraft('thread','Brouillon')).kind,'unknown');
+  assert.equal(controller.getSnapshot().error,'outcome_unknown');
+  await controller.readEvents('thread','turn');
+  assert.equal(controller.getSnapshot().error,'outcome_unknown');
+  assert.ok(controller.getSnapshot().unknown);
+  controller.dispose();
+});
 
 test('old search and old selected conversation cannot replace newer responses',async()=>{
   const a=access(), first=deferred(), selected=deferred();
@@ -163,5 +187,104 @@ test('confirmed lost draft response reloads server revision and keeps a newer lo
   assert.equal(controller.getSnapshot().draft.revision,1);
   assert.equal((await controller.saveDraft('thread')).kind,'ok');
   assert.equal(draftWrites,2);
+  controller.dispose();
+});
+
+test('turn start is one mutation; host drive uses scoped session and passive reads restore progress',async()=>{
+  const a=access();let starts=0,drives=0,stored=[],draftText='Salut',draftRevision=1;
+  const turn={id:'turn-1',conversationId:'thread',state:'queued',providerId:'openai.responses.v1',
+    updatedAt:'2026-09-27T00:00:00.000Z',lastSequence:1,errorCode:null,revision:1};
+  const client={invoke:async({bindingId,input})=>{
+    if(bindingId.endsWith('conversation.read'))return execution({conversation:summary('thread'),provider:'configured'});
+    if(bindingId.endsWith('message.list'))return execution({items:[...stored].reverse(),nextCursor:null});
+    if(bindingId.endsWith('draft.read'))return execution({conversationId:'thread',text:draftText,updatedAt:null,revision:draftRevision});
+    if(bindingId.endsWith('turn.start')){starts++;assert.equal(input.modelId,'chosen-model');
+      assert.equal(input.draftRevision,1);assert.equal(input.revision,1);
+      const user={...message(input.messageId),body:input.body};stored=[user];draftText='';draftRevision=2;
+      return waiting({message:user,turn});}
+    if(bindingId.endsWith('turn.read'))return execution({turn});
+    if(bindingId.endsWith('event.list'))return execution({items:[{turnId:'turn-1',sequence:1,kind:'queued',payload:{},
+      createdAt:'2026-09-27T00:00:00.000Z'}],nextSequence:null});
+    throw new Error(bindingId);
+  }};
+  const driveFetch=async(url,init)=>{drives++;assert.match(url,/\/api\/operations\/turns\/turn-1\/drive$/);
+    assert.equal(init.headers['x-creezio-context'],'application');
+    assert.equal(init.headers['x-creezio-audience'],'app');
+    assert.equal(init.headers['x-creezio-request'],'1');
+    assert.equal(init.credentials,'same-origin');
+    assert.deepEqual(JSON.parse(init.body),{conversationId:'thread'});
+    return Response.json({turn});};
+  const controller=createConversationsController({access:a,client,audience:'app',contextId:'application',
+    active:true,driveFetch});
+  await controller.open('thread');controller.setDraft('thread','Salut');
+  const started=await controller.startTurn('thread','Salut','chosen-model');
+  assert.equal(started.kind,'ok');assert.equal(starts,1);
+  assert.deepEqual(controller.getSnapshot().messages.map(item=>item.body),['Salut']);
+  assert.equal(controller.getSnapshot().draft.text,'');
+  assert.equal(controller.getSnapshot().activeTurn.id,'turn-1');
+  assert.equal(controller.getSnapshot().turnEvents[0].kind,'queued');
+  assert.equal((await controller.driveTurn('thread','turn-1')).kind,'ok');
+  assert.equal(drives,1);assert.equal(starts,1);
+  controller.dispose();
+});
+
+test('terminal turn rereads the conversation revision and final assistant message',async()=>{
+  const a=access();let revision=2,messageLists=0;
+  const earlier={...message('earlier'),role:'assistant',body:'Réponse précédente'};
+  const sent={...message('sent'),body:'Question modifiée',revision:2};
+  const assistant={...message('turn-1'),role:'assistant',body:'Réponse complète'};
+  const finished={id:'turn-1',conversationId:'thread',state:'succeeded',providerId:'openai.responses.v1',
+    updatedAt:'2026-09-27T00:00:02.000Z',lastSequence:3,errorCode:null,revision:3};
+  const client={invoke:async({bindingId})=>{
+    if(bindingId.endsWith('conversation.read'))return execution({conversation:{...summary('thread'),revision},provider:'configured'});
+    if(bindingId.endsWith('message.list'))return execution(++messageLists===1
+      ?{items:[earlier],nextCursor:'older'}
+      :{items:[assistant,{...sent,body:'Question ancienne',revision:1}],nextCursor:'recent'});
+    if(bindingId.endsWith('message.add'))return execution({message:sent});
+    if(bindingId.endsWith('draft.read'))return execution({conversationId:'thread',text:'',updatedAt:null,revision:1});
+    if(bindingId.endsWith('turn.read')){revision=3;return execution({turn:finished});}
+    if(bindingId.endsWith('event.list'))return execution({items:[
+      {turnId:'turn-1',sequence:3,kind:'completed',payload:{messageId:'turn-1'},createdAt:''}],nextSequence:null});
+    throw new Error(bindingId);
+  }};
+  const controller=createConversationsController({access:a,client,audience:'app',contextId:'application',active:true});
+  await controller.open('thread');
+  assert.equal((await controller.addMessage('thread',sent.body)).kind,'ok');
+  const state=await controller.refreshTurn('thread','turn-1');
+  assert.equal(state.state,'succeeded');
+  assert.equal(controller.getSnapshot().selected.revision,3);
+  assert.deepEqual(controller.getSnapshot().messages.map(row=>row.body),
+    ['Réponse précédente','Question modifiée','Réponse complète']);
+  assert.equal(controller.getSnapshot().messagesNextCursor,'older');
+  controller.dispose();
+});
+
+test('lost turn.start response is reconciled by request key without a second start',async()=>{
+  const a=access();let starts=0,revision=1,stored=[];
+  const turn={id:'turn-unknown',conversationId:'thread',state:'queued',providerId:'openai.responses.v1',
+    updatedAt:'2026-09-27T00:00:00.000Z',lastSequence:1,errorCode:null,revision:1};
+  const sent={...message('user-unknown'),body:'Une question'};
+  const client={invoke:async({bindingId})=>{
+    if(bindingId.endsWith('conversation.read'))return execution({conversation:{...summary('thread'),revision},provider:'configured'});
+    if(bindingId.endsWith('conversation.list'))return execution({items:[{...summary('thread'),revision}],nextCursor:null});
+    if(bindingId.endsWith('message.list'))return execution({items:[...stored],nextCursor:null});
+    if(bindingId.endsWith('draft.read'))return execution({conversationId:'thread',text:revision===1?'Une question':'',updatedAt:null,
+      revision:revision===1?0:1});
+    if(bindingId.endsWith('turn.start')){starts++;revision=2;stored=[sent];return {kind:'unknown',code:'outcome_unknown'};}
+    if(bindingId.endsWith('turn.read'))return execution({turn});
+    if(bindingId.endsWith('event.list'))return execution({items:[{turnId:turn.id,sequence:1,kind:'queued',
+      payload:{modelId:'configured'},createdAt:''}],nextSequence:null});
+    throw new Error(bindingId);
+  },status:async()=>waiting({message:sent,turn})};
+  const controller=createConversationsController({access:a,client,audience:'app',contextId:'application',active:true});
+  await controller.open('thread');controller.setDraft('thread','Une question');
+  assert.equal((await controller.startTurn('thread','Une question','configured')).kind,'unknown');
+  assert.equal(controller.getSnapshot().unknown?.bindingId,'creezio.conversations:app.turn.start');
+  assert.equal((await controller.startTurn('thread','Une question','configured')).kind,'rejected');
+  await controller.reconcileUnknown();
+  assert.equal(starts,1);
+  assert.equal(controller.getSnapshot().unknown,null);
+  assert.equal(controller.getSnapshot().activeTurn?.id,turn.id);
+  assert.equal(controller.getSnapshot().selected?.revision,2);
   controller.dispose();
 });

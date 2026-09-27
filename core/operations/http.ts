@@ -16,6 +16,11 @@ import { oauthResource } from '../oauth/protocol.ts';
 import {dispatchFileHttp} from '../files/http.ts';
 import type {RuntimeFileCatalog} from '../files/catalog.ts';
 import type {FileBucket} from '../files/service.ts';
+import {createOpenAiProviderHost,readProviderKeyring} from '../providers/host.ts';
+import type {ProviderConfigStorage,ProviderHttpPort,ProviderTransport} from '../../sdk/providers/types.ts';
+import type {VaultStorage} from '../vault/service.ts';
+import {createTurnBridge} from '../conversations/turn-bridge.ts';
+import type {ProviderOperationSchema} from '../providers/tools.ts';
 
 type Engine = ReturnType<typeof createOperationEngine>;
 const encoder = new TextEncoder();
@@ -263,6 +268,9 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
   readonly fileCatalog?: RuntimeFileCatalog;
   readonly bindings: readonly OperationHttpBinding[]; readonly workspaceCatalog: WorkspaceAuthorizationCatalog;
   readonly frontCatalog?: FrontAuthorizationCatalog & {readonly front: {readonly kind: 'workspace' | 'headless' | 'theme'}};
+  readonly openAiProvider?: {readonly config:ProviderConfigStorage;readonly vault:VaultStorage;
+    readonly transport:(http:ProviderHttpPort)=>ProviderTransport};
+  readonly toolCatalog?:readonly ProviderOperationSchema[];
   readonly runtimeInventory?: Parameters<typeof createOperationEngine>[0]['runtimeInventory']}) {
   return Object.freeze({async dispatch(request: Request, environment: RuntimeEnvironment, rawEnvironment: unknown,
     requestId: string): Promise<Response | null> {
@@ -274,10 +282,64 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
     if (path.startsWith('/api/front/')) return options.frontCatalog?.front.kind === 'theme'
       ? dispatchFrontHttp(request, environment, rawEnvironment, requestId, {permissions: options.permissions, catalog: options.frontCatalog}) : null;
     if (!path.startsWith('/api/')) return null;
+    const driveMatch=/^\/api\/operations\/turns\/([A-Za-z0-9][A-Za-z0-9._:-]{0,127})\/drive$/.exec(path);
     if (!path.startsWith(STATUS_PREFIX) && !path.startsWith(LOOKUP_PREFIX)
-      && !options.bindings.some(binding => match(path, binding.path))) return null;
+      && !driveMatch && !options.bindings.some(binding => match(path, binding.path))) return null;
+    let keyring:ReturnType<typeof readProviderKeyring>=null;
+    try{keyring=readProviderKeyring(rawEnvironment);}catch{/* Misconfigured deployment is unavailable, never replaced with an in-process key. */}
+    const provider=options.openAiProvider?createOpenAiProviderHost({db:environment.bindings.DB,
+      catalog:options.dataCatalog,permissions:options.permissions,...options.openAiProvider,keyring}):null;
+    if(driveMatch){
+      if(request.method!=='POST')return failure('method_not_allowed',405,requestId,{allow:'POST'},request.method==='HEAD');
+      if(!provider)return failure('runtime_unavailable',503,requestId);
+      const configuration=resolveAccessHttpConfiguration(rawEnvironment,environment.profile);
+      if(!configuration)return failure('runtime_unavailable',503,requestId);
+      try{
+        headerLimit(request);
+        const url=new URL(request.url),origin=request.headers.get('origin'),site=request.headers.get('sec-fetch-site');
+        if(url.origin!==configuration.origin||origin!==configuration.origin||site!==null&&site!=='same-origin'&&site!=='none'
+          ||request.headers.get('x-creezio-request')!=='1')fail('origin_denied',403);
+        if(request.headers.has('authorization'))fail('authentication_required',401);
+        if(url.search||request.headers.has('content-encoding')||!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type')??''))
+          fail('invalid_input',400);
+        const audienceValue=request.headers.get('x-creezio-audience');
+        if(audienceValue!=='admin'&&audienceValue!=='app')fail('invalid_input',400);
+        const audience=audienceValue as 'admin'|'app';
+        const contextValue=request.headers.get('x-creezio-context');
+        if(!contextValue||contextValue.length>128||!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(contextValue))fail('invalid_context',400);
+        const contextId=contextValue as string;
+        const token=readAccessCookie(request,configuration,audience);
+        if(!token)fail('authentication_required',401);
+        const body=await readAccessJson(request) as Record<string,unknown>;
+        if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).sort().join(',')!=='conversationId'
+          ||typeof body.conversationId!=='string'||!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(body.conversationId)
+          ||encoder.encode(JSON.stringify(body)).length>1024)fail('invalid_input',400);
+        const bucket=createD1IdentityStore(environment.bindings.DB);
+        const throttle=await bucket.consumeThrottle({key:await identityAdmissionKey('turn-drive',`${contextId}:${token}`),
+          limit:30,windowMs:60_000});
+        if(!throttle.allowed)fail('rate_limited',429);
+        const bridge=createTurnBridge({db:environment.bindings.DB,catalog:options.dataCatalog,
+          permissions:options.permissions,provider,registry:options.registry,toolCatalog:options.toolCatalog??[]});
+        const driveSignal=new AbortController(),onAbort=()=>driveSignal.abort();
+        if(request.signal.aborted)onAbort();else request.signal.addEventListener('abort',onAbort,{once:true});
+        const driveTimer=setTimeout(()=>driveSignal.abort(),25_000);
+        let result;
+        try{result=await bounded(request,()=>bridge.drive({credential:{kind:'session',token},
+          contextId,audience,conversationId:String(body.conversationId),turnId:driveMatch[1],signal:driveSignal.signal}),true);}
+        finally{clearTimeout(driveTimer);request.signal.removeEventListener('abort',onAbort);}
+        return json(result,200,requestId);
+      }catch(error){
+        if(error instanceof AccessHttpError)return failure(error.code,error.status,requestId);
+        if(error instanceof OperationError)return failure(error.code,errorStatus(error),requestId);
+        return failure('service_unavailable',503,requestId);
+      }
+    }
     const engine = createOperationEngine({db: environment.bindings.DB, registry: options.registry,
       catalog: options.dataCatalog, permissions: options.permissions, runtimeInventory: options.runtimeInventory,
+      ...(provider ? {providerAvailability:async(request,providerId)=>providerId==='openai.responses.v1'
+        ?provider.availability(request):{providerId,state:'missing' as const,modelIds:[]}} : {}),
+      ...(options.openAiProvider&&keyring?{providerSecrets:{storage:options.openAiProvider.vault,keyring,
+        providerId:'openai.responses.v1'}}:{}),
       ...(options.fileCatalog ? {files:{catalog:options.fileCatalog,bucket:environment.bindings.BUCKET as unknown as FileBucket}} : {})});
     return createOperationHttpTransport(options.bindings, engine).dispatch(request, environment, rawEnvironment, requestId);
   }});

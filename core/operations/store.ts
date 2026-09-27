@@ -6,7 +6,7 @@ import { OPERATION_TABLES } from './models.ts';
 import { OPERATION_STORE_LIMITS as LIMITS, OperationStoreError,
   type OperationStoreOptions, type OperationStore, type OperationExecution, type OperationClaim,
   type OperationDelivery, type DeliveryClaim, type OperationStart, type OperationStartResult,
-  type OperationOutboxIntent } from './store-types.ts';
+  type OperationOutboxIntent, type OperationDeliveryCheckpoint } from './store-types.ts';
 
 const T = Object.freeze(Object.fromEntries(Object.entries(OPERATION_TABLES).map(([id, name]) => [id, quote(name)]))) as Record<keyof typeof OPERATION_TABLES, string>;
 const NOW = "(CAST(unixepoch('now') AS INTEGER) * 1000)";
@@ -255,6 +255,18 @@ export function createOperationStore({ db, data }: OperationStoreOptions): Opera
       deliveryQuery(captured.executionId, captured.outboxId, who)] });
     return result.after[1].results[0] ? delivery(result.after[1].results[0]) : null;
   }
+  async function findDelivery(lease:DataLease,outboxId:string){
+    if(!validId(outboxId))return fail('invalid_input');
+    const who=identity(lease),scope=scopeWhere(who,'e');
+    const result=await run(lease,{write:false,after:[sql(`SELECT d.id,d.execution_id,d.intent_id,d.provider,d.provider_idempotency_key,
+      d.payload,d.state,d.receipt,d.claim_nonce,d.created_at_ms,d.updated_at_ms,d.claim_expires_at_ms,${NOW} AS now_ms
+      FROM ${T.outbox} d JOIN ${T.executions} e ON e.id=d.execution_id
+      WHERE json_valid(d.payload) AND json_extract(d.payload,'$.turnId')=? AND ${scope.sql}
+      ORDER BY CASE WHEN d.state IN ('queued','claimed','unknown') THEN 0 ELSE 1 END,
+        d.created_at_ms DESC,d.intent_id DESC LIMIT 1`,outboxId,...scope.bindings)]});
+    const rows=result.after[0]?.results??[];
+    return rows[0]?delivery(rows[0]):null;
+  }
   async function claimDelivery(lease: DataLease, input: { readonly executionId: string; readonly outboxId: string; readonly claimTtlMs: number }) {
     const captured = capture(input); record(captured); keys(captured, ['executionId','outboxId','claimTtlMs']);
     if (!validId(captured.executionId) || !validId(captured.outboxId) || !duration(captured.claimTtlMs)) return fail('invalid_input');
@@ -272,19 +284,102 @@ export function createOperationStore({ db, data }: OperationStoreOptions): Opera
     deliveries.set(token, { identity: who, executionId: captured.executionId, outboxId: captured.outboxId, nonce, attempted: false });
     return Object.freeze({ claim: token, delivery: delivery(row) });
   }
-  async function settleDelivery(lease: DataLease, claim: DeliveryClaim, input: { readonly state: 'succeeded' | 'failed' | 'unknown'; readonly receipt?: JsonValue }) {
+  function ownDeliveryClaim(lease: DataLease, claim: DeliveryClaim, mark = false) {
+    const state = claim && typeof claim === 'object' ? deliveries.get(claim) : undefined;
+    if (!state || state.attempted || !equalIdentity(state.identity, identity(lease))) return fail('invalid_claim');
+    if (mark) state.attempted = true;
+    return state;
+  }
+  async function checkpointDelivery(lease: DataLease, claim: DeliveryClaim, checkpoint: OperationDeliveryCheckpoint,
+    plans:readonly DataPlan[] = []) {
+    const captured = capture(checkpoint, LIMITS.receiptBytes); record(captured); keys(captured, ['providerReference','cursor'],['pendingTool']);
+    if (typeof captured.providerReference !== 'string' || !captured.providerReference || captured.providerReference.length > 256
+      || !captured.providerReference.isWellFormed() || /[\u0000-\u001f\u007f]/.test(captured.providerReference)
+      || !Number.isSafeInteger(captured.cursor) || Number(captured.cursor) < 0) return fail('invalid_input');
+    const state = ownDeliveryClaim(lease, claim), who = state.identity;
+    const receipt = JSON.stringify({providerReference:captured.providerReference,cursor:captured.cursor,
+      ...(Object.hasOwn(captured,'pendingTool')?{pendingTool:captured.pendingTool}:{})});
+    if(new TextEncoder().encode(receipt).length>LIMITS.receiptBytes)return fail('invalid_input');
+    const scope = deliveryScope(state.executionId, who);
+    const condition = sql(`EXISTS(SELECT 1 FROM ${T.outbox} WHERE execution_id=? AND intent_id=? AND claim_nonce=?
+      AND state='claimed' AND claim_expires_at_ms>${NOW} AND ${scope.sql}
+      AND (receipt IS NULL OR (json_extract(receipt,'$.providerReference')=?
+        AND json_type(receipt,'$.cursor')='integer' AND json_extract(receipt,'$.cursor')<=?)))`,
+      state.executionId,state.outboxId,state.nonce,...scope.bindings,captured.providerReference,Number(captured.cursor));
+    if(!Array.isArray(plans)||plans.length>16||new Set(plans).size!==plans.length)return fail('invalid_input');
+    const result = await run(lease,{write:true,before:[assert(condition)],plans,after:[
+      sql(`UPDATE ${T.outbox} SET receipt=?,claim_expires_at_ms=${NOW}+30000,updated_at_ms=${NOW}
+        WHERE execution_id=? AND intent_id=? AND claim_nonce=?`,
+        receipt,state.executionId,state.outboxId,state.nonce),
+      audit(state.executionId,who,'delivery-checkpointed',state.nonce,state.outboxId),
+      deliverySizeGuard(state.executionId,state.outboxId,who),deliveryQuery(state.executionId,state.outboxId,who),
+    ]});
+    const row=result.after.at(-1)?.results[0];if(!row)return fail('unavailable');return delivery(row);
+  }
+  async function resumeKnownDelivery(lease: DataLease,input:{readonly executionId:string;readonly outboxId:string;readonly claimTtlMs:number}) {
+    const captured=capture(input);record(captured);keys(captured,['executionId','outboxId','claimTtlMs']);
+    if(!validId(captured.executionId)||!validId(captured.outboxId)||!duration(captured.claimTtlMs))return fail('invalid_input');
+    const who=identity(lease),nonce=id(),scope=deliveryScope(captured.executionId,who);
+    const acquired=sql(`EXISTS(SELECT 1 FROM ${T.outbox} WHERE execution_id=? AND intent_id=? AND claim_nonce=?)`,
+      captured.executionId,captured.outboxId,nonce);
+    const result=await run(lease,{write:true,after:[
+      sql(`UPDATE ${T.outbox} SET state='claimed',claim_nonce=?,claim_expires_at_ms=${NOW}+?,updated_at_ms=${NOW}
+        WHERE execution_id=? AND intent_id=? AND ${scope.sql} AND (state='unknown' OR (state='claimed' AND claim_expires_at_ms<=${NOW}))
+        AND json_type(receipt,'$.providerReference')='text' AND length(json_extract(receipt,'$.providerReference'))>0
+        AND json_type(receipt,'$.cursor')='integer' AND json_extract(receipt,'$.cursor')>=0`,
+        nonce,captured.claimTtlMs,captured.executionId,captured.outboxId,...scope.bindings),
+      audit(captured.executionId,who,'delivery-resumed',nonce,captured.outboxId,null,acquired),
+      deliverySizeGuard(captured.executionId,captured.outboxId,who),deliveryQuery(captured.executionId,captured.outboxId,who),
+    ]});
+    const row=result.after.at(-1)?.results[0];if(!row||row.claim_nonce!==nonce)return null;
+    const token:DeliveryClaim=Object.freeze({kind:'operation-delivery-claim'});
+    deliveries.set(token,{identity:who,executionId:captured.executionId,outboxId:captured.outboxId,nonce,attempted:false});
+    return Object.freeze({claim:token,delivery:delivery(row)});
+  }
+  async function appendDelivery(lease:DataLease,claim:DeliveryClaim,input:{readonly plans:readonly DataPlan[];readonly intent:OperationOutboxIntent}) {
+    const desc=input&&typeof input==='object'?Object.getOwnPropertyDescriptors(input):null;
+    if(!desc||Object.getPrototypeOf(input)!==Object.prototype||Reflect.ownKeys(desc).sort().join(',')!=='intent,plans'
+      ||!Object.values(desc).every(value=>Object.hasOwn(value,'value'))||!Array.isArray(desc.plans.value)
+      ||desc.plans.value.length>16||new Set(desc.plans.value).size!==desc.plans.value.length)return fail('invalid_input');
+    const intent=capture(desc.intent.value,LIMITS.payloadBytes+1024);record(intent);
+    keys(intent,['id','provider','payload','providerIdempotencyKey']);
+    if(!validId(intent.id)||!validId(intent.provider)||typeof intent.providerIdempotencyKey!=='string'
+      ||!intent.providerIdempotencyKey||intent.providerIdempotencyKey.length>256
+      ||/[\u0000-\u001f\u007f]/.test(intent.providerIdempotencyKey))return fail('invalid_input');
+    capture(intent.payload,LIMITS.payloadBytes);
+    const state=ownDeliveryClaim(lease,claim,true),who=state.identity;
+    if(intent.id===state.outboxId)return fail('invalid_input');
+    const scope=deliveryScope(state.executionId,who);
+    const current=sql(`EXISTS(SELECT 1 FROM ${T.outbox} WHERE execution_id=? AND intent_id=? AND claim_nonce=?
+      AND state='claimed' AND claim_expires_at_ms>${NOW} AND provider=? AND ${scope.sql})`,
+      state.executionId,state.outboxId,state.nonce,intent.provider,...scope.bindings);
+    const result=await run(lease,{write:true,before:[assert(current)],plans:desc.plans.value,after:[
+      sql(`UPDATE ${T.outbox} SET state='succeeded',updated_at_ms=${NOW} WHERE execution_id=? AND intent_id=? AND claim_nonce=?`,
+        state.executionId,state.outboxId,state.nonce),
+      sql(`INSERT INTO ${T.outbox}(id,execution_id,intent_id,provider,provider_idempotency_key,payload,state,receipt,claim_nonce,created_at_ms,updated_at_ms,claim_expires_at_ms)
+        VALUES(?,?,?,?,?,?,'queued',NULL,NULL,${NOW},${NOW},NULL)`,
+        id(),state.executionId,intent.id,intent.provider,intent.providerIdempotencyKey,JSON.stringify(intent.payload)),
+      sql(`UPDATE ${T.executions} SET state='waiting',updated_at_ms=${NOW} WHERE id=?`,state.executionId),
+      audit(state.executionId,who,'delivery-succeeded',state.nonce,state.outboxId),
+      audit(state.executionId,who,'delivery-appended',state.nonce,intent.id),
+      deliverySizeGuard(state.executionId,intent.id,who),deliveryQuery(state.executionId,intent.id,who),
+    ]});
+    const row=result.after.at(-1)?.results[0];if(!row)return fail('unavailable');return delivery(row);
+  }
+  async function settleDelivery(lease: DataLease, claim: DeliveryClaim, input: { readonly state: 'succeeded' | 'failed' | 'unknown'; readonly receipt?: JsonValue },
+    plans:readonly DataPlan[] = []) {
     const captured = capture(input, LIMITS.receiptBytes + 256); record(captured); keys(captured, ['state'], ['receipt']);
     if (typeof captured.state !== 'string' || !['succeeded','failed','unknown'].includes(captured.state)) return fail('invalid_input');
     const receipt = capture(captured.receipt ?? null, LIMITS.receiptBytes);
-    const state = claim && typeof claim === 'object' ? deliveries.get(claim) : undefined;
-    if (!state || state.attempted || !equalIdentity(state.identity, identity(lease))) return fail('invalid_claim');
-    state.attempted = true;
+    if(!Array.isArray(plans)||plans.length>16||new Set(plans).size!==plans.length)return fail('invalid_input');
+    const state = ownDeliveryClaim(lease,claim,true);
     // A positive reply may arrive after the claim deadline. Its exact nonce can
     // settle that emission, but never authorizes a second emission.
     const result = await run(lease, { write: true, before: [assert(sql(`EXISTS(SELECT 1 FROM ${T.outbox}
-      WHERE execution_id=? AND intent_id=? AND claim_nonce=? AND state IN ('claimed','unknown'))`, state.executionId, state.outboxId, state.nonce))], after: [
-      sql(`UPDATE ${T.outbox} SET state=?,receipt=?,updated_at_ms=${NOW} WHERE execution_id=? AND intent_id=? AND claim_nonce=?`,
-        String(captured.state), JSON.stringify(receipt), state.executionId, state.outboxId, state.nonce),
+      WHERE execution_id=? AND intent_id=? AND claim_nonce=? AND state IN ('claimed','unknown'))`, state.executionId, state.outboxId, state.nonce))], plans, after: [
+      sql(`UPDATE ${T.outbox} SET state=?,receipt=CASE WHEN ? THEN ? ELSE receipt END,updated_at_ms=${NOW}
+        WHERE execution_id=? AND intent_id=? AND claim_nonce=?`,
+        String(captured.state),Object.hasOwn(captured,'receipt')?1:0,JSON.stringify(receipt),state.executionId,state.outboxId,state.nonce),
       sql(`UPDATE ${T.executions} SET state=CASE
         WHEN EXISTS(SELECT 1 FROM ${T.outbox} WHERE execution_id=? AND state='unknown') THEN 'unknown'
         WHEN EXISTS(SELECT 1 FROM ${T.outbox} WHERE execution_id=? AND state IN ('queued','claimed')) THEN 'waiting'
@@ -295,7 +390,8 @@ export function createOperationStore({ db, data }: OperationStoreOptions): Opera
     ] });
     const row = result.after.at(-1)?.results[0]; if (!row) return fail('unavailable'); return delivery(row);
   }
-  return Object.freeze({ start, read, lookup, commit, resume, readDelivery, claimDelivery, settleDelivery,
+  return Object.freeze({ start, read, lookup, commit, resume, readDelivery, findDelivery, claimDelivery,
+    checkpointDelivery,resumeKnownDelivery,appendDelivery,settleDelivery,
     fail: (lease, claim, code) => finish(lease, claim, code, false), markUnknown: (lease, claim, code) => finish(lease, claim, code, true) } satisfies OperationStore);
 }
 export { OPERATION_STORE_LIMITS, OperationStoreError } from './store-types.ts';

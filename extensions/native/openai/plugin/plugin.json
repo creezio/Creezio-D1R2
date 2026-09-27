@@ -1,0 +1,6 @@
+{
+  "name": "creezio-openai",
+  "version": "0.0.0",
+  "description": "Fournisseur OpenAI pour les conversations Creezio.",
+  "mcpServers": {}
+}

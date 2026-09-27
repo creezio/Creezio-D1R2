@@ -31,7 +31,7 @@ export const OPERATION_MODELS: readonly DataModel[] = freeze([
   [index('claim', ['claim_nonce'], true), index('execution-number', ['execution_id', 'number'], true)],
   [relation('execution', ['execution_id'], 'executions', ['id'])]),
   model('audit', [text('id'), text('execution_id'), text('attempt_nonce', 128, true), text('outbox_id', 128, true),
-    enumeration('event', ['started', 'resumed', 'committed', 'failed', 'unknown', 'delivery-claimed', 'delivery-succeeded', 'delivery-failed', 'delivery-unknown']),
+    enumeration('event', ['started', 'resumed', 'committed', 'failed', 'unknown', 'delivery-claimed', 'delivery-checkpointed', 'delivery-resumed', 'delivery-appended', 'delivery-succeeded', 'delivery-failed', 'delivery-unknown']),
     text('actor_principal_id'), text('principal_id'), text('context_id'), enumeration('audience', ['admin', 'app']),
     text('code', 128, true), integer('created_at_ms')], [index('execution-time', ['execution_id', 'created_at_ms'])],
   [relation('execution', ['execution_id'], 'executions', ['id'])]),

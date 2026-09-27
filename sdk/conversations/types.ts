@@ -16,6 +16,7 @@ export interface ConversationTurn {
   readonly id:string; readonly conversationId:string;
   readonly state:'queued'|'running'|'succeeded'|'failed'|'cancel_requested'|'cancelled'|'no_provider'|'unknown';
   readonly providerId:string|null; readonly updatedAt:string; readonly lastSequence:number; readonly errorCode:string|null;
+  readonly revision:number;
 }
 export interface ConversationEvent {
   readonly turnId:string; readonly sequence:number; readonly kind:string;
@@ -39,6 +40,8 @@ export interface ConversationsSnapshot {
   readonly messages:readonly ConversationMessage[];
   readonly messagesNextCursor:string|null;
   readonly draft:ConversationDraft|null;
+  readonly activeTurn:ConversationTurn|null;
+  readonly turnEvents:readonly ConversationEvent[];
   readonly searchQuery:string;
   readonly archived:boolean;
   readonly pending:boolean;
@@ -54,6 +57,8 @@ export interface ConversationsControllerOptions {
   readonly audience:AccessAudience;
   readonly contextId:string;
   readonly active?:boolean;
+  /** Same-origin host drive transport; injectable only for controlled client tests. */
+  readonly driveFetch?:typeof fetch;
 }
 export interface ConversationsController {
   getSnapshot():ConversationsSnapshot;
@@ -69,6 +74,10 @@ export interface ConversationsController {
   archive(conversationId:string):Promise<ConversationActionResult<ConversationSummary>>;
   restore(conversationId:string):Promise<ConversationActionResult<ConversationSummary>>;
   addMessage(conversationId:string,body:string):Promise<ConversationActionResult<ConversationMessage>>;
+  startTurn(conversationId:string,body:string,modelId:string):Promise<ConversationActionResult<{
+    message:ConversationMessage;turn:ConversationTurn}>>;
+  driveTurn(conversationId:string,turnId:string):Promise<ConversationActionResult<ConversationTurn>>;
+  refreshTurn(conversationId:string,turnId:string):Promise<ConversationTurn|null>;
   setDraft(conversationId:string,text:string):void;
   saveDraft(conversationId:string,text?:string):Promise<ConversationActionResult<ConversationDraft>>;
   readTurn(conversationId:string,turnId:string):Promise<ConversationTurn|null>;

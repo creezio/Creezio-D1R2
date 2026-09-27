@@ -1,6 +1,6 @@
 # Qualification de GPT Sites
 
-26 septembre 2026. Vérification du contrat disponible et sonde technique publiée. Le CMS complet, les interfaces à onglets et le fork de recette ne sont pas encore implémentés ; les preuves ci-dessous ne les remplacent pas.
+État au 27 septembre 2026 : une nouvelle cible publique a été créée sur le compte courant, l'ancienne sonde restant préservée. Le workspace original, les fronts et Conversations sont désormais intégrés et qualifiés localement jusqu'à PR #23. Leur qualification hébergée reste à exécuter, avec le module OpenAI en construction ; le fork n'est pas encore créé. Les résultats de sonde ci-dessous datent du 26 septembre et ne constituent pas une recette du produit. Voir le [parcours d'installation Sites](INSTALLATION-SITES.md).
 
 ## Périmètre retenu
 

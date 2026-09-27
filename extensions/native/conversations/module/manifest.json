@@ -828,6 +828,11 @@
                       "minLength": 1,
                       "maxLength": 35
                     },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
                     "lastSequence": {
                       "type": "integer",
                       "minimum": 0,
@@ -852,6 +857,7 @@
                     "state",
                     "providerId",
                     "updatedAt",
+                    "revision",
                     "lastSequence",
                     "errorCode"
                   ],
@@ -997,6 +1003,198 @@
             "conversationId",
             "turnId",
             "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "turn-start-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "conversationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "messageId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "body": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16000
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "draftRevision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "modelId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "requestKey",
+            "conversationId",
+            "messageId",
+            "body",
+            "revision",
+            "draftRevision",
+            "modelId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "turn-start-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "message": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "conversationId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "user",
+                    "assistant",
+                    "tool",
+                    "system"
+                  ]
+                },
+                "body": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 16000
+                },
+                "createdAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "id",
+                "conversationId",
+                "role",
+                "body",
+                "createdAt",
+                "revision"
+              ],
+              "additionalProperties": false
+            },
+            "turn": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "conversationId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "queued",
+                    "running",
+                    "succeeded",
+                    "failed",
+                    "cancel_requested",
+                    "cancelled",
+                    "no_provider",
+                    "unknown"
+                  ]
+                },
+                "providerId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "lastSequence": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "errorCode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "conversationId",
+                "state",
+                "providerId",
+                "updatedAt",
+                "revision",
+                "lastSequence",
+                "errorCode"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "message",
+            "turn"
           ],
           "additionalProperties": false
         }
@@ -1360,6 +1558,17 @@
             "nullable": true,
             "protected": false,
             "computed": false
+          },
+          {
+            "id": "active_turn_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
           },
           {
             "id": "revision",
@@ -2988,7 +3197,9 @@
           "writes": [],
           "emits": [],
           "calls": [],
-          "providers": []
+          "providers": [
+            "openai.responses.v1"
+          ]
         },
         "errors": [
           {
@@ -4033,6 +4244,155 @@
         "public": false
       },
       {
+        "id": "turn.start",
+        "title": "Démarrer un tour IA",
+        "kind": "command",
+        "input": {
+          "schemaId": "turn-start-input"
+        },
+        "output": {
+          "schemaId": "turn-start-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "turnStart"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "draft"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "message"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "draft"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "turn"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "event"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "openai.responses.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "text",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
         "id": "event.list",
         "title": "Lire la progression",
         "kind": "query",
@@ -4144,7 +4504,7 @@
         },
         "execution": {
           "maxDurationMs": 10000,
-          "maxItems": 50,
+          "maxItems": 52,
           "resumable": false
         },
         "audit": {
@@ -4528,7 +4888,7 @@
         },
         "execution": {
           "maxDurationMs": 10000,
-          "maxItems": 50,
+          "maxItems": 51,
           "resumable": false
         },
         "audit": {
@@ -4939,6 +5299,32 @@
         },
         "output": {
           "schemaId": "turn-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.turn.start",
+        "method": "POST",
+        "path": "/api/admin/conversations/turn/start",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "turn.start"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "turn-start-input"
+        },
+        "output": {
+          "schemaId": "turn-start-output"
         },
         "rateLimit": {
           "requests": 60,
@@ -5496,6 +5882,32 @@
         }
       },
       {
+        "id": "app.turn.start",
+        "method": "POST",
+        "path": "/api/app/conversations/turn/start",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "turn.start"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "turn-start-input"
+        },
+        "output": {
+          "schemaId": "turn-start-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
         "id": "app.event.list",
         "method": "GET",
         "path": "/api/app/conversations/event/list",
@@ -5995,6 +6407,35 @@
           "textFallback": true
         },
         {
+          "id": "turn.start",
+          "name": "conversations_turn_start",
+          "operation": {
+            "moduleId": "creezio.conversations",
+            "kind": "operation",
+            "id": "turn.start"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "turn-start-input"
+          },
+          "output": {
+            "schemaId": "turn-start-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
           "id": "event.list",
           "name": "conversations_event_list",
           "operation": {
@@ -6199,6 +6640,11 @@
             {
               "moduleId": "creezio.conversations",
               "kind": "operation",
+              "id": "turn.start"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
               "id": "event.list"
             },
             {
@@ -6308,6 +6754,11 @@
               "moduleId": "creezio.conversations",
               "kind": "operation",
               "id": "turn.read"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "turn.start"
             },
             {
               "moduleId": "creezio.conversations",
@@ -6524,6 +6975,8 @@
         "module/service.ts",
         "ui/index.tsx",
         "ui/panel.tsx",
+        "ui/turn-projection.ts",
+        "ui/drive-loop.ts",
         "ui/message-content.tsx",
         "ui/entity-links.ts",
         "ui/source-links.ts",

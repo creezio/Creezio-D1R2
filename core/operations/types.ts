@@ -3,6 +3,7 @@ import type { ContractReference, DataPlan, DataPort, JsonValue } from '../data/t
 import type { OperationOutboxIntent } from './store-types.ts';
 import type { ModuleSettingsHostInventory } from '../../sdk/module-settings/types.ts';
 import type {OperationFilesPort} from '../../sdk/files/types.ts';
+import type {ProviderSecretsPort} from '../../sdk/providers/types.ts';
 
 /** The canonical v1 declaration is compiled once; transports do not invent an operation policy. */
 export interface OperationDeclaration {
@@ -40,12 +41,21 @@ export type OperationValidator = (input: unknown) => boolean;
 export type OperationValidators = Readonly<Record<string, OperationValidator>>;
 /** No immediate mutation, free SQL, transaction executor or identity credential reaches module code. */
 export type OperationDataPort = Pick<DataPort, 'get' | 'list' | 'planGet' | 'planList' | 'planCreate' | 'planPatch' | 'planDelete'>;
+export interface OperationProviderAvailability {
+  readonly providerId: string;
+  readonly state: 'ready' | 'missing' | 'invalid' | 'unavailable';
+  readonly modelIds: readonly string[];
+}
 export interface OperationContext {
   readonly moduleId: string; readonly operationId: string; readonly executionId: string;
   readonly contextId: string; readonly audience: AuthorizationAudience;
   readonly principalId: string; readonly actorPrincipalId: string; readonly signal: AbortSignal;
   readonly data: OperationDataPort;
   readonly files?: OperationFilesPort;
+  /** Narrow, plan-only vault capability for the native provider configuration command. */
+  readonly providerSecrets?: ProviderSecretsPort;
+  /** Server-selected readiness only; it carries neither credentials nor authority to emit. */
+  readonly providerAvailability?: OperationProviderAvailability;
   /** Build-owned inventory; supplied only to the trusted native modules-settings implementation. */
   readonly hostInventory?: ModuleSettingsHostInventory;
 }

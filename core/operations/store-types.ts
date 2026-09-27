@@ -29,6 +29,12 @@ export interface OperationDelivery {
   readonly providerIdempotencyKey: string; readonly state: DeliveryState; readonly receipt: JsonValue;
   readonly createdAtMs: number; readonly updatedAtMs: number; readonly claimExpiresAtMs: number | null;
 }
+/** Host-only reference obtained from a provider acknowledgement. Never returned to a module or browser. */
+export interface OperationDeliveryCheckpoint {
+  readonly providerReference: string; readonly cursor: number;
+  /** Host-only bounded result of a read tool, retained until the continuation is appended. */
+  readonly pendingTool?:JsonValue;
+}
 export interface OperationStore {
   start(lease: DataLease, input: OperationStart): Promise<OperationStartResult>;
   read(lease: DataLease, executionId: string): Promise<OperationExecution | null>;
@@ -47,10 +53,23 @@ export interface OperationStore {
   claimDelivery(lease: DataLease, input: { readonly executionId: string; readonly outboxId: string; readonly claimTtlMs: number }): Promise<{
     readonly claim: DeliveryClaim; readonly delivery: OperationDelivery;
   } | null>;
+  /** Persist the provider handle before reading its stream. The active claim and cursor are checked atomically. */
+  checkpointDelivery(lease: DataLease, claim: DeliveryClaim, checkpoint: OperationDeliveryCheckpoint,
+    plans?: readonly DataPlan[]): Promise<OperationDelivery>;
+  /** Acquire a fresh observation claim only for a delivery whose provider handle is already durable. */
+  resumeKnownDelivery(lease: DataLease, input: { readonly executionId: string; readonly outboxId: string; readonly claimTtlMs: number }): Promise<{
+    readonly claim: DeliveryClaim; readonly delivery: OperationDelivery;
+  } | null>;
+  /** Commit a tool result's business plans and its next provider step under the current delivery claim. */
+  appendDelivery(lease: DataLease, claim: DeliveryClaim, input: {
+    readonly plans: readonly DataPlan[]; readonly intent: OperationOutboxIntent;
+  }): Promise<OperationDelivery>;
   settleDelivery(lease: DataLease, claim: DeliveryClaim, input: {
     readonly state: 'succeeded' | 'failed' | 'unknown'; readonly receipt?: JsonValue;
-  }): Promise<OperationDelivery>;
+  }, plans?:readonly DataPlan[]): Promise<OperationDelivery>;
   readDelivery(lease: DataLease, input: { readonly executionId: string; readonly outboxId: string }): Promise<OperationDelivery | null>;
+  /** Resolve a host-generated turn intent inside the current actor/context scope. */
+  findDelivery(lease:DataLease,outboxId:string):Promise<OperationDelivery|null>;
 }
 export interface OperationStoreOptions { readonly db: IdentityDatabase; readonly data: DataAccess }
 export class OperationStoreError extends Error {

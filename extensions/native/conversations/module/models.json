@@ -97,6 +97,17 @@
         "computed": false
       },
       {
+        "id": "active_turn_id",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
         "id": "revision",
         "type": "integer",
         "nullable": false,

@@ -1,4 +1,5 @@
 import type {OperationClientResult} from '../operations/client.ts';
+import {readJson} from '../operations/protocol.ts';
 import type {ConversationActionResult, ConversationAttachment, ConversationDraft, ConversationEvent, ConversationMessage, ConversationPage,
   ConversationsController, ConversationsControllerOptions, ConversationsSnapshot, ConversationSummary, ConversationTurn} from './types.ts';
 
@@ -17,6 +18,11 @@ const attachment=(value:unknown)=>{const row=object(value),reference=object(row?
   &&Number.isSafeInteger(row.byteSize)&&Number(row.byteSize)>=0&&text(row.createdAt,35)
   &&!!reference&&reference.fileId===row.fileId&&id(reference.intentId)&&id(reference.generation)
   &&typeof reference.digest==='string'&&/^[0-9a-f]{64}$/i.test(reference.digest);};
+const turn=(value:unknown):value is ConversationTurn=>{const row=object(value);return !!row&&id(row.id)
+  &&id(row.conversationId)&&['queued','running','succeeded','failed','cancel_requested','cancelled','no_provider','unknown'].includes(String(row.state))
+  &&(row.providerId===null||id(row.providerId))&&text(row.updatedAt,35)
+  &&Number.isSafeInteger(row.lastSequence)&&Number(row.lastSequence)>=0
+  &&(row.errorCode===null||text(row.errorCode,128))&&Number.isSafeInteger(row.revision)&&Number(row.revision)>=1;};
 function validOutput(name:string,value:JsonObject):boolean {
   try{if(JSON.stringify(value).length>262144)return false;}catch{return false;}
   if(['conversation.list','conversation.search'].includes(name))return Array.isArray(value.items)&&value.items.length<=50
@@ -28,7 +34,9 @@ function validOutput(name:string,value:JsonObject):boolean {
   if(name==='message.add')return message(value.message);
   if(['draft.read','draft.save'].includes(name))return id(value.conversationId)&&text(value.text,16000)
     &&(value.updatedAt===null||text(value.updatedAt,35))&&Number.isSafeInteger(value.revision);
-  if(['turn.read','turn.cancel'].includes(name))return value.turn===null||!!object(value.turn)&&id(object(value.turn)?.id);
+  if(['turn.read','turn.cancel'].includes(name))return value.turn===null||turn(value.turn);
+  if(name==='turn.start')return message(value.message)&&turn(value.turn)
+    &&object(value.message)?.conversationId===object(value.turn)?.conversationId;
   if(name==='event.list')return Array.isArray(value.items)&&value.items.length<=50
     &&value.items.every(item=>Number.isSafeInteger(object(item)?.sequence)&&id(object(item)?.turnId))
     &&(value.nextSequence===null||Number.isSafeInteger(value.nextSequence));
@@ -39,7 +47,8 @@ function validOutput(name:string,value:JsonObject):boolean {
 }
 const binding=(audience:'admin'|'app',name:string)=>`creezio.conversations:${audience}.${name}`;
 const empty:ConversationsSnapshot=Object.freeze({phase:'loading',provider:'no_provider',conversations:Object.freeze([]),
-  nextCursor:null,selected:null,messages:Object.freeze([]),messagesNextCursor:null,draft:null,searchQuery:'',archived:false,pending:false,
+  nextCursor:null,selected:null,messages:Object.freeze([]),messagesNextCursor:null,draft:null,
+  activeTurn:null,turnEvents:Object.freeze([]),searchQuery:'',archived:false,pending:false,
   unknown:null,error:null});
 
 /** Host-bound conversation state; themes receive only the rendered view. */
@@ -48,8 +57,12 @@ export function createConversationsController(options:ConversationsControllerOpt
     throw new TypeError('Invalid conversation controller scope.');
   const listeners=new Set<()=>void>();
   let snapshot=empty, disposed=false, active=options.active??false,
-    generation=0, listGeneration=0, openGeneration=0, identity='',restoreSelection:string|null=null;
+    generation=0, listGeneration=0, openGeneration=0, turnRefreshGeneration=0,
+    identity='',restoreSelection:string|null=null;
+  let queryFailure:{bindingId:string;code:string}|null=null;
   const localDrafts=new Map<string,string>();
+  const turnIds=new Map<string,string>();
+  const driveRequests=new Set<AbortController>();
   const cache=new Map<string,ConversationSummary>();
   let storage:Storage|null=null;
   try {storage=globalThis.sessionStorage;}catch{/* optional browser persistence */}
@@ -64,19 +77,21 @@ export function createConversationsController(options:ConversationsControllerOpt
     for(const listener of listeners)listener();
   };
   const clear=()=>{
+    for(const request of driveRequests)request.abort();driveRequests.clear();
     const old=identity;
     if(old&&storage)try{
       for(let index=storage.length-1;index>=0;index--){const key=storage.key(index);
         if(key?.startsWith(`creezio.conversations.v1:${old}:`))storage.removeItem(key);}
     }catch{/* optional storage */}
-    identity='';restoreSelection=null;localDrafts.clear();cache.clear();generation++;listGeneration++;openGeneration++;
+    identity='';restoreSelection=null;queryFailure=null;localDrafts.clear();turnIds.clear();cache.clear();generation++;listGeneration++;openGeneration++;turnRefreshGeneration++;
     update({...empty,phase:'anonymous'});
   };
   const purgeAuthorized=(code:string)=>{
+    for(const request of driveRequests)request.abort();driveRequests.clear();
     const old=identity;
     if(old&&storage)try{for(let index=storage.length-1;index>=0;index--){const name=storage.key(index);
       if(name?.startsWith(`creezio.conversations.v1:${old}:`))storage.removeItem(name);}}catch{}
-    restoreSelection=null;localDrafts.clear();cache.clear();generation++;listGeneration++;openGeneration++;
+    restoreSelection=null;queryFailure=null;localDrafts.clear();turnIds.clear();cache.clear();generation++;listGeneration++;openGeneration++;turnRefreshGeneration++;
     update({...empty,phase:'ready',error:code});
     void options.access.refresh().catch(()=>{});
   };
@@ -90,7 +105,7 @@ export function createConversationsController(options:ConversationsControllerOpt
     }
     if(!current){clear();return;}
     if(identity!==current){
-      identity=current;localDrafts.clear();cache.clear();generation++;listGeneration++;openGeneration++;
+      identity=current;queryFailure=null;localDrafts.clear();turnIds.clear();cache.clear();generation++;listGeneration++;openGeneration++;
       update({...empty,phase:'ready'});
       try {const raw=storage?.getItem(storageKey('unknown'));const pending=raw&&object(JSON.parse(raw));
         if(pending&&typeof pending.bindingId==='string'&&typeof pending.requestKey==='string'&&typeof pending.code==='string')
@@ -107,7 +122,12 @@ export function createConversationsController(options:ConversationsControllerOpt
     const bindingId=binding(options.audience,name);
     if(command&&(snapshot.pending||snapshot.unknown))return {kind:'rejected',code:'pending_resolution'};
     if(!current(stamp)||!stillCurrent())return {kind:'rejected',code:'stale'};
+    const showQueryError=(code:string)=>{
+      if(snapshot.pending||snapshot.unknown||snapshot.error!==null&&!queryFailure)return;
+      queryFailure={bindingId,code};update({error:code});
+    };
     if(command){
+      queryFailure=null;
       const unknown={bindingId,requestKey:requestKey!,code:'pending'};
       update({pending:true,unknown,error:null});
       try{storage?.setItem(storageKey('unknown'),JSON.stringify(unknown));}catch{/* pending remains in memory */}
@@ -115,33 +135,39 @@ export function createConversationsController(options:ConversationsControllerOpt
     const response=await options.client.invoke({bindingId,contextId:options.contextId,
       input:command?{...args,requestKey}:args,isCurrent:()=>current(stamp)&&stillCurrent()});
     if(!current(stamp)||!stillCurrent())return {kind:'unknown',code:'stale',requestKey:requestKey??''};
-    if(response.kind==='execution'&&response.execution.state==='succeeded'){
+    if(response.kind==='execution'&&(response.execution.state==='succeeded'
+      ||name==='turn.start'&&response.execution.state==='waiting')){
       const output=object(response.execution.output);
       if(!output||!validOutput(name,output)){
         if(command){const unknown={bindingId,requestKey:requestKey!,code:'invalid_output'};
           update({pending:false,unknown,error:'invalid_output'});
           try{storage?.setItem(storageKey('unknown'),JSON.stringify(unknown));}catch{}}
+        else showQueryError('invalid_output');
         return {kind:'unknown',code:'invalid_output',requestKey:requestKey??''};
       }
       if(command){update({pending:false,unknown:null,error:null});try{storage?.removeItem(storageKey('unknown'));}catch{}}
+      else if(queryFailure?.bindingId===bindingId){
+        const prior=queryFailure;queryFailure=null;
+        if(snapshot.error===prior.code&&!snapshot.pending&&!snapshot.unknown)update({error:null});
+      }
       return {kind:'ok',value:output};
     }
     if(response.kind==='rejected'){
       if(['forbidden','unauthorized'].includes(response.code)){purgeAuthorized(response.code);return {kind:'rejected',code:response.code};}
       if(command){update({pending:false,unknown:null,error:response.code});try{storage?.removeItem(storageKey('unknown'));}catch{}}
-      else update({error:response.code});
+      else showQueryError(response.code);
       return {kind:'rejected',code:response.code};
     }
     if(response.kind==='execution'&&response.execution.state==='failed'){
       const code=response.execution.errorCode??'failed';
       if(command){update({pending:false,unknown:null,error:code});try{storage?.removeItem(storageKey('unknown'));}catch{}}
-      else update({error:code});
+      else showQueryError(code);
       return {kind:'rejected',code};
     }
     const code=response.kind==='unknown'?response.code:response.execution.state;
     if(command){const unknown={bindingId,requestKey:requestKey!,code};update({pending:false,unknown,error:code});
       try{storage?.setItem(storageKey('unknown'),JSON.stringify(unknown));}catch{}}
-    else update({error:code});
+    else showQueryError(code);
     return {kind:'unknown',code,requestKey:requestKey??''};
   }
   const query=async(name:string,args:JsonObject,stillCurrent?:()=>boolean):Promise<JsonObject|null>=>{
@@ -187,7 +213,8 @@ export function createConversationsController(options:ConversationsControllerOpt
     subscribe(listener){listeners.add(listener);return()=>{listeners.delete(listener);};},
     setActive(value){
       if(disposed||active===value)return;
-      active=value;generation++;listGeneration++;openGeneration++;
+      if(!value){for(const request of driveRequests)request.abort();driveRequests.clear();}
+      active=value;generation++;listGeneration++;openGeneration++;turnRefreshGeneration++;
       if(!active&&snapshot.pending)update({pending:false,error:'outcome_unknown'});
       if(active&&restoreSelection&&!snapshot.selected){const remembered=restoreSelection;void controller.open(remembered);}
     },
@@ -196,7 +223,7 @@ export function createConversationsController(options:ConversationsControllerOpt
     search:args=>list(args,false),
     async open(conversationId){
       if(!id(conversationId))return;
-      const stamp=generation,serial=++openGeneration;
+      const stamp=generation,serial=++openGeneration;turnRefreshGeneration++;
       const detail=await query('conversation.read',{conversationId},()=>serial===openGeneration);
       if(!current(stamp)||serial!==openGeneration)return;
       if(!detail){
@@ -210,6 +237,7 @@ export function createConversationsController(options:ConversationsControllerOpt
       restoreSelection=null;try{storage?.setItem(storageKey('selected'),conversationId);}catch{}
       cache.set(selected.id,selected);
       update({selected,messages:Object.freeze([]),messagesNextCursor:null,draft:null,
+        activeTurn:null,turnEvents:Object.freeze([]),
         provider:detail.provider==='configured'?'configured':'no_provider'});
       const [messages,draft]=await Promise.all([query('message.list',{conversationId,limit:25},()=>serial===openGeneration),
         query('draft.read',{conversationId},()=>serial===openGeneration)]);
@@ -222,6 +250,9 @@ export function createConversationsController(options:ConversationsControllerOpt
         draft:{conversationId,text:local??(typeof storedDraft?.text==='string'?storedDraft.text:''),
           updatedAt:typeof storedDraft?.updatedAt==='string'?storedDraft.updatedAt:null,
           revision:typeof storedDraft?.revision==='number'?storedDraft.revision:0}});
+      let remembered:string|null=turnIds.get(conversationId)??null;
+      if(!remembered)try{const value=storage?.getItem(storageKey(`turn:${conversationId}`));remembered=id(value)?value:null;}catch{}
+      if(remembered&&current(stamp)&&serial===openGeneration)await controller.refreshTurn(conversationId,remembered);
     },
     async loadMoreMessages(){
       const selected=snapshot.selected,cursor=snapshot.messagesNextCursor;
@@ -252,6 +283,122 @@ export function createConversationsController(options:ConversationsControllerOpt
       if(snapshot.selected?.id===conversationId)update({messages:Object.freeze([...snapshot.messages,message as unknown as ConversationMessage])});
       return {kind:'ok',value:message as unknown as ConversationMessage};
     },
+    async startTurn(conversationId,body,modelId){
+      if(snapshot.selected?.id!==conversationId||snapshot.selected.archivedAt!==null||!text(body,16000)
+        ||!body.trim()||!id(modelId))return {kind:'rejected',code:'invalid_input'};
+      const wanted=body,revision=cache.get(conversationId)?.revision??snapshot.selected.revision;
+      const draftRevision=snapshot.draft?.conversationId===conversationId?snapshot.draft.revision:0;
+      const result=await invoke('turn.start',{conversationId,messageId:crypto.randomUUID(),body:wanted,
+        revision,draftRevision,modelId},true);
+      if(result.kind!=='ok')return result;
+      const sent=result.value.message as unknown as ConversationMessage;
+      const started=result.value.turn as unknown as ConversationTurn;
+      const newer=localDrafts.get(conversationId);
+      if(newer===undefined||newer===wanted){localDrafts.delete(conversationId);
+        try{storage?.removeItem(storageKey(`draft:${conversationId}`));}catch{}}
+      turnIds.set(conversationId,started.id);
+      try{storage?.setItem(storageKey(`turn:${conversationId}`),started.id);}catch{}
+      if(snapshot.selected?.id===conversationId){
+        update({messages:Object.freeze([...snapshot.messages,sent]),activeTurn:started,turnEvents:Object.freeze([]),
+          draft:{conversationId,text:newer!==undefined&&newer!==wanted?newer:'',updatedAt:null,revision:draftRevision+1}});
+      }
+      if(snapshot.selected?.id===conversationId)await controller.open(conversationId);
+      return {kind:'ok',value:{message:sent,turn:started}};
+    },
+    async driveTurn(conversationId,turnId){
+      if(!id(conversationId)||!id(turnId)||snapshot.selected?.id!==conversationId)
+        return {kind:'rejected',code:'invalid_input'};
+      const stamp=generation,expected=scope(),selected=options.access.getSnapshot().session;
+      if(!current(stamp)||!selected)return {kind:'rejected',code:'stale'};
+      const fetcher=options.driveFetch??globalThis.fetch.bind(globalThis);
+      const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),28000);
+      driveRequests.add(abort);
+      try{
+        const response=await fetcher(`${options.access.origin}/api/operations/turns/${encodeURIComponent(turnId)}/drive`,{
+          method:'POST',headers:{accept:'application/json','content-type':'application/json',
+            'x-creezio-context':options.contextId,'x-creezio-audience':options.audience,
+            'x-creezio-request':'1'},
+          body:JSON.stringify({conversationId}),credentials:'same-origin',mode:'same-origin',
+          redirect:'error',cache:'no-store',signal:abort.signal});
+        if(!current(stamp)||scope()!==expected||options.access.getSnapshot().session?.id!==selected.id
+          ||snapshot.selected?.id!==conversationId)return {kind:'unknown',code:'stale',requestKey:''};
+        if(!(response instanceof Response)||response.redirected||response.url&&new URL(response.url).origin!==options.access.origin)
+          return {kind:'unknown',code:'invalid_response',requestKey:''};
+        const value=object(await readJson(response));
+        if(!current(stamp)||scope()!==expected||options.access.getSnapshot().session?.id!==selected.id
+          ||snapshot.selected?.id!==conversationId)return {kind:'unknown',code:'stale',requestKey:''};
+        const driven=value?.turn;
+        if(response.status===200&&turn(driven)&&driven.id===turnId
+          &&driven.conversationId===conversationId){
+          await controller.refreshTurn(conversationId,turnId);
+          return {kind:'ok',value:driven};
+        }
+        const error=object(value?.error),code=error?.code;
+        if(response.status>=400&&response.status<500&&typeof code==='string'&&/^[a-z][a-z0-9_]{0,63}$/.test(code)){
+          if(response.status===408||response.status===499)
+            return {kind:'unknown',code:'outcome_unknown',requestKey:''};
+          if(['forbidden','unauthorized'].includes(code))purgeAuthorized(code);
+          return {kind:'rejected',code};
+        }
+        return {kind:'unknown',code:'outcome_unknown',requestKey:''};
+      }catch{return {kind:'unknown',code:'outcome_unknown',requestKey:''};}
+      finally{clearTimeout(timer);driveRequests.delete(abort);}
+    },
+    async refreshTurn(conversationId,turnId){
+      if(snapshot.selected?.id!==conversationId||!id(turnId))return null;
+      const stamp=generation,serial=openGeneration,refreshSerial=++turnRefreshGeneration;
+      const detail=await query('turn.read',{conversationId,turnId},()=>serial===openGeneration);
+      if(!current(stamp)||serial!==openGeneration||refreshSerial!==turnRefreshGeneration
+        ||snapshot.selected?.id!==conversationId)return null;
+      const row=detail?.turn;
+      if(!turn(row)){
+        if(row===null){turnIds.delete(conversationId);
+          try{storage?.removeItem(storageKey(`turn:${conversationId}`));}catch{}
+          update({activeTurn:null,turnEvents:Object.freeze([])});}
+        return null;
+      }
+      let events=snapshot.activeTurn?.id===turnId?[...snapshot.turnEvents]:[];
+      let after=events.at(-1)?.sequence??0;
+      for(let page=0;page<4;page++){
+        const result=await query('event.list',{conversationId,turnId,limit:50,afterSequence:after},
+          ()=>serial===openGeneration&&refreshSerial===turnRefreshGeneration&&snapshot.selected?.id===conversationId);
+        if(!current(stamp)||serial!==openGeneration||refreshSerial!==turnRefreshGeneration
+          ||snapshot.selected?.id!==conversationId)return null;
+        if(!Array.isArray(result?.items))break;
+        for(const item of result.items as ConversationEvent[])if(item.sequence>after){events.push(item);after=item.sequence;}
+        if(result.nextSequence===null||!result.items.length)break;
+      }
+      update({activeTurn:row,turnEvents:Object.freeze(events)});
+      if(!['queued','running','cancel_requested','unknown'].includes(row.state)){
+        turnIds.delete(conversationId);
+        try{storage?.removeItem(storageKey(`turn:${conversationId}`));}catch{}
+        const messages=await query('message.list',{conversationId,limit:25},
+          ()=>serial===openGeneration&&refreshSerial===turnRefreshGeneration&&snapshot.selected?.id===conversationId);
+        if(current(stamp)&&serial===openGeneration&&refreshSerial===turnRefreshGeneration
+          &&snapshot.selected?.id===conversationId&&Array.isArray(messages?.items)){
+          const existing=snapshot.messages,merged=[...existing];
+          const positions=new Map(merged.map((item,index)=>[item.id,index]));
+          for(const item of [...(messages.items as ConversationMessage[])].reverse()){
+            const position=positions.get(item.id);
+            if(position===undefined){positions.set(item.id,merged.length);merged.push(item);}
+            else if(item.revision>merged[position].revision)merged[position]=item;
+          }
+          update({messages:Object.freeze(merged),messagesNextCursor:existing.length?snapshot.messagesNextCursor:
+            typeof messages.nextCursor==='string'?messages.nextCursor:null});
+        }
+        const detail=await query('conversation.read',{conversationId},
+          ()=>serial===openGeneration&&refreshSerial===turnRefreshGeneration&&snapshot.selected?.id===conversationId);
+        const selected=detail?.conversation;
+        if(current(stamp)&&serial===openGeneration&&refreshSerial===turnRefreshGeneration
+          &&snapshot.selected?.id===conversationId&&summary(selected)){
+          const fresh=selected as ConversationSummary;
+          cache.set(conversationId,fresh);
+          update({selected:fresh,conversations:Object.freeze(snapshot.conversations.map(item=>
+            item.id===conversationId?fresh:item))});
+        }
+      }
+      return row;
+    },
     setDraft(conversationId,text){
       if(!id(conversationId)||!text.isWellFormed()||text.length>16000||snapshot.selected?.id!==conversationId)return;
       localDrafts.set(conversationId,text);
@@ -278,7 +425,11 @@ export function createConversationsController(options:ConversationsControllerOpt
       limit:50,afterSequence});return Array.isArray(result?.items)?{items:result.items as ConversationEvent[],
       nextSequence:typeof result.nextSequence==='number'?result.nextSequence:null}:null;},
     async cancelTurn(conversationId,turnId,revision){const result=await invoke('turn.cancel',{conversationId,turnId,revision},true);
-      return result.kind==='ok'?{kind:'ok',value:object(result.value.turn) as unknown as ConversationTurn|null}:result;},
+      if(result.kind!=='ok')return result;
+      const stopped=result.value.turn as ConversationTurn|null;
+      if(stopped&&snapshot.selected?.id===conversationId&&snapshot.activeTurn?.id===turnId)
+        update({activeTurn:stopped});
+      return {kind:'ok',value:stopped};},
     async linkAttachment(conversationId,staged){
       const result=await invoke('attachment.link',{conversationId,staged,
         revision:cache.get(conversationId)?.revision??0},true);
@@ -302,23 +453,34 @@ export function createConversationsController(options:ConversationsControllerOpt
       if(result.kind==='rejected'&&['forbidden','unauthorized'].includes(result.code)){
         purgeAuthorized(result.code);return result;
       }
-      if(result.kind==='execution'&&['succeeded','failed'].includes(result.execution.state)){
-        const name=pending.bindingId.slice(`creezio.conversations:${options.audience}.`.length);
-        if(result.execution.state==='succeeded'){
+      const name=pending.bindingId.slice(`creezio.conversations:${options.audience}.`.length);
+      const confirmed=result.kind==='execution'&&(result.execution.state==='succeeded'
+        ||name==='turn.start'&&result.execution.state==='waiting');
+      if(result.kind==='execution'&&(confirmed||result.execution.state==='failed')){
+        if(confirmed){
           const output=object(result.execution.output);
           if(!output||!validOutput(name,output)){update({error:'invalid_output'});return result;}
         }
         update({unknown:null,error:result.execution.state==='failed'?result.execution.errorCode:null});
         try{storage?.removeItem(storageKey('unknown'));}catch{}
-        if(result.execution.state==='succeeded'){
+        if(confirmed){
           const selectedId=snapshot.selected?.id;
+          if(name==='turn.start'){
+            const confirmed=object(object(result.execution.output)?.turn);
+            if(selectedId&&id(confirmed?.id)&&confirmed?.conversationId===selectedId){
+              turnIds.set(selectedId,confirmed.id);
+              try{storage?.setItem(storageKey(`turn:${selectedId}`),confirmed.id);}catch{}
+            }
+          }
           await controller.refresh();
           if(selectedId&&snapshot.selected?.id===selectedId)await controller.open(selectedId);
         }
       }
       return result;
     },
-    dispose(){if(disposed)return;disposed=true;generation++;unsubscribe();listeners.clear();}
+    dispose(){if(disposed)return;disposed=true;generation++;
+      for(const request of driveRequests)request.abort();driveRequests.clear();
+      unsubscribe();listeners.clear();}
   };
   if(active&&restoreSelection)queueMicrotask(()=>{if(!disposed&&restoreSelection&&active)void controller.open(restoreSelection);});
   return Object.freeze(controller);
