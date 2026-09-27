@@ -274,17 +274,20 @@ m.documentation.versionBinding={moduleVersion:'0.0.0',sourceRevision:'t14-conver
 m.validation.suites.backend.tests=['tests/backend/contract.test.mjs'];
 m.validation.suites.ui.tests=['tests/ui/contract.test.mjs'];
 m.validation.suites['api-mcp'].tests=['tests/api-mcp/contract.test.mjs'];
-m.validation.suites.widgets.tests=['tests/widgets/contract.test.mjs'];
-m.validation.suites.widgets.justification={reason:'Conversation widgets and GPT bridge follow in T16.',policyRule:'conversations.widgets-t16'};
+m.validation.suites.widgets.mode='required';
+m.validation.suites.widgets.tests=['tests/widgets/contract.test.mjs','tests/widgets/host.test.mjs'];
+delete m.validation.suites.widgets.justification;
 m.validation.suites.package.tests=['tests/package/contract.test.mjs'];
 m.validation.suites.docs.tests=['tests/docs/contract.test.mjs'];
 m.packaging.runtime.files=['module/manifest.json','module/models.json','module/entry.server.ts','module/operations.ts','module/service.ts',
-  'ui/index.tsx','ui/panel.tsx','ui/turn-projection.ts','ui/drive-loop.ts','ui/message-content.tsx','ui/entity-links.ts','ui/source-links.ts',
+  'ui/index.tsx','ui/panel.tsx','ui/widget-message.tsx','ui/turn-projection.ts','ui/drive-loop.ts','ui/message-content.tsx','ui/entity-links.ts','ui/source-links.ts',
   'README.md','prd.md','CHANGELOG.md','LICENSE','plugin/plugin.json','plugin/mcp.json','plugin/contributions.ts'];
 m.packaging.validation.files=['AGENTS.md','FILES.md','interview.md','TODO.md','gate.mjs','module/generate-manifest.mjs','ci/run-suite.mjs','tests/helpers.mjs',
-  ...['backend','ui','api-mcp','widgets','package','docs'].flatMap(name=>[`ci/${name}.mjs`,`tests/${name}/contract.test.mjs`])];
+  ...['backend','ui','api-mcp','widgets','package','docs'].flatMap(name=>[`ci/${name}.mjs`,`tests/${name}/contract.test.mjs`]),
+  'tests/widgets/host.test.mjs'];
 m.packaging.validationBinding={moduleId:id,moduleVersion:'0.0.0',sourceRevision:'t14-conversations-v1'};
-m.lifecycle.absent={widgets:{reason:'Conversation widgets and GPT bridge follow in T16.',policyRule:'conversations.widgets-t16'}};
+m.lifecycle.absent={widgets:{reason:'Conversations hosts widgets from other modules but declares no renderer of its own.',
+  policyRule:'conversations.widget-host-only'}};
 m.lifecycle.configuration='explicit-state';
 writeFileSync(new URL('module/models.json',here),JSON.stringify(models,null,2)+'\n');
 writeFileSync(new URL('module/manifest.json',here),JSON.stringify(m,null,2)+'\n');

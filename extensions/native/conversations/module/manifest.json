@@ -8750,15 +8750,12 @@
         ]
       },
       "widgets": {
-        "mode": "not-applicable",
+        "mode": "required",
         "script": "ci/widgets.mjs",
         "tests": [
-          "tests/widgets/contract.test.mjs"
-        ],
-        "justification": {
-          "reason": "Conversation widgets and GPT bridge follow in T16.",
-          "policyRule": "conversations.widgets-t16"
-        }
+          "tests/widgets/contract.test.mjs",
+          "tests/widgets/host.test.mjs"
+        ]
       },
       "package": {
         "mode": "required",
@@ -8801,6 +8798,7 @@
         "module/service.ts",
         "ui/index.tsx",
         "ui/panel.tsx",
+        "ui/widget-message.tsx",
         "ui/turn-projection.ts",
         "ui/drive-loop.ts",
         "ui/message-content.tsx",
@@ -8837,7 +8835,8 @@
         "ci/package.mjs",
         "tests/package/contract.test.mjs",
         "ci/docs.mjs",
-        "tests/docs/contract.test.mjs"
+        "tests/docs/contract.test.mjs",
+        "tests/widgets/host.test.mjs"
       ],
       "references": []
     },
@@ -8857,8 +8856,8 @@
     "activationRequirements": [],
     "absent": {
       "widgets": {
-        "reason": "Conversation widgets and GPT bridge follow in T16.",
-        "policyRule": "conversations.widgets-t16"
+        "reason": "Conversations hosts widgets from other modules but declares no renderer of its own.",
+        "policyRule": "conversations.widget-host-only"
       }
     },
     "dependencyChanges": {

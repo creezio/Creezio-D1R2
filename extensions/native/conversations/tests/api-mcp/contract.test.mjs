@@ -4,7 +4,13 @@ import {manifest} from '../helpers.mjs';
 
 test('every protected operation has separate admin and app bindings',()=>{
   const operations=manifest.contracts.operations;
-  assert.equal(operations.length,17);
+  assert.deepEqual(operations.map(op=>op.id),[
+    'conversation.list','conversation.search','conversation.create','conversation.read',
+    'conversation.rename','conversation.archive','conversation.restore','message.list','message.add',
+    'widget.message.create','widget.context.replace','widget.context.remove','widget.context.read',
+    'draft.read','draft.save','turn.read','turn.start','event.list','turn.cancel',
+    'attachment.link','attachment.list',
+  ]);
   for(const op of operations){
     assert.deepEqual(op.audiences,['admin','app']);
     assert.deepEqual(op.permissions.map(ref=>ref.id),['use']);

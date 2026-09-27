@@ -11,5 +11,6 @@ test('manifest is valid and every declared artifact exists as a regular file',()
     assert.ok(stat.isFile()&&!stat.isSymbolicLink(),name);
   }
   assert.ok(manifest.packaging.runtime.files.includes('ui/panel.tsx'));
+  assert.ok(manifest.packaging.runtime.files.includes('ui/widget-message.tsx'));
   assert.ok(manifest.packaging.runtime.files.includes('module/service.ts'));
 });
