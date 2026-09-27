@@ -6,6 +6,7 @@ data/schema/access.sql text eol=lf
 data/schema/runtime.sql text eol=lf
 data/schema/modules-settings.sql text eol=lf
 data/schema/conversations.sql text eol=lf
+data/schema/openai.sql text eol=lf
 
 # Module archives lock exact bytes across Windows and Linux. Text sources use LF;
 # binary assets retain their original bytes and are not normalized by packaging.
@@ -15,6 +16,8 @@ extensions/**/*.mjs text eol=lf
 extensions/**/*.json text eol=lf
 extensions/**/*.md text eol=lf
 extensions/**/*.css text eol=lf
+extensions/**/*.html text eol=lf
+extensions/**/*.txt text eol=lf
 extensions/**/LICENSE text eol=lf
 themes/**/*.ts text eol=lf
 themes/**/*.tsx text eol=lf
