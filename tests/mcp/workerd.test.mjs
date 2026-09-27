@@ -75,13 +75,16 @@ test('built Worker completes native OAuth then real MCP discovery, call and revo
     await client.connect(wire);
     const tools=(await client.listTools()).tools;assert.equal(tools.length,18);
     assert.ok(tools.every(tool=>tool._meta.securitySchemes[0].scopes.includes(tool.name.startsWith('modules_')?modulePermission:'creezio.access:manage')));
+    assert.ok(tools.every(tool=>!tool.name.startsWith('conversations_')),
+      'the OAuth token lacks conversation permission, so its tools must stay undiscoverable');
     const read=await client.callTool({name:'access_policy_read',arguments:{}});assert.equal(read.isError,undefined);
     assert.equal(read.structuredContent.epoch,granted.epoch);
     const api=await request('/api/admin/access/policy',{headers:{authorization:`Bearer ${pair.access_token}`}});
     assert.equal(api.status,200,'same OAuth authority must work in declared HTTP operations');
     const catalog=await client.callTool({name:'modules_catalog_list',arguments:{limit:50}});
     assert.equal(catalog.isError,undefined,JSON.stringify(catalog));
-    assert.deepEqual(catalog.structuredContent.items.map(item=>item.moduleId),['creezio.access','creezio.modules-settings']);
+    assert.deepEqual(catalog.structuredContent.items.map(item=>item.moduleId),
+      ['creezio.access','creezio.conversations','creezio.modules-settings']);
     const documents=await client.callTool({name:'modules_docs_list',arguments:{moduleId:'creezio.modules-settings'}});
     assert.equal(documents.isError,undefined,JSON.stringify(documents));
     assert.deepEqual(documents.structuredContent.documents.map(item=>item.kind).sort(),['changelog','prd','readme']);

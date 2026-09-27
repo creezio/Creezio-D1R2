@@ -12,7 +12,8 @@ const hostObjects = describeD1Schema(OPERATION_STORAGE_MODULE_ID, OPERATION_MODE
 function inputs({accessOnly = false} = {}) {
   const input = {composition: json('../../configuration/composition.json'), lock: json('../../configuration/composition.lock.json'),
     modules: [json('../../extensions/native/access/module/manifest.json'),
-      json('../../extensions/native/modules-settings/module/manifest.json')]};
+      json('../../extensions/native/modules-settings/module/manifest.json'),
+      json('../../extensions/native/conversations/module/manifest.json')]};
   if (!accessOnly) return input;
   input.composition.modules = input.composition.modules.filter(item => item.moduleId === 'creezio.access');
   input.lock.modules = input.lock.modules.filter(item => item.moduleId === 'creezio.access');
@@ -27,17 +28,19 @@ function relock(input) {
   return input;
 }
 
-test('composed compiler includes both native modules and freezes the runtime projection', async () => {
+test('composed compiler includes all three native modules and freezes the runtime projection', async () => {
   const input = inputs(), plan = compileCompositionSchema(input);
   assert.deepEqual(plan.runtimeCatalog.modules.map(module => [module.moduleId, module.models.length]),
-    [['creezio.access', 28], ['creezio.modules-settings', 3]]);
-  assert.equal(plan.objects.length, 74 + 3 + hostObjects);
+    [['creezio.access', 28], ['creezio.conversations', 7], ['creezio.modules-settings', 3]]);
+  assert.equal(describeD1Schema('creezio.conversations',input.modules[2].contracts.models).objects.length,15);
+  assert.equal(plan.objects.length, 74 + 3 + 15 + hostObjects);
   assert.equal(plan.host.moduleId, OPERATION_STORAGE_MODULE_ID);
   assert.equal(plan.host.models.length, 4);
   assert.equal(plan.runtimeCatalog.modules.some(module => module.moduleId === OPERATION_STORAGE_MODULE_ID), false);
   assert.equal(plan.runtimeCatalog.modules[0].permissions.length, 2);
-  assert.deepEqual(plan.runtimeCatalog.modules[0].permissions, input.modules[0].contracts.permissions);
-  assert.deepEqual(plan.runtimeCatalog.modules[1].permissions, input.modules[1].contracts.permissions);
+  for (const descriptor of input.modules) assert.deepEqual(
+    plan.runtimeCatalog.modules.find(module => module.moduleId === descriptor.identity.id).permissions,
+    descriptor.contracts.permissions);
   assert.ok(Object.isFrozen(plan.runtimeCatalog.modules[0].models[0].model.fields[0]));
   input.modules[0].contracts.models[0].fields[0].nullable = true;
   assert.equal(plan.runtimeCatalog.modules[0].models[0].model.fields[0].nullable, false);

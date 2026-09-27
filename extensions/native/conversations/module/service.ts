@@ -144,7 +144,7 @@ export async function messageList(value: JsonValue, context: OperationContext) {
   const expected={owner:context.principalId,audience:context.audience,context:context.contextId,conversationId};
   const after=decodeCursor(cursor,expected);
   const page=await context.data.list('message',ordered(safeMessageLimit(limit),{...scope(context),conversation_id:String(conversationId)},after,
-    'chronology','asc')) as Page;
+    'chronology','desc')) as Page;
   return {output:{items:page.items.map(message),nextCursor:encodeCursor(page.nextAfter,expected)}};
 }
 export async function messageAdd(value:JsonValue,context:OperationContext) {

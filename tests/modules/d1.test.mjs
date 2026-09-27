@@ -12,6 +12,7 @@ import {createAccountService,provisionBootstrapCapability} from '../../core/iden
 import {ACCESS_TABLES} from '../../core/identity/d1-store.ts';
 import {hostOnly} from '../../extensions/native/access/module/operations.ts';
 import * as moduleHandlers from '../../extensions/native/modules-settings/module/operations.ts';
+import * as conversationHandlers from '../../extensions/native/conversations/module/operations.ts';
 import {solveModulePlan} from '../../sdk/modules/solver.mjs';
 import {installedDocumentDigest,splitInstalledDocumentContent} from '../../sdk/modules/documents.ts';
 import {namedModule} from '../contracts/helpers.mjs';
@@ -20,6 +21,7 @@ const json=path=>JSON.parse(readFileSync(new URL(path,import.meta.url),'utf8'));
 const quote=value=>`"${value.replaceAll('"','""')}"`;
 const access=json('../../extensions/native/access/module/manifest.json');
 const settings=json('../../extensions/native/modules-settings/module/manifest.json');
+const conversations=json('../../extensions/native/conversations/module/manifest.json');
 const moduleId='creezio.modules-settings';
 function compiledFixture() {
   const composition=json('../../configuration/composition.json');
@@ -27,7 +29,7 @@ function compiledFixture() {
   const witness=namedModule('merchant.example','merchant');
   witness.compatibility.core='^0.0.0';
   witness.validation.policy=structuredClone(composition.sdk.policy);
-  const modules=[access,settings,witness];
+  const modules=[access,settings,conversations,witness];
   if (!composition.modules.some(item=>item.moduleId===moduleId)) {
     composition.modules.push({moduleId,origin:settings.identity.origin,versionRange:'^0.0.0',
       source:{kind:'workspace',path:'extensions/native/modules-settings'},enabled:true,
@@ -69,7 +71,7 @@ function compiledFixture() {
       const declaration=descriptor.documentation.installed[kind];
       const content=descriptor===witness
         ? `# Synthetic installed ${kind} for ${descriptor.identity.id}\nVersion ${descriptor.identity.version}.\n`
-        : readFileSync(new URL(`../../extensions/native/${descriptor===access?'access':'modules-settings'}/${declaration.path}`,
+        : readFileSync(new URL(`../../${selected.source.path}/${declaration.path}`,
           import.meta.url),'utf8');
       const bytes=new TextEncoder().encode(content);
       return {moduleId:descriptor.identity.id,origin:descriptor.identity.origin,
@@ -79,7 +81,7 @@ function compiledFixture() {
         blockCount:splitInstalledDocumentContent(content).length,content};
     });
   });
-  return {composition,lock,modules,inventory,currentInstalledDocuments};
+  return {composition,lock,modules,witness,inventory,currentInstalledDocuments};
 }
 
 test('modules settings operation commits head, plan, journal and execution in real D1',
@@ -91,8 +93,10 @@ test('modules settings operation commits head, plan, journal and execution in re
     const handlers={...Object.fromEntries(access.contracts.operations.map(item=>[`creezio.access:${item.id}`,hostOnly])),
       ...Object.fromEntries(settings.contracts.operations.map(item=>[`${moduleId}:${item.id}`,
         moduleHandlers[item.handler.export]])),
-      ...Object.fromEntries(fixture.modules[2].contracts.operations.map(item=>
-        [`${fixture.modules[2].identity.id}:${item.id}`,hostOnly]))};
+      ...Object.fromEntries(conversations.contracts.operations.map(item=>[`${conversations.identity.id}:${item.id}`,
+        conversationHandlers[item.handler.export]])),
+      ...Object.fromEntries(fixture.witness.contracts.operations.map(item=>
+        [`${fixture.witness.identity.id}:${item.id}`,hostOnly]))};
     const registry=createOperationRegistry({catalog:compiled.catalog,validators,handlers});
     const runtime=new Miniflare({host:'127.0.0.1',port:0,cf:false,modules:true,compatibilityDate:'2026-05-15',
       script:'export default {fetch(){return new Response(null,{status:404})}}',
@@ -130,7 +134,7 @@ test('modules settings operation commits head, plan, journal and execution in re
       assert.equal(accessPreview.execution.state,'succeeded');
       assert.ok(accessPreview.execution.output.diagnostics.length>0,
         'the manager cannot remain enabled after its required Access dependency is disabled');
-      const intent={schemaVersion:1,base,actions:[{kind:'disable',moduleId:fixture.modules[2].identity.id}]};
+      const intent={schemaVersion:1,base,actions:[{kind:'disable',moduleId:fixture.witness.identity.id}]};
       const preview=await invoke('plans.preview',{intent});
       assert.equal(preview.execution.state,'succeeded',JSON.stringify(preview.execution));
       assert.deepEqual(preview.execution.output.diagnostics,[]);
@@ -196,7 +200,7 @@ test('modules settings operation commits head, plan, journal and execution in re
       const base2={revision:1,compositionDigest:catalog2.execution.output.compositionDigest,
         lockDigest:catalog2.execution.output.lockDigest,
         inventoryDigest:catalog2.execution.output.inventoryDigest};
-      const intent2={schemaVersion:1,base:base2,actions:[{kind:'enable',moduleId:fixture.modules[2].identity.id,
+      const intent2={schemaVersion:1,base:base2,actions:[{kind:'enable',moduleId:fixture.witness.identity.id,
         audiences:[]}]};
       const preview2=await publishedInvoke('plans.preview',{intent:intent2});
       assert.equal(preview2.execution.state,'succeeded',JSON.stringify(preview2.execution));

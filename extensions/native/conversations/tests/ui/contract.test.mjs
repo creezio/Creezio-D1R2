@@ -35,6 +35,12 @@ test('floating admin view starts from the assistant launcher without exposing th
   assert.doesNotMatch(html,/Bonjour|Brouillon conservé/);
 });
 
+test('older history is requested above the visible messages', () => {
+  const html = renderToStaticMarkup(React.createElement(ConversationPanel,{...props,
+    hasMoreMessages:true,onLoadMoreMessages:noop}));
+  assert.ok(html.indexOf('Charger les messages précédents') < html.indexOf('Bonjour'));
+});
+
 test('uncertain attachment is announced without implying the file was linked', () => {
   const html = renderToStaticMarkup(React.createElement(ConversationPanel,{...props,onAttach:noop,
     attachments:[{fileId:'f1',filename:'document.pdf',byteSize:1024}],onDownloadAttachment:noop,

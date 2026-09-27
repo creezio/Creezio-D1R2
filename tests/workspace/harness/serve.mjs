@@ -90,12 +90,15 @@ try {
       for(const model of models)summary[model.modelId]=(await db.prepare(`SELECT count(*) AS total FROM "${model.table}"`).first()).total;
       console.log(JSON.stringify({conversations:summary}));
     }
-    if (command.trim() === 'revoke') {
+    if (command.trim() === 'revoke' || command.trim() === 'grant') {
       current = requireOk(await authorization.readPolicy(session.token));
       const changed = structuredClone(current.policy);
-      changed.roles.find(role => role.id === 'workspace-witness').permissionIds = [];
+      // Explicit operator action on this synthetic fixture only; a restart never
+      // restores revoked grants and no application data or account is reset.
+      changed.roles.find(role => role.id === 'workspace-witness').permissionIds =
+        command.trim() === 'grant' ? permissions.map(permission => permission.id) : [];
       requireOk(await authorization.replacePolicy(session.token,{expectedEpoch:current.epoch,policy:changed}));
-      console.log(JSON.stringify({revoked:true}));
+      console.log(JSON.stringify({revoked:command.trim() === 'revoke',granted:command.trim() === 'grant'}));
     }
   }
 } finally {await runtime.dispose();}

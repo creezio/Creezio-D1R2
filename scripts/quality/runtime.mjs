@@ -5,13 +5,13 @@ import { gzipSync } from 'node:zlib';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 
-// Local ceilings: Access + Modules includes native OAuth/MCP, the bounded module
-// inventory/solver, both admin UIs and installed documentation. T12 baseline:
-// 2,803,599 raw / 603,357 gzip across all server JS, including SSR. The six
-// documents add 33,142 UTF-8 bytes; query validators and UI account for the rest.
-// Preserve a small regression margin; gzip and runtime timing ceilings are unchanged.
+// Local ceilings for Access + Modules + Conversations, including SSR. T14's
+// measured default composition is 3,493,827 raw / 686,257 gzip bytes. The new
+// conversation handlers, 7 data models, static operation validators and original
+// chat UI account for this expansion; the front recipe is smaller (2,711,535 /
+// 593,206). Keep a small regression margin. Graph and timing ceilings are unchanged.
 // They are neither provider quotas nor production latency guarantees.
-export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 2_900_000, workerGzipBytes: 625_000,
+export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 3_600_000, workerGzipBytes: 710_000,
   selectedGraphInputs: 32, startupMs: 15_000, routeMs: 3_000 });
 
 export function assertRuntimeBudgets(report) {

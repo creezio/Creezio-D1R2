@@ -184,6 +184,10 @@ export function ConversationPanel(props: ConversationPanelProps) {
           {!props.loadingThread && !props.messages.length && <p className="text-xs text-slate-600">
             {props.selectedId ? 'Aucun message dans cette conversation.' : 'Choisissez une conversation ou créez-en une nouvelle.'}
           </p>}
+          {props.hasMoreMessages && <button type="button" className="text-xs text-sky-700 underline"
+            disabled={props.loadingMessages} onClick={props.onLoadMoreMessages}>
+            {props.loadingMessages ? 'Chargement…' : 'Charger les messages précédents'}
+          </button>}
           {props.messages.map(message => <div key={message.id}
             className={cn('rounded-xl px-2.5 py-2 text-xs', message.role === 'user'
               ? 'ml-6 bg-slate-900 text-white' : 'mr-2 border border-slate-100 bg-slate-50 text-slate-800')}>
@@ -191,10 +195,6 @@ export function ConversationPanel(props: ConversationPanelProps) {
               : <AssistantMessageContent content={message.content} sources={[...(message.sources ?? [])]}
                 onNavigate={props.onNavigate} />}
           </div>)}
-          {props.hasMoreMessages && <button type="button" className="text-xs text-sky-700 underline"
-            disabled={props.loadingMessages} onClick={props.onLoadMoreMessages}>
-            {props.loadingMessages ? 'Chargement…' : 'Afficher davantage de messages'}
-          </button>}
           {!!props.attachments?.length && <section aria-label="Pièces jointes" className="rounded-lg border border-slate-200 p-2">
             <p className="mb-1 text-[11px] font-medium text-slate-500">Pièces jointes</p>
             {props.attachments.map(file => <button key={file.fileId} type="button"
@@ -235,7 +235,7 @@ export function ConversationPanel(props: ConversationPanelProps) {
                   !!props.selectedArchived || !!props.onRetryUpload ||
                   props.attachmentState?.phase === 'uploading' || props.attachmentState?.phase === 'linking'}
                 onClick={() => fileInput.current?.click()}><Paperclip className="h-4 w-4" /></Button></>}
-            <input value={props.draft} disabled={!props.selectedId || !!props.selectedArchived}
+            <input value={props.draft} maxLength={16000} disabled={!props.selectedId || !!props.selectedArchived}
               onChange={event => props.onDraftChange(event.target.value)}
               aria-label="Brouillon de message" placeholder="Écrivez un message…"
               className="h-9 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-3 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400" />

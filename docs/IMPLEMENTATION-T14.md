@@ -8,6 +8,8 @@ T-14 / US-14 / REQ-1401 et REQ-1402. Branche `core/t14-conversations`, base main
 
 Le panneau, son bouton flottant, Chat/Work, la liste, le fil et la saisie reprennent les composants du Creezio original `packages/assistant/ui`. Les dépendances aux routes/stockages et fournisseurs internes sont remplacées par le SDK public ; aucun chat métier ne remplace celui du back-office. Le front reçoit une vue réutilisable enregistrée par manifeste. Sans fournisseur configuré, l'interface le dit explicitement et ne simule aucune réponse IA.
 
+Le renommage est disponible par les opérations API/MCP et le SDK ; le panneau original n'avait pas de commande de renommage. Aucun contrôle de renommage UI n'est annoncé dans cette tranche. L'historique s'ouvre depuis les messages récents et permet de charger les précédents sans remplacer le fil existant.
+
 ## Données et reprise
 
 Les listes utilisent un index déclaré et un curseur déterministe, avec la clé primaire comme départage. Une recherche peut parcourir plusieurs pages autorisées de titres et messages ; une page vide avec curseur ne prouve pas l'absence globale de résultats. Les références entre modèles du module sont vérifiées dans le batch sous les permissions courantes. Aucun accès privé intermodule n'est ouvert.
@@ -21,6 +23,8 @@ Le catalogue de fichiers est compilé depuis les catégories déclarées et les 
 Le téléversement laisse une intention privée. `OperationContext.files.preparePublication` produit les métadonnées vérifiées et un plan opaque ; le module associe ce plan à sa référence métier et à la garde de conversation dans la même transaction D1. Le contenu R2 est vérifié séparément, sans promesse de transaction entre ressources. Les intentions abandonnées conservent une reprise explicite du nettoyage. Une erreur réseau ne provoque aucun nouvel upload automatique.
 
 ## Qualification et limites
+
+La composition de départ Access/Modules/Conversations a été mesurée à 3 493 827 octets serveur (SSR compris), 686 257 après gzip. L'ajout du module, de ses validateurs statiques et de l'interface justifie des plafonds locaux de régression à 3 600 000 / 710 000 octets, avec bornes de graphe et de temps inchangées. Ces valeurs ne sont ni des quotas fournisseurs ni une qualification Sites.
 
 Les tests ciblés exécutent les permissions intercomptes/audiences/contextes, la pagination et la recherche à page vide, la concurrence et les rollback D1/R2. Des messages et brouillons de 16 000 caractères multioctets sont exercés avec la borne de réponse conservée. Les preuves exactes du candidat et du contrôle agrégé sont conservées hors sources.
 

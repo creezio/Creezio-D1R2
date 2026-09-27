@@ -184,6 +184,10 @@ test('Conversations operations use real D1 authority, CAS, cursors and atomic fi
       messageCursor=page.nextCursor;
     }
     assert.equal(seenMessages.length,7);
+    assert.equal(new Set(seenMessages.map(item=>item.id)).size,7);
+    assert.deepEqual(seenMessages.map(item=>item.id),[...seenMessages].sort((a,b)=>
+      b.createdAt.localeCompare(a.createdAt)||b.id.localeCompare(a.id)).map(item=>item.id));
+    assert.notEqual(seenMessages[0].id,'user-message-1');
     assert.equal(seenMessages.filter(item=>item.body===utf8).length,5);
     assert.equal(seenMessages.find(item=>item.id==='escaped-message')?.body,escaped);
     const utf8Draft=success(await invoke('draft.save',{requestKey:'utf8-draft',conversationId:first.id,

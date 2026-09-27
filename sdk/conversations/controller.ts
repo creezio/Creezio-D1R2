@@ -218,7 +218,7 @@ export function createConversationsController(options:ConversationsControllerOpt
       const storedDraft=object(draft);
       let local=localDrafts.get(conversationId);
       if(local===undefined)try{local=storage?.getItem(storageKey(`draft:${conversationId}`))??undefined;}catch{}
-      update({messages:Object.freeze(msg),messagesNextCursor:typeof messages?.nextCursor==='string'?messages.nextCursor:null,
+      update({messages:Object.freeze([...msg].reverse()),messagesNextCursor:typeof messages?.nextCursor==='string'?messages.nextCursor:null,
         draft:{conversationId,text:local??(typeof storedDraft?.text==='string'?storedDraft.text:''),
           updatedAt:typeof storedDraft?.updatedAt==='string'?storedDraft.updatedAt:null,
           revision:typeof storedDraft?.revision==='number'?storedDraft.revision:0}});
@@ -226,9 +226,16 @@ export function createConversationsController(options:ConversationsControllerOpt
     async loadMoreMessages(){
       const selected=snapshot.selected,cursor=snapshot.messagesNextCursor;
       if(!selected||!cursor)return;
-      const result=await query('message.list',{conversationId:selected.id,limit:25,cursor});
-      if(snapshot.selected?.id!==selected.id||!Array.isArray(result?.items))return;
-      update({messages:Object.freeze([...snapshot.messages,...result.items as ConversationMessage[]]),
+      const serial=openGeneration;
+      const result=await query('message.list',{conversationId:selected.id,limit:25,cursor},
+        ()=>serial===openGeneration&&snapshot.selected?.id===selected.id);
+      if(serial!==openGeneration||snapshot.selected?.id!==selected.id||snapshot.messagesNextCursor!==cursor
+        ||!Array.isArray(result?.items))return;
+      const seen=new Set(snapshot.messages.map(item=>item.id));
+      const older=(result.items as ConversationMessage[]).filter(item=>{
+        if(seen.has(item.id))return false;seen.add(item.id);return true;
+      }).reverse();
+      update({messages:Object.freeze([...older,...snapshot.messages]),
         messagesNextCursor:typeof result.nextCursor==='string'?result.nextCursor:null});
     },
     create:args=>commandSummary('conversation.create',args),
@@ -306,15 +313,7 @@ export function createConversationsController(options:ConversationsControllerOpt
         if(result.execution.state==='succeeded'){
           const selectedId=snapshot.selected?.id;
           await controller.refresh();
-          if(selectedId&&snapshot.selected?.id===selectedId){
-            const detail=await query('conversation.read',{conversationId:selectedId});
-            const row=object(detail?.conversation);
-            if(row&&id(row.id)&&snapshot.selected?.id===selectedId){
-              const fresh=row as unknown as ConversationSummary;cache.set(selectedId,fresh);
-              update({selected:fresh,conversations:Object.freeze(snapshot.conversations.map(item=>
-                item.id===selectedId?fresh:item))});
-            }
-          }
+          if(selectedId&&snapshot.selected?.id===selectedId)await controller.open(selectedId);
         }
       }
       return result;

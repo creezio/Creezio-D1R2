@@ -4,7 +4,7 @@ import {useEffect, useRef, useState, useSyncExternalStore} from 'react';
 import type {WorkspaceViewProps} from '../../../../sdk/workspace/types.ts';
 import {createConversationsController} from '../../../../sdk/conversations/controller.ts';
 import type {ConversationsController, ConversationsSnapshot, ConversationActionResult,
-  ConversationAttachment} from '../../../../sdk/conversations/types.ts';
+  ConversationAttachment, ConversationDraft} from '../../../../sdk/conversations/types.ts';
 import {createFileClient} from '../../../../sdk/files/client.ts';
 import type {StagedFileReference} from '../../../../sdk/files/types.ts';
 import {useAssistantUiOptional} from '../../../../sdk/ui/assistant-provider.tsx';
@@ -92,7 +92,9 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
   const objectUrls = useRef(new Set<string>());
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftRequested = useRef<{id: string; text: string} | null>(null);
-  const draftSaving = useRef<ConversationsController | null>(null);
+  const draftSaving = useRef<{controller: ConversationsController; id: string;
+    promise: Promise<ConversationActionResult<ConversationDraft>>} | null>(null);
+  const transitionBusy = useRef(false);
   const resumeDraft = useRef<((id: string) => void) | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -153,28 +155,43 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
     setNotice(feedback(result));
     if (result.kind === 'ok' && refresh) void controller.refresh();
   };
-  const flushDraft = async (id: string) => {
+  const flushDraft = async (id: string): Promise<boolean> => {
     const wanted = draftRequested.current;
-    if (!wanted || wanted.id !== id || live.current !== controller ||
-      controller.getSnapshot().selected?.id !== id || controller.getSnapshot().unknown) return;
-    if (!activity.current) return;
-    if (draftSaving.current === controller) return;
+    if (!wanted) return true;
+    if (wanted.id !== id || live.current !== controller ||
+      controller.getSnapshot().selected?.id !== id || controller.getSnapshot().unknown || !activity.current) return false;
+    const inFlight = draftSaving.current;
+    if (inFlight?.controller === controller) {
+      await inFlight.promise;
+      return draftRequested.current?.id === id ? flushDraft(id) : !draftRequested.current;
+    }
     if (controller.getSnapshot().pending) {
       draftTimer.current = setTimeout(() => {void flushDraft(id);}, 600);
-      return;
+      return false;
     }
-    draftSaving.current = controller;
     const epoch = activityEpoch.current;
-    const result = await controller.saveDraft(id, wanted.text);
-    if (draftSaving.current === controller) draftSaving.current = null;
+    const promise = controller.saveDraft(id, wanted.text);
+    draftSaving.current = {controller,id,promise};
+    const result = await promise;
+    if (draftSaving.current?.promise === promise) draftSaving.current = null;
     if (activity.current && activityEpoch.current === epoch) ready(result, false);
     const latest = draftRequested.current;
     if (result.kind === 'ok' && latest?.id === id) {
       if (latest.text === wanted.text) draftRequested.current = null;
-      else if (activity.current) draftTimer.current = setTimeout(() => {void flushDraft(id);}, 200);
+      else if (activity.current && activityEpoch.current === epoch) return flushDraft(id);
     }
+    return result.kind === 'ok' && !draftRequested.current;
   };
   resumeDraft.current = id => {void flushDraft(id);};
+  const beforeTransition = async (action: () => void | Promise<void>) => {
+    if (transitionBusy.current) return;
+    transitionBusy.current = true;
+    try {
+      if (draftTimer.current) clearTimeout(draftTimer.current);
+      if (selectedId && !await flushDraft(selectedId)) return;
+      if (live.current === controller && activity.current) await action();
+    } finally {transitionBusy.current = false;}
+  };
   const uploadPending = async (pending: NonNullable<typeof pendingUpload.current>) => {
     const {file, conversationId, intentId} = pending;
     if (pendingUpload.current !== pending || controller.getSnapshot().pending || controller.getSnapshot().unknown) return;
@@ -239,11 +256,13 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
   };
   const content = <ConversationPanel variant={floating ? 'floating' : 'embedded'}
     open={floating ? !!assistantUi?.open : true} onOpenChange={open => assistantUi?.setOpen(open)}
-    mode={snapshot.selected?.mode ?? mode} onModeChange={next => {setMode(next); if (snapshot.selected?.mode !== next) {
-      void controller.create({mode:next}).then(result => {
-        ready(result); if (result.kind === 'ok') void controller.open(result.value.id);
-      });
-    }}}
+    mode={snapshot.selected?.mode ?? mode} onModeChange={next => {void beforeTransition(async () => {
+      setMode(next);
+      if (snapshot.selected?.mode !== next) {
+        const result = await controller.create({mode:next});
+        ready(result); if (result.kind === 'ok') await controller.open(result.value.id);
+      }
+    });}}
     selectedId={selectedId} selectedTitle={snapshot.selected?.title}
     selectedArchived={!!snapshot.selected?.archivedAt} conversations={snapshot.conversations}
     messages={snapshot.messages.map(message => ({id:message.id, role:message.role === 'tool' ? 'system' : message.role,
@@ -256,14 +275,15 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
       if (draftTimer.current) clearTimeout(draftTimer.current);
       draftTimer.current = setTimeout(() => {void flushDraft(selectedId);}, 600);
     }}
-    onCreate={next => {void controller.create({mode:next}).then(result => {
-      ready(result); if (result.kind === 'ok') void controller.open(result.value.id);
+    onCreate={next => {void beforeTransition(async () => {
+      const result = await controller.create({mode:next});
+      ready(result); if (result.kind === 'ok') await controller.open(result.value.id);
     });}}
-    onSelect={id => {setAttachmentState(null);void controller.open(id);}}
-    onArchive={id => {void controller.archive(id).then(result => {ready(result);
+    onSelect={id => {void beforeTransition(async () => {setAttachmentState(null);await controller.open(id);});}}
+    onArchive={id => {void beforeTransition(async () => {const result = await controller.archive(id);ready(result);
       if (result.kind === 'ok' && selectedId === id) {
         setAttachmentState(null);
-        void controller.search({query,archived:true});
+        await controller.search({query,archived:true});
       }
     });}}
     onRestore={id => {void controller.restore(id).then(ready);}}
