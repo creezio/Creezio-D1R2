@@ -1,6 +1,6 @@
 # Repères du dépôt
 
-État : PR #1 à #26 intégrées ; main `e67636635a526daa544ea3573b271e1822f3f4fe` qualifié par la CI avec 1 039/1 039 tests. SDK `sdk-v1.0.0` et starter `module-v0.1.0` publics ; démo T30 locale qualifiée dans son périmètre. Chantier actif : T-32 sur `core/t32-cloudflare` ; première publication et première mise à jour réelle de l'original qualifiées sur Cloudflare, démo et SDK 1.1.0 encore ouverts. Le [TODO](docs/TODO.md) distingue acquis, travaux et qualifications restantes.
+État : PR #1 à #27 intégrées ; PR #27 fusionnée sur main `cca3157ed966e9b6efddf71a920606dac16cd1ff`, CI du nouveau main réussie avec 1 152/1 152 tests. SDK `sdk-v1.0.0` et starter `module-v0.1.0` publics ; démo T30 locale qualifiée dans son périmètre. Chantier actif : T-32 après fusion de la PR #27 ; première publication et première mise à jour réelle de l'original qualifiées sur Cloudflare, démo et release publique du SDK 1.1.0 encore ouvertes. Le [TODO](docs/TODO.md) distingue acquis, travaux et qualifications restantes.
 
 | Emplacement | Responsabilité |
 |---|---|
