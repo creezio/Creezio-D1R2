@@ -1,6 +1,6 @@
 # Repères du dépôt
 
-État : PR #1 à #15 intégrées ; main `3a4ad091` qualifié avec 723 tests. Les fondations internes T-06 sont intégrées ; son transport HTTP et le workspace T-07 avancent sur `core/t06-t07-workspace` sans être intégrés. Le [TODO](docs/TODO.md) distingue acquis, fonctions restantes et chantier actif. Aucun CMS complet ni déploiement produit qualifié. Distinguer les scripts réellement présents des commandes encore prévues dans les contrats.
+État : PR #1 à #16 intégrées ; main `56eb0159` qualifié avec 779 tests et recette navigateur API/workspace. Le [TODO](docs/TODO.md) distingue acquis et fonctions restantes. T-08/T-31 avancent sur `core/t08-publication-foundations` ; aucun service central ou profil Docker complet n’est encore qualifié.
 
 | Emplacement | Responsabilité |
 |---|---|
@@ -75,7 +75,7 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 
 - [core/data](core/data/) : catalogue runtime, capacités par module/contexte et plans D1 sous garde fraîche ; aucune API SQL publique.
 - [core/files](core/files/) : métadonnées de fichiers privés, préparation R2, publication D1 et reprise explicite.
-- [core/operations](core/operations/) : registre canonique, exécutions internes intégrées, validation statique et stockage technique ; transport HTTP en qualification sur la branche courante.
+- [core/operations](core/operations/) : registre canonique, exécutions internes, validation statique, stockage technique et transport HTTP déclaré intégré.
 - [scripts/operations](scripts/operations/) : compilation centrale des validateurs d'opérations pour le Worker.
 - [data/schema/runtime.sql](data/schema/runtime.sql) et [scripts/data/prepare-runtime.mjs](scripts/data/prepare-runtime.mjs) : quatre modèles techniques des exécutions et contrôle central de leur SQL ; aucun changement automatique de base.
 - [tests/operations](tests/operations/) : registre, schémas compilés, exécutions D1 et Worker, refus et idempotence ; famille obligatoire de l'agrégat.
@@ -86,8 +86,17 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 
 ## Tranches T-06 et T-07 en cours
 
-- [core/operations/http.ts](core/operations/http.ts), [sdk/operations](sdk/operations/) et [scripts/operations/http-bindings.mjs](scripts/operations/http-bindings.mjs) : transport HTTP et client d'opérations de la branche courante ; pas encore intégrés à main ni qualifiés sur un hébergement.
+- [core/operations/http.ts](core/operations/http.ts), [sdk/operations](sdk/operations/) et [scripts/operations/http-bindings.mjs](scripts/operations/http-bindings.mjs) : transport HTTP et client d'opérations intégrés par PR #16 ; hébergements encore à qualifier.
 - [core/workspace](core/workspace/) : projection de navigation sous session, contexte et droits natifs cohérents ; sa lecture ne remplace pas la garde des mutations.
 - [sdk/workspace](sdk/workspace/) : panneaux, historique, navigation, conservation et restauration bornée en session ; seules les données déclarées par un schéma d'état sont restaurables, pas les brouillons React arbitraires.
 - [app/workspace](app/workspace/) : routes et hôte natif par audience. [admin/workspace](admin/workspace/) adapte les composants du Creezio original (sidebar, barre d'onglets, recherche, chrome de page), distincts du SDK public. Parité produit complète encore à qualifier.
 - [tests/workspace](tests/workspace/) : recettes ciblées de composition, droits, contrôleur, client et interface ; [état T-07](docs/IMPLEMENTATION-T07.md) pour leurs limites.
+
+## Registre et Docker en construction
+
+- [sdk/registry](sdk/registry/) : protocole public partagé, sans serveur embarqué.
+- [services/registry](services/registry/) : service central à déployer séparément ; [état T-08](docs/IMPLEMENTATION-T08.md).
+- [core/registry](core/registry/) : client serveur et contrôle de publication, distincts du runtime métier.
+- [scripts/registry](scripts/registry/) : build indépendant, configuration sans secret et opérateur explicite du D1 dédié.
+- [tests/registry](tests/registry/) et [tests/local](tests/local/) : protocoles et refus du registre, Worker, journal de reprise et adaptateur Docker ; suites obligatoires dans le contrôle global.
+- [adapters/docker](adapters/docker/) : démarrage local persistant ; [état T-31](docs/IMPLEMENTATION-T31.md).

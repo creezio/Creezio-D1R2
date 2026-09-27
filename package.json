@@ -26,7 +26,12 @@
     "test:identity": "node --test --test-concurrency=1 tests/identity/*.test.mjs",
     "test:data": "node --test --test-concurrency=1 tests/data/*.test.mjs",
     "test:operations": "node --test --test-concurrency=1 tests/operations/*.test.mjs",
-    "test:workspace": "node --test --test-concurrency=1 tests/workspace/*.test.mjs"
+    "test:workspace": "node --test --test-concurrency=1 tests/workspace/*.test.mjs",
+    "test:registry": "node --test --test-concurrency=1 tests/registry/*.test.mjs",
+    "test:local": "node --test --test-concurrency=1 tests/local/*.test.mjs",
+    "registry:build": "node scripts/registry/build.mjs",
+    "registry:configure": "node scripts/registry/configure.mjs",
+    "registry:operator": "node scripts/registry/operator.mjs"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",

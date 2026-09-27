@@ -11,7 +11,7 @@ const started = new Date().toISOString();
 const evidencePath = resolve(root, '.quality/latest.json');
 mkdirSync(dirname(evidencePath), { recursive: true });
 const write = value => writeFileSync(evidencePath, JSON.stringify(value, null, 2) + '\n');
-const profile = 't06-t07-workspace';
+const profile = 't08-t31-publication-foundations';
 write({ schemaVersion: 1, profile, started, state: 'running', success: false, mergeReady: false });
 try {
 const source = sourceIdentity(root);
@@ -43,8 +43,8 @@ const report = { schemaVersion: 1, profile, started, finished: new Date().toISOS
   source, results: { docs, commands, tests: { ...tap, files: tests, exitCode: result.status }, runtime,
     runtimeEvidenceCurrent: runtimeCurrent, sourceUnchanged: unchanged },
   success, state: success ? 'passed' : 'failed', mergeReady: false,
-  limits: ['Declared session/API-token HTTP and retained workspace with scoped reload state; approval, events, other auth transports and provider network delivery remain outside this tranche',
-    'Hosted Sites/Cloudflare, archive installation and module dependency lifecycle are not qualified by this aggregate; remote CI provenance is verified separately'] };
+  limits: ['Registry service/client/journal and Docker adapter are tested; real provider onboarding, app publishers and all native product modules remain distinct qualifications',
+    'Live Cloudflare registry and Docker persistence recipes are recorded separately; this aggregate does not certify a complete CMS on Sites/Cloudflare or remote CI provenance'] };
 write(report);
 console.log(JSON.stringify({ success, mergeReady: false, source: source.sha256, docs: docs.metrics,
   tests: tap, runtimeEvidenceCurrent: runtimeCurrent, sourceUnchanged: unchanged, evidence: '.quality/latest.json' }, null, 2));

@@ -1,0 +1,27 @@
+# This file applies to the repository-root build context for this Dockerfile.
+.git
+.quality
+node_modules
+.wrangler
+.creezio
+.next
+.next-*
+dist
+coverage
+outputs
+work
+*.log
+*.pem
+*.key
+.env
+.env.*
+.dev.vars*
+.npmrc
+**/.quality
+**/.dev.vars*
+**/.npmrc
+**/*.pem
+**/*.key
+**/.env
+**/.env.*
+!*.env.example

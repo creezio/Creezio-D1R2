@@ -1,0 +1,18 @@
+name: creezio-local
+
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: adapters/docker/Dockerfile
+    init: true
+    environment:
+      CREEZIO_APP_ORIGIN: http://127.0.0.1:5173
+    ports:
+      - "127.0.0.1:5173:5174"
+    volumes:
+      - local-state:/app/.wrangler
+    stop_grace_period: 45s
+
+volumes:
+  local-state:

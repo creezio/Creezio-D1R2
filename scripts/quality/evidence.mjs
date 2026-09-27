@@ -18,7 +18,7 @@ export function inspectTap(output, exitCode) {
 
 /** Each approved suite is mandatory; a missing directory cannot silently shrink coverage. */
 export function collectRequiredTests(root) {
-  const suites = ['quality', 'contracts', 'runtime', 'identity', 'data', 'operations', 'workspace'];
+  const suites = ['quality', 'contracts', 'runtime', 'identity', 'data', 'operations', 'workspace', 'registry', 'local'];
   const files = [];
   for (const suite of suites) {
     const directory = resolve(root, 'tests', suite);
