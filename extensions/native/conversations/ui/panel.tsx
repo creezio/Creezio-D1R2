@@ -40,6 +40,7 @@ export type ConversationPanelProps = Readonly<{
   onStop?: () => void;
   onResume?: () => void;
   turnState?: 'queued' | 'running' | 'cancel_requested' | 'unknown' | null;
+  cancelOutcomeUnknown?: boolean;
   assistantPreview?: string;
   progressSteps?: readonly ConversationProgressStep[];
   toolDiagnostics?: string | null;
@@ -95,6 +96,7 @@ export function ConversationPanel(props: ConversationPanelProps) {
   const grouped = useMemo(() => groupConversations(props.conversations.filter(item =>
     props.showArchived ? !!item.archivedAt : !item.archivedAt)), [props.conversations, props.showArchived]);
   if (props.variant === 'floating' && !props.open) return <button type="button" data-creezio-assistant-ui
+    data-creezio-assistant-launcher
     onClick={() => props.onOpenChange(true)} aria-label="Ouvrir l'assistant"
     className={cn('fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full',
       'bg-sky-600 text-white shadow-lg shadow-sky-900/25 transition hover:bg-sky-700 hover:shadow-xl',
@@ -265,6 +267,7 @@ export function ConversationPanel(props: ConversationPanelProps) {
           {props.turnState && <p role="status" className="mb-2 text-xs text-slate-600">
             {props.turnState === 'queued' ? 'Tour en attente.' : props.turnState === 'running' ? 'Réponse en cours…'
               : props.turnState === 'cancel_requested' ? 'Arrêt demandé ; confirmation en attente.'
+              : props.cancelOutcomeUnknown ? 'Arrêt demandé ; résultat fournisseur inconnu, impossible de confirmer l’arrêt.'
               : 'État du tour incertain ; vérifiez ou reprenez explicitement.'}
           </p>}
           {props.onResume && <Button type="button" size="sm" variant="outline" className="mb-2"

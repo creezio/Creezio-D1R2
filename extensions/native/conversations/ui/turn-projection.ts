@@ -6,8 +6,9 @@ const object=(value:unknown):Record<string,unknown>|null=>value&&typeof value===
 
 /** Present bounded, known progress fields; arbitrary provider payloads never enter the view. */
 export function projectTurnEvents(events:readonly ConversationEvent[]):{
-  preview:string;steps:readonly ConversationProgressStep[];toolDiagnostics:string|null}{
-  let preview='',truncated=false;const steps:ConversationProgressStep[]=[];
+  preview:string;steps:readonly ConversationProgressStep[];toolDiagnostics:string|null;
+  cancelOutcomeUnknown:boolean}{
+  let preview='',truncated=false,cancelOutcomeUnknown=false;const steps:ConversationProgressStep[]=[];
   const diagnosticLabels:Record<string,string>={invalid_catalog:'catalogue invalide',inactive:'inactifs',
     unsupported_schema:'schéma non compatible',invalid_schema:'schéma invalide',forbidden:'sans autorisation',
     collision:'noms en conflit',limit:'limite atteinte',unavailable:'indisponibles',other:'autres'};
@@ -28,6 +29,8 @@ export function projectTurnEvents(events:readonly ConversationEvent[]):{
       }
       if(payload?.toolDiagnosticsTruncated===true)truncated=true;
     }
+    if(event.kind==='unknown'&&object(event.payload)?.cancelRequested===true)
+      cancelOutcomeUnknown=true;
     const known:Record<string,{label:string;state:ConversationProgressStep['state']}>= {
       queued:{label:'Tour en attente',state:'running'},
       running:{label:'Réponse en cours',state:'running'},
@@ -46,5 +49,5 @@ export function projectTurnEvents(events:readonly ConversationEvent[]):{
   const details=[...diagnosticCounts].map(([code,count])=>`${count} ${diagnosticLabels[code]}`);
   if(truncated)details.push('diagnostics limités');
   return {preview,steps:steps.slice(-12),toolDiagnostics:details.length
-    ?`Outils non proposés : ${details.join(', ')}.`:null};
+    ?`Outils non proposés : ${details.join(', ')}.`:null,cancelOutcomeUnknown};
 }

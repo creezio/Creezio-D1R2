@@ -1,6 +1,7 @@
 :root { color-scheme: light; font-synthesis: none; }
 * { box-sizing: border-box; }
 body { margin: 0; }
+body:has([data-conversations-view][data-conversations-active="true"] [data-conversations-panel="open"]) [data-creezio-assistant-launcher] { display: none; }
 .welcome { min-height: 100svh; max-width: 1120px; margin: auto; padding: 36px 48px 24px; display: flex; flex-direction: column; }
 .brand { display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 650; letter-spacing: -.6px; }
 .mark { width: 28px; height: 28px; background: #214e41; color: #fff; border-radius: 8px; display: grid; place-items: center; font-size: 24px; line-height: 1; }

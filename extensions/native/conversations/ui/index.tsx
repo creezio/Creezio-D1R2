@@ -2,6 +2,7 @@
 
 import {useEffect, useRef, useState, useSyncExternalStore} from 'react';
 import type {WorkspaceViewProps} from '../../../../sdk/workspace/types.ts';
+import {useWorkspaceActivity} from '../../../../sdk/workspace/components.tsx';
 import {createConversationsController} from '../../../../sdk/conversations/controller.ts';
 import type {ConversationsController, ConversationsSnapshot, ConversationActionResult,
   ConversationAttachment, ConversationDraft} from '../../../../sdk/conversations/types.ts';
@@ -72,6 +73,7 @@ function useConversations(props: WorkspaceViewProps) {
 }
 
 function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin' | 'front'}) {
+  const workspaceActive=useWorkspaceActivity();
   const {controller, snapshot, retained, sessionId, live, accessPhase} = useConversations(props);
   const activity = useRef(false);
   const activityEpoch = useRef(0);
@@ -221,6 +223,7 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
 
   const selectedId = snapshot.selected?.id ?? null;
   const progress=projectTurnEvents(snapshot.turnEvents);
+  const cancelOutcomeUnknown=selectedTurn?.state==='unknown'&&progress.cancelOutcomeUnknown;
   const ready = (result: ConversationActionResult<unknown>, refresh = true) => {
     if (live.current !== controller) return;
     setNotice(feedback(result));
@@ -347,7 +350,7 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
       const result=await controller.startTurn(selectedId,body,selectedModelId);
       ready(result,false);
     });}:undefined}
-    onStop={runningTurn&&selectedId?()=>{void controller.cancelTurn(selectedId,runningTurn.id,runningTurn.revision)
+    onStop={runningTurn&&!cancelOutcomeUnknown&&selectedId?()=>{void controller.cancelTurn(selectedId,runningTurn.id,runningTurn.revision)
       .then(async result=>{ready(result,false);
         if(result.kind==='ok'){
           const key=`${sessionId}:${selectedId}:${runningTurn.id}`;
@@ -356,7 +359,7 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
           if(resumed&&resumed.kind!=='ok')ready(resumed,false);
         }
       });}:undefined}
-    onResume={runningTurn&&selectedId&&['queued','running','unknown'].includes(runningTurn.state)
+    onResume={runningTurn&&!cancelOutcomeUnknown&&selectedId&&['queued','running','unknown'].includes(runningTurn.state)
       ?()=>{const key=`${sessionId}:${selectedId}:${runningTurn.id}`;
         const resumed=driveLoop.current?.key===key&&driveLoop.current.controller===controller
           ?driveLoop.current.loop.resume():driveOnce(controller,selectedId,runningTurn.id);
@@ -365,6 +368,7 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
       });}:undefined}
     turnState={runningTurn&&['queued','running','cancel_requested','unknown'].includes(runningTurn.state)
       ?runningTurn.state as 'queued'|'running'|'cancel_requested'|'unknown':null}
+    cancelOutcomeUnknown={cancelOutcomeUnknown}
     assistantPreview={runningTurn?progress.preview:''} progressSteps={runningTurn?progress.steps:[]}
     toolDiagnostics={selectedTurn?progress.toolDiagnostics:null}
     onDraftChange={text => {
@@ -452,7 +456,8 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
       }
     });} : undefined}
     onNavigate={href => props.navigation.visit(href)} />;
-  return floating ? content : <section className="h-full min-h-0 p-3" data-conversations-view={props.surface}>{content}</section>;
+  return floating ? content : <section className="h-full min-h-0 p-3" data-conversations-view={props.surface}
+    data-conversations-active={props.active&&props.authorized&&workspaceActive&&!!sessionId?'true':'false'}>{content}</section>;
 }
 
 export function ConversationsAdminView(props: WorkspaceViewProps) {

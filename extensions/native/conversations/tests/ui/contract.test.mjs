@@ -34,6 +34,7 @@ test('embedded conversation renders history, draft, and an explicit unavailable 
 test('floating admin view starts from the assistant launcher without exposing thread content', () => {
   const html = renderToStaticMarkup(React.createElement(ConversationPanel,{...props,variant:'floating',open:false}));
   assert.match(html,/aria-label="Ouvrir l(?:&#x27;|')assistant"/);
+  assert.match(html,/data-creezio-assistant-launcher/);
   assert.doesNotMatch(html,/Bonjour|Brouillon conservé/);
 });
 
@@ -93,6 +94,19 @@ test('tool exclusions remain visible after a turn without exposing operation nam
     toolDiagnostics:projected.toolDiagnostics}));
   assert.match(terminal,/Outils non proposés/);
   assert.match(terminal,/Réponse/);
+});
+
+test('unknown provider outcome after stop is explicit and offers no futile retry',()=>{
+  const projected=projectTurnEvents([{turnId:'t',sequence:2,kind:'unknown',
+    payload:{cancelRequested:true,privateDetail:'hidden'},createdAt:''}]);
+  assert.equal(projected.cancelOutcomeUnknown,true);
+  assert.doesNotMatch(JSON.stringify(projected),/hidden/);
+  const html=renderToStaticMarkup(React.createElement(ConversationPanel,{...props,
+    turnState:'unknown',cancelOutcomeUnknown:projected.cancelOutcomeUnknown,
+    onResume:undefined,onStop:undefined}));
+  assert.match(html,/Arrêt demandé ; résultat fournisseur inconnu, impossible de confirmer l’arrêt/);
+  assert.match(html,/aria-label="Nouvelle conversation"/);
+  assert.doesNotMatch(html,/Reprendre le tour|Arrêter la réponse/);
 });
 
 test('active turn drives a continuation serially until it reaches a terminal state',async()=>{

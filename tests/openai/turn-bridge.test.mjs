@@ -193,6 +193,30 @@ test('client drive persists one confirmed assistant and never recreates an unkno
     assert.equal(rejectedTurn.turn.state,'failed');
     assert.equal(rejectedTurn.turn.errorCode,'provider_rejected');
 
+    const uncertainCancelRequest=await newTurn('cancel-create-uncertain');
+    let uncertainCancelCreates=0;
+    const uncertainCancelBridge=createTurnBridge({db,catalog,permissions,registry:reg,toolCatalog:[],
+      provider:{withTransport:async(_request,callback)=>callback({async create(){
+        uncertainCancelCreates++;
+        const read=await invoke('turn.read',{conversationId:uncertainCancelRequest.conversationId,
+          turnId:uncertainCancelRequest.turnId});
+        const cancelled=await invoke('turn.cancel',{requestKey:'cancel-create-uncertain',
+          conversationId:uncertainCancelRequest.conversationId,turnId:uncertainCancelRequest.turnId,
+          revision:read.execution.output.turn.revision});
+        assert.equal(cancelled.execution.state,'succeeded');
+        throw new Error('lost create acknowledgement');
+      }},'model-a')}});
+    const uncertainCancelled=await uncertainCancelBridge.drive(uncertainCancelRequest);
+    assert.equal(uncertainCancelled.turn.state,'unknown');
+    assert.equal(uncertainCancelled.turn.errorCode,'provider_unknown');
+    assert.equal((await uncertainCancelBridge.drive(uncertainCancelRequest)).turn.state,'unknown');
+    assert.equal(uncertainCancelCreates,1);
+    const uncertainCancelEvents=await invoke('event.list',{
+      conversationId:uncertainCancelRequest.conversationId,turnId:uncertainCancelRequest.turnId,
+      limit:50,afterSequence:0});
+    assert.deepEqual({...uncertainCancelEvents.execution.output.items.find(item=>item.kind==='unknown')?.payload},
+      {cancelRequested:true});
+
     const eofRequest=await newTurn('eof');
     let statuses=0;
     const eof=createTurnBridge({db,catalog,permissions,registry:reg,toolCatalog:[],
@@ -242,6 +266,57 @@ test('client drive persists one confirmed assistant and never recreates an unkno
     assert.equal(cancelEvents.execution.state,'succeeded',JSON.stringify(cancelEvents));
     assert.deepEqual(cancelEvents.execution.output.items.filter(item=>item.kind==='text_delta')
       .map(item=>item.payload.text),['Already ','done']);
+
+    const pendingCancelRequest=await newTurn('cancel-pending-tool');
+    const pendingPrepared=new WeakMap();
+    let injectPendingCancel=true;
+    const pendingDb=new Proxy(db,{get(target,key){
+      if(key==='prepare')return sql=>new Proxy(target.prepare(sql),{get(statement,method){
+        if(method==='bind')return (...values)=>{const bound=statement.bind(...values);
+          pendingPrepared.set(bound,{sql,values});return bound;};
+        const value=statement[method];return typeof value==='function'?value.bind(statement):value;
+      }});
+      if(key==='batch')return async statements=>{
+        const checkpoint=injectPendingCancel&&statements.some(statement=>
+          pendingPrepared.get(statement)?.values.some(value=>
+            typeof value==='string'&&value.includes('"pendingTool"')));
+        const result=await target.batch(statements);
+        if(checkpoint){
+          injectPendingCancel=false;
+          const read=await invoke('turn.read',{conversationId:pendingCancelRequest.conversationId,
+            turnId:pendingCancelRequest.turnId});
+          const cancelled=await invoke('turn.cancel',{requestKey:'cancel-pending-tool',
+            conversationId:pendingCancelRequest.conversationId,turnId:pendingCancelRequest.turnId,
+            revision:read.execution.output.turn.revision});
+          assert.equal(cancelled.execution.state,'succeeded');
+        }
+        return result;
+      };
+      const value=target[key];return typeof value==='function'?value.bind(target):value;
+    }});
+    let pendingCancelCreates=0,pendingCancels=0;
+    const pendingCancelBridge=createTurnBridge({db:pendingDb,catalog,permissions,registry:reg,toolCatalog:[],
+      provider:{withTransport:async(_request,callback)=>callback({
+        async create(){pendingCancelCreates++;return {receipt:{responseId:'resp_pending_cancel',cursor:0},
+          events:(async function*(){
+            yield {cursor:1,kind:'function_call',callId:'call_pending',name:'t_denied',arguments:{}};
+            yield {cursor:2,kind:'terminal',state:'succeeded'};
+          })()};},
+        async cancel(){pendingCancels++;return pendingCancels===1
+          ?{responseId:'resp_pending_cancel',state:'running',cursor:null,events:[]}
+          :{responseId:'resp_pending_cancel',state:'cancelled',cursor:null,
+            events:[{cursor:0,kind:'terminal',state:'cancelled'}]};}
+      },'model-a')}});
+    assert.equal((await pendingCancelBridge.drive(pendingCancelRequest)).turn.state,'cancel_requested');
+    assert.equal(injectPendingCancel,false);
+    await db.prepare(`UPDATE "${OPERATION_TABLES.outbox}" SET claim_expires_at_ms=0 WHERE intent_id=?`)
+      .bind(pendingCancelRequest.turnId).run();
+    assert.equal((await pendingCancelBridge.drive(pendingCancelRequest)).turn.state,'cancelled');
+    assert.equal(pendingCancelCreates,1);
+    assert.equal(pendingCancels,2);
+    const pendingCancelEvents=await invoke('event.list',{conversationId:pendingCancelRequest.conversationId,
+      turnId:pendingCancelRequest.turnId,limit:50,afterSequence:0});
+    assert.equal(pendingCancelEvents.execution.output.items.some(item=>item.kind==='tool_result'),false);
 
     for(const state of ['failed','cancelled']){
       const terminalRequest=await newTurn(`terminal-${state}`);
