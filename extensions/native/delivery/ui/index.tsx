@@ -24,6 +24,8 @@ function errorMessage(code: string | null) {
   if (code === 'not_ready') return 'La configuration ou la préparation doit être vérifiée avant cette étape.';
   if (code === 'transfer_in_progress') return 'Un transfert identifié est déjà en cours. Vérifiez-le avant toute modification.';
   if (code === 'transfer_conflict') return 'Le service local suit un autre transfert. Vérifiez son identifiant avant de continuer.';
+  if (code === 'connection_changed') return 'Le jeton ne correspond pas au transfert préparé. Ressaisissez le jeton de cette cible.';
+  if (code === 'provision_unknown') return 'La préparation n’est pas confirmée. Actualisez puis relancez Préparer pour la même cible.';
   if (code === 'registry_registration_required') return 'Inscrivez cette installation au registre Creezio avant de préparer la publication.';
   if (code === 'persistence_unavailable') return 'La reprise du transfert est indisponible dans cet onglet.';
   if (code === 'invalid_response') return 'La réponse du service local est invalide. Vérifiez le transfert existant.';
@@ -74,8 +76,9 @@ export function DeliveryAdminView(props: RuntimeViewProps) {
     return () => window.clearInterval(timer);
   }, [enabled, controller, snapshot.saved?.started, snapshot.transfer?.phase]);
   useEffect(() => {setApiToken(''); setRewrap([]); setEditing(false); setNotice('');}, [identityVersion, props.authorized]);
-  useEffect(() => {if (fixedTarget && snapshot.inspection?.target) setTarget(snapshot.inspection.target);},
-    [fixedTarget, snapshot.inspection?.target]);
+  useEffect(() => {
+    if (snapshot.inspection?.target && (!editing || fixedTarget)) setTarget(snapshot.inspection.target);
+  }, [editing, fixedTarget, snapshot.inspection?.target]);
   const model = deliveryViewModel(deliveryViewInput(snapshot));
   function update(field: keyof DeliveryTarget) {
     return (event: ChangeEvent<HTMLInputElement>) => setTarget(previous => ({...previous, [field]: event.target.value}));

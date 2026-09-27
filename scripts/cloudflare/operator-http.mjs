@@ -368,6 +368,13 @@ export function createLocalDeliveryServer({config,port,operations,fetcher=fetch}
             else existing=jobs.get(key);
           }
         }
+        if(route==='prepare'&&existing?.state==='failed'){
+          // The pipeline owns the durable intent and checks its exact owner and
+          // selections before resuming provisioning. A retry needs a fresh ACL.
+          await fresh(grant,nativeCookie);
+          if(jobs.get(key)===existing){jobs.delete(key);existing=null;}
+          else existing=jobs.get(key);
+        }
         if(existing&&(route==='start'||route==='reconcile'&&existing.state==='running')){
           const output=jobResult(existing);send(response,output.status,output.body,config.origin);return;
         }

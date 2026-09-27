@@ -24,7 +24,7 @@ Cette tranche traite la première publication vers des ressources neuves. Une de
 
 ## Contrôles et limites
 
-Le manifest du module est validé par le contrôleur de contrats. Ses six suites déclarées passent, avec douze tests au total : six pour le contrôleur et la reprise, deux pour la présentation, puis absence d'API/MCP, absence de widgets, paquet et documentation. La compilation du SDK et la vérification TypeScript du dépôt ont réussi pendant cette tranche. Les ports de source, journal et destinations ont leurs tests ciblés dans `tests/cloudflare/`; leurs résultats seront consolidés à la stabilisation du pipeline.
+Le manifest du module est validé par le contrôleur de contrats. Ses six suites déclarées comprennent treize tests au total : sept pour le contrôleur et la reprise, deux pour la présentation, puis absence d'API/MCP, absence de widgets, paquet et documentation. La compilation du SDK et la vérification TypeScript du dépôt ont réussi pendant cette tranche. Les ports de source, journal et destinations ont leurs tests ciblés dans `tests/cloudflare/`; leurs résultats seront consolidés à la stabilisation du pipeline.
 
 Le précontrôle réel du compte Cloudflare autorisé a confirmé la validité du jeton, l'accès en lecture aux ressources et la disponibilité des noms de qualification, sans écriture distante. Il ne prouve ni le transfert ni une publication. Restent à terminer : contrôle global et CI sur le candidat figé, recette Docker, publication de l'original puis de la démo, vérification des comptes/données/fichiers/modules/URL après arrêt local, interruption et reprise, revue indépendante du candidat corrigé et intégration de la PR. Le fork et les deux Sites relèvent de T38/T39 ; ils ne sont pas accomplis par cette tranche.
 

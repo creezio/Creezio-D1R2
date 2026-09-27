@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createDeliveryController} from '../../../../../sdk/delivery/controller.ts';
+import {createDeliveryController, deliveryViewInput} from '../../../../../sdk/delivery/controller.ts';
+import {deliveryViewModel} from '../../../../../sdk/delivery/view-model.ts';
 
 const digest = `sha256-${'a'.repeat(64)}`;
 const summary = {title: 'Plan vérifié', details: ['D1 et R2'], warnings: []};
@@ -106,6 +107,46 @@ test('prepared status restores a reviewable plan after a reload', async () => {
   await controller.inspect();
   assert.equal((await controller.status()).ok, true);
   assert.deepEqual(controller.getSnapshot().prepared?.summary, summary);
+  controller.dispose();
+});
+
+test('interrupted preparation resumes after reload and credential re-entry without another transfer', async () => {
+  const f = fixture();
+  let prepares = 0;
+  f.transport.prepare = async input => {
+    f.calls.push(['prepare', input]);
+    prepares++;
+    return prepares === 1 ? {ok: false, code: 'provision_unknown'}
+      : {ok: true, value: {transferId: 'transfer-1', planDigest: digest, summary}};
+  };
+  await f.controller.inspect();
+  assert.deepEqual(await f.controller.prepare({secretSelections: []}),
+    {ok: false, code: 'provision_unknown'});
+  assert.equal(f.stored.value, null);
+  f.controller.dispose();
+
+  const interrupted = {...inspection, configuration: 'needed', target: inspection.target,
+    activeTransferId: null};
+  f.transport.inspect = async () => ({ok: true, value: interrupted});
+  f.transport.configure = async input => {
+    f.calls.push(['configure', input.target]);
+    return {ok: true, value: inspection};
+  };
+  const controller = createDeliveryController({access: f.access, transport: f.transport,
+    persistence: f.persistence});
+  assert.equal((await controller.inspect()).ok, true);
+  assert.deepEqual(controller.getSnapshot().inspection?.target, inspection.target);
+  assert.equal(deliveryViewModel(deliveryViewInput(controller.getSnapshot())).canConfigure, true);
+  assert.equal((await controller.configure({target: inspection.target,
+    credentials: {apiToken: 'synthetic-token'}})).ok, true);
+  assert.equal(deliveryViewModel(deliveryViewInput(controller.getSnapshot())).canPrepare, true);
+  assert.equal((await controller.prepare({secretSelections: []})).ok, true);
+  assert.equal(f.stored.value.transferId, 'transfer-1');
+  assert.equal(f.stored.value.planDigest, digest);
+  const ready = deliveryViewModel(deliveryViewInput(controller.getSnapshot()));
+  assert.equal(ready.transferId, null);
+  assert.equal(ready.canStart, true);
+  assert.equal(f.calls.filter(([kind]) => kind === 'prepare').length, 2);
   controller.dispose();
 });
 

@@ -5,3 +5,4 @@
 - Vue d’administration locale pour préparer, lancer, suivre et reprendre un transfert Cloudflare identifié.
 - Aucun outil MCP, route de module ou stockage de secret ajouté.
 - Après une réponse perdue au lancement, le statut préparé du même transfert réarme son démarrage seulement après conservation locale confirmée.
+- Une préparation interrompue retrouve sa cible après rechargement et reprend le même projet avec le jeton correspondant.

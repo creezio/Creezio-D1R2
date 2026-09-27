@@ -173,26 +173,31 @@ export function createCloudflareDeliveryPipeline(options){
     const checkpoint=await transferJournal.load(transferId);
     return statusOf(record,checkpoint);
   }
-  async function inspect(context){
-    const principalId=owner(context);
-    const connections=await secretConnections(context);
-    if(!Array.isArray(connections)||connections.length>1000)fail('source_unavailable');
-    let active=null;
-    if(currentTransferId)active=await planJournal.load(currentTransferId);
+  async function activeFor(principalId){
+    let active=currentTransferId?await planJournal.load(currentTransferId):null;
+    if(active?.owner!==principalId)active=null;
     if(!active&&typeof planJournal.findActive==='function'){
       const found=await planJournal.findActive(principalId);
       if(found)active=await planJournal.load(found);
     }
-    if(active?.owner!==principalId)active=null;
+    return active?.owner===principalId?active:null;
+  }
+  async function inspect(context){
+    const principalId=owner(context);
+    const connections=await secretConnections(context);
+    if(!Array.isArray(connections)||connections.length>1000)fail('source_unavailable');
+    const active=await activeFor(principalId);
     const activeTarget=active?{accountId:active.accountId,workerName:active.workerName}:null;
     const selected=connection?.principalId===principalId
       &&(!activeTarget||connection.accountId===activeTarget.accountId
-        &&connection.workerName===activeTarget.workerName)?connection:null;
+        &&connection.workerName===activeTarget.workerName)
+      &&(!active||connection.tokenId===active.tokenId)?connection:null;
     return Object.freeze({hostProfile:'docker-local',
       target:activeTarget??(selected?{accountId:selected.accountId,workerName:selected.workerName}:null),
       configuration:selected?'ready':'needed',
       preparation:active?.stage==='prepared'?'ready':'needed',
-      activeTransferId:active?.transferId??null,secretConnections:structuredClone(connections)});
+      activeTransferId:active?.stage==='intent'?null:active?.transferId??null,
+      secretConnections:structuredClone(connections)});
   }
   async function configure(input,context){
     const selected=validConnection(input),control=controlFactory(selected);
@@ -200,7 +205,10 @@ export function createCloudflareDeliveryPipeline(options){
     if(observed.accountId!==selected.accountId||typeof observed.tokenId!=='string'
       ||!/^[a-f0-9]{32}$/.test(observed.tokenId)||typeof observed.workersSubdomain!=='string')
       fail('invalid_connection',403);
-    connection={...selected,principalId:owner(context),tokenId:observed.tokenId,
+    const principalId=owner(context),active=await activeFor(principalId);
+    if(active&&(active.accountId!==selected.accountId||active.workerName!==selected.workerName
+      ||active.tokenId!==observed.tokenId))fail('connection_changed',409);
+    connection={...selected,principalId,tokenId:observed.tokenId,
       subdomain:observed.workersSubdomain,control};
     return inspect(context);
   }

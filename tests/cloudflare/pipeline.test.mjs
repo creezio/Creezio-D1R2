@@ -160,12 +160,26 @@ test('registry registration blocks provisioning; reconfigured credentials resume
   delete f.options.registryContext;
   const prepared=await first.prepare({secretSelections:[]},context);
   assert.equal((await first.inspect({principalId:'other-owner'})).activeTransferId,null);
+  f.planJournal.records.set('transfer-two',{
+    ...structuredClone(f.planJournal.records.get('transfer-one')),
+    transferId:'transfer-two',owner:'other-owner'});
+  assert.equal((await first.inspect({principalId:'other-owner'})).activeTransferId,'transfer-two');
+  assert.deepEqual((await first.inspect({principalId:'other-owner'})).target,{accountId,workerName});
+  assert.equal((await first.inspect({principalId:'third-owner'})).target,null);
+  const goodControl=f.options.controlFactory;
+  f.options.controlFactory=()=>({accountId,async inspectConnection(){return {accountId,
+    tokenId:'f'.repeat(32),workersSubdomain:'example'};}});
+  const wrongToken=f.create();
+  await assert.rejects(wrongToken.configure({target:{accountId,workerName},
+    credentials:{apiToken:token}},context),error=>error.code==='connection_changed');
+  assert.equal((await wrongToken.inspect(context)).configuration,'needed');
+  f.options.controlFactory=goodControl;
   const restarted=f.create();
   const recoveredInspection=await restarted.inspect(context);
   assert.equal(recoveredInspection.activeTransferId,'transfer-one');
   assert.equal(recoveredInspection.configuration,'needed');
   assert.deepEqual(recoveredInspection.target,{accountId,workerName});
-  assert.equal((await restarted.inspect({principalId:'other-owner'})).target,null);
+  assert.deepEqual((await restarted.inspect({principalId:'other-owner'})).target,{accountId,workerName});
   const status=await restarted.status('transfer-one',context);
   assert.equal(status.phase,'prepared');
   const ready=await restarted.configure({target:{accountId,workerName},credentials:{apiToken:token}},context);
@@ -184,6 +198,10 @@ test('a restarted preparation resumes its recorded provisioning intent',async()=
     error=>error.code==='provision_unknown');
   assert.equal(f.planJournal.records.get('transfer-one').stage,'intent');
   const restarted=f.create();
+  const inspection=await restarted.inspect(context);
+  assert.deepEqual(inspection.target,{accountId,workerName});
+  assert.equal(inspection.activeTransferId,null);
+  assert.equal(inspection.configuration,'needed');
   await restarted.configure({target:{accountId,workerName},credentials:{apiToken:token}},context);
   const prepared=await restarted.prepare({secretSelections:[]},context);
   assert.equal(prepared.transferId,'transfer-one');

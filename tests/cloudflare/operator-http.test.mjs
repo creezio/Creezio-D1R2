@@ -160,6 +160,45 @@ test('failed start may be retried only while the exact journal remains prepared'
     assert.equal(result.response.status,200);assert.equal(starts,2);
   });
 
+test('failed prepare can resume its durable intent after fresh native authorization',
+  {timeout:30000},async t=>{
+    const port=await unusedPort(),native=(await issueOpaqueToken('session')).token;
+    let prepares=0,revoked=false;
+    const fetcher=async url=>url.endsWith('/connections')
+      ?Response.json({secretConnections:[]})
+      :revoked?Response.json({code:'forbidden'},{status:403})
+        :Response.json({principalId:'principal-one',sessionId:'session-one',epoch:1,
+          expiresAtMs:Date.now()+3_600_000,operatorOrigin:`http://127.0.0.1:${port}`});
+    const server=createLocalDeliveryServer({config:{origin:appOrigin},port,fetcher,
+      operations:{inspect:async()=>inspection,configure:async()=>inspection,
+        prepare:async()=>{prepares++;if(prepares===1)
+          throw Object.assign(new Error('provisioning uncertain'),{code:'provision_unknown',status:409});
+          return prepared;},status:async()=>transfer,start:async()=>transfer,reconcile:async()=>transfer}});
+    await server.listen();t.after(()=>server.close());
+    const initial=await post(server.origin,'session',`creezio-local-admin=${native}`);
+    const cap=initial.response.headers.get('set-cookie').split(';')[0],
+      cookies=`creezio-local-admin=${native}; ${cap}`,input={secretSelections:[]};
+    let result=await post(server.origin,'prepare',cookies,input);
+    assert.equal(result.response.status,202);
+    const firstJob=result.body.jobId;
+    await new Promise(resolve=>setImmediate(resolve));
+    result=await get(server.origin,`jobs/${firstJob}`,cookies);
+    assert.equal(result.response.status,409);assert.equal(prepares,1);
+    revoked=true;
+    result=await post(server.origin,'prepare',cookies,input);
+    assert.equal(result.response.status,403);assert.equal(prepares,1);
+    revoked=false;
+    result=await post(server.origin,'prepare',cookies,input);
+    assert.equal(result.response.status,202);
+    assert.notEqual(result.body.jobId,firstJob);
+    await new Promise(resolve=>setImmediate(resolve));
+    result=await get(server.origin,`jobs/${result.body.jobId}`,cookies);
+    assert.equal(result.response.status,200);assert.deepEqual(result.body.value,prepared);
+    assert.equal(prepares,2);
+    result=await get(server.origin,`jobs/${firstJob}`,cookies);
+    assert.equal(result.response.status,409);
+  });
+
 test('operator refuses cross-origin and missing CSRF before invoking callbacks',{timeout:30000},async t=>{
   const port=await unusedPort();let calls=0;
   const server=createLocalDeliveryServer({config:{origin:appOrigin},port,

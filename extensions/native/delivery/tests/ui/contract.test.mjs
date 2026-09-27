@@ -29,8 +29,12 @@ test('prepared screen explains local interruption and never displays a credentia
     configuration: 'ready', preparation: 'ready', planReviewed: true, transfer: null});
   const html = renderToStaticMarkup(createElement(DeliveryOverview, {model, ...actions}));
   assert.match(html, /Interruption locale prévue/);
-  assert.match(html, /runtime Docker local s’arrête/);
-  assert.match(html, /Lancer la livraison/);
+  assert.match(html, /runtime Docker local s’arrête pendant la capture, la compilation/);
+  assert.match(html, /Gardez cet onglet ouvert/);
+  assert.match(html, /une fois le runtime redémarré/);
+  const startButton = html.match(/<button\b[^>]*>Lancer la livraison<\/button>/)?.[0];
+  assert.ok(startButton);
+  assert.doesNotMatch(startButton, /\sdisabled(?:=|[ >])/);
   assert.doesNotMatch(html, /apiToken|databaseId|<input/);
 });
 

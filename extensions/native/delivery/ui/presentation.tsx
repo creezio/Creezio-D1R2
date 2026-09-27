@@ -41,9 +41,9 @@ export function DeliveryOverview({model, busy = false, onConfigure, onPrepare, o
           Vérifier ce transfert</Button>}
       </CardContent></Card>
     {model.showCaptureNotice && <div role="note" className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-      <strong>Interruption locale prévue.</strong> Le runtime Docker local s’arrête pendant la capture cohérente des données.
-      Le service opérateur reste disponible pour suivre le transfert ; si l’écran perd sa connexion, revenez-y et vérifiez
-      le même identifiant de transfert.
+      <strong>Interruption locale prévue.</strong> Le runtime Docker local s’arrête pendant la capture, la compilation
+      et le transfert. Gardez cet onglet ouvert pour suivre le service opérateur. Après un rechargement, revenez
+      une fois le runtime redémarré pour vérifier le même transfert.
     </div>}
     {!model.transferId && <Card><CardHeader><CardTitle className="text-base">Préparation</CardTitle>
       <CardDescription>Un seul profil est disponible pour cette livraison.</CardDescription></CardHeader>
