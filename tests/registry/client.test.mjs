@@ -81,6 +81,21 @@ test('client fails closed on wrong scope, oversized or malformed responses and r
   await assert.rejects(client.preflight(preflight), { code: 'authentication_required', status: 401 });
 });
 
+test('client accepts decoded JSON with retained compression headers and bounds decoded bytes', async () => {
+  const decoded = (value, encoding) => new Response(JSON.stringify(value), { status: 200,
+    headers: { 'content-type': 'application/json; charset=utf-8', 'content-encoding': encoding } });
+  const responses = [
+    decoded(preflightResult, 'br'),
+    decoded(declarationResult, 'gzip'),
+    new Response('x'.repeat(16_385), { status: 200,
+      headers: { 'content-type': 'application/json', 'content-encoding': 'br', 'content-length': '100' } })
+  ];
+  const client = createRegistryClient({ origin, installationToken, fetch: async () => responses.shift() });
+  assert.deepEqual(await client.preflight(preflight), preflightResult);
+  assert.deepEqual(await client.declare(declaration), declarationResult);
+  await assert.rejects(client.preflight(preflight), { code: 'invalid_response' });
+});
+
 test('client reports transport failure without leaking the installation credential', async () => {
   const client = createRegistryClient({ origin, installationToken, fetch: async () => {
     throw new Error(`secret ${installationToken}`);

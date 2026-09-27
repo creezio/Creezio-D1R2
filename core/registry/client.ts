@@ -137,8 +137,10 @@ function validateDeclarationResult(value: unknown, request: RegistryDeclarationR
 }
 async function readResponse(response: Response, signal: AbortSignal): Promise<unknown> {
   if (response.headers.get('content-type')?.match(/^application\/json(?:\s*;\s*charset=utf-8)?$/i)?.[0]
-    !== response.headers.get('content-type') || response.headers.has('content-encoding') || !response.body)
+    !== response.headers.get('content-type') || !response.body)
     throw new RegistryClientError('invalid_response', response.status);
+  // Fetch may decode the body while retaining its wire content-encoding header.
+  // Bound the bytes returned by the stream, including after any decompression.
   const reader = response.body.getReader();
   const cancel = () => { try { void reader.cancel().catch(() => {}); } catch { /* best effort */ } };
   signal.addEventListener('abort', cancel, { once: true });
