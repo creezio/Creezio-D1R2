@@ -161,7 +161,11 @@ test('registry registration blocks provisioning; reconfigured credentials resume
   const prepared=await first.prepare({secretSelections:[]},context);
   assert.equal((await first.inspect({principalId:'other-owner'})).activeTransferId,null);
   const restarted=f.create();
-  assert.equal((await restarted.inspect(context)).activeTransferId,'transfer-one');
+  const recoveredInspection=await restarted.inspect(context);
+  assert.equal(recoveredInspection.activeTransferId,'transfer-one');
+  assert.equal(recoveredInspection.configuration,'needed');
+  assert.deepEqual(recoveredInspection.target,{accountId,workerName});
+  assert.equal((await restarted.inspect({principalId:'other-owner'})).target,null);
   const status=await restarted.status('transfer-one',context);
   assert.equal(status.phase,'prepared');
   const ready=await restarted.configure({target:{accountId,workerName},credentials:{apiToken:token}},context);
