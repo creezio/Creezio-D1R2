@@ -76,6 +76,7 @@ export function DeliveryAdminView(props: RuntimeViewProps) {
     return () => window.clearInterval(timer);
   }, [enabled, controller, snapshot.saved?.started, snapshot.transfer?.phase]);
   useEffect(() => {setApiToken(''); setRewrap([]); setEditing(false); setNotice('');}, [identityVersion, props.authorized]);
+  useEffect(() => {setTarget(blankTarget);}, [identityVersion]);
   useEffect(() => {
     if (snapshot.inspection?.target && (!editing || fixedTarget)) setTarget(snapshot.inspection.target);
   }, [editing, fixedTarget, snapshot.inspection?.target]);

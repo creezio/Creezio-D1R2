@@ -209,3 +209,25 @@ test('a restarted preparation resumes its recorded provisioning intent',async()=
   assert.equal(f.events.filter(item=>item==='provision').length,2);
   assert.equal(f.events.includes('stop'),false);
 });
+
+test('an interrupted intent keeps exact secret choices and refuses a changed retry',async()=>{
+  const f=fixture({provisionUnknownOnce:true}),reference=
+    'creezio-secret:v1:11111111-1111-4111-8111-111111111111';
+  f.options.secretConnections=async()=>[{contextId:'application',reference,bindingId:'binding-one',
+    label:'Provider connection'}];
+  const selected={contextId:'application',reference,bindingId:'binding-one',mode:'rewrap'};
+  const first=f.create();
+  await first.configure({target:{accountId,workerName},credentials:{apiToken:token}},context);
+  await assert.rejects(first.prepare({secretSelections:[selected]},context),
+    error=>error.code==='provision_unknown');
+  const restarted=f.create();
+  assert.equal((await restarted.inspect(context)).activeTransferId,null);
+  await restarted.configure({target:{accountId,workerName},credentials:{apiToken:token}},context);
+  await assert.rejects(restarted.prepare({secretSelections:[{...selected,mode:'disable'}]},context),
+    error=>error.code==='transfer_in_progress');
+  assert.equal(f.events.filter(item=>item==='provision').length,1);
+  const prepared=await restarted.prepare({secretSelections:[selected]},context);
+  assert.equal(prepared.transferId,'transfer-one');
+  assert.equal(f.planJournal.records.size,1);
+  assert.equal(f.events.filter(item=>item==='provision').length,2);
+});
