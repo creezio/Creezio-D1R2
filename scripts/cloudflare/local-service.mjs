@@ -15,6 +15,7 @@ import {createFileTransferJournal} from './transfer/journal.ts';
 import {createLocalDeliveryServer} from './operator-http.mjs';
 import {sourceIdentity,sameSourceIdentity} from '../quality/evidence.mjs';
 import {measureRuntimeArtifacts} from '../quality/runtime.mjs';
+import {cloudflareBuildPaths} from './artifact-path.mjs';
 
 const fail=code=>{throw Object.assign(new Error(`Local delivery ${code}.`),{code});};
 async function directory(root,suffix){
@@ -127,21 +128,33 @@ export function createCloudflareBuildPort(config,{run=runBuild,
   freeBytes=async root=>{const space=await statfs(root);return space.bavail*space.bsize;},
   move=rename,removeReport=unlink}={}){
   let building=false;
-  return async({target,projection,sourceSha,transferId})=>{
+  return async({target,projection,sourceSha,transferId,updateId=null,
+    artifactRoot:requestedRoot,beforeBuild})=>{
     if(building)fail('build_busy');
     building=true;
     try{
+    if(updateId!==null&&transferId!==updateId)fail('invalid_artifact_identity');
+    if(updateId===null&&typeof transferId!=='string')fail('invalid_artifact_identity');
+    let paths;
+    try{paths=cloudflareBuildPaths(config.root,updateId);}catch{fail('invalid_artifact_identity');}
+    if(requestedRoot!==undefined&&requestedRoot!==paths.artifactRoot)
+      fail('invalid_artifact_identity');
+    if(beforeBuild!==undefined&&(updateId===null||typeof beforeBuild!=='function'))
+      fail('invalid_artifact_identity');
     const source=sourceIdentity(config.root);
     if(source.dirty||source.head!==sourceSha)fail('source_changed');
-    const build=await directory(config.root,'.wrangler/delivery/build');
-    const localBuild=path.join(config.root,'.quality/delivery-build');
-    const artifactRoot=path.join(build,'artifact'),localDist=path.join(config.root,'dist'),
-      staging=path.join(build,'artifact-staging'),
+    const build=await directory(config.root,path.relative(config.root,paths.buildSpace));
+    const localBuild=paths.localSpace;
+    const artifactRoot=paths.artifactRoot,localDist=path.join(config.root,'dist'),
+      staging=paths.staging,
       localBackup=path.join(localBuild,'local-dist'),failedDist=path.join(localBuild,'failed-dist');
     if(await optionalDirectory(localBackup)||await optionalDirectory(path.join(build,'local-dist'))
-      ||await optionalDirectory(path.join(build,'failed-dist')))fail('build_recovery_required');
+      ||await optionalDirectory(path.join(build,'failed-dist'))
+      ||updateId!==null&&await optionalDirectory(path.join(config.root,'.quality/delivery-build/local-dist')))
+      fail('build_recovery_required');
     const artifactRecord=path.join(artifactRoot,'receipt.json');
-    const selected={transferId,target,sourceSha,sourceFingerprint:source.sha256,
+    const selected={...(updateId===null?{transferId}:{updateId}),target,sourceSha,
+      sourceFingerprint:source.sha256,
       compositionDigest:projection.targetPlan.compositionDigest};
     const result=()=>({sourceSha,artifactDigest:measureRuntimeArtifacts(artifactRoot).digest,
       compositionDigest:projection.targetPlan.compositionDigest,
@@ -161,7 +174,7 @@ export function createCloudflareBuildPort(config,{run=runBuild,
         ||!sameSourceIdentity(source,report.source))fail('artifact_exists');
       return artifact;
     }
-    await directory(config.root,'.quality/delivery-build');
+    await directory(config.root,path.relative(config.root,localBuild));
     if(await freeBytes(config.root)<20*1024**3||await freeBytes(build)<20*1024**3)fail('disk_low');
     const targetPath=path.join(build,'target.json'),compositionPath=path.join(build,'composition.json'),lockPath=path.join(build,'composition.lock.json');
     await writeBuildInput(targetPath,target);await writeBuildInput(compositionPath,projection.composition);await writeBuildInput(lockPath,projection.lock);
@@ -170,6 +183,7 @@ export function createCloudflareBuildPort(config,{run=runBuild,
       CREEZIO_COMPOSITION_LOCK:path.relative(config.root,lockPath).replaceAll('\\','/')};
     for(const key of ['CLOUDFLARE_API_TOKEN','CLOUDFLARE_API_KEY','CLOUDFLARE_EMAIL','CREEZIO_VAULT_KEYRING',
       'OPENAI_API_KEY','CREEZIO_REGISTRY_INSTALLATION_TOKEN','CLOUDFLARE_API_BASE_URL','CF_API_BASE_URL'])delete env[key];
+    if(beforeBuild)await beforeBuild();
     const hadLocal=Boolean(await optionalDirectory(localDist));
     if(hadLocal)await move(localDist,localBackup);
     let complete=false,builtArtifact;
@@ -265,12 +279,15 @@ export function createLocalRegistryContext(config,journal){
 }
 export function superviseDeliveryOperations(pipeline,supervisor){
   const operations={...pipeline};
-  for(const kind of ['start','reconcile'])operations[kind]=async(...args)=>{
+  for(const kind of ['start','reconcile','startUpdate','reconcileUpdate']){
+    if(typeof pipeline[kind]!=='function')continue;
+    operations[kind]=async(...args)=>{
     let recoveryRequired=false;
     try{return await pipeline[kind](...args);}
     catch(error){recoveryRequired=error?.code==='build_recovery_required';throw error;}
     finally{if(!supervisor.closing&&!recoveryRequired)supervisor.start();}
-  };
+    };
+  }
   return operations;
 }
 async function localSourceKeyring(root){
@@ -284,14 +301,20 @@ async function localSourceKeyring(root){
 export async function createLocalDeliveryService({config,supervisor}){
   const state=await directory(config.root,'.wrangler/delivery');
   const publicationJournal=createFilePublicationJournal(state);
+  const buildTarget=createCloudflareBuildPort(config);
   const pipeline=createCloudflareDeliveryPipeline({config,
     artifactRoot:path.join(state,'build','artifact'),
     compositionPath:process.env.CREEZIO_COMPOSITION||'configuration/composition.json',
     lockPath:process.env.CREEZIO_COMPOSITION_LOCK||undefined,
     planJournal:createLocalControlJournal(state,'plan'),provisionJournal:createLocalControlJournal(state,'provision'),
     transferJournal:createFileTransferJournal(state),sandboxJournal:createLocalControlJournal(state,'sandbox'),
+    updateJournal:createLocalControlJournal(state,'update'),
     registryContext:createLocalRegistryContext(config,publicationJournal),
-    stopRuntime:()=>supervisor.stop(),buildTarget:createCloudflareBuildPort(config),
+    stopRuntime:()=>supervisor.stop(),buildTarget,
+    buildUpdateTarget:input=>buildTarget({...input,beforeBuild:async()=>{
+      try{await supervisor.stop();}
+      catch{fail('build_recovery_required');}
+    }}),
     targetVault:createTargetVault(config.root),sourceKeyring:()=>localSourceKeyring(config.root),
     secretConnections:context=>{
       if(!Array.isArray(context?.secretConnections))fail('source_unavailable');

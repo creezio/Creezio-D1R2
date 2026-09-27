@@ -7,14 +7,14 @@ const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const fail=code=>{throw Object.assign(new Error(`Local delivery journal ${code}.`),{code});};
 /** Non-secret operator plans/provisioning only; data snapshots and publication receipts have their own journals. */
 export function createLocalControlJournal(directory,prefix){
-  if(!path.isAbsolute(directory)||path.resolve(directory)!==directory||!['provision','plan','sandbox'].includes(prefix))fail('invalid_path');
+  if(!path.isAbsolute(directory)||path.resolve(directory)!==directory||!['provision','plan','sandbox','update'].includes(prefix))fail('invalid_path');
   function key(id){
     if(typeof id!=='string'||!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(id))fail('invalid_state');
     return path.join(directory,`${prefix}-${createHash('sha256').update(id).digest('hex')}.json`);
   }
   function checked(record){
     if(!record||record.schemaVersion!==1||!Number.isSafeInteger(record.revision)||record.revision<1)fail('invalid_state');
-    const id=record.plan?.transferId??record.transferId;
+    const id=record.plan?.transferId??record.transferId??record.updateId;
     key(id);
     const text=JSON.stringify(record)+'\n';
     if(Buffer.byteLength(text)>LIMIT)fail('limit');
@@ -62,12 +62,12 @@ export function createLocalControlJournal(directory,prefix){
     }
   }
   async function findActive(owner){
-    if(prefix!=='plan'||typeof owner!=='string'||!owner.length)fail('invalid_state');
+    if(!['plan','update'].includes(prefix)||typeof owner!=='string'||!owner.length)fail('invalid_state');
     await safeDirectory();const entries=await readdir(directory);
     if(entries.length>1024)fail('limit');
     let found=null;
     for(const name of entries){
-      if(!/^plan-[a-f0-9]{64}\.json$/.test(name))continue;
+      if(!new RegExp(`^${prefix}-[a-f0-9]{64}\\.json$`).test(name))continue;
       const file=path.join(directory,name),stat=await lstat(file);
       if(stat.isSymbolicLink()||!stat.isFile()||stat.size>LIMIT)fail('invalid_state');
       const value=JSON.parse(await readFile(file,'utf8'));
@@ -75,7 +75,29 @@ export function createLocalControlJournal(directory,prefix){
       if(value.owner!==owner||value.stage==='delivered')continue;
       if(found)fail('transfer_conflict');found=value;
     }
-    return found?.transferId??null;
+    return found?.transferId??found?.updateId??null;
   }
-  return Object.freeze({load,create:next=>commit(null,next),compareAndSave:commit,findActive});
+  async function createActive(next){
+    if(prefix!=='update'||typeof next?.owner!=='string'||!next.owner)fail('invalid_state');
+    await safeDirectory();
+    const lockFile=path.join(directory,
+      `update-owner-${createHash('sha256').update(next.owner).digest('hex')}.lock`);
+    let lock;
+    try{lock=await open(lockFile,'wx',0o600);}
+    catch(error){if(error.code==='EEXIST')fail('conflict');throw error;}
+    const marker=`${process.pid}:${randomUUID()}`;
+    try{
+      await lock.writeFile(marker);await lock.sync();
+      if(await findActive(next.owner))fail('conflict');
+      await commit(null,next);
+    }finally{
+      const [current,held,contents]=await Promise.all([lstat(lockFile),lock.stat(),readFile(lockFile,'utf8')]);
+      await lock.close();
+      if(current.isSymbolicLink()||current.ino!==held.ino||current.dev!==held.dev||contents!==marker)
+        fail('invalid_path');
+      await unlink(lockFile);
+    }
+  }
+  return Object.freeze({load,create:next=>commit(null,next),createActive,
+    compareAndSave:commit,findActive});
 }

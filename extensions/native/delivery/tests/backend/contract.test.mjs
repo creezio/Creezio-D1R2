@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createDeliveryController, deliveryViewInput} from '../../../../../sdk/delivery/controller.ts';
 import {deliveryViewModel} from '../../../../../sdk/delivery/view-model.ts';
+import {createDeliveryUpdateController} from '../../../../../sdk/delivery/update-controller.ts';
+import {deliveryUpdateViewModel} from '../../../../../sdk/delivery/update-view-model.ts';
 
 const digest = `sha256-${'a'.repeat(64)}`;
 const summary = {title: 'Plan vérifié', details: ['D1 et R2'], warnings: []};
@@ -163,4 +165,40 @@ test('re-entering an operator token keeps the same transfer and plan', async () 
   assert.equal((await f.controller.configure({target: {...target, workerName: 'other'},
     credentials: {apiToken: 'synthetic-token'}})).ok, false);
   f.controller.dispose();
+});
+
+test('update review persists its exact identity before start and resumes without a second preparation', async () => {
+  const stored={value:null},calls=[];
+  const access={audience:'admin',getSnapshot:()=>({phase:'authenticated',pending:null,
+    session:{audience:'admin',principalId:'admin-1'}}),subscribe:()=>()=>{}};
+  const updateInspection={kind:'update',readiness:'ready',currentPublicationId:'publication-1',
+    activeUpdateId:null,target:inspection.target};
+  const prepared={kind:'update',updateId:'update-1',planDigest:digest,summary};
+  const status={kind:'update',updateId:'update-1',planDigest:digest,phase:'building',summary:null,
+    finalUrl:null,registryStatus:'pending'};
+  const transport={
+    async inspectUpdate(){return {ok:true,value:updateInspection};},
+    async prepareUpdate(){calls.push('prepare');return {ok:true,value:prepared};},
+    async startUpdate(input){calls.push(['start',input]);return {ok:false,code:'outcome_unknown'};},
+    async statusUpdate(id){calls.push(['status',id]);return {ok:true,value:status};},
+    async reconcileUpdate(input){calls.push(['reconcile',input]);return {ok:true,value:status};},
+  };
+  const persistence={read:()=>stored.value,save(value){stored.value=value;return true;}};
+  let controller=createDeliveryUpdateController({access,transport,persistence});
+  await controller.inspect();
+  assert.equal(deliveryUpdateViewModel(controller.getSnapshot()).canPrepare,true);
+  assert.equal((await controller.prepare()).ok,true);
+  assert.equal(deliveryUpdateViewModel(controller.getSnapshot()).canStart,true);
+  assert.deepEqual(stored.value,{kind:'update',owner:'admin-1',updateId:'update-1',
+    planDigest:digest,started:false});
+  assert.deepEqual(await controller.start(),{ok:false,code:'outcome_unknown'});
+  assert.equal(stored.value.started,true);
+  assert.deepEqual(calls,['prepare',['start',{updateId:'update-1',planDigest:digest}]]);
+  controller.dispose();
+  controller=createDeliveryUpdateController({access,transport,persistence});
+  await controller.inspect();await controller.status();await controller.reconcile();
+  assert.deepEqual(calls.slice(2),[['status','update-1'],
+    ['reconcile',{updateId:'update-1',planDigest:digest}]]);
+  assert.equal(calls.filter(call=>call==='prepare').length,1);
+  controller.dispose();
 });

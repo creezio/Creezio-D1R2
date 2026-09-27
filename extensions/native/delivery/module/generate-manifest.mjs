@@ -26,6 +26,13 @@ m.contracts = {
     {id: 'panel-state', schema: {type: 'object', properties: {
       owner: string(128), transferId: string(128),
       planDigest: {type: 'string', pattern: '^sha256-[a-f0-9]{64}$'}, started: {type: 'boolean'},
+      initial: {type: 'object', properties: {owner: string(128), transferId: string(128),
+        planDigest: {type: 'string', pattern: '^sha256-[a-f0-9]{64}$'}, started: {type: 'boolean'}},
+      required: ['owner', 'transferId', 'planDigest', 'started'], additionalProperties: false},
+      update: {type: 'object', properties: {kind: {const: 'update'}, owner: string(128),
+        updateId: string(128), planDigest: {type: 'string', pattern: '^sha256-[a-f0-9]{64}$'},
+        started: {type: 'boolean'}},
+      required: ['kind', 'owner', 'updateId', 'planDigest', 'started'], additionalProperties: false},
     }, required: [], additionalProperties: false}},
   ],
   models: [], files: [], events: [], settings: [], search: [],

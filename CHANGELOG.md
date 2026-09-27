@@ -2,11 +2,13 @@
 
 ## En cours — publication Cloudflare T32
 
-Pipeline de première publication du Worker/assets et des données D1/R2, relié à l'opérateur local et à la vue d'administration sur `core/t32-cloudflare`. Le module optionnel de livraison possède un transport injecté par l'hôte, un transfert identifié et des suites ciblées ; les nouveaux exports SDK sont une candidate **1.1.0 non publiée**, distincte de `sdk-v1.0.0`. La PR #27 est ouverte en brouillon ; les contrôles globaux et les recettes Docker/Cloudflare réelles restent à terminer. Aucune publication de l'application originale ou de la démo sur le compte Cloudflare n'est encore qualifiée ; la mise à jour conservatrice après cette première publication reste au backlog. Voir [réalisation T32](docs/IMPLEMENTATION-T32.md).
+Pipeline de première publication du Worker/assets et des données D1/R2, relié à l'opérateur local et à la vue d'administration sur `core/t32-cloudflare`. Le module optionnel de livraison possède un transport injecté par l'hôte, un transfert identifié et des suites ciblées ; les nouveaux exports SDK sont une candidate **1.1.0 non publiée**, distincte de `sdk-v1.0.0`. La PR #27 est ouverte en brouillon. La première publication de l'original est qualifiée sur le compte Cloudflare autorisé : 67 modules et 35 assets vérifiés, journal livré et registre synchronisé, compte/brouillon/fichier conservés, réponse OpenAI réelle et arrêt Docker propre. La démo du starter, l'update réel, les contrôles du candidat final et l'intégration restent ouverts. Voir [réalisation T32](docs/IMPLEMENTATION-T32.md).
 
 Qualification Docker poursuivie sur Linux par SSH : arrêt propre et conservation du compte, du brouillon et du fichier vérifiés. Correction de la copie du build entre le conteneur et le volume Docker, avec empreintes, staging borné et restauration du build local. Les tentatives de publication et leurs limites restent détaillées dans la réalisation T32.
 
 Le transport R2 empêche l’ajout implicite de métadonnées de cache par Node lors d’une écriture conditionnelle. La vérification conserve les exigences d’identité du contenu et des métadonnées ; la sonde de publication respecte le refus natif de connexion anonyme.
+
+Le parcours conservateur REQ-3203 est développé dans le pipeline, le journal et le module de livraison, avec artefacts distincts et contrôles ciblés. Sa recette sur le Worker réel et la vérification de conservation en production restent à faire ; cette candidate ne constitue pas encore une mise à jour qualifiée.
 
 ## 27 septembre 2026 — SDK et starter T30 publics
 

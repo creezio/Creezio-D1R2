@@ -1,10 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,writeFileSync,rmSync,readFileSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
+import {mkdtempSync,mkdirSync,writeFileSync,rmSync,readFileSync,renameSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {measureRuntimeArtifacts} from '../../scripts/quality/runtime.mjs';
-import {inspectCloudflareDelivery,createCloudflarePublisher} from '../../scripts/cloudflare/publisher.mjs';
+import {inspectCloudflareDelivery,inspectCloudflareCurrent,createCloudflarePublisher} from '../../scripts/cloudflare/publisher.mjs';
+import {cloudflareArtifactRoot} from '../../scripts/cloudflare/artifact-path.mjs';
+import {cloudflareWorkerConfiguration} from '../../scripts/cloudflare/config.mjs';
+import {sourceIdentity} from '../../scripts/quality/evidence.mjs';
 
 const target={schemaVersion:1,accountId:'a'.repeat(32),workerName:'first-app',databaseName:'first-db',
   databaseId:'11111111-1111-4111-8111-111111111111',bucketName:'first-files',
@@ -32,7 +36,8 @@ function fixture(t){
     {type:'d1',name:'DB',id:target.databaseId},{type:'r2_bucket',name:'BUCKET',bucket_name:target.bucketName},
     {type:'plain_text',name:'CREEZIO_RUNTIME_PROFILE',text:'cloudflare'},
     {type:'plain_text',name:'CREEZIO_APP_ORIGIN',text:target.origin},
-    {type:'plain_text',name:'CREEZIO_WIDGET_SANDBOX_ORIGIN',text:target.widgetSandboxOrigin}]};
+    {type:'plain_text',name:'CREEZIO_WIDGET_SANDBOX_ORIGIN',text:target.widgetSandboxOrigin},
+    {type:'secret_text',name:'CREEZIO_VAULT_KEYRING'}]};
   const flags={wrongModule:false,missingDependency:false,extraModule:false,foreignModule:false,
     wrongAsset:false,wrongVersion:false,sessionReply:()=>Response.json(
       {error:{code:'authentication_required'},requestId:'anonymous-probe'},{status:401})};
@@ -85,6 +90,7 @@ test('wrong remote module, missing imported module and wrong public asset block 
   input.flags.wrongAsset=false;input.flags.extraModule=true;
   await assert.rejects(inspectCloudflareDelivery(input),{code:'content_mismatch'});
 });
+
 test('no-bundle ESModule rules require the exact local module inventory, including unreferenced modules',async t=>{
   const input=fixture(t);
   writeFileSync(path.join(input.artifactRoot,'dist/server/wrangler.json'),JSON.stringify({
@@ -134,4 +140,78 @@ test('anonymous session probe rejects other statuses, errors, sessions, cookies 
     input.flags.sessionReply=reply;
     await assert.rejects(inspectCloudflareDelivery(input),{code:'probe_failed'});
   }
+});
+
+test('current deployment inspection returns a stable version and target bindings',async t=>{
+  const input=fixture(t);
+  const current=await inspectCloudflareCurrent(input);
+  assert.equal(current.deploymentId,'deployment-1');
+  assert.equal(current.versionId,versionId);
+  assert.equal(current.tag,'cz-transfer1');
+  assert.equal(current.message,input.settings.annotations['workers/message']);
+  assert.equal(current.bindings.length,6);
+  assert.ok(Object.isFrozen(current.bindings));
+  let reads=0;
+  input.controlPlane.deployments=async()=>({deployments:[{
+    ...delivery,id:++reads===1?'deployment-1':'other-deployment'}]});
+  await assert.rejects(inspectCloudflareCurrent(input),{code:'deployment_changed'});
+});
+
+test('update inspection refuses a missing production vault after deployment',async t=>{
+  const input=fixture(t);
+  input.settings.bindings=input.settings.bindings.filter(item=>item.name!=='CREEZIO_VAULT_KEYRING');
+  await assert.rejects(inspectCloudflareCurrent(input),{code:'binding_mismatch'});
+  await assert.rejects(inspectCloudflareDelivery({...input,requireVault:true}),
+    {code:'binding_mismatch'});
+});
+
+test('update publisher rechecks the previous deployment after local validation',async t=>{
+  const input=fixture(t),updateId='33333333-3333-4333-8333-333333333333';
+  writeFileSync(path.join(input.root,'.gitignore'),'.wrangler/\n.quality/\n');
+  const git=(...args)=>execFileSync('git',args,{cwd:input.root,stdio:'ignore'});
+  git('init','-q');git('config','user.email','test@example.invalid');
+  git('config','user.name','Synthetic Fixture');git('add','.gitignore');git('commit','-qm','fixture');
+  const updateRoot=cloudflareArtifactRoot(input.root,updateId);
+  mkdirSync(path.dirname(updateRoot),{recursive:true});
+  renameSync(input.artifactRoot,updateRoot);
+  writeFileSync(path.join(updateRoot,'dist/server/wrangler.json'),
+    JSON.stringify(cloudflareWorkerConfiguration(input.target)));
+  const source=sourceIdentity(input.root);
+  input.artifact.sourceSha=source.head;
+  input.artifact.artifactDigest=measureRuntimeArtifacts(updateRoot).digest;
+  mkdirSync(path.join(updateRoot,'.quality'),{recursive:true});
+  writeFileSync(path.join(updateRoot,'.quality/cloudflare-build.json'),JSON.stringify({
+    source,artifact:{digest:input.artifact.artifactDigest},
+    compositionDigest:input.artifact.compositionDigest}));
+  let reads=0,uploads=0;
+  input.controlPlane.deployments=async()=>({deployments:[{
+    ...delivery,versions:[{percentage:100,version_id:++reads<=2?versionId:
+      '44444444-4444-4444-8444-444444444444'}]}]});
+  input.controlPlane.version=async(_name,id)=>({id});
+  const publisher=createCloudflarePublisher({...input,artifactRoot:updateRoot,
+    upload:async()=>{uploads++;}});
+  await assert.rejects(publisher.deliver({transferId:updateId,artifact:input.artifact,
+    expectedPreviousVersionId:versionId,expectedPreviousDeploymentId:'deployment-1'}),
+  {code:'deployment_changed'});
+  assert.ok(reads>=3);
+  assert.equal(uploads,0);
+});
+
+test('update publisher refuses a changed base before any upload and preserves initial artifact path',async t=>{
+  const input=fixture(t),updateId='33333333-3333-4333-8333-333333333333';
+  let uploads=0;
+  const publisher=createCloudflarePublisher({...input,
+    artifactRoot:cloudflareArtifactRoot(input.root,updateId),
+    upload:async()=>{uploads++;}});
+  await assert.rejects(publisher.deliver({transferId:updateId,artifact:input.artifact,
+    expectedPreviousVersionId:'44444444-4444-4444-8444-444444444444',
+    expectedPreviousDeploymentId:'deployment-1'}),{code:'deployment_changed'});
+  assert.equal(uploads,0);
+  await assert.rejects(publisher.deliver({transferId:updateId,artifact:input.artifact}),
+    {code:'invalid_input'});
+  assert.equal(uploads,0);
+  assert.doesNotThrow(()=>createCloudflarePublisher(input));
+  assert.throws(()=>createCloudflarePublisher({...input,
+    artifactRoot:path.join(input.root,'.wrangler/delivery/updates/invalid!/artifact')}),
+  {code:'invalid_configuration'});
 });

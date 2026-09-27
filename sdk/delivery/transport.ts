@@ -51,6 +51,30 @@ export interface DeliveryTransferStatus {
   readonly finalUrl: string | null;
   readonly registryStatus: 'pending' | 'effective' | 'unknown';
 }
+export interface DeliveryUpdateInspection {
+  readonly kind: 'update';
+  readonly readiness: 'needed' | 'ready';
+  readonly currentPublicationId: string | null;
+  readonly activeUpdateId: string | null;
+  readonly target: DeliveryTarget | null;
+}
+export interface DeliveryUpdatePrepared {
+  readonly kind: 'update';
+  readonly updateId: string;
+  readonly planDigest: string;
+  readonly summary: DeliveryPlanSummary;
+}
+export type DeliveryUpdatePhase = 'prepared' | 'building' | 'built' | 'preflight'
+  | 'schema-applying' | 'schema-ready' | 'publishing' | 'delivery-unknown' | 'delivered';
+export interface DeliveryUpdateStatus {
+  readonly kind: 'update';
+  readonly updateId: string;
+  readonly planDigest: string;
+  readonly phase: DeliveryUpdatePhase;
+  readonly summary: DeliveryPlanSummary | null;
+  readonly finalUrl: string | null;
+  readonly registryStatus: 'pending' | 'unknown' | 'effective';
+}
 
 /** Host-owned local operator boundary. Implementations validate the HTTP DTO and reuse admin session/CSRF/ACL. */
 export interface DeliveryTransport {
@@ -60,4 +84,9 @@ export interface DeliveryTransport {
   start(input: Readonly<{transferId: string; planDigest: string}>): Promise<DeliveryResult<DeliveryTransferStatus>>;
   status(transferId: string): Promise<DeliveryResult<DeliveryTransferStatus>>;
   reconcile(input: Readonly<{transferId: string; planDigest: string}>): Promise<DeliveryResult<DeliveryTransferStatus>>;
+  inspectUpdate(): Promise<DeliveryResult<DeliveryUpdateInspection>>;
+  prepareUpdate(): Promise<DeliveryResult<DeliveryUpdatePrepared>>;
+  startUpdate(input: Readonly<{updateId: string; planDigest: string}>): Promise<DeliveryResult<DeliveryUpdateStatus>>;
+  statusUpdate(updateId: string): Promise<DeliveryResult<DeliveryUpdateStatus>>;
+  reconcileUpdate(input: Readonly<{updateId: string; planDigest: string}>): Promise<DeliveryResult<DeliveryUpdateStatus>>;
 }

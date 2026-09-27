@@ -5,10 +5,12 @@ import path from 'node:path';
 import {validateCloudflareTarget,assertCloudflareBuiltConfiguration} from './config.mjs';
 import {measureRuntimeArtifacts} from '../quality/runtime.mjs';
 import {sourceIdentity,sameSourceIdentity} from '../quality/evidence.mjs';
+import {cloudflareArtifactRoot} from './artifact-path.mjs';
 
 const SHA=/^sha256-[a-f0-9]{64}$/;
 const ID=/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,55}$/;
 const VERSION=/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
+const UPDATE_ID=ID;
 const MAX_CONTENT=16*1024*1024;
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 export class CloudflarePublicationError extends Error {
@@ -86,6 +88,40 @@ function base64Bytes(value){
   const bytes=Buffer.from(value,'base64');
   if(bytes.length>MAX_CONTENT||bytes.toString('base64')!==value)fail('content_format');
   return bytes;
+}
+function bindingsMatch(bindings,target,requireVault=false){
+  return Array.isArray(bindings)
+    &&bindings.some(b=>b.name==='DB'&&b.type==='d1'&&b.id===target.databaseId)
+    &&bindings.some(b=>b.name==='BUCKET'&&b.type==='r2_bucket'&&b.bucket_name===target.bucketName)
+    &&bindings.some(b=>b.name==='CREEZIO_RUNTIME_PROFILE'&&b.type==='plain_text'&&b.text==='cloudflare')
+    &&bindings.some(b=>b.name==='CREEZIO_APP_ORIGIN'&&b.type==='plain_text'&&b.text===target.origin)
+    &&bindings.some(b=>b.name==='CREEZIO_WIDGET_SANDBOX_ORIGIN'&&b.type==='plain_text'
+      &&b.text===target.widgetSandboxOrigin)
+    &&(!requireVault||bindings.filter(b=>b.name==='CREEZIO_VAULT_KEYRING').length===1
+      &&bindings.find(b=>b.name==='CREEZIO_VAULT_KEYRING').type==='secret_text');
+}
+/** Stable, read-only deployment identity for conservative code updates. */
+export async function inspectCloudflareCurrent({target,controlPlane}){
+  target=validateCloudflareTarget(target);
+  const first=await controlPlane.deployments(target.workerName);
+  const current=first?.deployments?.[0];
+  if(!current||typeof current.id!=='string'||!current.id
+    ||current.versions?.length!==1||current.versions[0].percentage!==100
+    ||!VERSION.test(current.versions[0].version_id))fail('not_confirmed');
+  const versionId=current.versions[0].version_id;
+  const version=await controlPlane.version(target.workerName,versionId);
+  const settings=await controlPlane.workerSettings(target.workerName);
+  if(version?.id!==versionId||!bindingsMatch(settings?.bindings,target,true))fail('binding_mismatch');
+  const second=await controlPlane.deployments(target.workerName);
+  if(second?.deployments?.[0]?.id!==current.id
+    ||second.deployments[0].versions?.length!==1
+    ||second.deployments[0].versions[0].percentage!==100
+    ||second.deployments[0].versions[0].version_id!==versionId)fail('deployment_changed');
+  const tag=settings.annotations?.['workers/tag'],message=settings.annotations?.['workers/message'];
+  if(tag!==undefined&&(typeof tag!=='string'||tag.length>1024)
+    ||message!==undefined&&(typeof message!=='string'||message.length>1024))fail('not_confirmed');
+  return Object.freeze({deploymentId:current.id,versionId,tag:tag??null,message:message??null,
+    bindings:Object.freeze(settings.bindings.map(item=>Object.freeze(structuredClone(item))))});
 }
 async function verifyRemoteModules({artifactRoot,target,versionId,token,fetcher,local}){
   if(!VERSION.test(versionId)||typeof token!=='string'||token.length<20||/\s/.test(token))fail('invalid_input');
@@ -172,7 +208,8 @@ async function verifyPublicAssets({root,target,fetcher,local}){
 }
 
 /** Read-only reconciliation. Never uploads again after an ambiguous response. */
-export async function inspectCloudflareDelivery({artifactRoot,target,transferId,artifact,token,controlPlane,fetcher=fetch}){
+export async function inspectCloudflareDelivery({artifactRoot,target,transferId,artifact,token,
+  controlPlane,fetcher=fetch,requireVault=false}){
   artifactRoot=path.resolve(artifactRoot);
   target=validateCloudflareTarget(target);
   const marker=markers(transferId,artifact);
@@ -184,13 +221,7 @@ export async function inspectCloudflareDelivery({artifactRoot,target,transferId,
   const settings=await controlPlane.workerSettings(target.workerName);
   if(version?.id!==versionId||settings?.annotations?.['workers/tag']!==marker.tag
     ||settings?.annotations?.['workers/message']!==marker.message)fail('not_confirmed');
-  const bindings=settings.bindings;
-  if(!Array.isArray(bindings)||!bindings.some(b=>b.name==='DB'&&b.type==='d1'&&b.id===target.databaseId)
-    ||!bindings.some(b=>b.name==='BUCKET'&&b.type==='r2_bucket'&&b.bucket_name===target.bucketName)
-    ||!bindings.some(b=>b.name==='CREEZIO_RUNTIME_PROFILE'&&b.type==='plain_text'&&b.text==='cloudflare')
-    ||!bindings.some(b=>b.name==='CREEZIO_APP_ORIGIN'&&b.type==='plain_text'&&b.text===target.origin)
-    ||!bindings.some(b=>b.name==='CREEZIO_WIDGET_SANDBOX_ORIGIN'&&b.type==='plain_text'
-      &&b.text===target.widgetSandboxOrigin))fail('binding_mismatch');
+  if(!bindingsMatch(settings.bindings,target,requireVault))fail('binding_mismatch');
   const local=measureRuntimeArtifacts(artifactRoot);
   if(local.digest!==artifact.artifactDigest)fail('artifact_changed');
   const remoteModules=await verifyRemoteModules({artifactRoot,target,versionId,token,fetcher,local});
@@ -217,11 +248,30 @@ export async function inspectCloudflareDelivery({artifactRoot,target,transferId,
 export function createCloudflarePublisher({root,artifactRoot,target,token,controlPlane,fetcher=fetch,upload=runCloudflareUpload}){
   if(typeof root!=='string'||typeof artifactRoot!=='string'||!path.isAbsolute(artifactRoot))fail('invalid_configuration');
   root=path.resolve(root);artifactRoot=path.resolve(artifactRoot);target=validateCloudflareTarget(target);
-  if(artifactRoot!==path.join(root,'.wrangler','delivery','build','artifact'))fail('invalid_configuration');
+  const initial=cloudflareArtifactRoot(root);
+  const relative=path.relative(root,artifactRoot).replaceAll('\\','/');
+  const updateId=/^\.wrangler\/delivery\/updates\/([^/]+)\/artifact$/.exec(relative)?.[1]??null;
+  if(artifactRoot!==initial&&(updateId===null||!UPDATE_ID.test(updateId)
+    ||artifactRoot!==cloudflareArtifactRoot(root,updateId)))fail('invalid_configuration');
+  async function inspectCurrent(){return inspectCloudflareCurrent({target,controlPlane});}
   async function inspect({transferId,artifact}){
-    return inspectCloudflareDelivery({artifactRoot,target,transferId,artifact,token,controlPlane,fetcher});
+    return inspectCloudflareDelivery({artifactRoot,target,transferId,artifact,token,
+      controlPlane,fetcher,requireVault:updateId!==null});
   }
-  async function deliver({transferId,artifact,secretsPath}){
+  async function deliver({transferId,artifact,secretsPath,expectedPreviousVersionId,
+    expectedPreviousDeploymentId}){
+    if(updateId!==null){
+      if(transferId!==updateId||secretsPath!==undefined
+        ||!VERSION.test(expectedPreviousVersionId??'')
+        ||typeof expectedPreviousDeploymentId!=='string'||!expectedPreviousDeploymentId)
+        fail('invalid_input');
+    }else if(expectedPreviousVersionId!==undefined||expectedPreviousDeploymentId!==undefined)
+      fail('invalid_input');
+    if(updateId!==null){
+      const current=await inspectCurrent();
+      if(current.versionId!==expectedPreviousVersionId
+        ||current.deploymentId!==expectedPreviousDeploymentId)fail('deployment_changed');
+    }
     const configPath=file(artifactRoot,'dist/server/wrangler.json',128*1024);
     const build=JSON.parse(readFileSync(file(artifactRoot,'.quality/cloudflare-build.json',2*1024*1024),'utf8'));
     assertCloudflareBuiltConfiguration(JSON.parse(readFileSync(configPath,'utf8')),target);
@@ -236,9 +286,16 @@ export function createCloudflarePublisher({root,artifactRoot,target,token,contro
       const secrets=JSON.parse(readFileSync(secretsFile,'utf8'));
       if(Object.keys(secrets).join(',')!=='CREEZIO_VAULT_KEYRING'||typeof secrets.CREEZIO_VAULT_KEYRING!=='string')fail('invalid_secrets');
     }
+    // Recheck after local validation, immediately before the single upload.
+    // Cloudflare offers no conditional deploy primitive, so later races remain uncertain.
+    if(updateId!==null){
+      const current=await inspectCurrent();
+      if(current.versionId!==expectedPreviousVersionId
+        ||current.deploymentId!==expectedPreviousDeploymentId)fail('deployment_changed');
+    }
     await upload({root,configPath,transferId,artifact,token,accountId:target.accountId,secretsFile});
     if(!sameSourceIdentity(source,sourceIdentity(root))||measureRuntimeArtifacts(artifactRoot).digest!==artifact.artifactDigest)fail('artifact_changed');
     return inspect({transferId,artifact});
   }
-  return Object.freeze({deliver,inspect});
+  return Object.freeze({deliver,inspect,inspectCurrent});
 }

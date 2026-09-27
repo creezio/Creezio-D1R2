@@ -9,6 +9,7 @@ import {temporaryDirectory} from '../quality/temporary.mjs';
 import {sourceIdentity} from '../../scripts/quality/evidence.mjs';
 import {measureRuntimeArtifacts} from '../../scripts/quality/runtime.mjs';
 import {createCloudflareBuildPort,superviseDeliveryOperations} from '../../scripts/cloudflare/local-service.mjs';
+import {cloudflareArtifactRoot} from '../../scripts/cloudflare/artifact-path.mjs';
 
 const gigabytes=1024**3;
 function git(root,...args){return execFileSync('git',args,{cwd:root,encoding:'utf8',
@@ -86,6 +87,50 @@ test('a fresh Docker overlay copies the complete build to its distinct state vol
   assert.equal(existsSync(path.join(f.root,'dist')),false);
   assert.equal(existsSync(path.join(f.root,'.quality/cloudflare-build.json')),false);
   assert.equal(existsSync(path.join(f.artifactRoot,'receipt.json')),true);
+});
+
+test('code update builds into its own verified artifact without replacing the initial artifact',async t=>{
+  const f=fixture(t),updateId='11111111-1111-4111-8111-111111111111';
+  let runs=0,stops=0;
+  const port=createCloudflareBuildPort({root:f.root},{freeBytes:async()=>21*gigabytes,
+    move:separateVolumeMoves(f.root),run:async root=>{
+      runs++;built(root,f.input.projection.targetPlan.compositionDigest);
+      writeFileSync(path.join(root,'dist/server/index.js'),`cloudflare build ${runs}`);
+      writeFileSync(path.join(root,'.quality/cloudflare-build.json'),JSON.stringify({
+        source:sourceIdentity(root),artifact:measureRuntimeArtifacts(root),
+        compositionDigest:f.input.projection.targetPlan.compositionDigest}));
+    }});
+  const original=await port(f.input),initialBytes=readFileSync(path.join(f.artifactRoot,'dist/server/index.js'));
+  const updateInput={...f.input,transferId:updateId,updateId,
+    artifactRoot:cloudflareArtifactRoot(f.root,updateId),beforeBuild:async()=>{stops++;}};
+  const next=await port(updateInput),nextRoot=cloudflareArtifactRoot(f.root,updateId);
+  assert.equal(runs,2);
+  assert.equal(stops,1);
+  assert.equal(original.artifactDigest,measureRuntimeArtifacts(f.artifactRoot).digest);
+  assert.deepEqual(readFileSync(path.join(f.artifactRoot,'dist/server/index.js')),initialBytes);
+  assert.equal(next.artifactDigest,measureRuntimeArtifacts(nextRoot).digest);
+  assert.equal(readFileSync(path.join(nextRoot,'dist/server/index.js'),'utf8'),'cloudflare build 2');
+  assert.equal(readFileSync(path.join(f.root,'dist/server/index.js'),'utf8'),'local build');
+  assert.deepEqual(await port(updateInput),next);
+  assert.equal(runs,2);
+  assert.equal(stops,1);
+  await assert.rejects(port({...updateInput,updateId:'../outside'}),
+    error=>error.code==='invalid_artifact_identity');
+  await assert.rejects(port({...updateInput,transferId:'different'}),
+    error=>error.code==='invalid_artifact_identity');
+});
+
+test('update operation restarts the local runtime only after safe completion',async()=>{
+  let starts=0;
+  const supervisor={closing:false,start:()=>{starts++;}};
+  const safe=superviseDeliveryOperations({startUpdate:async()=>({phase:'delivered'})},supervisor);
+  assert.deepEqual(await safe.startUpdate(),{phase:'delivered'});
+  assert.equal(starts,1);
+  const unsafe=superviseDeliveryOperations({reconcileUpdate:async()=>{
+    throw Object.assign(new Error('Old dist needs recovery'),{code:'build_recovery_required'});
+  }},supervisor);
+  await assert.rejects(unsafe.reconcileUpdate(),{code:'build_recovery_required'});
+  assert.equal(starts,1);
 });
 
 test('an old partial artifact is refused without rebuilding or overwriting it',async t=>{

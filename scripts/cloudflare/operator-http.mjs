@@ -62,6 +62,27 @@ function validTransfer(value){return exact(value,['transferId','planDigest','pha
     :value.summary===null||validSummary(value.summary))
   &&(value.finalUrl===null||typeof value.finalUrl==='string'&&value.finalUrl.length<=2048)
   &&['pending','effective','unknown'].includes(value.registryStatus);}
+function validUpdateInspection(value){return exact(value,
+  ['kind','readiness','currentPublicationId','activeUpdateId','target'])
+  &&value.kind==='update'&&['needed','ready'].includes(value.readiness)
+  &&(value.currentPublicationId===null||id(value.currentPublicationId))
+  &&(value.activeUpdateId===null||id(value.activeUpdateId))
+  &&(value.target===null||exact(value.target,['accountId','workerName'])
+    &&['accountId','workerName'].every(key=>typeof value.target[key]==='string'
+      &&value.target[key].length>0&&value.target[key].length<=128));}
+function validUpdatePrepared(value){return exact(value,['kind','updateId','planDigest','summary'])
+  &&value.kind==='update'&&id(value.updateId)&&digest(value.planDigest)
+  &&validSummary(value.summary);}
+function validUpdateStatus(value){return exact(value,
+  ['kind','updateId','planDigest','phase','summary','finalUrl','registryStatus'])
+  &&value.kind==='update'&&id(value.updateId)&&digest(value.planDigest)
+  &&['prepared','building','built','preflight','schema-applying','schema-ready',
+    'publishing','delivery-unknown','delivered'].includes(value.phase)
+  &&(value.summary===null||validSummary(value.summary))
+  &&(value.phase!=='prepared'||validSummary(value.summary))
+  &&(value.finalUrl===null||typeof value.finalUrl==='string'
+    &&value.finalUrl.length<=2048&&/^https:\/\//.test(value.finalUrl))
+  &&['pending','unknown','effective'].includes(value.registryStatus);}
 function validConfigure(value){
   if(!exact(value,['target','credentials'])||!exact(value.target,
     ['accountId','workerName'])
@@ -199,26 +220,42 @@ export function createLocalDeliveryServer({config,port,operations,fetcher=fetch}
       if(cause?.code!=='authorization_unavailable'||!started(grant,transferId,planDigest))throw cause;
     }
   }
+  function updateStarted(grant,updateId,planDigest){
+    return grant.updateStarted?.updateId===updateId&&grant.updateStarted.planDigest===planDigest;
+  }
+  async function freshOrUpdateStarted(grant,nativeCookie,updateId,planDigest){
+    try{await fresh(grant,nativeCookie);}
+    catch(cause){
+      if(cause?.code!=='authorization_unavailable'||!updateStarted(grant,updateId,planDigest))throw cause;
+    }
+  }
   function jobKey(grant,kind,input){return `${grant.id}:${kind}:${hash(JSON.stringify(input))}`;}
   function launch(grant,kind,input,nativeCookie=null,secretConnections=null){
     const key=jobKey(grant,kind,input),existing=jobs.get(key);
     if(existing)return existing;
     if(jobs.size>=1024)throw error('rate_limited',429);
     const job={id:randomBytes(16).toString('base64url'),grantId:grant.id,kind,
-      state:'running',value:null,code:null,status:null,transferId:input.transferId??null};
+      state:'running',value:null,code:null,status:null,
+      transferId:input.transferId??null,updateId:input.updateId??null};
     grant.activeJob=job.id;
     jobs.set(key,job);jobs.set(job.id,job);
     queueMicrotask(async()=>{
       try{
         const value=await operations[kind](input,{principalId:grant.principalId,sessionId:grant.sessionId,
           epoch:grant.epoch,transferId:grant.prepared?.transferId??null,
+          updateId:grant.updatePrepared?.updateId??null,
           ...(nativeCookie?{nativeCookie,secretConnections}:{})});
         if(kind==='prepare'){
           if(!validPrepared(value))throw error('invalid_response',503);
           grant.prepared={transferId:value.transferId,planDigest:value.planDigest};
+        }else if(kind==='prepareUpdate'){
+          if(!validUpdatePrepared(value))throw error('invalid_response',503);
+          grant.updatePrepared={updateId:value.updateId,planDigest:value.planDigest};
         }else if(kind==='configure'&&!validInspection(value)
           ||(kind==='start'||kind==='reconcile')&&(!validTransfer(value)
-            ||value.transferId!==input.transferId||value.planDigest!==input.planDigest))
+            ||value.transferId!==input.transferId||value.planDigest!==input.planDigest)
+          ||(kind==='startUpdate'||kind==='reconcileUpdate')&&(!validUpdateStatus(value)
+            ||value.updateId!==input.updateId||value.planDigest!==input.planDigest))
           throw error('invalid_response',503);
         job.value=safeValue(value);job.state='done';
       }catch(cause){const failure=sanitizedFailure(cause);
@@ -273,7 +310,7 @@ export function createLocalDeliveryServer({config,port,operations,fetcher=fetch}
         const cap=randomBytes(32).toString('base64url'),expiresAtMs=Math.min(auth.expiresAtMs,Date.now()+3_600_000);
         const grant={id:hash(cap),nativeHash:hash(native),principalId:auth.principalId,
           sessionId:auth.sessionId,epoch:auth.epoch,expiresAtMs,prepared:null,started:null,
-          activeJob:null};
+          updatePrepared:null,updateStarted:null,activeJob:null};
         grants.set(grant.id,grant);
         send(response,200,{ok:true,value:{principalId:auth.principalId,sessionId:auth.sessionId,
           expiresAtMs,epoch:auth.epoch,operatorOrigin}},config.origin,
@@ -288,6 +325,86 @@ export function createLocalDeliveryServer({config,port,operations,fetcher=fetch}
           {'set-cookie':`${CAP}=; Path=${ROOT}; HttpOnly; SameSite=Strict; Max-Age=0`});return;
       }
       const {grant,nativeCookie}=credentials(request);
+      if(route==='update/inspect'&&request.method==='GET'){
+        if(url.search||request.headers['content-length'])throw error('invalid_query',400);
+        if(typeof operations.inspectUpdate!=='function')throw error('service_unavailable',503);
+        await fresh(grant,nativeCookie);
+        const value=await operations.inspectUpdate({principalId:grant.principalId,
+          sessionId:grant.sessionId,epoch:grant.epoch,nativeCookie});
+        if(!validUpdateInspection(value))throw error('invalid_response',503);
+        send(response,200,{ok:true,value:safeValue(value)},config.origin);return;
+      }
+      if(route==='update/status'&&request.method==='GET'){
+        if(typeof operations.statusUpdate!=='function')throw error('service_unavailable',503);
+        if([...url.searchParams].length!==1||!id(url.searchParams.get('updateId')))
+          throw error('invalid_query',400);
+        const updateId=url.searchParams.get('updateId');
+        if(grant.updatePrepared?.updateId===updateId)
+          await freshOrUpdateStarted(grant,nativeCookie,updateId,grant.updatePrepared.planDigest);
+        else await fresh(grant,nativeCookie);
+        const value=await operations.statusUpdate(updateId,{principalId:grant.principalId,
+          sessionId:grant.sessionId,epoch:grant.epoch,requireOwnership:true});
+        if(!validUpdateStatus(value)||value.updateId!==updateId)throw error('forbidden',403);
+        if(grant.updatePrepared&&(grant.updatePrepared.updateId!==updateId
+          ||grant.updatePrepared.planDigest!==value.planDigest))throw error('forbidden',403);
+        grant.updatePrepared={updateId,planDigest:value.planDigest};
+        if(value.phase!=='prepared')grant.updateStarted={...grant.updatePrepared};
+        send(response,200,{ok:true,value:safeValue(value)},config.origin);return;
+      }
+      if(['update/prepare','update/start','update/reconcile'].includes(route)&&request.method==='POST'){
+        if(url.search)throw error('invalid_query',400);
+        const kind=route==='update/prepare'?'prepareUpdate'
+          :route==='update/start'?'startUpdate':'reconcileUpdate';
+        if(typeof operations[kind]!=='function'||typeof operations.statusUpdate!=='function')
+          throw error('service_unavailable',503);
+        const body=await bodyOf(request);
+        const validBody=route==='update/prepare'?exact(body,[]):
+          exact(body,['updateId','planDigest'])&&id(body.updateId)&&digest(body.planDigest);
+        if(!validBody)
+          throw error('invalid_input',400);
+        if(kind==='reconcileUpdate'&&updateStarted(grant,body.updateId,body.planDigest))
+          await freshOrUpdateStarted(grant,nativeCookie,body.updateId,body.planDigest);
+        else await fresh(grant,nativeCookie);
+        if(route!=='update/prepare'){
+          if(!grant.updatePrepared||grant.updatePrepared.updateId!==body.updateId
+            ||grant.updatePrepared.planDigest!==body.planDigest)throw error('forbidden',403);
+          if(route==='update/reconcile'&&(!grant.updateStarted
+            ||grant.updateStarted.updateId!==body.updateId
+            ||grant.updateStarted.planDigest!==body.planDigest)){
+            const owned=await operations.statusUpdate(body.updateId,{principalId:grant.principalId,
+              sessionId:grant.sessionId,epoch:grant.epoch,requireOwnership:true});
+            if(!validUpdateStatus(owned)||owned.updateId!==body.updateId
+              ||owned.planDigest!==body.planDigest)throw error('forbidden',403);
+            if(owned.phase==='prepared')throw error('update_not_started',409);
+            grant.updateStarted={updateId:body.updateId,planDigest:body.planDigest};
+          }
+        }
+        const key=jobKey(grant,kind,body);let existing=jobs.get(key);
+        if(kind==='startUpdate'&&existing?.state==='failed'){
+          const owned=await operations.statusUpdate(body.updateId,{principalId:grant.principalId,
+            sessionId:grant.sessionId,epoch:grant.epoch,requireOwnership:true});
+          if(!validUpdateStatus(owned)||owned.updateId!==body.updateId
+            ||owned.planDigest!==body.planDigest)throw error('forbidden',403);
+          if(owned.phase==='prepared'){
+            if(jobs.get(key)===existing){jobs.delete(key);existing=null;}
+            else existing=jobs.get(key);
+          }
+        }
+        if(kind==='prepareUpdate'&&existing?.state==='failed'){
+          if(jobs.get(key)===existing){jobs.delete(key);existing=null;}
+          else existing=jobs.get(key);
+        }
+        if(existing&&(kind!=='reconcileUpdate'||existing.state==='running')){
+          const output=jobResult(existing);send(response,output.status,output.body,config.origin);return;
+        }
+        if(grant.activeJob){const active=jobs.get(grant.activeJob);
+          if(active!==existing)throw error('in_flight',409);}
+        if(existing&&kind==='reconcileUpdate')jobs.delete(key);
+        if(kind==='startUpdate')grant.updateStarted={updateId:body.updateId,planDigest:body.planDigest};
+        const job=launch(grant,kind,body,kind==='prepareUpdate'?nativeCookie:null),
+          output=jobResult(job);
+        send(response,output.status,output.body,config.origin);return;
+      }
       if(route==='resume'&&request.method==='POST'){
         if(url.search)throw error('invalid_query',400);
         const body=await bodyOf(request);if(!validateBody('start',body))throw error('invalid_input',400);

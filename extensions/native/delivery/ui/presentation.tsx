@@ -2,6 +2,7 @@
 
 import {Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle} from '@creezio/sdk/ui';
 import type {DeliveryStepStatus, DeliveryViewModel} from '../../../../sdk/delivery/types.ts';
+import type {DeliveryUpdateViewModel} from '../../../../sdk/delivery/update-view-model.ts';
 
 export interface DeliveryOverviewProps {
   readonly model: DeliveryViewModel;
@@ -56,6 +57,47 @@ export function DeliveryOverview({model, busy = false, onConfigure, onPrepare, o
       <CardDescription>Étapes du transfert identifié, sans estimation de pourcentage.</CardDescription></CardHeader>
       <CardContent><ol className="space-y-2">
         {model.steps.map(step => <li key={step.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-2 last:border-0"
+          aria-current={step.status === 'current' ? 'step' : undefined}>
+          <span>{step.label}</span><Badge variant={stepVariant[step.status]}>{stepLabel[step.status]}</Badge>
+        </li>)}
+      </ol></CardContent></Card>}
+  </div>;
+}
+
+export function DeliveryUpdateOverview({model, busy = false, onPrepare, onStart,
+  onRefresh, onReconcile, onConfigure}: Omit<DeliveryOverviewProps, 'model'> & {
+    readonly model: DeliveryUpdateViewModel;
+  }) {
+  return <div className="space-y-4 p-6">
+    <div className="flex flex-wrap items-center gap-2">
+      <h1 className="text-lg font-semibold">Livraison Cloudflare</h1>
+      <Badge variant="outline">Docker local</Badge>
+      <Button size="sm" variant="outline" className="ml-auto" disabled={busy || !model.canRefresh}
+        onClick={onRefresh}>Actualiser</Button>
+    </div>
+    <Card><CardHeader><CardTitle className="text-base">{model.headline}</CardTitle>
+      <CardDescription>Mise à jour du Worker existant</CardDescription></CardHeader>
+      <CardContent className="space-y-3 text-sm text-slate-700">
+        <p>{model.detail}</p>
+        {model.updateId && <p>Mise à jour <code className="break-all rounded bg-slate-100 px-1 py-0.5">{model.updateId}</code></p>}
+        {model.canConfigure && <Button size="sm" variant="outline" disabled={busy}
+          onClick={onConfigure}>Ressaisir le jeton de cette cible</Button>}
+        {model.canReconcile && <Button size="sm" variant="outline" disabled={busy}
+          onClick={onReconcile}>Vérifier cette mise à jour</Button>}
+      </CardContent></Card>
+    <Card><CardHeader><CardTitle className="text-base">Plan explicite</CardTitle>
+      <CardDescription>La mise à jour conserve les données D1/R2 et les secrets de la cible.</CardDescription></CardHeader>
+      <CardContent className="flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" disabled={busy || !model.canPrepare}
+          onClick={onPrepare}>Préparer la mise à jour</Button>
+        <Button size="sm" disabled={busy || !model.canStart}
+          onClick={onStart}>Lancer la mise à jour</Button>
+      </CardContent></Card>
+    {model.updateId && <Card><CardHeader><CardTitle className="text-base">Progression</CardTitle>
+      <CardDescription>Étapes de cette mise à jour identifiée, sans estimation de pourcentage.</CardDescription></CardHeader>
+      <CardContent><ol className="space-y-2">
+        {model.steps.map(step => <li key={step.id}
+          className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-2 last:border-0"
           aria-current={step.status === 'current' ? 'step' : undefined}>
           <span>{step.label}</span><Badge variant={stepVariant[step.status]}>{stepLabel[step.status]}</Badge>
         </li>)}

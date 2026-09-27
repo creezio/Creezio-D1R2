@@ -1,5 +1,6 @@
 import type {AccessController} from '../../sdk/access/types.ts';
 import type {DeliveryInspection, DeliveryPrepared, DeliveryResult, DeliveryTransferStatus,
+  DeliveryUpdateInspection, DeliveryUpdatePrepared, DeliveryUpdateStatus,
   DeliveryTransport} from '../../sdk/delivery/transport.ts';
 
 type ObjectValue = Record<string, unknown>;
@@ -38,6 +39,28 @@ function transfer(value: unknown): value is DeliveryTransferStatus {
     && ['prepared','starting','capturing','captured','schema-ready','d1-copying','r2-copying',
       'secrets-ready','verified','delivery-unknown','delivered'].includes(String(value.phase))
     && (value.phase === 'prepared' ? summary(value.summary) : value.summary === null || summary(value.summary))
+    && (value.finalUrl === null || text(value.finalUrl,2048) && /^https:\/\//.test(value.finalUrl))
+    && ['pending','effective','unknown'].includes(String(value.registryStatus));
+}
+function updateInspection(value: unknown): value is DeliveryUpdateInspection {
+  return exact(value,['kind','readiness','currentPublicationId','activeUpdateId','target'])
+    && value.kind === 'update' && ['needed','ready'].includes(String(value.readiness))
+    && (value.currentPublicationId === null || id(value.currentPublicationId))
+    && (value.activeUpdateId === null || id(value.activeUpdateId))
+    && (value.target === null || exact(value.target,['accountId','workerName'])
+      && text(value.target.accountId,128) && text(value.target.workerName,128));
+}
+function updatePrepared(value: unknown): value is DeliveryUpdatePrepared {
+  return exact(value,['kind','updateId','planDigest','summary']) && value.kind === 'update'
+    && id(value.updateId) && digest(value.planDigest) && summary(value.summary);
+}
+function updateStatus(value: unknown): value is DeliveryUpdateStatus {
+  return exact(value,['kind','updateId','planDigest','phase','summary','finalUrl','registryStatus'])
+    && value.kind === 'update' && id(value.updateId) && digest(value.planDigest)
+    && ['prepared','building','built','preflight','schema-applying','schema-ready',
+      'publishing','delivery-unknown','delivered'].includes(String(value.phase))
+    && (value.summary === null || summary(value.summary))
+    && (value.phase !== 'prepared' || summary(value.summary))
     && (value.finalUrl === null || text(value.finalUrl,2048) && /^https:\/\//.test(value.finalUrl))
     && ['pending','effective','unknown'].includes(String(value.registryStatus));
 }
@@ -134,6 +157,12 @@ export function createLocalDeliveryTransport({access,fetcher=fetch,pollMs=1000,d
             finalUrl:null,registryStatus:'pending'};
           return validate(accepted)?{ok:true,value:accepted}:fail('invalid_response');
         }
+        if(route==='update/start'&&exact(body,['updateId','planDigest'])
+          &&id(body.updateId)&&digest(body.planDigest)){
+          const accepted={kind:'update',updateId:body.updateId,planDigest:body.planDigest,
+            phase:'building',summary:null,finalUrl:null,registryStatus:'pending'};
+          return validate(accepted)?{ok:true,value:accepted}:fail('invalid_response');
+        }
         if(Date.now()-started>=deadlineMs)return fail('outcome_unknown');
         await new Promise(resolve => setTimeout(resolve,pollMs));
         if(disposed||epoch!==current)return fail('stale');
@@ -155,6 +184,13 @@ export function createLocalDeliveryTransport({access,fetcher=fetch,pollMs=1000,d
     status:transferId=>id(transferId)?call(`status?transferId=${encodeURIComponent(transferId)}`,undefined,transfer)
       :Promise.resolve(fail('invalid_input')),
     reconcile:input=>call('reconcile',input,transfer),
+    inspectUpdate:()=>call('update/inspect',undefined,updateInspection),
+    prepareUpdate:()=>call('update/prepare',{},updatePrepared),
+    startUpdate:input=>call('update/start',input,updateStatus),
+    statusUpdate:updateId=>id(updateId)
+      ?call(`update/status?updateId=${encodeURIComponent(updateId)}`,undefined,updateStatus)
+      :Promise.resolve(fail('invalid_input')),
+    reconcileUpdate:input=>call('update/reconcile',input,updateStatus),
     dispose(){disposed=true;unsubscribe();reset();},
   };
   return Object.freeze(transport);

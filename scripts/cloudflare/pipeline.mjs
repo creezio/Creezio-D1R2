@@ -2,7 +2,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import path from 'node:path';
 import {sourceIdentity,sameSourceIdentity} from '../quality/evidence.mjs';
 import {schemaDigest} from '../data/composition-schema.mjs';
-import {applyCompositionSchema} from '../data/apply-schema.mjs';
+import {applyCompositionSchema,inspectCompositionSchema} from '../data/apply-schema.mjs';
 import {projectCloudflareComposition} from './composition.mjs';
 import {validateCloudflareTarget} from './config.mjs';
 import {createCloudflareControlPlane} from './control-plane.mjs';
@@ -19,16 +19,22 @@ import {importCapturedTransfer,verifyCapturedTransfer} from './transfer/destinat
 const ACCOUNT=/^[a-f0-9]{32}$/;
 const NAME=/^[a-z][a-z0-9-]{1,53}[a-z0-9]$/;
 const ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const UPDATE_ID=/^[A-Za-z0-9][A-Za-z0-9_-]{0,55}$/;
 const SHA=/^sha256-[a-f0-9]{64}$/;
 const REF=/^creezio-secret:v1:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const stages=['intent','prepared','starting','capturing','captured','built','preflight','schema-ready',
   'verified','sandbox-ready','publishing','delivery-unknown','delivered'];
 const rank=stage=>stages.indexOf(stage);
+const updateStages=['prepared','building','built','preflight','schema-applying','schema-ready',
+  'publishing','delivery-unknown','delivered'];
+const updateRank=stage=>updateStages.indexOf(stage);
 const fail=(code,status=503)=>{throw Object.assign(new Error(`Delivery pipeline ${code}.`),{code,status});};
 const exact=(value,keys)=>value&&typeof value==='object'&&!Array.isArray(value)
   &&[Object.prototype,null].includes(Object.getPrototypeOf(value))
   &&Object.keys(value).sort().join(',')===[...keys].sort().join(',');
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+const sameArtifact=(a,b)=>a&&b&&['sourceSha','artifactDigest','coreVersion',
+  'contractVersion','compositionDigest'].every(key=>a[key]===b[key]);
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const owner=context=>typeof context?.principalId==='string'&&ID.test(context.principalId)
   ?context.principalId:fail('forbidden',403);
@@ -99,6 +105,30 @@ function statusOf(record,checkpoint=null){
     registryStatus:record.stage==='delivered'?'effective'
       :record.stage==='delivery-unknown'?'unknown':'pending'});
 }
+function updateStatusOf(record){
+  return Object.freeze({kind:'update',updateId:record.updateId,planDigest:record.planDigest,
+    phase:record.stage,summary:record.stage==='prepared'?record.summary:null,
+    finalUrl:record.finalUrl??null,
+    registryStatus:record.stage==='delivered'?'effective'
+      :record.stage==='delivery-unknown'?'unknown':'pending'});
+}
+function updateArtifactRoot(root,updateId){
+  if(typeof updateId!=='string'||!UPDATE_ID.test(updateId))fail('invalid_update',400);
+  return path.join(root,'.wrangler','delivery','updates',updateId,'artifact');
+}
+function boundToTarget(bindings,target){
+  return Array.isArray(bindings)
+    &&bindings.some(item=>item.name==='DB'&&item.type==='d1'&&item.id===target.databaseId)
+    &&bindings.some(item=>item.name==='BUCKET'&&item.type==='r2_bucket'
+      &&item.bucket_name===target.bucketName)
+    &&bindings.some(item=>item.name==='CREEZIO_RUNTIME_PROFILE'&&item.type==='plain_text'
+      &&item.text==='cloudflare')
+    &&bindings.some(item=>item.name==='CREEZIO_APP_ORIGIN'&&item.type==='plain_text'
+      &&item.text===target.origin)
+    &&bindings.some(item=>item.name==='CREEZIO_WIDGET_SANDBOX_ORIGIN'
+      &&item.type==='plain_text'&&item.text===target.widgetSandboxOrigin)
+    &&bindings.some(item=>item.name==='CREEZIO_VAULT_KEYRING'&&item.type==='secret_text');
+}
 
 /** Durable first-publication state machine. All external effects are supplied by reviewed ports. */
 export function createCloudflareDeliveryPipeline(options){
@@ -120,6 +150,9 @@ export function createCloudflareDeliveryPipeline(options){
   const importer=options.importTransfer??importCapturedTransfer;
   const verifier=options.verifyTransfer??verifyCapturedTransfer;
   const schema=options.applySchema??applyCompositionSchema;
+  const inspectSchema=options.inspectSchema??inspectCompositionSchema;
+  const updateJournal=options.updateJournal??null;
+  const buildUpdateTarget=options.buildUpdateTarget??buildTarget;
   const controlFactory=options.controlFactory??(({accountId,token})=>createCloudflareControlPlane({accountId,token}));
   const provisionerFactory=options.provisionerFactory??(({control})=>
     createCloudflareProvisioner({control,journal:provisionJournal}));
@@ -128,9 +161,9 @@ export function createCloudflareDeliveryPipeline(options){
   const r2Factory=options.r2Factory??(input=>createRemoteR2Client(input));
   const objectPortFactory=options.objectPortFactory??(({r2})=>
     createRemoteTransferObjectPort({r2,journal:transferJournal}));
-  const publisherFactory=options.publisherFactory??(({target,token,controlPlane})=>
+  const publisherFactory=options.publisherFactory??(({target,token,controlPlane,artifactRoot})=>
     createCloudflarePublisher({root:config.root,
-      artifactRoot:options.artifactRoot??path.join(config.root,'.wrangler','delivery','build','artifact'),
+      artifactRoot:artifactRoot??options.artifactRoot??path.join(config.root,'.wrangler','delivery','build','artifact'),
       target,token,controlPlane}));
   const sandboxFactory=options.sandboxFactory??(({target,token,controlPlane})=>
     createCloudflareSandboxPublisher({root:config.root,target,token,controlPlane,
@@ -138,6 +171,7 @@ export function createCloudflareDeliveryPipeline(options){
   const secretConnections=options.secretConnections??(async()=>[]);
   const sourceKeyring=options.sourceKeyring??(async()=>null);
   const transferIdFactory=options.transferIdFactory??randomUUID;
+  const updateIdFactory=options.updateIdFactory??randomUUID;
   let connection=null,currentTransferId=null;
   async function registryPorts(){
     let value;
@@ -208,6 +242,12 @@ export function createCloudflareDeliveryPipeline(options){
     const principalId=owner(context),active=await activeFor(principalId);
     if(active&&(active.accountId!==selected.accountId||active.workerName!==selected.workerName
       ||active.tokenId!==observed.tokenId))fail('connection_changed',409);
+    if(updateJournal){
+      const updateId=await updateJournal.findActive(principalId);
+      const update=updateId?await updateJournal.load(updateId):null;
+      if(update&&(update.accountId!==selected.accountId||update.workerName!==selected.workerName
+        ||update.tokenId!==observed.tokenId))fail('connection_changed',409);
+    }
     connection={...selected,principalId,tokenId:observed.tokenId,
       subdomain:observed.workersSubdomain,control};
     return inspect(context);
@@ -308,6 +348,84 @@ export function createCloudflareDeliveryPipeline(options){
     const r2=await r2Factory({accountId:record.accountId,bucketName:record.target.bucketName,
       accessKeyId:connected.tokenId,secretAccessKey:digest(connected.token),jurisdiction:'default'});
     return {db,objects:objectPortFactory({r2,transferJournal})};
+  }
+  function updateReady(){
+    if(!updateJournal||typeof updateJournal.load!=='function'||typeof updateJournal.createActive!=='function'
+      ||typeof updateJournal.compareAndSave!=='function'||typeof updateJournal.findActive!=='function')
+      fail('update_unavailable',503);
+  }
+  async function saveUpdate(record,changes){
+    const next={...record,...changes,revision:record.revision+1};
+    await updateJournal.compareAndSave(record,next);return next;
+  }
+  async function updateRecordFor(updateId,planDigest,context){
+    updateReady();
+    if(typeof updateId!=='string'||!UPDATE_ID.test(updateId)||typeof planDigest!=='string'
+      ||!SHA.test(planDigest))fail('invalid_input',400);
+    const record=await updateJournal.load(updateId);
+    if(!record||record.updateId!==updateId||record.owner!==owner(context)
+      ||record.planDigest!==planDigest||!updateStages.includes(record.stage))fail('forbidden',403);
+    return record;
+  }
+  async function currentPublication(principalId,selected,registry){
+    const deployments=await selected.control.deployments(selected.workerName);
+    const active=deployments?.deployments?.[0];
+    if(!active||!Array.isArray(active.versions)||active.versions.length!==1
+      ||active.versions[0].percentage!==100
+      ||typeof active.versions[0].version_id!=='string')fail('deployment_changed',409);
+    const versionId=active.versions[0].version_id;
+    const settings=await selected.control.workerSettings(selected.workerName);
+    const tag=settings?.annotations?.['workers/tag'];
+    if(typeof tag!=='string'||!tag.startsWith('cz-')||!ID.test(tag.slice(3)))
+      fail('unmanaged_worker',409);
+    const publicationId=tag.slice(3);
+    const [initial,updated]=await Promise.all([planJournal.load(publicationId),
+      updateJournal.load(publicationId)]);
+    if(Boolean(initial)===Boolean(updated))fail('unmanaged_worker',409);
+    const prior=initial??updated;
+    if(prior.owner!==principalId||prior.stage!=='delivered'
+      ||prior.accountId!==selected.accountId||prior.workerName!==selected.workerName
+      ||prior.tokenId!==selected.tokenId||!prior.target||!prior.artifact
+      ||prior.registryProjectId!==registry.registryIdentity.projectId
+      ||prior.registryInstallationId!==registry.registryIdentity.installationId
+      ||settings.annotations?.['workers/message']!==
+        `Creezio ${prior.artifact.artifactDigest} ${prior.artifact.sourceSha}`
+      ||!boundToTarget(settings.bindings,prior.target))fail('unmanaged_worker',409);
+    const gate=await registry.publicationJournal.get(publicationId);
+    if(gate?.state!=='synchronized'||gate.declaration?.deploymentId!==active.id
+      ||!sameArtifact(gate.declaration?.artifact,prior.artifact))fail('deployment_changed',409);
+    const version=await selected.control.version(selected.workerName,versionId);
+    if(version?.id!==versionId)fail('deployment_changed',409);
+    return {publicationId,prior,deploymentId:active.id,versionId};
+  }
+  async function assertPrevious(record,selected,registry){
+    const current=await currentPublication(record.owner,selected,registry);
+    if(current.publicationId!==record.previousPublicationId
+      ||current.deploymentId!==record.previousDeploymentId
+      ||current.versionId!==record.previousVersionId
+      ||!same(current.prior.target,record.target)
+      ||!sameArtifact(current.prior.artifact,record.previousArtifact))fail('deployment_changed',409);
+    return current;
+  }
+  async function updateProjectionFor(record){
+    const source=identity(config.root);
+    if(source.dirty||source.head!==record.sourceSha||source.sha256!==record.sourceFingerprint)
+      fail('source_changed',409);
+    const projection=project();
+    if(projection?.targetPlan?.planDigest!==record.targetPlanDigest
+      ||projection.targetPlan.compositionDigest!==record.targetCompositionDigest
+      ||projection.compatibilityDigest!==record.compatibilityDigest)
+      fail('plan_changed',409);
+    return projection;
+  }
+  async function updateDatabase(record,selected){
+    const client=d1Factory({accountId:record.accountId,databaseId:record.target.databaseId,
+      token:selected.token}),db=options.d1BindingFactory?.(client)??createRemoteD1Binding(client);
+    const metadata=await client.metadata();
+    if(metadata.uuid!==record.target.databaseId)fail('database_changed',409);
+    const bucket=await selected.control.bucket(record.target.bucketName,'default');
+    if(!bucket?.private)fail('bucket_not_private',409);
+    return db;
   }
   async function runTransfer(initial,{publish}){
     let record=initial;
@@ -423,5 +541,172 @@ export function createCloudflareDeliveryPipeline(options){
     // gate claim, only read-only Worker inspection can confirm an unknown upload.
     return runTransfer(record,{publish:true});
   }
-  return Object.freeze({inspect,configure,prepare,start,status,reconcile});
+  async function inspectUpdate(context){
+    updateReady();
+    const principalId=owner(context),activeId=await updateJournal.findActive(principalId);
+    const active=activeId?await updateJournal.load(activeId):null;
+    const target=active?{accountId:active.accountId,workerName:active.workerName}
+      :connection?.principalId===principalId
+        ?{accountId:connection.accountId,workerName:connection.workerName}:null;
+    if(!connection||connection.principalId!==principalId)
+      return {kind:'update',readiness:'needed',currentPublicationId:null,
+        activeUpdateId:activeId,target};
+    if(active)return {kind:'update',readiness:'ready',
+      currentPublicationId:active.previousPublicationId,activeUpdateId:activeId,target};
+    const registry=await registryPorts();
+    const current=await currentPublication(principalId,connection,registry);
+    return {kind:'update',readiness:'ready',currentPublicationId:current.publicationId,
+      activeUpdateId:activeId,target};
+  }
+  async function prepareUpdate(input,context){
+    updateReady();
+    if(!exact(input,[]))fail('invalid_input',400);
+    const principalId=owner(context);
+    if(!connection||connection.principalId!==principalId)fail('configuration_needed',409);
+    if(await planJournal.findActive(principalId))fail('transfer_in_progress',409);
+    const registry=await registryPorts(),activeId=await updateJournal.findActive(principalId);
+    if(activeId){
+      const active=await updateJournal.load(activeId);
+      if(active?.stage!=='prepared')fail('update_in_progress',409);
+      await assertPrevious(active,await connected(active),registry);
+      await updateProjectionFor(active);
+      return {kind:'update',updateId:active.updateId,planDigest:active.planDigest,
+        summary:active.summary};
+    }
+    const selected=connection,current=await currentPublication(principalId,selected,registry);
+    const source=identity(config.root);
+    if(source.dirty||!/^[a-f0-9]{40}$/.test(source.head))fail('source_not_clean',409);
+    const projection=project(),targetPlan=projection?.targetPlan;
+    if(!SHA.test(targetPlan?.planDigest??'')||!SHA.test(targetPlan?.compositionDigest??'')
+      ||!SHA.test(projection?.compatibilityDigest??''))fail('plan_changed',409);
+    const db=await updateDatabase(current.prior,selected),schemaState=await inspectSchema(db,targetPlan);
+    if(!['ready','additive'].includes(schemaState?.state))fail('schema_unavailable',409);
+    const updateId=updateIdFactory();
+    updateArtifactRoot(config.root,updateId);
+    if(await planJournal.load(updateId)||await updateJournal.load(updateId))fail('invalid_update',409);
+    const planDigest=schemaDigest({updateId,owner:principalId,sourceSha:source.head,
+      sourceFingerprint:source.sha256,targetPlanDigest:targetPlan.planDigest,
+      targetCompositionDigest:targetPlan.compositionDigest,
+      compatibilityDigest:projection.compatibilityDigest,target:current.prior.target,
+      previousPublicationId:current.publicationId,
+      previousDeploymentId:current.deploymentId,previousVersionId:current.versionId,
+      previousArtifact:current.prior.artifact,tokenId:selected.tokenId,
+      registryProjectId:registry.registryIdentity.projectId,
+      registryInstallationId:registry.registryIdentity.installationId});
+    const summary=Object.freeze({title:'Mise à jour Cloudflare conservatrice',
+      details:Object.freeze([`Worker ${selected.workerName}`,
+        `Schéma ${schemaState.state==='ready'?'déjà compatible':'ajouts compatibles requis'}`]),
+      warnings:Object.freeze(['Les données de production sont conservées ; le schéma additif précède le nouveau code.'])});
+    const record={schemaVersion:1,revision:1,updateId,owner:principalId,stage:'prepared',
+      accountId:selected.accountId,workerName:selected.workerName,tokenId:selected.tokenId,
+      target:current.prior.target,previousPublicationId:current.publicationId,
+      previousDeploymentId:current.deploymentId,previousVersionId:current.versionId,
+      previousArtifact:current.prior.artifact,sourceSha:source.head,
+      sourceFingerprint:source.sha256,targetPlanDigest:targetPlan.planDigest,
+      targetCompositionDigest:targetPlan.compositionDigest,
+      compatibilityDigest:projection.compatibilityDigest,
+      registryProjectId:registry.registryIdentity.projectId,
+      registryInstallationId:registry.registryIdentity.installationId,
+      planDigest,summary,artifact:null,initialPreflight:null,schemaReceiptId:null,finalUrl:null};
+    await updateJournal.createActive(record);
+    return {kind:'update',updateId,planDigest,summary};
+  }
+  async function runUpdate(initial){
+    let record=initial;
+    const registry=await registryPorts();
+    if(registry.registryIdentity.projectId!==record.registryProjectId
+      ||registry.registryIdentity.installationId!==record.registryInstallationId)
+      fail('registry_changed',409);
+    const selected=await connected(record),projection=await updateProjectionFor(record);
+    const artifactRoot=updateArtifactRoot(config.root,record.updateId);
+    if(updateRank(record.stage)<=updateRank('building')){
+      await assertPrevious(record,selected,registry);
+      const artifact=await buildUpdateTarget({target:record.target,projection,sourceSha:record.sourceSha,
+        transferId:record.updateId,updateId:record.updateId,artifactRoot});
+      if(!validArtifact(artifact,record))fail('artifact_changed',409);
+      record=await saveUpdate(record,{stage:'built',artifact});
+    }
+    const request={projectId:registry.registryIdentity.projectId,
+      installationId:registry.registryIdentity.installationId,target:'cloudflare',artifact:record.artifact};
+    if(updateRank(record.stage)<updateRank('preflight')){
+      const receipt=await registry.registryClient.preflight(request);
+      if(receipt.projectId!==request.projectId||receipt.installationId!==request.installationId
+        ||Date.parse(receipt.expiresAt)<=Date.now())fail('registry_preflight',409);
+      record=await saveUpdate(record,{stage:'preflight',initialPreflight:receipt.preflightId});
+    }
+    if(updateRank(record.stage)<updateRank('schema-ready')){
+      await assertPrevious(record,selected,registry);
+      const db=await updateDatabase(record,selected),observed=await inspectSchema(db,projection.targetPlan);
+      if(!['ready','additive'].includes(observed?.state))fail('schema_unavailable',409);
+      if(record.stage!=='schema-applying')record=await saveUpdate(record,{stage:'schema-applying'});
+      const applied=await schema(db,projection.targetPlan,
+        {expectedPlanDigest:projection.targetPlan.planDigest});
+      if(applied.ok!==true||applied.observedState!=='ready'||!SHA.test(applied.receiptId??''))
+        fail('schema_unavailable',409);
+      record=await saveUpdate(record,{stage:'schema-ready',schemaReceiptId:applied.receiptId});
+    }
+    if(updateRank(record.stage)<=updateRank('schema-ready')){
+      await assertPrevious(record,selected,registry);
+      const db=await updateDatabase(record,selected),observed=await inspectSchema(db,projection.targetPlan);
+      if(observed?.state!=='ready'||observed.receiptId!==record.schemaReceiptId)
+        fail('schema_unavailable',409);
+      record=await saveUpdate(record,{stage:'publishing'});
+    }
+    await assertPrevious(record,selected,registry);
+    const publisher=publisherFactory({target:record.target,token:selected.token,
+      controlPlane:selected.control,artifactRoot});
+    const outcome=await registry.publicationGate.publish(request,record.updateId,
+      ()=>publisher.deliver({transferId:record.updateId,artifact:record.artifact,
+        expectedPreviousVersionId:record.previousVersionId,
+        expectedPreviousDeploymentId:record.previousDeploymentId}));
+    if(outcome.state==='synchronized')record=await saveUpdate(record,
+      {stage:'delivered',finalUrl:outcome.record.declaration.url});
+    else if(outcome.state==='blocked'
+      &&await registry.publicationJournal.get(record.updateId)===null)
+      record=await saveUpdate(record,{stage:'schema-ready'});
+    else record=await saveUpdate(record,{stage:'delivery-unknown'});
+    return updateStatusOf(record);
+  }
+  async function startUpdate(input,context){
+    let record=await updateRecordFor(input?.updateId,input?.planDigest,context);
+    if(record.stage==='delivered'||record.stage==='delivery-unknown')return updateStatusOf(record);
+    if(record.stage!=='prepared')fail('update_in_progress',409);
+    record=await saveUpdate(record,{stage:'building'});
+    return runUpdate(record);
+  }
+  async function statusUpdate(updateId,context){
+    updateReady();
+    if(typeof updateId!=='string'||!UPDATE_ID.test(updateId))fail('invalid_input',400);
+    const record=await updateJournal.load(updateId);
+    if(!record||record.updateId!==updateId||record.owner!==owner(context)
+      ||!updateStages.includes(record.stage))fail('forbidden',403);
+    return updateStatusOf(record);
+  }
+  async function reconcileUpdate(input,context){
+    let record=await updateRecordFor(input?.updateId,input?.planDigest,context);
+    if(record.stage==='prepared')fail('update_not_started',409);
+    if(record.stage==='delivered')return updateStatusOf(record);
+    const registry=await registryPorts(),gateRecord=await registry.publicationJournal.get(record.updateId);
+    if(gateRecord){
+      let outcome;
+      if(gateRecord.state==='prepared'){
+        const selected=await connected(record),publisher=publisherFactory({target:record.target,
+          token:selected.token,controlPlane:selected.control,
+          artifactRoot:updateArtifactRoot(config.root,record.updateId)});
+        let receipt;
+        try{receipt=await publisher.inspect({transferId:record.updateId,artifact:record.artifact});}
+        catch{return updateStatusOf(record.stage==='delivery-unknown'?record:
+          await saveUpdate(record,{stage:'delivery-unknown'}));}
+        outcome=await registry.publicationGate.confirmDelivered(record.updateId,receipt);
+      }else outcome=await registry.publicationGate.reconcile(record.updateId);
+      if(outcome.state==='synchronized')record=await saveUpdate(record,
+        {stage:'delivered',finalUrl:outcome.record.declaration.url});
+      else if(record.stage!=='delivery-unknown')record=await saveUpdate(record,{stage:'delivery-unknown'});
+      return updateStatusOf(record);
+    }
+    if(record.stage==='delivery-unknown')fail('delivery_unknown',409);
+    return runUpdate(record);
+  }
+  return Object.freeze({inspect,configure,prepare,start,status,reconcile,
+    inspectUpdate,prepareUpdate,startUpdate,statusUpdate,reconcileUpdate});
 }

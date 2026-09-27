@@ -9,3 +9,5 @@ La configuration demande un compte et un nom de Worker ; l’opérateur crée ou
 Si l’opérateur redémarre et perd le jeton en mémoire, l’administrateur peut le ressaisir pour la même cible. Le plan et l’identifiant du transfert restent inchangés ; l’opérateur refuse toute autre cible.
 
 `prepare` fixe un identifiant, un digest et un résumé de plan sans arrêter l’application. `start` réutilise ces deux identifiants exacts, arrête le runtime local pour une capture cohérente, puis l’opérateur reste joignable pour `status` et `reconcile`. Une réponse incertaine se vérifie sur le même transfert avant toute nouvelle action. Le journal de livraison distingue publication, URL finale et état du registre.
+
+Après une première livraison confirmée, le même écran propose un plan explicite de mise à jour du Worker existant. La mise à jour construit une nouvelle version, vérifie la cible, applique uniquement le schéma D1 compatible prévu, puis publie. Elle conserve les données D1/R2 et les secrets de production. L’identifiant et le digest du plan sont conservés avant le lancement ; une publication incertaine se vérifie sur cette même mise à jour.

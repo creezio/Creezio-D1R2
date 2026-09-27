@@ -305,3 +305,58 @@ test('operator accepts a bounded selection list larger than the former small bod
     assert.equal(outcome.response.status,200);
     assert.equal(observed,1);
   });
+
+test('update routes bind an exact plan and recover ownership through status',
+  {timeout:30000},async t=>{
+    const port=await unusedPort(),native=(await issueOpaqueToken('session')).token;
+    const updateId='update-one';
+    const updatePrepared={kind:'update',updateId,planDigest:digest,
+      summary:{title:'Update',details:['Schema only'],warnings:[]}};
+    const updateStatus={kind:'update',updateId,planDigest:digest,phase:'delivered',summary:null,
+      finalUrl:'https://example.workers.dev',registryStatus:'effective'};
+    let starts=0,reconciles=0,online=true;
+    const fetcher=async url=>{if(url.endsWith('/connections'))return Response.json({secretConnections:[]});
+      if(!online)throw new Error('local runtime stopped');
+      return Response.json({principalId:'principal-one',sessionId:'session-one',epoch:1,
+        expiresAtMs:Date.now()+3_600_000,operatorOrigin:`http://127.0.0.1:${port}`});};
+    const operations={inspect:async()=>inspection,configure:async()=>inspection,
+      prepare:async()=>prepared,start:async()=>transfer,status:async()=>transfer,
+      reconcile:async()=>transfer,
+      inspectUpdate:async()=>({kind:'update',readiness:'ready',currentPublicationId:'publication-one',
+        activeUpdateId:null,target:inspection.target}),
+      prepareUpdate:async()=>updatePrepared,
+      startUpdate:async input=>{starts++;assert.deepEqual(input,{updateId,planDigest:digest});return updateStatus;},
+      statusUpdate:async(id,context)=>{assert.equal(id,updateId);
+        assert.equal(context.principalId,'principal-one');return updateStatus;},
+      reconcileUpdate:async()=>{reconciles++;return updateStatus;}};
+    const server=createLocalDeliveryServer({config:{origin:appOrigin},port,operations,fetcher});
+    await server.listen();t.after(()=>server.close());
+    let result=await post(server.origin,'session',`creezio-local-admin=${native}`);
+    const cap=result.response.headers.get('set-cookie').split(';')[0],
+      cookies=`creezio-local-admin=${native}; ${cap}`;
+    result=await get(server.origin,'update/inspect',cookies);
+    assert.equal(result.response.status,200);
+    result=await post(server.origin,'update/prepare',cookies,{});
+    assert.equal(result.response.status,202);
+    await new Promise(resolve=>setImmediate(resolve));
+    result=await get(server.origin,`jobs/${result.body.jobId}`,cookies);
+    assert.deepEqual(result.body.value,updatePrepared);
+    result=await post(server.origin,'update/start',cookies,{updateId:'other',planDigest:digest});
+    assert.equal(result.response.status,403);assert.equal(starts,0);
+    result=await post(server.origin,'update/start',cookies,{updateId,planDigest:digest});
+    assert.equal(result.response.status,202);
+    await new Promise(resolve=>setImmediate(resolve));assert.equal(starts,1);
+    result=await get(server.origin,`jobs/${result.body.jobId}`,cookies);
+    assert.deepEqual(result.body.value,updateStatus);
+    online=false;
+    result=await get(server.origin,`update/status?updateId=${updateId}`,cookies);
+    assert.deepEqual(result.body.value,updateStatus);
+    online=true;
+    result=await post(server.origin,'session',cookies);
+    assert.equal(result.response.status,200);
+    result=await get(server.origin,`update/status?updateId=${updateId}`,cookies);
+    assert.deepEqual(result.body.value,updateStatus);
+    result=await post(server.origin,'update/reconcile',cookies,{updateId,planDigest:digest});
+    assert.equal(result.response.status,202);
+    await new Promise(resolve=>setImmediate(resolve));assert.equal(reconciles,1);
+  });

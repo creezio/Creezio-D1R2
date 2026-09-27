@@ -75,6 +75,68 @@
             },
             "started": {
               "type": "boolean"
+            },
+            "initial": {
+              "type": "object",
+              "properties": {
+                "owner": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "transferId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "planDigest": {
+                  "type": "string",
+                  "pattern": "^sha256-[a-f0-9]{64}$"
+                },
+                "started": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "owner",
+                "transferId",
+                "planDigest",
+                "started"
+              ],
+              "additionalProperties": false
+            },
+            "update": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "update"
+                },
+                "owner": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "updateId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "planDigest": {
+                  "type": "string",
+                  "pattern": "^sha256-[a-f0-9]{64}$"
+                },
+                "started": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "kind",
+                "owner",
+                "updateId",
+                "planDigest",
+                "started"
+              ],
+              "additionalProperties": false
             }
           },
           "required": [],

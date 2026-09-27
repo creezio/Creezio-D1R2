@@ -1,13 +1,34 @@
 import type {WorkspaceNavigation} from '../../../../sdk/workspace/types.ts';
 import type {DeliveryPersistence, DeliverySavedTransfer} from '../../../../sdk/delivery/controller.ts';
+import type {DeliveryUpdatePersistence, DeliverySavedUpdate} from '../../../../sdk/delivery/update-controller.ts';
+
+function panelData(navigation: WorkspaceNavigation): Record<string, unknown> {
+  const data = navigation.readPanelState()?.data;
+  return data && typeof data === 'object' && !Array.isArray(data)
+    ? data as Record<string, unknown> : {};
+}
 
 /** Panel state contains transfer identity only. Credentials never enter workspace storage. */
 export function deliveryPersistence(navigation: WorkspaceNavigation): DeliveryPersistence {
   return Object.freeze({
-    read() { return navigation.readPanelState()?.data ?? null; },
+    read() { const data = panelData(navigation); return data.initial ?? data; },
     save(value: DeliverySavedTransfer | null) {
       const previous = navigation.readPanelState() ?? {};
-      return navigation.savePanelState({...previous, data: value ? {...value} : {}});
+      const data = {...panelData(navigation)};
+      if (value) data.initial = {...value}; else delete data.initial;
+      return navigation.savePanelState({...previous, data});
+    },
+  });
+}
+
+export function deliveryUpdatePersistence(navigation: WorkspaceNavigation): DeliveryUpdatePersistence {
+  return Object.freeze({
+    read() { return panelData(navigation).update ?? null; },
+    save(value: DeliverySavedUpdate | null) {
+      const previous = navigation.readPanelState() ?? {};
+      const data = {...panelData(navigation)};
+      if (value) data.update = {...value}; else delete data.update;
+      return navigation.savePanelState({...previous, data});
     },
   });
 }

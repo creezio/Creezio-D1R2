@@ -1,4 +1,6 @@
 # Suivi
 
-- Raccorder le transport HTTP natif fourni par l’hôte à `DeliveryTransportProvider`.
-- Vérifier une livraison Docker local → Cloudflare réelle, y compris interruption et reprise du même transfert.
+- Réalisé : transport HTTP local avec autorisation native, vue de première publication et reprise du transfert.
+- Qualifié : première publication réelle depuis Docker Linux, reprise identifiée, registre et conservation des données ; détails dans la réalisation T32 du dépôt.
+- Développé : préparation, démarrage, progression et reprise d’une mise à jour distincte du transfert initial.
+- À qualifier : parcours de mise à jour dans le navigateur et conservation des données de production sur Cloudflare.

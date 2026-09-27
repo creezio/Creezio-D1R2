@@ -80,3 +80,23 @@ test('browser rebinds a passive read after operator restart without replaying a 
     assert.equal(sessions,3);
   }finally{transport.dispose();}
 });
+
+test('browser update start acknowledges one accepted job and reads its exact status',async()=>{
+  const seen=[];
+  const update={kind:'update',updateId:'update-one',planDigest:digest,phase:'delivered',summary:null,
+    finalUrl:'https://example.workers.dev',registryStatus:'effective'};
+  const transport=createLocalDeliveryTransport({access:access(),fetcher:async(url,init)=>{
+    seen.push(url);const initial=startup(url);if(initial)return initial;
+    if(url.endsWith('/update/start'))
+      return Response.json({ok:true,pending:true,jobId:'a'.repeat(22)},{status:202});
+    if(url.endsWith('/update/status?updateId=update-one'))return Response.json({ok:true,value:update});
+    throw new Error('unexpected request');
+  }});
+  try{
+    assert.deepEqual(await transport.startUpdate({updateId:'update-one',planDigest:digest}),
+      {ok:true,value:{...update,phase:'building',finalUrl:null,registryStatus:'pending'}});
+    assert.deepEqual(await transport.statusUpdate('update-one'),{ok:true,value:update});
+    assert.equal(seen.filter(url=>url.endsWith('/update/start')).length,1);
+    assert.equal(seen.filter(url=>url.includes('/jobs/')).length,0);
+  }finally{transport.dispose();}
+});
