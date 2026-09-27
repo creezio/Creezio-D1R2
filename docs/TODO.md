@@ -1,5 +1,20 @@
 # Backlog de réalisation
-Révision 15 — 27 septembre 2026. **GO complet reçu ; T-01 à T-05 en cours selon leurs qualifications.** Ce fichier est la liste de travail canonique du produit ; le plan et les PRD de modules y renvoient. Les PR #1 à #13 sont intégrées ; la base `db9dd50` passe 613 tests en CI. La tranche `core/t05-data-foundations` construit les primitives de données, fichiers et coffre ; T-04 conserve les parcours encore absents décrits ci-dessous. L'[état P0](IMPLEMENTATION-P0.md) distingue contrôleurs et gouvernance. Le dossier documentaire est audité séparément dans [AUDIT-AVANT-DEVELOPPEMENT.md](AUDIT-AVANT-DEVELOPPEMENT.md) ; il ne coche aucune fonctionnalité.
+Révision 17 — 27 septembre 2026. **Chantier actif : T-06. T-01 à T-05 : livrables intégrés, lots partiellement qualifiés. T-07 à T-39 : à faire.** Ce fichier est la liste de travail canonique du produit ; le plan et les PRD de modules y renvoient. Les PR #1 à #14 sont intégrées ; la base `d22df2d` passe 672 tests en CI. La tranche `core/t06-operations` construit le registre et les exécutions communes à partir des fondations D1/R2/coffre qualifiées. L'[état P0](IMPLEMENTATION-P0.md) distingue contrôleurs et gouvernance. Le dossier documentaire est audité séparément dans [AUDIT-AVANT-DEVELOPPEMENT.md](AUDIT-AVANT-DEVELOPPEMENT.md) ; il ne coche aucune fonctionnalité.
+
+## Avancement lisible
+
+Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes du développement. Il ne signifie pas que tous les lots ouverts sont travaillés simultanément. Le tableau suivant distingue les acquis du travail restant, sans changer les exigences.
+
+| Lot | Acquis intégrés et testés | Reste à faire | Activité actuelle |
+|---|---|---|---|
+| T-01 — Gouvernance | Branches/PR, protections GitHub, revue indépendante, CI et refus d'un candidat invalide | Qualification des futurs parcours de release et de publication | Suivi transversal ; fondations acquises |
+| T-02 — Contrats | Schémas, validateurs, dépendances et verrous ; cas valides et invalides | Intégration complète des vrais modules et paquets tiers en T-11/T-30 | Fondations acquises |
+| T-03 — Runtime | Worker commun, composition, build, démarrage local, persistance et budgets | Qualification du workspace/front complets au fil de leur construction | Fondations acquises |
+| T-04 — Comptes et droits | Comptes, sessions, rôles, tokens machine, impersonation, connexion et installation locales | Administration visuelle, remise des liens, raccords API/MCP/OAuth et recettes hébergées | Attend les raccords T-06/T-07/T-10 |
+| T-05 — Données | Compilation SQL centrale, accès D1 protégé, fichiers R2 et coffre | Explorateur, recherche, export/restauration, évolutions de modèles restantes et recettes hébergées | Fondations acquises ; autres fonctions à construire |
+| T-06 — Opérations | Base T-04/T-05 disponible ; nouvelle tranche non encore intégrée | Registre, exécutions, API, événements, suivi et reprises | **En développement sur `core/t06-operations`** |
+| T-07 à T-39 | Voir les prérequis déjà fournis ci-dessus | Workspace, modules, fronts/chat/widgets, publications et recette finale | Pas encore démarrés |
+
 ## Règles de suivi
 États autorisés : à faire, en cours, bloqué (raison/prérequis), en revue, vérifié, livré. Enregistrer responsable réel, branche/issue ou tâche locale, PR, SHA, tests/profils et preuves à chaque transition. « Livré » exige version et livraison vérifiée ; fusionner ne suffit pas. Une dépendance fournisseur manquante bloque sa recette, pas toutes les tâches indépendantes.
 Après GO, commencer P0 puis la tranche P1/P2 nécessaire au premier Site ; les dépendances ci-dessous priment sur le numéro du lot. Qualifier Cloudflare tôt dès disponibilité, mais ne pas bloquer le travail local sur son accès. P3/P4 peuvent avancer par tranches couplées : installer un module témoin d’abord, finaliser le starter après widgets/front. Le socle complet et les preuves restent requis avant P7.
@@ -31,7 +46,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-03](#T-03) | P1 | Runtime commun et démarrage local | [T-02](#T-02) | En cours |
 | [T-04](#T-04) | P2 | Identités, comptes et droits | [T-03](#T-03) | En cours |
 | [T-05](#T-05) | P2 | Données, fichiers, recherche et coffre | [T-03](#T-03), [T-04](#T-04) | En cours |
-| [T-06](#T-06) | P2 | Opérations, événements et exécutions bornées | [T-04](#T-04), [T-05](#T-05) | À faire |
+| [T-06](#T-06) | P2 | Opérations, événements et exécutions bornées | [T-04](#T-04), [T-05](#T-05) | En cours |
 | [T-07](#T-07) | P1 | Workspace et conservation des onglets | [T-03](#T-03), [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | À faire |
 | [T-08](#T-08) | P1 | Registre minimal et identité de publication | [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | À faire |
 | [T-09](#T-09) | P1 | Première tranche sur Sites | [T-07](#T-07), [T-08](#T-08) | À faire |
@@ -114,17 +129,18 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Lot : **P2** ; état : **en cours** ; responsables : agents Socle/Apps/Certivan et Codex pour intégration/revue.
 - Dépendances : [T-03](#T-03), [T-04](#T-04).
 - Travail/livrables : Services D1/R2/coffre, modèle composé et journal SQL central ; module natif data-explorer, recherche native et export/restauration.
-- Tranche courante : [fondations D1/R2/coffre](IMPLEMENTATION-T05.md), branche `core/t05-data-foundations` depuis `db9dd50`. Le registre T-06 consommera seulement les primitives qualifiées ; les autres critères T-05 restent ouverts.
+- Tranche intégrée : [fondations D1/R2/coffre](IMPLEMENTATION-T05.md), PR #14 dans `d22df2d`, 672 tests locaux et CI. Le registre T-06 consomme seulement les primitives qualifiées ; les autres critères T-05 restent ouverts.
 - Besoin : [US-05](USER-STORIES.md#US-05). Acceptation : [REQ-0501](EXIGENCES.md#REQ-0501), [REQ-0502](EXIGENCES.md#REQ-0502), [REQ-0503](EXIGENCES.md#REQ-0503), [REQ-0504](EXIGENCES.md#REQ-0504).
 - Validation : implémenter puis exécuter les recettes liées, sur **local, puis Sites/Cloudflare** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : [PR #14](https://github.com/creezio/Creezio-D1R2/pull/14), candidat `0556bd0`, main `d22df2d`, 672/672 en local et dans les runs CI 36282430413/36282625712. Périmètre : fondations internes ; aucune recette de recherche, d'export/restauration ou d'hébergement revendiquée.
 
 <a id="T-06"></a>
 ## T-06 — Opérations, événements et exécutions bornées
 
-- Lot : **P2** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P2** ; état : **en cours** ; responsables : Codex (registre/intégration), Apps (persistance), Socle (compilation), Certivan (recette indépendante).
 - Dépendances : [T-04](#T-04), [T-05](#T-05).
 - Travail/livrables : Registre d’opérations, API, erreurs typées, audit, idempotence, outbox, suivi et reprises.
+- Tranche : [registre et exécutions](IMPLEMENTATION-T06.md), branche `core/t06-operations` depuis `d22df2d`. Preuves produit encore en construction ; aucune recette hébergée acquise.
 - Besoin : [US-06](USER-STORIES.md#US-06). Acceptation : [REQ-0601](EXIGENCES.md#REQ-0601), [REQ-0602](EXIGENCES.md#REQ-0602), [REQ-0603](EXIGENCES.md#REQ-0603).
 - Validation : implémenter puis exécuter les recettes liées, sur **local, puis appel externe hébergé** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.

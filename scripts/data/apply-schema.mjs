@@ -139,7 +139,7 @@ async function inspect(db, plan) {
       // namespace is never silently repaired; unrecognized objects are never adopted by name.
       for (const object of previous) if (!wanted.has(object.name) || !same(object, wanted.get(object.name)))
         return { public: publicState('blocked', 'schema.foreign', plan) };
-      for (const module of plan.runtimeCatalog.modules) {
+      for (const module of [...plan.runtimeCatalog.modules, plan.host]) {
         const tables = new Set(module.models.map(item => item.table));
         const moduleObjects = plan.objects.filter(object => tables.has(object.table));
         if (moduleObjects.some(object => byName.has(object.name)) && moduleObjects.some(object => !byName.has(object.name)))

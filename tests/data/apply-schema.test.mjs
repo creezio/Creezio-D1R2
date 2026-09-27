@@ -9,8 +9,11 @@ import { compileCompositionSchema } from '../../scripts/data/composition-schema.
 import { applyCompositionSchema, inspectCompositionSchema, inspectManagedSchema, SCHEMA_RECEIPT_TABLE } from '../../scripts/data/apply-schema.mjs';
 import { loadAccessInstallPlan, installAccess, inspectAccessInstallation } from '../../scripts/data/install-access.mjs';
 import { contractIntegrity } from '../../sdk/contracts/validate.mjs';
+import { describeD1Schema } from '../../scripts/data/d1-schema.mjs';
+import { OPERATION_STORAGE_MODULE_ID, OPERATION_MODELS } from '../../core/operations/models.ts';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
+const hostObjectCount = describeD1Schema(OPERATION_STORAGE_MODULE_ID, OPERATION_MODELS).objects.length;
 const syntheticPassword = ['synthetic', 'password', 'for', 'isolated', 'd1', 'test'].join('-');
 const json = name => JSON.parse(readFileSync(new URL(name, import.meta.url), 'utf8'));
 const field = (id, type = 'string', extra = {}) => ({ id, type, nullable: false, protected: true, computed: false, ...extra });
@@ -66,7 +69,7 @@ test('central additive publication with real D1, isolated ephemeral bindings', a
       assert.equal((await apply(database, disabled)).ok, true);
       const removed = planFor([], { removed: true }); assert.equal((await apply(database, removed)).ok, true);
       assert.equal((await database.prepare(`SELECT label FROM "${table(first)}" WHERE id='one'`).first()).label, 'preserved');
-      assert.equal((await inspectManagedSchema(database)).receipt.objects.length, 3);
+      assert.equal((await inspectManagedSchema(database)).receipt.objects.length, hostObjectCount + 3);
     });
     await t.test('changed columns and external DDL are blocked without repair', async () => {
       const database = await db(), first = planFor([model('items')]); await apply(database, first);
@@ -122,7 +125,7 @@ test('central additive publication with real D1, isolated ephemeral bindings', a
       assert.equal((await apply(database, next)).ok, false);
       assert.equal((await inspectCompositionSchema(database, first)).receiptId, previous);
       assert.equal((await database.prepare(`SELECT COUNT(*) AS n FROM "${table(first)}"`).first()).n, 2);
-      assert.equal((await objects(database)).length, 2);
+      assert.equal((await objects(database)).length, hostObjectCount + 2);
     });
     await t.test('receipt tampering is refused and cannot become executable SQL', async () => {
       const database = await db(), plan = planFor([model('items')]); await apply(database, plan);
@@ -143,7 +146,7 @@ test('central additive publication with real D1, isolated ephemeral bindings', a
       assert.equal(results.filter(result => result.ok).length, 1);
       assert.equal(results.filter(result => result.effect === 'unknown').length, 1);
       assert.equal((await database.prepare(`SELECT COUNT(*) AS n FROM ${SCHEMA_RECEIPT_TABLE}`).first()).n, 2);
-      assert.equal((await inspectManagedSchema(database)).receipt.objects.length, 2);
+      assert.equal((await inspectManagedSchema(database)).receipt.objects.length, hostObjectCount + 2);
     });
     await t.test('an unavailable reconciliation never claims rollback or retries a lost write', async () => {
       const database = await db(), plan = planFor([model('items')]); let written = false, attempts = 0;

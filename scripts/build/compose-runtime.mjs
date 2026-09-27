@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync, mkdirSync, existsSync, lstatSync, realpathSync } from 'node:fs';
 import { compileCompositionSchema } from '../data/composition-schema.mjs';
+import { compileOperationSchemas } from '../operations/schemas.mjs';
+import { createOperationRegistry } from '../../core/operations/registry.ts';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadJson } from '../../sdk/contracts/load.mjs';
@@ -104,8 +106,9 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   root = loaded.root;
   const { compositionFile, lockFile, composition, lock, located, result } = loaded;
   const dataPlan = compileCompositionSchema({ composition, lock, modules: located.map(item => item.descriptor) });
+  const operationPlan = compileOperationSchemas({ composition, lock, modules: located.map(item => item.descriptor) });
   const output = confined(root, outputDir, { directory: true, missing: true });
-  const destinations = Object.fromEntries(['server.ts', 'client.tsx', 'data-catalog.ts', 'composition.json'].map(name => [name, confined(root, path.join(output, name), { missing: true })]));
+  const destinations = Object.fromEntries(['server.ts', 'client.tsx', 'data-catalog.ts', 'operations.ts', 'operation-validators.mjs', 'composition.json'].map(name => [name, confined(root, path.join(output, name), { missing: true })]));
   if (located.some(item => contained(item.directory, output))
     || Object.values(destinations).some(destination => destination === compositionFile || destination === lockFile)) {
     fail('output.source-collision', 'Generated output must not overwrite selected module sources or composition inputs.');
@@ -114,7 +117,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   const inactive = result.metrics.disabledContributions ?? [];
   const active = (moduleId, pointer) => !inactive.some(item => item.moduleId === moduleId && (item.path === pointer || pointer.startsWith(`${item.path}/`)));
   const resolveOperation = reference => indexes.get(reference.moduleId)?.descriptor.contracts.operations.find(item => item.id === reference.id);
-  const serverImports = [], clientImports = [], modules = [], views = [];
+  const serverImports = [], clientImports = [], operationImports = [], operationHandlers = [], modules = [], views = [];
   let importIndex = 0;
   function importCode(destination, owner, reference, imports) {
     const source = codeFile(root, owner, reference), name = `contribution_${importIndex++}`;
@@ -128,6 +131,10 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     codeFile(root, item, descriptor.entrypoints.server);
     if (descriptor.entrypoints.ui) codeFile(root, item, descriptor.entrypoints.ui);
     if (!selection.enabled) continue;
+    for (const entry of operationPlan.catalog.modules.find(module => module.moduleId === selection.moduleId).operations) {
+      if (!entry.active) continue;
+      operationHandlers.push({ name: `${selection.moduleId}:${entry.operation.id}`, handler: importCode(output, item, entry.operation.handler, operationImports) });
+    }
     const operations = [];
     for (const [index, api] of descriptor.contracts.api.entries()) {
       if (!active(selection.moduleId, `/contracts/api/${index}`)) continue;
@@ -170,16 +177,27 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
       [{ code: error.code, message: error.message }]);
     throw error;
   }
+  // Validate the complete operation registry, including operations with no HTTP exposure.
+  // Only inert sentinels are supplied here; package handlers never execute during composition.
+  try {
+    const sentinel = () => { throw new Error('Build validation must never invoke contribution code.'); };
+    createOperationRegistry({ catalog: operationPlan.catalog,
+      validators: Object.fromEntries(operationPlan.catalog.modules.flatMap(module => module.schemas.map(schema => [schema.validator, sentinel]))),
+      handlers: Object.fromEntries(operationHandlers.map(item => [item.name, sentinel])) });
+  } catch { fail('build.operation-registry', 'The operation registry exceeds host capabilities or contains invalid bindings.'); }
   const banner = '// Generated from an explicit validated composition. Do not edit.\n';
   const serverModules = modules.map(module => `{ id: ${JSON.stringify(module.id)}, version: ${JSON.stringify(module.version)}, operations: [${module.operations.map(operation => {
     const { handler, ...metadata } = operation; return `{ ...${JSON.stringify(metadata)}, handler: ${handler} }`;
   }).join(',\n')}] }`);
   const clientViews = views.map(view => { const { component, ...metadata } = view; return `{ ...${JSON.stringify(metadata)}, component: ${component} }`; });
   const rendered = {
+    'operation-validators.mjs': `${banner}${operationPlan.validatorsCode}`,
+    'operations.ts': `${banner}import type { RuntimeOperationCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/operations/types.ts')))};\nimport * as compiledValidators from './operation-validators.mjs';\n${operationImports.join('\n')}\nconst freeze = <T>(value: T): T => { if (value && typeof value === 'object') { for (const child of Object.values(value)) freeze(child); Object.freeze(value); } return value; };\nexport const operationCatalog: RuntimeOperationCatalog = freeze(${JSON.stringify(operationPlan.catalog)});\nexport const operationValidators = Object.freeze({ ...compiledValidators });\nexport const operationHandlers = Object.freeze({${operationHandlers.map(item => `${JSON.stringify(item.name)}: ${item.handler}`).join(',\n')}});\n`,
     'data-catalog.ts': `${banner}import type { RuntimeDataCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/data/types.ts')))};\nconst freeze = <T>(value: T): T => { if (value && typeof value === 'object') { for (const child of Object.values(value)) freeze(child); Object.freeze(value); } return value; };\nexport const dataCatalog: RuntimeDataCatalog = freeze(${JSON.stringify(dataPlan.runtimeCatalog)});\n`,
     'server.ts': `${banner}import type { RuntimeModule, RuntimeNativeAccess } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/runtime/types.ts')))};\n${serverImports.join('\n')}\nexport const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess: RuntimeNativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const modules: readonly RuntimeModule[] = [${serverModules.join(',\n')}];\n`,
     'client.tsx': `${banner}import type { RuntimeView } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/runtime/ui.ts')))};\n${clientImports.join('\n')}\nexport const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const views: readonly RuntimeView[] = [${clientViews.join(',\n')}];\n`,
     'composition.json': `${stringify({ schemaVersion: 1, compositionDigest, nativeAccess, applicationId: composition.application.id, hostProfile: composition.host.profile,
+      operations: { schemasDigest: operationPlan.schemasDigest, validatorsDigest: operationPlan.validatorsDigest, ...operationPlan.metrics },
       modules: modules.map(({ id, version, operations }) => ({ id, version, routes: operations.map(({ handler, ...metadata }) => metadata) })),
       views: views.map(({ component, ...metadata }) => metadata), packageArchivesVerified: false })}\n`,
   };

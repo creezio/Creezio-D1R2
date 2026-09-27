@@ -1,15 +1,15 @@
 # Données, fichiers et coffre — T-05
 
-La branche `core/t05-data-foundations` part du main `db9dd50`, qualifié après la PR #13 (613 tests). Le [lot T-05](TODO.md#T-05) est **en cours**. Cette première tranche construit les primitives nécessaires au registre d'opérations T-06 ; elle ne clôture pas l'explorateur, la recherche, l'export/restauration ni les recettes hébergées.
+La tranche `core/t05-data-foundations`, partie de `db9dd50`, est intégrée par la [PR #14](https://github.com/creezio/Creezio-D1R2/pull/14) dans `d22df2d`. Le candidat `0556bd0`, puis ce main, passent 672/672 contrôles en local et CI (runs 36282430413 et 36282625712). Le [lot T-05](TODO.md#T-05) reste **partiel** : ses primitives permettent T-06, mais l'explorateur, la recherche, l'export/restauration et les recettes hébergées ne sont pas terminés.
 
 ## Travail de la tranche
 
 | Travail | Responsable | Critères concernés | État |
 |---|---|---|---|
-| Compiler les modèles sélectionnés, inspecter et appliquer les ajouts compatibles avec reçu central | Agent Socle | [REQ-0501](EXIGENCES.md#REQ-0501), [REQ-0503](EXIGENCES.md#REQ-0503) | En revue |
-| Accès D1 par module et contexte, lectures et écritures sous droits frais | Agent Apps | [REQ-0501](EXIGENCES.md#REQ-0501), [REQ-0502](EXIGENCES.md#REQ-0502) | En revue |
-| Fichiers privés, publication et reprise D1/R2 ; coffre serveur | Agent Certivan | [REQ-0502](EXIGENCES.md#REQ-0502), [REQ-0504](EXIGENCES.md#REQ-0504) | En revue |
-| Intégration, recette indépendante, agrégat et documentation | Codex, coordination | [US-05](USER-STORIES.md#US-05) | En revue |
+| Compiler les modèles sélectionnés, inspecter et appliquer les ajouts compatibles avec reçu central | Agent Socle | [REQ-0501](EXIGENCES.md#REQ-0501), [REQ-0503](EXIGENCES.md#REQ-0503) | Vérifié local/CI, intégré |
+| Accès D1 par module et contexte, lectures et écritures sous droits frais | Agent Apps | [REQ-0501](EXIGENCES.md#REQ-0501), [REQ-0502](EXIGENCES.md#REQ-0502) | Vérifié local/CI, intégré |
+| Fichiers privés, publication et reprise D1/R2 ; coffre serveur | Agent Certivan | [REQ-0502](EXIGENCES.md#REQ-0502), [REQ-0504](EXIGENCES.md#REQ-0504) | Vérifié local/CI, intégré |
+| Intégration, recette indépendante, agrégat et documentation | Codex, coordination | [US-05](USER-STORIES.md#US-05) | Vérifié local/CI, intégré |
 
 ## Contrats conservés
 

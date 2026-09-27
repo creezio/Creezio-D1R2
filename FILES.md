@@ -1,6 +1,6 @@
 # Repères du dépôt
 
-État : implémentation autorisée, contrôleurs P0/contrats SDK et runtime T-03 local présents ; fondations T-04 en cours. Aucun CMS complet ni déploiement produit qualifié. Distinguer les scripts réellement présents des commandes encore prévues dans les contrats.
+État : PR #1 à #14 intégrées, fondations T-04/T-05 disponibles ; registre T-06 en cours. Le [TODO](docs/TODO.md) distingue acquis, fonctions restantes et chantier actif. Aucun CMS complet ni déploiement produit qualifié. Distinguer les scripts réellement présents des commandes encore prévues dans les contrats.
 
 | Emplacement | Responsabilité |
 |---|---|
@@ -75,6 +75,11 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 
 - [core/data](core/data/) : catalogue runtime, capacités par module/contexte et plans D1 sous garde fraîche ; aucune API SQL publique.
 - [core/files](core/files/) : métadonnées de fichiers privés, préparation R2, publication D1 et reprise explicite.
+- [core/operations](core/operations/) : registre canonique et exécutions communes en construction, avec validation statique et stockage technique.
+- [scripts/operations](scripts/operations/) : compilation centrale des validateurs d'opérations pour le Worker.
+- [data/schema/runtime.sql](data/schema/runtime.sql) et [scripts/data/prepare-runtime.mjs](scripts/data/prepare-runtime.mjs) : quatre modèles techniques des exécutions et contrôle central de leur SQL ; aucun changement automatique de base.
+- [tests/operations](tests/operations/) : registre, schémas compilés, exécutions D1 et Worker, refus et idempotence ; famille obligatoire de l'agrégat.
+- [docs/IMPLEMENTATION-T06.md](docs/IMPLEMENTATION-T06.md) : périmètre, progression et critères du registre commun.
 - [core/vault](core/vault/) : références opaques et chiffrement des secrets côté serveur.
 - [tests/data](tests/data/) : recettes synthétiques SQL/D1/R2/coffre et intégration indépendante aux comptes natifs.
 - [État T-05](docs/IMPLEMENTATION-T05.md) : travail, contrats et limites de cette première tranche.

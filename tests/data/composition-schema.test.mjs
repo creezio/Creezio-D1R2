@@ -4,8 +4,11 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { compileCompositionSchema, loadCompositionSchema } from '../../scripts/data/composition-schema.mjs';
 import { contractIntegrity } from '../../sdk/contracts/validate.mjs';
+import { describeD1Schema } from '../../scripts/data/d1-schema.mjs';
+import { OPERATION_STORAGE_MODULE_ID, OPERATION_MODELS } from '../../core/operations/models.ts';
 
 const json = name => JSON.parse(readFileSync(new URL(name, import.meta.url), 'utf8'));
+const hostObjects = describeD1Schema(OPERATION_STORAGE_MODULE_ID, OPERATION_MODELS).objects.length;
 function inputs() {
   return { composition: json('../../configuration/composition.json'), lock: json('../../configuration/composition.lock.json'),
     modules: [json('../../extensions/native/access/module/manifest.json')] };
@@ -19,7 +22,10 @@ function relock(input) {
 test('composed compiler reuses exact central Access SQL definitions and freezes the runtime projection', async () => {
   const input = inputs(), plan = compileCompositionSchema(input);
   assert.equal(plan.runtimeCatalog.modules[0].models.length, 21);
-  assert.equal(plan.objects.length, 50);
+  assert.equal(plan.objects.length, 50 + hostObjects);
+  assert.equal(plan.host.moduleId, OPERATION_STORAGE_MODULE_ID);
+  assert.equal(plan.host.models.length, 4);
+  assert.equal(plan.runtimeCatalog.modules.some(module => module.moduleId === OPERATION_STORAGE_MODULE_ID), false);
   assert.equal(plan.runtimeCatalog.modules[0].permissions.length, 2);
   assert.deepEqual(plan.runtimeCatalog.modules[0].permissions, input.modules[0].contracts.permissions);
   assert.ok(Object.isFrozen(plan.runtimeCatalog.modules[0].models[0].model.fields[0]));
@@ -33,15 +39,21 @@ test('disabled selection preserves data declarations while the catalog closes it
   input.composition.exposure.admin.moduleIds = []; input.composition.exposure.app.moduleIds = [];
   const plan = compileCompositionSchema(relock(input));
   assert.equal(plan.runtimeCatalog.modules[0].enabled, false);
-  assert.equal(plan.objects.length, 50);
+  assert.equal(plan.objects.length, 50 + hostObjects);
 });
 
 test('empty composition is explicit and still locked', () => {
   const input = inputs(); input.composition.modules = []; input.modules = []; input.lock.modules = [];
   input.composition.exposure.admin.moduleIds = []; input.composition.exposure.app.moduleIds = [];
   const plan = compileCompositionSchema(relock(input));
-  assert.deepEqual(plan.objects, []); assert.deepEqual(plan.runtimeCatalog.modules, []);
+  assert.equal(plan.objects.length, hostObjects); assert.deepEqual(plan.runtimeCatalog.modules, []);
   assert.throws(() => compileCompositionSchema({ ...input, lock: undefined }), { code: 'schema.composition' });
+});
+
+test('the technical runtime namespace cannot be selected or exposed as a product module', () => {
+  const input = inputs();
+  const renamed = JSON.parse(JSON.stringify(input).replaceAll('creezio.access', OPERATION_STORAGE_MODULE_ID));
+  assert.throws(() => compileCompositionSchema(relock(renamed)), { code: 'schema.reserved-module' });
 });
 
 test('stale lock, malformed model and unsupported SQL capabilities fail instead of producing partial plans', () => {

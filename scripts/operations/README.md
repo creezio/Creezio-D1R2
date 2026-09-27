@@ -1,0 +1,17 @@
+# Compilation des schémas d'opérations
+
+[schemas.mjs](schemas.mjs) expose `compileOperationSchemas({composition, modules, lock})`. Le validateur de composition et de contrats existant vérifie tous les descripteurs et le verrou. Le compilateur ne lit aucun fichier de module et ne charge aucun handler.
+
+Le résultat contient un catalogue profondément figé, `validatorsCode` (module ESM autonome), `schemasDigest`, `validatorsDigest` et les compteurs de compilation. Le catalogue conserve les déclarations d'opérations v1 entières, leur activation effective, et les noms des validateurs d'entrée, sortie et progression éventuelle. Chaque opération porte `contractDigest`, empreinte canonique de sa déclaration complète, de la version du module et de ses schémas : la même clé d'idempotence ne doit pas rejouer silencieusement un contrat différent. `modules[].schemas` associe aussi chaque schéma déclaré à son validateur. Un module désactivé ou une contribution gardée inactive ne devient pas exécutable parce que son schéma est compilé.
+
+Chaque export de validation retourne un booléen synchrone. Ses diagnostics internes sont limités à huit entrées, avec mot-clé et chemins bornés ; ni données, ni paramètres AJV, ni schéma complet ne sont copiés dans les erreurs. Le registre ne doit pas transmettre ces diagnostics directement aux clients. Il capture d'abord les données JSON et applique ses bornes ; les validateurs ne remplacent ni ce contrôle, ni les permissions, ni la garde D1 au commit.
+
+AJV 2020-12 compile avant déploiement. Coercition, valeurs par défaut appliquées et suppression de propriétés sont désactivées. Les références restent des pointeurs JSON locaux au document ; cycles, références externes/dynamiques et dialectes différents sont refusés par le contrat v1. Les validateurs asynchrones sont explicitement refusés. Les annotations JSON Schema ne deviennent pas des transformations métier. Tous les schémas déclarés sont compilés, y compris ceux sans opération active ; un schéma incompatible n'est jamais ignoré.
+
+Le code standalone et ses helpers purs AJV/formats sont regroupés avec esbuild déjà présent. Le graphe embarqué est limité à ces dépendances épinglées ; aucun compilateur AJV, import externe, adaptateur Node ou code de module n'entre dans le bundle. La compilation est pure du point de vue des sources : aucune génération sur disque, installation ou publication implicite. Le raccordement au build est effectué par l'hôte.
+
+`validatorsDigest` identifie les octets du code standalone retourné par le compilateur. Le commentaire de génération ajouté par l'hôte n'entre pas dans cette empreinte ; elle n'est donc pas celle du fichier généré complet. L'artefact de build possède sa preuve d'intégrité distincte.
+
+Bornes de cette version : 1 024 schémas, 4 Mio de documents agrégés et 8 Mio de validateurs générés, en plus des bornes de contrats existantes. Un dépassement bloque. Ces limites ne prouvent pas un temps CPU maximal pour une expression régulière arbitraire ; les schémas appartiennent au code approuvé du module et les entrées restent bornées par le registre.
+
+[schemas.test.mjs](../../tests/operations/schemas.test.mjs) qualifie les refus, la non-mutation, les pointeurs locaux et formats, les activations gardées, le cloisonnement des identifiants, le déterminisme et l'exécution du bundle dans workerd local. Cette recette ne prouve pas une publication Sites ou Cloudflare.

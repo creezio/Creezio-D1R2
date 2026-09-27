@@ -48,6 +48,7 @@ function fixture(t, witness = true) {
   return { root, composition, lock, module, save };
 }
 const generated = (root, name) => path.join(root, '.creezio/generated', name);
+const generatedNames = ['server.ts', 'client.tsx', 'composition.json', 'data-catalog.ts', 'operations.ts', 'operation-validators.mjs'];
 async function clientRegistry(root) {
   const source = readFileSync(generated(root, 'client.tsx'), 'utf8');
   const { code } = await transform(source, { loader: 'tsx', format: 'esm' });
@@ -144,6 +145,44 @@ test('disabled modules are validated but contribute no imports, routes or views'
   const result = await composeRuntime({ root: f.root });
   assert.equal(result.moduleCount, 0); assert.equal(result.viewCount, 0);
   assert.doesNotMatch(readFileSync(generated(f.root, 'server.ts'), 'utf8'), /operations\.ts/);
+  assert.doesNotMatch(readFileSync(generated(f.root, 'operations.ts'), 'utf8'), /import \{ read_(?:status|protected) as /);
+  const registry = await import(pathToFileURL(generated(f.root, 'operations.ts')).href);
+  assert.deepEqual(Object.keys(registry.operationHandlers), []);
+  assert.equal(registry.operationCatalog.modules[0].enabled, false);
+  assert.ok(registry.operationCatalog.modules[0].operations.every(operation => !operation.active));
+  assert.equal(Object.keys(registry.operationValidators).length, f.module.contracts.schemas.length);
+});
+
+test('operations without HTTP routes still export static handlers and deeply immutable metadata', async t => {
+  const f = fixture(t); f.module.contracts.api = []; f.save();
+  await composeRuntime({ root: f.root });
+  assert.deepEqual(read(generated(f.root, 'composition.json')).modules[0].routes, []);
+  const source = readFileSync(generated(f.root, 'operations.ts'), 'utf8');
+  assert.match(source, /import \{ read_status as contribution_/);
+  assert.match(source, /import \{ read_protected as contribution_/);
+  const registry = await import(pathToFileURL(generated(f.root, 'operations.ts')).href);
+  const module = registry.operationCatalog.modules[0], status = module.operations.find(entry => entry.operation.id === 'status');
+  assert.deepEqual(Object.keys(registry.operationHandlers).sort(), ['example.witness:protected', 'example.witness:status']);
+  assert.ok(Object.values(registry.operationHandlers).every(handler => typeof handler === 'function'));
+  assert.equal(registry.operationValidators[status.inputValidator]({}), true);
+  assert.equal(registry.operationValidators[status.inputValidator]({ extra: true }), false);
+  assert.match(status.contractDigest, /^sha256-[0-9a-f]{64}$/);
+  assert.ok(Object.isFrozen(registry.operationCatalog)); assert.ok(Object.isFrozen(status.operation.execution));
+  assert.ok(Object.isFrozen(registry.operationHandlers)); assert.ok(Object.isFrozen(registry.operationValidators));
+  assert.throws(() => { status.operation.execution.maxDurationMs = 1; }, TypeError);
+});
+
+test('an unselected optional integration emits no handler for its guarded operation', async t => {
+  const f = fixture(t);
+  f.module.dependencies.push({ moduleId: 'example.optional', origin: 'https://example.invalid/optional', versionRange: '^1.0.0', optional: true,
+    contracts: [], whenAbsent: 'disable-contributions', whenIncompatible: 'block', autoInstall: false });
+  f.composition.modules[0].integrations.push({ moduleId: 'example.optional', enabled: false });
+  f.module.contracts.operations.push({ ...structuredClone(f.module.contracts.operations[0]), id: 'guarded-read', requiresModules: ['example.optional'] });
+  f.save(); await composeRuntime({ root: f.root });
+  const registry = await import(pathToFileURL(generated(f.root, 'operations.ts')).href);
+  assert.equal(registry.operationCatalog.modules[0].operations.find(entry => entry.operation.id === 'guarded-read').active, false);
+  assert.equal(Object.hasOwn(registry.operationHandlers, 'example.witness:guarded-read'), false);
+  assert.equal(typeof registry.operationHandlers['example.witness:status'], 'function');
 });
 
 test('missing selected module source fails before any output is written', async t => {
@@ -168,11 +207,19 @@ test('invalid declarations and colliding routes cannot reach generated code', as
 
 test('host operation budget is validated before replacing an existing generated composition', async t => {
   const f = fixture(t); await composeRuntime({ root: f.root });
-  const names = ['server.ts', 'client.tsx', 'composition.json', 'data-catalog.ts'];
+  const names = generatedNames;
   const before = names.map(name => readFileSync(generated(f.root, name), 'utf8'));
   f.module.contracts.operations[0].execution.maxDurationMs = 30001; f.save();
   await assert.rejects(composeRuntime({ root: f.root }), error => error.code === 'build.operation-budget');
   assert.deepEqual(names.map(name => readFileSync(generated(f.root, name), 'utf8')), before);
+});
+
+test('an operation without an HTTP route cannot bypass the host budget or replace prior generated outputs', async t => {
+  const f = fixture(t); f.module.contracts.api = []; f.save(); await composeRuntime({ root: f.root });
+  const before = generatedNames.map(name => readFileSync(generated(f.root, name), 'utf8'));
+  f.module.contracts.operations[0].execution.maxDurationMs = 30001; f.save();
+  await assert.rejects(composeRuntime({ root: f.root }), error => error.code === 'build.operation-registry');
+  assert.deepEqual(generatedNames.map(name => readFileSync(generated(f.root, name), 'utf8')), before);
 });
 
 test('runtime route conflicts and reserved routes fail host preflight without writing outputs', async t => {
@@ -193,7 +240,7 @@ test('runtime route conflicts and reserved routes fail host preflight without wr
 
 test('native access entry views are reserved without replacing the previous valid composition', async t => {
   const f = fixture(t); await composeRuntime({ root: f.root });
-  const names = ['server.ts', 'client.tsx', 'composition.json', 'data-catalog.ts'];
+  const names = generatedNames;
   const before = names.map(name => readFileSync(generated(f.root, name), 'utf8'));
   for (const route of ['/access', '/access/admin', '/access/app', '/{surface}/admin', '/:surface/admin']) {
     f.module.contracts.ui.views[0].route = route; f.save();
@@ -204,7 +251,7 @@ test('native access entry views are reserved without replacing the previous vali
 
 test('native access namespace is reserved even when access is absent, including parameter captures', async t => {
   const f=fixture(t);await composeRuntime({root:f.root});
-  const names=['server.ts','client.tsx','composition.json','data-catalog.ts'],before=names.map(name=>readFileSync(generated(f.root,name),'utf8'));
+  const names=generatedNames,before=names.map(name=>readFileSync(generated(f.root,name),'utf8'));
   f.module.contracts.schemas.find(schema=>schema.id==='empty-input').schema.properties={area:{type:'string'}};
   for(const route of ['/api/access','/api/access/app/login','/api/{area}','/api/{area}/app/login','/api/{area}/elsewhere']) {
     f.module.contracts.api[0].path=route;
