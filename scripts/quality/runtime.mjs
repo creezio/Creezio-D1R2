@@ -5,10 +5,11 @@ import { gzipSync } from 'node:zlib';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 
-// Local ceilings: the Access composition includes native OAuth/MCP transport,
-// operation guards and consent UI. Revisit against each measured full artifact.
+// Local ceilings: Access + Modules includes native OAuth/MCP, the bounded module
+// inventory/solver and both admin UIs. T11 baseline: 2,643,213 raw / 574,726 gzip
+// across all server JS, including SSR. Keep a small regression margin.
 // They are neither provider quotas nor production latency guarantees.
-export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 2_200_000, workerGzipBytes: 550_000,
+export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 2_800_000, workerGzipBytes: 625_000,
   selectedGraphInputs: 32, startupMs: 15_000, routeMs: 3_000 });
 
 export function assertRuntimeBudgets(report) {

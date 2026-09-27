@@ -1,6 +1,6 @@
 # Repères du dépôt
 
-État : PR #1 à #18 intégrées ; main `a2f6081f` qualifié avec 837 tests. Le [TODO](docs/TODO.md) distingue acquis et fonctions restantes. Le registre séparé et Docker local sont qualifiés dans leurs périmètres ; l’interface Access originale est intégrée et la tranche active raccorde MCP/OAuth natifs.
+État : PR #1 à #19 intégrées ; main `f52a17b9` qualifié avec 866 tests locaux et CI. MCP admin/app et OAuth natif sont raccordés aux opérations communes. Chantier actif : T-11, gestion et dépendances des modules, sur `core/t11-module-lifecycle`. Le [TODO](docs/TODO.md) distingue acquis, travaux et qualifications restantes.
 
 | Emplacement | Responsabilité |
 |---|---|
@@ -114,3 +114,13 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - [scripts/registry](scripts/registry/) : build indépendant, configuration sans secret et opérateur explicite du D1 dédié.
 - [tests/registry](tests/registry/) et [tests/local](tests/local/) : protocoles et refus du registre, Worker, journal de reprise et adaptateur Docker ; suites obligatoires dans le contrôle global.
 - [adapters/docker](adapters/docker/) : démarrage local persistant ; [état T-31](docs/IMPLEMENTATION-T31.md).
+
+## Gestion des modules T-11
+
+- `extensions/native/modules-settings/` : catalogue, fiches issues du Product Hub Creezio, plans et journal D1 ; six suites et docs propres.
+- `sdk/modules/`, `sdk/module-settings/`, `sdk/operations/handler.ts` : solveur, inventaire vérifié au build, client/contrôleur et surface publique des handlers.
+- `scripts/modules/` : archives déterministes, verrou et plan local ; aucun téléchargement ou lancement de code tiers.
+- `configuration/module-inventory.json` : origines autorisées et candidats présents supplémentaires ; inventaire compilé injecté par le cœur.
+- `core/operations/host-inventory.ts` : capture immuable liée à la composition et au module natif exact.
+- `scripts/data/prepare-modules-settings.mjs`, `data/schema/modules-settings.sql` : création actuelle centralisée des trois modèles.
+- `tests/modules/`, [IMPLEMENTATION-T11](docs/IMPLEMENTATION-T11.md) : recette du graphe, du service et des interfaces.

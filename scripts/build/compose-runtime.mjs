@@ -5,6 +5,8 @@ import { compileOperationSchemas } from '../operations/schemas.mjs';
 import { compileHttpBindings } from '../operations/http-bindings.mjs';
 import { compileMcpBindings } from '../mcp/bindings.mjs';
 import { createOperationRegistry } from '../../core/operations/registry.ts';
+import { compileModuleInventory } from '../../sdk/modules/inventory.mjs';
+import { captureHostInventory } from '../../core/operations/host-inventory.ts';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadJson } from '../../sdk/contracts/load.mjs';
@@ -85,6 +87,21 @@ const publicOperation = operation => operation?.kind === 'query' && operation.co
 const importSpecifier = (output, source) => { const rel = slash(path.relative(output, source)); return rel.startsWith('.') ? rel : `./${rel}`; };
 const stringify = value => JSON.stringify(value, null, 2);
 
+/** Match deployed descriptors by their exact lock identity, not catalog ordering. */
+export function currentModuleCandidateKeys(composition, lock, inventory) {
+  return composition.modules.map(selection => {
+    const node = lock.modules.find(item => item.moduleId === selection.moduleId);
+    const found = inventory.candidates.filter(candidate => candidate.moduleId === selection.moduleId
+      && candidate.version === node?.version && candidate.origin === node.origin
+      && candidate.lockNode.contractIntegrity === node.contractIntegrity
+      && candidate.lockNode.runtime.integrity === node.runtime.integrity
+      && candidate.lockNode.validation.integrity === node.validation.integrity
+      && contractIntegrity(candidate.source) === contractIntegrity(selection.source));
+    if (found.length !== 1) fail('inventory.current-candidate', 'Every deployed module must match one exact inventory candidate.');
+    return found[0].candidateKey;
+  });
+}
+
 /** Build-time only: validates inert declarations, checks selected local files, and emits static imports.
  * Does not install packages, import their code, grant authorization, execute SQL, or publish anything.
  * Package archive provenance/integrity is a separate T-30 qualification; an installed directory is not that proof.
@@ -103,14 +120,15 @@ export function loadRuntimeComposition({ root = process.cwd(), compositionPath =
   return { root, compositionFile, lockFile, composition, lock, located, result };
 }
 
-export async function composeRuntime({ root = process.cwd(), compositionPath = 'configuration/composition.json', lockPath, outputDir = '.creezio/generated' } = {}) {
+export async function composeRuntime({ root = process.cwd(), compositionPath = 'configuration/composition.json', lockPath,
+  inventoryPath = 'configuration/module-inventory.json', outputDir = '.creezio/generated' } = {}) {
   const loaded = loadRuntimeComposition({ root, compositionPath, lockPath });
   root = loaded.root;
   const { compositionFile, lockFile, composition, lock, located, result } = loaded;
   const dataPlan = compileCompositionSchema({ composition, lock, modules: located.map(item => item.descriptor) });
   const operationPlan = compileOperationSchemas({ composition, lock, modules: located.map(item => item.descriptor) });
   const output = confined(root, outputDir, { directory: true, missing: true });
-  const destinations = Object.fromEntries(['server.ts', 'client.tsx', 'data-catalog.ts', 'operations.ts', 'operation-validators.mjs', 'composition.json'].map(name => [name, confined(root, path.join(output, name), { missing: true })]));
+  const destinations = Object.fromEntries(['server.ts', 'client.tsx', 'data-catalog.ts', 'module-inventory.ts', 'operations.ts', 'operation-validators.mjs', 'composition.json'].map(name => [name, confined(root, path.join(output, name), { missing: true })]));
   if (located.some(item => contained(item.directory, output))
     || Object.values(destinations).some(destination => destination === compositionFile || destination === lockFile)) {
     fail('output.source-collision', 'Generated output must not overwrite selected module sources or composition inputs.');
@@ -193,6 +211,17 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     }
   }
   const compositionDigest = contractIntegrity(composition);
+  let runtimeInventory;
+  if (composition.modules.some(selection => selection.moduleId === 'creezio.modules-settings' && selection.enabled)) {
+    const config = loadJson(confined(root, inventoryPath), {root});
+    if (config.schemaVersion !== 1 || !Array.isArray(config.allowedOrigins) || !Array.isArray(config.available)
+      || Object.keys(config).some(key => !['schemaVersion', 'allowedOrigins', 'available'].includes(key)))
+      fail('inventory.configuration', 'An explicit, bounded module inventory configuration is required.');
+    const candidates = composition.modules.map(selection => ({source: selection.source,
+      lockNode: lock.modules.find(node => node.moduleId === selection.moduleId)})).concat(config.available);
+    const inventory = compileModuleInventory({root, candidates, allowedOrigins: config.allowedOrigins});
+    runtimeInventory = captureHostInventory({current: {composition, lock, descriptors: located.map(item => item.descriptor)}, inventory}, compositionDigest);
+  }
   // This host-owned transport is not a module CRUD operation or an implicit
   // public contribution. Each audience requires both selection and exposure.
   const accessEnabled = modules.some(module => module.id === 'creezio.access');
@@ -242,6 +271,9 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   const validatorEntries = operationPlan.catalog.modules.flatMap(module => module.schemas)
     .map(schema => `${JSON.stringify(schema.validator)}: compiledValidators.${schema.validator}`).join(',\n');
   const rendered = {
+    'module-inventory.ts': `${banner}import type { ModuleSettingsHostInventory } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/module-settings/types.ts')))};\n${freezeSource}${runtimeInventory
+      ? `const inventory: ModuleSettingsHostInventory['inventory'] = freeze(${JSON.stringify(runtimeInventory.inventory)});\nexport const runtimeInventory: ModuleSettingsHostInventory = freeze({current: {composition: ${JSON.stringify(composition)}, lock: ${JSON.stringify(lock)}, descriptors: ${JSON.stringify(currentModuleCandidateKeys(composition,lock,runtimeInventory.inventory))}.map(key => inventory.candidates.find(candidate => candidate.candidateKey === key)!.descriptor)}, inventory});\n`
+      : 'export const runtimeInventory: ModuleSettingsHostInventory | undefined = undefined;\n'}`,
     'operation-validators.mjs': `${banner}${operationPlan.validatorsCode}`,
     'operations.ts': `${banner}import type { RuntimeOperationCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/operations/types.ts')))};\nimport * as compiledValidators from './operation-validators.mjs';\n${operationImports.join('\n')}\nconst freeze = <T>(value: T): T => { if (value && typeof value === 'object') { for (const child of Object.values(value)) freeze(child); Object.freeze(value); } return value; };\nexport const operationCatalog: RuntimeOperationCatalog = freeze(${JSON.stringify(operationPlan.catalog)});\nexport const operationValidators = Object.freeze({${validatorEntries}});\nexport const operationHandlers = Object.freeze({${operationHandlers.map(item => `${JSON.stringify(item.name)}: ${item.handler}`).join(',\n')}});\n`,
     'data-catalog.ts': `${banner}import type { RuntimeDataCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/data/types.ts')))};\nconst freeze = <T>(value: T): T => { if (value && typeof value === 'object') { for (const child of Object.values(value)) freeze(child); Object.freeze(value); } return value; };\nexport const dataCatalog: RuntimeDataCatalog = freeze(${JSON.stringify(dataPlan.runtimeCatalog)});\n`,

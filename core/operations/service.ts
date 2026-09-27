@@ -10,6 +10,8 @@ import type { OperationRegistry } from './registry.ts';
 import { OperationError, OPERATION_LIMITS, type OperationContext, type OperationDataPort, type OperationHandlerResult, type RegisteredOperation } from './types.ts';
 import { createNativeAccessOperationAdapter, validNativeAccessDeclaration } from './native-access.ts';
 import type { SqlStatement } from '../data/authorization.ts';
+import {captureHostInventory} from './host-inventory.ts';
+import type {ModuleSettingsHostInventory} from '../../sdk/module-settings/types.ts';
 
 export interface OperationRequest {
   readonly credential: DataCredential; readonly moduleId: string; readonly operationId: string;
@@ -63,9 +65,11 @@ function errorCode(error: unknown): OperationError['code'] {
 
 /** Internal common executor. API/MCP adapters supply native credentials; a channel never grants rights. */
 export function createOperationEngine(options: { readonly db: IdentityDatabase; readonly catalog: RuntimeDataCatalog;
-  readonly registry: OperationRegistry; readonly permissions: readonly PermissionDefinition[] }) {
+  readonly registry: OperationRegistry; readonly permissions: readonly PermissionDefinition[];
+  readonly runtimeInventory?: ModuleSettingsHostInventory }) {
   const { registry } = options, catalog = copyJson(options.catalog, 4 * 1024 * 1024) as unknown as RuntimeDataCatalog;
   if (catalog.compositionDigest !== registry.compositionDigest) throw new OperationError('invalid_catalog');
+  const hostInventory = captureHostInventory(options.runtimeInventory, registry.compositionDigest);
   const data = createDataAccess(options.db, { catalog, permissions: options.permissions }), store = createOperationStore({ db: options.db, data });
   const nativeAccess = createNativeAccessOperationAdapter(options.db, options.permissions, catalog);
   async function authorize(request: OperationRequest | OperationStatusRequest | OperationLookupRequest, operation: RegisteredOperation): Promise<DataLease> {
@@ -153,7 +157,8 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
         close = () => { active = false; clearTimeout(timer); request.signal?.removeEventListener('abort', onAbort); };
         const identity = data.describeLease(lease), context: OperationContext = Object.freeze({ moduleId: operation.moduleId, operationId: op.id,
           executionId: start.execution.id, contextId: identity.contextId, audience: identity.audience, principalId: identity.principalId,
-          actorPrincipalId: identity.actorPrincipalId, signal: controller.signal, data: operationData });
+          actorPrincipalId: identity.actorPrincipalId, signal: controller.signal, data: operationData,
+          ...(operation.moduleId === 'creezio.modules-settings' && hostInventory ? {hostInventory} : {}) });
         let attemptingCommit = false;
         let nativeStatements: readonly SqlStatement[] | undefined;
         let nativeCompared = false;

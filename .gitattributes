@@ -4,3 +4,14 @@ extensions/native/access/module/models.json text eol=lf
 extensions/native/access/module/manifest.json text eol=lf
 data/schema/access.sql text eol=lf
 data/schema/runtime.sql text eol=lf
+data/schema/modules-settings.sql text eol=lf
+
+# Module archives lock exact bytes across Windows and Linux. Text sources use LF;
+# binary assets retain their original bytes and are not normalized by packaging.
+extensions/**/*.ts text eol=lf
+extensions/**/*.tsx text eol=lf
+extensions/**/*.mjs text eol=lf
+extensions/**/*.json text eol=lf
+extensions/**/*.md text eol=lf
+extensions/**/*.css text eol=lf
+extensions/**/LICENSE text eol=lf

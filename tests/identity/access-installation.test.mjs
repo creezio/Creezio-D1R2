@@ -91,6 +91,17 @@ test('explicit access installation uses real D1, refuses unrelated or inconsiste
       const paths = ['extensions/native/access/module/models.json', 'extensions/native/access/module/manifest.json',
         'data/schema/access.sql', 'configuration/composition.json', 'configuration/composition.lock.json'];
       const baseline = Object.fromEntries(paths.map(path => [path, readFileSync(join(root, path))]));
+      // The fixture tests Access installation on its own valid composition. The
+      // default application may select other modules with additional dependencies.
+      const isolatedComposition = JSON.parse(baseline['configuration/composition.json']);
+      const isolatedLock = JSON.parse(baseline['configuration/composition.lock.json']);
+      isolatedComposition.modules = isolatedComposition.modules.filter(item => item.moduleId === 'creezio.access');
+      for (const audience of ['admin', 'app']) isolatedComposition.exposure[audience].moduleIds =
+        isolatedComposition.exposure[audience].moduleIds.filter(id => id === 'creezio.access');
+      isolatedLock.modules = isolatedLock.modules.filter(item => item.moduleId === 'creezio.access');
+      isolatedLock.compositionIntegrity = integrity(isolatedComposition);
+      baseline['configuration/composition.json'] = Buffer.from(JSON.stringify(isolatedComposition, null, 2) + '\n');
+      baseline['configuration/composition.lock.json'] = Buffer.from(JSON.stringify(isolatedLock, null, 2) + '\n');
       const write = (path, bytes) => { const target = join(fixtureRoot, path); mkdirSync(dirname(target), { recursive: true }); writeFileSync(target, bytes); };
       const json = value => JSON.stringify(value, null, 2) + '\n';
       const reset = () => { for (const path of paths) write(path, baseline[path]); };

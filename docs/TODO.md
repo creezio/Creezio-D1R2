@@ -1,5 +1,5 @@
 # Backlog de réalisation
-Révision 21 — 27 septembre 2026. **Chantier actif : T-10, MCP admin/app et OAuth natif.** Les PR #1 à #18 sont intégrées ; le main `a2f6081f` passe 837 tests locaux et CI (candidat 36293845140, main 36294427239). Matrice des rôles, Comptes et Journal originaux sont raccordés et qualifiés localement, y compris les brouillons lors d'une revalidation des droits. La branche `core/t10-mcp-oauth` poursuit le code commun pendant l'attente des accès Sites et du fournisseur GitHub du registre. Les exigences restent inchangées ; ce fichier reste la liste canonique et les qualifications partielles ne ferment pas les lots complets.
+Révision 22 — 27 septembre 2026. **Chantier actif : T-11, gestion des modules et dépendances.** PR #1 à #19 intégrées ; main `f52a17b9` qualifié avec 866 tests locaux et CI. MCP admin/app et OAuth natif sont raccordés aux opérations communes. Chantier actif : T-11, gestion et dépendances des modules, sur `core/t11-module-lifecycle`. Le code commun continue pendant les attentes Sites/registre. Les exigences restent inchangées ; une preuve locale ne ferme pas la recette hébergée.
 
 ## Avancement lisible
 
@@ -16,9 +16,10 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-07 — Workspace | Composants originaux adaptés, panneaux/états/titres et recette navigateur intégrés PR #16 | Qualification Sites et raccordement des modules produit | Livrable local disponible |
 | T-08 — Registre central | PR #17 intégrée ; Worker Cloudflare, service/client/journal et reprise réelle sans redéploiement | Configuration fournisseur GitHub/email, raccords des publishers et onboarding produit | Fournisseur GitHub en attente d'autorisation ; travaux indépendants poursuivis |
 | T-09 — Sites | Sonde de capacités antérieure conservée | Recette produit publique et accès au Site existant | Bloqué sur l'accès Sites du compte courant ; choix de destination demandé |
-| T-10 — MCP/OAuth | Contrats et moteur d'opérations communs disponibles | Deux catalogues, délégation native, consentement et clients réels | **Implémentation locale en cours** |
+| T-10 — MCP/OAuth | PR #19 : deux catalogues, OAuth natif, PKCE/rotation et clients SDK réels ; 866 tests | Connexion réelle ChatGPT et recette Site public, ressources/widgets T-16 | Fondations locales qualifiées |
+| T-11 — Modules | Contrats T-02 ; candidat avec catalogue, dépendances, plans D1 et UI originale, recettes locales exécutées | Intégration revue/CI, raccords publication et hébergements | **Qualification finale du candidat local** |
 | T-31 — Docker local | PR #17 intégrée ; compte/D1/R2, redémarrage/recréation/restauration vérifiés en Docker | Recettes des futurs modules et routes de fichiers | Livrable local disponible |
-| Autres lots T-11 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, fronts/chat/widgets, publications et recette finale | À réaliser |
+| Autres lots T-12 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, fronts/chat/widgets, publications et recette finale | À réaliser |
 
 ## Règles de suivi
 États autorisés : à faire, en cours, bloqué (raison/prérequis), en revue, vérifié, livré. Enregistrer responsable réel, branche/issue ou tâche locale, PR, SHA, tests/profils et preuves à chaque transition. « Livré » exige version et livraison vérifiée ; fusionner ne suffit pas. Une dépendance fournisseur manquante bloque sa recette, pas toutes les tâches indépendantes.
@@ -56,7 +57,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-08](#T-08) | P1 | Registre minimal et identité de publication | [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | En cours |
 | [T-09](#T-09) | P1 | Première tranche sur Sites | [T-07](#T-07), [T-08](#T-08) | Bloqué — accès Sites |
 | [T-10](#T-10) | P2 | MCP, OAuth et accès machine | [T-06](#T-06), [T-09](#T-09) | En cours — code local |
-| [T-11](#T-11) | P3 | SDK et cycle de vie des modules | [T-02](#T-02), [T-06](#T-06), [T-10](#T-10) | À faire |
+| [T-11](#T-11) | P3 | SDK et cycle de vie des modules | [T-02](#T-02), [T-06](#T-06), [T-10](#T-10) | En cours — code local |
 | [T-12](#T-12) | P3 | Documentation vivante des modules | [T-11](#T-11) | À faire |
 | [T-13](#T-13) | P4 | Fronts, thèmes et headless | [T-07](#T-07), [T-11](#T-11) | À faire |
 | [T-14](#T-14) | P4 | Conversations et progression persistante | [T-06](#T-06), [T-07](#T-07), [T-11](#T-11) | À faire |
@@ -185,19 +186,19 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-10"></a>
 ## T-10 — MCP, OAuth et accès machine
 
-- Lot : **P2** ; état : **en cours — code local** ; responsables : orchestrateur (modèles/raccordements), chat API (transport/catalogues), chat SDK (OAuth D1), chat Workspace (consentement original). Branche `core/t10-mcp-oauth` depuis `a2f6081f`.
+- Lot : **P2** ; état : **en cours — livrable local qualifié**. PR #19 intégrée, main `f52a17b9`, 866/866 local et CI candidat/main. Recettes ChatGPT et Site public restantes ; limites dans IMPLEMENTATION-T10.
 - Dépendances : [T-06](#T-06), [T-09](#T-09).
 - Travail/livrables : Endpoints admin/app, découverte, ressources, OAuth natif et tokens machine ; clients de recette figés. Raccords et limites suivis dans [IMPLEMENTATION-T10](IMPLEMENTATION-T10.md).
 - Besoin : [US-10](USER-STORIES.md#US-10). Acceptation : [REQ-1001](EXIGENCES.md#REQ-1001), [REQ-1002](EXIGENCES.md#REQ-1002), [REQ-1003](EXIGENCES.md#REQ-1003).
 - Validation : implémenter puis exécuter les recettes liées, sur **clients MCP réels et Site public** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : candidat `d691805e`, main `f52a17b9`, arbre `8d8e63d3`, CI 36296748920/36297058152 ; rapports T10 conservés hors sources. Callback SDK réel vérifié ; navigation visuelle vers le callback refusée par l’inspecteur du navigateur de test, non qualifiée.
 
 <a id="T-11"></a>
 ## T-11 — SDK et cycle de vie des modules
 
-- Lot : **P3** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P3** ; état : **en cours — code local** ; root composition/modèles/contrats/recette, API résolveur/archives, SDK service/D1, Workspace interface originale. Branche `core/t11-module-lifecycle` depuis `f52a17b9`.
 - Dépendances : [T-02](#T-02), [T-06](#T-06), [T-10](#T-10).
-- Travail/livrables : SDK versionné, résolveur et verrou transitif, module natif modules-settings, catalogue/configuration/diagnostic « dépend de / utilisé par », plan de changement et gardes communes du cycle de vie. Contributions facultatives et relations persistantes contrôlées selon DEPENDANCES-MODULES.md.
+- Travail/livrables : SDK versionné, résolveur et verrou transitif, module natif modules-settings, catalogue/configuration/diagnostic « dépend de / utilisé par », plan de changement et gardes communes du cycle de vie. Contributions facultatives et relations persistantes contrôlées selon DEPENDANCES-MODULES.md. Suivre [IMPLEMENTATION-T11](IMPLEMENTATION-T11.md) et le [TODO du module](../extensions/native/modules-settings/TODO.md).
 - Besoin : [US-11](USER-STORIES.md#US-11). Acceptation : [REQ-1101](EXIGENCES.md#REQ-1101), [REQ-1102](EXIGENCES.md#REQ-1102), [REQ-1103](EXIGENCES.md#REQ-1103), [REQ-1104](EXIGENCES.md#REQ-1104), [REQ-1105](EXIGENCES.md#REQ-1105), [REQ-1106](EXIGENCES.md#REQ-1106).
 - Validation : implémenter puis exécuter les recettes liées, sur **local et app hôte** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.

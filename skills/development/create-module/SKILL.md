@@ -19,3 +19,5 @@ Livrer le contrat cohérent et ses preuves, avec les parties encore non impléme
 ## Dépendances entre modules
 
 Appliquer le [contrat commun](../../../docs/DEPENDANCES-MODULES.md). Déclarer chaque dépendance requise ou facultative avec origine, plage de versions, ports publics et contributions concernées. Vérifier les consommateurs de tout contrat modifié. Ne pas remplacer un fournisseur absent par une copie de son modèle ou un import privé ; tester le fonctionnement autonome si optional. Le starter et les docs du module exposent les mêmes déclarations.
+
+Pour les opérations, importer le contrat public `sdk/operations/handler.ts` ; conserver SQL, secrets et commit dans l'hôte. Après un changement de fichiers ou de manifeste, examiner le diff puis régénérer le verrou via `npm run modules:lock -- --write` et contrôler `npm run modules:lock`. Ne jamais remplacer une intégrité attendue par zéro ou désactiver sa vérification pour passer un build. Ajouter/activer un module implique une décision explicite d'audiences ; les dépendances résolues n'accordent ni exposition ni permissions. L'acceptation d'un plan reste distincte de la publication effective.

@@ -9,6 +9,7 @@ import {Client,StreamableHTTPClientTransport} from '@modelcontextprotocol/client
 import {loadCompositionSchema} from '../../scripts/data/composition-schema.mjs';
 import {measureRuntimeArtifacts} from '../../scripts/quality/runtime.mjs';
 import {createAccountService,provisionBootstrapCapability} from '../../core/identity/accounts.ts';
+import {createAuthorizationService} from '../../core/authorization/service.ts';
 
 test('built Worker completes native OAuth then real MCP discovery, call and revocation in workerd', {timeout:60000},async()=>{
   const root=fileURLToPath(new URL('../../',import.meta.url)),artifact=measureRuntimeArtifacts(root);
@@ -38,20 +39,29 @@ test('built Worker completes native OAuth then real MCP discovery, call and revo
     const loginIdentifier='mcp-workerd@example.invalid',password='Synthetic MCP workerd qualification';
     assert.equal((await accounts.bootstrap({token:bootstrap.token,loginIdentifier,password,displayName:'MCP test'})).ok,true);
     const signed=await accounts.login({loginIdentifier,password,audience:'admin'});assert.equal(signed.ok,true);
+    const modulePermission='creezio.modules-settings:manage';
+    const authorization=createAuthorizationService(db,{permissions:[{id:modulePermission,audiences:['admin'],actors:['user','delegated-user']}]});
+    const current=await authorization.readPolicy(signed.token);assert.equal(current.ok,true);
+    const policy=structuredClone(current.policy);
+    policy.roles.find(role=>role.id==='administrator').permissionIds.push(modulePermission);
+    const granted=await authorization.replacePolicy(signed.token,{expectedEpoch:current.epoch,policy});assert.equal(granted.ok,true);
+    const scope=`creezio.access:manage ${modulePermission}`;
     const redirectUri='https://client.example.invalid/callback',verifier=randomBytes(32).toString('base64url');
     const dcr=await request('/oauth/register',{method:'POST',headers:{'content-type':'application/json'},
-      body:JSON.stringify({client_name:'Workerd qualification',redirect_uris:[redirectUri],scope:'creezio.access:manage'})});
+      body:JSON.stringify({client_name:'Workerd qualification',redirect_uris:[redirectUri],scope})});
     assert.equal(dcr.status,201);const clientId=(await dcr.json()).client_id;
     const params=new URLSearchParams({client_id:clientId,redirect_uri:redirectUri,resource,response_type:'code',
-      scope:'creezio.access:manage',state:'workerd-state',code_challenge_method:'S256',
+      scope,state:'workerd-state',code_challenge_method:'S256',
       code_challenge:createHash('sha256').update(verifier).digest('base64url')});
     const authorize=await request(`/oauth/authorize?${params}`);assert.equal(authorize.status,303);
     const consent=new URL(authorize.headers.get('location')).pathname;
     const cookie=`creezio-local-admin=${signed.token}`;
     const previewResponse=await request(`${consent}/preview`,{headers:{cookie}});assert.equal(previewResponse.status,200);
-    const preview=await previewResponse.json();assert.deepEqual(preview.permissions.map(p=>p.id),['creezio.access:manage']);
+    const preview=await previewResponse.json();assert.deepEqual(preview.permissions.map(p=>p.id),['creezio.access:manage',modulePermission]);
+    const decision=new URLSearchParams({csrfToken:preview.csrfToken,decision:'approve'});
+    decision.append('permissionIds','creezio.access:manage');decision.append('permissionIds',modulePermission);
     const approved=await request(consent,{method:'POST',headers:{cookie,origin,'content-type':'application/x-www-form-urlencoded'},
-      body:new URLSearchParams({csrfToken:preview.csrfToken,decision:'approve',permissionIds:'creezio.access:manage'}).toString()});
+      body:decision.toString()});
     assert.equal(approved.status,303);const callback=new URL(approved.headers.get('location'));
     assert.equal(callback.searchParams.get('iss'),origin);assert.equal(callback.searchParams.get('state'),'workerd-state');
     const tokenResponse=await request('/oauth/token',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},
@@ -62,12 +72,34 @@ test('built Worker completes native OAuth then real MCP discovery, call and revo
     const wire=new StreamableHTTPClientTransport(new URL(resource),{authProvider:{token:async()=>pair.access_token},
       fetch:send});
     await client.connect(wire);
-    const tools=(await client.listTools()).tools;assert.equal(tools.length,10);
-    assert.ok(tools.every(tool=>tool._meta.securitySchemes[0].scopes.includes('creezio.access:manage')));
+    const tools=(await client.listTools()).tools;assert.equal(tools.length,16);
+    assert.ok(tools.every(tool=>tool._meta.securitySchemes[0].scopes.includes(tool.name.startsWith('modules_')?modulePermission:'creezio.access:manage')));
     const read=await client.callTool({name:'access_policy_read',arguments:{}});assert.equal(read.isError,undefined);
-    assert.equal(read.structuredContent.epoch,1);
+    assert.equal(read.structuredContent.epoch,granted.epoch);
     const api=await request('/api/admin/access/policy',{headers:{authorization:`Bearer ${pair.access_token}`}});
     assert.equal(api.status,200,'same OAuth authority must work in declared HTTP operations');
+    const catalog=await client.callTool({name:'modules_catalog_list',arguments:{limit:50}});
+    assert.equal(catalog.isError,undefined,JSON.stringify(catalog));
+    assert.deepEqual(catalog.structuredContent.items.map(item=>item.moduleId),['creezio.access','creezio.modules-settings']);
+    const base=Object.fromEntries(['revision','compositionDigest','lockDigest','inventoryDigest'].map(key=>[key,catalog.structuredContent[key]]));
+    const invalid=await client.callTool({name:'modules_plans_preview',arguments:{intent:{schemaVersion:1,base,
+      actions:[{kind:'disable',moduleId:'creezio.access'}]}}});
+    assert.equal(invalid.isError,undefined);assert.ok(invalid.structuredContent.diagnostics.length>0,'required Access cannot be removed independently');
+    const intent={schemaVersion:1,base,actions:[{kind:'disable',moduleId:'creezio.modules-settings'}]};
+    const prepared=await client.callTool({name:'modules_plans_preview',arguments:{intent}});
+    assert.equal(prepared.isError,undefined,JSON.stringify(prepared));assert.deepEqual(prepared.structuredContent.diagnostics,[]);
+    const args={requestKey:crypto.randomUUID(),expectedRevision:0,expectedPlanDigest:prepared.structuredContent.planDigest,intent};
+    const accepted=await client.callTool({name:'modules_plans_accept',arguments:args});
+    assert.equal(accepted.isError,undefined,JSON.stringify(accepted));
+    assert.equal(accepted.structuredContent.status,'accepted_pending_publication');
+    const repeated=await client.callTool({name:'modules_plans_accept',arguments:args});
+    assert.equal(repeated.structuredContent.planId,accepted.structuredContent.planId);
+    const currentCatalog=await request('/api/admin/modules?limit=50',{headers:{authorization:`Bearer ${pair.access_token}`}});
+    assert.equal(currentCatalog.status,200);
+    const currentOutput=(await currentCatalog.json()).execution.output;
+    assert.equal(currentOutput.revision,1);
+    assert.equal(currentOutput.items.find(item=>item.moduleId==='creezio.modules-settings').enabled,true,
+      'accepting a plan cannot alter the running Worker before publication');
     const revoke=await request('/oauth/revoke',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},
       body:new URLSearchParams({client_id:clientId,token:pair.access_token}).toString()});assert.equal(revoke.status,200);
     const refused=await request('/mcp/admin',{method:'POST',headers:{authorization:`Bearer ${pair.access_token}`}});

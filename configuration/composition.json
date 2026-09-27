@@ -39,6 +39,18 @@
       "enabled": true,
       "configuration": [],
       "integrations": []
+    },
+    {
+      "moduleId": "creezio.modules-settings",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/native/modules-settings"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
     }
   ],
   "front": {
@@ -47,7 +59,8 @@
   "exposure": {
     "admin": {
       "moduleIds": [
-        "creezio.access"
+        "creezio.access",
+        "creezio.modules-settings"
       ]
     },
     "app": {

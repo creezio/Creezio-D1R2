@@ -1,6 +1,8 @@
 # T-10 — MCP et OAuth natifs
 
-État : développement et qualification locale sur `core/t10-mcp-oauth`, depuis le main `a2f6081f` qualifié (PR #18, 837 tests). Ce document précise la réalisation de [T-10](TODO.md#T-10) sans remplacer ses critères : les clients réels, le Site public et ChatGPT restent des preuves distinctes.
+État : PR #19 intégrée, candidat `d691805e`, main `f52a17b9`, arbre commun `8d8e63d3`. Local et CI candidat/main (36296748920/36297058152) : 866/866, types/build/Workerd et artefact courant. Trois revues indépendantes sans blocage. Ce document précise la réalisation de [T-10](TODO.md#T-10) sans remplacer ses critères : le Site public et ChatGPT restent des preuves distinctes.
+
+La recette navigateur locale confirme connexion native, sélection/refus/consentement, outils administratifs, mutation idempotente et révocation. Le callback OAuth réel est vérifié par le client SDK. Sa navigation visuelle dans le navigateur intégré a été bloquée par l'inspecteur (`ERR_BLOCKED_BY_CLIENT`) ; elle n'est pas revendiquée qualifiée. Le DCR dispose de quotas globaux, qui ne prouvent pas l'équité entre appelants anonymes ; durcissement à traiter avant exposition publique du produit.
 
 ## Surfaces et opérations communes
 

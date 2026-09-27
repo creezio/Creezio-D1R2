@@ -30,6 +30,13 @@ function fixture(t, witness = true) {
   const suffix = witness === true ? '.witness' : '';
   const composition = read(path.join(repository, `configuration/composition${suffix}.json`));
   const lock = read(path.join(repository, `configuration/composition${suffix}.lock.json`));
+  if (witness === 'access') {
+    // This fixture specifically qualifies Access alone, independently of other native modules.
+    composition.modules = composition.modules.filter(item => item.moduleId === 'creezio.access');
+    lock.modules = lock.modules.filter(item => item.moduleId === 'creezio.access');
+    for (const exposure of Object.values(composition.exposure)) exposure.moduleIds = exposure.moduleIds.filter(id => id === 'creezio.access');
+    lock.compositionIntegrity = contractIntegrity(composition);
+  }
   if (witness === false) {
     composition.modules = []; lock.modules = [];
     composition.exposure.admin.moduleIds = []; composition.exposure.app.moduleIds = [];
@@ -48,7 +55,7 @@ function fixture(t, witness = true) {
   return { root, composition, lock, module, save };
 }
 const generated = (root, name) => path.join(root, '.creezio/generated', name);
-const generatedNames = ['server.ts', 'client.tsx', 'composition.json', 'data-catalog.ts', 'operations.ts', 'operation-validators.mjs'];
+const generatedNames = ['server.ts', 'client.tsx', 'composition.json', 'data-catalog.ts', 'module-inventory.ts', 'operations.ts', 'operation-validators.mjs'];
 async function clientRegistry(root) {
   const source = readFileSync(generated(root, 'client.tsx'), 'utf8');
   // This unit qualifies the emitted audience flags; full component imports are

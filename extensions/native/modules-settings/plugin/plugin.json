@@ -1,0 +1,6 @@
+{
+  "name": "creezio-modules-settings",
+  "version": "0.0.0",
+  "description": "Gestion des modules via les opérations et droits administratifs de Creezio.",
+  "mcpServers": {}
+}

@@ -11,7 +11,7 @@ const started = new Date().toISOString();
 const evidencePath = resolve(root, '.quality/latest.json');
 mkdirSync(dirname(evidencePath), { recursive: true });
 const write = value => writeFileSync(evidencePath, JSON.stringify(value, null, 2) + '\n');
-const profile = 't10-native-mcp-oauth';
+const profile = 't11-module-lifecycle';
 write({ schemaVersion: 1, profile, started, state: 'running', success: false, mergeReady: false });
 try {
 const source = sourceIdentity(root);
@@ -27,6 +27,8 @@ function execute(label, args, timeout = 180_000) {
 execute('compose', ['scripts/build/compose-runtime.mjs']);
 execute('data-models', ['scripts/data/prepare-access.mjs']);
 execute('runtime-models', ['scripts/data/prepare-runtime.mjs']);
+execute('module-models', ['scripts/data/prepare-modules-settings.mjs']);
+execute('module-suites', ['extensions/native/modules-settings/gate.mjs']);
 execute('typecheck', ['node_modules/typescript/bin/tsc', '--noEmit']);
 execute('build', ['scripts/run-framework.mjs', 'build']);
 const result = spawnSync(process.execPath, ['--test', '--test-concurrency=1', '--test-reporter=tap', ...tests],

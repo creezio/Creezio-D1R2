@@ -255,7 +255,8 @@ export { LOOKUP_PREFIX as OPERATION_HTTP_LOOKUP_PREFIX };
 /** Single host entry point for the reviewed static catalogs and request-local D1. */
 export function createDeclaredHttpDispatcher(options: {readonly registry: OperationRegistry;
   readonly dataCatalog: RuntimeDataCatalog; readonly permissions: readonly PermissionDefinition[];
-  readonly bindings: readonly OperationHttpBinding[]; readonly workspaceCatalog: WorkspaceAuthorizationCatalog}) {
+  readonly bindings: readonly OperationHttpBinding[]; readonly workspaceCatalog: WorkspaceAuthorizationCatalog;
+  readonly runtimeInventory?: Parameters<typeof createOperationEngine>[0]['runtimeInventory']}) {
   return Object.freeze({async dispatch(request: Request, environment: RuntimeEnvironment, rawEnvironment: unknown,
     requestId: string): Promise<Response | null> {
     const path = new URL(request.url).pathname;
@@ -265,7 +266,7 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
     if (!path.startsWith(STATUS_PREFIX) && !path.startsWith(LOOKUP_PREFIX)
       && !options.bindings.some(binding => match(path, binding.path))) return null;
     const engine = createOperationEngine({db: environment.bindings.DB, registry: options.registry,
-      catalog: options.dataCatalog, permissions: options.permissions});
+      catalog: options.dataCatalog, permissions: options.permissions, runtimeInventory: options.runtimeInventory});
     return createOperationHttpTransport(options.bindings, engine).dispatch(request, environment, rawEnvironment, requestId);
   }});
 }

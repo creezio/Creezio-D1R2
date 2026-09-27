@@ -35,7 +35,13 @@ function planFor(models, { enabled = true, removed = false, access = false } = {
   const selection = { ...structuredClone(composition.modules[0]), moduleId: module.identity.id, enabled };
   const pinned = { ...structuredClone(lock.modules[0]), moduleId: module.identity.id, contractIntegrity: contractIntegrity(module) };
   const descriptors = access ? [original] : [];
-  if (!access) { composition.modules = []; lock.modules = []; composition.exposure.admin.moduleIds = []; composition.exposure.app.moduleIds = []; }
+  // Keep only the Access fixture when requested; the production composition also contains modules-settings.
+  composition.modules = access ? composition.modules.filter(item => item.moduleId === 'creezio.access') : [];
+  lock.modules = access ? lock.modules.filter(item => item.moduleId === 'creezio.access') : [];
+  composition.exposure.admin.moduleIds = access
+    ? composition.exposure.admin.moduleIds.filter(id => id === 'creezio.access') : [];
+  composition.exposure.app.moduleIds = access
+    ? composition.exposure.app.moduleIds.filter(id => id === 'creezio.access') : [];
   if (!removed) {
     composition.modules.push(selection); lock.modules.push(pinned); descriptors.push(module);
     if (enabled) { composition.exposure.admin.moduleIds.push(module.identity.id); composition.exposure.app.moduleIds.push(module.identity.id); }

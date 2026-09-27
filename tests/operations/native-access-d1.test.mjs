@@ -23,6 +23,12 @@ const moduleId = 'creezio.access';
 const manifest = json('../../extensions/native/access/module/manifest.json');
 const composition = json('../../configuration/composition.json');
 const lock = json('../../configuration/composition.lock.json');
+// This test qualifies the native Access adapter in isolation. Project the current
+// application onto Access while retaining its exact descriptor and lock node.
+composition.modules = composition.modules.filter(item => item.moduleId === moduleId);
+for (const audience of ['admin','app']) composition.exposure[audience].moduleIds =
+  composition.exposure[audience].moduleIds.filter(id => id === moduleId);
+lock.modules = lock.modules.filter(item => item.moduleId === moduleId);
 lock.modules[0].contractIntegrity = contractIntegrity(manifest);
 lock.compositionIntegrity = contractIntegrity(composition);
 const input = {composition,lock,modules:[manifest]};

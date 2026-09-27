@@ -1,5 +1,9 @@
 # Changelog
 
+## 27 septembre 2026 — T11 en construction
+
+Le module natif Modules et extensions reprend liste et fiche du Product Hub Creezio. Inventaire vérifié au build, résolution commune, choix explicites, plans acceptés via T06 et état effectif lié à la publication. Les données sont conservées au retrait/désactivation. Les qualifications en cours et limites sont suivies dans docs/TODO.md.
+
 ## Non publié
 
 - T-10 en cours : transport MCP officiel séparant admin/app, OAuth natif relié aux comptes existants, consentement original adapté, six modèles privés, plafonds de permissions et gardes fraîches dans les opérations communes. Clients SDK réels et D1 en qualification ; aucune connexion ChatGPT ou Site produit revendiquée par ces seules recettes locales.

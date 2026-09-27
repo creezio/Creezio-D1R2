@@ -1,5 +1,6 @@
 import semver from 'semver';
-import { createHash } from 'node:crypto';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import { walk, walkContracts, safePackagePath, contractIndex, collectReferences, refKey, isContractRef } from './references.mjs';
 
 const authActors = { session:'user', 'api-token':'machine', oauth:'delegated-user', impersonation:'impersonated-user', anonymous:'anonymous', 'webhook-signature':'signed-webhook' };
@@ -10,7 +11,7 @@ export function canonicalJson(value) {
   if (value && typeof value === 'object') return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
   return JSON.stringify(value);
 }
-export const contractIntegrity = value => `sha256-${createHash('sha256').update(canonicalJson(value)).digest('hex')}`;
+export const contractIntegrity = value => `sha256-${bytesToHex(sha256(new TextEncoder().encode(canonicalJson(value))))}`;
 const routeKey = route => route.replace(/\{[^}]+\}/g, '{}').replace(/\/$/, '') || '/';
 
 function unique(items, path, report, key = item => typeof item === 'object' ? item.id : item) {

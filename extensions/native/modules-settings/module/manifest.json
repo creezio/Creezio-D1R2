@@ -1,0 +1,3349 @@
+{
+  "schemaVersion": "1.0.0",
+  "identity": {
+    "id": "creezio.modules-settings",
+    "title": "Modules et extensions",
+    "publisher": "creezio",
+    "origin": "https://github.com/creezio/Creezio-D1R2",
+    "version": "0.0.0",
+    "source": {
+      "kind": "snapshot",
+      "revision": "t11-module-models-v1",
+      "integrity": "sha256-e3d72387fba5999eb4582bbfe0ba0657fc10285108d312f057587c8fa1c3b57f"
+    },
+    "license": {
+      "expression": "NOASSERTION",
+      "file": "LICENSE"
+    }
+  },
+  "compatibility": {
+    "core": "^0.0.0",
+    "sdk": "^1.0.0",
+    "requiredCapabilities": [
+      "runtime.worker",
+      "data.d1.shared"
+    ],
+    "optionalCapabilities": []
+  },
+  "entrypoints": {
+    "server": {
+      "path": "module/entry.server.ts",
+      "export": "modulesSettings"
+    },
+    "ui": {
+      "path": "ui/index.tsx",
+      "export": "ModulesListView"
+    },
+    "plugin": {
+      "manifest": "plugin/plugin.json",
+      "mcp": "plugin/mcp.json",
+      "contributions": {
+        "path": "plugin/contributions.ts",
+        "export": "contributions"
+      }
+    }
+  },
+  "dependencies": [
+    {
+      "moduleId": "creezio.access",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "optional": false,
+      "contracts": [],
+      "whenAbsent": "block",
+      "whenIncompatible": "block",
+      "autoInstall": false
+    }
+  ],
+  "contracts": {
+    "schemas": [
+      {
+        "id": "catalog-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "afterId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "catalog-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "moduleId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 4096
+                  },
+                  "origin": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048,
+                    "format": "uri"
+                  },
+                  "version": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "candidateKey": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "codePresent": {
+                    "type": "boolean"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "configuration": {
+                    "type": "string",
+                    "enum": [
+                      "ready",
+                      "missing",
+                      "unknown"
+                    ]
+                  },
+                  "operational": {
+                    "type": "string",
+                    "enum": [
+                      "ready",
+                      "unavailable",
+                      "unknown"
+                    ]
+                  },
+                  "visibility": {
+                    "type": "string",
+                    "enum": [
+                      "current",
+                      "available"
+                    ]
+                  }
+                },
+                "required": [
+                  "moduleId",
+                  "title",
+                  "description",
+                  "origin",
+                  "version",
+                  "candidateKey",
+                  "codePresent",
+                  "enabled",
+                  "configuration",
+                  "operational",
+                  "visibility"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 50
+            },
+            "nextAfterId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "compositionDigest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 71,
+              "pattern": "^sha256-[a-f0-9]{64}$"
+            },
+            "lockDigest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 71,
+              "pattern": "^sha256-[a-f0-9]{64}$"
+            },
+            "inventoryDigest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 71,
+              "pattern": "^sha256-[a-f0-9]{64}$"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "items",
+            "nextAfterId",
+            "compositionDigest",
+            "lockDigest",
+            "inventoryDigest",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "catalog-detail-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "moduleId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "moduleId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "catalog-detail-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "module": {
+              "type": "object",
+              "properties": {
+                "moduleId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                "description": {
+                  "type": "string",
+                  "maxLength": 4096
+                },
+                "origin": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048,
+                  "format": "uri"
+                },
+                "version": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "candidateKey": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "codePresent": {
+                  "type": "boolean"
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "configuration": {
+                  "type": "string",
+                  "enum": [
+                    "ready",
+                    "missing",
+                    "unknown"
+                  ]
+                },
+                "operational": {
+                  "type": "string",
+                  "enum": [
+                    "ready",
+                    "unavailable",
+                    "unknown"
+                  ]
+                },
+                "visibility": {
+                  "type": "string",
+                  "enum": [
+                    "current",
+                    "available"
+                  ]
+                }
+              },
+              "required": [
+                "moduleId",
+                "title",
+                "description",
+                "origin",
+                "version",
+                "candidateKey",
+                "codePresent",
+                "enabled",
+                "configuration",
+                "operational",
+                "visibility"
+              ],
+              "additionalProperties": false
+            },
+            "dependsOn": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "moduleId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "versionRange": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "via": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "maxItems": 256
+                  }
+                },
+                "required": [
+                  "moduleId",
+                  "required",
+                  "active",
+                  "versionRange",
+                  "via"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 256
+            },
+            "usedBy": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "moduleId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "versionRange": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "via": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "maxItems": 256
+                  }
+                },
+                "required": [
+                  "moduleId",
+                  "required",
+                  "active",
+                  "versionRange",
+                  "via"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 256
+            },
+            "optionalIntegrations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "moduleId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "versionRange": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "via": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "maxItems": 256
+                  }
+                },
+                "required": [
+                  "moduleId",
+                  "required",
+                  "active",
+                  "versionRange",
+                  "via"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 256
+            },
+            "diagnostics": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "error",
+                      "warning",
+                      "info"
+                    ]
+                  },
+                  "moduleId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "message": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  }
+                },
+                "required": [
+                  "code",
+                  "severity",
+                  "moduleId",
+                  "message"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 128
+            }
+          },
+          "required": [
+            "module",
+            "dependsOn",
+            "usedBy",
+            "optionalIntegrations",
+            "diagnostics"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "plans-preview-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "intent": {
+              "type": "object",
+              "properties": {
+                "schemaVersion": {
+                  "const": 1
+                },
+                "base": {
+                  "type": "object",
+                  "properties": {
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "compositionDigest": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 71,
+                      "pattern": "^sha256-[a-f0-9]{64}$"
+                    },
+                    "lockDigest": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 71,
+                      "pattern": "^sha256-[a-f0-9]{64}$"
+                    },
+                    "inventoryDigest": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 71,
+                      "pattern": "^sha256-[a-f0-9]{64}$"
+                    }
+                  },
+                  "required": [
+                    "revision",
+                    "compositionDigest",
+                    "lockDigest",
+                    "inventoryDigest"
+                  ],
+                  "additionalProperties": false
+                },
+                "actions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "add",
+                          "update",
+                          "enable",
+                          "disable",
+                          "remove",
+                          "configure",
+                          "integration"
+                        ]
+                      },
+                      "moduleId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "candidateKey": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "dependencyId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "settingId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "valueRef": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "audiences": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "admin",
+                            "app"
+                          ]
+                        },
+                        "maxItems": 2,
+                        "uniqueItems": true
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "moduleId"
+                    ],
+                    "additionalProperties": false,
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "kind": {
+                              "enum": [
+                                "add",
+                                "enable"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ]
+                        },
+                        "then": {
+                          "properties": {
+                            "audiences": {}
+                          },
+                          "required": [
+                            "audiences"
+                          ]
+                        },
+                        "else": {
+                          "properties": {
+                            "audiences": false
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "maxItems": 32
+                }
+              },
+              "required": [
+                "schemaVersion",
+                "base",
+                "actions"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "intent"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "plans-preview-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "planDigest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 71,
+              "pattern": "^sha256-[a-f0-9]{64}$"
+            },
+            "baseRevision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "baseCompositionDigest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 71,
+              "pattern": "^sha256-[a-f0-9]{64}$"
+            },
+            "targetCompositionDigest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 71,
+              "pattern": "^sha256-[a-f0-9]{64}$"
+            },
+            "targetLockDigest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 71,
+              "pattern": "^sha256-[a-f0-9]{64}$"
+            },
+            "actions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "add",
+                      "update",
+                      "enable",
+                      "disable",
+                      "remove",
+                      "configure",
+                      "integration"
+                    ]
+                  },
+                  "moduleId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "fromVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "toVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "requiresPublication": {
+                    "type": "boolean"
+                  },
+                  "audiences": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "admin",
+                        "app"
+                      ]
+                    },
+                    "maxItems": 2,
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "kind",
+                  "moduleId",
+                  "fromVersion",
+                  "toVersion",
+                  "requiresPublication"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 256
+            },
+            "diagnostics": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "error",
+                      "warning",
+                      "info"
+                    ]
+                  },
+                  "moduleId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "message": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  }
+                },
+                "required": [
+                  "code",
+                  "severity",
+                  "moduleId",
+                  "message"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 128
+            },
+            "disabledContributionCount": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "requiresPublication": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "planDigest",
+            "baseRevision",
+            "baseCompositionDigest",
+            "targetCompositionDigest",
+            "targetLockDigest",
+            "actions",
+            "diagnostics",
+            "disabledContributionCount",
+            "requiresPublication"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "plans-accept-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36,
+              "format": "uuid"
+            },
+            "expectedRevision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "expectedPlanDigest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 71,
+              "pattern": "^sha256-[a-f0-9]{64}$"
+            },
+            "intent": {
+              "type": "object",
+              "properties": {
+                "schemaVersion": {
+                  "const": 1
+                },
+                "base": {
+                  "type": "object",
+                  "properties": {
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "compositionDigest": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 71,
+                      "pattern": "^sha256-[a-f0-9]{64}$"
+                    },
+                    "lockDigest": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 71,
+                      "pattern": "^sha256-[a-f0-9]{64}$"
+                    },
+                    "inventoryDigest": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 71,
+                      "pattern": "^sha256-[a-f0-9]{64}$"
+                    }
+                  },
+                  "required": [
+                    "revision",
+                    "compositionDigest",
+                    "lockDigest",
+                    "inventoryDigest"
+                  ],
+                  "additionalProperties": false
+                },
+                "actions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "add",
+                          "update",
+                          "enable",
+                          "disable",
+                          "remove",
+                          "configure",
+                          "integration"
+                        ]
+                      },
+                      "moduleId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "candidateKey": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "dependencyId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "settingId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "valueRef": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "audiences": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "admin",
+                            "app"
+                          ]
+                        },
+                        "maxItems": 2,
+                        "uniqueItems": true
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "moduleId"
+                    ],
+                    "additionalProperties": false,
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "kind": {
+                              "enum": [
+                                "add",
+                                "enable"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ]
+                        },
+                        "then": {
+                          "properties": {
+                            "audiences": {}
+                          },
+                          "required": [
+                            "audiences"
+                          ]
+                        },
+                        "else": {
+                          "properties": {
+                            "audiences": false
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "maxItems": 32
+                }
+              },
+              "required": [
+                "schemaVersion",
+                "base",
+                "actions"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestKey",
+            "expectedRevision",
+            "expectedPlanDigest",
+            "intent"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "plans-accept-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "planId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "status": {
+              "const": "accepted_pending_publication"
+            },
+            "planDigest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 71,
+              "pattern": "^sha256-[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "planId",
+            "revision",
+            "status",
+            "planDigest"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "plans-read-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "planId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "planId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "plans-read-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "plan": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "planDigest": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 71,
+                  "pattern": "^sha256-[a-f0-9]{64}$"
+                },
+                "inventoryDigest": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 71,
+                  "pattern": "^sha256-[a-f0-9]{64}$"
+                },
+                "baseCompositionDigest": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 71,
+                  "pattern": "^sha256-[a-f0-9]{64}$"
+                },
+                "baseLockDigest": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 71,
+                  "pattern": "^sha256-[a-f0-9]{64}$"
+                },
+                "targetCompositionDigest": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 71,
+                  "pattern": "^sha256-[a-f0-9]{64}$"
+                },
+                "targetLockDigest": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 71,
+                  "pattern": "^sha256-[a-f0-9]{64}$"
+                },
+                "summary": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ready",
+                        "blocked"
+                      ]
+                    },
+                    "changes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "moduleId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          },
+                          "action": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          }
+                        },
+                        "required": [
+                          "moduleId",
+                          "action"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "maxItems": 256
+                    },
+                    "dependencyOrder": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "maxItems": 256
+                    },
+                    "disabledContributionCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "diagnosticCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "detailsPaged": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "changes",
+                    "dependencyOrder",
+                    "disabledContributionCount",
+                    "diagnosticCount",
+                    "detailsPaged"
+                  ],
+                  "additionalProperties": false
+                },
+                "acceptedByPrincipalId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "acceptedAtMs": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "requiresPublication": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "revision",
+                "planDigest",
+                "inventoryDigest",
+                "baseCompositionDigest",
+                "baseLockDigest",
+                "targetCompositionDigest",
+                "targetLockDigest",
+                "summary",
+                "acceptedByPrincipalId",
+                "acceptedAtMs",
+                "requiresPublication"
+              ],
+              "additionalProperties": false
+            },
+            "events": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "planId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "planDigest": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 71,
+                    "pattern": "^sha256-[a-f0-9]{64}$"
+                  },
+                  "actorPrincipalId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "baseCompositionDigest": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 71,
+                    "pattern": "^sha256-[a-f0-9]{64}$"
+                  },
+                  "targetCompositionDigest": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 71,
+                    "pattern": "^sha256-[a-f0-9]{64}$"
+                  },
+                  "occurredAtMs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "eventKind": {
+                    "const": "plan-accepted"
+                  }
+                },
+                "required": [
+                  "revision",
+                  "planId",
+                  "planDigest",
+                  "actorPrincipalId",
+                  "baseCompositionDigest",
+                  "targetCompositionDigest",
+                  "occurredAtMs",
+                  "eventKind"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 50
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "accepted_pending_publication",
+                "effective"
+              ]
+            }
+          },
+          "required": [
+            "plan",
+            "events",
+            "status"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "journal-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "afterRevision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "journal-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "planId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "planDigest": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 71,
+                    "pattern": "^sha256-[a-f0-9]{64}$"
+                  },
+                  "actorPrincipalId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "baseCompositionDigest": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 71,
+                    "pattern": "^sha256-[a-f0-9]{64}$"
+                  },
+                  "targetCompositionDigest": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 71,
+                    "pattern": "^sha256-[a-f0-9]{64}$"
+                  },
+                  "occurredAtMs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "eventKind": {
+                    "const": "plan-accepted"
+                  }
+                },
+                "required": [
+                  "revision",
+                  "planId",
+                  "planDigest",
+                  "actorPrincipalId",
+                  "baseCompositionDigest",
+                  "targetCompositionDigest",
+                  "occurredAtMs",
+                  "eventKind"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 50
+            },
+            "nextAfterRevision": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextAfterRevision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "list-view-input",
+        "schema": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "detail-view-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "moduleId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "moduleId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "panel-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "pendingRequestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36,
+              "format": "uuid"
+            },
+            "pendingOwner": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "head",
+        "title": "Révision des changements de modules",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 11,
+              "enum": [
+                "application"
+              ]
+            }
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "accepted_plan_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "accepted_plan_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "target_composition_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "target_lock_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "accepted_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "id"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
+      },
+      {
+        "id": "plans",
+        "title": "Plans acceptés de modules",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "plan_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "inventory_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "base_composition_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "base_lock_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "target_composition_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "target_lock_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "choices_json",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 8192
+            }
+          },
+          {
+            "id": "summary_json",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 8192
+            }
+          },
+          {
+            "id": "summary_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "accepted_by_principal_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "accepted_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "requires_publication",
+            "type": "boolean",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "id"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
+      },
+      {
+        "id": "journal",
+        "title": "Journal des décisions de modules",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "plan_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "plan_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "actor_principal_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "base_composition_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "target_composition_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "occurred_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "event_kind",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 32,
+              "enum": [
+                "plan-accepted"
+              ]
+            }
+          }
+        ],
+        "primaryKey": [
+          "revision"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
+      }
+    ],
+    "files": [],
+    "events": [],
+    "settings": [],
+    "search": [],
+    "permissions": [
+      {
+        "id": "manage",
+        "title": "Administrer les modules et extensions",
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "scopes": [
+          "modules.manage"
+        ],
+        "context": "application",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "model",
+            "id": "head"
+          },
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "model",
+            "id": "plans"
+          },
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "model",
+            "id": "journal"
+          }
+        ],
+        "actions": [
+          "read",
+          "create",
+          "update",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      }
+    ],
+    "operations": [
+      {
+        "id": "catalog.list",
+        "title": "Catalogue des modules",
+        "kind": "query",
+        "input": {
+          "schemaId": "catalog-list-input"
+        },
+        "output": {
+          "schemaId": "catalog-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "application",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "catalogList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "head"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "plans"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "journal"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "afterId",
+          "limitField": "limit",
+          "maxItems": 50
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 30000,
+          "maxItems": 1000,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "requestKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "catalog.detail",
+        "title": "Détail du module",
+        "kind": "query",
+        "input": {
+          "schemaId": "catalog-detail-input"
+        },
+        "output": {
+          "schemaId": "catalog-detail-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "application",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "catalogDetail"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "head"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "plans"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "journal"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 30000,
+          "maxItems": 1000,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "requestKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "plans.preview",
+        "title": "Préparer un changement de modules",
+        "kind": "query",
+        "input": {
+          "schemaId": "plans-preview-input"
+        },
+        "output": {
+          "schemaId": "plans-preview-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "application",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "plansPreview"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "head"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "plans"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "journal"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 30000,
+          "maxItems": 1000,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "requestKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "plans.accept",
+        "title": "Accepter un plan de modules",
+        "kind": "command",
+        "input": {
+          "schemaId": "plans-accept-input"
+        },
+        "output": {
+          "schemaId": "plans-accept-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "application",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "plansAccept"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "head"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "plans"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "journal"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "head"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "plans"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "journal"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 30000,
+          "maxItems": 1000,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "requestKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "plans.read",
+        "title": "Relire un plan accepté",
+        "kind": "query",
+        "input": {
+          "schemaId": "plans-read-input"
+        },
+        "output": {
+          "schemaId": "plans-read-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "application",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "plansRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "head"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "plans"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "journal"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 30000,
+          "maxItems": 1000,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "requestKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "journal.list",
+        "title": "Journal des changements de modules",
+        "kind": "query",
+        "input": {
+          "schemaId": "journal-list-input"
+        },
+        "output": {
+          "schemaId": "journal-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "application",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "journalList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "head"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "plans"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "journal"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "afterRevision",
+          "limitField": "limit",
+          "maxItems": 50
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 30000,
+          "maxItems": 1000,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "requestKey"
+          ]
+        },
+        "public": false
+      }
+    ],
+    "api": [
+      {
+        "id": "catalog.list",
+        "method": "GET",
+        "path": "/api/admin/modules",
+        "operation": {
+          "moduleId": "creezio.modules-settings",
+          "kind": "operation",
+          "id": "catalog.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "after_id",
+            "in": "query",
+            "inputField": "afterId",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "catalog-list-input"
+        },
+        "output": {
+          "schemaId": "catalog-list-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "catalog.detail",
+        "method": "GET",
+        "path": "/api/admin/modules/{module_id}",
+        "operation": {
+          "moduleId": "creezio.modules-settings",
+          "kind": "operation",
+          "id": "catalog.detail"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "module_id",
+            "in": "path",
+            "inputField": "moduleId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "catalog-detail-input"
+        },
+        "output": {
+          "schemaId": "catalog-detail-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "plans.preview",
+        "method": "POST",
+        "path": "/api/admin/module-plans/preview",
+        "operation": {
+          "moduleId": "creezio.modules-settings",
+          "kind": "operation",
+          "id": "plans.preview"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "plans-preview-input"
+        },
+        "output": {
+          "schemaId": "plans-preview-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "plans.accept",
+        "method": "POST",
+        "path": "/api/admin/module-plans",
+        "operation": {
+          "moduleId": "creezio.modules-settings",
+          "kind": "operation",
+          "id": "plans.accept"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "plans-accept-input"
+        },
+        "output": {
+          "schemaId": "plans-accept-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "plans.read",
+        "method": "GET",
+        "path": "/api/admin/module-plans/{plan_id}",
+        "operation": {
+          "moduleId": "creezio.modules-settings",
+          "kind": "operation",
+          "id": "plans.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "plan_id",
+            "in": "path",
+            "inputField": "planId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "plans-read-input"
+        },
+        "output": {
+          "schemaId": "plans-read-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "journal.list",
+        "method": "GET",
+        "path": "/api/admin/module-journal",
+        "operation": {
+          "moduleId": "creezio.modules-settings",
+          "kind": "operation",
+          "id": "journal.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "after_revision",
+            "in": "query",
+            "inputField": "afterRevision",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "journal-list-input"
+        },
+        "output": {
+          "schemaId": "journal-list-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      }
+    ],
+    "mcp": {
+      "tools": [
+        {
+          "id": "catalog.list",
+          "name": "modules_catalog_list",
+          "operation": {
+            "moduleId": "creezio.modules-settings",
+            "kind": "operation",
+            "id": "catalog.list"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "catalog-list-input"
+          },
+          "output": {
+            "schemaId": "catalog-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "catalog.detail",
+          "name": "modules_catalog_detail",
+          "operation": {
+            "moduleId": "creezio.modules-settings",
+            "kind": "operation",
+            "id": "catalog.detail"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "catalog-detail-input"
+          },
+          "output": {
+            "schemaId": "catalog-detail-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "plans.preview",
+          "name": "modules_plans_preview",
+          "operation": {
+            "moduleId": "creezio.modules-settings",
+            "kind": "operation",
+            "id": "plans.preview"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "plans-preview-input"
+          },
+          "output": {
+            "schemaId": "plans-preview-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "plans.accept",
+          "name": "modules_plans_accept",
+          "operation": {
+            "moduleId": "creezio.modules-settings",
+            "kind": "operation",
+            "id": "plans.accept"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "plans-accept-input"
+          },
+          "output": {
+            "schemaId": "plans-accept-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "plans.read",
+          "name": "modules_plans_read",
+          "operation": {
+            "moduleId": "creezio.modules-settings",
+            "kind": "operation",
+            "id": "plans.read"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "plans-read-input"
+          },
+          "output": {
+            "schemaId": "plans-read-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "journal.list",
+          "name": "modules_journal_list",
+          "operation": {
+            "moduleId": "creezio.modules-settings",
+            "kind": "operation",
+            "id": "journal.list"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "journal-list-input"
+          },
+          "output": {
+            "schemaId": "journal-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        }
+      ],
+      "resources": [],
+      "prompts": [],
+      "skills": []
+    },
+    "ui": {
+      "views": [
+        {
+          "id": "list",
+          "title": "Modules et extensions",
+          "surfaces": [
+            "workspace"
+          ],
+          "route": "/admin/modules",
+          "component": {
+            "path": "ui/index.tsx",
+            "export": "ModulesListView"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "permission",
+              "id": "manage"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "catalog.list"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "catalog.detail"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "plans.preview"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "plans.accept"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "plans.read"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "journal.list"
+            }
+          ],
+          "input": {
+            "schemaId": "list-view-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend",
+            "stateSchema": {
+              "schemaId": "panel-state"
+            }
+          }
+        },
+        {
+          "id": "detail",
+          "title": "Module",
+          "surfaces": [
+            "workspace"
+          ],
+          "route": "/admin/modules/{moduleId}",
+          "component": {
+            "path": "ui/index.tsx",
+            "export": "ModuleDetailView"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "permission",
+              "id": "manage"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "catalog.list"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "catalog.detail"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "plans.preview"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "plans.accept"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "plans.read"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "journal.list"
+            }
+          ],
+          "input": {
+            "schemaId": "detail-view-input"
+          },
+          "panel": {
+            "identityFields": [
+              "moduleId"
+            ],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend",
+            "stateSchema": {
+              "schemaId": "panel-state"
+            }
+          }
+        }
+      ],
+      "navigation": [
+        {
+          "id": "modules",
+          "title": "Modules et extensions",
+          "view": {
+            "moduleId": "creezio.modules-settings",
+            "kind": "view",
+            "id": "list"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "permission",
+              "id": "manage"
+            }
+          ],
+          "surfaces": [
+            "workspace"
+          ],
+          "order": 40
+        }
+      ],
+      "slots": [],
+      "front": {
+        "mode": "absent",
+        "justification": {
+          "reason": "Application module administration is restricted to the administrator workspace.",
+          "policyRule": "modules-settings.no-public-front"
+        }
+      },
+      "styles": []
+    },
+    "widgets": [],
+    "publicContracts": []
+  },
+  "documentation": {
+    "installed": {
+      "readme": {
+        "path": "README.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "prd": {
+        "path": "prd.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "changelog": {
+        "path": "CHANGELOG.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      }
+    },
+    "development": {
+      "agents": {
+        "path": "AGENTS.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "files": {
+        "path": "FILES.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "interview": {
+        "path": "interview.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "todo": {
+        "path": "TODO.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      }
+    },
+    "versionBinding": {
+      "moduleVersion": "0.0.0",
+      "sourceRevision": "t11-module-models-v1"
+    },
+    "localRevisions": {
+      "installedVersionDistinct": true,
+      "approvedImmutable": true
+    },
+    "installationHistory": {
+      "distinctFromPackageChangelog": true
+    }
+  },
+  "validation": {
+    "gate": "gate.mjs",
+    "suites": {
+      "backend": {
+        "mode": "required",
+        "script": "ci/backend.mjs",
+        "tests": [
+          "tests/backend/contract.test.mjs"
+        ]
+      },
+      "ui": {
+        "mode": "required",
+        "script": "ci/ui.mjs",
+        "tests": [
+          "tests/ui/contract.test.mjs"
+        ]
+      },
+      "api-mcp": {
+        "mode": "required",
+        "script": "ci/api-mcp.mjs",
+        "tests": [
+          "tests/api-mcp/contract.test.mjs"
+        ]
+      },
+      "widgets": {
+        "mode": "not-applicable",
+        "script": "ci/widgets.mjs",
+        "tests": [
+          "tests/widgets/contract.test.mjs"
+        ],
+        "justification": {
+          "reason": "This module exposes administrative tools, without a conversational widget.",
+          "policyRule": "modules-settings.no-widgets"
+        }
+      },
+      "package": {
+        "mode": "required",
+        "script": "ci/package.mjs",
+        "tests": [
+          "tests/package/contract.test.mjs"
+        ]
+      },
+      "docs": {
+        "mode": "required",
+        "script": "ci/docs.mjs",
+        "tests": [
+          "tests/docs/contract.test.mjs"
+        ]
+      }
+    },
+    "policy": {
+      "id": "creezio.local-contracts",
+      "version": "1.0.0",
+      "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
+    },
+    "isolation": {
+      "productionSecrets": false,
+      "publicationRights": false
+    },
+    "evidence": {
+      "sourceIntegrity": true,
+      "artifactIntegrity": true,
+      "profile": true,
+      "executedSuites": true
+    }
+  },
+  "packaging": {
+    "runtime": {
+      "files": [
+        "module/manifest.json",
+        "module/models.json",
+        "module/entry.server.ts",
+        "module/operations.ts",
+        "module/service.ts",
+        "ui/index.tsx",
+        "ui/presentation.tsx",
+        "ui/persistence.ts",
+        "README.md",
+        "prd.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "plugin/plugin.json",
+        "plugin/mcp.json",
+        "plugin/contributions.ts"
+      ],
+      "references": []
+    },
+    "validation": {
+      "files": [
+        "AGENTS.md",
+        "FILES.md",
+        "interview.md",
+        "TODO.md",
+        "gate.mjs",
+        "ci/run-suite.mjs",
+        "tests/helpers.mjs",
+        "ci/backend.mjs",
+        "tests/backend/contract.test.mjs",
+        "ci/ui.mjs",
+        "tests/ui/contract.test.mjs",
+        "ci/api-mcp.mjs",
+        "tests/api-mcp/contract.test.mjs",
+        "ci/widgets.mjs",
+        "tests/widgets/contract.test.mjs",
+        "ci/package.mjs",
+        "tests/package/contract.test.mjs",
+        "ci/docs.mjs",
+        "tests/docs/contract.test.mjs"
+      ],
+      "references": []
+    },
+    "validationBinding": {
+      "moduleId": "creezio.modules-settings",
+      "moduleVersion": "0.0.0",
+      "sourceRevision": "t11-module-models-v1"
+    },
+    "noRuntimeTests": true,
+    "installation": "build-and-publish",
+    "providerInstallation": false
+  },
+  "lifecycle": {
+    "deactivation": "preserve-data",
+    "configuration": "explicit-state",
+    "uninstall": "explicit-approved-action",
+    "activationRequirements": [],
+    "absent": {
+      "files": {
+        "reason": "Module lifecycle stores declarative plans and no user-owned binary files.",
+        "policyRule": "modules-settings.no-files"
+      },
+      "widgets": {
+        "reason": "No conversational widget is declared in this module.",
+        "policyRule": "modules-settings.no-widgets"
+      }
+    },
+    "dependencyChanges": {
+      "install": "resolve-explicit-consumer-selection",
+      "activate": "require-active-dependencies",
+      "update": "validate-dependent-contracts",
+      "deactivate": "block-or-explicit-dependent-plan",
+      "uninstall": "block-or-explicit-dependent-plan",
+      "data": "preserve"
+    }
+  }
+}
