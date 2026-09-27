@@ -16,21 +16,23 @@ const id = (value: unknown): value is string => typeof value === 'string' && val
 const digest = (value: unknown): value is string => typeof value === 'string' && /^sha256-[a-f0-9]{64}$/.test(value);
 const integer = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) >= 0;
 const text = (value: unknown, max = 2048): value is string => typeof value === 'string'
-  && value.length <= max && value.isWellFormed();
+  && value.length <= max * 2 && value.isWellFormed() && [...value].length <= max;
 const row = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object'
   && !Array.isArray(value) && [Object.prototype, null].includes(Object.getPrototypeOf(value));
 const array = (value: unknown, max: number): value is unknown[] => Array.isArray(value) && value.length <= max;
 const nonempty = (value: unknown): value is string => text(value) && value.length > 0;
+const catalogTitle = (value: unknown): value is string => text(value, 4000) && value.length > 0;
 const fail = <T>(error: string): ModuleReadResult<T> => ({ok: false, error});
 const ok = <T>(value: T): ModuleReadResult<T> => ({ok: true, value});
 
 function diagnostic(value: unknown): value is ModuleDiagnostic {
   return row(value) && id(value.code) && ['error','warning','info'].includes(String(value.severity))
-    && (value.moduleId === null || id(value.moduleId)) && text(value.message, 2000);
+    && (value.moduleId === null || id(value.moduleId)) && text(value.message, 4096)
+    && value.message.length > 0;
 }
 function item(value: unknown): value is ModuleCatalogItem {
-  return row(value) && id(value.moduleId) && nonempty(value.title) && text(value.description, 4096)
-    && nonempty(value.origin) && nonempty(value.version)
+  return row(value) && id(value.moduleId) && catalogTitle(value.title) && text(value.description, 4096)
+    && nonempty(value.origin) && text(value.version, 128) && value.version.length > 0
     && (value.candidateKey === null || id(value.candidateKey))
     && typeof value.codePresent === 'boolean' && typeof value.enabled === 'boolean'
     && ['ready','missing','unknown'].includes(String(value.configuration))
@@ -39,7 +41,7 @@ function item(value: unknown): value is ModuleCatalogItem {
 }
 function dependency(value: unknown): value is ModuleDependency {
   return row(value) && id(value.moduleId) && typeof value.required === 'boolean'
-    && typeof value.active === 'boolean' && text(value.versionRange)
+    && typeof value.active === 'boolean' && text(value.versionRange, 128) && value.versionRange.length > 0
     && array(value.via, 256) && value.via.every(id);
 }
 function planAction(value: unknown): value is ModulePlanAction {

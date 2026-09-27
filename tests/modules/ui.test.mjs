@@ -28,6 +28,19 @@ const catalog = (patch = {}) => ({moduleId: 'atelier.panier', title: 'Panier', d
   origin: '@atelier/panier', version: '2.1.0', candidateKey: 'candidate-1', codePresent: false,
   enabled: false, configuration: 'unknown', operational: 'unknown', visibility: 'available', ...patch});
 
+test('workspace module label fits metadata without changing the full business title', () => {
+  assert.equal(ui.moduleWorkspaceLabel('  Panier\n\t connecté\u0007  ', 'atelier.panier'), 'Panier connecté');
+  assert.equal(ui.moduleWorkspaceLabel('\n\u0007 ', 'atelier.panier'), 'atelier.panier');
+  const full = 'A'.repeat(198) + '😀' + 'B';
+  const label = ui.moduleWorkspaceLabel(full, 'atelier.panier');
+  assert.equal(label, 'A'.repeat(198) + '…');
+  assert.ok(label.length <= 200);
+  assert.ok(label.isWellFormed());
+  assert.equal(ui.moduleWorkspaceLabel('A'.repeat(198) + '😀', 'atelier.panier'), 'A'.repeat(198) + '😀');
+  assert.equal(ui.moduleWorkspaceLabel('Titre\uD800', 'atelier.panier'), 'Titre\uFFFD');
+  assert.equal(full, 'A'.repeat(198) + '😀' + 'B');
+});
+
 test('catalogue preserves Product Hub cards while distinguishing package and runtime states', () => {
   const html = render(ui.CatalogCards, {items: [catalog(), catalog({moduleId: 'atelier.catalogue', title: 'Catalogue',
     codePresent: true, enabled: true, configuration: 'ready', operational: 'ready', visibility: 'current'})], onOpen() {}});

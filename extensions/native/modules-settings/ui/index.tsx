@@ -11,7 +11,8 @@ import type {ModuleSettingsController, ModuleSettingsSnapshot, ModuleCatalogPage
 import type {ModuleActionKind} from '../../../../sdk/modules/types.ts';
 import type {RuntimeViewProps} from '../../../../sdk/runtime/ui.ts';
 import {useRegisterWorkspaceMetadata} from '../../../../sdk/workspace/metadata.tsx';
-import {CatalogCards, DependencyCard, DiagnosticCard, JournalCard, ModuleStatus, PlanPreviewCard} from './presentation.tsx';
+import {CatalogCards, DependencyCard, DiagnosticCard, JournalCard, ModuleStatus, PlanPreviewCard,
+  moduleWorkspaceLabel} from './presentation.tsx';
 import {modulePendingPersistence} from './persistence.ts';
 
 const PAGE_SIZE = 25;
@@ -234,8 +235,8 @@ export function ModuleDetailView(props: RuntimeViewProps) {
   const enabled = permission(props, snapshot);
   const moduleId = props.input.moduleId ?? '';
   const [detail, setDetail] = useState<ModuleDetail | null>(null);
-  const moduleTitle = detail?.module.moduleId === moduleId && props.authorized
-    ? detail.module.title : moduleId;
+  const moduleTitle = moduleWorkspaceLabel(detail?.module.moduleId === moduleId && props.authorized
+    ? detail.module.title : moduleId, moduleId);
   useRegisterWorkspaceMetadata(props.panelId, {title: moduleTitle, kind: 'entity', trail: [
     {label: 'Modules et extensions', href: '/admin/modules'}, {label: moduleTitle},
   ]});

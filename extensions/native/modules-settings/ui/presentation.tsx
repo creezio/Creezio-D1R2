@@ -9,6 +9,24 @@ import type { ModuleCatalogItem, ModuleDependency, ModuleDiagnostic, ModuleJourn
 function date(ms: number) { return Number.isFinite(ms) ? new Date(ms).toLocaleString('fr-FR') : '—'; }
 function shortDigest(value: string) { return value.length > 22 ? `${value.slice(0, 18)}…` : value; }
 
+/** A display-only label that fits the workspace metadata contract. */
+export function moduleWorkspaceLabel(title: string, moduleId: string): string {
+  let cleaned = '';
+  for (const scalar of title.replace(/\s+/gu, ' ').trim()) {
+    const code = scalar.codePointAt(0)!;
+    if (scalar.length === 1 && code >= 0xD800 && code <= 0xDFFF) cleaned += '\uFFFD';
+    else if (!/\p{Cc}/u.test(scalar)) cleaned += scalar;
+  }
+  const value = cleaned.replace(/\s+/gu, ' ').trim() || moduleId;
+  if (value.length <= 200) return value;
+  let shortened = '';
+  for (const scalar of value) {
+    if (shortened.length + scalar.length > 199) break;
+    shortened += scalar;
+  }
+  return `${shortened.trimEnd()}…`;
+}
+
 export function ModuleStatus({item}: {item: ModuleCatalogItem}) {
   return <span className="flex flex-wrap gap-1.5" aria-label={`État de ${item.moduleId}`}>
     <Badge variant={item.visibility === 'current' ? 'info' : 'secondary'}>

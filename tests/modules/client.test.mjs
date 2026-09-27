@@ -39,6 +39,42 @@ test('typed module client uses six declared T06 bindings and validates output',a
     'a missing lock digest cannot silently become an intent base');
 });
 
+test('catalog titles accept 4000 Unicode code points and reject 4001',async()=>{
+  let title='🧩'.repeat(4000), description='🧩'.repeat(4096);
+  const operations={audience:'admin',origin:'https://example.invalid',
+    async invoke(){return succeeded({items:[{moduleId:'module.one',title,description,
+      origin:'https://example.invalid/module',version:'1.0.0',candidateKey:null,
+      codePresent:true,enabled:false,configuration:'unknown',operational:'unknown',visibility:'available'}],
+      nextAfterId:null,compositionDigest:hash,lockDigest:hash,inventoryDigest:hash,revision:0});},
+    async status(){throw new Error('unused');}};
+  const client=createModuleSettingsClient(operations);
+  assert.equal((await client.list({limit:1})).ok,true,
+    '4000 supplementary Unicode characters must count as 4000 code points');
+  title='a'.repeat(4000);
+  assert.equal((await client.list({limit:1})).ok,true);
+  title+='a';
+  assert.deepEqual(await client.list({limit:1}),{ok:false,error:'invalid_response'});
+  title='🧩'.repeat(4001);
+  assert.deepEqual(await client.list({limit:1}),{ok:false,error:'invalid_response'});
+  title='Module'; description='🧩'.repeat(4097);
+  assert.deepEqual(await client.list({limit:1}),{ok:false,error:'invalid_response'});
+});
+
+test('catalog detail accepts a diagnostic message of 4096 Unicode code points',async()=>{
+  let message='🧩'.repeat(4096);
+  const operations={audience:'admin',origin:'https://example.invalid',
+    async invoke(){return succeeded({module:{moduleId:'module.one',title:'Module',description:'',
+      origin:'https://example.invalid/module',version:'1.0.0',candidateKey:null,
+      codePresent:true,enabled:false,configuration:'unknown',operational:'unknown',visibility:'available'},
+      dependsOn:[],usedBy:[],optionalIntegrations:[],
+      diagnostics:[{code:'module.warning',severity:'warning',moduleId:null,message}]});},
+    async status(){throw new Error('unused');}};
+  const client=createModuleSettingsClient(operations);
+  assert.equal((await client.detail('module.one')).ok,true);
+  message='🧩'.repeat(4097);
+  assert.deepEqual(await client.detail('module.one'),{ok:false,error:'invalid_response'});
+});
+
 test('controller persists request key before invoke, reconciles unknown without replay, and keeps stable snapshots',async()=>{
   const h=harness(), controller=createModuleSettingsController({operations:h.operations,
     access:h.access,persistence:h.persistence});
