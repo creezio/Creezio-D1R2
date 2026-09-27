@@ -121,7 +121,13 @@ export async function createRemoteR2Client({accountId, bucketName, accessKeyId, 
       // overload keeps the exact bytes, including objects with no HTTP metadata.
       request = await signer.sign(url, {method, headers, body});
       if (new URL(request.url).origin !== origin) fail('invalid_destination');
-      response = await fetcher(request, {redirect: 'error', signal});
+      // Undici adds Cache-Control/Pragma: no-cache to conditional requests in its
+      // default mode. On PUT/POST, R2 stores the injected Cache-Control as object
+      // metadata. Node does not cache mutations; force-cache suppresses that header.
+      const conditionalMutation = (method === 'PUT' || method === 'POST') &&
+        headers['if-none-match'] === '*';
+      response = await fetcher(request, {redirect: 'error', signal,
+        ...(conditionalMutation ? {cache: 'force-cache'} : {})});
     } catch (error) {
       if (error instanceof RemoteR2Error) throw error;
       fail('unavailable');

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
+import {createServer} from 'node:http';
 import {createRemoteR2Client, RemoteR2Error} from '../../scripts/cloudflare/remote/r2.mjs';
 
 const accountId = 'a'.repeat(32);
@@ -50,6 +51,46 @@ test('R2 SigV4 signs conditional PUT bytes without changing the payload', async 
   try { outcome = await client.putObject(expected, data); }
   finally { assert.deepEqual(stored, data); }
   assert.equal(outcome, 'uploaded');
+});
+
+test('conditional R2 PUT sends no cache metadata through real Node fetch', async () => {
+  const data = Buffer.from('signed payload'), expected = entry('creezio/files/v1/no-cache-leak', data,
+    {contentType: 'application/octet-stream'});
+  let stored = null, putHeaders = null;
+  const server = createServer((request, response) => {
+    if (request.method === 'HEAD') {
+      if (!stored) {response.writeHead(404); response.end(); return;}
+      response.writeHead(200, {'content-length': String(stored.length),
+        'content-type': 'application/octet-stream', etag: '"0123456789abcdef0123456789abcdef"'});
+      response.end(); return;
+    }
+    if (request.method === 'GET') {
+      response.writeHead(200, {'content-type': 'application/octet-stream'});
+      response.end(stored); return;
+    }
+    if (request.method !== 'PUT') {response.writeHead(405); response.end(); return;}
+    putHeaders = request.headers;
+    const chunks = [];
+    request.on('data', chunk => chunks.push(chunk));
+    request.on('end', () => {stored = Buffer.concat(chunks); response.writeHead(200); response.end();});
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const loopback = `http://127.0.0.1:${server.address().port}/object`;
+    const client = await createRemoteR2Client({accountId, bucketName,
+      accessKeyId: 'fake-access', secretAccessKey: 'fake-secret-at-least-20-characters',
+      fetcher: async (request, init) => {
+        const outbound = new Request(loopback, {method: request.method, headers: request.headers,
+          body: request.method === 'PUT' ? Buffer.from(await request.arrayBuffer()) : undefined});
+        return fetch(outbound, init);
+      }});
+    assert.equal(await client.putObject(expected, data), 'uploaded');
+    assert.deepEqual(stored, data);
+    assert.equal(putHeaders['if-none-match'], '*');
+    assert.equal(putHeaders['cache-control'], undefined);
+    assert.equal(putHeaders.pragma, undefined);
+    assert.equal(await client.inspectObject(expected), 'matching');
+  } finally {await new Promise(resolve => server.close(resolve));}
 });
 
 test('R2 lists a bounded URL-encoded page without forwarding credentials or following redirects', async () => {
