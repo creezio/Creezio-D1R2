@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { writeFileSync, readFileSync, mkdirSync, renameSync, symlinkSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { inspectTap, sourceIdentity, sameSourceIdentity, collectRequiredTests } from '../../scripts/quality/evidence.mjs';
+import { inspectTap, tapFailureExcerpt, sourceIdentity, sameSourceIdentity, collectRequiredTests } from '../../scripts/quality/evidence.mjs';
 import { temporaryDirectory } from './temporary.mjs';
 
 const tap = counts => Object.entries({ tests: 2, pass: 2, fail: 0, cancelled: 0, skipped: 0, todo: 0, ...counts })
@@ -16,6 +16,19 @@ test('accepts only a successful, nonempty and fully executed suite', () => {
   assert.equal(inspectTap(tap({}), null).success, false);
   assert.equal(inspectTap('', 0).success, false);
   assert.equal(inspectTap(tap({}) + '\n# tests 2', 0).success, false);
+});
+test('reports early TAP failures with bounded, redacted diagnostics', () => {
+  const output = `not ok 1 - first failure\n  ---\n  location: 'tests/early.test.mjs:4:1'\n  error: |-\n    wrong value, password='private-value', "secret":"quoted-private", Bearer private-token\n  ...\n${'ok 2 - later pass\n'.repeat(3000)}`;
+  const excerpt = tapFailureExcerpt(output);
+  assert.match(excerpt, /not ok 1 - first failure/);
+  assert.match(excerpt, /tests\/early\.test\.mjs:4:1/);
+  assert.match(excerpt, /wrong value/);
+  assert.doesNotMatch(excerpt, /private-value|quoted-private|private-token/);
+  assert.ok(excerpt.length <= 12000);
+  const long = tapFailureExcerpt(`not ok 1 - long failure\n  ---\n  error: ${'x'.repeat(1000)}\n  ...`, {maxChars: 200});
+  assert.ok(long.length <= 200);
+  assert.match(long, /\[diagnostics truncated\]$/);
+  assert.equal(tapFailureExcerpt('ok 1 - pass\n'), '');
 });
 test('a commit change invalidates proof even with identical source bytes', () => {
   const a = { head: 'head-a', tree: 'tree-a', sha256: 'content-a' };

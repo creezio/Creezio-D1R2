@@ -16,6 +16,30 @@ export function inspectTap(output, exitCode) {
   return { success, counts, reason: success ? null : 'Nonzero exit, missing, failed or unexecuted test' };
 }
 
+/** Surface early failures that the aggregate's console tail would otherwise hide. */
+export function tapFailureExcerpt(output, {maxFailures = 5, maxChars = 12000} = {}) {
+  const lines = output.split(/\r?\n/);
+  const failures = [];
+  for (let index = 0; index < lines.length && failures.length < maxFailures; index++) {
+    if (!/^not ok \d+ - /.test(lines[index])) continue;
+    const block = [lines[index]];
+    while (++index < lines.length) {
+      if (/^(?:# Subtest: |ok \d+ - |not ok \d+ - |1\.\.)/.test(lines[index])) { index--; break; }
+      block.push(lines[index]);
+      if (lines[index] === '  ...') break;
+    }
+    failures.push(block.join('\n'));
+  }
+  const redacted = failures.join('\n').replace(/\b(Bearer\s+)[^\s'"\]]+/gi, '$1[redacted]')
+    .replace(/(['"]?)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret)(['"]?\s*[:=]\s*)(['"]?)[^\s,'"}\]]+/gi,
+      (_match, opening, key, separator, quote) => `${opening}${key}${separator}${quote}[redacted]`)
+    .replace(/\bsk-[A-Za-z0-9_-]{12,}\b/g, '[redacted]');
+  const suffix = '\n[diagnostics truncated]';
+  if (redacted.length <= maxChars) return redacted;
+  if (maxChars <= suffix.length) return suffix.slice(0, maxChars);
+  return `${redacted.slice(0, maxChars - suffix.length)}${suffix}`;
+}
+
 /** Each approved suite is mandatory; a missing directory cannot silently shrink coverage. */
 export function collectRequiredTests(root) {
   const suites = ['quality', 'contracts', 'runtime', 'identity', 'data', 'operations', 'workspace', 'registry', 'local', 'oauth', 'mcp', 'modules', 'front', 'conversations', 'openai', 'widgets'];

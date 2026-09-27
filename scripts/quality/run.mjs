@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { inspectTap, sourceIdentity, sameSourceIdentity, collectRequiredTests } from './evidence.mjs';
+import { inspectTap, tapFailureExcerpt, sourceIdentity, sameSourceIdentity, collectRequiredTests } from './evidence.mjs';
 import { validateDocs } from './docs.mjs';
 import { measureRuntimeArtifacts } from './runtime.mjs';
 
@@ -69,7 +69,8 @@ console.log(JSON.stringify({ success, mergeReady: false, source: source.sha256, 
 if (!success) {
   for (const error of docs.errors) console.error(JSON.stringify(error));
   if (!runtimeCurrent) console.error('Missing, failed, stale or changed runtime artifact evidence.');
-  if (!tap.success) console.error((result.stdout ?? '').slice(-12000), result.stderr ?? '', result.error?.message ?? '');
+  if (!tap.success) console.error(tapFailureExcerpt(result.stdout ?? '') || (result.stdout ?? '').slice(-12000),
+    result.stderr ?? '', result.error?.message ?? '');
   process.exitCode = 1;
 }
 } catch (error) {
