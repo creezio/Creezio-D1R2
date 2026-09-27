@@ -1,5 +1,9 @@
 # Changelog
 
+## 27 septembre 2026 — Documentation installée T12
+
+PR #20 intégrée, main `037c0a0b` qualifié avec 908 tests locaux et CI. Le lot suivant raccorde README, PRD et changelog de la version installée aux fiches Product Hub et aux mêmes opérations HTTP/MCP administratives. Les révisions locales de travail restent distinctes. Qualification T12 suivie dans docs/TODO.md.
+
 ## 27 septembre 2026 — T11 en construction
 
 Le module natif Modules et extensions reprend liste et fiche du Product Hub Creezio. Inventaire vérifié au build, résolution commune, choix explicites, plans acceptés via T06 et état effectif lié à la publication. Les données sont conservées au retrait/désactivation. Les qualifications en cours et limites sont suivies dans docs/TODO.md.

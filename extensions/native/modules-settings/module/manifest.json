@@ -1453,6 +1453,306 @@
           "required": [],
           "additionalProperties": false
         }
+      },
+      {
+        "id": "docs-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "moduleId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "moduleId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "docs-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "moduleId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "documents": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "moduleId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "origin": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048,
+                    "format": "uri"
+                  },
+                  "version": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "sourceRevision": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "runtimeIntegrity": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 71,
+                    "pattern": "^sha256-[a-f0-9]{64}$"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "readme",
+                      "prd",
+                      "changelog"
+                    ]
+                  },
+                  "visibility": {
+                    "type": "string",
+                    "enum": [
+                      "public",
+                      "restricted"
+                    ]
+                  },
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  },
+                  "digest": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 71,
+                    "pattern": "^sha256-[a-f0-9]{64}$"
+                  },
+                  "byteLength": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 65536
+                  },
+                  "blockCount": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8
+                  }
+                },
+                "required": [
+                  "moduleId",
+                  "origin",
+                  "version",
+                  "sourceRevision",
+                  "runtimeIntegrity",
+                  "kind",
+                  "visibility",
+                  "path",
+                  "digest",
+                  "byteLength",
+                  "blockCount"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "compositionDigest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 71,
+              "pattern": "^sha256-[a-f0-9]{64}$"
+            },
+            "lockDigest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 71,
+              "pattern": "^sha256-[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "moduleId",
+            "documents",
+            "compositionDigest",
+            "lockDigest"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "docs-read-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "moduleId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "readme",
+                "prd",
+                "changelog"
+              ]
+            },
+            "digest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 71,
+              "pattern": "^sha256-[a-f0-9]{64}$"
+            },
+            "runtimeIntegrity": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 71,
+              "pattern": "^sha256-[a-f0-9]{64}$"
+            },
+            "blockIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 7
+            }
+          },
+          "required": [
+            "moduleId",
+            "kind",
+            "digest",
+            "runtimeIntegrity",
+            "blockIndex"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "docs-read-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "document": {
+              "type": "object",
+              "properties": {
+                "moduleId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "origin": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048,
+                  "format": "uri"
+                },
+                "version": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "sourceRevision": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "runtimeIntegrity": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 71,
+                  "pattern": "^sha256-[a-f0-9]{64}$"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "readme",
+                    "prd",
+                    "changelog"
+                  ]
+                },
+                "visibility": {
+                  "type": "string",
+                  "enum": [
+                    "public",
+                    "restricted"
+                  ]
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                },
+                "digest": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 71,
+                  "pattern": "^sha256-[a-f0-9]{64}$"
+                },
+                "byteLength": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 65536
+                },
+                "blockCount": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 8
+                }
+              },
+              "required": [
+                "moduleId",
+                "origin",
+                "version",
+                "sourceRevision",
+                "runtimeIntegrity",
+                "kind",
+                "visibility",
+                "path",
+                "digest",
+                "byteLength",
+                "blockCount"
+              ],
+              "additionalProperties": false
+            },
+            "blockIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 7
+            },
+            "content": {
+              "type": "string",
+              "maxLength": 16384
+            },
+            "nextBlockIndex": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 7
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "document",
+            "blockIndex",
+            "content",
+            "nextBlockIndex"
+          ],
+          "additionalProperties": false
+        }
       }
     ],
     "models": [
@@ -2609,6 +2909,202 @@
           ]
         },
         "public": false
+      },
+      {
+        "id": "docs.list",
+        "title": "Documents de la version installée",
+        "kind": "query",
+        "input": {
+          "schemaId": "docs-list-input"
+        },
+        "output": {
+          "schemaId": "docs-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "application",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "documentsList"
+        },
+        "effects": {
+          "reads": [],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 30000,
+          "maxItems": 1000,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "requestKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "docs.read",
+        "title": "Lire un document installé",
+        "kind": "query",
+        "input": {
+          "schemaId": "docs-read-input"
+        },
+        "output": {
+          "schemaId": "docs-read-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "application",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "documentsRead"
+        },
+        "effects": {
+          "reads": [],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 30000,
+          "maxItems": 1000,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "requestKey"
+          ]
+        },
+        "public": false
       }
     ],
     "api": [
@@ -2807,6 +3303,96 @@
           "requests": 60,
           "windowSeconds": 60
         }
+      },
+      {
+        "id": "docs.list",
+        "method": "GET",
+        "path": "/api/admin/modules/{module_id}/documents",
+        "operation": {
+          "moduleId": "creezio.modules-settings",
+          "kind": "operation",
+          "id": "docs.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "module_id",
+            "in": "path",
+            "inputField": "moduleId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "docs-list-input"
+        },
+        "output": {
+          "schemaId": "docs-list-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "docs.read",
+        "method": "GET",
+        "path": "/api/admin/modules/{module_id}/documents/{kind}",
+        "operation": {
+          "moduleId": "creezio.modules-settings",
+          "kind": "operation",
+          "id": "docs.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "module_id",
+            "in": "path",
+            "inputField": "moduleId",
+            "required": true
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "inputField": "kind",
+            "required": true
+          },
+          {
+            "name": "digest",
+            "in": "query",
+            "inputField": "digest",
+            "required": true
+          },
+          {
+            "name": "runtime_integrity",
+            "in": "query",
+            "inputField": "runtimeIntegrity",
+            "required": true
+          },
+          {
+            "name": "block_index",
+            "in": "query",
+            "inputField": "blockIndex",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "docs-read-input"
+        },
+        "output": {
+          "schemaId": "docs-read-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
       }
     ],
     "mcp": {
@@ -2978,6 +3564,62 @@
             "openWorld": false
           },
           "textFallback": true
+        },
+        {
+          "id": "docs.list",
+          "name": "modules_docs_list",
+          "operation": {
+            "moduleId": "creezio.modules-settings",
+            "kind": "operation",
+            "id": "docs.list"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "docs-list-input"
+          },
+          "output": {
+            "schemaId": "docs-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "docs.read",
+          "name": "modules_docs_read",
+          "operation": {
+            "moduleId": "creezio.modules-settings",
+            "kind": "operation",
+            "id": "docs.read"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "docs-read-input"
+          },
+          "output": {
+            "schemaId": "docs-read-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
         }
       ],
       "resources": [],
@@ -3034,6 +3676,16 @@
               "moduleId": "creezio.modules-settings",
               "kind": "operation",
               "id": "journal.list"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "docs.list"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "docs.read"
             }
           ],
           "input": {
@@ -3097,6 +3749,16 @@
               "moduleId": "creezio.modules-settings",
               "kind": "operation",
               "id": "journal.list"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "docs.list"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "docs.read"
             }
           ],
           "input": {
@@ -3285,7 +3947,9 @@
         "LICENSE",
         "plugin/plugin.json",
         "plugin/mcp.json",
-        "plugin/contributions.ts"
+        "plugin/contributions.ts",
+        "module/documentation.ts",
+        "ui/documentation.tsx"
       ],
       "references": []
     },

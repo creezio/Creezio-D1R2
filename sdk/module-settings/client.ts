@@ -1,7 +1,9 @@
 import type {OperationClient, OperationClientResult} from '../operations/client.ts';
 import type {ModuleIntent, ModuleReadResult, ModuleCatalogPage, ModuleCatalogItem, ModuleDetail,
   ModuleDiagnostic, ModuleDependency, ModulePlanAction, ModulePlanPreview, ModulePlanAcceptance,
-  ModuleAcceptedPlan, ModuleJournalEntry, ModulePlanRead, ModuleJournalPage, ModuleAcceptOutcome} from './types.ts';
+  ModuleAcceptedPlan, ModuleJournalEntry, ModulePlanRead, ModuleJournalPage, ModuleAcceptOutcome,
+  ModuleDocumentList, ModuleDocumentReadInput, ModuleDocumentBlock} from './types.ts';
+import type {InstalledModuleDocumentMetadata} from '../modules/documents.ts';
 
 export const MODULE_SETTINGS_BINDINGS = Object.freeze({
   catalogList: 'creezio.modules-settings:catalog.list',
@@ -10,6 +12,8 @@ export const MODULE_SETTINGS_BINDINGS = Object.freeze({
   plansAccept: 'creezio.modules-settings:plans.accept',
   plansRead: 'creezio.modules-settings:plans.read',
   journalList: 'creezio.modules-settings:journal.list',
+  docsList: 'creezio.modules-settings:docs.list',
+  docsRead: 'creezio.modules-settings:docs.read',
 });
 const id = (value: unknown): value is string => typeof value === 'string' && value.length <= 128
   && /^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(value);
@@ -106,6 +110,35 @@ function journalPage(value: unknown): value is ModuleJournalPage {
   return row(value) && array(value.items, 51) && value.items.every(journalEntry)
     && (value.nextAfterRevision === null || integer(value.nextAfterRevision));
 }
+export function isModuleDocumentMetadata(value: unknown): value is InstalledModuleDocumentMetadata {
+  return row(value) && id(value.moduleId) && text(value.origin) && value.origin.length > 0
+    && text(value.version, 128) && value.version.length > 0
+    && text(value.sourceRevision, 128) && value.sourceRevision.length > 0
+    && digest(value.runtimeIntegrity) && ['readme','prd','changelog'].includes(String(value.kind))
+    && ['public','restricted'].includes(String(value.visibility))
+    && text(value.path, 1024) && value.path.length > 0 && digest(value.digest)
+    && integer(value.byteLength) && value.byteLength <= 65_536
+    && integer(value.blockCount) && value.blockCount >= 1 && value.blockCount <= 8;
+}
+function documentList(value: unknown): value is ModuleDocumentList {
+  if (!row(value) || !id(value.moduleId) || !array(value.documents, 3) || value.documents.length !== 3
+    || !value.documents.every(isModuleDocumentMetadata) || !digest(value.compositionDigest)
+    || !digest(value.lockDigest)) return false;
+  const [first] = value.documents;
+  return new Set(value.documents.map(document => document.kind)).size === 3
+    && value.documents.every(document => document.moduleId === value.moduleId
+      && document.origin === first.origin && document.version === first.version
+      && document.sourceRevision === first.sourceRevision
+      && document.runtimeIntegrity === first.runtimeIntegrity);
+}
+function documentBlock(value: unknown): value is ModuleDocumentBlock {
+  return row(value) && isModuleDocumentMetadata(value.document) && integer(value.blockIndex)
+    && value.blockIndex < value.document.blockCount && typeof value.content === 'string'
+    && value.content.isWellFormed() && new TextEncoder().encode(value.content).byteLength <= 16_384
+    && (value.nextBlockIndex === null && value.blockIndex === value.document.blockCount - 1
+      || integer(value.nextBlockIndex) && value.nextBlockIndex === value.blockIndex + 1
+        && value.nextBlockIndex < value.document.blockCount);
+}
 function readResult<T>(result: OperationClientResult, valid: (value: unknown) => value is T): ModuleReadResult<T> {
   if (result.kind === 'rejected') return fail(result.code);
   if (result.kind === 'unknown') return fail(result.code);
@@ -144,6 +177,12 @@ export function createModuleSettingsClient(operations: OperationClient) {
       readResult(await invoke(MODULE_SETTINGS_BINDINGS.journalList,
         {limit: input.limit, ...(input.afterRevision === undefined || input.afterRevision === null
           ? {} : {afterRevision: input.afterRevision})}, isCurrent), journalPage),
+    listDocuments: async (moduleId: string, isCurrent?: () => boolean) =>
+      readResult(await invoke(MODULE_SETTINGS_BINDINGS.docsList, {moduleId}, isCurrent), documentList),
+    readDocument: async (input: ModuleDocumentReadInput, isCurrent?: () => boolean) =>
+      readResult(await invoke(MODULE_SETTINGS_BINDINGS.docsRead,
+        {moduleId: input.moduleId, kind: input.kind, digest: input.digest,
+          runtimeIntegrity: input.runtimeIntegrity, blockIndex: input.blockIndex}, isCurrent), documentBlock),
     lookupAccept: async (requestKey: string, isCurrent?: () => boolean): Promise<ModuleAcceptOutcome> =>
       commandResult(await operations.status({bindingId: MODULE_SETTINGS_BINDINGS.plansAccept,
         contextId: 'application', requestKey, isCurrent}), requestKey),

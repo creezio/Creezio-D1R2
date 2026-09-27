@@ -1,6 +1,8 @@
 # T-11 — Modules et dépendances
 
-Tranche `core/t11-module-lifecycle`, depuis `f52a17b9` (PR #19, 866 tests), en qualification finale avant intégration. Le [backlog](TODO.md#T-11) conserve l'état global ; les exigences [1101 à 1106](EXIGENCES.md#REQ-1101) sont inchangées.
+PR #20 intégrée : candidat `76674c55556e23e919938161c40ed8dee7aa2254`, main `037c0a0be4062c8249fb4ea3277c112dd2fb9765`, arbre identique `0da0b71bc1b5c71e39c0894943f88124e94ebb9f`. 908/908 tests locaux, CI candidat 36299996090 et main 36300347412, types/build/Workerd courants, trois revues indépendantes sur le candidat. Recette navigateur complète sur c2da7ae, delta final vérifié pour fiches/titres/dépendances ; comportements idempotence inchangés, périmètres consignés dans les preuves. Aucune qualification Sites/ChatGPT prétendue.
+
+Tranche `core/t11-module-lifecycle`, depuis `f52a17b9` (PR #19, 866 tests), intégrée par PR #20. Le [backlog](TODO.md#T-11) conserve l'état global et les raccords restants ; les exigences [1101 à 1106](EXIGENCES.md#REQ-1101) sont inchangées.
 
 ## Interface conservée
 

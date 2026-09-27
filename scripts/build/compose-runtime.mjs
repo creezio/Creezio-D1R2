@@ -5,7 +5,7 @@ import { compileOperationSchemas } from '../operations/schemas.mjs';
 import { compileHttpBindings } from '../operations/http-bindings.mjs';
 import { compileMcpBindings } from '../mcp/bindings.mjs';
 import { createOperationRegistry } from '../../core/operations/registry.ts';
-import { compileModuleInventory } from '../../sdk/modules/inventory.mjs';
+import { compileModuleInventoryWithDocuments } from '../../sdk/modules/inventory.mjs';
 import { captureHostInventory } from '../../core/operations/host-inventory.ts';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -219,8 +219,11 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
       fail('inventory.configuration', 'An explicit, bounded module inventory configuration is required.');
     const candidates = composition.modules.map(selection => ({source: selection.source,
       lockNode: lock.modules.find(node => node.moduleId === selection.moduleId)})).concat(config.available);
-    const inventory = compileModuleInventory({root, candidates, allowedOrigins: config.allowedOrigins});
-    runtimeInventory = captureHostInventory({current: {composition, lock, descriptors: located.map(item => item.descriptor)}, inventory}, compositionDigest);
+    const {inventory,currentInstalledDocuments}=compileModuleInventoryWithDocuments({root, candidates,
+      selectedCount:composition.modules.length,allowedOrigins: config.allowedOrigins});
+    currentModuleCandidateKeys(composition,lock,inventory);
+    runtimeInventory = captureHostInventory({current: {composition, lock, descriptors: located.map(item => item.descriptor)},
+      inventory,currentInstalledDocuments}, compositionDigest);
   }
   // This host-owned transport is not a module CRUD operation or an implicit
   // public contribution. Each audience requires both selection and exposure.
@@ -272,7 +275,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     .map(schema => `${JSON.stringify(schema.validator)}: compiledValidators.${schema.validator}`).join(',\n');
   const rendered = {
     'module-inventory.ts': `${banner}import type { ModuleSettingsHostInventory } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/module-settings/types.ts')))};\n${freezeSource}${runtimeInventory
-      ? `const inventory: ModuleSettingsHostInventory['inventory'] = freeze(${JSON.stringify(runtimeInventory.inventory)});\nexport const runtimeInventory: ModuleSettingsHostInventory = freeze({current: {composition: ${JSON.stringify(composition)}, lock: ${JSON.stringify(lock)}, descriptors: ${JSON.stringify(currentModuleCandidateKeys(composition,lock,runtimeInventory.inventory))}.map(key => inventory.candidates.find(candidate => candidate.candidateKey === key)!.descriptor)}, inventory});\n`
+      ? `const inventory: ModuleSettingsHostInventory['inventory'] = freeze(${JSON.stringify(runtimeInventory.inventory)});\nexport const runtimeInventory: ModuleSettingsHostInventory = freeze({current: {composition: ${JSON.stringify(composition)}, lock: ${JSON.stringify(lock)}, descriptors: ${JSON.stringify(currentModuleCandidateKeys(composition,lock,runtimeInventory.inventory))}.map(key => inventory.candidates.find(candidate => candidate.candidateKey === key)!.descriptor)}, inventory, currentInstalledDocuments: ${JSON.stringify(runtimeInventory.currentInstalledDocuments)}});\n`
       : 'export const runtimeInventory: ModuleSettingsHostInventory | undefined = undefined;\n'}`,
     'operation-validators.mjs': `${banner}${operationPlan.validatorsCode}`,
     'operations.ts': `${banner}import type { RuntimeOperationCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/operations/types.ts')))};\nimport * as compiledValidators from './operation-validators.mjs';\n${operationImports.join('\n')}\nconst freeze = <T>(value: T): T => { if (value && typeof value === 'object') { for (const child of Object.values(value)) freeze(child); Object.freeze(value); } return value; };\nexport const operationCatalog: RuntimeOperationCatalog = freeze(${JSON.stringify(operationPlan.catalog)});\nexport const operationValidators = Object.freeze({${validatorEntries}});\nexport const operationHandlers = Object.freeze({${operationHandlers.map(item => `${JSON.stringify(item.name)}: ${item.handler}`).join(',\n')}});\n`,

@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createModuleSettingsClient,MODULE_SETTINGS_BINDINGS} from '../../sdk/module-settings/client.ts';
 import {createModuleSettingsController} from '../../sdk/module-settings/controller.ts';
+import {installedDocumentDigest, readInstalledDocumentBlock,
+  splitInstalledDocumentContent} from '../../sdk/modules/documents.ts';
 
 const hash='sha256-'+'a'.repeat(64);
 const succeeded=output=>({kind:'execution',execution:{id:'execution-1',state:'succeeded',output,errorCode:null}});
@@ -22,7 +24,7 @@ function harness() {
     setState(value){state=value;for(const listener of listeners) listener();}};
 }
 
-test('typed module client uses six declared T06 bindings and validates output',async()=>{
+test('typed module client uses declared T06 bindings and validates output',async()=>{
   const calls=[];
   const operations={audience:'admin',origin:'https://example.invalid',
     async invoke(request){calls.push(request);return succeeded({items:[],nextAfterId:null,
@@ -37,6 +39,109 @@ test('typed module client uses six declared T06 bindings and validates output',a
     inventoryDigest:hash,revision:0});
   assert.deepEqual(await client.list({limit:20}),{ok:false,error:'invalid_response'},
     'a missing lock digest cannot silently become an intent base');
+});
+
+function installedDocuments(content='\uFEFF'+'é😀'.repeat(5000)) {
+  const common={moduleId:'module.one',origin:'https://example.invalid/module',version:'1.0.0',
+    sourceRevision:'revision-1',runtimeIntegrity:hash,visibility:'public',
+    digest:installedDocumentDigest(new TextEncoder().encode(content)),
+    byteLength:new TextEncoder().encode(content).byteLength,
+    blockCount:splitInstalledDocumentContent(content).length,content};
+  return ['readme','prd','changelog'].map(kind=>({...common,kind,path:`${kind}.md`}));
+}
+
+test('installed documents use declared bindings and reassemble exact UTF-8 blocks',async()=>{
+  const h=harness(), documents=installedDocuments(), calls=[];
+  h.operations.invoke=async request=>{
+    calls.push(request);
+    if(request.bindingId===MODULE_SETTINGS_BINDINGS.docsList) return succeeded({moduleId:'module.one',
+      documents:documents.map(({content: _content,...metadata})=>metadata),
+      compositionDigest:hash,lockDigest:hash});
+    if(request.bindingId===MODULE_SETTINGS_BINDINGS.docsRead) return succeeded(
+      readInstalledDocumentBlock(documents.find(item=>item.kind===request.input.kind),request.input.blockIndex));
+    throw new Error('unexpected binding');
+  };
+  const controller=createModuleSettingsController({operations:h.operations,access:h.access,persistence:h.persistence});
+  const listed=await controller.listDocuments('module.one');
+  assert.equal(listed.ok,true);
+  assert.equal(listed.value.documents.length,3);
+  const read=await controller.loadDocument(listed.value.documents[0]);
+  assert.equal(read.ok,true);
+  assert.equal(read.value.content,documents[0].content);
+  assert.equal(read.value.content.charCodeAt(0),0xFEFF,'BOM is preserved');
+  assert.equal(calls.length,1+documents[0].blockCount);
+  assert.deepEqual(calls.slice(1).map(call=>call.request?.input??call.input).map(input=>input.blockIndex),[0,1]);
+  assert.ok(calls.slice(1).every(call=>call.input.digest===documents[0].digest
+    && call.input.runtimeIntegrity===documents[0].runtimeIntegrity));
+  controller.dispose();
+});
+
+test('complete document read rejects changed bytes and obsolete view state',async()=>{
+  const h=harness(), [document]=installedDocuments();
+  const {content: _content,...metadata}=document;
+  let calls=0, tamper=true, current=true;
+  h.operations.invoke=async request=>{
+    calls++;
+    const block=readInstalledDocumentBlock(document,request.input.blockIndex);
+    if(tamper && request.input.blockIndex===1) {
+      const scalars=[...block.content];scalars[0]='x';
+      return succeeded({...block,content:scalars.join('')});
+    }
+    if(!tamper) current=false;
+    return succeeded(block);
+  };
+  const controller=createModuleSettingsController({operations:h.operations,access:h.access,persistence:h.persistence});
+  assert.deepEqual(await controller.loadDocument(metadata),{ok:false,error:'invalid_response'});
+  tamper=false;calls=0;
+  assert.deepEqual(await controller.loadDocument(metadata,()=>current),{ok:false,error:'stale'});
+  assert.equal(calls,1,'view invalidation prevents reading later blocks');
+  controller.dispose();
+});
+
+test('complete document read rejects mixed package identity and revocation mid-stream',async()=>{
+  const h=harness(), [document]=installedDocuments();
+  const {content: _content,...metadata}=document;
+  let revoke=false, calls=0;
+  h.operations.invoke=async request=>{
+    calls++;
+    const block=readInstalledDocumentBlock(document,request.input.blockIndex);
+    if(revoke && request.input.blockIndex===0) h.setState({...h.access.getSnapshot(),
+      phase:'anonymous',session:null});
+    if(!revoke && request.input.blockIndex===1) return succeeded({...block,
+      document:{...block.document,version:'2.0.0'}});
+    return succeeded(block);
+  };
+  const controller=createModuleSettingsController({operations:h.operations,access:h.access,persistence:h.persistence});
+  assert.deepEqual(await controller.loadDocument(metadata),{ok:false,error:'invalid_response'});
+  revoke=true;calls=0;
+  assert.deepEqual(await controller.loadDocument(metadata),{ok:false,error:'stale'});
+  assert.equal(calls,1,'identity revocation prevents reading later blocks');
+  controller.dispose();
+});
+
+test('complete document read snapshots caller metadata before awaiting blocks',async()=>{
+  const h=harness(), [document]=installedDocuments();
+  const {content: _content,...metadata}=document;
+  const calls=[];
+  h.operations.invoke=async request=>{
+    calls.push(request);
+    if(request.input.blockIndex===0) {
+      metadata.digest='sha256-'+'b'.repeat(64);
+      metadata.runtimeIntegrity='sha256-'+'c'.repeat(64);
+      metadata.version='2.0.0';
+    }
+    return succeeded(readInstalledDocumentBlock(document,request.input.blockIndex));
+  };
+  const controller=createModuleSettingsController({operations:h.operations,access:h.access,persistence:h.persistence});
+  const result=await controller.loadDocument(metadata);
+  assert.equal(result.ok,true);
+  assert.equal(result.value.digest,document.digest);
+  assert.equal(result.value.runtimeIntegrity,document.runtimeIntegrity);
+  assert.equal(result.value.version,document.version);
+  assert.equal(calls.length,document.blockCount);
+  assert.ok(calls.every(call=>call.input.digest===document.digest
+    && call.input.runtimeIntegrity===document.runtimeIntegrity));
+  controller.dispose();
 });
 
 test('catalog titles accept 4000 Unicode code points and reject 4001',async()=>{

@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fileURLToPath} from 'node:url';
 import {join} from 'node:path';
+import {readFileSync} from 'node:fs';
 import {createHash,randomBytes} from 'node:crypto';
 import {Miniflare} from 'miniflare';
 import {Client,StreamableHTTPClientTransport} from '@modelcontextprotocol/client';
@@ -72,7 +73,7 @@ test('built Worker completes native OAuth then real MCP discovery, call and revo
     const wire=new StreamableHTTPClientTransport(new URL(resource),{authProvider:{token:async()=>pair.access_token},
       fetch:send});
     await client.connect(wire);
-    const tools=(await client.listTools()).tools;assert.equal(tools.length,16);
+    const tools=(await client.listTools()).tools;assert.equal(tools.length,18);
     assert.ok(tools.every(tool=>tool._meta.securitySchemes[0].scopes.includes(tool.name.startsWith('modules_')?modulePermission:'creezio.access:manage')));
     const read=await client.callTool({name:'access_policy_read',arguments:{}});assert.equal(read.isError,undefined);
     assert.equal(read.structuredContent.epoch,granted.epoch);
@@ -81,6 +82,41 @@ test('built Worker completes native OAuth then real MCP discovery, call and revo
     const catalog=await client.callTool({name:'modules_catalog_list',arguments:{limit:50}});
     assert.equal(catalog.isError,undefined,JSON.stringify(catalog));
     assert.deepEqual(catalog.structuredContent.items.map(item=>item.moduleId),['creezio.access','creezio.modules-settings']);
+    const documents=await client.callTool({name:'modules_docs_list',arguments:{moduleId:'creezio.modules-settings'}});
+    assert.equal(documents.isError,undefined,JSON.stringify(documents));
+    assert.deepEqual(documents.structuredContent.documents.map(item=>item.kind).sort(),['changelog','prd','readme']);
+    const headers={authorization:`Bearer ${pair.access_token}`};
+    const documentListResponse=await request('/api/admin/modules/creezio.modules-settings/documents',{headers});
+    assert.equal(documentListResponse.status,200);
+    assert.deepEqual((await documentListResponse.json()).execution.output,documents.structuredContent);
+    assert.equal((await request('/api/admin/modules/creezio.modules-settings/documents')).status,401,
+      'public document visibility must not bypass native access');
+    for(const metadata of documents.structuredContent.documents) {
+      let content='',blockIndex=0;
+      do {
+        const input={moduleId:metadata.moduleId,kind:metadata.kind,digest:metadata.digest,
+          runtimeIntegrity:metadata.runtimeIntegrity,blockIndex};
+        const document=await client.callTool({name:'modules_docs_read',arguments:input});
+        assert.equal(document.isError,undefined,JSON.stringify(document));
+        const block=document.structuredContent;
+        assert.deepEqual(block.document,metadata);assert.equal(block.blockIndex,blockIndex);
+        assert.ok(Buffer.byteLength(block.content,'utf8')<=16384);
+        const query=new URLSearchParams({digest:metadata.digest,runtime_integrity:metadata.runtimeIntegrity,block_index:String(blockIndex)});
+        const response=await request(`/api/admin/modules/${metadata.moduleId}/documents/${metadata.kind}?${query}`,{headers});
+        assert.equal(response.status,200);assert.deepEqual((await response.json()).execution.output,block);
+        content+=block.content;blockIndex=block.nextBlockIndex;
+      } while(blockIndex!==null);
+      assert.equal(content,readFileSync(join(root,'extensions/native/modules-settings',metadata.path),'utf8'));
+      assert.equal(Buffer.byteLength(content,'utf8'),metadata.byteLength);
+      assert.equal('sha256-'+createHash('sha256').update(content).digest('hex'),metadata.digest);
+    }
+    const installed=documents.structuredContent.documents[0];
+    const stale=await client.callTool({name:'modules_docs_read',arguments:{moduleId:installed.moduleId,kind:installed.kind,
+      digest:'sha256-'+'0'.repeat(64),runtimeIntegrity:installed.runtimeIntegrity,blockIndex:0}});
+    assert.equal(stale.isError,true,'a document replaced by another publication cannot be silently mixed');
+    const developer=await client.callTool({name:'modules_docs_read',arguments:{moduleId:installed.moduleId,kind:'agents',
+      digest:installed.digest,runtimeIntegrity:installed.runtimeIntegrity,blockIndex:0}});
+    assert.equal(developer.isError,true,'development documents are not readable document kinds');
     const base=Object.fromEntries(['revision','compositionDigest','lockDigest','inventoryDigest'].map(key=>[key,catalog.structuredContent[key]]));
     const invalid=await client.callTool({name:'modules_plans_preview',arguments:{intent:{schemaVersion:1,base,
       actions:[{kind:'disable',moduleId:'creezio.access'}]}}});
@@ -104,5 +140,7 @@ test('built Worker completes native OAuth then real MCP discovery, call and revo
       body:new URLSearchParams({client_id:clientId,token:pair.access_token}).toString()});assert.equal(revoke.status,200);
     const refused=await request('/mcp/admin',{method:'POST',headers:{authorization:`Bearer ${pair.access_token}`}});
     assert.equal(refused.status,401);assert.match(refused.headers.get('www-authenticate'),/oauth-protected-resource/);
+    const revokedDocuments=await request('/api/admin/modules/creezio.modules-settings/documents',{headers});
+    assert.equal(revokedDocuments.status,401);
   } finally {await client?.close();await runtime.dispose();}
 });

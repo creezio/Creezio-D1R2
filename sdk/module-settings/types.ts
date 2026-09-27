@@ -1,4 +1,5 @@
 import type {CompiledModuleInventoryV1, ModuleActionKind, ModuleChoiceV1, ModulePlanSummaryV1} from '../modules/types.ts';
+import type {InstalledModuleDocument, InstalledModuleDocumentMetadata} from '../modules/documents.ts';
 
 export type ModuleIntent = ModuleChoiceV1;
 /** Static, verified data injected only into the modules-settings operation context by the host. */
@@ -6,6 +7,7 @@ export interface ModuleSettingsHostInventory {
   readonly current: Readonly<{composition: Readonly<Record<string, unknown>>;
     lock: Readonly<Record<string, unknown>>; descriptors: readonly Readonly<Record<string, unknown>>[]}>;
   readonly inventory: CompiledModuleInventoryV1;
+  readonly currentInstalledDocuments: readonly InstalledModuleDocument[];
 }
 export type ModuleReadResult<T> = Readonly<{ok: true; value: T} | {ok: false; error: string}>;
 
@@ -108,6 +110,25 @@ export interface ModuleJournalPage {
   readonly items: readonly ModuleJournalEntry[];
   readonly nextAfterRevision: number | null;
 }
+export interface ModuleDocumentList {
+  readonly moduleId: string;
+  readonly documents: readonly InstalledModuleDocumentMetadata[];
+  readonly compositionDigest: string;
+  readonly lockDigest: string;
+}
+export interface ModuleDocumentReadInput {
+  readonly moduleId: string;
+  readonly kind: InstalledModuleDocumentMetadata['kind'];
+  readonly digest: string;
+  readonly runtimeIntegrity: string;
+  readonly blockIndex: number;
+}
+export interface ModuleDocumentBlock {
+  readonly document: InstalledModuleDocumentMetadata;
+  readonly blockIndex: number;
+  readonly content: string;
+  readonly nextBlockIndex: number | null;
+}
 export type ModuleAcceptOutcome = Readonly<{kind: 'accepted'; value: ModulePlanAcceptance}>
   | Readonly<{kind: 'rejected'; code: string}>
   | Readonly<{kind: 'unknown'; code: string; requestKey: string}>;
@@ -135,6 +156,9 @@ export interface ModuleSettingsController {
   accept(input: {expectedRevision: number; expectedPlanDigest: string; intent: ModuleIntent}): Promise<ModuleAcceptOutcome>;
   read(planId: string): Promise<ModuleReadResult<ModulePlanRead>>;
   journal(input: {limit: number; afterRevision?: number | null}): Promise<ModuleReadResult<ModuleJournalPage>>;
+  listDocuments(moduleId: string, isCurrent?: () => boolean): Promise<ModuleReadResult<ModuleDocumentList>>;
+  loadDocument(metadata: InstalledModuleDocumentMetadata,
+    isCurrent?: () => boolean): Promise<ModuleReadResult<InstalledModuleDocument>>;
   reconcilePending(): Promise<ModuleAcceptOutcome | null>;
   dispose(): void;
 }

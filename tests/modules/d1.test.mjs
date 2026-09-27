@@ -13,6 +13,7 @@ import {ACCESS_TABLES} from '../../core/identity/d1-store.ts';
 import {hostOnly} from '../../extensions/native/access/module/operations.ts';
 import * as moduleHandlers from '../../extensions/native/modules-settings/module/operations.ts';
 import {solveModulePlan} from '../../sdk/modules/solver.mjs';
+import {installedDocumentDigest,splitInstalledDocumentContent} from '../../sdk/modules/documents.ts';
 import {namedModule} from '../contracts/helpers.mjs';
 
 const json=path=>JSON.parse(readFileSync(new URL(path,import.meta.url),'utf8'));
@@ -60,7 +61,25 @@ function compiledFixture() {
     return {candidateKey:contractIntegrity(core),...core};
   });
   const inventory={schemaVersion:1,candidates,digest:contractIntegrity({schemaVersion:1,candidates})};
-  return {composition,lock,modules,inventory};
+  const currentInstalledDocuments=modules.flatMap(descriptor=>{
+    const selected=composition.modules.find(item=>item.moduleId===descriptor.identity.id);
+    const node=lock.modules.find(item=>item.moduleId===descriptor.identity.id);
+    assert.ok(selected&&node);
+    return ['readme','prd','changelog'].map(kind=>{
+      const declaration=descriptor.documentation.installed[kind];
+      const content=descriptor===witness
+        ? `# Synthetic installed ${kind} for ${descriptor.identity.id}\nVersion ${descriptor.identity.version}.\n`
+        : readFileSync(new URL(`../../extensions/native/${descriptor===access?'access':'modules-settings'}/${declaration.path}`,
+          import.meta.url),'utf8');
+      const bytes=new TextEncoder().encode(content);
+      return {moduleId:descriptor.identity.id,origin:descriptor.identity.origin,
+        version:descriptor.identity.version,sourceRevision:descriptor.identity.source.revision,
+        runtimeIntegrity:node.runtime.integrity,kind,visibility:declaration.visibility,
+        path:declaration.path,digest:installedDocumentDigest(bytes),byteLength:bytes.byteLength,
+        blockCount:splitInstalledDocumentContent(content).length,content};
+    });
+  });
+  return {composition,lock,modules,inventory,currentInstalledDocuments};
 }
 
 test('modules settings operation commits head, plan, journal and execution in real D1',
@@ -90,7 +109,8 @@ test('modules settings operation commits head, plan, journal and execution in re
         password:'Synthetic module manager test password',audience:'admin'});
       assert.equal(session.ok,true,JSON.stringify(session));
       const runtimeInventory={current:{composition:fixture.composition,lock:fixture.lock,
-        descriptors:fixture.modules},inventory:fixture.inventory};
+        descriptors:fixture.modules},inventory:fixture.inventory,
+        currentInstalledDocuments:fixture.currentInstalledDocuments};
       const engine=createOperationEngine({db,registry,catalog:schema.runtimeCatalog,
         permissions:[{id:`${moduleId}:manage`,audiences:['admin'],actors:['user','delegated-user']}],runtimeInventory});
       const invoke=(operationId,input)=>engine.invoke({credential:{kind:'session',token:session.token},
@@ -165,7 +185,8 @@ test('modules settings operation commits head, plan, journal and execution in re
       const registry2=createOperationRegistry({catalog:compiled2.catalog,validators:validators2,handlers:handlers2});
       const publishedEngine=createOperationEngine({db,registry:registry2,catalog:schema2.runtimeCatalog,
         permissions:[{id:`${moduleId}:manage`,audiences:['admin'],actors:['user','delegated-user']}],
-        runtimeInventory:{current:{...published,descriptors:fixture.modules},inventory:fixture.inventory}});
+        runtimeInventory:{current:{...published,descriptors:fixture.modules},inventory:fixture.inventory,
+          currentInstalledDocuments:fixture.currentInstalledDocuments}});
       const publishedInvoke=(operationId,input)=>publishedEngine.invoke({credential:{kind:'session',token:session.token},
         moduleId,operationId,contextId:'application',audience:'admin',input});
       const effective=await publishedInvoke('plans.read',{planId:accepted.execution.output.planId});

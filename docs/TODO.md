@@ -1,5 +1,5 @@
 # Backlog de réalisation
-Révision 22 — 27 septembre 2026. **Chantier actif : T-11, gestion des modules et dépendances.** PR #1 à #19 intégrées ; main `f52a17b9` qualifié avec 866 tests locaux et CI. MCP admin/app et OAuth natif sont raccordés aux opérations communes. Chantier actif : T-11, gestion et dépendances des modules, sur `core/t11-module-lifecycle`. Le code commun continue pendant les attentes Sites/registre. Les exigences restent inchangées ; une preuve locale ne ferme pas la recette hébergée.
+Révision 23 — 27 septembre 2026. **Chantier actif : T-12, documentation installée des modules.** PR #1 à #20 intégrées ; main `037c0a0b` qualifié avec 908 tests locaux et CI. Catalogue, dépendances et plans de modules sont raccordés aux opérations communes et au Product Hub original. Chantier actif : T-12, documentation de version installée, sur `core/t12-installed-documentation`. Le code commun continue pendant les attentes Sites/registre. Les exigences restent inchangées ; une preuve locale ne ferme pas la recette hébergée.
 
 ## Avancement lisible
 
@@ -17,9 +17,10 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-08 — Registre central | PR #17 intégrée ; Worker Cloudflare, service/client/journal et reprise réelle sans redéploiement | Configuration fournisseur GitHub/email, raccords des publishers et onboarding produit | Fournisseur GitHub en attente d'autorisation ; travaux indépendants poursuivis |
 | T-09 — Sites | Sonde de capacités antérieure conservée | Recette produit publique et accès au Site existant | Bloqué sur l'accès Sites du compte courant ; choix de destination demandé |
 | T-10 — MCP/OAuth | PR #19 : deux catalogues, OAuth natif, PKCE/rotation et clients SDK réels ; 866 tests | Connexion réelle ChatGPT et recette Site public, ressources/widgets T-16 | Fondations locales qualifiées |
-| T-11 — Modules | Contrats T-02 ; candidat avec catalogue, dépendances, plans D1 et UI originale, recettes locales exécutées | Intégration revue/CI, raccords publication et hébergements | **Qualification finale du candidat local** |
+| T-11 — Modules | PR #20 : catalogue, dépendances, plans D1 et UI originale ; recettes locales et CI, 908 tests | Raccords publication et hébergements ; distribution complète T-30 | Livrable local disponible |
+| T-12 — Documentation | Contrat documentaire versionné ; sources Product Hub identifiées | Capture des documents installés, lectures API/MCP et onglets, contrôles de contenu et droits | **Implémentation parallèle en cours** |
 | T-31 — Docker local | PR #17 intégrée ; compte/D1/R2, redémarrage/recréation/restauration vérifiés en Docker | Recettes des futurs modules et routes de fichiers | Livrable local disponible |
-| Autres lots T-12 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, fronts/chat/widgets, publications et recette finale | À réaliser |
+| Autres lots T-13 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, fronts/chat/widgets, publications et recette finale | À réaliser |
 
 ## Règles de suivi
 États autorisés : à faire, en cours, bloqué (raison/prérequis), en revue, vérifié, livré. Enregistrer responsable réel, branche/issue ou tâche locale, PR, SHA, tests/profils et preuves à chaque transition. « Livré » exige version et livraison vérifiée ; fusionner ne suffit pas. Une dépendance fournisseur manquante bloque sa recette, pas toutes les tâches indépendantes.
@@ -58,7 +59,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-09](#T-09) | P1 | Première tranche sur Sites | [T-07](#T-07), [T-08](#T-08) | Bloqué — accès Sites |
 | [T-10](#T-10) | P2 | MCP, OAuth et accès machine | [T-06](#T-06), [T-09](#T-09) | En cours — code local |
 | [T-11](#T-11) | P3 | SDK et cycle de vie des modules | [T-02](#T-02), [T-06](#T-06), [T-10](#T-10) | En cours — code local |
-| [T-12](#T-12) | P3 | Documentation vivante des modules | [T-11](#T-11) | À faire |
+| [T-12](#T-12) | P3 | Documentation vivante des modules | [T-11](#T-11) | En cours |
 | [T-13](#T-13) | P4 | Fronts, thèmes et headless | [T-07](#T-07), [T-11](#T-11) | À faire |
 | [T-14](#T-14) | P4 | Conversations et progression persistante | [T-06](#T-06), [T-07](#T-07), [T-11](#T-11) | À faire |
 | [T-15](#T-15) | P4 | Module OpenAI et contrat fournisseur | [T-14](#T-14) | À faire |
@@ -196,18 +197,19 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-11"></a>
 ## T-11 — SDK et cycle de vie des modules
 
-- Lot : **P3** ; état : **en cours — code local** ; root composition/modèles/contrats/recette, API résolveur/archives, SDK service/D1, Workspace interface originale. Branche `core/t11-module-lifecycle` depuis `f52a17b9`.
+- Lot : **P3** ; état : **en cours — livrable local qualifié** ; PR #20 intégrée, main `037c0a0b`, 908 tests locaux et CI. Publication et distribution complète restent raccordées par leurs lots.
 - Dépendances : [T-02](#T-02), [T-06](#T-06), [T-10](#T-10).
 - Travail/livrables : SDK versionné, résolveur et verrou transitif, module natif modules-settings, catalogue/configuration/diagnostic « dépend de / utilisé par », plan de changement et gardes communes du cycle de vie. Contributions facultatives et relations persistantes contrôlées selon DEPENDANCES-MODULES.md. Suivre [IMPLEMENTATION-T11](IMPLEMENTATION-T11.md) et le [TODO du module](../extensions/native/modules-settings/TODO.md).
 - Besoin : [US-11](USER-STORIES.md#US-11). Acceptation : [REQ-1101](EXIGENCES.md#REQ-1101), [REQ-1102](EXIGENCES.md#REQ-1102), [REQ-1103](EXIGENCES.md#REQ-1103), [REQ-1104](EXIGENCES.md#REQ-1104), [REQ-1105](EXIGENCES.md#REQ-1105), [REQ-1106](EXIGENCES.md#REQ-1106).
 - Validation : implémenter puis exécuter les recettes liées, sur **local et app hôte** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : candidat `76674c5`, main `037c0a0b`, arbre `0da0b71b`, CI 36299996090/36300347412 ; 908/908 sans omission, build/types/Workerd et trois revues indépendantes. Recettes navigateur et limites décrites dans IMPLEMENTATION-T11, preuves T11 conservées hors source.
 
 <a id="T-12"></a>
 ## T-12 — Documentation vivante des modules
 
-- Lot : **P3** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P3** ; état : **en cours** ; responsable : Codex orchestrateur, chats Sol API/SDK/Workspace ; branche `core/t12-installed-documentation`.
 - Dépendances : [T-11](#T-11).
+- Réalisation : [périmètre T12](IMPLEMENTATION-T12.md). Prérequis consommé : PR #20, main `037c0a0b`, 908 tests locaux et CI ; lecture documentaire encore en construction.
 - Travail/livrables : Contrôles docs, documentation embarquée et lecture UI/API/MCP autorisée ; contrats distinguant PRD installé et révisions de travail. L’édition/validation humaine des révisions est construite en T-23.
 - Besoin : [US-12](USER-STORIES.md#US-12). Acceptation : [REQ-1201](EXIGENCES.md#REQ-1201), [REQ-1202](EXIGENCES.md#REQ-1202).
 - Validation : implémenter puis exécuter les recettes liées, sur **package, workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.

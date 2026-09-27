@@ -16,6 +16,15 @@ assert.ok(bundled.outputFiles[0]);
 const loaded = {exports: {}};
 new Function('require', 'module', 'exports', bundled.outputFiles[0].text)(require, loaded, loaded.exports);
 const ui = loaded.exports;
+const documentationBundle = await build({
+  entryPoints: [fileURLToPath(new URL('../../extensions/native/modules-settings/ui/documentation.tsx', import.meta.url))],
+  bundle: true, write: false, platform: 'node', format: 'cjs', target: 'es2022', logLevel: 'silent',
+  external: ['react', 'react-dom'],
+});
+const documentationModule = {exports: {}};
+new Function('require', 'module', 'exports', documentationBundle.outputFiles[0].text)(
+  require, documentationModule, documentationModule.exports);
+const documentation = documentationModule.exports;
 const persistenceBundle = await build({
   entryPoints: [fileURLToPath(new URL('../../extensions/native/modules-settings/ui/persistence.ts', import.meta.url))],
   bundle: true, write: false, platform: 'node', format: 'cjs', target: 'es2022', logLevel: 'silent',
@@ -27,6 +36,50 @@ const render = (Component, props) => renderToStaticMarkup(createElement(Componen
 const catalog = (patch = {}) => ({moduleId: 'atelier.panier', title: 'Panier', description: 'Ventes et commandes',
   origin: '@atelier/panier', version: '2.1.0', candidateKey: 'candidate-1', codePresent: false,
   enabled: false, configuration: 'unknown', operational: 'unknown', visibility: 'available', ...patch});
+const installedMetadata = (kind = 'readme') => ({moduleId: 'atelier.panier',
+  origin: 'https://atelier.example/panier', version: '2.1.0', sourceRevision: 'release-2.1.0',
+  runtimeIntegrity: 'sha256-' + 'a'.repeat(64), kind, visibility: 'public',
+  path: kind === 'readme' ? 'README.md' : kind === 'prd' ? 'prd.md' : 'CHANGELOG.md',
+  digest: 'sha256-' + 'b'.repeat(64), byteLength: 42, blockCount: 1});
+
+test('installed PRD and changelog render escaped original-style text with version binding', () => {
+  const metadata = installedMetadata('prd');
+  const content = 'Ligne 1\n<script>alert(1)</script>';
+  const html = render(documentation.InstalledDocumentCard, {kind: 'prd', metadata,
+    document: {...metadata, content}, loading: false, error: '', onRetry() {}});
+  assert.match(html, /Product Requirements Document/);
+  assert.match(html, /Version installée/);
+  assert.match(html, /release-2\.1\.0/);
+  assert.match(html, /whitespace-pre-line/);
+  assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+  assert.doesNotMatch(html, /<script>/);
+  assert.equal(documentation.sameInstalledDocument(metadata, {...metadata, digest: 'sha256-' + 'c'.repeat(64), content}), false);
+  const stale = render(documentation.InstalledDocumentCard, {kind: 'prd', metadata,
+    document: {...metadata, digest: 'sha256-' + 'c'.repeat(64), content: 'Ancienne version privée'},
+    loading: false, error: '', onRetry() {}});
+  assert.doesNotMatch(stale, /Ancienne version privée/);
+  const revoked = render(documentation.InstalledDocumentCard, {kind: 'prd', metadata: null,
+    document: {...metadata, content: 'Contenu retenu'}, loading: false, error: '', onRetry() {}});
+  assert.doesNotMatch(revoked, /Contenu retenu/);
+  const changelog = render(documentation.InstalledDocumentCard, {kind: 'changelog',
+    metadata: installedMetadata('changelog'), document: null, loading: false, error: '', onRetry() {}});
+  assert.match(changelog, /Changelog/);
+  assert.match(changelog, /Sélectionnez Lire/);
+});
+
+test('Documents lists installed README, PRD and changelog without editing controls', () => {
+  const documents = ['readme', 'prd', 'changelog'].map(installedMetadata);
+  const html = render(documentation.InstalledDocumentsPanel, {documents, selected: 'readme',
+    loaded: {...documents[0], content: '# Panier\nDocumentation installée'}, loading: false,
+    error: '', onSelect() {}, onRetry() {}});
+  assert.match(html, /README/);
+  assert.match(html, /PRD/);
+  assert.match(html, /Changelog/);
+  assert.match(html, /# Panier/);
+  assert.match(html, /whitespace-pre-line/);
+  assert.doesNotMatch(html, /type="file"|Restaurer|Téléverser|Modifier/);
+  assert.doesNotMatch(html, /dangerouslySetInnerHTML/);
+});
 
 test('workspace module label fits metadata without changing the full business title', () => {
   assert.equal(ui.moduleWorkspaceLabel('  Panier\n\t connecté\u0007  ', 'atelier.panier'), 'Panier connecté');

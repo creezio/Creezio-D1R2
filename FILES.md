@@ -1,6 +1,6 @@
 # Repères du dépôt
 
-État : PR #1 à #19 intégrées ; main `f52a17b9` qualifié avec 866 tests locaux et CI. MCP admin/app et OAuth natif sont raccordés aux opérations communes. Chantier actif : T-11, gestion et dépendances des modules, sur `core/t11-module-lifecycle`. Le [TODO](docs/TODO.md) distingue acquis, travaux et qualifications restantes.
+État : PR #1 à #20 intégrées ; main `037c0a0b` qualifié avec 908 tests locaux et CI. Catalogue, dépendances et plans de modules sont raccordés aux opérations communes et au Product Hub original. Chantier actif : T-12, documentation de version installée, sur `core/t12-installed-documentation`. Le [TODO](docs/TODO.md) distingue acquis, travaux et qualifications restantes.
 
 | Emplacement | Responsabilité |
 |---|---|
@@ -17,6 +17,7 @@
 | [docs/EXIGENCES.md](docs/EXIGENCES.md) | Exigences stables et recettes attendues. |
 | [docs/USER-STORIES.md](docs/USER-STORIES.md) | Parcours utilisateur/développeur reliés aux exigences. |
 | [docs/TODO.md](docs/TODO.md) | Backlog canonique, dépendances, jalons et états. |
+| [docs/IMPLEMENTATION-T12.md](docs/IMPLEMENTATION-T12.md) | Documents installés, lecture et limites de qualification T12. |
 | [docs/PLAN-IMPLEMENTATION.md](docs/PLAN-IMPLEMENTATION.md) | Architecture détaillée et lots. |
 | [docs/MATRICE-CAPACITES.md](docs/MATRICE-CAPACITES.md) | Inventaire fonctionnel et scénarios de conservation. |
 | [docs/ARCHITECTURE-DEPOTS.md](docs/ARCHITECTURE-DEPOTS.md) | Socle/fork/tiers/registre, modules natifs et propriété. |

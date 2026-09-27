@@ -1,5 +1,7 @@
 # Standard des modules Creezio
 
+La documentation installée suit le même artefact verrouillé que le module : README, PRD et changelog sont capturés lors de la construction, puis lus par les opérations communes autorisées. Les documents de développement, le journal local d'installation et le PRD de travail restent distincts. Les limites et la qualification de cette lecture sont précisées dans [T12](IMPLEMENTATION-T12.md).
+
 Ce document définit le contrat des modules natifs, communs, propres à une application et distribués par un éditeur tiers. Il s'applique à leur conception, à leurs sources, à leurs paquets et à leur validation. Le runtime, le SDK, les générateurs et les contrôles qui le feront respecter restent à construire et à qualifier ; la présence de ce contrat ne prouve pas leur fonctionnement.
 
 Lire également la [matrice des capacités](MATRICE-CAPACITES.md), les [extensions et thèmes](EXTENSIONS-THEMES-ECOSYSTEME.md), la [compatibilité ChatGPT](COMPATIBILITE-CHATGPT.md) et le [standard de développement](DEVELOPMENT-STANDARD.md). Les exigences et leur avancement sont suivis dans [EXIGENCES.md](EXIGENCES.md), [USER-STORIES.md](USER-STORIES.md) et [TODO.md](TODO.md), sans créer une seconde numérotation dans chaque guide.

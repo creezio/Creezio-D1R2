@@ -1,5 +1,9 @@
 # Changelog
 
+## Non publié — T12
+
+Lecture des documents de version installée dans les cartes PRD/Documents/Changelog du Product Hub, ainsi que par les API et outils MCP communs. Les octets sont liés à l'archive runtime verrouillée ; lecture bornée et vérification d'intégrité, sans accès au filesystem ou à GitHub au runtime. Documents de développement, historique d'installation et PRD de travail restent séparés. Qualification en cours.
+
 ## Non publié — T11
 
 Catalogue de modules, graphe de dépendances, plans explicites et journal des acceptations. Réemploi des vues originales Product Hub avec SDK workspace et opérations communes. Modèles actuels sans script SQL de transformation ; conservation des données lors des changements. Qualification en cours.

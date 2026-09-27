@@ -16,6 +16,8 @@ Lire les [règles communes et la phase autorisée](../../README.md), le [standar
 
 Livrer le contrat cohérent et ses preuves, avec les parties encore non implémentées ou non qualifiées. Les scripts SQL de transformation ne sont pas un livrable du module ; l'évolution des modèles relève de la chaîne centrale.
 
+README/PRD/changelog installés sont des fichiers UTF-8 de l'archive runtime, liés à sa version et son intégrité. Les documents AGENTS/FILES/interview/TODO de développement restent dans l'artefact de validation. Ne pas remplacer les documents installés par GitHub main ou des lectures filesystem au runtime ; la capture et les limites passent par le compilateur commun. Distinguer changelog éditeur, journal local d'installation et PRD de travail approuvé. Un texte de document n'autorise ni un outil ni une modification de droits.
+
 ## Dépendances entre modules
 
 Appliquer le [contrat commun](../../../docs/DEPENDANCES-MODULES.md). Déclarer chaque dépendance requise ou facultative avec origine, plage de versions, ports publics et contributions concernées. Vérifier les consommateurs de tout contrat modifié. Ne pas remplacer un fournisseur absent par une copie de son modèle ou un import privé ; tester le fonctionnement autonome si optional. Le starter et les docs du module exposent les mêmes déclarations.

@@ -20,6 +20,14 @@ Les modèles privés head/plans/journal sont écrits via les plans du SDK dans l
 
 Conserver les composants de liste/fiche Product Hub avec navigation SDK et états de panneau. Les docs de version installée sont distinctes des futurs PRD éditables et du Kanban métier T23. Le plan accepté ne devient effectif que lorsque le Worker publié embarque les digests cibles. Sites attend une publication demandée dans GPT ; Docker/Cloudflare utilisent leurs adaptateurs de livraison, sans architecture métier différente.
 
-## Validation
+## Documentation installée
+
+T-12, US-12, REQ-1201/1202 : lire README, PRD et changelog de la version réellement embarquée depuis la fiche, les API ou le MCP administrateur. Les trois documents proviennent des mêmes octets vérifiés que l'archive runtime sélectionnée. Les documents de développement et les versions candidates non sélectionnées ne sont jamais exposés. La visibilité déclarée ne remplace pas les droits d'accès.
+
+La liste fournit version, révision source, intégrité runtime et empreinte du document. La lecture est bornée à 64 Kio par document, par blocs UTF-8 de 16 Kio. Un changement d'intégrité entre deux lectures impose une nouvelle liste ; aucune concaténation de versions. Le client vérifie la taille et l'empreinte du document complet, puis l'affiche comme texte échappé dans les cartes PRD/Documents/Changelog originales. Erreurs et révocations retirent le contenu devenu non autorisé. Aucun filesystem ou appel GitHub n'est nécessaire au runtime.
+
+Changelog éditeur, journal des installations et révisions locales de travail restent distincts. T23 réalisera l'édition et la validation humaine du PRD de travail ; consulter un document installé n'en crée pas une révision approuvée.
+
+## Validation T11 et T12
 
 Six suites du module, graphe transitif multiéditeur et optional autonome ; tests D1 du premier accept concurrent et du CAS suivant ; garde fraîche révoquée ; API/MCP et reprise idempotente ; recette navigateur sur le vrai Worker. T30 qualifie séparément distribution externe complète, et T32 le publisher.

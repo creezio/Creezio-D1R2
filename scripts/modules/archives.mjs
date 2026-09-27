@@ -109,14 +109,21 @@ function cacheArchive(root,moduleId,kind,bytes,cacheRoot,writeCache) {
 }
 /** Node-only source packer. It never transforms line endings or executes module code. */
 export function packModuleArtifacts({root,moduleDirectory,moduleId,descriptor,
-  cacheDir='.creezio/module-artifacts',expected=null,writeCache=true}) {
+  cacheDir='.creezio/module-artifacts',expected=null,writeCache=true,captureRuntimeFiles=[]}) {
   const absoluteRoot=path.resolve(root),directory=confined(absoluteRoot,moduleDirectory,{directory:true});
   if (typeof moduleId!=='string'||!/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(moduleId)
     || descriptor?.identity?.id!==moduleId||!safePackagePath(cacheDir)) fail('descriptor');
   const cacheRoot=confined(absoluteRoot,path.join(absoluteRoot,...cacheDir.split('/')),{directory:true,missing:true});
-  const runtime=deterministicModuleArchive(readDeclared(directory,descriptor.packaging?.runtime?.files,absoluteRoot));
+  if (!Array.isArray(captureRuntimeFiles)||new Set(captureRuntimeFiles).size!==captureRuntimeFiles.length
+    || captureRuntimeFiles.some(name=>!safePackagePath(name)
+      || !descriptor.packaging?.runtime?.files?.includes(name))) fail('capture_files');
+  const runtimeFiles=readDeclared(directory,descriptor.packaging?.runtime?.files,absoluteRoot);
+  const capturedRuntimeFiles=Object.fromEntries(runtimeFiles.filter(file=>captureRuntimeFiles.includes(file.path))
+    .map(file=>[file.path,file.bytes]));
+  const runtime=deterministicModuleArchive(runtimeFiles);
   const validation=deterministicModuleArchive(readDeclared(directory,descriptor.packaging?.validation?.files,absoluteRoot));
   if (expected && (expected.runtime!==sha(runtime)||expected.validation!==sha(validation))) fail('lock_artifact');
   return Object.freeze({runtime:cacheArchive(absoluteRoot,moduleId,'runtime',runtime,cacheRoot,writeCache),
-    validation:cacheArchive(absoluteRoot,moduleId,'validation',validation,cacheRoot,writeCache)});
+    validation:cacheArchive(absoluteRoot,moduleId,'validation',validation,cacheRoot,writeCache),
+    capturedRuntimeFiles:Object.freeze(capturedRuntimeFiles)});
 }

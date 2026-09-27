@@ -3,6 +3,8 @@ import path from 'node:path';
 import {validateModule,contractIntegrity,canonicalJson} from '../contracts/validate.mjs';
 import {safePackagePath} from '../contracts/references.mjs';
 import {packModuleArtifacts} from '../../scripts/modules/archives.mjs';
+import {decodeInstalledDocument,installedDocumentDigest,splitInstalledDocumentContent,
+  INSTALLED_DOCUMENT_LIMITS} from './documents.ts';
 
 export class ModuleInventoryError extends Error {
   constructor(code,detail='') {super(`Module inventory refused (${code}${detail?`: ${detail}`:''}).`);
@@ -45,11 +47,13 @@ const ordered=(left,right)=>left.moduleId.localeCompare(right.moduleId)
   || left.version.localeCompare(right.version)||left.candidateKey.localeCompare(right.candidateKey);
 
 /** Node/build only. Every entry comes from an already present source and real cached artifact bytes. */
-export function compileModuleInventory({root,candidates,allowedOrigins,cacheDir='.creezio/module-artifacts'}) {
+function compile({root,candidates,allowedOrigins,cacheDir='.creezio/module-artifacts',selectedCount=0}) {
   if (typeof root!=='string'||!Array.isArray(candidates)||candidates.length>1000
-    || !Array.isArray(allowedOrigins)||allowedOrigins.some(origin=>typeof origin!=='string')) fail('input');
+    || !Array.isArray(allowedOrigins)||allowedOrigins.some(origin=>typeof origin!=='string')
+    || !Number.isSafeInteger(selectedCount)||selectedCount<0||selectedCount>candidates.length) fail('input');
   const absoluteRoot=existing(root,root,true),allowed=new Set(allowedOrigins);
-  const compiled=[],identities=new Set();
+  const compiled=[],identities=new Set(),currentInstalledDocuments=[];
+  let totalDocumentBytes=0;
   for (const [index,item] of candidates.entries()) {
     if (!item||typeof item!=='object'||!item.source||!item.lockNode) fail('candidate',String(index));
     const directory=located(absoluteRoot,item.source);
@@ -68,8 +72,11 @@ export function compileModuleInventory({root,candidates,allowedOrigins,cacheDir=
     if (node.moduleId!==moduleId||node.origin!==origin||node.version!==version
       || canonicalJson(node.source)!==canonicalJson(descriptor.identity.source)
       || node.contractIntegrity!==contractIntegrity(descriptor)) fail('lock_identity',moduleId);
+    const installed=descriptor.documentation.installed;
+    const kinds=['readme','prd','changelog'];
     const artifact=packModuleArtifacts({root:absoluteRoot,moduleDirectory:directory,moduleId,descriptor,cacheDir,
-      expected:{runtime:node.runtime?.integrity,validation:node.validation?.integrity}});
+      expected:{runtime:node.runtime?.integrity,validation:node.validation?.integrity},
+      captureRuntimeFiles:index<selectedCount?kinds.map(kind=>installed[kind].path):[]});
     if (node.runtime?.integrity!==artifact.runtime.integrity
       || node.validation?.integrity!==artifact.validation.integrity) fail('lock_artifact',moduleId);
     // A local lock must name the very bytes just packed. HTTPS locations are never fetched here.
@@ -80,6 +87,24 @@ export function compileModuleInventory({root,candidates,allowedOrigins,cacheDir=
     const identity=`${moduleId}:${version}:${origin}`;
     if (identities.has(identity)) fail('duplicate',identity);
     identities.add(identity);
+    if (index<selectedCount) {
+      let moduleBytes=0;
+      for (const kind of kinds) {
+        const declaration=installed[kind],bytes=artifact.capturedRuntimeFiles[declaration.path];
+        if (!bytes) fail('document_missing',`${moduleId}:${kind}`);
+        moduleBytes+=bytes.byteLength;totalDocumentBytes+=bytes.byteLength;
+        if (bytes.byteLength>INSTALLED_DOCUMENT_LIMITS.documentBytes
+          || moduleBytes>INSTALLED_DOCUMENT_LIMITS.moduleBytes
+          || totalDocumentBytes>INSTALLED_DOCUMENT_LIMITS.totalBytes) fail('document_size',`${moduleId}:${kind}`);
+        let content,blockCount;
+        try {content=decodeInstalledDocument(bytes);blockCount=splitInstalledDocumentContent(content).length;}
+        catch {fail('document_encoding',`${moduleId}:${kind}`);}
+        currentInstalledDocuments.push(Object.freeze({moduleId,origin,version,
+          sourceRevision:descriptor.identity.source.revision,runtimeIntegrity:node.runtime.integrity,
+          kind,visibility:declaration.visibility,path:declaration.path,
+          digest:installedDocumentDigest(bytes),byteLength:bytes.byteLength,blockCount,content}));
+      }
+    }
     const core={moduleId,origin,version,source:item.source,descriptor,lockNode:node};
     compiled.push(Object.freeze({candidateKey:contractIntegrity({moduleId,origin,version,source:item.source,
       contractIntegrity:node.contractIntegrity,runtime:node.runtime.integrity,validation:node.validation.integrity}),
@@ -87,5 +112,11 @@ export function compileModuleInventory({root,candidates,allowedOrigins,cacheDir=
   }
   compiled.sort(ordered);
   const base={schemaVersion:1,candidates:Object.freeze(compiled)};
-  return Object.freeze({...base,digest:contractIntegrity(base)});
+  return {inventory:Object.freeze({...base,digest:contractIntegrity(base)}),
+    currentInstalledDocuments:Object.freeze(currentInstalledDocuments)};
 }
+
+export function compileModuleInventory(options) {return compile(options).inventory;}
+
+/** Build-only capture of selected documents, from the exact bytes used to verify runtime archives. */
+export function compileModuleInventoryWithDocuments(options) {return compile(options);}

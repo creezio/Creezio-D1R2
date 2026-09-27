@@ -1,7 +1,7 @@
 # Fichiers du module
 
-- module/ : manifeste, modèles actuels, métadonnées et handlers des six opérations.
-- ui/ : liste et fiche de module adaptées des composants Creezio originaux.
+- module/ : manifeste, modèles actuels, métadonnées et handlers des huit opérations ; documentation.ts lit les documents installés depuis la capacité immuable de l'hôte.
+- ui/ : liste et fiche de module adaptées des composants Creezio originaux ; documentation.tsx présente PRD, README et changelog installés.
 - plugin/ : déclarations des outils MCP administratifs ; aucune UI de chat déclarée dans cette tranche.
 - ci/ et tests/ : six suites propres au module et leurs entrées réelles.
 - README, prd, CHANGELOG : documentation de version installée.

@@ -7,7 +7,7 @@ import {spawnSync} from 'node:child_process';
 import {fixture} from '../contracts/helpers.mjs';
 import {contractIntegrity} from '../../sdk/contracts/validate.mjs';
 import {packModuleArtifacts} from '../../scripts/modules/archives.mjs';
-import {compileModuleInventory} from '../../sdk/modules/inventory.mjs';
+import {compileModuleInventory,compileModuleInventoryWithDocuments} from '../../sdk/modules/inventory.mjs';
 import {runModulePlanCli} from '../../scripts/modules/plan.mjs';
 import {runModuleLockCli} from '../../scripts/modules/lock.mjs';
 
@@ -44,7 +44,7 @@ function localModule(t) {
     runtime:{integrity:packed.runtime.integrity,location:{kind:'local',path:packed.runtime.path}},
     validation:{integrity:packed.validation.integrity,location:{kind:'local',path:packed.validation.path}},
     dependencies:[]});
-  return {root,descriptor,source,node,moduleDirectory,runtimePath,write,files};
+  return {root,descriptor,source,node,moduleDirectory,runtimePath,write,makeDirectory,files};
 }
 
 test('Node inventory binds an available module to exact runtime and validation bytes',t=>{
@@ -77,6 +77,49 @@ test('workspace archive packer refuses CRLF without normalizing source bytes',t=
   assert.throws(()=>packModuleArtifacts({root:f.root,moduleDirectory:f.moduleDirectory,
     moduleId:f.descriptor.identity.id,descriptor:f.descriptor}),{code:'text_eol'});
   assert.equal(readFileSync(readme,'utf8'),'Windows line\r\n');
+});
+
+test('selected installed documents are captured from the same verified runtime archive read',t=>{
+  const f=localModule(t);
+  const {inventory,currentInstalledDocuments}=compileModuleInventoryWithDocuments({root:f.root,
+    candidates:[{source:f.source,lockNode:f.node}],selectedCount:1,
+    allowedOrigins:[f.descriptor.identity.origin]});
+  assert.equal(currentInstalledDocuments.length,3);
+  assert.deepEqual(currentInstalledDocuments.map(item=>item.kind),['readme','prd','changelog']);
+  assert.equal(currentInstalledDocuments[0].content,'Fixture README.md\n');
+  assert.equal(currentInstalledDocuments[0].runtimeIntegrity,f.node.runtime.integrity);
+  assert.equal(Object.hasOwn(inventory,'currentInstalledDocuments'),false);
+  assert.equal(JSON.stringify(inventory).includes('Fixture README.md'),false);
+  assert.deepEqual(compileModuleInventoryWithDocuments({root:f.root,
+    candidates:[{source:f.source,lockNode:f.node}],selectedCount:0,
+    allowedOrigins:[f.descriptor.identity.origin]}).currentInstalledDocuments,[]);
+});
+
+test('an available other version contributes no document text to selected host data',t=>{
+  const f=localModule(t),updated=structuredClone(f.descriptor);
+  updated.identity.version='1.1.0';
+  updated.documentation.versionBinding.moduleVersion='1.1.0';
+  updated.packaging.validationBinding.moduleVersion='1.1.0';
+  const source={kind:'workspace',path:'extensions/native/tasks-update'};
+  const directory=path.join(f.root,...source.path.split('/'));
+  for(const name of new Set([...updated.packaging.runtime.files,...updated.packaging.validation.files]))
+    f.write(path.join(directory,...name.split('/')),name==='module/manifest.json'
+      ? `${JSON.stringify(updated,null,2)}\n`:`Other version ${name}\n`);
+  f.makeDirectory(path.join(f.root,'.creezio','module-artifacts',updated.identity.id));
+  const packed=packModuleArtifacts({root:f.root,moduleDirectory:directory,moduleId:updated.identity.id,descriptor:updated});
+  f.files.add(path.join(f.root,...packed.runtime.path.split('/')));
+  f.files.add(path.join(f.root,...packed.validation.path.split('/')));
+  const node=structuredClone(f.node);
+  node.version=updated.identity.version;node.contractIntegrity=contractIntegrity(updated);
+  node.runtime={integrity:packed.runtime.integrity,location:{kind:'local',path:packed.runtime.path}};
+  node.validation={integrity:packed.validation.integrity,location:{kind:'local',path:packed.validation.path}};
+  const {inventory,currentInstalledDocuments}=compileModuleInventoryWithDocuments({root:f.root,
+    candidates:[{source:f.source,lockNode:f.node},{source,lockNode:node}],selectedCount:1,
+    allowedOrigins:[f.descriptor.identity.origin]});
+  assert.equal(inventory.candidates.length,2);
+  assert.equal(currentInstalledDocuments.length,3);
+  assert.ok(currentInstalledDocuments.every(doc=>doc.version===f.descriptor.identity.version));
+  assert.equal(JSON.stringify({inventory,currentInstalledDocuments}).includes('Other version README.md'),false);
 });
 
 test('local plan command validates the current lock and resolves from exact cached artifacts',t=>{

@@ -1,9 +1,11 @@
 import type {AccessController} from '../access/types.ts';
-import {createModuleSettingsClient, type ModuleSettingsClient} from './client.ts';
+import {createModuleSettingsClient, isModuleDocumentMetadata, type ModuleSettingsClient} from './client.ts';
 import type {ModuleSettingsController, ModuleSettingsPendingCommand, ModuleSettingsPendingPersistence,
   ModuleSettingsSnapshot, ModuleReadResult, ModuleIntent, ModulePlanPreview, ModuleCatalogPage,
-  ModuleDetail, ModulePlanRead, ModuleJournalPage, ModuleAcceptOutcome} from './types.ts';
+  ModuleDetail, ModulePlanRead, ModuleJournalPage, ModuleAcceptOutcome, ModuleDocumentList} from './types.ts';
 import type {OperationClient} from '../operations/client.ts';
+import {verifyInstalledDocumentContent} from '../modules/documents.ts';
+import type {InstalledModuleDocument, InstalledModuleDocumentMetadata} from '../modules/documents.ts';
 
 const requestKeyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const identityOf = (access: AccessController): string | null => {
@@ -14,6 +16,11 @@ const identityOf = (access: AccessController): string | null => {
 const failed = <T>(error: string): ModuleReadResult<T> => Object.freeze({ok: false, error});
 const unknown = (requestKey: string, code: string): ModuleAcceptOutcome =>
   Object.freeze({kind: 'unknown', requestKey, code});
+const sameDocument = (left: InstalledModuleDocumentMetadata, right: InstalledModuleDocumentMetadata): boolean =>
+  left.moduleId === right.moduleId && left.origin === right.origin && left.version === right.version
+  && left.sourceRevision === right.sourceRevision && left.runtimeIntegrity === right.runtimeIntegrity
+  && left.kind === right.kind && left.visibility === right.visibility && left.path === right.path
+  && left.digest === right.digest && left.byteLength === right.byteLength && left.blockCount === right.blockCount;
 
 /** The request key is saved before any POST. An uncertain result is reconciled by status, never replayed. */
 export function createModuleSettingsController(options: {operations: OperationClient; access: AccessController;
@@ -69,12 +76,51 @@ export function createModuleSettingsController(options: {operations: OperationCl
     }
     publish();
   });
-  async function read<T>(action: (isCurrent: () => boolean) => Promise<ModuleReadResult<T>>): Promise<ModuleReadResult<T>> {
+  async function read<T>(action: (isCurrent: () => boolean) => Promise<ModuleReadResult<T>>,
+    viewIsCurrent?: () => boolean): Promise<ModuleReadResult<T>> {
     if (disposed || identity === null) return failed('unauthorized');
     const started = generation, owner = identity;
-    const isCurrent = () => !disposed && generation === started && identity === owner;
+    const isCurrent = () => {
+      if (disposed || generation !== started || identity !== owner) return false;
+      try { return viewIsCurrent?.() !== false; } catch { return false; }
+    };
+    if (!isCurrent()) return failed('stale');
     try { const result = await action(isCurrent); return isCurrent() ? result : failed('stale'); }
     catch { return failed('unavailable'); }
+  }
+  function loadDocument(metadata: InstalledModuleDocumentMetadata, viewIsCurrent?: () => boolean):
+    Promise<ModuleReadResult<InstalledModuleDocument>> {
+    let selected: InstalledModuleDocumentMetadata;
+    try {
+      selected = Object.freeze({moduleId: metadata.moduleId, origin: metadata.origin,
+        version: metadata.version, sourceRevision: metadata.sourceRevision,
+        runtimeIntegrity: metadata.runtimeIntegrity, kind: metadata.kind,
+        visibility: metadata.visibility, path: metadata.path, digest: metadata.digest,
+        byteLength: metadata.byteLength, blockCount: metadata.blockCount});
+    } catch { return Promise.resolve(failed('invalid_input')); }
+    if (!isModuleDocumentMetadata(selected)) return Promise.resolve(failed('invalid_input'));
+    return read(async isCurrent => {
+      const chunks: string[] = [];
+      let byteLength = 0;
+      for (let blockIndex = 0; blockIndex < selected.blockCount; blockIndex++) {
+        if (!isCurrent()) return failed('stale');
+        const result = await client.readDocument({moduleId: selected.moduleId, kind: selected.kind,
+          digest: selected.digest, runtimeIntegrity: selected.runtimeIntegrity, blockIndex}, isCurrent);
+        if (!isCurrent()) return failed('stale');
+        if (!result.ok) return result;
+        const block = result.value;
+        if (!sameDocument(selected, block.document) || block.blockIndex !== blockIndex
+          || block.nextBlockIndex !== (blockIndex + 1 < selected.blockCount ? blockIndex + 1 : null))
+          return failed('invalid_response');
+        byteLength += new TextEncoder().encode(block.content).byteLength;
+        if (byteLength > 65_536 || byteLength > selected.byteLength) return failed('invalid_response');
+        chunks.push(block.content);
+      }
+      const content = chunks.join('');
+      if (byteLength !== selected.byteLength || !verifyInstalledDocumentContent(selected, content))
+        return failed('invalid_response');
+      return Object.freeze({ok: true, value: Object.freeze({...selected, content})});
+    }, viewIsCurrent);
   }
   async function reconcile(): Promise<ModuleAcceptOutcome | null> {
     if (mutation) await mutation;
@@ -136,6 +182,9 @@ export function createModuleSettingsController(options: {operations: OperationCl
       read(isCurrent => client.read(planId, isCurrent)),
     journal: (input: {limit: number; afterRevision?: number | null}): Promise<ModuleReadResult<ModuleJournalPage>> =>
       read(isCurrent => client.journal(input, isCurrent)),
+    listDocuments: (moduleId: string, isCurrent?: () => boolean): Promise<ModuleReadResult<ModuleDocumentList>> =>
+      read(current => client.listDocuments(moduleId, current), isCurrent),
+    loadDocument,
     reconcilePending: reconcile,
     dispose() {
       if (disposed) return;

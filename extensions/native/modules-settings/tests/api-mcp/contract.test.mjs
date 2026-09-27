@@ -2,9 +2,9 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {manifest} from '../helpers.mjs';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
-test('HTTP and MCP bind the same six operations with administrative native authentication',()=>{
+test('HTTP and MCP bind the same eight operations with administrative native authentication',()=>{
   const ids=manifest.contracts.operations.map(op=>op.id);
-  assert.equal(ids.length,6);
+  assert.equal(ids.length,8);
   assert.deepEqual(manifest.contracts.api.map(binding=>binding.operation.id),ids);
   assert.deepEqual(manifest.contracts.mcp.tools.map(tool=>tool.operation.id),ids);
   assert.ok(manifest.contracts.api.every(binding=>binding.audience==='admin'&&binding.auth.join(',')==='session,oauth'));
@@ -12,6 +12,24 @@ test('HTTP and MCP bind the same six operations with administrative native authe
   const tool=manifest.contracts.mcp.tools.find(tool=>tool.id==='plans.accept');
   assert.equal(tool.annotations.readOnly,false);assert.equal(tool.annotations.idempotent,true);
   assert.equal(tool.annotations.openWorld,false);
+});
+
+test('installed documentation reads are bounded queries with pinned document identity and no arbitrary path',()=>{
+  const ajv=new Ajv2020({strict:true});addFormats(ajv);
+  const compile=id=>ajv.compile(manifest.contracts.schemas.find(item=>item.id===id).schema);
+  const validate=compile('docs-read-input'),hash='sha256-'+'a'.repeat(64);
+  const input={moduleId:'vendor.catalogue',kind:'prd',digest:hash,runtimeIntegrity:hash,blockIndex:0};
+  assert.equal(validate(input),true);
+  for(const invalid of [{...input,path:'AGENTS.md'},{...input,kind:'agents'},{...input,blockIndex:8},
+    {...input,digest:undefined},{...input,runtimeIntegrity:undefined}]) assert.equal(validate(invalid),false);
+  for(const id of ['docs.list','docs.read']) {
+    const operation=manifest.contracts.operations.find(item=>item.id===id);
+    assert.equal(operation.kind,'query');assert.equal(operation.pagination.mode,'none');
+    assert.deepEqual(operation.effects,{reads:[],writes:[],emits:[],calls:[],providers:[]});
+    assert.deepEqual(operation.permissions,[{moduleId:'creezio.modules-settings',kind:'permission',id:'manage'}]);
+    assert.equal(manifest.contracts.api.find(item=>item.id===id).method,'GET');
+    assert.equal(manifest.contracts.mcp.tools.find(item=>item.id===id).annotations.readOnly,true);
+  }
 });
 
 test('catalogue transports preserve the full canonical title including supplementary Unicode',()=>{

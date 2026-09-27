@@ -1,18 +1,21 @@
 'use client';
 
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {ArrowLeft, Loader2, RefreshCw} from 'lucide-react';
 import {Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle,
   Tabs, TabsContent, TabsList, TabsTrigger} from '../../../../sdk/ui/index.ts';
 import {createModuleSettingsController} from '../../../../sdk/module-settings/controller.ts';
 import type {ModuleSettingsController, ModuleSettingsSnapshot, ModuleCatalogPage, ModuleCatalogItem,
   ModuleDetail, ModuleIntent, ModuleJournalEntry, ModulePlanAcceptance, ModulePlanPreview,
-  ModulePlanRead} from '../../../../sdk/module-settings/types.ts';
+  ModulePlanRead, ModuleDocumentList} from '../../../../sdk/module-settings/types.ts';
 import type {ModuleActionKind} from '../../../../sdk/modules/types.ts';
+import type {InstalledModuleDocument} from '../../../../sdk/modules/documents.ts';
 import type {RuntimeViewProps} from '../../../../sdk/runtime/ui.ts';
 import {useRegisterWorkspaceMetadata} from '../../../../sdk/workspace/metadata.tsx';
 import {CatalogCards, DependencyCard, DiagnosticCard, JournalCard, ModuleStatus, PlanPreviewCard,
   moduleWorkspaceLabel} from './presentation.tsx';
+import {InstalledDocumentCard, InstalledDocumentsPanel, sameInstalledDocument,
+  type InstalledDocumentKind} from './documentation.tsx';
 import {modulePendingPersistence} from './persistence.ts';
 
 const PAGE_SIZE = 25;
@@ -143,6 +146,79 @@ function JournalPanel({journal}: {journal: ReturnType<typeof useJournal>}) {
   </div>;
 }
 
+function documentMessage(code: string): string {
+  if (code === 'not_found') return 'Aucun document installé trouvé pour ce module ou cette version.';
+  if (code === 'conflict') return 'La version installée a changé. Actualisez les documents.';
+  if (code === 'stale') return 'La lecture a été interrompue. Réessayez.';
+  if (code === 'invalid_response') return 'Le document reçu ne correspond pas à la version installée. Réessayez après actualisation.';
+  return message(code);
+}
+
+/** Loaded content stays in panel memory only; each activation rechecks the installed version. */
+function useInstalledDocuments(controller: ModuleSettingsController | null, enabled: boolean,
+  authorized: boolean, moduleId: string, identityVersion: number, tab: string) {
+  const [list, setList] = useState<ModuleDocumentList | null>(null);
+  const [loaded, setLoaded] = useState<Partial<Record<InstalledDocumentKind, InstalledModuleDocument>>>({});
+  const [selected, setSelected] = useState<InstalledDocumentKind>('readme');
+  const [loadingList, setLoadingList] = useState(false);
+  const [loadingKind, setLoadingKind] = useState<InstalledDocumentKind | null>(null);
+  const [listError, setListError] = useState('');
+  const [readError, setReadError] = useState<{kind: InstalledDocumentKind; message: string} | null>(null);
+  const generation = useRef(0), readGeneration = useRef(0);
+  const live = useRef({enabled, moduleId, identityVersion});
+  live.current = {enabled, moduleId, identityVersion};
+  const refresh = useCallback(async () => {
+    if (!enabled || !controller || !moduleId) return;
+    const current = ++generation.current;
+    readGeneration.current++;
+    setList(null); setLoaded({}); setListError(''); setReadError(null);
+    setLoadingKind(null); setLoadingList(true);
+    const isCurrent = () => generation.current === current && live.current.enabled
+      && live.current.moduleId === moduleId && live.current.identityVersion === identityVersion;
+    const result = await controller.listDocuments(moduleId, isCurrent);
+    if (!isCurrent()) return;
+    if (result.ok && result.value.moduleId === moduleId) setList(result.value);
+    else setListError(documentMessage(result.ok ? 'invalid_response' : result.error));
+    setLoadingList(false);
+  }, [controller, enabled, moduleId, identityVersion]);
+  useLayoutEffect(() => {
+    generation.current++; readGeneration.current++;
+    setList(null); setLoaded({}); setListError(''); setReadError(null);
+    setLoadingKind(null); setLoadingList(enabled);
+    return () => {generation.current++; readGeneration.current++;};
+  }, [enabled, authorized, refresh]);
+  // The workspace pane updates its activity guard in a parent layout effect.
+  // Start transport reads after that guard has observed reactivation.
+  useEffect(() => {if (enabled) void refresh();}, [enabled, refresh]);
+  const read = useCallback(async (kind: InstalledDocumentKind, force = false) => {
+    if (!enabled || !controller || list?.moduleId !== moduleId) return;
+    const metadata = list.documents.find(item => item.kind === kind);
+    if (!metadata || !force && sameInstalledDocument(metadata, loaded[kind] ?? null)) return;
+    const current = ++readGeneration.current, listVersion = generation.current;
+    setLoadingKind(kind); setReadError(null);
+    const isCurrent = () => readGeneration.current === current && generation.current === listVersion
+      && live.current.enabled && live.current.moduleId === moduleId
+      && live.current.identityVersion === identityVersion;
+    const result = await controller.loadDocument(metadata, isCurrent);
+    if (!isCurrent()) return;
+    if (result.ok && sameInstalledDocument(metadata, result.value))
+      setLoaded(previous => ({...previous, [kind]: result.value}));
+    else setReadError({kind, message: documentMessage(result.ok ? 'invalid_response' : result.error)});
+    setLoadingKind(null);
+  }, [controller, enabled, list, loaded, moduleId, identityVersion]);
+  useEffect(() => {
+    if (!enabled || !list || loadingList) return;
+    const kind = tab === 'prd' || tab === 'changelog' ? tab
+      : tab === 'documents' ? selected : null;
+    if (kind && list.documents.some(item => item.kind === kind)) void read(kind);
+  }, [enabled, list, loadingList, tab, selected, read]);
+  const select = (kind: InstalledDocumentKind) => {
+    if (kind === selected) void read(kind, true);
+    else setSelected(kind);
+  };
+  return {list, loaded, selected, loadingList, loadingKind, listError, readError, refresh, read, select};
+}
+
 export function ModulesListView(props: RuntimeViewProps) {
   const {controller, snapshot} = useModuleController(props);
   const enabled = permission(props, snapshot);
@@ -253,6 +329,22 @@ export function ModuleDetailView(props: RuntimeViewProps) {
   const accepting = useRef(false);
   const identityVersion = useRef(snapshot.identityVersion);
   const journal = useJournal(controller, enabled, snapshot.identityVersion);
+  const documentation = useInstalledDocuments(controller, enabled, props.authorized,
+    moduleId, snapshot.identityVersion, tab);
+  const installedDocuments = documentation.list?.moduleId === moduleId ? documentation.list.documents : [];
+  const documentPanel = (kind: 'prd' | 'changelog') => {
+    const metadata = installedDocuments.find(item => item.kind === kind) ?? null;
+    return <div className="space-y-3">
+      {documentation.loadingList && <p role="status" className="flex items-center gap-2 text-sm text-slate-500">
+        <Loader2 className="h-4 w-4 animate-spin" />Vérification des documents installés…</p>}
+      {documentation.listError && <p role="alert" className="text-sm text-red-700">{documentation.listError}
+        <Button size="sm" variant="outline" className="ml-2" onClick={() => void documentation.refresh()}>Réessayer</Button></p>}
+      {!documentation.loadingList && !documentation.listError && <InstalledDocumentCard kind={kind} metadata={metadata}
+        document={documentation.loaded[kind] ?? null} loading={documentation.loadingKind === kind}
+        error={documentation.readError?.kind === kind ? documentation.readError.message : ''}
+        onRetry={() => void documentation.read(kind, true)} />}
+    </div>;
+  };
   const load = useCallback(async () => {
     if (!enabled || !controller || !moduleId) return;
     const current = ++generation.current;
@@ -312,15 +404,19 @@ export function ModuleDetailView(props: RuntimeViewProps) {
   return <div className="space-y-4 p-6">
     <div className="flex flex-wrap items-center gap-2"><Button size="sm" variant="ghost" onClick={() => props.navigation.open(LIST_VIEW)}>
       <ArrowLeft className="mr-1 h-4 w-4" />Modules</Button><h1 className="text-lg font-semibold">{detail?.module.title ?? moduleId}</h1>
-      <Button size="sm" variant="outline" className="ml-auto" disabled={loading} onClick={() => {void load(); void journal.refresh();}}>
+      <Button size="sm" variant="outline" className="ml-auto" disabled={loading} onClick={() => {
+        void load(); void journal.refresh(); void documentation.refresh();
+      }}>
         <RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button></div>
     <PendingNotice controller={controller} snapshot={snapshot} onResolved={value => {setAccepted(value); void journal.refresh();}} />
     <AcceptedNotice value={accepted} />
     {error && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     {loading && !detail && <p className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Chargement…</p>}
-    {detail && <Tabs value={tab} onValueChange={setTab}><TabsList>
+    {detail && <Tabs value={tab} onValueChange={setTab}><TabsList className="h-auto max-w-full flex-wrap">
       <TabsTrigger value="apercu">Aperçu</TabsTrigger><TabsTrigger value="dependances">Dépendances</TabsTrigger>
-      <TabsTrigger value="plan">Plan</TabsTrigger><TabsTrigger value="journal">Journal</TabsTrigger></TabsList>
+      <TabsTrigger value="prd">PRD</TabsTrigger><TabsTrigger value="documents">Documents</TabsTrigger>
+      <TabsTrigger value="changelog">Changelog</TabsTrigger><TabsTrigger value="plan">Plan</TabsTrigger>
+      <TabsTrigger value="journal">Journal local</TabsTrigger></TabsList>
       <TabsContent value="apercu" className="space-y-3 pt-4"><Card><CardHeader>
         <CardTitle className="text-base">{detail.module.title}</CardTitle>
         <CardDescription><code>{detail.module.moduleId}</code> · v{detail.module.version} · {detail.module.origin}</CardDescription>
@@ -333,6 +429,19 @@ export function ModuleDetailView(props: RuntimeViewProps) {
         <DependencyCard title="Utilisé par" description="Modules qui dépendent de cette sélection." items={detail.usedBy} />
         <DependencyCard title="Intégrations facultatives" description="État actif ou inactif de chaque intégration déclarée." items={detail.optionalIntegrations} />
       </TabsContent>
+      <TabsContent value="prd" className="pt-4">{documentPanel('prd')}</TabsContent>
+      <TabsContent value="documents" className="space-y-3 pt-4">
+        {documentation.loadingList && <p role="status" className="flex items-center gap-2 text-sm text-slate-500">
+          <Loader2 className="h-4 w-4 animate-spin" />Vérification des documents installés…</p>}
+        {documentation.listError && <p role="alert" className="text-sm text-red-700">{documentation.listError}
+          <Button size="sm" variant="outline" className="ml-2" onClick={() => void documentation.refresh()}>Réessayer</Button></p>}
+        {!documentation.loadingList && !documentation.listError && <InstalledDocumentsPanel documents={installedDocuments}
+          selected={documentation.selected} loaded={documentation.loaded[documentation.selected] ?? null}
+          loading={documentation.loadingKind === documentation.selected}
+          error={documentation.readError?.kind === documentation.selected ? documentation.readError.message : ''}
+          onSelect={documentation.select} onRetry={() => void documentation.read(documentation.selected, true)} />}
+      </TabsContent>
+      <TabsContent value="changelog" className="pt-4">{documentPanel('changelog')}</TabsContent>
       <TabsContent value="plan" className="space-y-3 pt-4"><Card><CardHeader><CardTitle className="text-base">Préparer un changement</CardTitle>
         <CardDescription>Le serveur vérifie l’inventaire compilé, le verrou et les dépendances avant l’acceptation.</CardDescription></CardHeader>
         <CardContent className="flex flex-wrap items-end gap-3"><label className="space-y-1 text-sm">Action

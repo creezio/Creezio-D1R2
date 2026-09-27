@@ -11,7 +11,7 @@ const started = new Date().toISOString();
 const evidencePath = resolve(root, '.quality/latest.json');
 mkdirSync(dirname(evidencePath), { recursive: true });
 const write = value => writeFileSync(evidencePath, JSON.stringify(value, null, 2) + '\n');
-const profile = 't11-module-lifecycle';
+const profile = 't12-installed-documentation';
 write({ schemaVersion: 1, profile, started, state: 'running', success: false, mergeReady: false });
 try {
 const source = sourceIdentity(root);
@@ -31,8 +31,12 @@ execute('module-models', ['scripts/data/prepare-modules-settings.mjs']);
 execute('module-suites', ['extensions/native/modules-settings/gate.mjs']);
 execute('typecheck', ['node_modules/typescript/bin/tsc', '--noEmit']);
 execute('build', ['scripts/run-framework.mjs', 'build']);
+// T11's complete Windows run already used ~230s; keep a bounded margin for the expanded suite.
+// This harness deadline does not change any product deadline or permit an incomplete TAP result.
+const testStarted = performance.now();
 const result = spawnSync(process.execPath, ['--test', '--test-concurrency=1', '--test-reporter=tap', ...tests],
-  { cwd: root, encoding: 'utf8', timeout: 240_000, maxBuffer: 8 * 1024 * 1024 });
+  { cwd: root, encoding: 'utf8', timeout: 360_000, maxBuffer: 8 * 1024 * 1024 });
+const testDurationMs = Math.round(performance.now() - testStarted);
 // Preserve failing diagnostics before a bounded console tail hides early failures.
 writeFileSync(resolve(root, '.quality/tests-latest.tap'), result.stdout ?? '');
 writeFileSync(resolve(root, '.quality/tests-latest.stderr.log'), result.stderr ?? '');
@@ -45,7 +49,7 @@ const runtimeCurrent = runtime?.status === 'passed' && Date.parse(runtime.starte
   && runtime.artifact?.digest === measureRuntimeArtifacts(root).digest;
 const success = docs.errors.length === 0 && tap.success && unchanged && runtimeCurrent;
 const report = { schemaVersion: 1, profile, started, finished: new Date().toISOString(),
-  source, results: { docs, commands, tests: { ...tap, files: tests, exitCode: result.status }, runtime,
+  source, results: { docs, commands, tests: { ...tap, files: tests, exitCode: result.status, durationMs: testDurationMs }, runtime,
     runtimeEvidenceCurrent: runtimeCurrent, sourceUnchanged: unchanged },
   success, state: success ? 'passed' : 'failed', mergeReady: false,
   limits: ['Native Access, OAuth and MCP transports are tested within the listed suites; the browser and ChatGPT recipes are recorded separately',
