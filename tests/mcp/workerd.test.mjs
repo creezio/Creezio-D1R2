@@ -84,7 +84,7 @@ test('built Worker completes native OAuth then real MCP discovery, call and revo
     const catalog=await client.callTool({name:'modules_catalog_list',arguments:{limit:50}});
     assert.equal(catalog.isError,undefined,JSON.stringify(catalog));
     assert.deepEqual(catalog.structuredContent.items.map(item=>item.moduleId),
-      ['creezio.access','creezio.conversations','creezio.modules-settings','creezio.openai']);
+      ['creezio.access','creezio.conversations','creezio.delivery','creezio.modules-settings','creezio.openai']);
     const documents=await client.callTool({name:'modules_docs_list',arguments:{moduleId:'creezio.modules-settings'}});
     assert.equal(documents.isError,undefined,JSON.stringify(documents));
     assert.deepEqual(documents.structuredContent.documents.map(item=>item.kind).sort(),['changelog','prd','readme']);

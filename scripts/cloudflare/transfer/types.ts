@@ -91,6 +91,7 @@ export interface TransferCheckpoint {
   readonly tableCursor:Readonly<{table:string;rowOffset:number}>|null;
   readonly objectCursor:Readonly<{key:string;ordinal:number}>|null;
   readonly multipart:Readonly<{key:string;uploadId:string;
+    pendingPart?:Readonly<{number:number;size:number;sha256:ContentDigest;md5:string}>|null;
     completedParts:readonly Readonly<{number:number;etag:string;sha256:ContentDigest}>[]}>|null;
   readonly targetSchemaReceiptId:TransferDigest|null;
   readonly targetDeploymentId:string|null;

@@ -97,8 +97,11 @@ function fixture({unknownPublish=false,failImportOnce=false,provisionUnknownOnce
 
 test('prepare is non-disruptive; first SQL follows preflight, then verified transfer precedes upload',async()=>{
   const f=fixture(),pipeline=f.create();
+  assert.equal((await pipeline.inspect(context)).target,null);
   const configured=await pipeline.configure({target:{accountId,workerName},credentials:{apiToken:token}},context);
   assert.equal(configured.configuration,'ready');
+  assert.deepEqual(configured.target,{accountId,workerName});
+  assert.equal((await pipeline.inspect({...context,principalId:'another-principal'})).target,null);
   const prepared=await pipeline.prepare({secretSelections:[]},context);
   assert.equal(prepared.transferId,'transfer-one');
   assert.equal(prepared.summary.title,'Première livraison Cloudflare');

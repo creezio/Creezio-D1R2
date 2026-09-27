@@ -24,7 +24,8 @@ const ACCESS_SKIP=new Set(['sessions','bootstrap','auth_throttles','account_capa
 const ROOT_FILE=/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const encoder=new TextEncoder();
 type ModelPart=Readonly<{modelId:string;table:string;model:{
-  fields:readonly {id:string;type:string}[];primaryKey:readonly string[]}}>;
+  fields:readonly {id:string;type:string;nullable:boolean}[];primaryKey:readonly string[];
+  relations:readonly {fields:readonly string[];target:{moduleId:string;id:string}}[]}}>;
 type ModelEntry=ModelPart&Readonly<{moduleId:string}>;
 type Plan=Readonly<{applicationId:string;compositionDigest:string;lockDigest:string;modelDigest:string;
   planDigest:string;objects:readonly unknown[];host:{moduleId:string;models:readonly ModelPart[]};
@@ -68,14 +69,43 @@ function modelEntries(plan:Plan):ModelEntry[]{
   for(const group of [plan.host,...plan.runtimeCatalog.modules])for(const entry of group.models){
     if(typeof entry.table!=='string'||!/^cz_[a-f0-9]+_[a-f0-9]+$/.test(entry.table)
       ||typeof entry.modelId!=='string'||!Array.isArray(entry.model?.fields)
-      ||!Array.isArray(entry.model?.primaryKey))return fail('invalid_input');
+      ||!Array.isArray(entry.model?.primaryKey)||!Array.isArray(entry.model?.relations))return fail('invalid_input');
     result.push({...entry,moduleId:group.moduleId});
   }
-  if(new Set(result.map(item=>item.table)).size!==result.length)return fail('invalid_input');
-  return result.sort((a,b)=>a.table.localeCompare(b.table));
+  const key=(item:ModelEntry)=>`${item.moduleId}\0${item.modelId}`;
+  const byKey=new Map(result.map(item=>[key(item),item]));
+  if(new Set(result.map(item=>item.table)).size!==result.length||byKey.size!==result.length)
+    return fail('invalid_input');
+  const ordered:ModelEntry[]=[],marks=new Map<string,'visiting'|'done'>();
+  function visit(entry:ModelEntry){
+    const mark=marks.get(key(entry));
+    if(mark==='visiting')return fail('invalid_input');
+    if(mark==='done')return;
+    marks.set(key(entry),'visiting');
+    for(const relation of entry.model.relations){
+      if(!relation||!Array.isArray(relation.fields)||typeof relation.target?.moduleId!=='string'
+        ||typeof relation.target.id!=='string')return fail('invalid_input');
+      const parent=byKey.get(`${relation.target.moduleId}\0${relation.target.id}`);
+      if(!parent||parent.moduleId!==entry.moduleId)return fail('invalid_input');
+      if(policy(parent)==='skip'){
+        // Session rows are intentionally not transferred. Only this optional audit
+        // reference is cleared in the captured row; every other such edge is refused.
+        if(entry.moduleId!=='creezio.access'||entry.modelId!=='access_audit'
+          ||parent.modelId!=='sessions'||relation.fields.length!==1
+          ||relation.fields[0]!=='session_id'
+          ||entry.model.fields.find(field=>field.id==='session_id')?.nullable!==true)
+          return fail('invalid_input');
+      }else visit(parent);
+    }
+    marks.set(key(entry),'done');ordered.push(entry);
+  }
+  const sorted=result.sort((a,b)=>a.table.localeCompare(b.table));
+  for(const entry of sorted)if(policy(entry)!=='skip')visit(entry);
+  return [...ordered,...sorted.filter(entry=>policy(entry)==='skip')];
 }
 function policy(entry:ModelEntry):CapturedTable['policy'] {
   if(entry.moduleId==='creezio.access'&&ACCESS_SKIP.has(entry.modelId))return 'skip';
+  if(entry.moduleId==='creezio.access'&&entry.modelId==='access_audit')return 'transform';
   if(entry.moduleId==='creezio.openai'&&['provider_config','provider_secret'].includes(entry.modelId))return 'transform';
   return 'copy';
 }
@@ -214,6 +244,8 @@ export async function captureLocalTransfer(input:{config:ReturnType<typeof loadL
           if(!row)break;
           checkedState(entry,row);sourceRowCount++;
           if(action==='skip')continue;
+          if(entry.moduleId==='creezio.access'&&entry.modelId==='access_audit')
+            row.session_id=null;
           if(entry.moduleId==='creezio.openai'&&entry.modelId==='provider_config'){
             const contextId=String(row.context_id),ref=row.api_key_ref;
             const selection=typeof ref==='string'?chosen.get(`${contextId}\0${ref}`):undefined;

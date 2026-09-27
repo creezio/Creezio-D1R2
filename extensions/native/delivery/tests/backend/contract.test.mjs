@@ -47,6 +47,54 @@ test('preparation has no capture and start persists exact transfer identity befo
   f.controller.dispose();
 });
 
+test('exact prepared status rearms an uncertain start before the plan is shown', async () => {
+  const f = fixture();
+  await f.controller.inspect();
+  await f.controller.prepare({secretSelections: []});
+  assert.deepEqual(await f.controller.start(), {ok: false, code: 'outcome_unknown'});
+  assert.equal(f.stored.value.started, true);
+  f.transport.status = async id => ({ok: true,
+    value: {transferId: id, planDigest: digest, phase: 'prepared', summary,
+      finalUrl: null, registryStatus: 'pending'}});
+  assert.equal((await f.controller.status()).ok, true);
+  assert.equal(f.stored.value.started, false);
+  assert.equal(f.controller.getSnapshot().saved?.started, false);
+  assert.equal(f.controller.getSnapshot().prepared?.planDigest, digest);
+  assert.equal((await f.controller.start()).code, 'outcome_unknown');
+  assert.equal(f.calls.filter(([kind]) => kind === 'start').length, 2);
+  f.controller.dispose();
+});
+
+test('prepared status stays blocked if the rearmed state cannot be persisted', async () => {
+  const f = fixture();
+  await f.controller.inspect();
+  await f.controller.prepare({secretSelections: []});
+  await f.controller.start();
+  f.transport.status = async id => ({ok: true,
+    value: {transferId: id, planDigest: digest, phase: 'prepared', summary,
+      finalUrl: null, registryStatus: 'pending'}});
+  f.persistence.save = () => false;
+  assert.deepEqual(await f.controller.status(), {ok: false, code: 'persistence_unavailable'});
+  assert.equal(f.stored.value.started, true);
+  assert.equal(f.controller.getSnapshot().saved?.started, true);
+  assert.deepEqual(await f.controller.start(), {ok: false, code: 'not_ready'});
+  f.controller.dispose();
+});
+
+test('mismatched prepared status cannot rearm a started transfer', async () => {
+  const f = fixture();
+  await f.controller.inspect();
+  await f.controller.prepare({secretSelections: []});
+  await f.controller.start();
+  f.transport.status = async id => ({ok: true,
+    value: {transferId: id, planDigest: `sha256-${'b'.repeat(64)}`, phase: 'prepared',
+      summary, finalUrl: null, registryStatus: 'pending'}});
+  assert.deepEqual(await f.controller.status(), {ok: false, code: 'invalid_response'});
+  assert.equal(f.stored.value.started, true);
+  assert.deepEqual(await f.controller.start(), {ok: false, code: 'not_ready'});
+  f.controller.dispose();
+});
+
 test('prepared status restores a reviewable plan after a reload', async () => {
   const f = fixture();
   f.stored.value = {owner: 'admin-1', transferId: 'transfer-1', planDigest: digest, started: false};

@@ -30,6 +30,15 @@ test('reports early TAP failures with bounded, redacted diagnostics', () => {
   assert.match(long, /\[diagnostics truncated\]$/);
   assert.equal(tapFailureExcerpt('ok 1 - pass\n'), '');
 });
+test('nested failing subtests retain their actual diagnostic before the parent summary', () => {
+  const output = '# Subtest: store\n    # Subtest: delivery\n    not ok 1 - delivery\n      ---\n      error: claim expired\n      ...\n    ok 2 - subsequent\nnot ok 1 - store\n  ---\n  error: 1 subtest failed\n  ...\n';
+  const excerpt = tapFailureExcerpt(output);
+  assert.match(excerpt, /not ok 1 - delivery/);
+  assert.match(excerpt, /error: claim expired/);
+  assert.match(excerpt, /error: 1 subtest failed/);
+  assert.doesNotMatch(excerpt, /subsequent/);
+});
+
 test('a commit change invalidates proof even with identical source bytes', () => {
   const a = { head: 'head-a', tree: 'tree-a', sha256: 'content-a' };
   assert.equal(sameSourceIdentity(a, { ...a }), true);

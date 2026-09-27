@@ -184,7 +184,10 @@ export function createCloudflareDeliveryPipeline(options){
       if(found)active=await planJournal.load(found);
     }
     if(active?.owner!==principalId)active=null;
-    return Object.freeze({hostProfile:'docker-local',configuration:connection?.principalId===principalId?'ready':'needed',
+    const selected=connection?.principalId===principalId?connection:null;
+    return Object.freeze({hostProfile:'docker-local',
+      target:selected?{accountId:selected.accountId,workerName:selected.workerName}:null,
+      configuration:selected?'ready':'needed',
       preparation:active?.stage==='prepared'?'ready':'needed',
       activeTransferId:active?.transferId??null,secretConnections:structuredClone(connections)});
   }

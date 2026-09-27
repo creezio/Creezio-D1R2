@@ -5,6 +5,8 @@ const SHA = /^[a-f0-9]{64}$/;
 const PART_BYTES = 8 * 1024 * 1024;
 const SINGLE_BYTES = 32 * 1024 * 1024;
 const MAX_PARTS = 256; // Same explicit bound as the private checkpoint schema.
+const matchesMd5 = (etag, md5) => typeof etag === 'string' &&
+  (etag.toLowerCase() === md5 || etag.toLowerCase() === `"${md5}"`);
 
 export class RemoteObjectTransferError extends Error {
   constructor(code) { super(`Object transfer ${code}.`); this.name = 'RemoteObjectTransferError'; this.code = code; }
@@ -109,7 +111,8 @@ export function createRemoteTransferObjectPort({r2, journal}) {
       let initiated;
       try { initiated = await r2.createMultipart(entry); }
       catch { return 'unknown'; }
-      try { current = await save(current, {key: entry.key, uploadId: initiated.uploadId, completedParts: []}); }
+      try { current = await save(current, {key: entry.key, uploadId: initiated.uploadId,
+        completedParts: [], pendingPart: null}); }
       catch { return 'unknown'; } // A created upload without a saved ID requires operator inspection.
     }
     const uploadId = current.multipart.uploadId;
@@ -117,8 +120,13 @@ export function createRemoteTransferObjectPort({r2, journal}) {
     try { observed = await remoteParts(entry.key, uploadId); }
     catch { return 'unknown'; }
     const received = new Map(current.multipart.completedParts.map(item => [item.number, item]));
-    if (observed.size !== received.size || [...received].some(([number, receipt]) =>
-      observed.get(number)?.etag !== receipt.etag)) fail('conflict');
+    const pending = current.multipart.pendingPart ?? null;
+    if (pending && pending.number !== received.size + 1) fail('conflict');
+    if (observed.size !== received.size + (pending && observed.has(pending.number) ? 1 : 0) ||
+        [...received].some(([number, receipt]) => observed.get(number)?.etag !== receipt.etag) ||
+        pending && observed.has(pending.number) &&
+          (observed.get(pending.number).size !== pending.size ||
+            !matchesMd5(observed.get(pending.number).etag, pending.md5))) fail('conflict');
     const tracker = {size: 0, expectedSize: entry.size, hasher: createHash('sha256')};
     const completed = [];
     let number = 0;
@@ -132,11 +140,25 @@ export function createRemoteTransferObjectPort({r2, journal}) {
         completed.push({number, size: part.byteLength, sha256, etag: prior.etag});
         continue;
       }
+      const md5 = createHash('md5').update(part).digest('hex');
+      const intent = current.multipart.pendingPart ?? null;
+      if (intent) {
+        if (intent.number !== number || intent.size !== part.byteLength ||
+            intent.sha256 !== sha256 || intent.md5 !== md5) fail('conflict');
+      } else {
+        try { current = await save(current, {...current.multipart,
+          pendingPart: {number, size: part.byteLength, sha256, md5}}); }
+        catch { return 'unknown'; } // No part PUT is issued before its intent is durable.
+      }
       let receipt;
-      try { receipt = await r2.uploadPart(entry.key, uploadId, number, part, sha256); }
-      catch { return 'unknown'; } // ListParts cannot prove the SHA of an unjournaled part.
+      if (observed.has(number)) receipt = observed.get(number);
+      else {
+        try { receipt = await r2.uploadPart(entry.key, uploadId, number, part, sha256); }
+        catch { return 'unknown'; }
+      }
+      if (!matchesMd5(receipt.etag, md5) || receipt.size !== part.byteLength) fail('conflict');
       const nextParts = [...current.multipart.completedParts, {number, etag: receipt.etag, sha256}];
-      try { current = await save(current, {...current.multipart, completedParts: nextParts}); }
+      try { current = await save(current, {...current.multipart, completedParts: nextParts, pendingPart: null}); }
       catch { return 'unknown'; }
       completed.push({number, size: part.byteLength, sha256, etag: receipt.etag});
     }

@@ -7,7 +7,8 @@ import {createLocalDeliveryServer} from '../../scripts/cloudflare/operator-http.
 
 const appOrigin='http://127.0.0.1:5173';
 const digest=`sha256-${'a'.repeat(64)}`;
-const inspection={hostProfile:'docker-local',configuration:'ready',preparation:'needed',activeTransferId:null,
+const inspection={hostProfile:'docker-local',target:{accountId:'account-one',workerName:'worker-one'},
+  configuration:'ready',preparation:'needed',activeTransferId:null,
   secretConnections:[]};
 const prepared={transferId:'transfer-one',planDigest:digest,
   summary:{title:'Transfer',details:['One model'],warnings:[]}};
@@ -112,6 +113,51 @@ test('local capability binds native cookie and survives worker shutdown only for
     outcome=await get(server.origin,'status?transferId=transfer-one',cookies);
     assert.equal(outcome.response.status,401);
     assert.equal(authorizations,12); // Every status/reconcile retries native ACL; only unavailable may use the started grant.
+  });
+
+test('failed start may be retried only while the exact journal remains prepared',
+  {timeout:30000},async t=>{
+    const port=await unusedPort(),native=(await issueOpaqueToken('session')).token;
+    let starts=0,phase='prepared',revoked=false;
+    const fetcher=async url=>url.endsWith('/connections')
+      ?Response.json({secretConnections:[]})
+      :revoked?Response.json({code:'forbidden'},{status:403})
+        :Response.json({principalId:'principal-one',sessionId:'session-one',epoch:1,
+          expiresAtMs:Date.now()+3_600_000,operatorOrigin:`http://127.0.0.1:${port}`});
+    const current=()=>({...transfer,phase,summary:phase==='prepared'?prepared.summary:null});
+    const server=createLocalDeliveryServer({config:{origin:appOrigin},port,fetcher,
+      operations:{inspect:async()=>inspection,configure:async()=>inspection,
+        prepare:async()=>prepared,status:async()=>current(),
+        start:async()=>{starts++;if(starts===1)
+          throw Object.assign(new Error('pre-start failure'),{code:'unavailable',status:503});
+          return transfer;},reconcile:async()=>transfer}});
+    await server.listen();t.after(()=>server.close());
+    const initial=await post(server.origin,'session',`creezio-local-admin=${native}`);
+    const cap=initial.response.headers.get('set-cookie').split(';')[0],
+      cookies=`creezio-local-admin=${native}; ${cap}`;
+    let result=await post(server.origin,'prepare',cookies,{secretSelections:[]});
+    await new Promise(resolve=>setImmediate(resolve));
+    result=await get(server.origin,`jobs/${result.body.jobId}`,cookies);
+    assert.equal(result.response.status,200);
+    const input={transferId:'transfer-one',planDigest:digest};
+    result=await post(server.origin,'start',cookies,input);
+    assert.equal(result.response.status,202);
+    await new Promise(resolve=>setImmediate(resolve));
+    result=await get(server.origin,`jobs/${result.body.jobId}`,cookies);
+    assert.equal(result.response.status,503);assert.equal(starts,1);
+    phase='captured';
+    result=await post(server.origin,'start',cookies,input);
+    assert.equal(result.response.status,503);assert.equal(starts,1);
+    phase='prepared';
+    revoked=true;
+    result=await post(server.origin,'start',cookies,input);
+    assert.equal(result.response.status,403);assert.equal(starts,1);
+    revoked=false;
+    result=await post(server.origin,'start',cookies,input);
+    assert.equal(result.response.status,202);
+    await new Promise(resolve=>setImmediate(resolve));
+    result=await get(server.origin,`jobs/${result.body.jobId}`,cookies);
+    assert.equal(result.response.status,200);assert.equal(starts,2);
   });
 
 test('operator refuses cross-origin and missing CSRF before invoking callbacks',{timeout:30000},async t=>{

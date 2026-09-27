@@ -5,7 +5,7 @@ import type {TransferCheckpoint,TransferJournal} from './types.ts';
 
 const ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const HASH=/^sha256-[a-f0-9]{64}$/;
-const MAX_BYTES=32_768;
+const MAX_BYTES=131_072; // Covers 256 bounded part receipts plus one pending intent.
 export class TransferJournalError extends Error {
   readonly code:'invalid_path'|'invalid_state'|'busy'|'unavailable';
   constructor(code:TransferJournalError['code']){super(`Transfer journal failed (${code}).`);
@@ -27,6 +27,22 @@ const plain=(value:unknown):value is Record<string,unknown>=>!!value&&typeof val
   &&!Array.isArray(value)&&[Object.prototype,null].includes(Object.getPrototypeOf(value));
 const exact=(value:Record<string,unknown>,keys:readonly string[])=>Object.keys(value).sort().join(',')
   ===[...keys].sort().join(',');
+function validMultipart(value:unknown):boolean {
+  if(!plain(value)||!(exact(value,['key','uploadId','completedParts'])
+    ||exact(value,['key','uploadId','completedParts','pendingPart']))
+    ||typeof value.key!=='string'||typeof value.uploadId!=='string'
+    ||!Array.isArray(value.completedParts)||value.completedParts.length>256
+    ||value.completedParts.some((part,index)=>!plain(part)||!exact(part,['number','etag','sha256'])
+      ||part.number!==index+1||typeof part.etag!=='string'||!part.etag||part.etag.length>256
+      ||!/^[a-f0-9]{64}$/.test(String(part.sha256))))return false;
+  if(!Object.prototype.hasOwnProperty.call(value,'pendingPart')||value.pendingPart===null)return true;
+  const part=value.pendingPart;
+  return plain(part)&&exact(part,['number','size','sha256','md5'])
+    &&value.completedParts.length<256
+    &&part.number===value.completedParts.length+1
+    &&Number.isSafeInteger(part.size)&&Number(part.size)>0&&Number(part.size)<=8*1024*1024
+    &&/^[a-f0-9]{64}$/.test(String(part.sha256))&&/^[a-f0-9]{32}$/.test(String(part.md5));
+}
 function checked(value:unknown):TransferCheckpoint {
   if(!plain(value)||!exact(value,['schemaVersion','revision','identity','manifestDigest','phase',
     'tableCursor','objectCursor','multipart','targetSchemaReceiptId','targetDeploymentId'])
@@ -43,14 +59,7 @@ function checked(value:unknown):TransferCheckpoint {
     ||value.objectCursor!==null&&(!plain(value.objectCursor)||!exact(value.objectCursor,['key','ordinal'])
       ||typeof value.objectCursor.key!=='string'
       ||!Number.isSafeInteger(value.objectCursor.ordinal)||Number(value.objectCursor.ordinal)<0)
-    ||value.multipart!==null&&(!plain(value.multipart)||!exact(value.multipart,['key','uploadId','completedParts'])
-      ||typeof value.multipart.key!=='string'
-      ||typeof value.multipart.uploadId!=='string'||!Array.isArray(value.multipart.completedParts)
-      ||value.multipart.completedParts.length>256||value.multipart.completedParts.some(part=>
-        !plain(part)||!exact(part,['number','etag','sha256'])
-        ||!Number.isSafeInteger(part.number)||Number(part.number)<1
-        ||typeof part.etag!=='string'||!part.etag||part.etag.length>256
-        ||!/^[a-f0-9]{64}$/.test(String(part.sha256))))
+    ||value.multipart!==null&&!validMultipart(value.multipart)
     ||value.targetSchemaReceiptId!==null&&!HASH.test(String(value.targetSchemaReceiptId))
     ||value.targetDeploymentId!==null&&typeof value.targetDeploymentId!=='string')return fail('invalid_state');
   return value as unknown as TransferCheckpoint;

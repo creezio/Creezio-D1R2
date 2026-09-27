@@ -4,6 +4,7 @@ import {createHash} from 'node:crypto';
 import {createRemoteTransferObjectPort} from '../../scripts/cloudflare/remote/object-port.mjs';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+const md5 = bytes => createHash('md5').update(bytes).digest('hex');
 const entry = (key, bytes) => ({key, size: bytes.length, sha256: hash(bytes),
   httpMetadata: {}, customMetadata: {}, bodyFile: 'capture-body'});
 const checkpoint = () => ({schemaVersion: 1, revision: 1,
@@ -46,7 +47,7 @@ test('object port journals multipart receipts, resumes known parts and never rep
     listParts: async () => ({parts: [...remote.values()], nextMarker: null}),
     uploadPart: async (_key, _id, number, bytes, sha256) => {
       uploaded++;
-      const receipt = {number, size: bytes.length, sha256, etag: `"${number.toString(16).padStart(32, '0')}"`};
+      const receipt = {number, size: bytes.length, sha256, etag: `"${md5(bytes)}"`};
       remote.set(number, receipt);
       return receipt;
     },
@@ -60,7 +61,7 @@ test('object port journals multipart receipts, resumes known parts and never rep
   assert.equal(await port.putObjectIfAbsent(item, stream(data), initial), 'created');
   assert.equal(uploaded, 5);
   assert.equal(saved.current().multipart, null);
-  assert.equal(saved.current().revision, 8);
+  assert.equal(saved.current().revision, 13);
 
   // A saved part can resume without another upload of that part.
   present = false; uploaded = 0;
@@ -83,6 +84,42 @@ test('object port journals multipart receipts, resumes known parts and never rep
   await assert.rejects(conflictPort.putObjectIfAbsent(item, stream(data), conflicting),
     error => error.code === 'conflict');
   assert.equal(uploaded, 0);
+});
+
+test('a durable multipart intent adopts a part whose upload ACK was lost', async () => {
+  const data = Buffer.alloc(33 * 1024 * 1024, 9);
+  const item = entry('creezio/files/v1/lost-part-ack', data), saved = journal(checkpoint());
+  const remote = new Map(); let uploads = 0, present = false;
+  const r2 = {
+    inspectObject: async () => present ? 'matching' : 'absent',
+    createMultipart: async () => ({uploadId: 'upload-lost'}),
+    listParts: async () => ({parts: [...remote.values()], nextMarker: null}),
+    uploadPart: async (_key, _id, number, bytes, sha256) => {
+      uploads++;
+      const receipt = {number, size: bytes.length, sha256, etag: `"${md5(bytes)}"`};
+      remote.set(number, receipt);
+      if (number === 1) throw new Error('ACK lost after remote part creation');
+      return receipt;
+    },
+    completeMultipart: async (_entry, _id, parts) => {
+      assert.equal(parts.length, 5); present = true;
+    },
+    listPage: async () => ({objects: [], nextContinuationToken: null})
+  };
+  const port = createRemoteTransferObjectPort({r2, journal: saved});
+  assert.equal(await port.putObjectIfAbsent(item, stream(data), saved.current()), 'unknown');
+  assert.equal(uploads, 1);
+  assert.deepEqual(saved.current().multipart.pendingPart, {number: 1, size: 8 * 1024 * 1024,
+    sha256: hash(data.subarray(0, 8 * 1024 * 1024)), md5: md5(data.subarray(0, 8 * 1024 * 1024))});
+  const created=remote.get(1);
+  remote.set(1,{...created,etag:`"${'0'.repeat(32)}"`});
+  await assert.rejects(port.putObjectIfAbsent(item, stream(data), saved.current()),
+    error => error.code === 'conflict');
+  assert.equal(uploads, 1);
+  remote.set(1,created);
+  assert.equal(await port.putObjectIfAbsent(item, stream(data), saved.current()), 'created');
+  assert.equal(uploads, 5);
+  assert.equal(saved.current().multipart, null);
 });
 
 test('object port lists every paginated key and rejects repeated keys', async () => {

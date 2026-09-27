@@ -1,7 +1,7 @@
 import '../../scripts/local-environment.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdirSync,writeFileSync} from 'node:fs';
+import {existsSync,mkdirSync,writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {temporaryDirectory} from '../quality/temporary.mjs';
@@ -24,6 +24,23 @@ function fixture(t){
   writeFileSync(path.join(root,'.openai','hosting.json'),JSON.stringify({d1:'DB',r2:'BUCKET'}));
   return loadLocalConfiguration({root});
 }
+
+test('capture refuses a model cycle or a copied child of an excluded model before creating a snapshot',
+  async t=>{
+    const config=fixture(t),transferId='unsafe-graph',directory=path.join(config.root,'.wrangler','transfers',transferId),
+      request={config,transferId,sourceSha:'a'.repeat(40),target,directory,secretSelections:[]};
+    const cyclic=structuredClone(plan),record=cyclic.runtimeCatalog.modules
+      .find(item=>item.moduleId==='example.widgets-witness').models.find(item=>item.modelId==='record');
+    record.model.relations.push({id:'self',fields:['id'],target:{moduleId:'example.widgets-witness',
+      kind:'model',id:'record'},targetFields:['id'],onDelete:'restrict'});
+    await assert.rejects(captureLocalTransfer({...request,plan:cyclic}),error=>error.code==='invalid_input');
+    const excluded=structuredClone(plan),account=excluded.runtimeCatalog.modules
+      .find(item=>item.moduleId==='creezio.access').models.find(item=>item.modelId==='human_accounts');
+    account.model.relations.push({id:'unsupported-session',fields:['principal_id'],
+      target:{moduleId:'creezio.access',kind:'model',id:'sessions'},targetFields:['id'],onDelete:'restrict'});
+    await assert.rejects(captureLocalTransfer({...request,plan:excluded}),error=>error.code==='invalid_input');
+    assert.equal(existsSync(directory),false);
+  });
 
 test('a real persistent Miniflare D1/R2 capture is immutable, checked and leaves source intact',
   {timeout:90000},async t=>{

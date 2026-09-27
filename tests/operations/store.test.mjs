@@ -83,7 +83,8 @@ test('durable host store shares the real credential guard and business transacti
       const lease = await authorize(), started = await store.start(lease, input('b'));
       await store.commit(lease, started.claim, { plans: [], output: validOutput,
         outbox: [{ id: 'response', provider: 'synthetic-provider', payload: { recordId: 'known' }, providerIdempotencyKey: 'provider-known-key' }] });
-      const attempt = { executionId: started.execution.id, outboxId: 'response', claimTtlMs: 1000 };
+      // Expiry is forced below through SQL; this claim must remain valid while D1 work completes.
+      const attempt = { executionId: started.execution.id, outboxId: 'response', claimTtlMs: 30_000 };
       const first = await store.claimDelivery(lease, attempt);
       assert.ok(first);
       const checkpoint = (await store.checkpointDelivery(lease, first.claim,

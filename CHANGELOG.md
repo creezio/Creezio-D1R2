@@ -2,7 +2,7 @@
 
 ## En cours — publication Cloudflare T32
 
-Pipeline de première publication du Worker/assets et des données D1/R2, relié à l'opérateur local et à la vue d'administration sur `core/t32-cloudflare`. Le module optionnel de livraison possède un transport injecté par l'hôte, un transfert identifié et des suites ciblées ; les nouveaux exports SDK sont une candidate **1.1.0 non publiée**, distincte de `sdk-v1.0.0`. Les contrôles globaux, la PR et les recettes Docker/Cloudflare réelles restent à terminer. Aucune publication de l'application originale ou de la démo sur le compte Cloudflare n'est encore qualifiée ; la mise à jour conservatrice après cette première publication reste au backlog. Voir [réalisation T32](docs/IMPLEMENTATION-T32.md).
+Pipeline de première publication du Worker/assets et des données D1/R2, relié à l'opérateur local et à la vue d'administration sur `core/t32-cloudflare`. Le module optionnel de livraison possède un transport injecté par l'hôte, un transfert identifié et des suites ciblées ; les nouveaux exports SDK sont une candidate **1.1.0 non publiée**, distincte de `sdk-v1.0.0`. La PR #27 est ouverte en brouillon ; les contrôles globaux et les recettes Docker/Cloudflare réelles restent à terminer. Aucune publication de l'application originale ou de la démo sur le compte Cloudflare n'est encore qualifiée ; la mise à jour conservatrice après cette première publication reste au backlog. Voir [réalisation T32](docs/IMPLEMENTATION-T32.md).
 
 ## 27 septembre 2026 — SDK et starter T30 publics
 

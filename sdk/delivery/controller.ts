@@ -102,13 +102,18 @@ export function createDeliveryController(options: {access: AccessController; tra
     publish();
     return result;
   }
-  function exactTransfer(status: DeliveryTransferStatus, transferId: string) {
+  function exactTransfer(status: DeliveryTransferStatus, transferId: string, confirmedStatus = false) {
     if (status.transferId !== transferId || !digest(status.planDigest)
       || pending && pending.planDigest !== status.planDigest) throw new DeliveryStateError('invalid_response');
     if (!pending && owner) {
       const recovered = {owner, transferId, planDigest: status.planDigest, started: status.phase !== 'prepared'};
       if (!persistence.save(recovered)) throw new DeliveryStateError('persistence_unavailable');
       pending = recovered;
+    }
+    if (confirmedStatus && status.phase === 'prepared' && pending?.started) {
+      const rearmed = {...pending, started: false};
+      if (!persistence.save(rearmed)) throw new DeliveryStateError('persistence_unavailable');
+      pending = rearmed;
     }
     if (status.phase === 'prepared' && status.summary) {
       prepared = {transferId, planDigest: status.planDigest, summary: status.summary};
@@ -157,7 +162,7 @@ export function createDeliveryController(options: {access: AccessController; tra
     status: () => {
       const current = transferId();
       return current && inspection?.hostProfile === 'docker-local'
-        ? execute(() => transport.status(current), value => exactTransfer(value, current))
+        ? execute(() => transport.status(current), value => exactTransfer(value, current, true))
         : Promise.resolve(fail<DeliveryTransferStatus>('not_found'));
     },
     reconcile: () => {

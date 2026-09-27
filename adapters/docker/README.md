@@ -39,3 +39,13 @@ Vérifier ensuite la connexion du compte et, service arrêté, relire D1/R2 avec
 Diagnostic en lecture seule : `docker info`, `docker compose -f adapters/docker/compose.yaml config`, `docker compose -f adapters/docker/compose.yaml ps`, `docker compose -f adapters/docker/compose.yaml logs app` et `docker volume inspect creezio-local_local-state`. En cas de daemon indisponible, ne pas démarrer de service utilisateur implicitement. Un état `local_busy` demande de vérifier le processus propriétaire ; ne pas supprimer le verrou ou le volume pour forcer le démarrage.
 
 Ce profil est réservé au développement/test local. Il ne publie rien sur Cloudflare et n'inclut ni ordonnanceur ni service tiers. La recette réelle du 27 septembre 2026 a vérifié l'installation, D1/R2, le redémarrage, la recréation et la restauration du volume ; son rapport conserve les empreintes et les limites de qualification.
+
+## Hôte Linux distant
+
+Les mêmes commandes fonctionnent sur un serveur Linux avec Docker et Compose ; Docker Desktop sur le poste client n’est pas nécessaire. Définir `COMPOSE_PROJECT_NAME` à un nom propre à cette application avant le build et les commandes Compose pour isoler son image, son conteneur et son volume. Les ports restent en loopback sur le serveur. Depuis le poste client, ouvrir un tunnel SSH vers les trois origines :
+
+```sh
+ssh -N -L 5173:127.0.0.1:5173 -L 5175:127.0.0.1:5175 -L 5176:127.0.0.1:5176 user@host
+```
+
+Vérifier que ces ports sont disponibles aux deux extrémités. Accéder ensuite aux mêmes adresses locales dans le navigateur ; fermer ce tunnel à la fin de la recette. Ne modifier ni les volumes ni les services déjà présents sur le serveur.

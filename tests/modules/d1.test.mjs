@@ -24,6 +24,7 @@ const access=json('../../extensions/native/access/module/manifest.json');
 const settings=json('../../extensions/native/modules-settings/module/manifest.json');
 const conversations=json('../../extensions/native/conversations/module/manifest.json');
 const openai=json('../../extensions/native/openai/module/manifest.json');
+const delivery=json('../../extensions/native/delivery/module/manifest.json');
 const moduleId='creezio.modules-settings';
 function compiledFixture() {
   const composition=json('../../configuration/composition.json');
@@ -31,7 +32,7 @@ function compiledFixture() {
   const witness=namedModule('merchant.example','merchant');
   witness.compatibility.core='^0.0.0';
   witness.validation.policy=structuredClone(composition.sdk.policy);
-  const modules=[access,settings,conversations,openai,witness];
+  const modules=[access,settings,conversations,openai,delivery,witness];
   if (!composition.modules.some(item=>item.moduleId===moduleId)) {
     composition.modules.push({moduleId,origin:settings.identity.origin,versionRange:'^0.0.0',
       source:{kind:'workspace',path:'extensions/native/modules-settings'},enabled:true,

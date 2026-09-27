@@ -14,7 +14,8 @@ function inputs({accessOnly = false} = {}) {
     modules: [json('../../extensions/native/access/module/manifest.json'),
       json('../../extensions/native/modules-settings/module/manifest.json'),
       json('../../extensions/native/conversations/module/manifest.json'),
-      json('../../extensions/native/openai/module/manifest.json')]};
+      json('../../extensions/native/openai/module/manifest.json'),
+      json('../../extensions/native/delivery/module/manifest.json')]};
   if (!accessOnly) return input;
   input.composition.modules = input.composition.modules.filter(item => item.moduleId === 'creezio.access');
   input.lock.modules = input.lock.modules.filter(item => item.moduleId === 'creezio.access');
@@ -29,10 +30,10 @@ function relock(input) {
   return input;
 }
 
-test('composed compiler includes all four native modules and freezes the runtime projection', async () => {
+test('composed compiler includes all five native modules and freezes the runtime projection', async () => {
   const input = inputs(), plan = compileCompositionSchema(input);
   assert.deepEqual(plan.runtimeCatalog.modules.map(module => [module.moduleId, module.models.length]),
-    [['creezio.access', 28], ['creezio.conversations', 8], ['creezio.modules-settings', 3], ['creezio.openai', 2]]);
+    [['creezio.access', 28], ['creezio.conversations', 8], ['creezio.delivery', 0], ['creezio.modules-settings', 3], ['creezio.openai', 2]]);
   const conversations = input.modules[2].contracts.models;
   assert.deepEqual(conversations.map(model => model.id),
     ['conversation', 'message', 'draft', 'widget_context', 'turn', 'event', 'file_metadata', 'conversation_attachment']);

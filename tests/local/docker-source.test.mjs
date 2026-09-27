@@ -45,6 +45,24 @@ test('Docker source export binds exact clean Git checkout to complete image byte
     .includes('test@example.invalid'),false);
 });
 
+test('source manifest CLI prepares and verifies without an import-cycle deadlock',t=>{
+  const {checkout,image}=fixture(t);
+  for(const file of ['local/source-manifest.mjs','quality/evidence.mjs']){
+    const destination=path.join(checkout,'scripts',file);
+    mkdirSync(path.dirname(destination),{recursive:true});
+    copyFileSync(new URL(`../../scripts/${file}`,import.meta.url),destination);
+  }
+  git(checkout,'add','scripts');git(checkout,'commit','-qm','manifest CLI');
+  const run=(root,mode)=>JSON.parse(execFileSync(process.execPath,
+    [path.join(root,'scripts/local/source-manifest.mjs'),mode],
+    {cwd:root,encoding:'utf8',timeout:15000,stdio:['ignore','pipe','pipe']}));
+  const prepared=run(checkout,'prepare');
+  assert.equal(prepared.head,git(checkout,'rev-parse','HEAD'));
+  const record=JSON.parse(readFileSync(path.join(checkout,'.creezio/docker-source.json'),'utf8'));
+  imageFrom(checkout,image,record.source);
+  assert.equal(run(image,'verify').sha256,prepared.sha256);
+});
+
 test('portable identity refuses modified, absent and unlisted source rather than guessing provenance',async t=>{
   const {checkout,image}=fixture(t),record=await preparePortableSource(checkout);
   imageFrom(checkout,image,record.source);

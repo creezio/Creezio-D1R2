@@ -22,12 +22,15 @@ export function tapFailureExcerpt(output, {maxFailures = 5, maxChars = 12000} = 
   const lines = output.split(/\r?\n/);
   const failures = [];
   for (let index = 0; index < lines.length && failures.length < maxFailures; index++) {
-    if (!/^not ok \d+ - /.test(lines[index])) continue;
+    const match = /^( *)not ok \d+ - /.exec(lines[index]);
+    if (!match) continue;
+    const indent = match[1];
+    const boundary = new RegExp(`^ {0,${indent.length}}(?:# Subtest: |ok \\d+ - |not ok \\d+ - |1\\.\\.)`);
     const block = [lines[index]];
     while (++index < lines.length) {
-      if (/^(?:# Subtest: |ok \d+ - |not ok \d+ - |1\.\.)/.test(lines[index])) { index--; break; }
+      if (boundary.test(lines[index])) { index--; break; }
       block.push(lines[index]);
-      if (lines[index] === '  ...') break;
+      if (lines[index] === `${indent}  ...`) break;
     }
     failures.push(block.join('\n'));
   }

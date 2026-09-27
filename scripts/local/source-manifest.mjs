@@ -3,6 +3,7 @@ import {spawnSync} from 'node:child_process';
 import {existsSync,lstatSync,mkdirSync,readFileSync,readdirSync,renameSync,unlinkSync,writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {sourceIdentity} from '../quality/evidence.mjs';
 
 const RELATIVE='.creezio/docker-source.json';
 const LIMIT=8*1024*1024;
@@ -98,7 +99,6 @@ export async function preparePortableSource(root){
   root=path.resolve(root);
   const gitEntry=lstatSync(path.join(root,'.git'),{throwIfNoEntry:false});
   if(!gitEntry||gitEntry.isSymbolicLink()||!(gitEntry.isDirectory()||gitEntry.isFile()))fail('git_required');
-  const {sourceIdentity}=await import('../quality/evidence.mjs');
   const source=sourceIdentity(root);
   if(source.dirty||!SHA40.test(source.head??'')||!SHA40.test(source.tree??'')||
     !SHA64.test(source.sha256??'')||source.files.some(item=>item.sha256===null))fail('dirty_source');

@@ -424,7 +424,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-32"></a>
 ## T-32 — Publication complète Cloudflare
 
-- Lot : **P6** ; état : **en cours** ; responsables : orchestrateur et agents T32 sur `core/t32-cloudflare` ; aucune PR #27 créée à ce stade.
+- Lot : **P6** ; état : **en cours** ; responsables : orchestrateur et agents T32 sur `core/t32-cloudflare` ; PR #27 draft ouverte, corrections après premières revues et CI en cours.
 - Dépendances : [T-08](#T-08), tranche témoin [T-30](#T-30), [T-31](#T-31). La publication Sites [T-09](#T-09) suit son propre parcours et n'est pas un prérequis technique de Cloudflare.
 - Travail/livrables : Module livraison locale et exécuteur limité, Worker/assets, bindings D1/R2, transfert cohérent et reprise ; original et démo du starter publiés. Le fork sera exercé en T-38.
 - Besoin : [US-32](USER-STORIES.md#US-32). Acceptation : [REQ-3201](EXIGENCES.md#REQ-3201), [REQ-3202](EXIGENCES.md#REQ-3202), [REQ-3203](EXIGENCES.md#REQ-3203).

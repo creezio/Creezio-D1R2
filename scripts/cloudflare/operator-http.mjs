@@ -33,8 +33,11 @@ function safeValue(value){
   if(typeof text!=='string'||encoder.encode(text).length>MAX_BODY)throw error('invalid_response',503);
   return JSON.parse(text);
 }
-function validInspection(value){return exact(value,['hostProfile','configuration','preparation','activeTransferId','secretConnections'])
+function validInspection(value){return exact(value,['hostProfile','target','configuration','preparation','activeTransferId','secretConnections'])
   &&['docker-local','other'].includes(value.hostProfile)
+  &&(value.target===null||exact(value.target,['accountId','workerName'])
+    &&['accountId','workerName'].every(key=>typeof value.target[key]==='string'
+      &&value.target[key].length>0&&value.target[key].length<=128))
   &&['unknown','needed','ready'].includes(value.configuration)
   &&['unknown','needed','ready'].includes(value.preparation)
   &&(value.activeTransferId===null||id(value.activeTransferId))
@@ -352,7 +355,19 @@ export function createLocalDeliveryServer({config,port,operations,fetcher=fetch}
         }
         if(route==='reconcile'||route==='start'&&started(grant,body.transferId,body.planDigest))
           await freshOrStarted(grant,nativeCookie,body.transferId,body.planDigest);
-        const key=jobKey(grant,route,body),existing=jobs.get(key);
+        const key=jobKey(grant,route,body);let existing=jobs.get(key);
+        if(route==='start'&&existing?.state==='failed'){
+          // Retry only if the exact source journal still confirms no durable start.
+          await fresh(grant,nativeCookie);
+          const owned=await operations.status(body.transferId,{principalId:grant.principalId,
+            sessionId:grant.sessionId,epoch:grant.epoch,requireOwnership:true});
+          if(!validTransfer(owned)||owned.transferId!==body.transferId
+            ||owned.planDigest!==body.planDigest)throw error('forbidden',403);
+          if(owned.phase==='prepared'){
+            if(jobs.get(key)===existing){jobs.delete(key);existing=null;}
+            else existing=jobs.get(key);
+          }
+        }
         if(existing&&(route==='start'||route==='reconcile'&&existing.state==='running')){
           const output=jobResult(existing);send(response,output.status,output.body,config.origin);return;
         }
