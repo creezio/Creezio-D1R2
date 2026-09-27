@@ -16,6 +16,11 @@
       "ownerField": {
         "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
       },
+      "ownerScope": {
+        "description": "File owner identity: principal shared between audiences, or historical principal-audience isolation when omitted.",
+        "type": "string",
+        "enum": ["principal", "principal-audience"]
+      },
       "contextField": {
         "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
       },

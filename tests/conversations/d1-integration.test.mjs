@@ -153,6 +153,14 @@ test('Conversations operations use real D1 authority, CAS, cursors and atomic fi
     const metadataTable=`"${generated.tables.file_metadata}"`;
     const metadata=await db.prepare(`SELECT state FROM ${metadataTable} WHERE file_id=?`).bind(staged.fileId).first();
     assert.equal(metadata.state,'available');
+    const crossAudienceFile=await dispatchFileHttp(new Request(
+      `http://127.0.0.1:8787/api/files/app/${moduleId}/attachments?${new URLSearchParams(staged)}`,{
+        headers:{cookie:`creezio-local-app=${ownerApp.token}`,'x-creezio-context':'application'}}),
+      {profile:'local',bindings:{DB:db,BUCKET:bucket}},
+      {CREEZIO_APP_ORIGIN:'http://127.0.0.1:8787'},'conversation-audience-isolation',
+      {catalog,files:fileCatalog,permissions});
+    assert.equal(crossAudienceFile.status,404);
+    assert.equal((await crossAudienceFile.json()).error.code,'not_found');
     const rejectedStage=await files.stage(lease,{ownerId,intentId:'conversation-file-rejected',generation:'1',
       filename:'rejected.txt',contentType:'text/plain',bytes:new TextEncoder().encode('unpublished')});
     const badLink=await invoke('attachment.link',{requestKey:'attachment-stale',conversationId:first.id,

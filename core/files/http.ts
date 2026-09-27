@@ -102,7 +102,7 @@ export async function dispatchFileHttp(request: Request, environment: RuntimeEnv
     data=createDataAccess(environment.bindings.DB,{catalog:options.catalog,permissions:options.permissions});
     const actors: AuthorizationActor[] = ['user','machine','delegated-user'];
     lease=await data.authorize(credential,{contextId,audience,actors,requiredPermissionIds:category.permissions.map(p=>`${moduleId}:${p.id}`),purpose:'operation'},{moduleId});
-    const ownerId=await fileOwnerId(data.describeLease(lease).principalId,audience);
+    const ownerId=await fileOwnerId(data.describeLease(lease).principalId,audience,category.ownerScope);
     const files=createFileService({data,catalog:options.catalog,moduleId,category,bucket:environment.bindings.BUCKET as unknown as FileBucket,ownerId});
     const currentLease=lease;
     const execute=async (): Promise<Response> => {

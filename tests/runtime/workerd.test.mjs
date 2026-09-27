@@ -46,6 +46,12 @@ test('selected Worker graph rejects transitively imported filesystem and TCP Nod
   );
 });
 
+test('selected Worker graph accepts the compiled public workspace SDK', async () => {
+  const graph = await assertWorkerBoundary({ root, entryPoints: ['core/operations/types.ts'] });
+  assert.ok(graph.inputs.some(input => input.replaceAll('\\', '/')
+    === 'node_modules/@creezio/sdk/dist/esm/operations/error.js'));
+});
+
 test('selected Worker graph refuses transitive paths outside its root and linked sources', async () => {
   const scratch = qualificationScratch(root);
   const selected = join(scratch.directory, 'selected'), outside = join(scratch.directory, 'outside');
@@ -60,6 +66,37 @@ test('selected Worker graph refuses transitive paths outside its root and linked
     await assert.rejects(assertWorkerBoundary({ root: selected, entryPoints: ['entry.ts'] }), /Selected Worker import traverses a link/);
   } finally {
     if (linkCreated) { if (process.platform === 'win32') rmdirSync(linked); else unlinkSync(linked); } // Remove only this test's link, never the target directory.
+    scratch.cleanup();
+  }
+});
+
+test('selected Worker graph does not allow a redirected SDK alias or SDK source imports', async () => {
+  const scratch = qualificationScratch(root);
+  const selected = join(scratch.directory, 'selected'), outside = join(scratch.directory, 'outside');
+  const aliasDirectory = join(selected, 'node_modules', '@creezio'), alias = join(aliasDirectory, 'sdk');
+  mkdirSync(aliasDirectory, {recursive: true}); mkdirSync(outside);
+  const entry = join(selected, 'entry.ts');
+  let linked = false;
+  try {
+    mkdirSync(join(outside, 'dist', 'esm'), {recursive: true});
+    writeFileSync(join(outside, 'package.json'), JSON.stringify({name: '@creezio/sdk', type: 'module',
+      exports: {'./value': './dist/esm/value.js'}}));
+    writeFileSync(join(outside, 'dist', 'esm', 'value.js'), 'export const value = 1;');
+    writeFileSync(entry, "export {value} from '@creezio/sdk/value';\n");
+    symlinkSync(outside, alias, process.platform === 'win32' ? 'junction' : 'dir'); linked = true;
+    await assert.rejects(assertWorkerBoundary({root: selected, entryPoints: ['entry.ts']}),
+      /Selected Worker import traverses a link/);
+    if (process.platform === 'win32') rmdirSync(alias); else unlinkSync(alias); linked = false;
+
+    const localSdk = join(selected, 'sdk'); mkdirSync(localSdk);
+    writeFileSync(join(localSdk, 'package.json'), JSON.stringify({name: '@creezio/sdk', type: 'module',
+      exports: {'./value': './value.js'}}));
+    writeFileSync(join(localSdk, 'value.js'), 'export const value = 1;');
+    symlinkSync(localSdk, alias, process.platform === 'win32' ? 'junction' : 'dir'); linked = true;
+    await assert.rejects(assertWorkerBoundary({root: selected, entryPoints: ['entry.ts']}),
+      /Selected Worker import traverses a link/);
+  } finally {
+    if (linked) { if (process.platform === 'win32') rmdirSync(alias); else unlinkSync(alias); }
     scratch.cleanup();
   }
 });

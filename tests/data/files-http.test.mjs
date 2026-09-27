@@ -122,3 +122,57 @@ test('private file HTTP transport enforces native identity, scope and bounded bi
       await check(await dispatch(get(staged)),401,'unauthorized');
     } finally {await fixture.dispose();}
   });
+
+test('principal-scoped category shares a private file across authorized audiences only', {timeout:60000},async()=>{
+  const fixture=await createStorageFixture();
+  const sharedCategory={...category,ownerScope:'principal'};
+  const sharedCatalog={compositionDigest:catalog.compositionDigest,
+    categories:[{moduleId,category:sharedCategory,audiences:['admin','app']}]};
+  const raw={CREEZIO_APP_ORIGIN:origin};
+  const dispatch=request=>dispatchFileHttp(request,{profile:'local',bindings:{DB:fixture.db,BUCKET:fixture.bucket}},
+    raw,'shared-file-test',{catalog,files:sharedCatalog,permissions});
+  const get=(ref,token,audience,context='application')=>new Request(`${path(audience)}?${params(ref)}`,{
+    headers:{cookie:cookie(token,audience),'x-creezio-context':context}});
+  try {
+    const put=new Request(path('admin'),{method:'PUT',headers:{cookie:cookie(fixture.signed.token),
+      'x-creezio-context':'application',origin,'x-creezio-request':'1',
+      'x-creezio-file-intent':'shared-audience-file','x-creezio-file-generation':'1',
+      'x-creezio-file-name':'shared.txt','content-type':'text/plain'},body:bytes});
+    const staged=await dispatch(put);
+    assert.equal(staged.status,201);
+    const reference=(await staged.json()).reference;
+    const lease=await fixture.lease();
+    const ownerId=await fileOwnerId(fixture.owner.principalId,'admin',sharedCategory.ownerScope);
+    const files=createFileService({data:fixture.data,catalog,moduleId,category:sharedCategory,
+      bucket:fixture.bucket,ownerId});
+    await fixture.data.commitBatch(lease,[await files.publicationProof(lease,reference)]);
+
+    const acl=createAuthorizationService(fixture.db,{permissions});
+    const current=await acl.readPolicy(fixture.signed.token);assert.equal(current.ok,true);
+    const policy=structuredClone(current.policy);
+    policy.memberships.push({principalId:fixture.owner.principalId,contextId:'application',audience:'app',status:'active'});
+    policy.assignments.push({principalId:fixture.owner.principalId,contextId:'application',audience:'app',roleId:'storage'});
+    const lifecycle=createAccountLifecycleService(fixture.db,{permissions});
+    const invitation=await lifecycle.issueInvitation(fixture.signed.token,{loginIdentifier:'shared-peer@example.invalid',displayName:'Shared file peer'});
+    assert.equal(invitation.ok,true);
+    const peer=await lifecycle.redeem({token:invitation.token,purpose:'invitation',password:'Synthetic shared peer password'});
+    assert.equal(peer.ok,true);
+    policy.memberships.push({principalId:peer.principalId,contextId:'application',audience:'admin',status:'active'});
+    policy.assignments.push({principalId:peer.principalId,contextId:'application',audience:'admin',roleId:'storage'});
+    assert.equal((await acl.replacePolicy(fixture.signed.token,{expectedEpoch:current.epoch,policy})).ok,true);
+    const app=await fixture.accounts.login({loginIdentifier:'storage@example.invalid',
+      password:'Synthetic storage qualification password',audience:'app'});
+    const peerSession=await fixture.accounts.login({loginIdentifier:'shared-peer@example.invalid',
+      password:'Synthetic shared peer password',audience:'admin'});
+    assert.equal(app.ok,true);assert.equal(peerSession.ok,true);
+    const adminRead=await dispatch(get(reference,fixture.signed.token,'admin'));
+    assert.equal(adminRead.status,200);
+    const appRead=await dispatch(get(reference,app.token,'app'));
+    assert.equal(appRead.status,200);
+    assert.deepEqual(new Uint8Array(await appRead.arrayBuffer()),bytes);
+    await check(await dispatch(get(reference,peerSession.token,'admin')),404,'not_found');
+    await check(await dispatch(get(reference,fixture.signed.token,'admin','other')),404,'not_found');
+    await fixture.changePermissions(['records','secrets']);
+    await check(await dispatch(get(reference,app.token,'app')),403,'forbidden');
+  } finally {await fixture.dispose();}
+});

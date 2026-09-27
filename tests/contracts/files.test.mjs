@@ -5,7 +5,13 @@ import { fixture, accepted, refused } from './helpers.mjs';
 test('file storage mapping is explicit and its metadata remains private and scoped', () => {
   const positive = fixture();
   accepted(validateModule(positive));
+  for (const ownerScope of ['principal', 'principal-audience']) {
+    const withScope = structuredClone(positive);
+    withScope.contracts.files[0].ownerScope = ownerScope;
+    accepted(validateModule(withScope));
+  }
   const cases = [
+    ['unknown owner scope', file => { file.ownerScope = 'session'; }, 'schema.invalid'],
     ['missing mapping', (file) => { delete file.storageFields; }, 'schema.invalid'],
     ['aliased storage fields', file => { file.storageFields.digest = file.storageFields.objectKey; }, /^file\./],
     ['public metadata', (file, model) => { model.public = true; }, /^file\./],

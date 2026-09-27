@@ -1,5 +1,5 @@
 import { builtinModules } from 'node:module';
-import { resolve, relative, isAbsolute } from 'node:path';
+import { resolve, relative, isAbsolute, sep } from 'node:path';
 import { dirname } from 'node:path';
 import { lstatSync, realpathSync } from 'node:fs';
 import { build } from 'esbuild';
@@ -9,11 +9,34 @@ const builtins = new Set(builtinModules.flatMap(name => [name, name.replace(/^no
 /** Check selected module/core entries, not framework internals. This does not execute their code. */
 export async function assertWorkerBoundary({ root, entryPoints }) {
   const directory = resolve(root);
+  const sdkAlias = resolve(directory, 'node_modules/@creezio/sdk');
+  const sdkSource = resolve(directory, 'sdk');
+  const sdkCompiledAlias = resolve(sdkAlias, 'dist/esm');
+  const sdkCompiledSource = resolve(sdkSource, 'dist/esm');
+  const within = (base, target) => {
+    const local = relative(base, target);
+    return !isAbsolute(local) && local !== '..' && !local.startsWith(`..${sep}`);
+  };
+  const samePath = (left, right) => process.platform === 'win32'
+    ? left.toLowerCase() === right.toLowerCase() : left === right;
+  // npm's one workspace junction is permitted only for the compiled public SDK graph.
+  // The matching physical path also rejects any second link below dist/esm.
+  const compiledWorkspaceSdk = target => {
+    if (!within(sdkCompiledAlias, target)) return false;
+    try {
+      if (!lstatSync(sdkAlias).isSymbolicLink() || lstatSync(sdkSource).isSymbolicLink()
+        || !samePath(realpathSync(sdkAlias), realpathSync(sdkSource))) return false;
+      const expected = resolve(sdkSource, relative(sdkAlias, target));
+      return within(sdkCompiledSource, expected) && samePath(realpathSync(target), expected);
+    } catch { return false; }
+  };
   const confined = target => {
     const local = relative(directory, target);
     if (isAbsolute(local) || local === '..' || local.startsWith('../') || local.startsWith('..\\')) throw new Error('Selected Worker import escapes the project.');
     for (let current = target; current !== dirname(directory); current = dirname(current)) {
-      if (lstatSync(current).isSymbolicLink()) throw new Error('Selected Worker import traverses a link.');
+      if (lstatSync(current).isSymbolicLink()
+        && !(samePath(current, sdkAlias) && compiledWorkspaceSdk(target)))
+        throw new Error('Selected Worker import traverses a link.');
     }
     const physical = relative(realpathSync(directory), realpathSync(target));
     if (isAbsolute(physical) || physical === '..' || physical.startsWith('../') || physical.startsWith('..\\')) throw new Error('Selected Worker import escapes the project.');

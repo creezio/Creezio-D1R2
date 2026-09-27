@@ -17,8 +17,13 @@ export function resolveFileCategory(catalog: RuntimeDataCatalog, files: RuntimeF
 }
 
 /** Principal IDs are never concatenated ambiguously or truncated to fit an owner column. */
-export async function fileOwnerId(principalId: string, audience: AuthorizationAudience): Promise<string> {
-  const bytes = new TextEncoder().encode(JSON.stringify(['creezio.files.owner.v1', audience, principalId]));
+export async function fileOwnerId(principalId: string, audience: AuthorizationAudience,
+  ownerScope: 'principal' | 'principal-audience' = 'principal-audience'): Promise<string> {
+  // Keep the historical audience-scoped digest byte-for-byte for undeclared categories.
+  const identity = ownerScope === 'principal'
+    ? ['creezio.files.owner.v2', 'principal', principalId]
+    : ['creezio.files.owner.v1', audience, principalId];
+  const bytes = new TextEncoder().encode(JSON.stringify(identity));
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return `owner_${Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')}`;
 }

@@ -32,7 +32,7 @@ function engine(fixture,implementations,options={}) {
   const handlers=Object.fromEntries(Object.entries(implementations).map(([id,handler])=>[`${moduleId}:${id}`,handler]));
   const registry=createOperationRegistry({catalog:operationCatalog,validators:{fileInput:validInput,fileOutput:validOutput},handlers});
   return createOperationEngine({db:fixture.db,catalog,registry,permissions,
-    ...(options.noFiles?{}:{files:{catalog:fileCatalog,bucket:options.bucket??fixture.bucket}})});
+    ...(options.noFiles?{}:{files:{catalog:options.fileCatalog??fileCatalog,bucket:options.bucket??fixture.bucket}})});
 }
 const request=(fixture,operationId,id,reference,key)=>({credential:{kind:'session',token:fixture.signed.token},
   moduleId,operationId,contextId:'application',audience:'admin',input:{id,reference,requestKey:key}});
@@ -140,5 +140,34 @@ test('operation file proof and business link share guarded D1 commit', {timeout:
     assert.notEqual(omission?.execution?.state,'succeeded');
     assert.equal(await record(fixture,'omitted'),null);
     assert.equal((await metadata(fixture,omittedRef.fileId)).state,'staged');
+  } finally {await fixture.dispose();}
+});
+
+test('operation file publication uses the explicit principal owner scope of its category', {timeout:60000},async()=>{
+  const fixture=await createStorageFixture();
+  try {
+    const technical=generateD1Schema(OPERATION_STORAGE_MODULE_ID,OPERATION_MODELS);
+    await fixture.db.batch(technical.statements.map(sql=>fixture.db.prepare(sql)));
+    const sharedCategory={...category,ownerScope:'principal'};
+    const ownerId=await fileOwnerId(fixture.owner.principalId,'admin',sharedCategory.ownerScope);
+    assert.equal(ownerId,await fileOwnerId(fixture.owner.principalId,'app',sharedCategory.ownerScope));
+    assert.notEqual(ownerId,await fileOwnerId(fixture.owner.principalId,'admin'));
+    const lease=await fixture.lease();
+    const files=createFileService({data:fixture.data,catalog,moduleId,category:sharedCategory,
+      bucket:fixture.bucket,ownerId});
+    const staged=await files.stage(lease,{ownerId,intentId:'principal-operation',generation:'1',
+      filename:'shared.pdf',contentType:'application/pdf',bytes});
+    const sharedCatalog={compositionDigest:catalog.compositionDigest,
+      categories:[{moduleId,category:sharedCategory,audiences:['admin','app']}]};
+    const link=async(input,context)=>{
+      const prepared=await context.files.preparePublication('attachment',input.reference);
+      return {output:{id:input.id,fileId:prepared.file.fileId},plans:[prepared.plan,
+        context.data.planCreate('record',{values:{id:input.id,title:prepared.file.filename}})]};
+    };
+    const result=await engine(fixture,{link},{fileCatalog:sharedCatalog})
+      .invoke(request(fixture,'link','shared',staged,'principal-owner-key'));
+    assert.equal(result.execution.state,'succeeded');
+    assert.equal((await metadata(fixture,staged.fileId)).state,'available');
+    assert.equal((await record(fixture,'shared')).title,'shared.pdf');
   } finally {await fixture.dispose();}
 });

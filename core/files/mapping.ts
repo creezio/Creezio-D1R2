@@ -16,6 +16,7 @@ export interface FileCategory {
   readonly id: string;
   readonly metadataModel: { readonly moduleId: string; readonly kind: 'model'; readonly id: string };
   readonly contextField: string; readonly ownerField: string; readonly storageFields: FileStorageFields;
+  readonly ownerScope?: 'principal' | 'principal-audience';
   readonly mimeTypes: readonly string[]; readonly maxBytes: number; readonly public: boolean;
   readonly permissions: readonly { readonly moduleId: string; readonly kind: 'permission'; readonly id: string }[];
 }
@@ -32,6 +33,7 @@ export function captureFileCategory(catalog: RuntimeDataCatalog, moduleId: strin
     || input.metadataModel.moduleId !== moduleId || input.metadataModel.kind !== 'model'
     || typeof input.id !== 'string' || input.id.length > 128 || /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.exec(input.id)?.[0] !== input.id
     || typeof input.public !== 'boolean' || !Number.isSafeInteger(input.maxBytes) || input.maxBytes < 1
+    || (input.ownerScope !== undefined && input.ownerScope !== 'principal' && input.ownerScope !== 'principal-audience')
     || !Array.isArray(input.permissions) || !input.permissions.length || input.permissions.length > 1000
     || input.permissions.some(ref => !plainRecord(ref) || ref.moduleId !== moduleId || ref.kind !== 'permission' || typeof ref.id !== 'string')
     || !Array.isArray(input.mimeTypes) || !input.mimeTypes.length || input.mimeTypes.length > 1000
@@ -53,6 +55,7 @@ export function captureFileCategory(catalog: RuntimeDataCatalog, moduleId: strin
     if (!model.indexes.some(index => index.unique && equal(index.fields, columns))) throw new FileError('invalid_mapping');
   return Object.freeze({ id: input.id, metadataModel: Object.freeze({ ...input.metadataModel }),
     contextField: input.contextField, ownerField: input.ownerField, storageFields: m,
+    ...(input.ownerScope === undefined ? {} : {ownerScope: input.ownerScope}),
     mimeTypes: Object.freeze([...input.mimeTypes]), maxBytes: input.maxBytes, public: input.public,
     permissions: Object.freeze(input.permissions.map(ref => Object.freeze({ ...ref }))) });
 }

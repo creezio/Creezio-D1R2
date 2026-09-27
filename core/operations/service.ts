@@ -225,7 +225,7 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
             if (issued.size >= OPERATION_LIMITS.maxPlans) throw new OperationError('invalid_input');
             const category = resolveFileCategory(catalog, options.files!.catalog, operation.moduleId, categoryId, identity.audience);
             const service = createFileService({data, catalog, moduleId: operation.moduleId, category,
-              bucket: options.files!.bucket, ownerId: await fileOwnerId(identity.principalId, identity.audience)});
+              bucket: options.files!.bucket, ownerId: await fileOwnerId(identity.principalId, identity.audience, category.ownerScope)});
             const result = await service.preparePublication(lease, reference), token=result.plan;
             ensure();
             if (issued.size >= OPERATION_LIMITS.maxPlans) throw new OperationError('invalid_input');
