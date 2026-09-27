@@ -1,13 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,readdirSync,existsSync,unlinkSync,rmdirSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,readdirSync,existsSync,unlinkSync,rmdirSync,lstatSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {tmpdir} from 'node:os';
 import {spawnSync} from 'node:child_process';
 import {fixture} from '../contracts/helpers.mjs';
+import {safePackagePath} from '../../sdk/contracts/references.mjs';
 import {contractIntegrity} from '../../sdk/contracts/validate.mjs';
-import {packModuleArtifacts} from '../../scripts/modules/archives.mjs';
+import {deterministicModuleArchive,packModuleArtifacts} from '../../scripts/modules/archives.mjs';
+import {loadRuntimeComposition} from '../../scripts/build/compose-runtime.mjs';
 import {compileModuleInventory,compileModuleInventoryWithDocuments} from '../../sdk/modules/inventory.mjs';
 import {runModulePlanCli} from '../../scripts/modules/plan.mjs';
 import {runModuleLockCli} from '../../scripts/modules/lock.mjs';
@@ -20,9 +23,29 @@ test('every shipped Conversations composition locks the current module artifacts
       .some(module=>module.moduleId==='creezio.conversations'));
   assert.ok(profiles.length>0);
   for(const name of profiles){
-    let errors='';
-    assert.equal(runModuleLockCli(['--root',root,'--composition',`configuration/${name}`],
-      {stdout:{write:()=>{}},stderr:{write:chunk=>{errors+=chunk;}}}),0,`${name}: ${errors}`);
+    const {composition,lock,located}=loadRuntimeComposition({root,compositionPath:`configuration/${name}`});
+    for(const [index,selection] of composition.modules.entries()){
+      const node=lock.modules.find(item=>item.moduleId===selection.moduleId);
+      assert.ok(node,`${name}: missing lock for ${selection.moduleId}`);
+      const {directory,descriptor}=located[index];
+      for(const kind of ['runtime','validation']){
+        const files=descriptor.packaging[kind].files.map(relative=>{
+          assert.ok(safePackagePath(relative),`${name}: invalid path ${relative}`);
+          let absolute=directory;
+          for(const part of relative.split('/')){
+            absolute=path.join(absolute,part);
+            assert.equal(lstatSync(absolute).isSymbolicLink(),false,`${name}: linked path ${relative}`);
+          }
+          assert.ok(lstatSync(absolute).isFile(),`${name}: missing file ${relative}`);
+          return {path:relative,bytes:readFileSync(absolute)};
+        });
+        const integrity=`sha256-${createHash('sha256').update(deterministicModuleArchive(files)).digest('hex')}`;
+        assert.equal(node[kind].integrity,integrity,`${name}: ${selection.moduleId} ${kind} archive mismatch`);
+        assert.deepEqual(node[kind].location,{kind:'local',
+          path:`.creezio/module-artifacts/${selection.moduleId}/${kind}-${integrity.slice(7)}.tgz`},
+        `${name}: ${selection.moduleId} ${kind} location mismatch`);
+      }
+    }
   }
 });
 
