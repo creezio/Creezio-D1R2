@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { changedEffects, draftRefreshDecision, matrixFromPolicy, principalScope, rolePermissionKey, rolePermissionTuple }
+import { changedEffects, draftRefreshDecision, matrixFromPolicy, principalScope, rolePermissionKey, rolePermissionTuple,
+  shouldPurgeAdminView }
   from '../../ui/projection.ts';
 
 const policy = {
@@ -59,4 +60,12 @@ test('external epoch preserves a dirty draft until explicit discard; clean state
   assert.equal(draftRefreshDecision(7, 8, initial, draft), 'preserve-stale');
   assert.equal(draftRefreshDecision(7, 8, initial, new Map(initial)), 'adopt');
   assert.equal(draftRefreshDecision(7, 7, initial, draft), 'same');
+});
+
+test('workspace verification retains a dirty draft; confirmed identity loss purges it', () => {
+  const identityVersion = 3;
+  assert.equal(shouldPurgeAdminView({authorized: false, suspended: true, identityVersion}, identityVersion), false);
+  assert.equal(shouldPurgeAdminView({authorized: true, suspended: false, identityVersion}, identityVersion), false);
+  assert.equal(shouldPurgeAdminView({authorized: false, suspended: false, identityVersion: 4}, identityVersion), true);
+  assert.equal(shouldPurgeAdminView({authorized: true, suspended: false, identityVersion: 4}, identityVersion), true);
 });

@@ -1,5 +1,6 @@
 /** Read-only view projections. The server remains the authority for every write. */
 import type { AccessAdminPolicyRead } from '../../../../sdk/access/admin-types.ts';
+import type { AccessAdminSnapshot } from '../../../../sdk/access/admin-types.ts';
 
 export type AccessEffect = 'allow' | 'deny' | 'inherit';
 export type AccessAudience = 'admin' | 'app';
@@ -110,4 +111,10 @@ export function draftRefreshDecision(baseEpoch: number, currentEpoch: number,
   initial: ReadonlyMap<string, AccessEffect>, draft: ReadonlyMap<string, AccessEffect>) {
   if (baseEpoch === currentEpoch) return 'same' as const;
   return changedEffects(initial, draft).length ? 'preserve-stale' as const : 'adopt' as const;
+}
+
+/** Verification suspends the view; only a confirmed identity loss discards drafts. */
+export function shouldPurgeAdminView(snapshot: Pick<AccessAdminSnapshot,
+  'authorized' | 'suspended' | 'identityVersion'>, previousIdentityVersion: number): boolean {
+  return snapshot.identityVersion !== previousIdentityVersion || !snapshot.authorized && !snapshot.suspended;
 }

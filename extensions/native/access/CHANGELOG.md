@@ -4,6 +4,8 @@
 
 Raccordement des trois panneaux Access originaux, composants SDK UI publics et opérations natives déclarées. Deltas de politique avec epoch, comparaison des versions des comptes et révocations atomiques avec l'exécution T-06. Nouveau modèle privé de détail d'audit, index chronologique, lectures et détail paginés. Les qualifications de la tranche sont suivies dans TODO et T-04 ; les parcours MCP et hébergés restent distincts.
 
+Conservation du brouillon et du suivi de commande pendant une vérification temporaire des droits : vue masquée et inerte, aucune action autorisée ; purge sur changement ou perte confirmée d'identité.
+
 Installation opérateur locale du schéma central et du premier compte : réutilisation des modèles, du provisionnement et du bootstrap natifs, sans nouvelle table ni API publique. Inspection conservatrice, refus d'écrasement et reprise sans remplacement d'une capacité vivante ou d'un marqueur consommé.
 
 Entrées navigateur `/access/admin` et `/access/app` via le SDK partagé de l'hôte, activées par composition et audience. Le manifeste garde les vues métier privées absentes ; les tests du SDK, du rendu et du navigateur sont distingués des six suites du module. Aucun modèle ou SQL ajouté pour l'interface de connexion.

@@ -14,7 +14,8 @@ const unknown = (requestKey: string, code: string): AccessAdminCommandOutcome =>
   Object.freeze({kind: 'unknown', requestKey, code});
 const sessionIdentity = (access: AccessController) => {
   const current = access.getSnapshot();
-  return current.phase === 'authenticated' && current.session && current.session.audience === 'admin'
+  return current.phase === 'authenticated' && current.pending === null
+    && current.session && current.session.audience === 'admin'
     ? JSON.stringify([current.session.principalId, current.session.id]) : null;
 };
 function validOutput(bindingId: string, value: unknown): boolean {
@@ -41,6 +42,8 @@ export function createAccessAdminController(options: {client: OperationClient; a
   const persistence = options.persistence;
   const observers = new Set<() => void>();
   let disposed = false, generation = 0, identity = sessionIdentity(access);
+  let lastVerifiedIdentity = identity, identityVersion = 0;
+  let invalidation: string | null = null;
   const validPending = (value: unknown): value is {bindingId: string; requestKey: string} => !!value
     && typeof value === 'object' && !Array.isArray(value)
     && (Object.values(binding) as string[]).includes((value as {bindingId: string}).bindingId)
@@ -61,22 +64,37 @@ export function createAccessAdminController(options: {client: OperationClient; a
   let pending: AccessAdminPendingCommand | null = restorePending();
   let mutation: Promise<AccessAdminCommandOutcome> | null = null;
   let currentSnapshot: AccessAdminSnapshot = Object.freeze({authorized: identity !== null,
-    pendingCommand: identity !== null ? pending : null});
+    suspended: false, identityVersion, pendingCommand: identity !== null ? pending : null});
   const publish = () => {
     const authorized = !disposed && identity !== null;
+    const state = access.getSnapshot();
+    const suspended = !disposed && !authorized && lastVerifiedIdentity !== null && state.pending === null
+      && (state.phase === 'loading' || state.phase === 'unavailable');
     const visible = authorized ? pending : null;
-    if (currentSnapshot.authorized === authorized && currentSnapshot.pendingCommand === visible) return;
-    currentSnapshot = Object.freeze({authorized, pendingCommand: visible});
+    if (currentSnapshot.authorized === authorized && currentSnapshot.suspended === suspended
+      && currentSnapshot.identityVersion === identityVersion && currentSnapshot.pendingCommand === visible) return;
+    currentSnapshot = Object.freeze({authorized, suspended, identityVersion, pendingCommand: visible});
     for (const observer of [...observers]) {try {observer();} catch { /* observers cannot interrupt operations */ }}
   };
   const unsubscribe = access.subscribe(() => {
+    const state = access.getSnapshot();
     const next = sessionIdentity(access);
     if (next !== identity) {
-      const previous = identity;
       identity = next; generation++;
-      if (next !== null && previous !== next) pending = restorePending();
-      publish();
     }
+    if (state.pending !== null || state.phase === 'anonymous') {
+      const marker = state.pending === null ? 'anonymous' : `pending:${state.pending}`;
+      if (marker !== invalidation) identityVersion++;
+      invalidation = marker; lastVerifiedIdentity = null; pending = null;
+    } else {
+      invalidation = null;
+      if (next !== null && next !== lastVerifiedIdentity) {
+        // A changed identity gets a new qualified panel; never read a stale panel
+        // while its workspace projection is still unavailable.
+        lastVerifiedIdentity = next; identityVersion++; pending = null;
+      }
+    }
+    publish();
   });
   async function read<T>(action: () => Promise<AccessAdminReadResult<T>>): Promise<AccessAdminReadResult<T>> {
     if (disposed || identity === null) return unavailable('unauthorized');
@@ -193,7 +211,8 @@ export function createAccessAdminController(options: {client: OperationClient; a
     },
     dispose() {
       if (disposed) return;
-      disposed = true; identity = null; generation++; unsubscribe(); publish(); observers.clear();
+      disposed = true; identity = null; lastVerifiedIdentity = null; identityVersion++;
+      generation++; unsubscribe(); publish(); observers.clear();
       // A POST already emitted by T06 is not cancelled or replayed here.
       pending = null;
     },

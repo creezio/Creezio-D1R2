@@ -92,7 +92,14 @@ export interface AccessAdminPendingPersistence {
   read(): Readonly<{bindingId: string; requestKey: string}> | null;
   save(value: Readonly<{bindingId: string; requestKey: string}> | null): boolean;
 }
-export interface AccessAdminSnapshot { readonly authorized: boolean; readonly pendingCommand: AccessAdminPendingCommand | null }
+export interface AccessAdminSnapshot {
+  readonly authorized: boolean;
+  /** A previously verified session is being revalidated; all effects remain blocked. */
+  readonly suspended: boolean;
+  /** Changes only when the verified identity is replaced or definitively invalidated. */
+  readonly identityVersion: number;
+  readonly pendingCommand: AccessAdminPendingCommand | null;
+}
 
 /** UI calls this controller; it does not construct endpoints or hold a credential. */
 export interface AccessAdminController {

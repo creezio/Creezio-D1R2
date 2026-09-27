@@ -122,12 +122,15 @@ test('Access admin read result becomes stale and private state hides when sessio
     invoke: () => new Promise(resolve => {release = resolve;}), status: async () => ({kind: 'unknown', code: 'unused'})};
   const controller = createAccessAdminController({client: operations, access, persistence: persistenceFixture()});
   try {
+    const version = controller.getSnapshot().identityVersion;
     const pending = controller.readPolicy();
     await Promise.resolve();
     access.setPhase('anonymous');
     release(execution({epoch: 1, policy}));
     assert.deepEqual(await pending, {ok: false, error: 'stale'});
     assert.equal(controller.getSnapshot().authorized, false);
+    assert.equal(controller.getSnapshot().suspended, false);
+    assert.ok(controller.getSnapshot().identityVersion > version, 'confirmed anonymous invalidates local identity');
   } finally {controller.dispose();}
 });
 
@@ -152,6 +155,42 @@ test('pending Access command survives controller reload and must be looked up be
     assert.equal(lookedUp[0].requestKey, pending.requestKey);
     assert.equal(persistence.read(), null);
   } finally {second.dispose();}
+});
+
+test('transient session revalidation blocks effects without losing an uncertain command or draft identity', async () => {
+  const access = accessFixture(), stored = persistenceFixture();
+  let readable = true, reads = 0, invoked = 0;
+  const persistence = {read() {reads++; return readable ? stored.read() : null;}, save: value => stored.save(value)};
+  const operations = {origin: access.origin, audience: 'admin',
+    async invoke() {invoked++; return {kind: 'unknown', code: 'outcome_unknown'};},
+    async status() {return execution({epoch: 2, auditId: 'audit-2', changedCount: 1});}};
+  const controller = createAccessAdminController({client: operations, access, persistence});
+  try {
+    const result = await controller.applyDelta({expectedEpoch: 1, changes: [
+      {kind: 'role-grant', roleId: 'administrator', permissionId: 'creezio.access:manage', present: true}]});
+    assert.equal(result.kind, 'unknown');
+    const version = controller.getSnapshot().identityVersion, readsBeforeRefresh = reads;
+    readable = false;
+    access.setPhase('loading');
+    assert.equal(controller.getSnapshot().authorized, false);
+    assert.equal(controller.getSnapshot().suspended, true);
+    assert.equal(controller.getSnapshot().identityVersion, version);
+    assert.equal((await controller.revokeSession({sessionId: 'session-2'})).kind, 'rejected');
+    assert.equal(invoked, 1);
+    access.setPhase('unavailable');
+    assert.equal(controller.getSnapshot().suspended, true);
+    access.setPhase('authenticated');
+    assert.equal(controller.getSnapshot().authorized, true);
+    assert.equal(controller.getSnapshot().suspended, false);
+    assert.equal(controller.getSnapshot().identityVersion, version);
+    assert.equal(controller.getSnapshot().pendingCommand.requestKey, result.requestKey);
+    assert.equal(reads, readsBeforeRefresh, 'same-session recovery never reads an unavailable panel');
+    assert.equal((await controller.revokeSession({sessionId: 'session-2'})).requestKey, result.requestKey);
+    assert.equal(invoked, 1);
+    readable = true;
+    assert.equal((await controller.reconcilePending()).kind, 'succeeded');
+    assert.equal(stored.read(), null);
+  } finally {controller.dispose();}
 });
 
 test('Access mutation refuses to emit when qualified panel state cannot save the key', async () => {

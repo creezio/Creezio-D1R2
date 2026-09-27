@@ -10,6 +10,7 @@ import type { AccessAdminAuditCursor, AccessAdminAuditDetailPage, AccessAdminAud
   AccessAdminAudience, AccessAdminCommandOutcome, AccessAdminController, AccessAdminDeltaInput,
   AccessAdminPolicyRead, AccessAdminPrincipal, AccessAdminSession } from '../../../../sdk/access/admin-types.ts';
 import { changedEffects, draftRefreshDecision, matrixFromPolicy, principalScope, rolePermissionKey, rolePermissionTuple,
+  shouldPurgeAdminView,
   type AccessEffect, type MatrixGroup, type MatrixRole, type MatrixView } from './projection.ts';
 
 const DEFAULT_CONTEXT = 'application';
@@ -391,13 +392,17 @@ export function AccessAdminClient({controller, active = true, authorized = true,
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const generation = useRef(0);
+  const identityVersion = useRef(snapshot.identityVersion);
   useEffect(() => controller.subscribe(() => setSnapshot(controller.getSnapshot())), [controller]);
   useEffect(() => {
-    if (snapshot.authorized && authorized) return;
+    if (snapshot.authorized && authorized && snapshot.identityVersion === identityVersion.current) return;
     generation.current++;
+    setLoading(false);
+    if (!shouldPurgeAdminView(snapshot, identityVersion.current)) return;
+    identityVersion.current = snapshot.identityVersion;
     setPolicy(null); setPrincipals([]); setPrincipalNext(null); setAudit([]); setAuditNext(null);
-    setError('Accès réservé (permission creezio.access:manage).'); setLoading(false);
-  }, [snapshot.authorized, authorized]);
+    setError('Accès réservé (permission creezio.access:manage).');
+  }, [snapshot, authorized]);
   const load = useCallback(async () => {
     if (!active || !authorized || !controller.getSnapshot().authorized) return;
     const current = ++generation.current;
@@ -471,7 +476,8 @@ export function AccessAdminClient({controller, active = true, authorized = true,
   try { if (policy) matrix = matrixFromPolicy(policy); }
   catch { return <p role="alert" className="p-6 text-sm text-red-700">Graphe des rôles invalide. Aucune modification n’est possible.</p>; }
   const disabled = !active || !authorized || !snapshot.authorized || !!snapshot.pendingCommand || !!error;
-  return <div className="space-y-4 p-6"><Toaster />
+  const visible = active && authorized && snapshot.authorized && snapshot.identityVersion === identityVersion.current;
+  return <div className="space-y-4 p-6" hidden={!visible} inert={!visible}><Toaster />
     <div className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-slate-500" />
       <h1 className="text-lg font-semibold text-slate-900">Rôles &amp; accès</h1>
       <Button variant="outline" size="sm" className="ml-auto" disabled={loading || !active}

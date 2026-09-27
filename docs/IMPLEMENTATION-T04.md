@@ -8,6 +8,8 @@ Les requêtes et commandes utilisent les opérations déclarées et le transport
 
 Un delta de politique contient au plus 32 changements et 12 Kio d'entrée, avec epoch attendu ; les tuples rôle/permission/utilisateur/contexte/audience sont structurés. Le journal détaillé stocke une enveloppe versionnée des politiques avant et après, atomiquement avec le changement. Les instantanés sont limités chacun à 98 304 octets, dans un champ borné à 524 288 octets ; le lecteur valide l'enveloppe et calcule les différences paginées de 32 éléments. Les anciennes lignes dépourvues de détail sont signalées comme telles, sans reconstitution supposée.
 
+L'actualisation de la session ou des droits suspend la vue : données et brouillons restent montés mais masqués et inertes, et les opérations sont bloquées. Le retour de la même session conserve aussi la clé d'une commande incertaine sans relire un panneau dont la projection n'est pas encore disponible. Une perte d'identité confirmée, une connexion/déconnexion engagée ou un changement de session purge cet état ; le retrait confirmé du droit de vue la retire du workspace. Une panne de vérification ne vaut donc ni autorisation ni abandon du brouillon.
+
 Les tests, la revue et la recette navigateur de cette tranche sont encore en cours. Elle ne clôt pas T-04 : remise des liens d'invitation/récupération, autres transports, OAuth et hébergements restent à qualifier. Les détails ci-dessous conservent la provenance des fondations déjà intégrées.
 
 ## Fondations intégrées
