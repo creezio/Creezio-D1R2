@@ -21,6 +21,8 @@ Les widgets utilisent une seconde origine d'affichage, `http://127.0.0.1:5175`, 
 
 L'opérateur local de livraison, lorsqu'il est activé, garde son origine canonique `http://127.0.0.1:5176`. Un second pont TCP interne sur 5177 expose uniquement ce service au loopback de l'hôte ; ni le port de Miniflare ni celui de l'opérateur ne deviennent publics sur l'interface réseau du conteneur.
 
+Le build Cloudflare naît dans le système de fichiers du conteneur, tandis que son artefact durable se trouve dans le volume `.wrangler`. L'opérateur copie les seuls fichiers du Worker et des assets dans un staging borné du volume, vérifie leurs empreintes, puis publie ce staging par renommage sur ce même volume. Un staging du même transfert peut être repris ; un artefact partiel ou étranger est refusé pour inspection plutôt qu'écrasé. L'ancien build local est restauré après publication vérifiée.
+
 Pour vérifier la persistance, installer un compte synthétique avec la commande ci-dessus, puis arrêter le service et écrire un objet R2 synthétique via le même binding local et le même verrou :
 
 ```sh

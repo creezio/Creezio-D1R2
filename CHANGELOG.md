@@ -4,6 +4,8 @@
 
 Pipeline de première publication du Worker/assets et des données D1/R2, relié à l'opérateur local et à la vue d'administration sur `core/t32-cloudflare`. Le module optionnel de livraison possède un transport injecté par l'hôte, un transfert identifié et des suites ciblées ; les nouveaux exports SDK sont une candidate **1.1.0 non publiée**, distincte de `sdk-v1.0.0`. La PR #27 est ouverte en brouillon ; les contrôles globaux et les recettes Docker/Cloudflare réelles restent à terminer. Aucune publication de l'application originale ou de la démo sur le compte Cloudflare n'est encore qualifiée ; la mise à jour conservatrice après cette première publication reste au backlog. Voir [réalisation T32](docs/IMPLEMENTATION-T32.md).
 
+Qualification Docker poursuivie sur Linux par SSH : arrêt propre et conservation du compte, du brouillon et du fichier vérifiés. Correction de la copie du build entre le conteneur et le volume Docker, avec empreintes, staging borné et restauration du build local. Les tentatives de publication et leurs limites restent détaillées dans la réalisation T32.
+
 ## 27 septembre 2026 — SDK et starter T30 publics
 
 PR #26 fusionnée sur main `e67636635a526daa544ea3573b271e1822f3f4fe`, CI 1 039/1 039. SDK `sdk-v1.0.0` public et starter `module-v0.1.0` public après PR #1 du starter fusionnée sur main `527a1bc1446a529ad6e560e3a25dea13a12001e9`. Démo indépendante vérifiée localement avec API, D1/R2, OpenAI, deux widgets et UI originale ; actions internes des iframes non qualifiées. Le retour OAuth GitHub réel du registre a réussi après correction du transport Worker. Voir [réalisation T30](docs/IMPLEMENTATION-T30.md).

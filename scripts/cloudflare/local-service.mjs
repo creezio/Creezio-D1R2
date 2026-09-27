@@ -1,5 +1,7 @@
 import {spawn} from 'node:child_process';
-import {lstat,mkdir,open,readFile,rename,statfs} from 'node:fs/promises';
+import {createReadStream,constants as fsConstants} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {copyFile,lstat,mkdir,open,readFile,readdir,rename,rmdir,statfs,unlink} from 'node:fs/promises';
 import path from 'node:path';
 import {parseEnv} from 'node:util';
 import {createRegistryClient} from '../../core/registry/client.ts';
@@ -62,9 +64,68 @@ async function optionalDirectory(location){
   if(stat&&(!stat.isDirectory()||stat.isSymbolicLink()))fail('invalid_path');
   return stat;
 }
-/** Keeps the active local dist and one durable Cloudflare artifact without copying either tree. */
+const COPY_MAX_FILES=2000,COPY_MAX_BYTES=512*1024*1024,COPY_MAX_FILE_BYTES=128*1024*1024;
+async function fileDigest(file){
+  const stat=await lstat(file);
+  if(!stat.isFile()||stat.isSymbolicLink()||stat.size>COPY_MAX_FILE_BYTES)fail('artifact_copy_limit');
+  const digest=createHash('sha256');let bytes=0;
+  for await(const chunk of createReadStream(file)){
+    bytes+=chunk.length;if(bytes>COPY_MAX_FILE_BYTES)fail('artifact_copy_limit');digest.update(chunk);
+  }
+  return {bytes,sha256:digest.digest('hex')};
+}
+async function copyVerified(source,staging,item){
+  const destination=path.join(staging,item.path),parent=path.dirname(item.path);
+  await directory(staging,parent);
+  const actual=await lstat(destination).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
+  if(actual){
+    if(JSON.stringify(await fileDigest(destination))!==JSON.stringify({bytes:item.bytes,sha256:item.sha256}))
+      fail('artifact_stage_conflict');
+    return;
+  }
+  if(JSON.stringify(await fileDigest(source))!==JSON.stringify({bytes:item.bytes,sha256:item.sha256}))
+    fail('artifact_changed');
+  const temporary=path.join(staging,'.copy-part');
+  const partial=await lstat(temporary).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
+  if(partial){
+    if(!partial.isFile()||partial.isSymbolicLink())fail('artifact_stage_conflict');
+    await unlink(temporary); // Only this intent's incomplete copy may be replaced.
+  }
+  await copyFile(source,temporary,fsConstants.COPYFILE_EXCL);
+  if(JSON.stringify(await fileDigest(temporary))!==JSON.stringify({bytes:item.bytes,sha256:item.sha256}))
+    fail('artifact_changed');
+  await rename(temporary,destination); // Same volume as the staging directory.
+}
+async function inspectGeneratedDist(root,artifact){
+  const target=path.join(root,'dist'),files=[],directories=[];
+  if(measureRuntimeArtifacts(root).digest!==artifact.digest)fail('build_recovery_required');
+  async function inspect(relative=''){
+    for(const name of await readdir(path.join(target,relative))){
+      const child=path.join(relative,name),stat=await lstat(path.join(target,child));
+      if(stat.isSymbolicLink()||files.length+directories.length>=COPY_MAX_FILES*4)
+        fail('build_recovery_required');
+      if(stat.isDirectory()){directories.push(child);await inspect(child);}
+      else if(stat.isFile())files.push(child);
+      else fail('build_recovery_required');
+    }
+  }
+  await inspect();
+  const expected=artifact.files.map(item=>item.path.slice('dist/'.length)).sort();
+  if(JSON.stringify(files.map(name=>name.replaceAll('\\','/')).sort())!==JSON.stringify(expected))
+    fail('build_recovery_required');
+  return {target,files,directories};
+}
+async function removeGeneratedDist(root,artifact){
+  const {target,files,directories}=await inspectGeneratedDist(root,artifact);
+  for(const name of files)await unlink(path.join(target,name));
+  for(const name of directories.sort((a,b)=>b.split(path.sep).length-a.split(path.sep).length))
+    await rmdir(path.join(target,name));
+  await rmdir(target);
+}
+/** Keeps the active local dist and one durable Cloudflare artifact across filesystems. */
 export function createCloudflareBuildPort(config,{run=runBuild,
-  freeBytes=async root=>{const space=await statfs(root);return space.bavail*space.bsize;}}={}){
+  freeBytes=async root=>{const space=await statfs(root);return space.bavail*space.bsize;},
+  move=rename}={}){
   let building=false;
   return async({target,projection,sourceSha,transferId})=>{
     if(building)fail('build_busy');
@@ -73,9 +134,12 @@ export function createCloudflareBuildPort(config,{run=runBuild,
     const source=sourceIdentity(config.root);
     if(source.dirty||source.head!==sourceSha)fail('source_changed');
     const build=await directory(config.root,'.wrangler/delivery/build');
+    const localBuild=path.join(config.root,'.quality/delivery-build');
     const artifactRoot=path.join(build,'artifact'),localDist=path.join(config.root,'dist'),
-      localBackup=path.join(build,'local-dist'),failedDist=path.join(build,'failed-dist');
-    if(await optionalDirectory(localBackup))fail('build_recovery_required');
+      staging=path.join(build,'artifact-staging'),
+      localBackup=path.join(localBuild,'local-dist'),failedDist=path.join(localBuild,'failed-dist');
+    if(await optionalDirectory(localBackup)||await optionalDirectory(path.join(build,'local-dist'))
+      ||await optionalDirectory(path.join(build,'failed-dist')))fail('build_recovery_required');
     const artifactRecord=path.join(artifactRoot,'receipt.json');
     const selected={transferId,target,sourceSha,sourceFingerprint:source.sha256,
       compositionDigest:projection.targetPlan.compositionDigest};
@@ -84,9 +148,12 @@ export function createCloudflareBuildPort(config,{run=runBuild,
       coreVersion:projection.composition.sdk.coreVersion,
       contractVersion:projection.composition.schemaVersion});
     if(await optionalDirectory(artifactRoot)){
-      const receipt=JSON.parse(await readPrivate(artifactRecord));
-      const report=JSON.parse(await readPrivate(path.join(artifactRoot,'.quality/cloudflare-build.json'),2*1024*1024));
-      const artifact=result();
+      let receipt,report,artifact;
+      try{
+        receipt=JSON.parse(await readPrivate(artifactRecord));
+        report=JSON.parse(await readPrivate(path.join(artifactRoot,'.quality/cloudflare-build.json'),2*1024*1024));
+        artifact=result();
+      }catch{fail('artifact_exists');}
       if(JSON.stringify(receipt.selected)!==JSON.stringify(selected)
         ||receipt.artifactDigest!==artifact.artifactDigest
         ||report.artifact?.digest!==artifact.artifactDigest
@@ -94,7 +161,8 @@ export function createCloudflareBuildPort(config,{run=runBuild,
         ||!sameSourceIdentity(source,report.source))fail('artifact_exists');
       return artifact;
     }
-    if(await freeBytes(config.root)<20*1024**3)fail('disk_low');
+    await directory(config.root,'.quality/delivery-build');
+    if(await freeBytes(config.root)<20*1024**3||await freeBytes(build)<20*1024**3)fail('disk_low');
     const targetPath=path.join(build,'target.json'),compositionPath=path.join(build,'composition.json'),lockPath=path.join(build,'composition.lock.json');
     await writeBuildInput(targetPath,target);await writeBuildInput(compositionPath,projection.composition);await writeBuildInput(lockPath,projection.lock);
     const env={...process.env,CREEZIO_BUILD_PROFILE:'cloudflare',CREEZIO_CLOUDFLARE_TARGET:targetPath,
@@ -103,32 +171,70 @@ export function createCloudflareBuildPort(config,{run=runBuild,
     for(const key of ['CLOUDFLARE_API_TOKEN','CLOUDFLARE_API_KEY','CLOUDFLARE_EMAIL','CREEZIO_VAULT_KEYRING',
       'OPENAI_API_KEY','CREEZIO_REGISTRY_INSTALLATION_TOKEN','CLOUDFLARE_API_BASE_URL','CF_API_BASE_URL'])delete env[key];
     const hadLocal=Boolean(await optionalDirectory(localDist));
-    if(hadLocal)await rename(localDist,localBackup);
-    let complete=false;
+    if(hadLocal)await move(localDist,localBackup);
+    let complete=false,builtArtifact;
     try{
-      if(await optionalDirectory(failedDist))await rename(failedDist,localDist);
+      if(await optionalDirectory(failedDist))await move(failedDist,localDist);
       await run(config.root,env);
       const report=JSON.parse(await readPrivate(path.join(config.root,'.quality/cloudflare-build.json'),2*1024*1024));
       const artifact=measureRuntimeArtifacts(config.root);
+      builtArtifact=artifact;
       if(!sameSourceIdentity(source,sourceIdentity(config.root))||!sameSourceIdentity(source,report.source)
         ||report.artifact.digest!==artifact.digest||report.compositionDigest!==selected.compositionDigest)
         fail('artifact_changed');
-      await mkdir(artifactRoot,{mode:0o700});
-      await mkdir(path.join(artifactRoot,'.quality'),{mode:0o700});
-      await rename(localDist,path.join(artifactRoot,'dist'));
-      await rename(path.join(config.root,'.quality/cloudflare-build.json'),
-        path.join(artifactRoot,'.quality/cloudflare-build.json'));
-      await writeBuildInput(artifactRecord,{selected,artifactDigest:artifact.digest});
+      if(artifact.files.length>COPY_MAX_FILES||artifact.files.some(item=>item.bytes>COPY_MAX_FILE_BYTES)
+        ||artifact.files.reduce((total,item)=>total+item.bytes,0)>COPY_MAX_BYTES)fail('artifact_copy_limit');
+      const intent={selected,artifactDigest:artifact.digest};
+      if(await optionalDirectory(staging)){
+        let existing;
+        try{existing=JSON.parse(await readPrivate(path.join(staging,'receipt.json')));}
+        catch{fail('artifact_stage_conflict');}
+        if(JSON.stringify(existing)!==JSON.stringify(intent))fail('artifact_stage_conflict');
+      }else{
+        await mkdir(staging,{mode:0o700});
+        await writeBuildInput(path.join(staging,'receipt.json'),intent);
+      }
+      for(const item of artifact.files)
+        await copyVerified(path.join(config.root,item.path),staging,item);
+      const reportSource=path.join(config.root,'.quality/cloudflare-build.json');
+      const reportBytes=await readFile(reportSource);
+      if(reportBytes.length>2*1024*1024)fail('artifact_copy_limit');
+      await copyVerified(reportSource,staging,{path:'.quality/cloudflare-build.json',
+        bytes:reportBytes.length,sha256:createHash('sha256').update(reportBytes).digest('hex')});
+      const partial=path.join(staging,'.copy-part');
+      const partialStat=await lstat(partial).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
+      if(partialStat){
+        if(!partialStat.isFile()||partialStat.isSymbolicLink())fail('artifact_stage_conflict');
+        await unlink(partial);
+      }
+      const stagedReport=JSON.parse(await readPrivate(path.join(staging,'.quality/cloudflare-build.json'),2*1024*1024));
+      if(measureRuntimeArtifacts(staging).digest!==artifact.digest
+        ||stagedReport.artifact?.digest!==artifact.digest
+        ||!sameSourceIdentity(source,stagedReport.source))fail('artifact_changed');
+      if(JSON.stringify((await readdir(staging)).sort())!==JSON.stringify(['.quality','dist','receipt.json'])
+        ||JSON.stringify((await readdir(path.join(staging,'dist'))).sort())!==JSON.stringify(['client','server'])
+        ||JSON.stringify(await readdir(path.join(staging,'.quality')))!==JSON.stringify(['cloudflare-build.json']))
+        fail('artifact_stage_conflict');
+      await inspectGeneratedDist(config.root,artifact);
+      if(await optionalDirectory(artifactRoot))fail('artifact_exists');
+      await move(staging,artifactRoot); // Atomic publication within the destination volume.
+      if(result().artifactDigest!==artifact.digest)fail('artifact_changed');
       complete=true;
       return result();
     }finally{
-      // A failed build's sole staging directory is reused by the next build.
+      // Failed overlay and destination staging are retained for same-intent retry.
       // A process crash leaves local-dist in place for explicit recovery.
-      if(!complete&&await optionalDirectory(localDist)){
-        if(await optionalDirectory(failedDist))fail('build_recovery_required');
-        await rename(localDist,failedDist);
+      if(await optionalDirectory(localDist)){
+        if(complete){
+          await removeGeneratedDist(config.root,builtArtifact);
+          await unlink(path.join(config.root,'.quality/cloudflare-build.json'));
+        }
+        else{
+          if(await optionalDirectory(failedDist))fail('build_recovery_required');
+          await move(localDist,failedDist);
+        }
       }
-      if(hadLocal)await rename(localBackup,localDist);
+      if(hadLocal)await move(localBackup,localDist);
     }
     }finally{building=false;}
   };
