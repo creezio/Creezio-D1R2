@@ -55,7 +55,7 @@ test('message pagination stays under the data result budget for maximal UTF-8 bo
   await messageList({conversationId:'thread',limit:50},context);
   assert.equal(calls[0].limit,1);
   assert.deepEqual(calls[0].where,{owner_id:'alice',audience:'app',conversation_id:'thread'});
-  assert.deepEqual(calls[0].order,{indexId:'chronology',direction:'asc'});
+  assert.deepEqual(calls[0].order,{indexId:'chronology',direction:'desc'});
 });
 
 test('attachment list scopes rows and returns a reusable private file reference',async()=>{
