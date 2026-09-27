@@ -178,6 +178,42 @@ test('client drive persists one confirmed assistant and never recreates an unkno
       assert.equal(turn.execution.state,'waiting');
       return {...driveRequest,conversationId,turnId:turn.execution.output.turn.id};
     };
+    const optionalRequest=await newTurn('optional-invalid');
+    const optionalSchema=manifest.contracts.schemas.find(item=>item.id===manifest.contracts.operations
+      .find(item=>item.id==='message.list').input.schemaId).schema;
+    let optionalCreates=0,optionalValidContinuation,optionalInvalidContinuation;
+    const optionalBridge=createTurnBridge({engine,db,catalog,permissions,registry:reg,
+      toolCatalog:[{moduleId:id,operationId:'message.list',inputSchema:optionalSchema,
+        schemaDigest:digest,audiences:['admin']}],
+      provider:{withTransport:async(_request,callback)=>callback({async create(input){
+        optionalCreates++;
+        if(optionalCreates<=2){
+          const tool=input.tools.find(item=>item.bindingId===`${id}:message.list`);
+          assert.ok(tool);
+          assert.equal(tool.strict,false);
+          assert.deepEqual(tool.parameters.required,['conversationId','limit']);
+          if(optionalCreates===2)optionalValidContinuation=input.inputItems;
+          const invalid=optionalCreates===2;
+          return {receipt:{responseId:`resp_optional_${optionalCreates}`,cursor:0},events:(async function*(){
+            yield {cursor:1,kind:'function_call',callId:invalid?'call_optional_invalid':'call_optional_valid',
+              name:tool.name,arguments:{conversationId:optionalRequest.conversationId,
+                limit:invalid?'bad':10}};
+            yield {cursor:2,kind:'terminal',state:'succeeded'};
+          })()};
+        }
+        optionalInvalidContinuation=input.inputItems;
+        return {receipt:{responseId:'resp_optional_final',cursor:0},events:(async function*(){
+          yield {cursor:1,kind:'terminal',state:'succeeded'};
+        })()};
+      }},'model-a')}});
+    assert.equal((await optionalBridge.drive(optionalRequest)).turn.state,'running');
+    assert.equal((await optionalBridge.drive(optionalRequest)).turn.state,'running');
+    assert.equal((await optionalBridge.drive(optionalRequest)).turn.state,'succeeded');
+    assert.equal(optionalCreates,3);
+    assert.equal(JSON.parse(optionalValidContinuation.find(item=>item.type==='function_call_output').output)
+      .output.items.length>0,true);
+    assert.deepEqual(JSON.parse(optionalInvalidContinuation.filter(item=>item.type==='function_call_output').at(-1).output),
+      {error:'invalid_input'});
     const readSchema=manifest.contracts.schemas.find(item=>item.id===manifest.contracts.operations
       .find(item=>item.id==='draft.read').input.schemaId).schema;
     const widgetEntry=(widgetId,toolName)=>({moduleId:id,widgetId,version:'1.0.0',

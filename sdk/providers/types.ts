@@ -14,6 +14,8 @@ export interface ProviderTool {
   readonly description: string;
   readonly parameters: JsonValue;
   readonly schemaDigest: string;
+  /** False permits declared optional properties; the host still validates every call. Defaults to true. */
+  readonly strict?: boolean;
 }
 
 export interface ProviderLimits {

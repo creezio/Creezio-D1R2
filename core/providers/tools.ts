@@ -20,25 +20,31 @@ const digest=/^sha256-[a-f0-9]{64}$/;
 const plain=(value:unknown):value is Record<string,unknown>=>!!value&&typeof value==='object'
   &&!Array.isArray(value)&&[Object.prototype,null].includes(Object.getPrototypeOf(value));
 
-/** Conservative Responses strict-schema subset. Unsupported forms are reported, never rewritten. */
-export function strictToolSchema(value:unknown,depth=0):boolean {
+/** Bounded Responses schema subset. Unsupported forms are reported, never rewritten. */
+function supportedToolSchema(value:unknown,strict:boolean,depth=0):boolean {
   if(depth>8||!plain(value)||Object.keys(value).length>64||Object.hasOwn(value,'$ref')
     ||Object.hasOwn(value,'oneOf')||Object.hasOwn(value,'allOf')||Object.hasOwn(value,'if'))return false;
   if(Array.isArray(value.anyOf))return value.anyOf.length>=2&&value.anyOf.length<=4
-    &&value.anyOf.every(item=>strictToolSchema(item,depth+1));
+    &&value.anyOf.every(item=>supportedToolSchema(item,strict,depth+1));
   const type=value.type;
   if(type==='object'){
     if(value.additionalProperties!==false||!plain(value.properties)||!Array.isArray(value.required))return false;
     const properties=value.properties as Record<string,unknown>,required=value.required as unknown[];
     const names=Object.keys(properties);
-    return names.length<=32&&new Set(required).size===names.length
-      &&names.every(name=>name.length<=128&&required.includes(name)
-        &&strictToolSchema(properties[name],depth+1));
+    return names.length<=32&&new Set(required).size===required.length
+      &&required.every(name=>typeof name==='string'&&names.includes(name))
+      &&(!strict||required.length===names.length)
+      &&names.every(name=>name.length<=128
+        &&supportedToolSchema(properties[name],strict,depth+1));
   }
-  if(type==='array')return strictToolSchema(value.items,depth+1)
+  if(type==='array')return supportedToolSchema(value.items,strict,depth+1)
     &&(value.maxItems===undefined||Number.isSafeInteger(value.maxItems)&&Number(value.maxItems)<=50);
   return ['string','number','integer','boolean','null'].includes(String(type))
     &&(value.enum===undefined||Array.isArray(value.enum)&&value.enum.length<=100);
+}
+/** Conservative Responses strict-schema subset. */
+export function strictToolSchema(value:unknown,depth=0):boolean {
+  return supportedToolSchema(value,true,depth);
 }
 async function toolName(moduleId:string,operationId:string){
   const bytes=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(`${moduleId}:${operationId}`)));
@@ -63,7 +69,9 @@ export async function projectAuthorizedReadTools(options:{readonly catalog:reado
     if(op.kind!=='query'||op.approval.mode!=='none'||op.effects.writes.length||op.effects.emits.length
       ||op.effects.calls.length||op.effects.providers.length||!op.audiences.includes(options.request.audience)
       ||!op.actors.some(actor=>actor==='user'||actor==='delegated-user'))continue;
-    if(!strictToolSchema(candidate.inputSchema)||new TextEncoder().encode(JSON.stringify(candidate.inputSchema)).length>16_384){
+    const strict=strictToolSchema(candidate.inputSchema);
+    if((!strict&&!supportedToolSchema(candidate.inputSchema,false))
+      ||new TextEncoder().encode(JSON.stringify(candidate.inputSchema)).length>16_384){
       diagnostics.push(`${label}:unsupported_schema`);continue;
     }
     const widget=candidate.widget?options.widgets?.widgets.find(item=>item.moduleId===candidate.widget!.moduleId
@@ -92,7 +100,7 @@ export async function projectAuthorizedReadTools(options:{readonly catalog:reado
     if(names.has(name)){diagnostics.push(`${label}:collision`);continue;}
     names.add(name);
     tools.push({provider:{bindingId:label,name,description:op.title.slice(0,256),
-      parameters:schema,schemaDigest:candidate.schemaDigest},
+      parameters:schema,schemaDigest:candidate.schemaDigest,strict},
       moduleId:candidate.moduleId,operationId:candidate.operationId,
       ...(candidate.widget?{widget:candidate.widget}:{})});
     if(tools.length>=16){diagnostics.push('catalog:limit');break;}

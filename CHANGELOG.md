@@ -12,6 +12,8 @@ Résolution des composants et ports partagés depuis le paquet SDK installé dan
 
 Les contrôles agrégés affichent les diagnostics des premiers tests en échec, même quand ils se trouvent hors de la fin du journal. Le TAP complet reste conservé et les critères de réussite restent identiques.
 
+Les outils de lecture à paramètres optionnels conservent leur contrat API dans le chat OpenAI : adaptation explicite du mode fournisseur, sans modifier les entrées ni la validation et les permissions Creezio.
+
 ## 27 septembre 2026 — widgets T16
 
 PR #25 intégrée ; main `8736c340`, 1 019 tests locaux et CI réussis. Hôte MCP Apps du chat existant, ressources compilées des modules et comportements message/contexte/direct. Recette locale des widgets de deux modules avec OpenAI réel et reprise d'une mutation après perte de réponse ; qualification Sites et ChatGPT suivie séparément. Périmètre et limites dans [la réalisation T16](docs/IMPLEMENTATION-T16.md).

@@ -111,7 +111,7 @@ export function createOpenAITransport(http:ProviderHttpPort):ProviderTransport {
     async create(input:ProviderCreateInput,signal:AbortSignal){
       if(!safeId(input.turnId)||!safeId(input.modelId)||input.limits.maxOutputTokens<1)throw new Error('provider_invalid_input');
       const tools=input.tools.map(tool=>({type:'function',name:tool.name,description:tool.description,
-        parameters:tool.parameters,strict:true}));
+        parameters:tool.parameters,strict:tool.strict??true}));
       const body:JsonValue={model:input.modelId,input:[...input.inputItems],tools,
         max_output_tokens:input.limits.maxOutputTokens,parallel_tool_calls:false,
         background:true,stream:true,store:false};

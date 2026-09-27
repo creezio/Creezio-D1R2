@@ -75,6 +75,29 @@ test('Responses transport checkpoints response.created before consuming subseque
     {cursor:2,kind:'usage',inputTokens:4,outputTokens:2},{cursor:2,kind:'terminal',state:'succeeded'}]);
 });
 
+test('Responses transport preserves optional tool schemas and explicit strict mode',async()=>{
+  const listSchema={type:'object',properties:{limit:{type:'integer'},cursor:{type:'string'}},
+    required:['limit'],additionalProperties:false};
+  const readSchema={type:'object',properties:{id:{type:'string'}},required:['id'],additionalProperties:false};
+  const tools=[{bindingId:'requests:request.list',name:'purchase_request_list',description:'List requests',
+    parameters:listSchema,schemaDigest:'sha256-'+'a'.repeat(64),strict:false},
+  {bindingId:'requests:request.get',name:'purchase_request_get',description:'Read request',
+    parameters:readSchema,schemaDigest:'sha256-'+'b'.repeat(64)}];
+  const http={async request(input){
+    assert.equal(input.resource,'responses');
+    assert.deepEqual(input.body.tools.map(tool=>({name:tool.name,strict:tool.strict,parameters:tool.parameters})),[
+      {name:'purchase_request_list',strict:false,parameters:listSchema},
+      {name:'purchase_request_get',strict:true,parameters:readSchema}]);
+    assert.deepEqual(listSchema.required,['limit']);
+    return new Response(`data: ${JSON.stringify({type:'response.created',sequence_number:0,
+      response:{id:'resp_optional_tool'}})}\n\n`,{status:200,headers:{'content-type':'text/event-stream'}});
+  }};
+  const opened=await createOpenAITransport(http).create({turnId:'turn',modelId:'model-a',inputItems:[],tools,
+    limits:{maxInputBytes:1000,maxOutputBytes:1000,maxOutputTokens:20,maxToolCalls:2,deadlineMs:1000}},
+  new AbortController().signal);
+  assert.equal(opened.receipt.responseId,'resp_optional_tool');
+});
+
 test('resume preserves event cursor across split CRLF chunks and never creates a response',async()=>{
   const body='data: '+JSON.stringify({type:'response.output_text.delta',sequence_number:8,delta:'repris'})+'\r\n\r\n';
   const bytes=new TextEncoder().encode(body),split=bytes.indexOf(13)+1;
