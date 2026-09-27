@@ -6,6 +6,7 @@ services:
       context: ../..
       dockerfile: adapters/docker/Dockerfile
     init: true
+    stop_signal: SIGUSR2
     environment:
       CREEZIO_APP_ORIGIN: http://127.0.0.1:5173
       CREEZIO_WIDGET_SANDBOX_ORIGIN: http://127.0.0.1:5175

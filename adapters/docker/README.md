@@ -15,6 +15,8 @@ Ouvrir `http://127.0.0.1:5173/access/admin`. L'installation interactive demande 
 
 Le lanceur de build exige un checkout Git propre, exporte dans `.creezio/docker-source.json` l'identité du commit, de l'arbre et l'inventaire des octets source, puis construit l'image sans y copier `.git`. Le manifeste du workspace SDK est présent avant `npm ci` ; le SDK est compilé dans l'image avant l'installation ou le démarrage applicatif. L'image vérifie le manifeste source avant de démarrer ; les lectures de provenance dans le conteneur revérifient les fichiers. Un `docker compose build` direct avec un manifeste absent ou périmé échoue. Le dossier `.creezio` entier ne passe pas dans l'image : seul ce manifeste est inclus.
 
+`docker compose stop app` envoie `SIGUSR2` au lanceur Node : celui-ci ferme le Worker, le relais et le verrou du volume avant de sortir. Le `SIGTERM` ordinaire est réservé à Miniflare, dont le gestionnaire termine immédiatement le processus sans attendre cette libération. Conserver `stop_signal: SIGUSR2` et la période de grâce de 45 secondes lors d'une adaptation de ce profil.
+
 Les widgets utilisent une seconde origine d'affichage, `http://127.0.0.1:5175`, publiée uniquement sur le loopback hôte. Le relais statique démarre et s'arrête dans le même conteneur avec le serveur ; il ne possède ni D1, ni R2, ni session, ni clé fournisseur. Il n'ajoute aucune instance métier ni service tiers à maintenir.
 
 L'opérateur local de livraison, lorsqu'il est activé, garde son origine canonique `http://127.0.0.1:5176`. Un second pont TCP interne sur 5177 expose uniquement ce service au loopback de l'hôte ; ni le port de Miniflare ni celui de l'opérateur ne deviennent publics sur l'interface réseau du conteneur.
