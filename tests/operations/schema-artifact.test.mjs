@@ -17,7 +17,10 @@ test('versioned technical SQL exactly matches canonical host models and mappings
   const bytes = readFileSync(artifact(repository));
   assert.equal(bytes.toString('utf8'), generated.sql);
   assert.deepEqual(Object.fromEntries(Object.entries(generated.tables)), OPERATION_TABLES);
-  assert.equal(report.models, 4); assert.equal(report.statements, generated.statements.length);
+  assert.deepEqual(OPERATION_MODELS.map(model => model.id), ['executions', 'attempts', 'audit', 'outbox', 'approvals']);
+  assert.deepEqual(OPERATION_MODELS.find(model => model.id === 'approvals').indexes.map(index => index.id),
+    ['request', 'actor-state', 'expiry']);
+  assert.equal(report.models, 5); assert.equal(report.statements, generated.statements.length);
   assert.equal(report.sqlBytes, bytes.length);
   assert.equal(report.sqlDigest, `sha256-${createHash('sha256').update(bytes).digest('hex')}`);
   assert.equal(report.checked, true); assert.equal(report.artifactChanged, false); assert.equal(report.databaseChanged, false);

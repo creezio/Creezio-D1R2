@@ -11,17 +11,22 @@ const repository=fileURLToPath(new URL('../../',import.meta.url));
 const read=relative=>JSON.parse(readFileSync(path.join(repository,relative),'utf8'));
 const generated=readFileSync(path.join(repository,'.creezio/generated/provider-catalog.ts'),'utf8');
 const catalog=JSON.parse(generated.match(/export const toolCatalog: readonly ProviderOperationSchema\[\] = freeze\((\[[^\n]+\])\);/)?.[1]??'null');
+const widgetsSource=readFileSync(path.join(repository,'.creezio/generated/widget-catalog.ts'),'utf8');
+const widgets=JSON.parse(widgetsSource.match(/export const widgetCatalog: CompiledWidgetCatalog = freeze\((\{[^\n]+\})\);/)?.[1]??'null');
 
 test('provider tool schemas are the exact canonical inputs of selected operations',()=>{
   assert.ok(Array.isArray(catalog)&&catalog.length>0);
+  assert.ok(widgets&&Array.isArray(widgets.widgets));
   const composition=read('configuration/composition.json');
   const selected=new Set(composition.modules.filter(item=>item.enabled).map(item=>item.moduleId));
-  const seen=new Set();
+  const seen=new Set(),widgetAliases=[];
   for(const item of catalog){
-    assert.deepEqual(Object.keys(item).sort(),['audiences','inputSchema','moduleId','operationId','schemaDigest']);
+    assert.deepEqual(Object.keys(item).sort(),['audiences','inputSchema','moduleId','operationId','schemaDigest',
+      ...(item.widget?['widget']:[])]);
     assert.ok(selected.has(item.moduleId));
     const label=`${item.moduleId}:${item.operationId}`;
-    assert.equal(seen.has(label),false);seen.add(label);
+    const identity=item.widget?`${label}:${item.widget.toolName}`:label;
+    assert.equal(seen.has(identity),false);seen.add(identity);
     const module=composition.modules.find(node=>node.moduleId===item.moduleId);
     assert.deepEqual(item.audiences,['admin','app'].filter(audience=>
       composition.exposure[audience].moduleIds.includes(item.moduleId)));
@@ -31,7 +36,34 @@ test('provider tool schemas are the exact canonical inputs of selected operation
     const schema=manifest.contracts.schemas.find(entry=>entry.id===operation.input.schemaId)?.schema;
     assert.deepEqual(item.inputSchema,schema,label);
     assert.equal(item.schemaDigest,contractIntegrity(schema),label);
+    if(item.widget){
+      widgetAliases.push(`${label}:${item.widget.toolName}`);
+      assert.deepEqual(Object.keys(item.widget).sort(),
+        ['moduleId','operationDigest','resourceDigest','toolName','version','widgetId']);
+      const widget=widgets.widgets.find(candidate=>candidate.moduleId===item.widget.moduleId
+        &&candidate.widgetId===item.widget.widgetId&&candidate.version===item.widget.version);
+      assert.ok(widget,`${label}:widget`);
+      assert.equal(item.widget.resourceDigest,widget.resourceDigest,label);
+      assert.ok(widget.renderTools.some(tool=>tool.toolName===item.widget.toolName
+        &&tool.operationModuleId===item.moduleId&&tool.operationId===item.operationId
+        &&tool.operationDigest===item.widget.operationDigest
+        &&item.audiences.every(audience=>tool.audiences.includes(audience))),label);
+      const owner=composition.modules.find(node=>node.moduleId===item.widget.moduleId);
+      const widgetManifest=read(`${owner.source.path}/module/manifest.json`);
+      assert.ok(widgetManifest.contracts.widgets.some(entry=>entry.id===item.widget.widgetId
+        &&entry.version===item.widget.version),label);
+      assert.ok(widgetManifest.contracts.mcp.tools.some(tool=>tool.name===item.widget.toolName
+        &&tool.operation.id===item.operationId&&tool.widget.id===item.widget.widgetId
+        &&tool.annotations.readOnly===true),label);
+    }
   }
+  const declaredWidgetAliases=composition.modules.filter(node=>node.enabled).flatMap(node=>{
+    const manifest=read(`${node.source.path}/module/manifest.json`);
+    return manifest.contracts.mcp.tools.filter(tool=>tool.widget&&tool.annotations.readOnly
+      &&tool.audiences.some(audience=>composition.exposure[audience].moduleIds.includes(node.moduleId)))
+      .map(tool=>`${node.moduleId}:${tool.operation.id}:${tool.name}`);
+  });
+  assert.deepEqual(widgetAliases.sort(),declaredWidgetAliases.sort());
   assert.match(generated,/export const openAiProvider = Object\.freeze\(\{config:/);
   assert.doesNotMatch(generated,/CREEZIO_VAULT_KEYRING|Bearer\s|sk-proj-/);
 });

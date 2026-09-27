@@ -17,6 +17,9 @@ function fixture(t, witness = true) {
   const root = temporaryDirectory(t, 'creezio-compose-');
   write(path.join(root, 'package.json'), { type: 'module' });
   mkdirSync(path.join(root, 'configuration'));
+  // Generated widget-catalog.ts imports the public runtime key helper.
+  mkdirSync(path.join(root, 'sdk/widgets'), {recursive: true});
+  cpSync(path.join(repository, 'sdk/widgets/catalog.ts'), path.join(root, 'sdk/widgets/catalog.ts'));
   if (witness === true) cpSync(path.join(repository, witnessPath), path.join(root, witnessPath), { recursive: true });
   if (witness === 'access') {
     const descriptor = read(path.join(repository, accessPath, 'module/manifest.json'));
@@ -78,7 +81,7 @@ function secondWitness(f) {
   return {module, save};
 }
 const generated = (root, name) => path.join(root, '.creezio/generated', name);
-const generatedNames = ['server.ts', 'client.tsx', 'composition.json', 'data-catalog.ts', 'file-catalog.ts', 'provider-catalog.ts', 'module-inventory.ts', 'operations.ts', 'operation-validators.mjs', 'operation-validators.d.mts'];
+const generatedNames = ['server.ts', 'client.tsx', 'widget-catalog.ts', 'composition.json', 'data-catalog.ts', 'file-catalog.ts', 'provider-catalog.ts', 'module-inventory.ts', 'operations.ts', 'operation-validators.mjs', 'operation-validators.d.mts'];
 async function clientRegistry(root) {
   const source = readFileSync(generated(root, 'client.tsx'), 'utf8');
   // This unit qualifies the emitted audience flags; full component imports are
