@@ -1,5 +1,5 @@
 # Backlog de réalisation
-Révision 33 — 28 septembre 2026. **Chantier actif : T-32, livraison Docker local vers Cloudflare.** PR #1 à #27 intégrées ; PR #27 fusionnée sur main `cca3157ed966e9b6efddf71a920606dac16cd1ff`, CI du nouveau main réussie avec 1 152/1 152 tests. SDK `sdk-v1.0.0` et starter `module-v0.1.0` publics, démo T30 réelle qualifiée localement avec limites documentées. Le callback OAuth GitHub du registre a réussi avec l'utilisateur réel. Les exigences demeurent inchangées ; la première publication et la première mise à jour conservatrice de l'application originale sur Cloudflare sont qualifiées dans leur périmètre, tandis que la démo et la distribution SDK 1.1.0 restent ouvertes.
+Révision 34 — 28 septembre 2026. **Chantiers actifs : T-32, livraison Docker local vers Cloudflare, et préparation T-36.** PR #1 à #28 intégrées ; PR #28 fusionnée sur main `f8dc03c6076109479ad87facedc55234a343dcc4`, CI du nouveau main réussie avec 1 152/1 152 tests. SDK `sdk-v1.1.0` et starter `module-v0.1.0` publics, démo T30 réelle qualifiée localement avec limites documentées. Le callback OAuth GitHub du registre a réussi avec l'utilisateur réel. Les exigences demeurent inchangées ; la première publication et la première mise à jour conservatrice de l'application originale sur Cloudflare sont qualifiées dans leur périmètre, tandis que la démo reste ouverte.
 
 ## Jalon prioritaire : première app utilisable
 
@@ -31,7 +31,7 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-16 — Widgets | PR #25 intégrée ; hôte MCP Apps, trois modes, trois widgets de deux modules, reprise et droits ; 1 019 tests locaux/CI ; widget natif et lecture directe sur Sites et ChatGPT avec CSP activée | Module métier, autres interactions ChatGPT et approbation humaine en navigateur | Première recette ChatGPT qualifiée ; compléments avec le témoin |
 | T-30 — SDK/starter | PR #26 fusionnée, CI main 1 039/1 039 ; SDK `sdk-v1.0.0` public ; PR starter #1 fusionnée, release publique `module-v0.1.0` ; démo indépendante locale API/D1/R2/OpenAI/deux widgets/UI originale | Boutons internes des iframes et publication Cloudflare de la démo ; extensions du lot au-delà du premier témoin | Distribution initiale acquise ; qualification Cloudflare suivie en T-32 |
 | T-31 — Docker local | PR #17 intégrée ; compte/D1/R2, redémarrage/recréation/restauration vérifiés en Docker | Recettes des futurs modules et routes de fichiers | Livrable local disponible |
-| T-32 — Cloudflare direct | Première publication et premier update réels de l'original qualifiés : Worker/assets, D1/R2, registre, témoins conservés, OpenAI et arrêt Docker ; CI Linux du merge d'essai 1 152/1 152 | Démo Cloudflare, release SDK 1.1.0 après PR dédiée et CI main, autres reprises ; global Windows local incomplet | **En cours après fusion PR #27 ; original publié et mis à jour, lot incomplet** |
+| T-32 — Cloudflare direct | Première publication et premier update réels de l'original qualifiés : Worker/assets, D1/R2, registre, témoins conservés, OpenAI et arrêt Docker ; CI Linux du merge d'essai 1 152/1 152 | Démo Cloudflare et autres reprises ; global Windows local incomplet | **En cours après fusion PR #28 ; original publié et mis à jour, SDK 1.1.0 public, lot incomplet** |
 | Autres lots T-17 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, publications et recette finale | À réaliser selon le jalon prioritaire |
 
 ## Règles de suivi
@@ -79,8 +79,8 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-16](#T-16) | P4 | Widgets et plugins conversationnels compatibles GPT | [T-10](#T-10), [T-13](#T-13), [T-15](#T-15) | Tranche intégrée — qualification hébergée |
 | [T-30](#T-30) | P3 | Starter, paquets et extension externe | [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-16](#T-16) | En cours — distribution initiale publique et recette locale acquises, autres critères ouverts |
 | [T-31](#T-31) | P1 | Docker local persistant | [T-03](#T-03), [T-05](#T-05), [T-07](#T-07) | En cours |
-| [T-32](#T-32) | P6 | Publication complète Cloudflare | [T-08](#T-08), [T-30](#T-30), [T-31](#T-31) | En cours — original publié et mis à jour, démo et SDK 1.1.0 ouverts |
-| [T-36](#T-36) | P7 | Version initiale de l’original, puis compléments | Jalon initial : [T-08](#T-08), [T-09](#T-09), [T-10](#T-10), [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-14](#T-14), [T-15](#T-15), [T-16](#T-16), tranche témoin [T-30](#T-30), [T-31](#T-31), [T-32](#T-32) | À faire — tranche initiale prioritaire |
+| [T-32](#T-32) | P6 | Publication complète Cloudflare | [T-08](#T-08), [T-30](#T-30), [T-31](#T-31) | En cours — original publié et mis à jour, SDK 1.1.0 public, démo ouverte |
+| [T-36](#T-36) | P7 | Version initiale de l’original, puis compléments | Jalon initial : [T-08](#T-08), [T-09](#T-09), [T-10](#T-10), [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-14](#T-14), [T-15](#T-15), [T-16](#T-16), tranche témoin [T-30](#T-30), [T-31](#T-31), [T-32](#T-32) | En cours — préparation du jalon initial `app/v0.0.0` |
 | [T-37](#T-37) | P7 | Vrai fork Creezio Lab et Site B | Version initiale publiée de [T-36](#T-36) | À faire |
 | [T-38](#T-38) | P8 | Adoption des mises à jour et contributions | Fork initial de [T-37](#T-37) | À faire — preuve installation/update prioritaire |
 | [T-39](#T-39) | P9 | Recette ciblée puis exhaustive | Preuves initiales de [T-38](#T-38) | À faire — recette ciblée prioritaire |
@@ -429,7 +429,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Travail/livrables : Module livraison locale et exécuteur limité, Worker/assets, bindings D1/R2, transfert cohérent et reprise ; original et démo du starter publiés. Le fork sera exercé en T-38.
 - Besoin : [US-32](USER-STORIES.md#US-32). Acceptation : [REQ-3201](EXIGENCES.md#REQ-3201), [REQ-3202](EXIGENCES.md#REQ-3202), [REQ-3203](EXIGENCES.md#REQ-3203).
 - Validation : implémenter puis exécuter les recettes liées, sur **compte Cloudflare autorisé réel** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : CI des candidats 39a9ec5 à 1 124/1 124, 9ba8025 à 1 132/1 132 et de l'opérateur 5320845 à 1 134/1 134 ; les échecs initiaux EXDEV, `_cf_KV` et métadonnée R2 restent documentés. La reprise Linux du transfert `d76cdcf6-3203-4ef9-a2d5-0c19c042a90a` a publié l'original source `3542c5663cd4cfb3e0998e93f57cbacc53d4b1e1` sur [Cloudflare](https://creezio-cloudflare-linux.fidusia.workers.dev/) : 67 modules/35 assets vérifiés, journal `delivered`, registre `synchronized`, compte/brouillon/fichier conservés et réponse OpenAI réelle ; Docker arrêté avec code zéro. La première mise à jour réelle REQ-3203 depuis la vue Livraison, source `27ad87770e7270ab6e082fa92f03b12062a6e056`, est `delivered` avec registre synchronisé, 67 modules/35 assets vérifiés et témoins D1/R2 conservés ; une nouvelle réponse OpenAI a été obtenue après rechargement. La CI Linux du merge d'essai a réussi 1 152/1 152 ; le global Windows local est incomplet après timeout au test 837. Démo, release SDK 1.1.0 depuis un main qualifié et autres reprises restent ouvertes. [Réalisation T32](IMPLEMENTATION-T32.md).
+- Preuves : CI des candidats 39a9ec5 à 1 124/1 124, 9ba8025 à 1 132/1 132 et de l'opérateur 5320845 à 1 134/1 134 ; les échecs initiaux EXDEV, `_cf_KV` et métadonnée R2 restent documentés. La reprise Linux du transfert `d76cdcf6-3203-4ef9-a2d5-0c19c042a90a` a publié l'original source `3542c5663cd4cfb3e0998e93f57cbacc53d4b1e1` sur [Cloudflare](https://creezio-cloudflare-linux.fidusia.workers.dev/) : 67 modules/35 assets vérifiés, journal `delivered`, registre `synchronized`, compte/brouillon/fichier conservés et réponse OpenAI réelle ; Docker arrêté avec code zéro. La première mise à jour réelle REQ-3203 depuis la vue Livraison, source `27ad87770e7270ab6e082fa92f03b12062a6e056`, est `delivered` avec registre synchronisé, 67 modules/35 assets vérifiés et témoins D1/R2 conservés ; une nouvelle réponse OpenAI a été obtenue après rechargement. La CI Linux du merge d'essai a réussi 1 152/1 152 ; le global Windows local est incomplet après timeout au test 837. Démo et autres reprises restent ouvertes ; SDK `sdk-v1.1.0` public depuis le main qualifié `f8dc03c`. [Réalisation T32](IMPLEMENTATION-T32.md).
 
 <a id="T-33"></a>
 ## T-33 — Stockages distincts hors Sites
@@ -464,13 +464,14 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-36"></a>
 ## T-36 — Release de l’original
 
-- Lot : **P7** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P7** ; état : **en cours, jalon initial ciblé** ; responsable nominatif : à attribuer au démarrage.
 - Dépendances : pour le **jalon initial consommable**, [T-08](#T-08), [T-09](#T-09), [T-10](#T-10), [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-14](#T-14), [T-15](#T-15), [T-16](#T-16), tranche témoin [T-30](#T-30), [T-31](#T-31), [T-32](#T-32).
 - Suite du lot : la clôture complète de T-36 attend les lots différés T-17 à T-29 et T-33 à T-35 et leurs propres profils.
 - Travail/livrables : Version initiale de l’original avec manifeste versions/propriété, docs, artefacts et provenance selon Git flow ; compléter la release au fil des modules et qualifications différés. La première version publiée peut être consommée par T-37 sans déclarer T-36 entièrement vérifié.
 - Besoin : [US-36](USER-STORIES.md#US-36). Acceptation : [REQ-3601](EXIGENCES.md#REQ-3601), [REQ-3602](EXIGENCES.md#REQ-3602).
 - Validation : implémenter puis exécuter les recettes liées, sur **CI, Site A et artefacts publiés** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Version candidate : `app/v0.0.0` depuis le main `f8dc03c` après qualification ; conserver SDK/core/modules à leurs versions actuelles. Voir [préparation, usage et limites T36](IMPLEMENTATION-T36.md).
+- Preuves : tag et artefact applicatif absents à ce stade ; renseigner PR/commit final, provenance, examen des droits de distribution/reprise/contribution, installation neuve, Site A, résultats et limites avant de rendre le jalon consommable par T-37.
 
 <a id="T-37"></a>
 ## T-37 — Vrai fork Creezio Lab et Site B
