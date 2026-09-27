@@ -29,6 +29,8 @@ Le produit doit également permettre de **développer en Docker avec Miniflare, 
 
 **Invariants d'interface :** préserver toutes les fonctionnalités et interactions de l'administration Creezio, notamment son workspace à onglets et son chat standard. Les applications clientes ne recodent pas leur chat métier dans l'administration. Leur liberté de design et les thèmes concernent le front applicatif.
 
+**Référence d'implémentation :** partir des composants et modules du Creezio original, et adapter leurs raccordements à ce plan. Une solution existante compatible n'est pas réécrite. Un remplacement techniquement nécessaire conserve l'interface et les comportements de l'administration originale ; un témoin simplifié ne peut pas valider leur parité. Lite n'est pas la base produit. Les composants repris et les raccordements modifiés sont identifiés dans le changement concerné, sans réintroduire l'ancienne architecture serveur.
+
 ## 2. Frontière entre socle et extensions
 
 ### Socle serverless

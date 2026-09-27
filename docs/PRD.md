@@ -10,6 +10,8 @@ Un module peut fournir plusieurs widgets. Leurs actions distinguent demande prop
 
 Le développeur doit commencer par son métier, sans reconstruire les comptes, le workspace, les API, les outils MCP, les widgets ou les mécanismes de mise à jour. L'administrateur configure des fonctionnalités complètes ; installer un connecteur n8n ou Stripe puis renseigner ses accès doit suffire pour utiliser les opérations annoncées.
 
+La référence fonctionnelle et visuelle de l'administration est le Creezio original : ses modules, écrans, composants et interactions sont conservés et adaptés à l'architecture cible. Réutiliser leur code lorsqu'il convient ; une incompatibilité technique peut imposer un remplacement interne, mais ne justifie ni un nouvel écran ni une simplification du produit. Creezio Lite n'est pas la base de cette interface. Cette précision d'exécution ne réduit aucune exigence ci-dessous.
+
 ## Utilisateurs et parcours
 
 | Acteur | Besoin | Résultat attendu |

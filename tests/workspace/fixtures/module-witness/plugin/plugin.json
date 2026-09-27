@@ -1,0 +1,6 @@
+{
+  "name": "creezio-workspace-witness",
+  "version": "1.0.0",
+  "description": "Workspace browser witness. No ChatGPT connection or publication is configured.",
+  "mcpServers": {}
+}

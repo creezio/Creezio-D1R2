@@ -1,6 +1,6 @@
 # Repères du dépôt
 
-État : PR #1 à #14 intégrées, fondations T-04/T-05 disponibles ; registre T-06 en cours. Le [TODO](docs/TODO.md) distingue acquis, fonctions restantes et chantier actif. Aucun CMS complet ni déploiement produit qualifié. Distinguer les scripts réellement présents des commandes encore prévues dans les contrats.
+État : PR #1 à #15 intégrées ; main `3a4ad091` qualifié avec 723 tests. Les fondations internes T-06 sont intégrées ; son transport HTTP et le workspace T-07 avancent sur `core/t06-t07-workspace` sans être intégrés. Le [TODO](docs/TODO.md) distingue acquis, fonctions restantes et chantier actif. Aucun CMS complet ni déploiement produit qualifié. Distinguer les scripts réellement présents des commandes encore prévues dans les contrats.
 
 | Emplacement | Responsabilité |
 |---|---|
@@ -75,7 +75,7 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 
 - [core/data](core/data/) : catalogue runtime, capacités par module/contexte et plans D1 sous garde fraîche ; aucune API SQL publique.
 - [core/files](core/files/) : métadonnées de fichiers privés, préparation R2, publication D1 et reprise explicite.
-- [core/operations](core/operations/) : registre canonique et exécutions communes en construction, avec validation statique et stockage technique.
+- [core/operations](core/operations/) : registre canonique, exécutions internes intégrées, validation statique et stockage technique ; transport HTTP en qualification sur la branche courante.
 - [scripts/operations](scripts/operations/) : compilation centrale des validateurs d'opérations pour le Worker.
 - [data/schema/runtime.sql](data/schema/runtime.sql) et [scripts/data/prepare-runtime.mjs](scripts/data/prepare-runtime.mjs) : quatre modèles techniques des exécutions et contrôle central de leur SQL ; aucun changement automatique de base.
 - [tests/operations](tests/operations/) : registre, schémas compilés, exécutions D1 et Worker, refus et idempotence ; famille obligatoire de l'agrégat.
@@ -83,3 +83,11 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - [core/vault](core/vault/) : références opaques et chiffrement des secrets côté serveur.
 - [tests/data](tests/data/) : recettes synthétiques SQL/D1/R2/coffre et intégration indépendante aux comptes natifs.
 - [État T-05](docs/IMPLEMENTATION-T05.md) : travail, contrats et limites de cette première tranche.
+
+## Tranches T-06 et T-07 en cours
+
+- [core/operations/http.ts](core/operations/http.ts), [sdk/operations](sdk/operations/) et [scripts/operations/http-bindings.mjs](scripts/operations/http-bindings.mjs) : transport HTTP et client d'opérations de la branche courante ; pas encore intégrés à main ni qualifiés sur un hébergement.
+- [core/workspace](core/workspace/) : projection de navigation sous session, contexte et droits natifs cohérents ; sa lecture ne remplace pas la garde des mutations.
+- [sdk/workspace](sdk/workspace/) : panneaux, historique, navigation, conservation et restauration bornée en session ; seules les données déclarées par un schéma d'état sont restaurables, pas les brouillons React arbitraires.
+- [app/workspace](app/workspace/) : routes et hôte natif par audience. [admin/workspace](admin/workspace/) adapte les composants du Creezio original (sidebar, barre d'onglets, recherche, chrome de page), distincts du SDK public. Parité produit complète encore à qualifier.
+- [tests/workspace](tests/workspace/) : recettes ciblées de composition, droits, contrôleur, client et interface ; [état T-07](docs/IMPLEMENTATION-T07.md) pour leurs limites.

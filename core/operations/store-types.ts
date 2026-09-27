@@ -31,6 +31,8 @@ export interface OperationDelivery {
 export interface OperationStore {
   start(lease: DataLease, input: OperationStart): Promise<OperationStartResult>;
   read(lease: DataLease, executionId: string): Promise<OperationExecution | null>;
+  /** Read by the original idempotency key without acquiring or resuming a claim. */
+  lookup(lease: DataLease, input: { readonly operationId: string; readonly keyHash: string }): Promise<OperationExecution | null>;
   commit(lease: DataLease, claim: OperationClaim, input: {
     readonly plans: readonly DataPlan[]; readonly output: JsonValue; readonly outbox?: readonly OperationOutboxIntent[];
   }): Promise<OperationExecution>;

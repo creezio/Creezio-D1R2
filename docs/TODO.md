@@ -1,5 +1,5 @@
 # Backlog de réalisation
-Révision 17 — 27 septembre 2026. **Chantier actif : T-06. T-01 à T-05 : livrables intégrés, lots partiellement qualifiés. T-07 à T-39 : à faire.** Ce fichier est la liste de travail canonique du produit ; le plan et les PRD de modules y renvoient. Les PR #1 à #14 sont intégrées ; la base `d22df2d` passe 672 tests en CI. La tranche `core/t06-operations` construit le registre et les exécutions communes à partir des fondations D1/R2/coffre qualifiées. L'[état P0](IMPLEMENTATION-P0.md) distingue contrôleurs et gouvernance. Le dossier documentaire est audité séparément dans [AUDIT-AVANT-DEVELOPPEMENT.md](AUDIT-AVANT-DEVELOPPEMENT.md) ; il ne coche aucune fonctionnalité.
+Révision 18 — 27 septembre 2026. **Chantier actif : T-06/T-07, API et workspace original. T-01 à T-06 : fondations intégrées, lots partiellement qualifiés. T-08 à T-39 : à réaliser.** Ce fichier est la liste de travail canonique du produit ; le plan et les PRD de modules y renvoient. Les PR #1 à #15 sont intégrées ; la base `3a4ad091` passe 723 tests en CI. La tranche `core/t06-t07-workspace` raccorde les opérations aux API et adapte les composants du Creezio original au SDK de panneaux. Elle n'est pas encore intégrée. L'[état P0](IMPLEMENTATION-P0.md) distingue contrôleurs et gouvernance. Le dossier documentaire est audité séparément dans [AUDIT-AVANT-DEVELOPPEMENT.md](AUDIT-AVANT-DEVELOPPEMENT.md) ; il ne coche aucune fonctionnalité.
 
 ## Avancement lisible
 
@@ -12,8 +12,9 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-03 — Runtime | Worker commun, composition, build, démarrage local, persistance et budgets | Qualification du workspace/front complets au fil de leur construction | Fondations acquises |
 | T-04 — Comptes et droits | Comptes, sessions, rôles, tokens machine, impersonation, connexion et installation locales | Administration visuelle, remise des liens, raccords API/MCP/OAuth et recettes hébergées | Attend les raccords T-06/T-07/T-10 |
 | T-05 — Données | Compilation SQL centrale, accès D1 protégé, fichiers R2 et coffre | Explorateur, recherche, export/restauration, évolutions de modèles restantes et recettes hébergées | Fondations acquises ; autres fonctions à construire |
-| T-06 — Opérations | Base T-04/T-05 disponible ; nouvelle tranche non encore intégrée | Registre, exécutions, API, événements, suivi et reprises | **En développement sur `core/t06-operations`** |
-| T-07 à T-39 | Voir les prérequis déjà fournis ci-dessus | Workspace, modules, fronts/chat/widgets, publications et recette finale | Pas encore démarrés |
+| T-06 — Opérations | Registre, exécuteur, plans atomiques, suivi et outbox intégrés par PR #15 | API en cours ; événements, approbations, interopérations et transports suivants | **API en validation sur `core/t06-t07-workspace`** |
+| T-07 — Workspace | Composants originaux adaptés, panneaux conservés, états et titres raccordés dans la branche courante | Revue et intégration du lot ; qualification Sites et raccordement des modules produit | **En validation locale sur la même branche** |
+| T-08 à T-39 | Voir les prérequis déjà fournis ci-dessus | Registre central, modules, fronts/chat/widgets, publications et recette finale | À réaliser ; adaptateur Docker préparé séparément, non intégré |
 
 ## Règles de suivi
 États autorisés : à faire, en cours, bloqué (raison/prérequis), en revue, vérifié, livré. Enregistrer responsable réel, branche/issue ou tâche locale, PR, SHA, tests/profils et preuves à chaque transition. « Livré » exige version et livraison vérifiée ; fusionner ne suffit pas. Une dépendance fournisseur manquante bloque sa recette, pas toutes les tâches indépendantes.
@@ -47,7 +48,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-04](#T-04) | P2 | Identités, comptes et droits | [T-03](#T-03) | En cours |
 | [T-05](#T-05) | P2 | Données, fichiers, recherche et coffre | [T-03](#T-03), [T-04](#T-04) | En cours |
 | [T-06](#T-06) | P2 | Opérations, événements et exécutions bornées | [T-04](#T-04), [T-05](#T-05) | En cours |
-| [T-07](#T-07) | P1 | Workspace et conservation des onglets | [T-03](#T-03), [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | À faire |
+| [T-07](#T-07) | P1 | Workspace et conservation des onglets | [T-03](#T-03), [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | En cours |
 | [T-08](#T-08) | P1 | Registre minimal et identité de publication | [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | À faire |
 | [T-09](#T-09) | P1 | Première tranche sur Sites | [T-07](#T-07), [T-08](#T-08) | À faire |
 | [T-10](#T-10) | P2 | MCP, OAuth et accès machine | [T-06](#T-06), [T-09](#T-09) | À faire |
@@ -140,20 +141,22 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Lot : **P2** ; état : **en cours** ; responsables : Codex (registre/intégration), Apps (persistance), Socle (compilation), Certivan (recette indépendante).
 - Dépendances : [T-04](#T-04), [T-05](#T-05).
 - Travail/livrables : Registre d’opérations, API, erreurs typées, audit, idempotence, outbox, suivi et reprises.
-- Tranche : [registre et exécutions](IMPLEMENTATION-T06.md), branche `core/t06-operations` depuis `d22df2d`. Preuves produit encore en construction ; aucune recette hébergée acquise.
+- Tranche interne intégrée : [registre et exécutions](IMPLEMENTATION-T06.md), PR #15, main `3a4ad091`, 723 tests locaux et CI. Registre, compilation, exécuteur sous droits natifs, stockage D1, audit et outbox forment un livrable interne consommable ; cela ne qualifie pas les transports métier.
+- Tranche active non intégrée : bindings HTTP composés, routage natif et client navigateur sur `core/t06-t07-workspace`. Leur revue et qualification restent en cours ; événements, approbations, appels interopérations, livraison fournisseur réelle et MCP restent ouverts.
 - Besoin : [US-06](USER-STORIES.md#US-06). Acceptation : [REQ-0601](EXIGENCES.md#REQ-0601), [REQ-0602](EXIGENCES.md#REQ-0602), [REQ-0603](EXIGENCES.md#REQ-0603).
 - Validation : implémenter puis exécuter les recettes liées, sur **local, puis appel externe hébergé** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : PR #15 intégrée à `3a4ad091`, 723 tests locaux et CI sur le périmètre interne. Les tests ciblés de la branche HTTP ne sont pas une recette navigateur, hébergée ou MCP ; renseigner PR/commit, profil, résultats et limites avant qualification de cette tranche.
 
 <a id="T-07"></a>
 ## T-07 — Workspace et conservation des onglets
 
-- Lot : **P1** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P1** ; état : **en cours** ; responsable : Codex, avec travaux parallèles d'interface, de SDK et d'API sur une branche commune.
 - Dépendances : [T-03](#T-03), [T-04](#T-04), [T-05](#T-05), [T-06](#T-06).
-- Travail/livrables : Workspace réemployé/adapté, SDK navigation et adaptateur routeur isolé ; recette navigateur reproductible.
+- Travail/livrables : SDK de panneaux, navigation et autorisation de vues ; restauration bornée en session sous projection fraîche ; adaptation des composants du Creezio original dans `admin/workspace/` et hôte par audience. Une recette navigateur locale couvre deux fiches, leurs brouillons et la reprise d’une réponse perdue. L’intégration finale et les parcours produit/hébergés restent à qualifier.
+- Tranche active non intégrée : [implémentation T-07](IMPLEMENTATION-T07.md) sur `core/t06-t07-workspace` depuis `3a4ad091`. Les sorties de composition, les droits, le contrôleur et des composants d'interface disposent de tests ciblés ; aucune parité complète avec le produit original n'est acquise.
 - Besoin : [US-07](USER-STORIES.md#US-07). Acceptation : [REQ-0701](EXIGENCES.md#REQ-0701), [REQ-0702](EXIGENCES.md#REQ-0702), [REQ-0703](EXIGENCES.md#REQ-0703).
 - Validation : implémenter puis exécuter les recettes liées, sur **navigateur local, puis Sites** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : tests locaux ciblés décrits dans [l'état T-07](IMPLEMENTATION-T07.md). Recette locale de deux fiches et premiers 779 contrôles réussis ; candidat final, revue, CI et profils hébergés suivis séparément avant qualification globale.
 
 <a id="T-08"></a>
 ## T-08 — Registre minimal et identité de publication

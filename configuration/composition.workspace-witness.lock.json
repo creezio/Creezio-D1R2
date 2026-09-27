@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "1.0.0",
+  "applicationId": "creezio.app",
+  "sdkVersion": "1.0.0",
+  "coreVersion": "0.0.0",
+  "policy": {
+    "id": "creezio.local-contracts",
+    "version": "1.0.0",
+    "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
+  },
+  "compositionIntegrity": "sha256-41df19efee58cfbcbcf1b385a79f5882af529abaca2b109862350ae4119001a0",
+  "modules": [
+    {
+      "moduleId": "creezio.access",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "version": "0.0.0",
+      "source": {
+        "kind": "snapshot",
+        "revision": "t04-access-models-v1",
+        "integrity": "sha256-94b09ae864b9b995d8c2e8b2845597d9c25ca9a383e51f39c16aaa7f088181bc"
+      },
+      "contractIntegrity": "sha256-a160394d8769761b6fa1d9af16e69048faa054cba9ec2bc2dedeea22779a2d1c",
+      "runtime": {
+        "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000",
+        "location": {
+          "kind": "local",
+          "path": "extensions/native/access/unbuilt-runtime.tgz"
+        }
+      },
+      "validation": {
+        "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000",
+        "location": {
+          "kind": "local",
+          "path": "extensions/native/access/unbuilt-validation.tgz"
+        }
+      },
+      "dependencies": []
+    },
+    {
+      "moduleId": "example.workspace-witness",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "version": "1.0.0",
+      "source": {
+        "kind": "snapshot",
+        "revision": "t07-workspace-witness-v1",
+        "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "contractIntegrity": "sha256-3359ecd6f9bff3d29fdec4bab48010805292003c173ff73af7b5d3a30ca6819e",
+      "runtime": {
+        "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000",
+        "location": {
+          "kind": "local",
+          "path": "tests/workspace/fixtures/module-witness/unbuilt-runtime.tgz"
+        }
+      },
+      "validation": {
+        "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000",
+        "location": {
+          "kind": "local",
+          "path": "tests/workspace/fixtures/module-witness/unbuilt-validation.tgz"
+        }
+      },
+      "dependencies": []
+    }
+  ]
+}

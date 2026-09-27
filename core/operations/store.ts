@@ -41,6 +41,12 @@ function scopeWhere(identity: Identity, alias = '') {
   return sql(`${p}module_id=? AND ${p}actor_principal_id=? AND ${p}principal_id=? AND ${p}context_id=? AND ${p}audience=?`,
     identity.moduleId, identity.actorPrincipalId, identity.principalId, identity.contextId, identity.audience);
 }
+async function scopeHash(who: Identity, operationId: string, keyHash: string): Promise<string> {
+  const scopeBytes = new TextEncoder().encode(JSON.stringify([who.moduleId, operationId,
+    who.actorPrincipalId, who.principalId, who.contextId, who.audience, keyHash]));
+  return 'sha256:' + Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', scopeBytes)),
+    b => b.toString(16).padStart(2, '0')).join('');
+}
 function decodedJson(value: unknown, maximumBytes: number): JsonValue {
   if (value === null) return null;
   if (typeof value !== 'string' || new TextEncoder().encode(value).length > maximumBytes) return fail('unavailable');
@@ -119,21 +125,19 @@ export function createOperationStore({ db, data }: OperationStoreOptions): Opera
       || !duration(captured.claimTtlMs) || !Number.isSafeInteger(captured.retentionMs)
       || Number(captured.retentionMs) < 1000 || Number(captured.retentionMs) > LIMITS.maximumRetentionMs) return fail('invalid_input');
     const who = identity(lease), executionId = id(), nonce = id(), attemptId = id();
-    const scopeBytes = new TextEncoder().encode(JSON.stringify([who.moduleId, captured.operationId,
-      who.actorPrincipalId, who.principalId, who.contextId, who.audience, captured.keyHash]));
-    const scopeHash = 'sha256:' + Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', scopeBytes)), b => b.toString(16).padStart(2, '0')).join('');
+    const scopedKey = await scopeHash(who, String(captured.operationId), String(captured.keyHash));
     const acquired = sql(`EXISTS(SELECT 1 FROM ${T.executions} WHERE id=? AND claim_nonce=?)`, executionId, nonce);
     const result = await run(lease, { write: true, after: [
       sql(`INSERT INTO ${T.executions}(id,scope_hash,input_hash,module_id,operation_id,operation_version,actor_principal_id,principal_id,context_id,audience,
         state,output,error_code,claim_nonce,attempt_number,created_at_ms,updated_at_ms,claim_expires_at_ms,retained_until_ms)
         VALUES(?,?,?,?,?,?,?,?,?,?,'running',NULL,NULL,?,1,${NOW},${NOW},${NOW}+?,${NOW}+?) ON CONFLICT(scope_hash) DO NOTHING`,
-      executionId, scopeHash, captured.inputHash, who.moduleId, captured.operationId, captured.operationVersion,
+      executionId, scopedKey, captured.inputHash, who.moduleId, captured.operationId, captured.operationVersion,
       who.actorPrincipalId, who.principalId, who.contextId, who.audience, nonce, captured.claimTtlMs, Number(captured.retentionMs)),
       sql(`INSERT INTO ${T.attempts}(id,execution_id,claim_nonce,number,state,created_at_ms,settled_at_ms)
         SELECT ?,?,?,1,'running',${NOW},NULL WHERE ${acquired.sql}`, attemptId, executionId, nonce, ...acquired.bindings),
       audit(executionId, who, 'started', nonce, null, null, acquired),
-      assert(sql(`NOT EXISTS(SELECT 1 FROM ${T.executions} WHERE scope_hash=? AND length(CAST(output AS BLOB))>?)`, scopeHash, LIMITS.outputBytes)),
-      sql(`SELECT ${executionColumns},${NOW} AS now_ms,${uncertainDelivery} FROM ${T.executions} WHERE scope_hash=? LIMIT 1`, scopeHash),
+      assert(sql(`NOT EXISTS(SELECT 1 FROM ${T.executions} WHERE scope_hash=? AND length(CAST(output AS BLOB))>?)`, scopedKey, LIMITS.outputBytes)),
+      sql(`SELECT ${executionColumns},${NOW} AS now_ms,${uncertainDelivery} FROM ${T.executions} WHERE scope_hash=? LIMIT 1`, scopedKey),
     ] });
     const row = result.after.at(-1)?.results[0];
     if (!row) return fail('unavailable');
@@ -147,6 +151,21 @@ export function createOperationStore({ db, data }: OperationStoreOptions): Opera
   async function read(lease: DataLease, executionId: string) {
     if (!validId(executionId)) return fail('invalid_input');
     const who = identity(lease), result = await run(lease, { write: false, after: [executionSizeGuard(executionId, who), executionQuery(executionId, who)] });
+    return result.after[1].results[0] ? execution(result.after[1].results[0]) : null;
+  }
+  async function lookup(lease: DataLease, input: { readonly operationId: string; readonly keyHash: string }) {
+    const captured = capture(input); record(captured); keys(captured, ['operationId', 'keyHash']);
+    if (!validId(captured.operationId) || !hash(captured.keyHash)) return fail('invalid_input');
+    const who = identity(lease), scopedKey = await scopeHash(who, String(captured.operationId), String(captured.keyHash));
+    const scope = scopeWhere(who);
+    const where = `scope_hash=? AND operation_id=? AND ${scope.sql} AND retained_until_ms>${NOW}`;
+    const bindings = [scopedKey, String(captured.operationId), ...scope.bindings];
+    const result = await run(lease, { write: false, after: [
+      assert(sql(`NOT EXISTS(SELECT 1 FROM ${T.executions} WHERE ${where} AND length(CAST(output AS BLOB))>?)`,
+        ...bindings, LIMITS.outputBytes)),
+      sql(`SELECT ${executionColumns},${NOW} AS now_ms,${uncertainDelivery} FROM ${T.executions} WHERE ${where} LIMIT 1`,
+        ...bindings),
+    ] });
     return result.after[1].results[0] ? execution(result.after[1].results[0]) : null;
   }
   async function commit(lease: DataLease, claim: OperationClaim, input: { readonly plans: readonly DataPlan[]; readonly output: JsonValue;
@@ -272,7 +291,7 @@ export function createOperationStore({ db, data }: OperationStoreOptions): Opera
     ] });
     const row = result.after.at(-1)?.results[0]; if (!row) return fail('unavailable'); return delivery(row);
   }
-  return Object.freeze({ start, read, commit, resume, readDelivery, claimDelivery, settleDelivery,
+  return Object.freeze({ start, read, lookup, commit, resume, readDelivery, claimDelivery, settleDelivery,
     fail: (lease, claim, code) => finish(lease, claim, code, false), markUnknown: (lease, claim, code) => finish(lease, claim, code, true) } satisfies OperationStore);
 }
 export { OPERATION_STORE_LIMITS, OperationStoreError } from './store-types.ts';

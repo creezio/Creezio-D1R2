@@ -58,6 +58,10 @@
           "panel": {
             "type": "object",
             "properties": {
+              "stateSchema": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/schemaRef",
+                "description": "Optional explicitly declared, non-secret state restored for this panel after reload; validated before storage and restoration."
+              },
               "identityFields": {
                 "type": "array",
                 "items": {

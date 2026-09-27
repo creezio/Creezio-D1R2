@@ -2,6 +2,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, lstatSync, realpathSync } from 'node:fs';
 import { compileCompositionSchema } from '../data/composition-schema.mjs';
 import { compileOperationSchemas } from '../operations/schemas.mjs';
+import { compileHttpBindings } from '../operations/http-bindings.mjs';
 import { createOperationRegistry } from '../../core/operations/registry.ts';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -117,7 +118,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   const inactive = result.metrics.disabledContributions ?? [];
   const active = (moduleId, pointer) => !inactive.some(item => item.moduleId === moduleId && (item.path === pointer || pointer.startsWith(`${item.path}/`)));
   const resolveOperation = reference => indexes.get(reference.moduleId)?.descriptor.contracts.operations.find(item => item.id === reference.id);
-  const serverImports = [], clientImports = [], operationImports = [], operationHandlers = [], modules = [], views = [];
+  const serverImports = [], clientImports = [], operationImports = [], operationHandlers = [], modules = [], views = [], navigation = [], permissions = [];
   let importIndex = 0;
   function importCode(destination, owner, reference, imports) {
     const source = codeFile(root, owner, reference), name = `contribution_${importIndex++}`;
@@ -131,6 +132,18 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     codeFile(root, item, descriptor.entrypoints.server);
     if (descriptor.entrypoints.ui) codeFile(root, item, descriptor.entrypoints.ui);
     if (!selection.enabled) continue;
+    for (const stylesheet of descriptor.contracts.ui.styles) {
+      const file = moduleFile(root, item, stylesheet, {exported: true});
+      clientImports.push(`import ${JSON.stringify(importSpecifier(output, file))};`);
+    }
+    for (const [index, permission] of descriptor.contracts.permissions.entries()) {
+      if (!active(selection.moduleId, `/contracts/permissions/${index}`)) continue;
+      const id = `${selection.moduleId}:${permission.id}`;
+      // These two definitions are owned and checked by the native resolver.
+      if (id === 'creezio.access:manage' || id === 'creezio.access:impersonate') continue;
+      permissions.push({ id, audiences: permission.audiences,
+        actors: permission.actors.filter(actor => !['anonymous', 'signed-webhook'].includes(actor)) });
+    }
     for (const entry of operationPlan.catalog.modules.find(module => module.moduleId === selection.moduleId).operations) {
       if (!entry.active) continue;
       operationHandlers.push({ name: `${selection.moduleId}:${entry.operation.id}`, handler: importCode(output, item, entry.operation.handler, operationImports) });
@@ -148,14 +161,32 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     for (const [index, view] of descriptor.contracts.ui.views.entries()) {
       if (!active(selection.moduleId, `/contracts/ui/views/${index}`)) continue;
       const firstSegment = view.route.split('/')[1];
-      if (firstSegment === 'access' || firstSegment.includes('{')) {
-        fail('view.reserved', 'Native access entry routes belong to the host.');
+      if (['access', 'workspace'].includes(firstSegment) || firstSegment.includes('{')) {
+        fail('view.reserved', 'Native access and workspace entry routes belong to the host.');
       }
       const component = importCode(output, item, view.component, clientImports);
+      const validator = operationPlan.catalog.modules.find(module => module.moduleId === selection.moduleId)
+        .schemas.find(schema => schema.schemaId === view.input.schemaId)?.validator;
+      if (!validator) fail('view.schema', 'A view requires its compiled declared input schema.');
+      const stateValidator = view.panel.stateSchema ? operationPlan.catalog.modules
+        .find(module => module.moduleId === selection.moduleId).schemas
+        .find(schema => schema.schemaId === view.panel.stateSchema.schemaId)?.validator : undefined;
+      if (view.panel.stateSchema && !stateValidator) fail('view.state-schema', 'A persistent panel state requires its compiled declared schema.');
       const access = view.surfaces.includes('front') && composition.exposure.app.moduleIds.includes(selection.moduleId)
         && view.permissions.length === 0 && view.operations.every(reference => publicOperation(resolveOperation(reference))) ? 'public-read' : 'protected';
       views.push({ id: `${selection.moduleId}:${view.id}`, moduleId: selection.moduleId, moduleVersion: descriptor.identity.version, route: view.route,
-        title: view.title, surfaces: view.surfaces, permissions: view.permissions, audiences: view.surfaces.includes('front') ? ['app'] : [], access, component });
+        title: view.title, surfaces: view.surfaces, permissions: view.permissions, operations: view.operations,
+        input: view.input, panel: view.panel, validator, stateValidator,
+        audiences: ['admin', 'app'].filter(audience => composition.exposure[audience].moduleIds.includes(selection.moduleId)
+          && (audience === 'app' || view.surfaces.includes('workspace'))), access, component });
+    }
+    for (const [index, item] of descriptor.contracts.ui.navigation.entries()) {
+      if (!active(selection.moduleId, `/contracts/ui/navigation/${index}`)) continue;
+      navigation.push({ id: `${selection.moduleId}:${item.id}`, moduleId: selection.moduleId,
+        title: item.title, viewId: `${item.view.moduleId}:${item.view.id}`, order: item.order,
+        surfaces: item.surfaces, permissions: item.permissions,
+        audiences: ['admin', 'app'].filter(audience => composition.exposure[audience].moduleIds.includes(selection.moduleId)
+          && (audience === 'app' || item.surfaces.includes('workspace'))) });
     }
   }
   const compositionDigest = contractIntegrity(composition);
@@ -177,6 +208,14 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
       [{ code: error.code, message: error.message }]);
     throw error;
   }
+  const httpBindings = compileHttpBindings({composition, modules: located.map(item => item.descriptor),
+    operationCatalog: operationPlan.catalog, disabledContributions: inactive});
+  const workspaceViews = views.filter(view => view.surfaces.includes('workspace') && view.audiences.length > 0);
+  const workspaceIds = new Set(workspaceViews.map(view => view.id));
+  const workspaceCatalog = { compositionDigest,
+    views: workspaceViews.map(({id, surfaces, audiences, permissions}) => ({id, surfaces, audiences, permissions})),
+    navigation: navigation.filter(item => item.surfaces.includes('workspace') && item.audiences.length > 0 && workspaceIds.has(item.viewId))
+      .map(({id, viewId, surfaces, audiences, permissions}) => ({id, viewId, surfaces, audiences, permissions})) };
   // Validate the complete operation registry, including operations with no HTTP exposure.
   // Only inert sentinels are supplied here; package handlers never execute during composition.
   try {
@@ -189,17 +228,24 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   const serverModules = modules.map(module => `{ id: ${JSON.stringify(module.id)}, version: ${JSON.stringify(module.version)}, operations: [${module.operations.map(operation => {
     const { handler, ...metadata } = operation; return `{ ...${JSON.stringify(metadata)}, handler: ${handler} }`;
   }).join(',\n')}] }`);
-  const clientViews = views.map(view => { const { component, ...metadata } = view; return `{ ...${JSON.stringify(metadata)}, component: ${component} }`; });
+  const clientViews = views.map(view => { const { component, validator, stateValidator, ...metadata } = view;
+    return `{ ...${JSON.stringify(metadata)}, component: ${component}, validateInput: compiledValidators.${validator}${stateValidator ? `, validateState: compiledValidators.${stateValidator}` : ''} }`; });
+  if (clientViews.length) clientImports.unshift(`import * as compiledValidators from './operation-validators.mjs';`);
+  const freezeSource = `const freeze = <T,>(value: T): T => { if (value && typeof value === 'object') { for (const child of Object.values(value)) freeze(child); Object.freeze(value); } return value; };\n`;
+  // Select declared exports explicitly. Bundlers may decorate a namespace with
+  // enumerable Symbol.toStringTag; spreading it would not be a function registry.
+  const validatorEntries = operationPlan.catalog.modules.flatMap(module => module.schemas)
+    .map(schema => `${JSON.stringify(schema.validator)}: compiledValidators.${schema.validator}`).join(',\n');
   const rendered = {
     'operation-validators.mjs': `${banner}${operationPlan.validatorsCode}`,
-    'operations.ts': `${banner}import type { RuntimeOperationCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/operations/types.ts')))};\nimport * as compiledValidators from './operation-validators.mjs';\n${operationImports.join('\n')}\nconst freeze = <T>(value: T): T => { if (value && typeof value === 'object') { for (const child of Object.values(value)) freeze(child); Object.freeze(value); } return value; };\nexport const operationCatalog: RuntimeOperationCatalog = freeze(${JSON.stringify(operationPlan.catalog)});\nexport const operationValidators = Object.freeze({ ...compiledValidators });\nexport const operationHandlers = Object.freeze({${operationHandlers.map(item => `${JSON.stringify(item.name)}: ${item.handler}`).join(',\n')}});\n`,
+    'operations.ts': `${banner}import type { RuntimeOperationCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/operations/types.ts')))};\nimport * as compiledValidators from './operation-validators.mjs';\n${operationImports.join('\n')}\nconst freeze = <T>(value: T): T => { if (value && typeof value === 'object') { for (const child of Object.values(value)) freeze(child); Object.freeze(value); } return value; };\nexport const operationCatalog: RuntimeOperationCatalog = freeze(${JSON.stringify(operationPlan.catalog)});\nexport const operationValidators = Object.freeze({${validatorEntries}});\nexport const operationHandlers = Object.freeze({${operationHandlers.map(item => `${JSON.stringify(item.name)}: ${item.handler}`).join(',\n')}});\n`,
     'data-catalog.ts': `${banner}import type { RuntimeDataCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/data/types.ts')))};\nconst freeze = <T>(value: T): T => { if (value && typeof value === 'object') { for (const child of Object.values(value)) freeze(child); Object.freeze(value); } return value; };\nexport const dataCatalog: RuntimeDataCatalog = freeze(${JSON.stringify(dataPlan.runtimeCatalog)});\n`,
-    'server.ts': `${banner}import type { RuntimeModule, RuntimeNativeAccess } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/runtime/types.ts')))};\n${serverImports.join('\n')}\nexport const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess: RuntimeNativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const modules: readonly RuntimeModule[] = [${serverModules.join(',\n')}];\n`,
-    'client.tsx': `${banner}import type { RuntimeView } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/runtime/ui.ts')))};\n${clientImports.join('\n')}\nexport const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const views: readonly RuntimeView[] = [${clientViews.join(',\n')}];\n`,
+    'server.ts': `${banner}import type { RuntimeModule, RuntimeNativeAccess } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/runtime/types.ts')))};\nimport type { OperationHttpBinding } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/operations/http-types.ts')))};\nimport type { PermissionDefinition } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/authorization/types.ts')))};\nimport type { WorkspaceAuthorizationCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/workspace/authorization.ts')))};\n${serverImports.join('\n')}\n${freezeSource}export const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess: RuntimeNativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const modules: readonly RuntimeModule[] = [${serverModules.join(',\n')}];\nexport const httpBindings: readonly OperationHttpBinding[] = freeze(${JSON.stringify(httpBindings)});\nexport const permissions: readonly PermissionDefinition[] = freeze(${JSON.stringify(permissions)});\nexport const workspaceCatalog: WorkspaceAuthorizationCatalog = freeze(${JSON.stringify(workspaceCatalog)});\n`,
+    'client.tsx': `${banner}import type { RuntimeView, RuntimeNavigation } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/runtime/ui.ts')))};\nimport type { OperationHttpBinding } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/operations/http-types.ts')))};\n${clientImports.join('\n')}\n${freezeSource}export const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const views: readonly RuntimeView[] = freeze([${clientViews.join(',\n')}]);\nexport const navigation: readonly RuntimeNavigation[] = freeze(${JSON.stringify(navigation)});\nexport const httpBindings: readonly OperationHttpBinding[] = freeze(${JSON.stringify(httpBindings)});\n`,
     'composition.json': `${stringify({ schemaVersion: 1, compositionDigest, nativeAccess, applicationId: composition.application.id, hostProfile: composition.host.profile,
       operations: { schemasDigest: operationPlan.schemasDigest, validatorsDigest: operationPlan.validatorsDigest, ...operationPlan.metrics },
       modules: modules.map(({ id, version, operations }) => ({ id, version, routes: operations.map(({ handler, ...metadata }) => metadata) })),
-      views: views.map(({ component, ...metadata }) => metadata), packageArchivesVerified: false })}\n`,
+      views: views.map(({ component, ...metadata }) => metadata), navigation, httpBindings, packageArchivesVerified: false })}\n`,
   };
   mkdirSync(output, { recursive: true });
   for (const [name, content] of Object.entries(rendered)) {

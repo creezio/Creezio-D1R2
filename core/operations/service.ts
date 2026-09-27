@@ -14,6 +14,7 @@ export interface OperationRequest {
   readonly contextId: string; readonly audience: AuthorizationAudience; readonly input: unknown; readonly signal?: AbortSignal;
 }
 export interface OperationStatusRequest extends Omit<OperationRequest, 'input' | 'signal'> { readonly executionId: string }
+export interface OperationLookupRequest extends Omit<OperationRequest, 'input' | 'signal'> { readonly requestKey: string }
 const encoder = new TextEncoder();
 const canonical = (value: JsonValue): string => value && typeof value === 'object'
   ? Array.isArray(value) ? `[${value.map(canonical).join(',')}]`
@@ -33,18 +34,21 @@ function object(value: unknown): Record<string, unknown> {
   }
   return result;
 }
-function capture(request: unknown, status = false): OperationRequest | OperationStatusRequest {
+function capture(request: unknown, mode: 'invoke' | 'status' | 'lookup' = 'invoke'): OperationRequest | OperationStatusRequest | OperationLookupRequest {
   try {
-    const raw = object(request), required = ['credential', 'moduleId', 'operationId', 'contextId', 'audience', status ? 'executionId' : 'input'];
-    if (required.some(key => !Object.hasOwn(raw, key)) || Object.keys(raw).some(key => !required.includes(key) && (status || key !== 'signal')))
+    const raw = object(request), required = ['credential', 'moduleId', 'operationId', 'contextId', 'audience',
+      mode === 'status' ? 'executionId' : mode === 'lookup' ? 'requestKey' : 'input'];
+    if (required.some(key => !Object.hasOwn(raw, key)) || Object.keys(raw).some(key => !required.includes(key) && (mode !== 'invoke' || key !== 'signal')))
       throw new Error();
     const signal = raw.signal;
     if (signal !== undefined && !(signal instanceof AbortSignal)) throw new Error();
     const copied = copyJson(Object.fromEntries(required.map(key => [key, raw[key]])), OPERATION_LIMITS.inputBytes + 8192) as Record<string, JsonValue>;
-    if (['moduleId', 'operationId', 'contextId', ...(status ? ['executionId'] : [])].some(key => typeof copied[key] !== 'string' || !copied[key])
+    if (['moduleId', 'operationId', 'contextId', ...(mode === 'status' ? ['executionId'] : [])].some(key => typeof copied[key] !== 'string' || !copied[key])
       || !['admin', 'app'].includes(String(copied.audience))) throw new Error();
-    if (!status) copyJson(copied.input, OPERATION_LIMITS.inputBytes);
-    return Object.freeze({ ...copied, ...(signal ? { signal } : {}) }) as unknown as OperationRequest | OperationStatusRequest;
+    if (mode === 'lookup' && (typeof copied.requestKey !== 'string' || !copied.requestKey
+      || encoder.encode(copied.requestKey).length > 512)) throw new Error();
+    if (mode === 'invoke') copyJson(copied.input, OPERATION_LIMITS.inputBytes);
+    return Object.freeze({ ...copied, ...(signal ? { signal } : {}) }) as unknown as OperationRequest | OperationStatusRequest | OperationLookupRequest;
   } catch { throw new OperationError('invalid_input'); }
 }
 function errorCode(error: unknown): OperationError['code'] {
@@ -61,7 +65,7 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
   const { registry } = options, catalog = copyJson(options.catalog, 4 * 1024 * 1024) as unknown as RuntimeDataCatalog;
   if (catalog.compositionDigest !== registry.compositionDigest) throw new OperationError('invalid_catalog');
   const data = createDataAccess(options.db, { catalog, permissions: options.permissions }), store = createOperationStore({ db: options.db, data });
-  async function authorize(request: OperationRequest | OperationStatusRequest, operation: RegisteredOperation): Promise<DataLease> {
+  async function authorize(request: OperationRequest | OperationStatusRequest | OperationLookupRequest, operation: RegisteredOperation): Promise<DataLease> {
     const declaration = operation.declaration;
     if (!declaration.audiences.includes(request.audience) || declaration.context === 'application' && request.contextId !== 'application') throw new OperationError('forbidden');
     const actors = declaration.actors.filter((actor): actor is AuthorizationActor => ['user', 'machine', 'delegated-user', 'impersonated-user'].includes(actor));
@@ -194,10 +198,21 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
       finally { close(); data.dispose(lease); }
     },
     async status(supplied: OperationStatusRequest): Promise<OperationExecution | null> {
-      const request = capture(supplied, true) as OperationStatusRequest, operation = registry.resolve(request.moduleId, request.operationId);
+      const request = capture(supplied, 'status') as OperationStatusRequest, operation = registry.resolve(request.moduleId, request.operationId);
       const lease = await authorize(request, operation);
       try { const execution = await store.read(lease, request.executionId); return execution ? checkedExecution(execution, operation) : null; }
       catch (error) { if (error instanceof OperationError) throw error; throw new OperationError(errorCode(error)); }
+      finally { data.dispose(lease); }
+    },
+    async lookup(supplied: OperationLookupRequest): Promise<OperationExecution | null> {
+      const request = capture(supplied, 'lookup') as OperationLookupRequest;
+      const operation = registry.resolve(request.moduleId, request.operationId);
+      if (operation.declaration.idempotency.mode !== 'required') throw new OperationError('unsupported');
+      const lease = await authorize(request, operation);
+      try {
+        const execution = await store.lookup(lease, {operationId: operation.declaration.id, keyHash: await hash(request.requestKey)});
+        return execution ? checkedExecution(execution, operation) : null;
+      } catch (error) { if (error instanceof OperationError) throw error; throw new OperationError(errorCode(error)); }
       finally { data.dispose(lease); }
     },
   });

@@ -2,6 +2,10 @@
 
 ## Non publié
 
+- PR #15 intégrée au main `3a4ad091` : tranche interne T-06 (registre, validateurs statiques, exécuteur sous droits natifs, persistance D1, audit et outbox), 723 tests locaux et CI. Les transports et recettes externes restent ouverts.
+
+- Branche courante `core/t06-t07-workspace`, non intégrée : transport HTTP T-06 et client d'opérations ; projection native des vues T-07, SDK de panneaux avec restauration bornée en session, et adaptation de composants de l'interface Creezio originale sous `admin/workspace/`. Recette navigateur locale : deux brouillons restaurés, titres et fil d’Ariane, navigation query-only, ordre/verrou des onglets, portails et retrait après révocation. Une réponse PATCH perdue après commit est retrouvée par lecture de sa clé après reload, sans renvoi. Parité produit complète et qualification hébergée restent ouvertes.
+
 - T-06 : compilation statique des schémas d'opérations, registre commun et exécuteur interne sous identité native ; claims, plans métier, résultat, audit et outbox dans un batch D1 protégé. Contrats modifiés et doubles appels ne rejouent pas silencieusement un effet ; un acquittement perdu se réconcilie par lecture. Ports de modules sans SQL, droits implicites ni accès aux champs protégés. Transports métier, approbations, événements et livraison réseau restent à raccorder. Le TODO distingue désormais acquis, reste à faire et chantier actif.
 
 - T-05 : catalogue de modèles composé, SQL central additif avec reçu, ports D1 par module/contexte et gardes fraîches, fichiers privés à mapping explicite et coffre serveur. Les primitives réutilisent les comptes natifs ; aucune opération métier publique ni interface supplémentaire n'est ouverte par cette tranche. Recherche, explorateur et export/restauration restent suivis au backlog.

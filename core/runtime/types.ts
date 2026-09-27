@@ -1,4 +1,6 @@
 import type { RuntimeProfile } from '../../adapters/runtime-profiles.ts';
+import type { RuntimeEnvironment } from './environment.ts';
+import type { OperationHandler } from '../operations/types.ts';
 
 export type RuntimeMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 export interface RuntimeInput {
@@ -24,7 +26,9 @@ export interface RuntimeOperation {
   readonly path: string;
   readonly access: 'public-read' | 'protected';
   readonly maxDurationMs: number;
-  readonly handler: RuntimeHandler;
+  /** Canonical handlers execute only through declaredHttp. The public metadata
+   * harness also accepts its original Response adapter, without data access. */
+  readonly handler: RuntimeHandler | OperationHandler;
 }
 export interface RuntimeModule {
   readonly id: string;
@@ -37,6 +41,10 @@ export interface RuntimeDefinition {
   readonly modules: readonly RuntimeModule[];
   readonly compositionDigest: string;
   readonly nativeAccess?: RuntimeNativeAccess;
+  /** Host-owned adapter over compiled declarations and the common operation engine. */
+  readonly declaredHttp?: {
+    dispatch(request: Request, resolved: RuntimeEnvironment, environment: unknown, requestId: string): Promise<Response | null>;
+  };
 }
 export interface RuntimeExecutionContext {
   waitUntil(promise: Promise<unknown>): void;

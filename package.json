@@ -25,7 +25,8 @@
     "test:runtime": "node --test --test-concurrency=1 tests/runtime/*.test.mjs",
     "test:identity": "node --test --test-concurrency=1 tests/identity/*.test.mjs",
     "test:data": "node --test --test-concurrency=1 tests/data/*.test.mjs",
-    "test:operations": "node --test --test-concurrency=1 tests/operations/*.test.mjs"
+    "test:operations": "node --test --test-concurrency=1 tests/operations/*.test.mjs",
+    "test:workspace": "node --test --test-concurrency=1 tests/workspace/*.test.mjs"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
@@ -37,10 +38,13 @@
     "@vitejs/plugin-rsc": "0.5.26",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
+    "autoprefixer": "10.4.21",
     "esbuild": "0.27.3",
     "miniflare": "4.20260515.0",
+    "postcss": "8.5.6",
     "react-server-dom-webpack": "19.2.6",
     "semver": "7.8.5",
+    "tailwindcss": "3.4.17",
     "typescript": "5.9.3",
     "vinext": "1.0.0-beta.5",
     "vite": "8.0.13",
@@ -48,7 +52,13 @@
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",
+    "@radix-ui/react-avatar": "1.1.11",
+    "@radix-ui/react-slot": "1.2.3",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "lucide-react": "0.468.0",
     "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "react-dom": "19.2.6",
+    "tailwind-merge": "2.6.0"
   }
 }

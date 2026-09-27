@@ -10,10 +10,10 @@ export default function Home() {
       <p className="intro">Le socle commun est en construction. Cette installation permet de vérifier le démarrage de l’application et ses connexions de stockage.</p>
       <RuntimeStatus />
       <nav className="access-links" aria-label="Connexion">
-        {nativeAccess.admin && <a href="/access/admin">Se connecter au workspace</a>}
+        {nativeAccess.admin && <a href="/workspace/admin">Ouvrir le workspace Creezio</a>}
         {nativeAccess.app && <a href="/access/app">Se connecter à l’application</a>}
       </nav>
-      <p className="footnote">La connexion native est disponible. Le workspace et les autres modules natifs sont en cours de construction.</p>
+      <p className="footnote">Le workspace affiche les vues des modules installés selon vos accès. Les autres modules natifs sont en cours de construction.</p>
     </section>
     <footer>Un socle commun. Vos modules. Votre interface.</footer>
   </main>;

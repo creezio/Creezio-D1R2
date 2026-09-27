@@ -1,0 +1,4 @@
+.creezio-workspace-panels{position:relative;flex:1;min-height:0;height:100%;overflow:hidden}
+.creezio-workspace-panels>p{padding:1.5rem;color:#6b7080}
+.creezio-workspace-pane{position:absolute;inset:0;overflow:auto;overscroll-behavior:contain;background:#fff}
+.creezio-workspace-pane[hidden],.creezio-workspace-subview[hidden],.creezio-workspace-portal[hidden]{display:none!important}

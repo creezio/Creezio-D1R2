@@ -1,0 +1,328 @@
+/*
+ * Thème Creezio canonique — design system kit (palette gold).
+ * Fond crème #faf7f1, encre #14182f, chrome onglets « Chrome »,
+ * sidebar sombre, animations onboarding. AUCUN métier.
+ *
+ * Usage marque (layout racine, AVANT le globals.css marque) :
+ *   import "@creezio/shell-ui/theme.css";
+ *   import "./globals.css";   // ne contient que les @tailwind + overrides
+ *
+ * Les directives @tailwind restent dans le globals.css de la marque (sinon
+ * double expansion des utilities). À utiliser avec le preset Tailwind kit :
+ *   presets: [require("@creezio/shell-ui/tailwind-preset")]
+ */
+
+:root {
+  --background: #faf7f1;
+  --foreground: #14182f;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+/* CSS pur (fichier kit traité hors contexte Tailwind marque) :
+   équivalent de `@layer base { * { @apply border-slate-200 } }` avec la
+   palette slate réchauffée du preset kit. */
+* {
+  border-color: #e3e1da;
+}
+
+html {
+  /* Évite le jump de largeur quand une scrollbar apparaît / disparaît */
+  scrollbar-gutter: stable;
+}
+
+/* ------------------------------------------------------------------ */
+/* Onboarding — micro-étapes façon Typeform (transitions verticales)  */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Fond crème plein + wash blanc adouci (convention “atmospheric wash” /
+ * eased multi-stop — Linear / Stripe / Apple) :
+ * pas de carte blanche bordée (sinon trait net crème↔blanc),
+ * plusieurs stops pour éviter la bande dure d’un dégradé 2 couleurs.
+ */
+.onb-stage {
+  background-color: #faf7f1;
+  background-image:
+    radial-gradient(
+      110% 75% at 50% -5%,
+      #ffffff 0%,
+      rgba(255, 255, 255, 0.72) 28%,
+      rgba(253, 250, 246, 0.35) 52%,
+      rgba(250, 247, 241, 0) 72%
+    ),
+    linear-gradient(
+      180deg,
+      #fdfbf8 0%,
+      #faf7f1 42%,
+      #faf7f1 100%
+    );
+}
+
+.onb-stepper-fade {
+  border-bottom: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Zones scrollables onboarding : scroll possible, scrollbar invisible
+   (évite le flash pendant translateY des animations d'entrée). */
+.onb-scroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.onb-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+@keyframes onb-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes onb-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.onb-anim-fwd {
+  animation: onb-in-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.onb-anim-back {
+  animation: onb-in-down 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Interstitiel entre deux étapes : titre qui apparaît, tient, puis s'efface */
+@keyframes onb-interstitial {
+  0% {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  14% {
+    opacity: 1;
+    transform: none;
+  }
+  82% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+}
+
+.onb-interstitial {
+  animation: onb-interstitial 2.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes onb-line-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.onb-interstitial-line {
+  transform-origin: left center;
+  animation: onb-line-grow 1.7s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+}
+
+/* Apparition en cascade des éléments d'une micro-étape */
+.onb-stagger > * {
+  opacity: 0;
+  animation: onb-in-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.onb-stagger > *:nth-child(1) { animation-delay: 0.04s; }
+.onb-stagger > *:nth-child(2) { animation-delay: 0.09s; }
+.onb-stagger > *:nth-child(3) { animation-delay: 0.14s; }
+.onb-stagger > *:nth-child(4) { animation-delay: 0.19s; }
+.onb-stagger > *:nth-child(5) { animation-delay: 0.24s; }
+.onb-stagger > *:nth-child(6) { animation-delay: 0.29s; }
+.onb-stagger > *:nth-child(7) { animation-delay: 0.34s; }
+.onb-stagger > *:nth-child(8) { animation-delay: 0.39s; }
+.onb-stagger > *:nth-child(9) { animation-delay: 0.44s; }
+.onb-stagger > *:nth-child(10) { animation-delay: 0.49s; }
+
+/* Panes workspace : aucun transition involontaire sur le contenu au switch */
+.workspace-pane-stack,
+.workspace-pane {
+  transition: none !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* Onglets workspace — rendu Chrome (courbes inversées, séparateurs)  */
+/* ------------------------------------------------------------------ */
+
+/* Courbes inversées en bas de l'onglet actif (flare Chrome).
+   Deux carrés 8×8 posés de part et d'autre du pied de l'onglet ;
+   un dégradé radial centré sur le coin haut extérieur découpe l'arc
+   concave, le reste est blanc et fusionne avec le fond de page. */
+.tf-tab-bg::before,
+.tf-tab-bg::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: 8px;
+  height: 8px;
+}
+
+.tf-tab-bg::before {
+  left: -8px;
+  background: radial-gradient(
+    circle 8px at 0 0,
+    transparent 0,
+    transparent 7px,
+    #fff 7.75px
+  );
+}
+
+.tf-tab-bg::after {
+  right: -8px;
+  background: radial-gradient(
+    circle 8px at 100% 0,
+    transparent 0,
+    transparent 7px,
+    #fff 7.75px
+  );
+}
+
+/* Séparateurs verticaux : masqués sur le premier onglet, autour de
+   l'onglet actif et autour de l'onglet survolé — comme Chrome. */
+.tf-tab:first-child > .tf-sep,
+.tf-tab.is-active > .tf-sep,
+.tf-tab.is-active + .tf-tab > .tf-sep,
+.tf-tab:hover > .tf-sep,
+.tf-tab:hover + .tf-tab > .tf-sep {
+  opacity: 0;
+}
+
+/* Apparition du contenu d'un nouvel onglet */
+@keyframes tf-tab-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.tf-tab-enter {
+  animation: tf-tab-enter 180ms ease-out;
+}
+
+/* Sidebar nav — thin dark scrollbar (Firefox + WebKit) */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #4b5063 #0d101f;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: #0d101f;
+  border-radius: 9999px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #4b5063;
+  border-radius: 9999px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: #6b7080;
+}
+
+/* Electron frameless (Windows) : bandeau titre / onglets déplaçable */
+.creezio-titlebar-drag {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.creezio-titlebar-no-drag {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+/* Contrôles fenêtre Windows : curseur default (pas pointer) — hover = fond */
+.creezio-titlebar-no-drag button {
+  cursor: default;
+}
+
+/* ------------------------------------------------------------------ */
+/* Palette de recherche globale (Ctrl+K)                              */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Styles possédés par le composant : la palette ne doit JAMAIS dépendre des
+ * règles génériques de modales de la marque (un `[role="dialog"]` global qui
+ * borne largeur/hauteur/overflow a détruit son rendu — incident login PR #8,
+ * 2026-08-10). Classe doublée + attribut = spécificité (0,3,0) : prime sur
+ * tout sélecteur générique à une classe/un attribut, quel que soit l ordre
+ * des feuilles de styles. Les classes Tailwind du composant restent pour le
+ * visuel (fond, ombre, bord) ; la géométrie vit ICI et nulle part ailleurs.
+ */
+.creezio-search-palette.creezio-search-palette[role="dialog"] {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100dvh;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  overscroll-behavior: auto;
+}
+
+@media (min-width: 768px) {
+  .creezio-search-palette.creezio-search-palette[role="dialog"] {
+    top: 8%;
+    right: auto;
+    bottom: 0;
+    left: 50%;
+    width: min(920px, calc(100vw - 2rem));
+    height: auto;
+    max-height: min(680px, 85vh);
+    transform: translateX(-50%);
+    border-radius: 0.75rem;
+  }
+}

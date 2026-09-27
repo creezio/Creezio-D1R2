@@ -1,6 +1,6 @@
 import { resolveRuntimeEnvironment } from './environment.ts';
 import { dispatchAccessHttp } from '../identity/http.ts';
-import type { CreezioRuntime, RuntimeDefinition, RuntimeInput, RuntimeOperation, RuntimeOperationContext, RuntimeNativeAccess } from './types.ts';
+import type { CreezioRuntime, RuntimeDefinition, RuntimeInput, RuntimeOperation, RuntimeOperationContext, RuntimeNativeAccess, RuntimeHandler } from './types.ts';
 
 export type { CreezioRuntime, RuntimeDefinition, RuntimeHandler, RuntimeInput, RuntimeModule, RuntimeOperation, RuntimeOperationContext } from './types.ts';
 
@@ -38,8 +38,8 @@ function parseRoute(path: string): readonly Segment[] {
     return Object.freeze({ literal: segment });
   });
   if (segments.length >= 2 && 'literal' in segments[0] && segments[0].literal === 'api'
-    && (!('literal' in segments[1]) || segments[1].literal === 'access'))
-    throw new RuntimeConfigurationError('route.reserved', 'Native authentication paths belong to the host.');
+    && (!('literal' in segments[1]) || ['access', 'operations', 'workspace'].includes(segments[1].literal)))
+    throw new RuntimeConfigurationError('route.reserved', 'Native authentication, execution and workspace paths belong to the host.');
   return Object.freeze(segments);
 }
 
@@ -129,7 +129,7 @@ async function invoke(route: Route, input: RuntimeInput, context: Omit<RuntimeOp
   const timer = setTimeout(()=>cancel('timeout'),route.operation.maxDurationMs);
   const execution = Promise.resolve().then(()=>{
     if(cancelled)throw cancelled;
-    return route.operation.handler(input,Object.freeze({...context,signal:controller.signal}));
+    return (route.operation.handler as RuntimeHandler)(input,Object.freeze({...context,signal:controller.signal}));
   });
   // A handler ignoring AbortSignal can still resolve later. Release its body instead of adopting that result.
   void execution.then(async response=>{ if(cancelled && response instanceof Response)await response.body?.cancel(); }).catch(()=>{});
@@ -168,6 +168,17 @@ export function createRuntime(definition: RuntimeDefinition): CreezioRuntime {
         : error('method_not_allowed','Method not allowed.',405,requestId,head,{allow:'GET, HEAD'});
       if (path === '/api/access' || path.startsWith('/api/access/'))
         return dispatchAccessHttp(request, resolved, environment, nativeAccess, requestId, path);
+      if (path === '/api/workspace' || path.startsWith('/api/workspace/')) {
+        const audience = segments[2];
+        if ((audience !== 'admin' && audience !== 'app') || !nativeAccess[audience])
+          return error('not_found','API route not found.',404,requestId,head);
+      }
+      if (definition.declaredHttp) {
+        try {
+          const response = await definition.declaredHttp.dispatch(request, resolved, environment, requestId);
+          if (response) return response;
+        } catch { return error('runtime_unavailable','Runtime unavailable.',503,requestId,head); }
+      }
       const matches = routes.flatMap(route => { const params = match(route,segments); return params ? [{route,params}] : []; });
       if (!matches.length) return error('not_found','API route not found.',404,requestId,head);
       const matched = matches.find(item => item.route.operation.method === (head ? 'GET' : request.method))
@@ -176,7 +187,7 @@ export function createRuntime(definition: RuntimeDefinition): CreezioRuntime {
         const allowed = new Set<string>(matches.map(item=>item.route.operation.method)); if(allowed.has('GET'))allowed.add('HEAD');
         return error('method_not_allowed','Method not allowed.',405,requestId,head,{allow:[...allowed].join(', ')});
       }
-      // T-06 will connect module authorization and fresh mutation guards. Native login alone grants no module access here.
+      // A protected declaration can execute only through the common host adapter above.
       if (matched.route.operation.access === 'protected') return error('authentication_required','Authentication required.',401,requestId,head);
       try {
         const context = Object.freeze({ moduleId:matched.route.operation.ownerModuleId, profile:resolved.profile, requestId });
