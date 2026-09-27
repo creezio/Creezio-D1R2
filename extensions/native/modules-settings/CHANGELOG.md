@@ -1,5 +1,9 @@
 # Changelog
 
+## Non publié — statut des réglages fournisseur
+
+Le Product Hub ne déduit plus « Configuration manquante / Indisponible » d'un réglage fournisseur obligatoire absent de la composition. Son état reste non vérifié tant qu'aucun état runtime autorisé n'est fourni ; les réglages ordinaires obligatoires absents restent signalés comme manquants.
+
 ## Non publié — précision des erreurs
 
 Les contrats de lecture de fiche, plan et documentation déclarent explicitement `not_found`, déjà retourné par le service. Aucun changement de données ou de droits.

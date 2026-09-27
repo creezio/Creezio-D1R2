@@ -14,6 +14,8 @@ Ajouter ou activer demande de choisir administration, utilisateurs, les deux int
 
 Le résolveur commun part d’un inventaire compilé vérifié, jamais du graphe envoyé par le navigateur. Origines, versions et contrats sont contrôlés ; les modules hors périmètre restent identiques. Refuser rupture de dépendance, origine substituée, cycle, configuration manquante, plan trop gros, base périmée ou seconde acceptation concurrente. Retrait et désactivation conservent données et historique ; aucune purge dans ce module.
 
+Le catalogue distingue la configuration de composition et celle qu'un fournisseur administre au runtime. Un réglage obligatoire ordinaire absent de la composition est « Configuration manquante » ; un réglage obligatoire associé à `provider` et absent de la composition reste « Configuration inconnue / Fonctionnement non vérifié », faute d'état runtime autorisé dans l'inventaire statique. Cette projection ne lit pas les données privées d'un autre module et ne bloque pas ses opérations ; l'état réel se consulte par le parcours autorisé du fournisseur.
+
 Les modèles privés head/plans/journal sont écrits via les plans du SDK dans le batch commun T06. Une permission dédiée creezio.modules-settings:manage s’applique aux comptes humains et délégations OAuth autorisées, dans l’audience admin et le contexte application. Aucune permission owner implicite.
 
 ## Interface et publication

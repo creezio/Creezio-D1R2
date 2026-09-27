@@ -24,4 +24,4 @@ Après création du compte, publier le Worker applicatif ordinaire sur le même 
 
 Le contrôle du registre central précède le publisher et journalise sa déclaration. Le parcours natif Sites publie une version dont la source a été poussée et dont l'archive correspond ; le statut du fournisseur confirme la livraison. Une déclaration incertaine se réconcilie sans redéployer. Aucun bouton du CMS ne prétend déclencher une publication Sites.
 
-Cette documentation décrit le parcours en construction. Les tests locaux de schéma et d'opérateur ne prouvent pas à eux seuls le comportement hébergé. Enregistrer séparément la publication, l'installation, la connexion, le chat OpenAI, D1/R2 et les refus dans [la qualification Sites](QUALIFICATION-SITES.md).
+Le parcours a été exécuté sur une cible neuve : l'application a remplacé l'opérateur, le même compte natif se connecte et l'ancienne route opérateur renvoie 404. Les réponses OpenAI du workspace et du front, la persistance du brouillon et la relecture R2 ont leurs preuves hébergées propres. La recette finale du candidat reste distincte de ces étapes intermédiaires ; voir [la qualification Sites](QUALIFICATION-SITES.md).

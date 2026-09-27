@@ -100,9 +100,13 @@ function catalogItem(moduleId: string, descriptor: Row | undefined, selection: R
   const enabled = selection?.enabled === true;
   const settings = row(descriptor?.contracts) ? array(descriptor.contracts.settings) : [];
   const configured = new Set(array(selection?.configuration).map(item => row(item.setting) ? item.setting.id : null));
-  const missingConfiguration = settings.some(setting => setting.required === true
+  const unresolved = settings.filter(setting => setting.required === true
     && !Object.hasOwn(setting, 'default') && !configured.has(setting.id));
-  const configuration = !selection ? 'unknown' : missingConfiguration ? 'missing' : 'ready';
+  // A provider-backed setting may be supplied by the module at runtime. This static inventory
+  // cannot prove that state, while a required ordinary composition setting is genuinely absent.
+  const missingConfiguration = unresolved.some(setting => !id(setting.provider));
+  const configuration = !selection ? 'unknown' : missingConfiguration ? 'missing'
+    : unresolved.length ? 'unknown' : 'ready';
   const requiredDependenciesReady = array(descriptor?.dependencies).filter(dep => dep.optional !== true)
     .every(dep => selected.get(readString(dep.moduleId))?.enabled === true);
   return Object.freeze({moduleId, title: readString(identity.title) || moduleId,
