@@ -99,7 +99,7 @@ async function verifyRemoteModules({artifactRoot,target,versionId,token,fetcher,
   const version=data?.result;
   if(data?.success!==true||version?.id!==versionId||!Array.isArray(version.modules)
     ||version.modules.length<1||version.modules.length>256)fail('content_format');
-  const modules=new Map(),configurationSeen=new Set();let configurationModules=0;
+  const modules=new Map(),moduleTypes=new Map(),configurationSeen=new Set();let configurationModules=0;
   for(const part of version.modules){
     if(!part||typeof part.name!=='string'||typeof part.content_type!=='string')fail('content_format');
     const bytes=base64Bytes(part.content_base64);
@@ -114,19 +114,38 @@ async function verifyRemoteModules({artifactRoot,target,versionId,token,fetcher,
     if(modules.has(name)||!/^(?:application|text)\/(?:javascript(?:\+module)?|x-javascript|ecmascript|octet-stream|wasm)$/.test(part.content_type))
       fail('content_format');
     modules.set(name,bytes);
+    moduleTypes.set(name,part.content_type);
   }
   const entry=moduleName(version.main_module);
   if(entry!=='index.js'||!modules.has(entry))fail('content_mismatch');
+  let built;
+  try{built=JSON.parse(readFileSync(file(artifactRoot,'dist/server/wrangler.json',128*1024),'utf8'));}
+  catch{fail('content_format');}
   const inventory=new Set(local.files.filter(item=>item.path.startsWith('dist/server/')&&/\.(?:m?js|wasm)$/.test(item.path))
     .map(item=>item.path.slice('dist/server/'.length)));
-  const expected=new Set(),pending=[entry];
-  while(pending.length){
-    const name=pending.pop();if(expected.has(name))continue;
-    if(!inventory.has(name))fail('content_mismatch');expected.add(name);
-    for(const imported of relativeImports(name,localModule(artifactRoot,name)))pending.push(imported);
+  let expected;
+  if(built.no_bundle===true){
+    // Wrangler's no-bundle upload includes every local ES module selected by
+    // these explicit rules, including modules not reachable by static imports.
+    if(built.find_additional_modules!==undefined&&built.find_additional_modules!==false
+      ||JSON.stringify(built.rules)!==JSON.stringify([{
+        type:'ESModule',globs:['**/*.js','**/*.mjs']}])
+      ||built.main!=='index.js'||[...inventory].some(name=>! /\.m?js$/.test(name)))
+      fail('content_format');
+    expected=new Set(inventory);
+  }else{
+    expected=new Set();const pending=[entry];
+    while(pending.length){
+      const name=pending.pop();if(expected.has(name))continue;
+      if(!inventory.has(name))fail('content_mismatch');expected.add(name);
+      for(const imported of relativeImports(name,localModule(artifactRoot,name)))pending.push(imported);
+    }
   }
   if(expected.size!==modules.size||[...modules.keys()].some(name=>!expected.has(name)))fail('content_mismatch');
   for(const [name,bytes] of modules){
+    const type=moduleTypes.get(name);
+    if(type!==(/\.wasm$/.test(name)?'application/wasm':'application/javascript+module'))
+      fail('content_format');
     const actual=localModule(artifactRoot,name);
     if(actual.length!==bytes.length||sha(actual)!==sha(bytes))fail('content_mismatch');
   }
@@ -188,7 +207,7 @@ export async function inspectCloudflareDelivery({artifactRoot,target,transferId,
     ||body.error?.code!=='authentication_required')fail('probe_failed');
   const after=await controlPlane.deployments(target.workerName);
   if(after.deployments?.[0]?.id!==current.id)fail('deployment_changed');
-  return {deploymentId:current.id,url:target.origin,publishedSha:versionId,artifact,
+  return {deploymentId:current.id,url:target.origin,publishedSha:artifact.sourceSha,artifact,
     remoteVerified:{modules:remoteModules.modules,moduleBytes:remoteModules.bytes,
       configurationModules:remoteModules.configurationModules,
       excludedLocalModules:remoteModules.excludedLocalModules,

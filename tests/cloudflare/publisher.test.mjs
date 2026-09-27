@@ -33,7 +33,7 @@ function fixture(t){
     {type:'plain_text',name:'CREEZIO_RUNTIME_PROFILE',text:'cloudflare'},
     {type:'plain_text',name:'CREEZIO_APP_ORIGIN',text:target.origin},
     {type:'plain_text',name:'CREEZIO_WIDGET_SANDBOX_ORIGIN',text:target.widgetSandboxOrigin}]};
-  const flags={wrongModule:false,missingDependency:false,extraModule:false,
+  const flags={wrongModule:false,missingDependency:false,extraModule:false,foreignModule:false,
     wrongAsset:false,wrongVersion:false,sessionReply:()=>Response.json(
       {error:{code:'authentication_required'},requestId:'anonymous-probe'},{status:401})};
   const seen=[];
@@ -44,6 +44,8 @@ function fixture(t){
       content_base64:readFileSync(path.join(artifactRoot,'dist/server/dep.js')).toString('base64')});
     if(flags.extraModule)modules.push({name:'ssr/unused.js',content_type:'application/javascript+module',
       content_base64:readFileSync(path.join(artifactRoot,'dist/server/ssr/unused.js')).toString('base64')});
+    if(flags.foreignModule)modules.push({name:'foreign.js',content_type:'application/javascript+module',
+      content_base64:Buffer.from('foreign').toString('base64')});
     modules.push({name:'_headers',content_type:'text/plain',
       content_base64:readFileSync(path.join(artifactRoot,'dist/client/_headers')).toString('base64')});
     return Response.json({success:true,result:{id:flags.wrongVersion?'33333333-3333-4333-8333-333333333333':versionId,
@@ -67,7 +69,7 @@ function fixture(t){
 }
 test('reconciliation verifies active modules, public asset bytes, bindings and anonymous native session',async t=>{
   const input=fixture(t),publisher=createCloudflarePublisher(input),receipt=await publisher.inspect(input);
-  assert.equal(receipt.deploymentId,'deployment-1');assert.equal(receipt.publishedSha,versionId);
+  assert.equal(receipt.deploymentId,'deployment-1');assert.equal(receipt.publishedSha,input.artifact.sourceSha);
   assert.deepEqual(receipt.remoteVerified,{modules:2,moduleBytes:readFileSync(path.join(input.artifactRoot,'dist/server/index.js')).length
     +readFileSync(path.join(input.artifactRoot,'dist/server/dep.js')).length,configurationModules:1,
     excludedLocalModules:1,assets:1,assetBytes:7});
@@ -81,6 +83,24 @@ test('wrong remote module, missing imported module and wrong public asset block 
   input.flags.missingDependency=false;input.flags.wrongAsset=true;
   await assert.rejects(inspectCloudflareDelivery(input),{code:'asset_mismatch'});
   input.flags.wrongAsset=false;input.flags.extraModule=true;
+  await assert.rejects(inspectCloudflareDelivery(input),{code:'content_mismatch'});
+});
+test('no-bundle ESModule rules require the exact local module inventory, including unreferenced modules',async t=>{
+  const input=fixture(t);
+  writeFileSync(path.join(input.artifactRoot,'dist/server/wrangler.json'),JSON.stringify({
+    main:'index.js',no_bundle:true,rules:[{type:'ESModule',globs:['**/*.js','**/*.mjs']}]}));
+  input.artifact.artifactDigest=measureRuntimeArtifacts(input.artifactRoot).digest;
+  input.settings.annotations['workers/message']=
+    `Creezio ${input.artifact.artifactDigest} ${input.artifact.sourceSha}`;
+  input.flags.extraModule=true;
+  const receipt=await inspectCloudflareDelivery(input);
+  assert.equal(receipt.remoteVerified.modules,3);
+  assert.equal(receipt.remoteVerified.excludedLocalModules,0);
+  input.flags.extraModule=false;
+  await assert.rejects(inspectCloudflareDelivery(input),{code:'content_mismatch'});
+  input.flags.extraModule=true;input.flags.foreignModule=true;
+  await assert.rejects(inspectCloudflareDelivery(input),{code:'content_mismatch'});
+  input.flags.foreignModule=false;input.flags.wrongModule=true;
   await assert.rejects(inspectCloudflareDelivery(input),{code:'content_mismatch'});
 });
 test('version-specific readback rejects a response for any other version',async t=>{
