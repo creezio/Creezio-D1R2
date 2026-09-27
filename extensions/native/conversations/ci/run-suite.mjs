@@ -11,8 +11,11 @@ export function runSuite(name) {
   if (!Array.isArray(tests) || !tests.length || new Set(tests).size !== tests.length
     || tests.some(test => typeof test !== 'string' || !new RegExp(`^tests/${name}/[A-Za-z0-9._-]+\\.test\\.mjs$`).test(test)))
     throw new Error('Invalid declared module tests for suite '+name);
+  // The UI harness loads a large TSX panel before the first assertion. On Windows,
+  // cold dependency loading has exceeded 15 s; this bounds the test process only.
+  const timeout = name === 'ui' ? 60000 : 15000;
   const result = spawnSync(process.execPath, ['--test', '--test-reporter=tap',
-    ...tests.map(test => path.join(root, test))], {cwd: root,encoding:'utf8',timeout:15000});
+    ...tests.map(test => path.join(root, test))], {cwd: root,encoding:'utf8',timeout});
   const counts = {};
   for (const key of ['tests','pass','fail','cancelled','skipped','todo']) {
     const matches = [...(result.stdout ?? '').matchAll(new RegExp('^# '+key+' (\\d+)\\r?$','gm'))];

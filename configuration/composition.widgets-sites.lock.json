@@ -85,10 +85,10 @@
         }
       },
       "validation": {
-        "integrity": "sha256-5c3f654a1739249c4115f0c6c64781220cfe56153bc28feb3c1bb751ed5e1211",
+        "integrity": "sha256-c00b88676fcdd571501861bf518e6fbf1e1311e976f1f9e167f8756e7e464684",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.conversations/validation-5c3f654a1739249c4115f0c6c64781220cfe56153bc28feb3c1bb751ed5e1211.tgz"
+          "path": ".creezio/module-artifacts/creezio.conversations/validation-c00b88676fcdd571501861bf518e6fbf1e1311e976f1f9e167f8756e7e464684.tgz"
         }
       },
       "dependencies": [
