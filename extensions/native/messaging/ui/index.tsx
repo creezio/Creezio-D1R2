@@ -5,7 +5,7 @@ import {Paperclip,Save,Send,X} from 'lucide-react';
 import {useRegisterWorkspaceMetadata} from '@creezio/sdk/workspace/metadata';
 import {createFileClient} from '../../../../sdk/files/client.ts';
 import type {RuntimeViewProps} from '../../../../sdk/runtime/ui.ts';
-import {call,readableError,folders,scopeChanged,savedDraftTarget,type Attachment,type Box,type Draft,type Folder,type Message,
+import {call,readableError,folders,scopeChanged,type Attachment,type Box,type Draft,type Folder,type Message,
   type Outcome,type Page,type UiIdentity} from './contracts.ts';
 import {FoldersPanel,ListPanel,ReaderPanel,RecipientsInput,messagingButton,messagingField} from './presentation.tsx';
 import {RichEditor} from './rich-editor.tsx';
@@ -234,9 +234,12 @@ export function MessagingView(props:RuntimeViewProps) {
     if(!saved.value.draft?.id){setNotice('Sauvegarde non confirmée.');return;}
     const savedId=saved.value.draft.id;
     setEditor(draftFrom(saved.value.draft));setComposer(false);
-    if(savedDraftTarget(folder)==='restore-after-folder-change'){
+    if(live.current.folder!=='drafts'){
       restoreDraft.current=savedId;setFolder('drafts');savePosition('drafts',boxId,savedId);
-    }else{setSelectedId(savedId);savePosition('drafts',boxId,savedId);void loadList();}
+    }else{
+      if(live.current.selectedId===savedId)setDraft(saved.value.draft);
+      setSelectedId(savedId);savePosition('drafts',boxId,savedId);void loadList();
+    }
     setNotice('Brouillon enregistré.');
   }
   async function updateMessage(change:{folder?:Folder;read?:boolean}){

@@ -76,12 +76,6 @@ test('panel restore survives first mount, while a real identity or context chang
   assert.equal(contracts.scopeChanged(initial,{...initial,client:{}}),true);
 });
 
-test('saving from another folder defers selection until Drafts loads; saving in Drafts keeps selection',()=>{
-  assert.equal(contracts.savedDraftTarget('inbox'),'restore-after-folder-change');
-  assert.equal(contracts.savedDraftTarget('sent'),'restore-after-folder-change');
-  assert.equal(contracts.savedDraftTarget('drafts'),'refresh-current-folder');
-});
-
 test('operation bridge addresses the shared messaging binding without raw transport',async()=>{
   const calls=[];const scope={audience:'app',contextId:'workspace',client:{invoke:async request=>{
     calls.push(request);return {kind:'execution',execution:{state:'succeeded',output:{state:'unavailable',send:false,receive:false}}};}}};

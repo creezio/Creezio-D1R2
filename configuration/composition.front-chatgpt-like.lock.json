@@ -161,17 +161,17 @@
       },
       "contractIntegrity": "sha256-e06d8361b82b29e8d50bb2926debc7a01f044d0535f032932ebe845324733eb2",
       "runtime": {
-        "integrity": "sha256-26106aceaa77020fbcd7cc3afc4a3d788f385d274a76637b52398e62fa20bfca",
+        "integrity": "sha256-412da8db6b28a80530fd72b2a3352548fdf917e13534bad456a1fdf68270362d",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.messaging/runtime-26106aceaa77020fbcd7cc3afc4a3d788f385d274a76637b52398e62fa20bfca.tgz"
+          "path": ".creezio/module-artifacts/creezio.messaging/runtime-412da8db6b28a80530fd72b2a3352548fdf917e13534bad456a1fdf68270362d.tgz"
         }
       },
       "validation": {
-        "integrity": "sha256-3928c3aec05631377c28f6b2df7d1930419a0c6fc495afa0f938ecbcdfbdcfb1",
+        "integrity": "sha256-fb47b3e1eccbc5d31a40d89c7a179a0b66c8f04ab44d771f4a951f867784db68",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.messaging/validation-3928c3aec05631377c28f6b2df7d1930419a0c6fc495afa0f938ecbcdfbdcfb1.tgz"
+          "path": ".creezio/module-artifacts/creezio.messaging/validation-fb47b3e1eccbc5d31a40d89c7a179a0b66c8f04ab44d771f4a951f867784db68.tgz"
         }
       },
       "dependencies": [

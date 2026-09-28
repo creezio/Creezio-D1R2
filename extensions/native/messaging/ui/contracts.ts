@@ -22,9 +22,6 @@ export function scopeChanged(previous:UiIdentity|null,current:UiIdentity):boolea
   return previous!==null&&(previous.sessionId!==current.sessionId||previous.contextId!==current.contextId||
     previous.audience!==current.audience||previous.client!==current.client||previous.access!==current.access);
 }
-export function savedDraftTarget(folder:Folder):'restore-after-folder-change'|'refresh-current-folder' {
-  return folder==='drafts'?'refresh-current-folder':'restore-after-folder-change';
-}
 
 export async function call<T>(scope:MessagingScope, operation:string,
   input:Record<string,unknown>,current:()=>boolean):Promise<Outcome<T>> {
