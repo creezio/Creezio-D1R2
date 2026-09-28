@@ -11,13 +11,8 @@ const json = name => JSON.parse(readFileSync(new URL(name, import.meta.url), 'ut
 const hostObjects = describeD1Schema(OPERATION_STORAGE_MODULE_ID, OPERATION_MODELS).objects.length;
 function inputs({accessOnly = false} = {}) {
   const input = {composition: json('../../configuration/composition.json'), lock: json('../../configuration/composition.lock.json'),
-    modules: [json('../../extensions/native/access/module/manifest.json'),
-      json('../../extensions/native/modules-settings/module/manifest.json'),
-      json('../../extensions/native/conversations/module/manifest.json'),
-      json('../../extensions/native/openai/module/manifest.json'),
-      json('../../extensions/native/delivery/module/manifest.json'),
-      json('../../extensions/native/messaging/module/manifest.json'),
-      json('../../extensions/native/crm/module/manifest.json')]};
+    modules: []};
+  input.modules = input.composition.modules.map(selection => json(`../../${selection.source.path}/module/manifest.json`));
   if (!accessOnly) return input;
   input.composition.modules = input.composition.modules.filter(item => item.moduleId === 'creezio.access');
   input.lock.modules = input.lock.modules.filter(item => item.moduleId === 'creezio.access');
@@ -32,13 +27,16 @@ function relock(input) {
   return input;
 }
 
-test('composed compiler includes all seven native modules and freezes the runtime projection', async () => {
+test('composed compiler includes every selected native module and freezes the runtime projection', async () => {
   const input = inputs(), plan = compileCompositionSchema(input);
   assert.deepEqual(plan.runtimeCatalog.modules.map(module => [module.moduleId, module.models.length]),
-    [['creezio.access', 28], ['creezio.conversations', 8], ['creezio.crm', 3], ['creezio.delivery', 0], ['creezio.messaging', 5], ['creezio.modules-settings', 4], ['creezio.openai', 2]]);
+    [['creezio.access', 28], ['creezio.analytics', 1], ['creezio.conversations', 8],
+      ['creezio.crm', 3], ['creezio.delivery', 0], ['creezio.messaging', 5],
+      ['creezio.modules-settings', 4], ['creezio.openai', 2],
+      ['creezio.pages-navigation', 4], ['creezio.support', 2]]);
   assert.deepEqual(plan.runtimeCatalog.modules.find(module => module.moduleId === 'creezio.modules-settings')
     .models.map(model => model.modelId), ['head', 'journal', 'plan-outcomes', 'plans']);
-  const conversations = input.modules[2].contracts.models;
+  const conversations = input.modules.find(module => module.identity.id === 'creezio.conversations').contracts.models;
   assert.deepEqual(conversations.map(model => model.id),
     ['conversation', 'message', 'draft', 'widget_context', 'turn', 'event', 'file_metadata', 'conversation_attachment']);
   assert.deepEqual(conversations.find(model => model.id === 'widget_context').indexes.map(index => index.id), ['by-conversation']);
@@ -48,8 +46,11 @@ test('composed compiler includes all seven native modules and freezes the runtim
   const messaging = input.modules.find(module => module.identity.id === 'creezio.messaging').contracts.models;
   assert.deepEqual(messaging.map(model => model.id).sort(), ['box', 'draft', 'draft_attachment', 'file_metadata', 'message']);
   const crm=input.modules.find(module=>module.identity.id==='creezio.crm').contracts.models;
+  const added=['creezio.support','creezio.pages-navigation','creezio.analytics']
+    .map(id=>input.modules.find(module=>module.identity.id===id))
+    .reduce((count,module)=>count+describeD1Schema(module.identity.id,module.contracts.models).objects.length,0);
   assert.equal(plan.objects.length, 74 + 4 + 17 + 2 + hostObjects + describeD1Schema('creezio.messaging', messaging).objects.length
-    +describeD1Schema('creezio.crm',crm).objects.length);
+    +describeD1Schema('creezio.crm',crm).objects.length+added);
   assert.equal(plan.host.moduleId, OPERATION_STORAGE_MODULE_ID);
   assert.deepEqual(plan.host.models.map(entry => entry.modelId), ['approvals', 'attempts', 'audit', 'executions', 'outbox']);
   assert.equal(plan.runtimeCatalog.modules.some(module => module.moduleId === OPERATION_STORAGE_MODULE_ID), false);

@@ -202,7 +202,8 @@ test('modules settings operation commits head, plan, journal and execution in re
       const registry2=createOperationRegistry({catalog:compiled2.catalog,validators:validators2,handlers:handlers2});
       const publishedEngine=createOperationEngine({db,registry:registry2,catalog:schema2.runtimeCatalog,
         permissions:[{id:`${moduleId}:manage`,audiences:['admin'],actors:['user','delegated-user']}],
-        runtimeInventory:{current:{...published,descriptors:fixture.modules},inventory:fixture.inventory,
+        runtimeInventory:{current:{composition:published.composition,lock:published.lock,
+          descriptors:fixture.modules},inventory:fixture.inventory,
           currentInstalledDocuments:fixture.currentInstalledDocuments}});
       const publishedInvoke=(operationId,input)=>publishedEngine.invoke({credential:{kind:'session',token:session.token},
         moduleId,operationId,contextId:'application',audience:'admin',input});

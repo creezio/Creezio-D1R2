@@ -304,7 +304,7 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 - Travail/livrables : Module support et relations autorisées avec contacts/messages/tâches.
 - Besoin : [US-19](USER-STORIES.md#US-19). Acceptation : [REQ-1901](EXIGENCES.md#REQ-1901).
 - Validation : implémenter puis exécuter les recettes liées, sur **workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Acquis ciblés : 18 contrôles des six suites et intégration D1 réelle ; composition workspace/front en cours. Recettes navigateur/hébergées et relations intermodules encore ouvertes. Voir [Support](IMPLEMENTATION-T19.md). Pas de CI finale ni de publication de cette tranche revendiquée.
+- Acquis ciblés : 18 contrôles des six suites et intégration D1 réelle. Sur Linux au code UI `589a827`, l'app a créé un ticket ; l'admin l'a pris en charge et a répondu ; l'app a relu la réponse. Relations intermodules, email, MCP hébergé et parité exhaustive restent ouverts. Voir [Support](IMPLEMENTATION-T19.md). Cette recette n'atteste aucune publication Sites/Cloudflare de la tranche.
 
 <a id="T-20"></a>
 ## T-20 — CRM
@@ -325,7 +325,7 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 - Travail/livrables : Module pages-navigation, médias/SEO/édition et reset contrôlé.
 - Besoin : [US-21](USER-STORIES.md#US-21). Acceptation : [REQ-2101](EXIGENCES.md#REQ-2101).
 - Validation : implémenter puis exécuter les recettes liées, sur **front, workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Acquis ciblés : 19 contrôles des six suites et intégration D1 réelle ; snapshots séparés des brouillons. Recettes navigateur, publication anonyme, médias publics, SEO et navigation éditoriale encore ouverts. Voir [Pages/navigation](IMPLEMENTATION-T21.md). Pas de CI finale ni de publication de cette tranche revendiquée.
+- Acquis ciblés : 19 contrôles des six suites et intégration D1 réelle ; snapshots séparés des brouillons. Sur Linux au code UI `589a827`, brouillon, publication et navigation éditoriale ont été exercés ; le front authentifié `/pages` a affiché hero et lien. Publication anonyme, médias publics, SEO document et raccord complet de navigation au thème restent ouverts. Voir [Pages/navigation](IMPLEMENTATION-T21.md). Aucune publication hébergée de cette tranche n'est attestée.
 
 <a id="T-22"></a>
 ## T-22 — Analytics et diagnostics
@@ -335,7 +335,7 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 - Travail/livrables : Module analytics, consultation de l’audit, productivité/usage et exports limités.
 - Besoin : [US-22](USER-STORIES.md#US-22). Acceptation : [REQ-2201](EXIGENCES.md#REQ-2201).
 - Validation : implémenter puis exécuter les recettes liées, sur **workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Acquis ciblés : 13 contrôles des six suites et intégration D1 réelle sur 520 événements. Événements explicites seulement ; instrumentation, logs hôte, navigateur et productivité restent ouverts. Voir [Analytics](IMPLEMENTATION-T22.md). Pas de CI finale ni de publication de cette tranche revendiquée.
+- Acquis ciblés : 13 contrôles des six suites et intégration D1 réelle sur 520 événements. Sur Linux au code UI `589a827`, un événement `activity` déclaré par API a été confirmé et affiché dans la vue admin ; page vues et clics restent à zéro. Instrumentation automatique, logs hôte, registre d'endpoints et productivité mesurée restent ouverts. Voir [Analytics](IMPLEMENTATION-T22.md). Aucune publication hébergée de cette tranche n'est attestée.
 
 <a id="T-23"></a>
 ## T-23 — Intentions et développement piloté
@@ -369,7 +369,7 @@ Priorité : dernier bloc après T-17. Expliquer fonctions, effets, limites, plan
 - Travail/livrables : Module catalogue, données produit et ports publics de référence.
 - Besoin : [US-25](USER-STORIES.md#US-25). Acceptation : [REQ-2501](EXIGENCES.md#REQ-2501).
 - Validation : implémenter puis exécuter les recettes liées, sur **app fraîche et widgets** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Acquis ciblés : 14 contrôles des six suites et intégration D1/R2/HTTP/MCP ; profil front de 11 modules composé, deux widgets liste/fiche. Navigateur, chat réel et diffusion des médias restent ouverts. Voir [Catalogue](IMPLEMENTATION-T25.md). Pas de CI finale ni de publication de cette tranche revendiquée.
+- Acquis ciblés : 14 contrôles des six suites et intégration D1/R2/HTTP/MCP ; deux widgets liste/fiche. Sur Linux au code UI `589a827`, le front `/catalog` a affiché grille, fiche, attribut et prix d'un produit publié à 1299 unités mineures EUR. Le commit `5448160` ne change qu'un sous-titre et n'a pas eu de nouvelle recette navigateur. Widgets montés en chat réel et diffusion publique des médias restent ouverts. Voir [Catalogue](IMPLEMENTATION-T25.md). Aucune publication hébergée de cette tranche n'est attestée.
 
 <a id="T-26"></a>
 ## T-26 — Connecteur n8n
@@ -381,7 +381,7 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 - Travail/livrables : Module n8n : connexion, workflows autorisés, déclenchements/suivi/widgets et callbacks.
 - Besoin : [US-26](USER-STORIES.md#US-26). Acceptation : [REQ-2601](EXIGENCES.md#REQ-2601), [REQ-2602](EXIGENCES.md#REQ-2602).
 - Validation : implémenter puis exécuter les recettes liées, sur **n8n réel + Site public** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Réalisation en cours : réglages URL/clé, coffre natif et lectures API/MCP sur des ressources déclarées. Le port générique et le contrat déclaratif sont intégrés en source avec tests D1/coffre/HTTP/MCP. Mutations distantes, widgets, callbacks et recette n8n réelle restent ouverts ; aucun moteur tiers embarqué ni ordonnanceur. Voir [T26](IMPLEMENTATION-T26.md).
+- Réalisation en cours : réglages URL/clé, coffre natif et lectures API/MCP sur des ressources déclarées. Le port générique et le contrat déclaratif sont intégrés en source avec tests D1/coffre/HTTP/MCP simulés. Sur Linux au code UI `589a827`, le panneau n8n affiche `non configuré` ; aucune clé, connexion ou requête fournisseur réelle n'a été utilisée. Mutations distantes, widgets, callbacks et recette n8n réelle restent ouverts ; aucun moteur tiers embarqué ni ordonnanceur. Voir [T26](IMPLEMENTATION-T26.md).
 
 <a id="T-27"></a>
 ## T-27 — Connecteur Stripe
