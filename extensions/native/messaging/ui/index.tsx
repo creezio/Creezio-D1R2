@@ -5,8 +5,8 @@ import {Paperclip,Save,Send,X} from 'lucide-react';
 import {useRegisterWorkspaceMetadata} from '@creezio/sdk/workspace/metadata';
 import {createFileClient} from '../../../../sdk/files/client.ts';
 import type {RuntimeViewProps} from '../../../../sdk/runtime/ui.ts';
-import {call,readableError,folders,type Attachment,type Box,type Draft,type Folder,type Message,
-  type Outcome,type Page} from './contracts.ts';
+import {call,readableError,folders,scopeChanged,savedDraftTarget,type Attachment,type Box,type Draft,type Folder,type Message,
+  type Outcome,type Page,type UiIdentity} from './contracts.ts';
 import {FoldersPanel,ListPanel,ReaderPanel,RecipientsInput,messagingButton,messagingField} from './presentation.tsx';
 import {RichEditor} from './rich-editor.tsx';
 
@@ -59,6 +59,7 @@ export function MessagingView(props:RuntimeViewProps) {
   const [thread,setThread]=useState<Message[]>([]);
   const [threadCursor,setThreadCursor]=useState<string|null>(null);
   const [threadLoading,setThreadLoading]=useState(false);
+  const resetScope=useRef<UiIdentity|null>(null);
   const restoreDraft=useRef<string|null>((()=>{const saved=props.navigation.readPanelState()?.data?.draftId;
     return typeof saved==='string'&&validId(saved)?saved:null;})());
   const epoch=useRef(0),prior=useRef({sessionId:'',contextId:'',audience:'',active:false,
@@ -94,9 +95,13 @@ export function MessagingView(props:RuntimeViewProps) {
       catch{setNotice('Réponse des boîtes invalide.');}
     }else setNotice(readableError(result.code));
   },[props.client,props.access,props.audience,props.contextId,sessionId,enabled]);
-  useEffect(()=>{setBoxes([]);setBoxId('');setMessages([]);setDrafts([]);setSelectedId(null);
+  useEffect(()=>{
+    const next={sessionId,client:props.client,access:props.access,audience:props.audience,contextId:props.contextId};
+    const changed=scopeChanged(resetScope.current,next);resetScope.current=next;
+    if(!changed)return;
+    restoreDraft.current=null;setBoxes([]);setBoxId('');setMessages([]);setDrafts([]);setSelectedId(null);
     setMessage(null);setDraft(null);setAttachments([]);setThread([]);setThreadCursor(null);setComposer(false);setEditor(blank);setNotice('');
-  },[sessionId,props.client,props.audience,props.contextId]);
+  },[sessionId,props.client,props.access,props.audience,props.contextId]);
   useEffect(()=>{if(enabled)void loadBoxes();},[enabled,sessionId,props.client,props.audience,props.contextId]);
   useEffect(()=>{if(!enabled){setBusy(false);setLoading(false);setThreadLoading(false);}},[enabled]);
 
@@ -227,8 +232,12 @@ export function MessagingView(props:RuntimeViewProps) {
     setBusy(false);if(saved.kind!=='ok'){setNotice(readableError(saved.code));
       if(saved.kind==='unknown')setComposer(false);return;}
     if(!saved.value.draft?.id){setNotice('Sauvegarde non confirmée.');return;}
-    setEditor(draftFrom(saved.value.draft));setComposer(false);setFolder('drafts');setSelectedId(saved.value.draft.id);
-    void loadList();setNotice('Brouillon enregistré.');
+    const savedId=saved.value.draft.id;
+    setEditor(draftFrom(saved.value.draft));setComposer(false);
+    if(savedDraftTarget(folder)==='restore-after-folder-change'){
+      restoreDraft.current=savedId;setFolder('drafts');savePosition('drafts',boxId,savedId);
+    }else{setSelectedId(savedId);savePosition('drafts',boxId,savedId);void loadList();}
+    setNotice('Brouillon enregistré.');
   }
   async function updateMessage(change:{folder?:Folder;read?:boolean}){
     if(!message||busy||!scoped())return;const prior=message;setBusy(true);

@@ -65,6 +65,23 @@ test('uncertain mutation is surfaced once for reconciliation, without a UI bridg
   assert.equal(count,1);
 });
 
+test('panel restore survives first mount, while a real identity or context change purges it',()=>{
+  const client={},access={};
+  const initial={sessionId:'s1',contextId:'c1',audience:'admin',client,access};
+  assert.equal(contracts.scopeChanged(null,initial),false);
+  assert.equal(contracts.scopeChanged(initial,{...initial}),false);
+  assert.equal(contracts.scopeChanged(initial,{...initial,sessionId:'s2'}),true);
+  assert.equal(contracts.scopeChanged(initial,{...initial,contextId:'c2'}),true);
+  assert.equal(contracts.scopeChanged(initial,{...initial,audience:'app'}),true);
+  assert.equal(contracts.scopeChanged(initial,{...initial,client:{}}),true);
+});
+
+test('saving from another folder defers selection until Drafts loads; saving in Drafts keeps selection',()=>{
+  assert.equal(contracts.savedDraftTarget('inbox'),'restore-after-folder-change');
+  assert.equal(contracts.savedDraftTarget('sent'),'restore-after-folder-change');
+  assert.equal(contracts.savedDraftTarget('drafts'),'refresh-current-folder');
+});
+
 test('operation bridge addresses the shared messaging binding without raw transport',async()=>{
   const calls=[];const scope={audience:'app',contextId:'workspace',client:{invoke:async request=>{
     calls.push(request);return {kind:'execution',execution:{state:'succeeded',output:{state:'unavailable',send:false,receive:false}}};}}};
