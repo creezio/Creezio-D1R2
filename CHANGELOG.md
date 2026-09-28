@@ -1,5 +1,9 @@
 # Changelog
 
+## En cours — CRM natif (T20)
+
+Entreprises, contacts et prospects rejoignent les modèles D1 et les opérations API/MCP communes. La prospection reprend le kanban original ; workspace et thèmes front disposent des vues déclarées. Les fiches sont communes aux audiences autorisées dans le même contexte, avec relations protégées, archivage, recherche paginée et révisions d’édition. Voir [T20](docs/IMPLEMENTATION-T20.md) pour les contrôles et les qualifications restantes.
+
 ## En cours — messagerie native (T18)
 
 Le webmail du kit original est adapté aux opérations communes et aux données D1/R2 : boîtes personnelles, brouillons, destinataires, pièces jointes privées et classement des messages. API, MCP et interface partagent les droits et les contrôles de concurrence. La composition inclut le module `creezio.messaging` ; son schéma et ses six suites rejoignent la chaîne centrale. L'absence de transport externe est affichée et ne produit aucun envoi simulé. Voir [T18](docs/IMPLEMENTATION-T18.md) pour les résultats et limites de qualification ; ce changement n'est pas encore publié.

@@ -1,0 +1,7765 @@
+{
+  "schemaVersion": "1.0.0",
+  "identity": {
+    "id": "creezio.crm",
+    "title": "CRM natif",
+    "publisher": "creezio",
+    "origin": "https://github.com/creezio/Creezio-D1R2",
+    "version": "0.0.0",
+    "source": {
+      "kind": "snapshot",
+      "revision": "t20-crm-v1",
+      "integrity": "sha256-2ba62e4dfebdc1e0fec8830ef369a1e0a81e55a73376c409399aebdab02ed7b5"
+    },
+    "license": {
+      "expression": "NOASSERTION",
+      "file": "LICENSE"
+    }
+  },
+  "compatibility": {
+    "core": "^0.0.0",
+    "sdk": "^1.0.0",
+    "requiredCapabilities": [
+      "runtime.worker",
+      "data.d1.shared"
+    ],
+    "optionalCapabilities": []
+  },
+  "entrypoints": {
+    "server": {
+      "path": "module/entry.server.ts",
+      "export": "crm"
+    },
+    "ui": {
+      "path": "ui/index.tsx",
+      "export": "CrmWorkspaceView"
+    },
+    "plugin": {
+      "manifest": "plugin/plugin.json",
+      "mcp": "plugin/mcp.json",
+      "contributions": {
+        "path": "plugin/contributions.ts",
+        "export": "contributions"
+      }
+    }
+  },
+  "dependencies": [
+    {
+      "moduleId": "creezio.access",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "optional": false,
+      "contracts": [],
+      "whenAbsent": "block",
+      "whenIncompatible": "block",
+      "autoInstall": false
+    }
+  ],
+  "contracts": {
+    "schemas": [
+      {
+        "id": "company-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240
+                },
+                "notes": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 4000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "city": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 240
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "archivedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 35
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "website": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 512
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "notes",
+                "city",
+                "createdAt",
+                "updatedAt",
+                "archivedAt",
+                "revision",
+                "website"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "item"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "company-page",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 240
+                  },
+                  "notes": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 4000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "city": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 240
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  },
+                  "archivedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 35
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "website": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 512
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "notes",
+                  "city",
+                  "createdAt",
+                  "updatedAt",
+                  "archivedAt",
+                  "revision",
+                  "website"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 25
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "company-id",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "company-list",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 25
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "archived": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "company-search",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 25
+            },
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "archived": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "limit",
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "company-create",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "city": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 240
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "website": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "notes": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 4000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "requestKey",
+            "name"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "company-update",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "city": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 240
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "website": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "notes": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 4000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "requestKey",
+            "id",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "company-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "id",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "contact-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240
+                },
+                "notes": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 4000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "city": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 240
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "archivedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 35
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "email": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 320
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "phone": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 240
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "companyId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "notes",
+                "city",
+                "createdAt",
+                "updatedAt",
+                "archivedAt",
+                "revision",
+                "email",
+                "phone",
+                "companyId"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "item"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "contact-page",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 240
+                  },
+                  "notes": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 4000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "city": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 240
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  },
+                  "archivedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 35
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "email": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 320
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "phone": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 240
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "companyId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "notes",
+                  "city",
+                  "createdAt",
+                  "updatedAt",
+                  "archivedAt",
+                  "revision",
+                  "email",
+                  "phone",
+                  "companyId"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 25
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "contact-id",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "contact-list",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 25
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "archived": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "contact-search",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 25
+            },
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "archived": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "limit",
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "contact-create",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "city": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 240
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "email": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 320
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "phone": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 240
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "notes": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 4000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "companyId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "requestKey",
+            "name"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "contact-update",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "city": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 240
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "email": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 320
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "phone": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 240
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "notes": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 4000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "companyId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "requestKey",
+            "id",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "contact-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "id",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "prospect-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240
+                },
+                "notes": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 4000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "city": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 240
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "archivedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 35
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "contactName": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 240
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "email": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 320
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "phone": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 240
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "website": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 512
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "stage": {
+                  "type": "string",
+                  "enum": [
+                    "a_contacter",
+                    "contacte",
+                    "rdv",
+                    "client",
+                    "perdu"
+                  ]
+                },
+                "position": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "companyId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "contactId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "notes",
+                "city",
+                "createdAt",
+                "updatedAt",
+                "archivedAt",
+                "revision",
+                "contactName",
+                "email",
+                "phone",
+                "website",
+                "stage",
+                "position",
+                "companyId",
+                "contactId"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "item"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "prospect-page",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 240
+                  },
+                  "notes": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 4000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "city": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 240
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  },
+                  "archivedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 35
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "contactName": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 240
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "email": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 320
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "phone": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 240
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "website": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 512
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "stage": {
+                    "type": "string",
+                    "enum": [
+                      "a_contacter",
+                      "contacte",
+                      "rdv",
+                      "client",
+                      "perdu"
+                    ]
+                  },
+                  "position": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "companyId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "contactId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "notes",
+                  "city",
+                  "createdAt",
+                  "updatedAt",
+                  "archivedAt",
+                  "revision",
+                  "contactName",
+                  "email",
+                  "phone",
+                  "website",
+                  "stage",
+                  "position",
+                  "companyId",
+                  "contactId"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 25
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "prospect-id",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "prospect-list",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 25
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "archived": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "prospect-search",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 25
+            },
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "archived": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "limit",
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "prospect-create",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "city": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 240
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "contactName": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 240
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "email": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 320
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "phone": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 240
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "website": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "notes": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 4000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "stage": {
+              "type": "string",
+              "enum": [
+                "a_contacter",
+                "contacte",
+                "rdv",
+                "client",
+                "perdu"
+              ]
+            },
+            "position": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "companyId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "contactId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "requestKey",
+            "name"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "prospect-update",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "city": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 240
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "contactName": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 240
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "email": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 320
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "phone": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 240
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "website": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "notes": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 4000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "stage": {
+              "type": "string",
+              "enum": [
+                "a_contacter",
+                "contacte",
+                "rdv",
+                "client",
+                "perdu"
+              ]
+            },
+            "position": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "companyId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "contactId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "requestKey",
+            "id",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "prospect-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "id",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "crm-view-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "entity": {
+              "type": "string",
+              "enum": [
+                "company",
+                "contact",
+                "prospect"
+              ]
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "crm-panel-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "entity": {
+              "type": "string",
+              "enum": [
+                "company",
+                "contact",
+                "prospect"
+              ]
+            },
+            "query": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 120
+            },
+            "archived": {
+              "type": "boolean"
+            },
+            "pending": {
+              "type": "object",
+              "properties": {
+                "entity": {
+                  "type": "string",
+                  "enum": [
+                    "company",
+                    "contact",
+                    "prospect"
+                  ]
+                },
+                "action": {
+                  "type": "string",
+                  "enum": [
+                    "create",
+                    "update",
+                    "archive",
+                    "restore"
+                  ]
+                },
+                "requestKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "sessionId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "contextId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "audience": {
+                  "type": "string",
+                  "enum": [
+                    "admin",
+                    "app"
+                  ]
+                }
+              },
+              "required": [
+                "entity",
+                "action",
+                "requestKey",
+                "sessionId",
+                "contextId",
+                "audience"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "company",
+        "title": "Entreprises",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "name",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 240
+            }
+          },
+          {
+            "id": "notes",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 4000
+            }
+          },
+          {
+            "id": "city",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 240
+            }
+          },
+          {
+            "id": "created_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "archived_at",
+            "type": "date-time",
+            "nullable": true,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "website",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 512
+            }
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "recent",
+            "fields": [
+              "context_id",
+              "updated_at",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "contact",
+        "title": "Contacts",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "name",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 240
+            }
+          },
+          {
+            "id": "notes",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 4000
+            }
+          },
+          {
+            "id": "city",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 240
+            }
+          },
+          {
+            "id": "created_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "archived_at",
+            "type": "date-time",
+            "nullable": true,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "email",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 320
+            }
+          },
+          {
+            "id": "phone",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 240
+            }
+          },
+          {
+            "id": "company_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "recent",
+            "fields": [
+              "context_id",
+              "updated_at",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [
+          {
+            "id": "company",
+            "fields": [
+              "context_id",
+              "company_id"
+            ],
+            "target": {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            },
+            "targetFields": [
+              "context_id",
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "prospect",
+        "title": "Prospects",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "name",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 240
+            }
+          },
+          {
+            "id": "notes",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 4000
+            }
+          },
+          {
+            "id": "city",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 240
+            }
+          },
+          {
+            "id": "created_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "archived_at",
+            "type": "date-time",
+            "nullable": true,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "contact_name",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 240
+            }
+          },
+          {
+            "id": "email",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 320
+            }
+          },
+          {
+            "id": "phone",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 240
+            }
+          },
+          {
+            "id": "website",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 512
+            }
+          },
+          {
+            "id": "stage",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "a_contacter",
+                "contacte",
+                "rdv",
+                "client",
+                "perdu"
+              ]
+            }
+          },
+          {
+            "id": "position",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "company_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "contact_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "recent",
+            "fields": [
+              "context_id",
+              "updated_at",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [
+          {
+            "id": "company",
+            "fields": [
+              "context_id",
+              "company_id"
+            ],
+            "target": {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            },
+            "targetFields": [
+              "context_id",
+              "id"
+            ],
+            "onDelete": "restrict"
+          },
+          {
+            "id": "contact",
+            "fields": [
+              "context_id",
+              "contact_id"
+            ],
+            "target": {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "contact"
+            },
+            "targetFields": [
+              "context_id",
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      }
+    ],
+    "files": [],
+    "events": [],
+    "settings": [],
+    "search": [],
+    "permissions": [
+      {
+        "id": "use",
+        "title": "Gérer les relations CRM",
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "scopes": [
+          "crm.use"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "model",
+            "id": "company"
+          },
+          {
+            "moduleId": "creezio.crm",
+            "kind": "model",
+            "id": "contact"
+          },
+          {
+            "moduleId": "creezio.crm",
+            "kind": "model",
+            "id": "prospect"
+          }
+        ],
+        "actions": [
+          "read",
+          "create",
+          "update",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      }
+    ],
+    "operations": [
+      {
+        "id": "company.create",
+        "title": "create company",
+        "kind": "command",
+        "input": {
+          "schemaId": "company-create"
+        },
+        "output": {
+          "schemaId": "company-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "companyCreate"
+        },
+        "effects": {
+          "reads": [],
+          "writes": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 25,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "company.read",
+        "title": "read company",
+        "kind": "query",
+        "input": {
+          "schemaId": "company-id"
+        },
+        "output": {
+          "schemaId": "company-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "companyRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 25,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "company.list",
+        "title": "list company",
+        "kind": "query",
+        "input": {
+          "schemaId": "company-list"
+        },
+        "output": {
+          "schemaId": "company-page"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "companyList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 25
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "company.search",
+        "title": "search company",
+        "kind": "query",
+        "input": {
+          "schemaId": "company-search"
+        },
+        "output": {
+          "schemaId": "company-page"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "companySearch"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 25
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "company.update",
+        "title": "update company",
+        "kind": "command",
+        "input": {
+          "schemaId": "company-update"
+        },
+        "output": {
+          "schemaId": "company-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "companyUpdate"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 25,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "company.archive",
+        "title": "archive company",
+        "kind": "command",
+        "input": {
+          "schemaId": "company-state"
+        },
+        "output": {
+          "schemaId": "company-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "companyArchive"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "contact"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "prospect"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 25,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "company.restore",
+        "title": "restore company",
+        "kind": "command",
+        "input": {
+          "schemaId": "company-state"
+        },
+        "output": {
+          "schemaId": "company-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "companyRestore"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 25,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "contact.create",
+        "title": "create contact",
+        "kind": "command",
+        "input": {
+          "schemaId": "contact-create"
+        },
+        "output": {
+          "schemaId": "contact-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "contactCreate"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "contact"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 25,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "contact.read",
+        "title": "read contact",
+        "kind": "query",
+        "input": {
+          "schemaId": "contact-id"
+        },
+        "output": {
+          "schemaId": "contact-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "contactRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "contact"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 25,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "contact.list",
+        "title": "list contact",
+        "kind": "query",
+        "input": {
+          "schemaId": "contact-list"
+        },
+        "output": {
+          "schemaId": "contact-page"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "contactList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "contact"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 25
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "contact.search",
+        "title": "search contact",
+        "kind": "query",
+        "input": {
+          "schemaId": "contact-search"
+        },
+        "output": {
+          "schemaId": "contact-page"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "contactSearch"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "contact"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 25
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "contact.update",
+        "title": "update contact",
+        "kind": "command",
+        "input": {
+          "schemaId": "contact-update"
+        },
+        "output": {
+          "schemaId": "contact-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "contactUpdate"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "contact"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "prospect"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "contact"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 25,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "contact.archive",
+        "title": "archive contact",
+        "kind": "command",
+        "input": {
+          "schemaId": "contact-state"
+        },
+        "output": {
+          "schemaId": "contact-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "contactArchive"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "contact"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "prospect"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "contact"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 25,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "contact.restore",
+        "title": "restore contact",
+        "kind": "command",
+        "input": {
+          "schemaId": "contact-state"
+        },
+        "output": {
+          "schemaId": "contact-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "contactRestore"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "contact"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "contact"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 25,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "prospect.create",
+        "title": "create prospect",
+        "kind": "command",
+        "input": {
+          "schemaId": "prospect-create"
+        },
+        "output": {
+          "schemaId": "prospect-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "prospectCreate"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "contact"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "prospect"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "contact"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 25,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "prospect.read",
+        "title": "read prospect",
+        "kind": "query",
+        "input": {
+          "schemaId": "prospect-id"
+        },
+        "output": {
+          "schemaId": "prospect-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "prospectRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "prospect"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 25,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "prospect.list",
+        "title": "list prospect",
+        "kind": "query",
+        "input": {
+          "schemaId": "prospect-list"
+        },
+        "output": {
+          "schemaId": "prospect-page"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "prospectList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "prospect"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 25
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "prospect.search",
+        "title": "search prospect",
+        "kind": "query",
+        "input": {
+          "schemaId": "prospect-search"
+        },
+        "output": {
+          "schemaId": "prospect-page"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "prospectSearch"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "prospect"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 25
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "prospect.update",
+        "title": "update prospect",
+        "kind": "command",
+        "input": {
+          "schemaId": "prospect-update"
+        },
+        "output": {
+          "schemaId": "prospect-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "prospectUpdate"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "prospect"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "contact"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "prospect"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "contact"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 25,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "prospect.archive",
+        "title": "archive prospect",
+        "kind": "command",
+        "input": {
+          "schemaId": "prospect-state"
+        },
+        "output": {
+          "schemaId": "prospect-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "prospectArchive"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "prospect"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "prospect"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 25,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "prospect.restore",
+        "title": "restore prospect",
+        "kind": "command",
+        "input": {
+          "schemaId": "prospect-state"
+        },
+        "output": {
+          "schemaId": "prospect-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "prospectRestore"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "prospect"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "contact"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "prospect"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "company"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "model",
+              "id": "contact"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 25,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "notes",
+            "email",
+            "phone",
+            "query"
+          ]
+        },
+        "public": false
+      }
+    ],
+    "api": [
+      {
+        "id": "admin.company.create",
+        "method": "POST",
+        "path": "/api/admin/crm/company/create",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "company.create"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "company-create"
+        },
+        "output": {
+          "schemaId": "company-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.company.create",
+        "method": "POST",
+        "path": "/api/app/crm/company/create",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "company.create"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "company-create"
+        },
+        "output": {
+          "schemaId": "company-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.company.read",
+        "method": "GET",
+        "path": "/api/admin/crm/company/read",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "company.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "company-id"
+        },
+        "output": {
+          "schemaId": "company-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.company.read",
+        "method": "GET",
+        "path": "/api/app/crm/company/read",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "company.read"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "company-id"
+        },
+        "output": {
+          "schemaId": "company-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.company.list",
+        "method": "GET",
+        "path": "/api/admin/crm/company/list",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "company.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "inputField": "archived",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "company-list"
+        },
+        "output": {
+          "schemaId": "company-page"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.company.list",
+        "method": "GET",
+        "path": "/api/app/crm/company/list",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "company.list"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "inputField": "archived",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "company-list"
+        },
+        "output": {
+          "schemaId": "company-page"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.company.search",
+        "method": "GET",
+        "path": "/api/admin/crm/company/search",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "company.search"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "inputField": "archived",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "company-search"
+        },
+        "output": {
+          "schemaId": "company-page"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.company.search",
+        "method": "GET",
+        "path": "/api/app/crm/company/search",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "company.search"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "inputField": "archived",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "company-search"
+        },
+        "output": {
+          "schemaId": "company-page"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.company.update",
+        "method": "POST",
+        "path": "/api/admin/crm/company/update",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "company.update"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "company-update"
+        },
+        "output": {
+          "schemaId": "company-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.company.update",
+        "method": "POST",
+        "path": "/api/app/crm/company/update",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "company.update"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "company-update"
+        },
+        "output": {
+          "schemaId": "company-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.company.archive",
+        "method": "POST",
+        "path": "/api/admin/crm/company/archive",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "company.archive"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "company-state"
+        },
+        "output": {
+          "schemaId": "company-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.company.archive",
+        "method": "POST",
+        "path": "/api/app/crm/company/archive",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "company.archive"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "company-state"
+        },
+        "output": {
+          "schemaId": "company-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.company.restore",
+        "method": "POST",
+        "path": "/api/admin/crm/company/restore",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "company.restore"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "company-state"
+        },
+        "output": {
+          "schemaId": "company-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.company.restore",
+        "method": "POST",
+        "path": "/api/app/crm/company/restore",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "company.restore"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "company-state"
+        },
+        "output": {
+          "schemaId": "company-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.contact.create",
+        "method": "POST",
+        "path": "/api/admin/crm/contact/create",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "contact.create"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "contact-create"
+        },
+        "output": {
+          "schemaId": "contact-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.contact.create",
+        "method": "POST",
+        "path": "/api/app/crm/contact/create",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "contact.create"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "contact-create"
+        },
+        "output": {
+          "schemaId": "contact-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.contact.read",
+        "method": "GET",
+        "path": "/api/admin/crm/contact/read",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "contact.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "contact-id"
+        },
+        "output": {
+          "schemaId": "contact-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.contact.read",
+        "method": "GET",
+        "path": "/api/app/crm/contact/read",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "contact.read"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "contact-id"
+        },
+        "output": {
+          "schemaId": "contact-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.contact.list",
+        "method": "GET",
+        "path": "/api/admin/crm/contact/list",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "contact.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "inputField": "archived",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "contact-list"
+        },
+        "output": {
+          "schemaId": "contact-page"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.contact.list",
+        "method": "GET",
+        "path": "/api/app/crm/contact/list",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "contact.list"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "inputField": "archived",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "contact-list"
+        },
+        "output": {
+          "schemaId": "contact-page"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.contact.search",
+        "method": "GET",
+        "path": "/api/admin/crm/contact/search",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "contact.search"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "inputField": "archived",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "contact-search"
+        },
+        "output": {
+          "schemaId": "contact-page"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.contact.search",
+        "method": "GET",
+        "path": "/api/app/crm/contact/search",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "contact.search"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "inputField": "archived",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "contact-search"
+        },
+        "output": {
+          "schemaId": "contact-page"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.contact.update",
+        "method": "POST",
+        "path": "/api/admin/crm/contact/update",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "contact.update"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "contact-update"
+        },
+        "output": {
+          "schemaId": "contact-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.contact.update",
+        "method": "POST",
+        "path": "/api/app/crm/contact/update",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "contact.update"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "contact-update"
+        },
+        "output": {
+          "schemaId": "contact-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.contact.archive",
+        "method": "POST",
+        "path": "/api/admin/crm/contact/archive",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "contact.archive"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "contact-state"
+        },
+        "output": {
+          "schemaId": "contact-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.contact.archive",
+        "method": "POST",
+        "path": "/api/app/crm/contact/archive",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "contact.archive"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "contact-state"
+        },
+        "output": {
+          "schemaId": "contact-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.contact.restore",
+        "method": "POST",
+        "path": "/api/admin/crm/contact/restore",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "contact.restore"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "contact-state"
+        },
+        "output": {
+          "schemaId": "contact-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.contact.restore",
+        "method": "POST",
+        "path": "/api/app/crm/contact/restore",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "contact.restore"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "contact-state"
+        },
+        "output": {
+          "schemaId": "contact-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.prospect.create",
+        "method": "POST",
+        "path": "/api/admin/crm/prospect/create",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "prospect.create"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "prospect-create"
+        },
+        "output": {
+          "schemaId": "prospect-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.prospect.create",
+        "method": "POST",
+        "path": "/api/app/crm/prospect/create",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "prospect.create"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "prospect-create"
+        },
+        "output": {
+          "schemaId": "prospect-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.prospect.read",
+        "method": "GET",
+        "path": "/api/admin/crm/prospect/read",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "prospect.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "prospect-id"
+        },
+        "output": {
+          "schemaId": "prospect-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.prospect.read",
+        "method": "GET",
+        "path": "/api/app/crm/prospect/read",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "prospect.read"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "prospect-id"
+        },
+        "output": {
+          "schemaId": "prospect-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.prospect.list",
+        "method": "GET",
+        "path": "/api/admin/crm/prospect/list",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "prospect.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "inputField": "archived",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "prospect-list"
+        },
+        "output": {
+          "schemaId": "prospect-page"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.prospect.list",
+        "method": "GET",
+        "path": "/api/app/crm/prospect/list",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "prospect.list"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "inputField": "archived",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "prospect-list"
+        },
+        "output": {
+          "schemaId": "prospect-page"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.prospect.search",
+        "method": "GET",
+        "path": "/api/admin/crm/prospect/search",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "prospect.search"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "inputField": "archived",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "prospect-search"
+        },
+        "output": {
+          "schemaId": "prospect-page"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.prospect.search",
+        "method": "GET",
+        "path": "/api/app/crm/prospect/search",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "prospect.search"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "inputField": "archived",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "prospect-search"
+        },
+        "output": {
+          "schemaId": "prospect-page"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.prospect.update",
+        "method": "POST",
+        "path": "/api/admin/crm/prospect/update",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "prospect.update"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "prospect-update"
+        },
+        "output": {
+          "schemaId": "prospect-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.prospect.update",
+        "method": "POST",
+        "path": "/api/app/crm/prospect/update",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "prospect.update"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "prospect-update"
+        },
+        "output": {
+          "schemaId": "prospect-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.prospect.archive",
+        "method": "POST",
+        "path": "/api/admin/crm/prospect/archive",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "prospect.archive"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "prospect-state"
+        },
+        "output": {
+          "schemaId": "prospect-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.prospect.archive",
+        "method": "POST",
+        "path": "/api/app/crm/prospect/archive",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "prospect.archive"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "prospect-state"
+        },
+        "output": {
+          "schemaId": "prospect-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.prospect.restore",
+        "method": "POST",
+        "path": "/api/admin/crm/prospect/restore",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "prospect.restore"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "prospect-state"
+        },
+        "output": {
+          "schemaId": "prospect-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.prospect.restore",
+        "method": "POST",
+        "path": "/api/app/crm/prospect/restore",
+        "operation": {
+          "moduleId": "creezio.crm",
+          "kind": "operation",
+          "id": "prospect.restore"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "prospect-state"
+        },
+        "output": {
+          "schemaId": "prospect-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      }
+    ],
+    "mcp": {
+      "tools": [
+        {
+          "id": "company.create",
+          "name": "crm_company_create",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "company.create"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "company-create"
+          },
+          "output": {
+            "schemaId": "company-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "company.read",
+          "name": "crm_company_read",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "company.read"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "company-id"
+          },
+          "output": {
+            "schemaId": "company-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "company.list",
+          "name": "crm_company_list",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "company.list"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "company-list"
+          },
+          "output": {
+            "schemaId": "company-page"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "company.search",
+          "name": "crm_company_search",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "company.search"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "company-search"
+          },
+          "output": {
+            "schemaId": "company-page"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "company.update",
+          "name": "crm_company_update",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "company.update"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "company-update"
+          },
+          "output": {
+            "schemaId": "company-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "company.archive",
+          "name": "crm_company_archive",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "company.archive"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "company-state"
+          },
+          "output": {
+            "schemaId": "company-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "company.restore",
+          "name": "crm_company_restore",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "company.restore"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "company-state"
+          },
+          "output": {
+            "schemaId": "company-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "contact.create",
+          "name": "crm_contact_create",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "contact.create"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "contact-create"
+          },
+          "output": {
+            "schemaId": "contact-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "contact.read",
+          "name": "crm_contact_read",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "contact.read"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "contact-id"
+          },
+          "output": {
+            "schemaId": "contact-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "contact.list",
+          "name": "crm_contact_list",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "contact.list"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "contact-list"
+          },
+          "output": {
+            "schemaId": "contact-page"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "contact.search",
+          "name": "crm_contact_search",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "contact.search"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "contact-search"
+          },
+          "output": {
+            "schemaId": "contact-page"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "contact.update",
+          "name": "crm_contact_update",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "contact.update"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "contact-update"
+          },
+          "output": {
+            "schemaId": "contact-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "contact.archive",
+          "name": "crm_contact_archive",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "contact.archive"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "contact-state"
+          },
+          "output": {
+            "schemaId": "contact-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "contact.restore",
+          "name": "crm_contact_restore",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "contact.restore"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "contact-state"
+          },
+          "output": {
+            "schemaId": "contact-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "prospect.create",
+          "name": "crm_prospect_create",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "prospect.create"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "prospect-create"
+          },
+          "output": {
+            "schemaId": "prospect-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "prospect.read",
+          "name": "crm_prospect_read",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "prospect.read"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "prospect-id"
+          },
+          "output": {
+            "schemaId": "prospect-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "prospect.list",
+          "name": "crm_prospect_list",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "prospect.list"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "prospect-list"
+          },
+          "output": {
+            "schemaId": "prospect-page"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "prospect.search",
+          "name": "crm_prospect_search",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "prospect.search"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "prospect-search"
+          },
+          "output": {
+            "schemaId": "prospect-page"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "prospect.update",
+          "name": "crm_prospect_update",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "prospect.update"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "prospect-update"
+          },
+          "output": {
+            "schemaId": "prospect-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "prospect.archive",
+          "name": "crm_prospect_archive",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "prospect.archive"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "prospect-state"
+          },
+          "output": {
+            "schemaId": "prospect-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "prospect.restore",
+          "name": "crm_prospect_restore",
+          "operation": {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "prospect.restore"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "prospect-state"
+          },
+          "output": {
+            "schemaId": "prospect-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        }
+      ],
+      "resources": [],
+      "prompts": [],
+      "skills": []
+    },
+    "ui": {
+      "views": [
+        {
+          "id": "workspace",
+          "title": "CRM",
+          "surfaces": [
+            "workspace"
+          ],
+          "route": "/admin/crm",
+          "component": {
+            "path": "ui/index.tsx",
+            "export": "CrmWorkspaceView"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "permission",
+              "id": "use"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "company.create"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "company.read"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "company.list"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "company.search"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "company.update"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "company.archive"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "company.restore"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.create"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.read"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.list"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.search"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.update"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.archive"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.restore"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "prospect.create"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "prospect.read"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "prospect.list"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "prospect.search"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "prospect.update"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "prospect.archive"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "prospect.restore"
+            }
+          ],
+          "input": {
+            "schemaId": "crm-view-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend",
+            "stateSchema": {
+              "schemaId": "crm-panel-state"
+            }
+          }
+        },
+        {
+          "id": "front",
+          "title": "CRM",
+          "surfaces": [
+            "front"
+          ],
+          "route": "/crm",
+          "component": {
+            "path": "ui/index.tsx",
+            "export": "CrmWorkspaceView"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "permission",
+              "id": "use"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "company.create"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "company.read"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "company.list"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "company.search"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "company.update"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "company.archive"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "company.restore"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.create"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.read"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.list"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.search"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.update"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.archive"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.restore"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "prospect.create"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "prospect.read"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "prospect.list"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "prospect.search"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "prospect.update"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "prospect.archive"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "prospect.restore"
+            }
+          ],
+          "input": {
+            "schemaId": "crm-view-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend",
+            "stateSchema": {
+              "schemaId": "crm-panel-state"
+            }
+          }
+        }
+      ],
+      "navigation": [
+        {
+          "id": "crm",
+          "title": "CRM",
+          "view": {
+            "moduleId": "creezio.crm",
+            "kind": "view",
+            "id": "workspace"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "permission",
+              "id": "use"
+            }
+          ],
+          "surfaces": [
+            "workspace"
+          ],
+          "order": 55
+        },
+        {
+          "id": "crm-front",
+          "title": "CRM",
+          "view": {
+            "moduleId": "creezio.crm",
+            "kind": "view",
+            "id": "front"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "permission",
+              "id": "use"
+            }
+          ],
+          "surfaces": [
+            "front"
+          ],
+          "order": 55
+        }
+      ],
+      "slots": [],
+      "front": {
+        "mode": "provided"
+      },
+      "themes": [],
+      "styles": []
+    },
+    "widgets": [],
+    "publicContracts": []
+  },
+  "documentation": {
+    "installed": {
+      "readme": {
+        "path": "README.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "prd": {
+        "path": "prd.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "changelog": {
+        "path": "CHANGELOG.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      }
+    },
+    "development": {
+      "agents": {
+        "path": "AGENTS.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "files": {
+        "path": "FILES.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "interview": {
+        "path": "interview.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "todo": {
+        "path": "TODO.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      }
+    },
+    "versionBinding": {
+      "moduleVersion": "0.0.0",
+      "sourceRevision": "t20-crm-v1"
+    },
+    "localRevisions": {
+      "installedVersionDistinct": true,
+      "approvedImmutable": true
+    },
+    "installationHistory": {
+      "distinctFromPackageChangelog": true
+    }
+  },
+  "validation": {
+    "gate": "gate.mjs",
+    "suites": {
+      "backend": {
+        "mode": "required",
+        "script": "ci/backend.mjs",
+        "tests": [
+          "tests/backend/contract.test.mjs"
+        ]
+      },
+      "ui": {
+        "mode": "required",
+        "script": "ci/ui.mjs",
+        "tests": [
+          "tests/ui/contract.test.mjs"
+        ]
+      },
+      "api-mcp": {
+        "mode": "required",
+        "script": "ci/api-mcp.mjs",
+        "tests": [
+          "tests/api-mcp/contract.test.mjs"
+        ]
+      },
+      "widgets": {
+        "mode": "not-applicable",
+        "script": "ci/widgets.mjs",
+        "tests": [
+          "tests/widgets/contract.test.mjs"
+        ],
+        "justification": {
+          "reason": "No visual widget is needed for CRM operations; MCP tools return text.",
+          "policyRule": "crm.text-tools"
+        }
+      },
+      "package": {
+        "mode": "required",
+        "script": "ci/package.mjs",
+        "tests": [
+          "tests/package/contract.test.mjs"
+        ]
+      },
+      "docs": {
+        "mode": "required",
+        "script": "ci/docs.mjs",
+        "tests": [
+          "tests/docs/contract.test.mjs"
+        ]
+      }
+    },
+    "policy": {
+      "id": "creezio.local-contracts",
+      "version": "1.0.0",
+      "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
+    },
+    "isolation": {
+      "productionSecrets": false,
+      "publicationRights": false
+    },
+    "evidence": {
+      "sourceIntegrity": true,
+      "artifactIntegrity": true,
+      "profile": true,
+      "executedSuites": true
+    }
+  },
+  "packaging": {
+    "runtime": {
+      "files": [
+        "module/manifest.json",
+        "module/models.json",
+        "module/entry.server.ts",
+        "module/operations.ts",
+        "module/service.ts",
+        "ui/index.tsx",
+        "ui/editing.ts",
+        "ui/commands.ts",
+        "ui/kanban.tsx",
+        "README.md",
+        "prd.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "plugin/plugin.json",
+        "plugin/mcp.json",
+        "plugin/contributions.ts"
+      ],
+      "references": []
+    },
+    "validation": {
+      "files": [
+        "AGENTS.md",
+        "FILES.md",
+        "interview.md",
+        "TODO.md",
+        "gate.mjs",
+        "module/generate-manifest.mjs",
+        "ci/run-suite.mjs",
+        "tests/helpers.mjs",
+        "ci/backend.mjs",
+        "tests/backend/contract.test.mjs",
+        "ci/ui.mjs",
+        "tests/ui/contract.test.mjs",
+        "ci/api-mcp.mjs",
+        "tests/api-mcp/contract.test.mjs",
+        "ci/widgets.mjs",
+        "tests/widgets/contract.test.mjs",
+        "ci/package.mjs",
+        "tests/package/contract.test.mjs",
+        "ci/docs.mjs",
+        "tests/docs/contract.test.mjs"
+      ],
+      "references": []
+    },
+    "validationBinding": {
+      "moduleId": "creezio.crm",
+      "moduleVersion": "0.0.0",
+      "sourceRevision": "t20-crm-v1"
+    },
+    "noRuntimeTests": true,
+    "installation": "build-and-publish",
+    "providerInstallation": false
+  },
+  "lifecycle": {
+    "deactivation": "preserve-data",
+    "configuration": "explicit-state",
+    "uninstall": "explicit-approved-action",
+    "activationRequirements": [],
+    "absent": {
+      "widgets": {
+        "reason": "MCP tools provide text results without a CRM widget.",
+        "policyRule": "crm.text-tools"
+      },
+      "files": {
+        "reason": "CRM v1 has no file category.",
+        "policyRule": "crm.no-files"
+      }
+    },
+    "dependencyChanges": {
+      "install": "resolve-explicit-consumer-selection",
+      "activate": "require-active-dependencies",
+      "update": "validate-dependent-contracts",
+      "deactivate": "block-or-explicit-dependent-plan",
+      "uninstall": "block-or-explicit-dependent-plan",
+      "data": "preserve"
+    }
+  }
+}

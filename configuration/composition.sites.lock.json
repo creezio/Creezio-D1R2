@@ -8,7 +8,7 @@
     "version": "1.0.0",
     "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
   },
-  "compositionIntegrity": "sha256-7440c8cec2fbde2463e1a697bf9aeb9151ac3b79225c4081705b8b73cafe45c8",
+  "compositionIntegrity": "sha256-9ffb4e24b1a0f4162bef6e7820a3ec522a645bfd60942f4826ad98045d66196c",
   "modules": [
     {
       "moduleId": "creezio.access",
@@ -203,6 +203,37 @@
         "location": {
           "kind": "local",
           "path": ".creezio/module-artifacts/creezio.messaging/validation-f4ac7e930692bfb3b3bbd0013c618bd7e5ca2a42e28b9607547cdae200b9c4d6.tgz"
+        }
+      },
+      "dependencies": [
+        {
+          "moduleId": "creezio.access",
+          "version": "0.0.0"
+        }
+      ]
+    },
+    {
+      "moduleId": "creezio.crm",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "version": "0.0.0",
+      "source": {
+        "kind": "snapshot",
+        "revision": "t20-crm-v1",
+        "integrity": "sha256-2ba62e4dfebdc1e0fec8830ef369a1e0a81e55a73376c409399aebdab02ed7b5"
+      },
+      "contractIntegrity": "sha256-b66d941c06bbcf709c225e7f139a87a5cc3bff90704cfb36a06d62826ee83aaf",
+      "runtime": {
+        "integrity": "sha256-3d411852804c156098d934e7cc3a32d799a68c5f82224696b4cad717e56e279b",
+        "location": {
+          "kind": "local",
+          "path": ".creezio/module-artifacts/creezio.crm/runtime-3d411852804c156098d934e7cc3a32d799a68c5f82224696b4cad717e56e279b.tgz"
+        }
+      },
+      "validation": {
+        "integrity": "sha256-231d94a6e9885ef6f13a6cb7df58fc0cbc10e0947f604980571718f3761f28f8",
+        "location": {
+          "kind": "local",
+          "path": ".creezio/module-artifacts/creezio.crm/validation-231d94a6e9885ef6f13a6cb7df58fc0cbc10e0947f604980571718f3761f28f8.tgz"
         }
       },
       "dependencies": [

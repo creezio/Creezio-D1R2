@@ -85,9 +85,9 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-38](#T-38) | P8 | Adoption des mises à jour et contributions | Fork initial de [T-37](#T-37) | En cours — module 0.1.2 adopté ; widgets historiques et cycle durable qualifiés, recette Cloudflare Lab ouverte |
 | [T-39](#T-39) | P9 | Recette ciblée puis exhaustive | Preuves initiales de [T-38](#T-38) | En cours — flux Site A, conservation Site B et refus ciblés qualifiés ; Cloudflare et consolidation ouverts |
 | [T-17](#T-17) | P5 | Tâches humaines et travail | [T-11](#T-11), [T-14](#T-14) | À faire — dernier bloc |
-| [T-18](#T-18) | P5 | Messagerie native | [T-11](#T-11), [T-14](#T-14) | En cours — adaptation du webmail original et des données |
+| [T-18](#T-18) | P5 | Messagerie native | [T-11](#T-11), [T-14](#T-14) | Tranche locale intégrée PR #42 ; transport externe et recettes hébergées ouverts |
 | [T-19](#T-19) | P5 | Support | [T-11](#T-11), [T-17](#T-17), [T-18](#T-18) | À faire — après première app |
-| [T-20](#T-20) | P5 | CRM | [T-11](#T-11) | À faire — après première app |
+| [T-20](#T-20) | P5 | CRM | [T-11](#T-11) | En cours — intégration, revue et recette du module natif |
 | [T-21](#T-21) | P5 | Pages et navigation | [T-11](#T-11), [T-13](#T-13) | À faire — après première app |
 | [T-22](#T-22) | P5 | Analytics et diagnostics | [T-11](#T-11), [T-17](#T-17) | À faire — après première app |
 | [T-23](#T-23) | P5 | Intentions et développement piloté | [T-12](#T-12), [T-17](#T-17) | À faire — dernier bloc, plan et accord explicite préalables |
@@ -291,7 +291,7 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 - Dépendances : [T-11](#T-11), [T-14](#T-14).
 - Travail/livrables : Module messaging : boîtes/messages/brouillons/pièces jointes et port de transport.
 - Réalisation : adaptation des écrans `packages/mails/ui` du kit original dans le module standard, avec les données D1/R2 et les opérations communes ; aucun service SMTP/IMAP ni ordonnanceur hébergé dans le socle. Le périmètre sans transport conserve lecture et rédaction, avec envoi/réception explicitement indisponibles.
-- Acquis locaux : six suites, moteur D1/R2 réel et transports HTTP/MCP avec jeton machine ; corrections UI relues sur `893eb44`. La [note T18](IMPLEMENTATION-T18.md) détaille les droits, fichiers, conflits et filtres testés, les deux fixtures CI corrigées et le plafond des outils du chat à traiter. Restent CI finale, recette navigateur et fournisseur externe ; la tâche complète n'est pas terminée.
+- Acquis locaux : PR #42 fusionnée sur `92b0958`, même arbre que le candidat `4318bda`, revue indépendante exacte et CI 1 186/1 186 sans omission. Le navigateur conserve boîte et brouillon après sauvegardes, reload et changement d’onglet ; la pièce jointe téléchargée correspond au hash original. Upload réalisé par API native, sélecteur de fichiers navigateur non exercé. La [note T18](IMPLEMENTATION-T18.md) détaille les autres preuves et limites. Restent fournisseur externe, widgets, limites chat, partage de boîte entre interfaces et recettes hébergées ; le lot complet reste ouvert.
 - Besoin : [US-18](USER-STORIES.md#US-18). Acceptation : [REQ-1801](EXIGENCES.md#REQ-1801).
 - Validation : implémenter puis exécuter les recettes liées, sur **workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
@@ -309,9 +309,10 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 <a id="T-20"></a>
 ## T-20 — CRM
 
-- Lot : **P5** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P5** ; état : **en cours** ; responsable : root, réalisation/revues avec les agents Sol ; branche `core/t20-native-crm`.
 - Dépendances : [T-11](#T-11).
-- Travail/livrables : Module crm, entités/relations/recherche et vues.
+- Travail/livrables : Module crm, entités/relations/recherche et vues. Première tranche : trois modèles, vingt et une opérations, front et workspace déclarés, révisions de formulaire et suivi des mutations incertaines.
+- Acquis ciblés : suites du module, intégration réelle D1 et HTTP/MCP, partage ADMIN/APP autorisé, refus de scope, révocation, cohérence des relations et course concurrente. Restent revue/CI du candidat intégré et recette navigateur, puis profils hébergés et contrats intermodules. Voir [T20](IMPLEMENTATION-T20.md).
 - Besoin : [US-20](USER-STORIES.md#US-20). Acceptation : [REQ-2001](EXIGENCES.md#REQ-2001).
 - Validation : implémenter puis exécuter les recettes liées, sur **workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.

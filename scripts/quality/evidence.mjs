@@ -46,7 +46,7 @@ export function tapFailureExcerpt(output, {maxFailures = 5, maxChars = 12000} = 
 
 /** Each approved suite is mandatory; a missing directory cannot silently shrink coverage. */
 export function collectRequiredTests(root) {
-  const suites = ['quality', 'contracts', 'runtime', 'identity', 'data', 'operations', 'workspace', 'registry', 'local', 'oauth', 'mcp', 'modules', 'front', 'conversations', 'openai', 'widgets', 'cloudflare'];
+  const suites = ['quality', 'contracts', 'runtime', 'identity', 'data', 'operations', 'workspace', 'registry', 'local', 'oauth', 'mcp', 'modules', 'front', 'conversations', 'openai', 'widgets', 'cloudflare', 'crm'];
   const files = [];
   for (const suite of suites) {
     const directory = resolve(root, 'tests', suite);

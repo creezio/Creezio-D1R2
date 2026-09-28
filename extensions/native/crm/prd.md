@@ -1,0 +1,9 @@
+# T20 — CRM natif
+
+REQ-2001 et US-20 : un collaborateur doté de `crm.use` crée, lit, recherche, modifie et archive des entreprises, contacts et prospects dans son contexte. Une même fiche reste visible depuis le workspace ADMIN et l'API/MCP APP si les deux audiences sont autorisées pour le principal ; l'autorisation de chaque audience est contrôlée séparément. Il relie un contact à une entreprise et un prospect à un contact ou une entreprise du même contexte. Une cible supprimée, archivée, hors portée ou incompatible est refusée. Les écritures concurrentes se règlent par révision attendue et comparaison au commit.
+
+La vue Prospection reprend les cinq colonnes, les cartes et le panneau de notes du Creezio original. L'ancienne suppression physique et la validation de colonne seulement côté client sont corrigées par archivage et validation serveur. Contacts et entreprises complètent la demande T20 ; ils ne proviennent pas d'un écran CRM d'origine identifié.
+
+Le manifeste fournit aussi la vue et la navigation du front, consommées automatiquement par les thèmes sous les droits de l’audience APP. Le front headless utilise les mêmes API. Un formulaire reste lié à sa révision d’ouverture et survit à l’inactivité du panneau ; changer d’identité ou de contexte purge ses valeurs. Une mutation incertaine conserve sa clé et bloque une seconde émission tant que le statut natif n’est pas connu. Un refus de lecture du statut ne prouve pas l’échec de l’écriture. La conservation préalable de ce suivi dans le panneau est requise avant l’envoi.
+
+Hors de cette tranche : raccords Work T17, IA T23/T24, premium T34, accès code T35, comptes/opérations/OAuth complémentaires, relation intermodule sans contrat fournisseur public. Aucun service CRM externe n'est hébergé.

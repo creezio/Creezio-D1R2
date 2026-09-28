@@ -99,6 +99,18 @@
       "enabled": true,
       "configuration": [],
       "integrations": []
+    },
+    {
+      "moduleId": "creezio.crm",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/native/crm"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
     }
   ],
   "front": {
@@ -113,7 +125,8 @@
         "example.workspace-witness",
         "creezio.conversations",
         "creezio.openai",
-        "creezio.messaging"
+        "creezio.messaging",
+        "creezio.crm"
       ]
     },
     "app": {
@@ -123,7 +136,8 @@
         "creezio.theme-standard",
         "creezio.conversations",
         "creezio.openai",
-        "creezio.messaging"
+        "creezio.messaging",
+        "creezio.crm"
       ]
     }
   }

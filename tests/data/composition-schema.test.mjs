@@ -16,7 +16,8 @@ function inputs({accessOnly = false} = {}) {
       json('../../extensions/native/conversations/module/manifest.json'),
       json('../../extensions/native/openai/module/manifest.json'),
       json('../../extensions/native/delivery/module/manifest.json'),
-      json('../../extensions/native/messaging/module/manifest.json')]};
+      json('../../extensions/native/messaging/module/manifest.json'),
+      json('../../extensions/native/crm/module/manifest.json')]};
   if (!accessOnly) return input;
   input.composition.modules = input.composition.modules.filter(item => item.moduleId === 'creezio.access');
   input.lock.modules = input.lock.modules.filter(item => item.moduleId === 'creezio.access');
@@ -31,10 +32,10 @@ function relock(input) {
   return input;
 }
 
-test('composed compiler includes all six native modules and freezes the runtime projection', async () => {
+test('composed compiler includes all seven native modules and freezes the runtime projection', async () => {
   const input = inputs(), plan = compileCompositionSchema(input);
   assert.deepEqual(plan.runtimeCatalog.modules.map(module => [module.moduleId, module.models.length]),
-    [['creezio.access', 28], ['creezio.conversations', 8], ['creezio.delivery', 0], ['creezio.messaging', 5], ['creezio.modules-settings', 4], ['creezio.openai', 2]]);
+    [['creezio.access', 28], ['creezio.conversations', 8], ['creezio.crm', 3], ['creezio.delivery', 0], ['creezio.messaging', 5], ['creezio.modules-settings', 4], ['creezio.openai', 2]]);
   assert.deepEqual(plan.runtimeCatalog.modules.find(module => module.moduleId === 'creezio.modules-settings')
     .models.map(model => model.modelId), ['head', 'journal', 'plan-outcomes', 'plans']);
   const conversations = input.modules[2].contracts.models;
@@ -46,7 +47,9 @@ test('composed compiler includes all six native modules and freezes the runtime 
   assert.equal(describeD1Schema('creezio.conversations',conversations).objects.length,17);
   const messaging = input.modules.find(module => module.identity.id === 'creezio.messaging').contracts.models;
   assert.deepEqual(messaging.map(model => model.id).sort(), ['box', 'draft', 'draft_attachment', 'file_metadata', 'message']);
-  assert.equal(plan.objects.length, 74 + 4 + 17 + 2 + hostObjects + describeD1Schema('creezio.messaging', messaging).objects.length);
+  const crm=input.modules.find(module=>module.identity.id==='creezio.crm').contracts.models;
+  assert.equal(plan.objects.length, 74 + 4 + 17 + 2 + hostObjects + describeD1Schema('creezio.messaging', messaging).objects.length
+    +describeD1Schema('creezio.crm',crm).objects.length);
   assert.equal(plan.host.moduleId, OPERATION_STORAGE_MODULE_ID);
   assert.deepEqual(plan.host.models.map(entry => entry.modelId), ['approvals', 'attempts', 'audit', 'executions', 'outbox']);
   assert.equal(plan.runtimeCatalog.modules.some(module => module.moduleId === OPERATION_STORAGE_MODULE_ID), false);

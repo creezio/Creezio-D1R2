@@ -25,3 +25,9 @@ La première CI complète a révélé deux fixtures restées sur cinq modules : 
 Limite du chat interne à traiter dans T15 : sa projection retient au plus seize outils autorisés. Un compte disposant de nombreux droits peut donc ne pas recevoir les outils Messaging, même si son API et son MCP les exposent correctement. Le diagnostic `catalog:limit` existe, mais la sélection des modules/outils et sa recette doivent être complétées avant d'annoncer leur disponibilité générale dans le chat. Le module reste utilisable dans son interface sans LLM.
 
 Les liens aux tâches humaines restent reportés avec T17. Les compléments de comptes, données, opérations et OAuth reportés par l'utilisateur ne sont pas ajoutés par ce lot.
+
+## Intégration et recette locale du 28 septembre
+
+PR #42 fusionnée sur main `92b0958b9f5d8ae3885a708b06333449b4e9714d`, arbre identique au candidat `4318bdabc1e7fa8b59dead23ce553d9647de2753`. La CI du candidat a réussi 1 186/1 186 tests sans omission, avec revue indépendante exacte. Le dernier correctif réserve 52 lectures pour la page maximale des pièces jointes : deux contrôles boîte/brouillon et jusqu’à cinquante références.
+
+La recette navigateur locale a confirmé deux boîtes, trois sauvegardes du même brouillon avec lecteur à jour, retour après rechargement et changement d’onglet, puis affichage et téléchargement d’une pièce jointe de contenu identique. L’upload est passé par l’API native car le navigateur automatisé ne permettait pas son sélecteur sans élargir une permission ; aucune permission navigateur n’a été changée. La déconnexion finale est confirmée. La politique de partage de boîte entre audiences reste à préciser. Ces preuves locales ne qualifient ni fournisseur de courrier ni déploiement hébergé.
