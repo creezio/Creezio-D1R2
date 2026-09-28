@@ -10,7 +10,7 @@ Le paquet distribue le journal public des commandes de panneau, les descripteurs
 
 ## En cours — connecteurs externes déclaratifs et n8n (T26)
 
-Le SDK candidat 1.2 ajoute les descripteurs et le port de connecteur génériques. Les modules déclarent leurs ressources GET et leurs modèles privés de configuration/coffre ; le Worker les compose sans branche spéciale par fournisseur. Le module n8n configure une instance externe et propose la lecture autorisée des workflows/exécutions. Les mutations distantes, callbacks et recettes fournisseur restent ouverts ; aucun n8n n'est embarqué. Voir [T26](docs/IMPLEMENTATION-T26.md).
+Le SDK public 1.2 ajoute les descripteurs et le port de connecteur génériques. Les modules déclarent leurs ressources GET et leurs modèles privés de configuration/coffre ; le Worker les compose sans branche spéciale par fournisseur. Le module n8n configure une instance externe et propose la lecture autorisée des workflows/exécutions. Les mutations distantes, callbacks et recettes fournisseur restent ouverts ; aucun n8n n'est embarqué. Voir [T26](docs/IMPLEMENTATION-T26.md).
 
 ## En cours — Support, pages, analytics et catalogue (T19/T21/T22/T25)
 
@@ -18,7 +18,7 @@ Trois modules natifs rejoignent la composition du socle et des thèmes : tickets
 
 ## En cours — messagerie partagée et journal SDK (T18/T30)
 
-Un utilisateur autorisé retrouve les mêmes boîtes, brouillons et pièces jointes dans le workspace et le front. Les modèles sont rattachés au principal et au contexte ; les permissions restent distinctes par audience. Le SDK candidat 1.2 expose un journal de mutation qui conserve la clé avant émission, bloque le nouvel envoi après une issue incertaine et vérifie le statut sans replay. Les archives SDK déjà publiées restent inchangées. Voir [T18](docs/IMPLEMENTATION-T18.md) et [le contrat SDK](sdk/operations/README.md).
+Un utilisateur autorisé retrouve les mêmes boîtes, brouillons et pièces jointes dans le workspace et le front. Les modèles sont rattachés au principal et au contexte ; les permissions restent distinctes par audience. Le SDK public 1.2 expose un journal de mutation qui conserve la clé avant émission, bloque le nouvel envoi après une issue incertaine et vérifie le statut sans replay. Les archives SDK déjà publiées restent inchangées. Voir [T18](docs/IMPLEMENTATION-T18.md) et [le contrat SDK](sdk/operations/README.md).
 
 ## En cours — CRM natif (T20)
 

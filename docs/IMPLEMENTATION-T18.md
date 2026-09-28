@@ -36,7 +36,7 @@ La CI de main a également réussi 1 186/1 186 tests sans omission lors de la de
 
 La recette navigateur locale a confirmé deux boîtes, trois sauvegardes du même brouillon avec lecteur à jour, retour après rechargement et changement d’onglet, puis affichage et téléchargement d’une pièce jointe de contenu identique. L’upload est passé par l’API native car le navigateur automatisé ne permettait pas son sélecteur sans élargir une permission ; aucune permission navigateur n’a été changée. La déconnexion finale est confirmée. Cette recette précède la décision de partage ; elle ne qualifie ni le nouveau parcours entre interfaces, ni fournisseur de courrier, ni déploiement hébergé.
 
-## Partage et reprise des commandes — candidate SDK 1.2
+## Partage et reprise des commandes — SDK 1.2
 
 Le test réel D1/R2 de la nouvelle candidate vérifie le partage ADMIN vers APP et APP vers ADMIN, les révisions communes des brouillons, les octets des pièces jointes dans les deux interfaces et les refus entre principals et contextes. Une révocation admin laisse la lecture applicative autorisée disponible. Les témoins locaux antérieurs sont conservés ; aucun schéma incompatible n'est appliqué implicitement.
 
