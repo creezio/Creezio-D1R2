@@ -1,9 +1,9 @@
 # Backlog de réalisation
-Révision 35 — 28 septembre 2026. **Chantiers actifs : fork Lab T-37 et préparation de mise à jour T-38.** PR #1 à #29 intégrées ; le main `eb97109493b3a945eaa882c216591bc468764014` a réussi 1 152/1 152 tests CI. Le SDK `sdk-v1.1.0`, le starter `module-v0.1.0` et la release source initiale `app/v0.0.0` sont publics. Le Site A a été qualifié dans le périmètre initial ; le vrai fork public Creez-io/Creezio-Lab et son Site B existent, sans publication du Site B à ce stade. Les recettes exhaustives T-36 et la démo Cloudflare restent ouvertes. Les exigences demeurent inchangées.
+Révision 36 — 28 septembre 2026. **Release initiale de l’original publiée ; jalon première app en cours.** Nouveau Site A publié ; Site B et adoption T-38 en cours. Core main `f1c1943973b454dccd4dc56cb35305c891fea12d` : CI 1 162/1 162 ; Lab main `78a601833e65713032ffb9b1dc573848677ac34a` : CI 1 157/1 157. SDK `sdk-v1.1.0`, starter `module-v0.1.2` et original `app/v0.0.1` publics. Le registre web et son propriétaire GitHub réel sont qualifiés ; projet Lab enregistré. L’ancien Site A a été qualifié sur l’ancien compte, inaccessible depuis le compte courant ; le nouveau Site A du compte courant est publié depuis `43b8ab4fa2c1855fd6576a18f803ecde37e3e622` avec registre synchronisé ; le nouveau Site B est créé et construit, sans publication runtime. Les jetons registre Lab attendent l’autorisation utilisateur. Le module Lab installé reste en 0.1.0 malgré le plan 0.1.2 accepté. Aucun lot partiel n’est déclaré entièrement vérifié.
 
 ## Jalon prioritaire : première app utilisable
 
-T-14 et la tranche T-15 nécessaire à la première app sont intégrés et qualifiés en local et sur Sites. Poursuivre T-16 (outils/widgets), et la tranche T-30 qui installe depuis un vrai paquet un **seul module métier témoin** avec son starter et sa démo. Raccorder l'enregistrement et la publication nécessaires (T-08, T-09 pour Sites, T-31 et T-32 pour Docker → Cloudflare), puis produire une **version initiale** de l'original A et du vrai fork B (T-36/T-37), prouver installation et mise à jour du paquet et du socle (T-38), et exécuter une recette **ciblée** des deux apps et des parcours retenus (T-39). Sites et Cloudflare sont deux qualifications indépendantes du même code ; l'une ne sert pas de prérequis technique artificiel à l'autre.
+T-14/T-15, le SDK et le paquet témoin sont consommables ; l’original 0.0.1 et le fork Lab ont leurs mains qualifiés. La priorité est maintenant de qualifier les parcours du nouveau Site A publié, de publier et qualifier le nouveau Site B avec des témoins D1/R2, puis d’adopter 0.1.2 dans un changement distinct et de vérifier la conservation sur le même Site B. La qualification Cloudflare directe reste indépendante ; T-39 rassemble la recette ciblée des deux apps. Les lots différés et les recettes exhaustives restent ouverts.
 
 Après ce jalon viennent T-17 à T-29 (dont le catalogue métier complet T-25), T-33 à T-35, puis les compléments et la recette exhaustive de T-36/T-39. Cela conserve leurs exigences et leurs preuves futures. Une tranche initiale livrée ne fait pas passer automatiquement le lot entier à « vérifié » ; seuls les critères et profils réellement exercés le sont.
 
@@ -20,18 +20,18 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-05 — Données | Compilation SQL centrale, accès D1 protégé, fichiers R2 et coffre | Explorateur, recherche, export/restauration, évolutions de modèles restantes et recettes hébergées | Fondations acquises ; autres fonctions à construire |
 | T-06 — Opérations | Registre/exécuteur intégrés PR #15 ; bindings HTTP et suivi par clé PR #16 | Événements, approbations, interopérations et autres transports | Fondations disponibles ; compléments au backlog |
 | T-07 — Workspace | Composants originaux adaptés, panneaux/états/titres et recette navigateur intégrés PR #16 | Qualification Sites et raccordement des modules produit | Livrable local disponible |
-| T-08 — Registre central | PR #17 intégrée ; Worker Cloudflare, service/client/journal et reprise réelle ; callback OAuth GitHub réel vérifié après correction du transport Worker | Raccords des publishers ; page propriétaire de registre candidate à tester puis publier ; email non configuré | Identité GitHub réelle acquise ; onboarding navigateur non encore qualifié |
-| T-09 — Sites | Worker commun publié ; compte natif, chat admin/front et données D1/R2 conservés après publication T15 ; nouvelle cible et widget Modules vérifiés T16 | Module métier et application dérivée | Première tranche hébergée qualifiée |
+| T-08 — Registre central | PR #31 intégrée ; UI web publiée ; propriétaire GitHub réel vérifié et projet Lab `7234b2de-e2a1-4eec-a2ce-a7f18426f200` enregistré | Installations Sites/Cloudflare propres au Lab, raccord de publication et email | Onboarding propriétaire acquis dans ce périmètre ; intégration de livraison ouverte |
+| T-09 — Sites | Ancien Site A qualifié avant changement de compte ; nouveau Site A original publié sur le compte courant avec registre synchronisé ; nouveau Site B créé et build qualifié | Qualifier les parcours du nouveau A, publier B puis vérifier accès, D1/R2 et recettes des deux apps | Runtime A publié ; B non publié ; lot incomplet |
 | T-10 — MCP/OAuth | Deux catalogues et OAuth natif intégrés ; connexion réelle ChatGPT au MCP admin, consentement limité et widget Modules vérifiés sur le nouveau Site | Recette ChatGPT du MCP applicatif et autres interactions | Première connexion hébergée qualifiée |
 | T-11 — Modules | PR #20 : catalogue, dépendances, plans D1 et UI originale ; recettes locales et CI, 908 tests | Raccords publication et hébergements ; distribution complète T-30 | Livrable local disponible |
 | T-12 — Documentation | PR #21 : README/PRD/changelog exacts, UI/API/MCP et recettes locales/CI, 923 tests | Recettes hébergées transversales ; édition des PRD de travail en T-23 | Documents installés vérifiés localement |
 | T-13 — Fronts et thèmes | PR #22 : deux thèmes, projection native app, headless, recettes navigateur et CI ; 953 tests | Recette Sites | Livrable local disponible |
 | T-14 — Conversations | PR #23 : chat original, historique, brouillons D1, fichiers R2, autorisations ; recette Sites avec T15 | Enrichissement widgets et autres compléments | Livrable local et Sites disponible |
 | T-15 — OpenAI | PR #24 intégrée ; réponses réelles locales/Sites, front/workspace ; reprise et arrêt locaux ; CI 993 tests | Outils widgets T16, compléments fournisseur/voix | Première tranche locale et Sites qualifiée |
-| T-16 — Widgets | PR #25 intégrée ; hôte MCP Apps, trois modes, trois widgets de deux modules, reprise et droits ; 1 019 tests locaux/CI ; widget natif et lecture directe sur Sites et ChatGPT avec CSP activée | Module métier, autres interactions ChatGPT et approbation humaine en navigateur | Première recette ChatGPT qualifiée ; compléments avec le témoin |
-| T-30 — SDK/starter | PR #26 fusionnée, CI main 1 039/1 039 ; SDK `sdk-v1.0.0` public ; PR starter #1 fusionnée, release publique `module-v0.1.0` ; démo indépendante locale API/D1/R2/OpenAI/deux widgets/UI originale | Boutons internes des iframes et publication Cloudflare de la démo ; extensions du lot au-delà du premier témoin | Distribution initiale acquise ; qualification Cloudflare suivie en T-32 |
+| T-16 — Widgets | Hôte MCP Apps intégré ; en Linux Lab, actions direct/message/contexte exercées au clavier et trois tours OpenAI réels observés avec module 0.1.0 | Recettes ChatGPT et Sites du compte courant, autres modules et approbation humaine ; prouver séparément l’usage du contexte par le modèle | Snapshot du troisième tour = capture durable, pas preuve d’injection modèle |
+| T-30 — SDK/starter | SDK `sdk-v1.1.0` et starter `module-v0.1.2` publics ; démo locale initiale et actions internes des widgets Lab Linux exercées par Tab/Return | Publication Cloudflare de la démo et critères du lot au-delà du témoin ; clic pointeur iframe non observé | Distribution acquise dans ce périmètre, lot incomplet |
 | T-31 — Docker local | PR #17 intégrée ; compte/D1/R2, redémarrage/recréation/restauration vérifiés en Docker | Recettes des futurs modules et routes de fichiers | Livrable local disponible |
-| T-32 — Cloudflare direct | Première publication et premier update réels de l'original qualifiés : Worker/assets, D1/R2, registre, témoins conservés, OpenAI et arrêt Docker ; CI Linux du merge d'essai 1 152/1 152 | Démo Cloudflare et autres reprises ; global Windows local incomplet | **En cours après fusion PR #28 ; original publié et mis à jour, SDK 1.1.0 public, lot incomplet** |
+| T-32 — Cloudflare direct | Original publié et mis à jour sur Cloudflare avec D1/R2 conservés ; Core main `f1c1943`, CI 1 162/1 162 | Démo Cloudflare, installations Lab propres et autres reprises | Original qualifié dans ce profil, lot incomplet |
 | Autres lots T-17 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, publications et recette finale | À réaliser selon le jalon prioritaire |
 
 ## Règles de suivi
@@ -180,12 +180,12 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-08"></a>
 ## T-08 — Registre minimal et identité de publication
 
-- Lot : **P1** ; état : **en cours** ; parcours web propriétaire candidat sur `core/t08-registry-onboarding`, sans publication acquise.
+- Lot : **P1** ; état : **en cours** ; onboarding propriétaire publié et qualifié dans son périmètre, raccords de livraison ouverts ; PR #31, main `72b91609403a726a4e5139155a4ed6efd17c132e`.
 - Dépendances : [T-04](#T-04), [T-05](#T-05), [T-06](#T-06).
 - Travail/livrables : Service central séparé, vérification GitHub/email, token d’installation et contrôle de publication ; bootstrap documenté.
 - Besoin : [US-08](USER-STORIES.md#US-08). Acceptation : [REQ-0801](EXIGENCES.md#REQ-0801), [REQ-0802](EXIGENCES.md#REQ-0802), [REQ-0803](EXIGENCES.md#REQ-0803).
 - Validation : implémenter puis exécuter les recettes liées, sur **service central et app cliente** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : service et callback GitHub réel qualifiés dans leur périmètre ; les lectures propriétaires et l'écran d'inscription restent à vérifier par CI et navigateur sur le registre publié. Renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : registre web déployé avec DB et OAuth conservés ; propriétaire GitHub vérifié par le parcours réel et projet Lab `7234b2de-e2a1-4eec-a2ce-a7f18426f200` enregistré. Les installations Sites/Cloudflare propres au Lab et le raccord des publishers restent distincts ; voir les artefacts opérateur T08 et la capture du projet Lab hors dépôt.
 
 <a id="T-09"></a>
 ## T-09 — Première tranche sur Sites
@@ -263,13 +263,13 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-16"></a>
 ## T-16 — Widgets et plugins conversationnels compatibles GPT
 
-- Lot : **P4** ; état : **tranche intégrée, qualification hébergée en cours** ; responsables : orchestrateur et agents Sol.
+- Lot : **P4** ; état : **en cours** ; tranche intégrée, recettes Linux Lab acquises dans leur périmètre, qualifications hébergées courantes ouvertes ; responsables : orchestrateur et agents Sol.
 - Dépendances : [T-10](#T-10), [T-13](#T-13), [T-15](#T-15).
 - Travail/livrables : Hôte multiwidgets, ressources MCP Apps, paquet plugin/skills, modes message/contexte/direct par action, adaptateur GPT et recette réelle des trois modes dans les deux chats.
-- Réalisation en cours : [contrats et raccords T16](IMPLEMENTATION-T16.md). Recette locale de trois widgets de deux modules avec OpenAI réel, trois modes et reprise par lecture après réponse perdue ; aucun résultat local ne remplace la recette ChatGPT.
+- Réalisation en cours : [contrats et raccords T16](IMPLEMENTATION-T16.md). En Linux Lab préadoption 0.1.0, trois tours OpenAI réels et les actions widget direct/message/contexte ont été observés ; les boutons internes ont été activés par Tab/Return. L’ajout de contexte du troisième tour est capturé durablement dans son snapshot. Le même renseignement figurait aussi dans l’historique texte : le snapshot seul ne prouve pas que le modèle l’a utilisé.
 - Besoin : [US-16](USER-STORIES.md#US-16). Acceptation : [REQ-1601](EXIGENCES.md#REQ-1601), [REQ-1602](EXIGENCES.md#REQ-1602), [REQ-1603](EXIGENCES.md#REQ-1603), [REQ-1604](EXIGENCES.md#REQ-1604), [REQ-1605](EXIGENCES.md#REQ-1605), [REQ-1606](EXIGENCES.md#REQ-1606), [REQ-1607](EXIGENCES.md#REQ-1607).
 - Validation : implémenter puis exécuter les recettes liées, sur **chat Creezio et conversation ChatGPT** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : observations navigateur locales et artefacts T16 conservés hors du commit ; les contrôles globaux, la CI du candidat, Sites et la connexion ChatGPT ont leurs preuves distinctes avant clôture.
+- Preuves : `CREEZIO-T38-LAB-WIDGETS-LINUX-9FDB288-2026-09-28.json`, `CREEZIO-T38-LAB-WIDGET-CONTEXT-SNAPSHOT-THIRD-TURN-2026-09-28.json` et captures hors commit. Recettes ChatGPT et Sites du compte courant, clic pointeur dans l’iframe et approbation humaine restent à qualifier séparément.
 
 <a id="T-17"></a>
 ## T-17 — Tâches humaines et travail
@@ -409,7 +409,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Travail/livrables : Première tranche prioritaire : starter, paquet runtime réel, validation autonome, plugin et démo locale d'un seul module métier témoin, installé hors du checkout source. Les comparateurs, dépendances interéditeurs et intégrations facultatives restent dans le lot pour la suite ; ils ne conditionnent pas cette première app. Vérifier les droits avant toute distribution concernée ; publication de la démo qualifiée en T-32.
 - Besoin : [US-30](USER-STORIES.md#US-30). Acceptation : [REQ-3001](EXIGENCES.md#REQ-3001), [REQ-3002](EXIGENCES.md#REQ-3002), [REQ-3003](EXIGENCES.md#REQ-3003), [REQ-3004](EXIGENCES.md#REQ-3004).
 - Validation : implémenter puis exécuter les recettes liées, sur **tarball dans app de validation indépendante et démo locale** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : CI main Core 1 039/1 039 ; archives publiques SDK `sdk-v1.0.0` (SHA-256 `12671aa9bd8ddd480c6cb8e04975843ee10616f1ec3ecfe77d3beebbc52350c1`) et starter `module-v0.1.0`. Démo indépendante locale : API admin/app, D1/R2, OpenAI réel, deux widgets et UI originale vérifiés ; boutons internes des iframes non qualifiés. [Réalisation et limites](IMPLEMENTATION-T30.md). Publication Cloudflare de la démo suivie en T-32.
+- Preuves : SDK public `sdk-v1.1.0` et Starter public `module-v0.1.2` avec archives vérifiées. La démo indépendante locale a couvert API admin/app, D1/R2, OpenAI, deux widgets et UI originale. En Linux Lab préadoption 0.1.0, les boutons internes direct/message/contexte ont été exercés au clavier (Tab/Return) ; le contrôleur n’a pas réalisé de clic pointeur imbriqué dans l’iframe. [Réalisation et limites](IMPLEMENTATION-T30.md). Publication Cloudflare de la démo suivie en T-32.
 
 <a id="T-31"></a>
 ## T-31 — Docker local persistant
@@ -470,8 +470,8 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Travail/livrables : Version initiale de l’original avec manifeste versions/propriété, docs, artefacts et provenance selon Git flow ; compléter la release au fil des modules et qualifications différés. La première version publiée peut être consommée par T-37 sans déclarer T-36 entièrement vérifié.
 - Besoin : [US-36](USER-STORIES.md#US-36). Acceptation : [REQ-3601](EXIGENCES.md#REQ-3601), [REQ-3602](EXIGENCES.md#REQ-3602).
 - Validation : implémenter puis exécuter les recettes liées, sur **CI, Site A et artefacts publiés** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Version initiale : [`app/v0.0.0`](https://github.com/creezio/Creezio-D1R2/releases/tag/app/v0.0.0) depuis le main qualifié `eb971094` ; SDK/core/modules conservent leurs versions déclarées. Voir [preuves, usage et limites T36](IMPLEMENTATION-T36.md).
-- Preuves : archive source et notices publiées, CI main 1 152/1 152 et Site A qualifié dans son périmètre ; la recette complète et les profils restants demeurent ouverts. Le jalon initial est consommable par T-37.
+- Version initiale : [`app/v0.0.0`](https://github.com/creezio/Creezio-D1R2/releases/tag/app/v0.0.0) reste la preuve historique du jalon T36 ; [`app/v0.0.1`](https://github.com/creezio/Creezio-D1R2/releases/tag/app/v0.0.1) est la release originale publique actuelle, issue du main qualifié `a911e4d`. Voir [preuves, usage et limites T36](IMPLEMENTATION-T36.md).
+- Preuves : archives source et notices publiées ; Core main actuel `f1c1943`, CI 1 162/1 162. L’ancien Site A a été qualifié avant le changement de compte. Le nouveau Site A original `appgprj_6aba07912a888191b9dfbee5b65f2448` est publié depuis `43b8ab4fa2c1855fd6576a18f803ecde37e3e622` (déploiement `appgdep_6aba0ba9a92c8191b7ed6ce4fdf3a1da`, registre synchronisé). Son premier tour de chat s’est interrompu en `provider_unknown` ; la réponse et le widget ne sont pas qualifiés sur ce Site (`CREEZIO-SITES-ORIGINAL-CHAT-INTERRUPTED-2026-09-28.png`, hors dépôt). Le nouveau Site B est créé et construit, sans publication. La recette applicative courante et T36 complet restent ouverts.
 
 <a id="T-37"></a>
 ## T-37 — Vrai fork Creezio Lab et Site B
@@ -481,17 +481,17 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Travail/livrables : Vrai fork public Creez-io/Creezio-Lab de la version initiale, Site B et **un module métier témoin** avec thème/front propre ; les modules supplémentaires et le parcours complet de validation de budget suivent après la première app.
 - Besoin : [US-37](USER-STORIES.md#US-37). Acceptation : [REQ-3701](EXIGENCES.md#REQ-3701), [REQ-3702](EXIGENCES.md#REQ-3702).
 - Validation : implémenter puis exécuter les recettes liées, sur **GitHub et deux Sites publics** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : fork public `Creez-io/Creezio-Lab` créé depuis la source initiale et Site B public `appgprj_6ab9b5c3b8e0819183eaa7bcc167b204` créé mais non publié ; module métier, UI dérivée, publication et recette restent à qualifier.
+- Preuves : vrai fork public `Creez-io/Creezio-Lab`, main `78a601833e65713032ffb9b1dc573848677ac34a`, CI 1 157/1 157 ; projet enregistré dans le registre sous `7234b2de-e2a1-4eec-a2ce-a7f18426f200`. La provenance de l’ancien Site B est conservée ; le nouveau Site B `appgprj_6aba07af3a248191912848628c94b92d` existe sur le compte courant et son build Sites depuis main `78a6018` est qualifié (artefact `sha256-d7d508918fabc04b45b1fc1e7a8949defd6c5823ee479f37885d3f281ce6ab2e`). Il n’est pas publié et sa recette applicative reste ouverte ; les jetons registre Lab attendent l’autorisation utilisateur.
 
 <a id="T-38"></a>
 ## T-38 — Adoption des mises à jour et contributions
 
-- Lot : **P8** ; état : **en revue pour le raccord d'inventaire, recette non commencée** ; responsable : Codex et agents de revue ; branche `core/t38-package-updates`, PR #30.
+- Lot : **P8** ; état : **en cours** ; préparation intégrée sur Core/Lab, adoption réelle encore ouverte ; Core main `f1c1943`, Lab main `78a6018`.
 - Dépendances : fork initial utilisable de [T-37](#T-37).
 - Travail/livrables : Pour la première app, installation du vrai paquet témoin puis adoption, par le fork B, d'une nouvelle version issue de l'original A et mise à jour du module/thème sans perte des données ni du front, avec refus d'une mise à jour incompatible ; publication Cloudflare du fork via le parcours T-32. Les contributions amont et intégrations facultatives restantes gardent leurs preuves propres dans T-38.
 - Besoin : [US-38](USER-STORIES.md#US-38). Acceptation : [REQ-3801](EXIGENCES.md#REQ-3801), [REQ-3802](EXIGENCES.md#REQ-3802), [REQ-3803](EXIGENCES.md#REQ-3803).
 - Validation : implémenter puis exécuter les recettes liées, sur **A/B, Cloudflare, tarballs et GitHub** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : le Starter `module-v0.1.1` est public depuis son main `3eed4a18a47a2d993bd66304c93dcf9c5e9c2dcb`, avec les archives retéléchargées et vérifiées. Le préflight vérifie leurs trois empreintes ; le build expose uniquement les métadonnées candidates au gestionnaire existant. La mise en cache de la validation détachée pour l'adoption est explicite et préserve les verrous antérieurs. Les contrôles ciblés sont acquis ; revue et contrôle global du raccord final restent requis. Aucun remplacement installé, aucune mise à jour du fork ni conservation après cette mise à jour ne sont encore revendiqués. La [note T38 sur les certificats Docker](IMPLEMENTATION-T38.md) suit une contribution amont distincte, sans clore la recette du paquet.
+- Preuves : Starter `module-v0.1.2` public ; Lab PR #2 fusionnée par squash, main/CI 1 157/1 157 et tree identique à la candidate. La prévisualisation Linux du plan 0.1.0 → 0.1.2 a réussi et son acceptation UI porte la révision 1, référence `4a3c56cb-8b77-4243-bea5-f745522d9ff3`. Elle requiert encore publication et n’a pas installé 0.1.2 : le module actif est 0.1.0. La publication baseline du nouveau Site B, les jetons registre Lab soumis à autorisation utilisateur, puis la conservation après adoption restent ouverts. Voir la [note TLS Docker](IMPLEMENTATION-T38.md) et les preuves hors dépôt `CREEZIO-T38-LAB-PR2-MAIN-QUALIFICATION-2026-09-28.json` et `CREEZIO-T38-LAB-PLAN-012-E3F2D97-2026-09-28.json`.
 
 <a id="T-39"></a>
 ## T-39 — Recette finale et validation utilisateur

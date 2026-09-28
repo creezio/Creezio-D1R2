@@ -2,6 +2,10 @@
 
 Cette note porte sur un correctif du socle utilisé par le fork Lab. Elle ne clôt ni l'adoption du paquet, ni la mise à jour du fork prévues par [T-38](TODO.md#T-38). L'application Lab tourne avant l'adoption de la nouvelle version du module ; son Site B n'est pas encore qualifié.
 
+## État actuel, distinct de la preuve TLS
+
+Le correctif est intégré dans Core main `f1c1943` (CI 1 162/1 162) et Lab main `78a6018` (CI 1 157/1 157). Le Starter `module-v0.1.2` est public. En Linux Lab, la prévisualisation 0.1.0 → 0.1.2 a été acceptée en UI, révision 1, référence `4a3c56cb-8b77-4243-bea5-f745522d9ff3` ; elle n’installe pas le module et exige encore publication. Le module actif reste 0.1.0. Trois tours OpenAI et les actions widget direct/message/contexte ont été observés dans ce profil. Le snapshot du troisième tour prouve la capture durable du contexte, sans prouver son emploi par le modèle car le même renseignement figurait dans l’historique texte. Le nouveau Site A original est publié avec registre synchronisé ; le nouveau Site B est créé et son build Sites est qualifié, sans publication runtime. La conservation après adoption n’est pas encore qualifiée.
+
 ## Cause observée
 
 Sur l'image Linux Lab avant le correctif CA, le premier tour OpenAI s'est arrêté en état `unknown` sans identifiant de réponse durable. Un GET sans clé vers `https://api.openai.com/v1/models` répondait HTTP 401 JSON depuis Node, mais échouait depuis un Worker Miniflare/workerd avec `failed: TLS peer's certificate is not trusted; reason = unable to get local issuer certificate`. L'image `node:24-bookworm-slim` n'avait pas de bundle `/etc/ssl/certs/ca-certificates.crt`. Le transport ne peut enregistrer un reçu qu'après la première trame `response.created` ; cette erreur TLS survient avant toute réponse HTTP.

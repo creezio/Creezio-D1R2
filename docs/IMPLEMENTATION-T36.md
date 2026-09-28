@@ -18,6 +18,10 @@ Le périmètre de cette première archive est le source suivi par Git : cœur et
 
 Inventaire des notices : racine, SDK, thèmes, module `widgets-witness` et fixtures portent MIT ; les modules natifs Access, Conversations, Modules et extensions, et OpenAI indiquent des conditions non arrêtées (`NOASSERTION`) ; Delivery porte « All rights reserved ». Cette préversion de qualification conserve ces distinctions et ne présente pas l'ensemble comme couvert par MIT. Le mandat autorise sa publication et le fork de test ; il ne tranche pas les conditions commerciales futures.
 
+## État courant de la release initiale
+
+L’archive `app/v0.0.0` ci-dessus reste la preuve historique de la première release source. L’original `app/v0.0.1` est ensuite devenu public depuis `a911e4d` ; le main Core actuel `f1c1943` a une CI à 1 162/1 162. Le Site A qualifié ici appartient à l’ancien compte, inaccessible depuis le compte courant. Le nouveau Site A `appgprj_6aba07912a888191b9dfbee5b65f2448` est publié depuis la source `43b8ab4fa2c1855fd6576a18f803ecde37e3e622` (déploiement `appgdep_6aba0ba9a92c8191b7ed6ce4fdf3a1da`, registre synchronisé). Son premier tour de chat a fini interrompu en `provider_unknown` ; ni la réponse ni le widget ne sont qualifiés sur ce nouveau Site. La capture `CREEZIO-SITES-ORIGINAL-CHAT-INTERRUPTED-2026-09-28.png` est conservée hors dépôt. Sa recette applicative sur le compte courant reste ouverte et doit être enregistrée séparément.
+
 ## Limites du jalon
 
 La [qualification Cloudflare T32](IMPLEMENTATION-T32.md) couvre une première publication et une mise à jour réelles ; elle ne remplace pas la qualification Site A de cette release. La démo du starter et les intégrations non vérifiées restent ouvertes. Les modules T17–T29 et T33–T35, puis la recette complète [REQ-3602](EXIGENCES.md#REQ-3602), restent à traiter : ce jalon ciblé ne clôt pas T36.
