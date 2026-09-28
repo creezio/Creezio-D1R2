@@ -1,5 +1,9 @@
 # Changelog
 
+## Préparation SDK 1.2.0 — journal et contrats de connecteurs (T30)
+
+Le paquet distribue le journal public des commandes de panneau, les descripteurs de connecteurs GET et le type public limité de configuration des secrets. Les exports SDK 1.1 de livraison restent disponibles. Les changements fonctionnels sont intégrés par PR #44/#45 ; cette préparation fixe leurs documents de distribution, sans nouvelle fonctionnalité, changement de données ni adoption automatique par une app. Le paquet final sera construit depuis le main de la PR de release, puis son téléchargement sera vérifié avant publication. Voir [T30](docs/IMPLEMENTATION-T30.md).
+
 ## En cours — connecteurs externes déclaratifs et n8n (T26)
 
 Le SDK candidat 1.2 ajoute les descripteurs et le port de connecteur génériques. Les modules déclarent leurs ressources GET et leurs modèles privés de configuration/coffre ; le Worker les compose sans branche spéciale par fournisseur. Le module n8n configure une instance externe et propose la lecture autorisée des workflows/exécutions. Les mutations distantes, callbacks et recettes fournisseur restent ouverts ; aucun n8n n'est embarqué. Voir [T26](docs/IMPLEMENTATION-T26.md).

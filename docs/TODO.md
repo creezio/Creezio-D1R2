@@ -416,6 +416,7 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 <a id="T-30"></a>
 ## T-30 — Starter, paquets et extension externe
 
+- Distribution suivante : SDK 1.2 préparé depuis les changements PR #44/#45 intégrés et qualifiés (1 218/1 218). Journal de commandes et contrats GET des connecteurs ; seuls les documents changent dans la branche de release. Construire l'archive sur le main final, vérifier ses consommateurs et ses téléchargements avant d'annoncer sa disponibilité. Le Starter 0.1.2 et les applications installées conservent leur SDK tant que leur propre adoption n'est pas qualifiée.
 - Lot : **P3** ; état : **en cours — distribution initiale acquise, critères restants ouverts** ; responsables : orchestrateur, agents API/SDK, UI et hôte. PR #26 fusionnée sur main `e67636635a526daa544ea3573b271e1822f3f4fe` ; dépôt public Creezio-Extension-Starter, PR #1 fusionnée sur `527a1bc1446a529ad6e560e3a25dea13a12001e9`.
 - Dépendances : [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-16](#T-16).
 - Travail/livrables : Première tranche prioritaire : starter, paquet runtime réel, validation autonome, plugin et démo locale d'un seul module métier témoin, installé hors du checkout source. Les comparateurs, dépendances interéditeurs et intégrations facultatives restent dans le lot pour la suite ; ils ne conditionnent pas cette première app. Vérifier les droits avant toute distribution concernée ; publication de la démo qualifiée en T-32.

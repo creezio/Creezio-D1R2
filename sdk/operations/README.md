@@ -33,7 +33,7 @@ La réponse d'une opération est écartée si l'identité native a changé entre
 
 Preuves locales ciblées : `node --test tests/workspace/client.test.mjs tests/workspace/authorization.test.mjs tests/workspace/composition.test.mjs`. Ces tests couvrent le contrat client, une projection sur D1 synthétique et la composition statique. Ils ne valent ni recette navigateur, ni preuve d'appel hébergé, ni qualification des modes OAuth, webhook ou anonymes du moteur T-06.
 
-## Journal de commande pour les vues natives (source candidate)
+## Journal de commande pour les vues natives (SDK 1.2)
 
 `@creezio/sdk/operations/command-journal` coordonne une mutation par panneau avec le client ci-dessus. Le panneau capture `sessionId`, `audience` et `contextId`, puis conserve **avant l'envoi** uniquement `bindingId`, `requestKey` et, facultativement, une intention et un identifiant de fiche bornés. Le callback `persist` doit enregistrer ces métadonnées de façon synchrone et retourner `true` ; s'il échoue ou lance une exception, aucune mutation n'est envoyée. Le texte et les champs métier ne sont jamais copiés dans le journal.
 
@@ -51,4 +51,4 @@ const outcome = await journal.execute(client, command, {title: 'Demande'}, isCur
 const checked = journal.pending ? await journal.inspect(client, isCurrent, persist) : null;
 ```
 
-`readPendingCommand` refuse les champs supplémentaires et un scope étranger lors de la restauration. Un résultat `unknown`, une exécution encore en cours, un lookup absent ou un refus de lecture conservent la clé : ils ne prouvent pas l'échec de la mutation. `inspect` utilise seulement `client.status` avec cette clé. Si l'effacement du panneau échoue après une exécution confirmée, `outcome.result` garde le vrai succès ou échec serveur et `outcome.pending` reste renseigné pour inspection ultérieure. Le journal ne programme aucun retry et n'ajoute aucun stockage parallèle. Cette entrée existe dans la source candidate ; elle n'appartient pas aux archives SDK déjà publiées.
+`readPendingCommand` refuse les champs supplémentaires et un scope étranger lors de la restauration. Un résultat `unknown`, une exécution encore en cours, un lookup absent ou un refus de lecture conservent la clé : ils ne prouvent pas l'échec de la mutation. `inspect` utilise seulement `client.status` avec cette clé. Si l'effacement du panneau échoue après une exécution confirmée, `outcome.result` garde le vrai succès ou échec serveur et `outcome.pending` reste renseigné pour inspection ultérieure. Le journal ne programme aucun retry et n'ajoute aucun stockage parallèle. Cette entrée exige le SDK 1.2 ; les archives SDK 1.0 et 1.1 restent inchangées.

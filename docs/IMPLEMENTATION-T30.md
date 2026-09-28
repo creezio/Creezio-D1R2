@@ -20,9 +20,15 @@ L'installation locale utilise désormais le même plan de schéma composé que l
 
 Contrôles acquis : types stricts du SDK et d'un consommateur externe, identité des contextes, reçu réel du starter et cas négatifs, installation composée Miniflare D1 et CLI. Le candidat final Core et son main ont une CI 1 039/1 039. La démo télécharge une révision publique précise du socle et installe les archives vérifiées ; elle n'utilise pas de lien vers les sources privées de l'orchestrateur.
 
-## Ajout candidat du 28 septembre : journal public SDK 1.2
+## SDK 1.2 — journal public et contrats de connecteurs
 
-La source SDK 1.2 ajoute `operations/command-journal` pour les vues de modules. Une mutation garde ses métadonnées de scope et sa clé avant l'envoi ; une issue inconnue se relit sans rejouer la commande. Les huit tests ciblés vérifient restauration, persistance refusée, scope, refus de statut, résultat confirmé avec effacement local en échec, export et déclarations publiques sans dépendance runtime au cœur. La messagerie est le premier consommateur natif de cette candidate. Les compositions annoncent le SDK candidat ; les archives 1.0 et 1.1 publiées restent inchangées. Publication 1.2 et adoption par un consommateur externe restent à qualifier après intégration.
+Le SDK 1.2 ajoute `operations/command-journal` pour les vues de modules. Une mutation garde ses métadonnées de scope et sa clé avant l'envoi ; une issue inconnue se relit sans rejouer la commande. Les huit tests ciblés vérifient restauration, persistance refusée, scope, refus de statut, résultat confirmé avec effacement local en échec, export et déclarations publiques sans dépendance runtime au cœur. La messagerie et les nouveaux modules natifs consomment ce journal commun. Le paquet ajoute aussi `connectors/types`, le schéma optionnel `contracts.connectors` et le type limité `ProviderSecretsPort` exporté par `operations/handler`. Les commandes distantes mutatrices ne font pas partie de cette version.
+
+Les changements fonctionnels sont intégrés par PR #44/#45 sur main `0fe9e2fd36ea2e72a69a0cd1984c2ca785f8006b`. Les CI du candidat final et de main passent 1 218/1 218 contrôles, sans omission ; les suites des cinq modules Support, Pages, Analytics, Catalogue et n8n s'exécutent aussi depuis leurs véritables archives avec le paquet SDK compilé. La recette Linux des interfaces figure dans leurs documents respectifs et ne remplace pas le contrôle de l'archive finale de release.
+
+La préparation `release/sdk-1.2.0` ne modifie que ces documents. Après sa PR, la distribution doit être construite depuis son nouveau main qualifié : 20 exports publics ESM/types, schémas versionnés, inventaire et empreinte du tarball contrôlés. Le tag annoté `sdk-v1.2.0`, le téléchargement de l'asset en brouillon puis son téléchargement public sont trois étapes distinctes ; leurs reçus liés au SHA final établissent la disponibilité, sans prétendre qu'elle existe dès cette préparation. Le README du paquet décrit cette procédure. Les archives 1.0 et 1.1 restent immuables. Le Starter 0.1.2 déclare une compatibilité `^1.0.0`, mais son environnement de développement reste épinglé à 1.1 ; son adoption effective de 1.2 fera l'objet d'une qualification séparée.
+
+Impact : exigences T30 et distribution du SDK existantes, aucun changement de PRD, parcours utilisateur, modèle D1/R2, permission ou workflow. Aucun déploiement d'application ni publication npm implicite.
 
 ## Distribution et recette locale du 27 septembre 2026
 
