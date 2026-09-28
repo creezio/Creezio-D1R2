@@ -246,6 +246,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Dépendances : [T-06](#T-06), [T-07](#T-07), [T-11](#T-11).
 - Réalisation : [périmètre T14](IMPLEMENTATION-T14.md), UI originale Creezio, données et fichiers par ports communs.
 - Travail/livrables : Module conversations, états partagés SDK, historique/recherche/archive et transport adapté ; OpenAI indépendant.
+- Correctif ciblé T40 en cours : dans un panneau sans conversation sélectionnée, projeter l’état depuis la configuration publique OpenAI plutôt que depuis le `no_provider` initial du contrôleur. Garder l’envoi désactivé sans modèle autorisé ; une recette Sites A/B reste requise après intégration.
 - Besoin : [US-14](USER-STORIES.md#US-14). Acceptation : [REQ-1401](EXIGENCES.md#REQ-1401), [REQ-1402](EXIGENCES.md#REQ-1402).
 - Validation : implémenter puis exécuter les recettes liées, sur **navigateur local et Sites** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.

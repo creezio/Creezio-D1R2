@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.0 — T40, état du fournisseur dans un panneau vide
+
+- Le panneau Conversations lit la configuration publique OpenAI pour afficher son état, y compris avant la sélection d’une conversation. Le verdict `no_provider` initial du contrôleur ne masque plus un fournisseur prêt.
+- Un fournisseur manquant ou désactivé reste explicite ; une lecture incertaine, une configuration invalide ou un modèle absent de la liste autorisée n’active pas l’envoi. Aucun contrat serveur, modèle de données ou rendu du chat n’est modifié.
+
 ## 0.0.0 — T16 en qualification
 
 - Messages à plusieurs instances de widgets MCP Apps et lecture du résultat métier durable lié à leur affichage.

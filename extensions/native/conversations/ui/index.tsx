@@ -14,9 +14,28 @@ import {projectTurnEvents} from './turn-projection.ts';
 import {startTurnDriveLoop} from './drive-loop.ts';
 
 type AttachmentState = NonNullable<ConversationPanelProps['attachmentState']>;
+type ProviderStatus = ConversationPanelProps['providerStatus'];
 type Binding = {controller: ConversationsController; snapshot: ConversationsSnapshot;
   access: WorkspaceViewProps['access']; client: WorkspaceViewProps['client'];
   contextId: string; audience: WorkspaceViewProps['audience']; sessionId: string};
+
+/** Config is public to this audience; an empty conversation has no provider verdict. */
+export function projectProviderStatus(output:unknown,models:readonly string[]|null=null):
+  {status:ProviderStatus;modelId:string|null} {
+  if(!output||typeof output!=='object'||Array.isArray(output))return {status:'unavailable',modelId:null};
+  const config=(output as Record<string,unknown>).config;
+  if(!config||typeof config!=='object'||Array.isArray(config))return {status:'unavailable',modelId:null};
+  const row=config as Record<string,unknown>;
+  if(row.providerId!=='openai.responses.v1'||typeof row.enabled!=='boolean')
+    return {status:'unavailable',modelId:null};
+  if(!row.enabled||row.state==='missing')return {status:'no_provider',modelId:null};
+  const modelId=row.modelId;
+  if(row.state!=='ready'||typeof modelId!=='string'||
+      !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(modelId))
+    return {status:'unavailable',modelId:null};
+  if(models===null)return {status:'checking',modelId:null};
+  return models.includes(modelId)?{status:'ready',modelId}:{status:'unavailable',modelId:null};
+}
 
 function feedback(result: ConversationActionResult<unknown>): string | null {
   if (result.kind === 'ok') return null;
@@ -93,8 +112,7 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
   const [loadingAttachments, setLoadingAttachments] = useState(false);
   const [modelIds,setModelIds] = useState<readonly string[]>([]);
   const [selectedModelId,setSelectedModelId] = useState<string|null>(null);
-  const [providerReady,setProviderReady] = useState(false);
-  const [providerChecked,setProviderChecked] = useState(false);
+  const [providerStatus,setProviderStatus] = useState<ProviderStatus>('checking');
   const driveLoop=useRef<{key:string;controller:ConversationsController;loop:ReturnType<typeof startTurnDriveLoop>}|null>(null);
   const driveInFlight=useRef(new Map<string,{controller:ConversationsController;
     promise:ReturnType<ConversationsController['driveTurn']>}>());
@@ -147,7 +165,7 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
     draftTimer.current = setTimeout(() => resumeDraft.current?.(wanted.id), 200);
   }, [controller, selectedIdForEffect]);
   useEffect(() => {
-    setModelIds([]);setSelectedModelId(null);setProviderReady(false);setProviderChecked(false);
+    setModelIds([]);setSelectedModelId(null);setProviderStatus('checking');
     if(!controller||!activeNow)return;
     let current=true;
     const valid=()=>current&&live.current===controller&&activity.current&&
@@ -155,31 +173,36 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
     void (async()=>{try{
       const read=await props.client.invoke({bindingId:`creezio.openai:${props.audience}.config.read`,
         contextId:props.contextId,input:{},isCurrent:valid});
-      if(!valid()||read.kind!=='execution'||read.execution.state!=='succeeded')return;
-      const config=read.execution.output&&typeof read.execution.output==='object'&&!Array.isArray(read.execution.output)
-        ?(read.execution.output as Record<string,unknown>).config:null;
-      if(!config||typeof config!=='object'||Array.isArray(config)||
-        (config as Record<string,unknown>).state!=='ready')return;
-      const configured=(config as Record<string,unknown>).modelId;
-      if(typeof configured!=='string'||!configured.length)return;
+      if(!valid())return;
+      if(read.kind!=='execution'||read.execution.state!=='succeeded'){
+        setProviderStatus('unavailable');return;
+      }
+      const config=projectProviderStatus(read.execution.output);
+      if(config.status!=='checking'){setProviderStatus(config.status);return;}
       let cursor:string|null=null;const ids:string[]=[];
       for(let page=0;page<4;page++){
         const result=await props.client.invoke({bindingId:`creezio.openai:${props.audience}.models.list`,
           contextId:props.contextId,input:{limit:50,...(cursor?{cursor}:{})},isCurrent:valid});
-        if(!valid()||result.kind!=='execution'||result.execution.state!=='succeeded')return;
+        if(!valid())return;
+        if(result.kind!=='execution'||result.execution.state!=='succeeded'){
+          setProviderStatus('unavailable');return;
+        }
         const output=result.execution.output as Record<string,unknown>;
-        if(!Array.isArray(output?.items))return;
+        if(!Array.isArray(output?.items)){setProviderStatus('unavailable');return;}
         for(const item of output.items){const id=item&&typeof item==='object'&&!Array.isArray(item)
           ?(item as Record<string,unknown>).id:null;
           if(typeof id==='string'&&/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(id)&&!ids.includes(id))ids.push(id);}
         cursor=typeof output.nextCursor==='string'?output.nextCursor:null;
         if(!cursor)break;
       }
-      if(valid()&&ids.includes(configured)){
-        setModelIds(ids);setSelectedModelId(configured);setProviderReady(true);
+      if(valid()){
+        const available=projectProviderStatus(read.execution.output,ids);
+        if(available.status==='ready'&&available.modelId){
+          setModelIds(ids);setSelectedModelId(available.modelId);
+        }
+        setProviderStatus(available.status);
       }
-    }catch{/* The UI keeps sending disabled if availability cannot be read. */}
-    finally{if(valid())setProviderChecked(true);}})();
+    }catch{if(valid())setProviderStatus('unavailable');}})();
     return ()=>{current=false;};
   },[controller,activeNow,props.access,props.client,props.audience,props.contextId,sessionId,selectedIdForEffect,live]);
   const selectedTurn=snapshot?.activeTurn&&snapshot.activeTurn.conversationId===snapshot.selected?.id
@@ -345,7 +368,7 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
     draft={snapshot.draft?.conversationId === selectedId ? snapshot.draft.text : ''}
     modelOptions={modelIds.map(id=>({id,label:id}))} selectedModelId={selectedModelId}
     onModelChange={id=>setSelectedModelId(modelIds.includes(id)?id:null)}
-    onSend={providerReady&&selectedModelId&&selectedId&&!runningTurn?()=>{void beforeTransition(async()=>{
+    onSend={providerStatus==='ready'&&selectedModelId&&modelIds.includes(selectedModelId)&&selectedId&&!runningTurn?()=>{void beforeTransition(async()=>{
       const current=controller.getSnapshot(),body=current.draft?.conversationId===selectedId?current.draft.text:'';
       if(!body.trim()||!modelIds.includes(selectedModelId))return;
       const result=await controller.startTurn(selectedId,body,selectedModelId);
@@ -403,8 +426,7 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
       setLoadingMessages(true);void controller.loadMoreMessages().finally(() => setLoadingMessages(false));
     }}
     loadingList={busyList} busy={snapshot.pending || !!snapshot.unknown}
-    error={notice ?? snapshot.error} providerStatus={snapshot.provider==='no_provider'?'no_provider'
-      :providerReady?'ready':providerChecked?'unavailable':'checking'}
+    error={notice ?? snapshot.error} providerStatus={providerStatus}
     onAttach={onAttach} attachmentState={attachmentState}
     attachments={attachments} attachmentsNextCursor={attachmentsNextCursor} loadingAttachments={loadingAttachments}
     onLoadMoreAttachments={() => {if (!selectedId || !attachmentsNextCursor || loadingAttachments) return;

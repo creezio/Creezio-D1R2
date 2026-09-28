@@ -11,16 +11,25 @@ import {startTurnDriveLoop} from '../../ui/drive-loop.ts';
 
 const bundle = await build({entryPoints:[fileURLToPath(new URL('../../ui/panel.tsx',import.meta.url))],
   bundle:true,platform:'node',format:'esm',packages:'external',write:false,logLevel:'silent'});
+const providerBundle = await build({stdin:{contents:"export {projectProviderStatus} from '../../ui/index.tsx';",
+  resolveDir:fileURLToPath(new URL('./',import.meta.url)),sourcefile:'provider-projection.ts',loader:'ts'},
+  bundle:true,platform:'node',format:'esm',packages:'external',write:false,logLevel:'silent'});
 // Load beside this test so bare package imports resolve through the SDK's ESM exports.
 const rendered = fileURLToPath(new URL(`./.contract-render-${randomUUID()}.mjs`,import.meta.url));
-let ConversationPanel;
+const providerRendered = fileURLToPath(new URL(`./.provider-render-${randomUUID()}.mjs`,import.meta.url));
+let ConversationPanel, projectProviderStatus;
 let written = false;
+let providerWritten = false;
 try {
   writeFileSync(rendered,bundle.outputFiles[0].text,{flag:'wx'});
   written = true;
   ({ConversationPanel} = await import(pathToFileURL(rendered).href));
+  writeFileSync(providerRendered,providerBundle.outputFiles[0].text,{flag:'wx'});
+  providerWritten = true;
+  ({projectProviderStatus} = await import(pathToFileURL(providerRendered).href));
 } finally {
   if (written) unlinkSync(rendered);
+  if (providerWritten) unlinkSync(providerRendered);
 }
 const noop = () => {};
 const props = {variant:'embedded',open:true,onOpenChange:noop,mode:'chat',onModeChange:noop,
@@ -76,6 +85,34 @@ test('configured but unreadable provider is reported as unavailable without enab
   assert.match(html,/momentanément indisponible/);
   assert.doesNotMatch(html,/Fournisseur IA non configuré/);
   assert.match(html,/<button[^>]*disabled=""[^>]*aria-label="Envoyer — fournisseur indisponible"/);
+});
+
+test('empty chat follows the public provider configuration, never the empty conversation verdict',()=>{
+  const config={providerId:'openai.responses.v1',enabled:true,state:'ready',modelId:'allowed-1'};
+  assert.deepEqual(projectProviderStatus({config}),{status:'checking',modelId:null});
+  const status=projectProviderStatus({config},['allowed-1']);
+  assert.deepEqual(status,{status:'ready',modelId:'allowed-1'});
+  const html=renderToStaticMarkup(React.createElement(ConversationPanel,{...props,
+    selectedId:null,conversations:[],messages:[],draft:'',providerStatus:status.status,
+    modelOptions:[{id:status.modelId,label:status.modelId}],selectedModelId:status.modelId,onSend:noop}));
+  assert.doesNotMatch(html,/Fournisseur IA non configuré|momentanément indisponible/);
+  assert.match(html,/<button[^>]*disabled=""[^>]*aria-label="Envoyer le message"/);
+});
+
+test('missing, disabled, invalid and unreadable configurations do not enable a model',()=>{
+  const base={providerId:'openai.responses.v1',enabled:true,state:'ready',modelId:'allowed-1'};
+  for(const config of [{...base,state:'missing'}, {...base,enabled:false},
+    {...base,state:'invalid'}, {...base,state:'unverified'}, {...base,modelId:'invalid model'},
+    {...base,providerId:'other'}]){
+    const result=projectProviderStatus({config},['allowed-1']);
+    assert.notEqual(result.status,'ready');
+    const html=renderToStaticMarkup(React.createElement(ConversationPanel,{...props,
+      providerStatus:result.status,onSend:noop,modelOptions:[],selectedModelId:null}));
+    assert.match(html,/<button[^>]*disabled=""[^>]*aria-label="Envoyer — fournisseur indisponible"/);
+    assert.equal(html.includes('Fournisseur IA non configuré'),result.status==='no_provider');
+  }
+  assert.deepEqual(projectProviderStatus({config:base},[]),{status:'unavailable',modelId:null});
+  assert.deepEqual(projectProviderStatus(null),{status:'unavailable',modelId:null});
 });
 
 test('progress projection exposes bounded text and known steps without raw provider payloads',()=>{
