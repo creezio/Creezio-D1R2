@@ -1,6 +1,6 @@
 # Repères du dépôt
 
-État : PR #1 à #29 intégrées ; main `eb97109493b3a945eaa882c216591bc468764014`, CI 1 152/1 152. SDK `sdk-v1.1.0`, starter `module-v0.1.0` et source originale `app/v0.0.0` publics ; Site A qualifié dans le périmètre initial. Le vrai fork Lab T37 est en réalisation et T38 prépare la mise à jour individuelle du module ; les recettes complètes et la démo Cloudflare restent ouvertes. Le [TODO](docs/TODO.md) distingue acquis, travaux et qualifications restantes.
+État : PR #1 à #35 intégrées ; Core main `e51928f98e6f0453f26b563a504fa868e3c1a04d`, CI 1 163/1 163. SDK `sdk-v1.1.0`, starter `module-v0.1.2` et release originale `app/v0.0.1` publics. Le fork Lab est sur main `abcd1f21f957729a811b32238584c835b5f66860` après PR #3, avec CI main 1 165/1 165 et build Sites final réussis, sans publication du Site B. Le module Lab actif reste 0.1.0 ; adoption 0.1.2, recettes complètes et démo Cloudflare restent ouvertes. Le [TODO](docs/TODO.md) distingue acquis, travaux et qualifications restantes.
 
 | Emplacement | Responsabilité |
 |---|---|

@@ -1,16 +1,16 @@
 # Changelog
 
-## En cours — checkpoints du chat administrateur (T-39)
+## 28 septembre 2026 — checkpoints du chat administrateur intégrés (T-39)
 
-Les petits fragments du flux OpenAI sont regroupés avant écriture D1, avec flush aux événements de contrôle et à la fin du flux. L'annulation et la reprise gardent le curseur durable ; un accusé de checkpoint perdu n'entraîne pas de doublon. La correction répond à une coupure observée sur le Site A original, sans encore qualifier le débit de la version publiée. Voir la [note T39](docs/IMPLEMENTATION-T39.md).
+Les petits fragments du flux OpenAI sont regroupés avant écriture D1, avec flush aux événements de contrôle et à la fin du flux. L'annulation et la reprise gardent le curseur durable ; un accusé de checkpoint perdu n'entraîne pas de doublon. La correction répond à une coupure observée sur le Site A original. Core main `e51928f` a passé 1 163/1 163 tests CI ; sur le Site A publié depuis `cb716aa`, un tour post-correction a réussi en 14 161 ms avec un seul `turn.drive`, sans reprise manuelle, et une réponse persistée de 933 octets. Ce témoin ne qualifie pas la fluidité générale ni la recette complète. Voir la [note T39](docs/IMPLEMENTATION-T39.md).
 
 ## En cours — confiance TLS du Docker local (T-38)
 
 L'image Docker installe les certificats CA du système avant de lancer workerd. Le Lab a montré l'échec TLS sans ce bundle, puis une réponse HTTP 401 JSON à un GET `/v1/models` sans clé depuis un Worker éphémère après reconstruction. Le premier tour resté `unknown` sans reçu n'a pas été rejoué. Cette contribution ne qualifie ni l'adoption du module dans le Lab ni son Site B ; voir la [note T38](docs/IMPLEMENTATION-T38.md).
 
-## En cours — inscription navigateur du registre (T-08)
+## 28 septembre 2026 — registre navigateur intégré et publié (T-08)
 
-Le registre central propose une page propriétaire générique sur sa propre origine HTTPS. Les lectures de projets et d'installations sont bornées et cloisonnées, sans jeton ; les créations conservent leurs POST et leur CSRF existants. Le navigateur propose le jeton une seule fois au téléchargement et rapproche une réponse perdue par lecture, sans rejouer la création ni tourner le jeton automatiquement. Le callback GitHub redirige les navigations HTML vers cette page et conserve son JSON pour les clients API. Les POST de rotation/révocation reconnaissent maintenant le flux vide du Worker sans accepter de contenu non vide ni affaiblir propriétaire/CSRF. Cette tranche reste candidate jusqu'aux contrôles CI et à la recette du service publié.
+Le registre central propose une page propriétaire générique sur sa propre origine HTTPS. Les lectures de projets et d'installations sont bornées et cloisonnées, sans jeton ; les créations conservent leurs POST et leur CSRF existants. Le navigateur propose le jeton une seule fois au téléchargement et rapproche une réponse perdue par lecture, sans rejouer la création ni tourner le jeton automatiquement. Le callback GitHub redirige les navigations HTML vers cette page et conserve son JSON pour les clients API. Les POST de rotation/révocation reconnaissent maintenant le flux vide du Worker sans accepter de contenu non vide ni affaiblir propriétaire/CSRF. La PR #35 est intégrée, Core main `e51928f` a passé 1 163/1 163 tests CI et le Worker corrigé est publié en version `ba21708c` avec DB et bindings conservés. Les installations Lab ont été créées après autorisation et leurs jetons récupérés par le parcours propriétaire natif, puis stockés dans un coffre DPAPI hors dépôt. Le raccord aux publishers reste ouvert.
 
 ## 0.0.1 — en préparation, mise à jour individuelle d'un paquet externe (T38)
 
