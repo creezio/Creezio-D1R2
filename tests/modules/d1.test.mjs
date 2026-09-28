@@ -24,7 +24,6 @@ const access=json('../../extensions/native/access/module/manifest.json');
 const settings=json('../../extensions/native/modules-settings/module/manifest.json');
 const conversations=json('../../extensions/native/conversations/module/manifest.json');
 const openai=json('../../extensions/native/openai/module/manifest.json');
-const delivery=json('../../extensions/native/delivery/module/manifest.json');
 const moduleId='creezio.modules-settings';
 function compiledFixture() {
   const composition=json('../../configuration/composition.json');
@@ -32,7 +31,8 @@ function compiledFixture() {
   const witness=namedModule('merchant.example','merchant');
   witness.compatibility.core='^0.0.0';
   witness.validation.policy=structuredClone(composition.sdk.policy);
-  const modules=[access,settings,conversations,openai,delivery,witness];
+  const modules=[...composition.modules.map(selection=>
+    json(`../../${selection.source.path}/module/manifest.json`)),witness];
   if (!composition.modules.some(item=>item.moduleId===moduleId)) {
     composition.modules.push({moduleId,origin:settings.identity.origin,versionRange:'^0.0.0',
       source:{kind:'workspace',path:'extensions/native/modules-settings'},enabled:true,
@@ -102,6 +102,14 @@ test('modules settings operation commits head, plan, journal and execution in re
         openaiHandlers[item.handler.export]])),
       ...Object.fromEntries(fixture.witness.contracts.operations.map(item=>
         [`${fixture.witness.identity.id}:${item.id}`,hostOnly]))};
+    for(const descriptor of fixture.modules){
+      const selection=fixture.composition.modules.find(item=>item.moduleId===descriptor.identity.id);
+      for(const operation of descriptor.contracts.operations){
+        const key=`${descriptor.identity.id}:${operation.id}`;
+        if(!handlers[key])handlers[key]=(await import(new URL(
+          `../../${selection.source.path}/${operation.handler.path}`,import.meta.url).href))[operation.handler.export];
+      }
+    }
     const registry=createOperationRegistry({catalog:compiled.catalog,validators,handlers});
     const runtime=new Miniflare({host:'127.0.0.1',port:0,cf:false,modules:true,compatibilityDate:'2026-05-15',
       script:'export default {fetch(){return new Response(null,{status:404})}}',

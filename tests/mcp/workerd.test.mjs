@@ -85,8 +85,11 @@ test('built Worker completes native OAuth then real MCP discovery, call and revo
     assert.equal(api.status,200,'same OAuth authority must work in declared HTTP operations');
     const catalog=await client.callTool({name:'modules_catalog_list',arguments:{limit:50}});
     assert.equal(catalog.isError,undefined,JSON.stringify(catalog));
-    assert.deepEqual(catalog.structuredContent.items.map(item=>item.moduleId),
-      ['creezio.access','creezio.conversations','creezio.delivery','creezio.modules-settings','creezio.openai']);
+    const selectedModules=JSON.parse(readFileSync(join(root,'configuration/composition.json'),'utf8'))
+      .modules.filter(item=>item.enabled).map(item=>item.moduleId).sort();
+    assert.deepEqual(catalog.structuredContent.items.map(item=>item.moduleId),selectedModules);
+    assert.ok(tools.every(tool=>!tool.name.startsWith('messaging_')),
+      'adding a native module must not expose its operations to an OAuth token without its permission');
     const documents=await client.callTool({name:'modules_docs_list',arguments:{moduleId:'creezio.modules-settings'}});
     assert.equal(documents.isError,undefined,JSON.stringify(documents));
     assert.deepEqual(documents.structuredContent.documents.map(item=>item.kind).sort(),['changelog','prd','readme']);

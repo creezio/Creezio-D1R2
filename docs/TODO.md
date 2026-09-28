@@ -291,7 +291,7 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 - Dépendances : [T-11](#T-11), [T-14](#T-14).
 - Travail/livrables : Module messaging : boîtes/messages/brouillons/pièces jointes et port de transport.
 - Réalisation : adaptation des écrans `packages/mails/ui` du kit original dans le module standard, avec les données D1/R2 et les opérations communes ; aucun service SMTP/IMAP ni ordonnanceur hébergé dans le socle. Le périmètre sans transport conserve lecture et rédaction, avec envoi/réception explicitement indisponibles.
-- Acquis locaux : 19 tests dans les six suites, plus moteur D1/R2 réel et transports HTTP/MCP avec jeton machine. La [note T18](IMPLEMENTATION-T18.md) détaille les droits, fichiers, conflits et filtres testés. Restent revue/CI finale, recette navigateur et fournisseur externe ; la tâche complète n'est pas terminée.
+- Acquis locaux : six suites, moteur D1/R2 réel et transports HTTP/MCP avec jeton machine ; corrections UI relues sur `893eb44`. La [note T18](IMPLEMENTATION-T18.md) détaille les droits, fichiers, conflits et filtres testés, les deux fixtures CI corrigées et le plafond des outils du chat à traiter. Restent CI finale, recette navigateur et fournisseur externe ; la tâche complète n'est pas terminée.
 - Besoin : [US-18](USER-STORIES.md#US-18). Acceptation : [REQ-1801](EXIGENCES.md#REQ-1801).
 - Validation : implémenter puis exécuter les recettes liées, sur **workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
