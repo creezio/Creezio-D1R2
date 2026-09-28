@@ -1,6 +1,6 @@
 # Repères du dépôt
 
-État : Core PR #38 et Lab PR #5 intégrées. Les deux Sites version 5 et Lab Linux sont qualifiés sur les anciens widgets, brouillons et données. La première capture Cloudflare Lab a refusé un historique incertain ; sa conservation fidèle est en cours de correction. Le [TODO](docs/TODO.md) porte l’état courant et les preuves détaillées.
+État : Core PR #39/main `0078fc7` et Lab PR #6/main `949f028` intégrées avec CI qualifiées. Les deux Sites version 5 et Lab Linux sont qualifiés sur les anciens widgets, brouillons et données ; la frontière d'audience du widget historique APP/ADMIN est vérifiée sur B. La première capture Cloudflare Lab a refusé un historique incertain. Le transfert distinct de source `949f028` est publié et `delivered` avec registre synchronisé ; l'opérateur corrigé vient de Core main `22a0d3f` et Lab main `6e06182`, CI main 1 185/1 185 et 1 188/1 188. Après arrêt Docker, conservation D1/R2, ancien tour incertain et nouvelle réponse OpenAI sont vérifiés ; le navigateur a retrouvé trois widgets historiques après rechargement ; un ancien texte IA surestime un montant par cent, limite de prose ouverte. Le [TODO](docs/TODO.md) porte l’état courant et les preuves détaillées.
 
 | Emplacement | Responsabilité |
 |---|---|
@@ -32,7 +32,7 @@
 | [docs/COMPATIBILITE-CHATGPT.md](docs/COMPATIBILITE-CHATGPT.md) | MCP, widgets, plugins et skills conversationnels. |
 | [docs/STOCKAGE-ET-HEBERGEMENT.md](docs/STOCKAGE-ET-HEBERGEMENT.md) | Local, Sites, Cloudflare et transfert D1/R2. |
 | [docs/IMPLEMENTATION-T30.md](docs/IMPLEMENTATION-T30.md) | Paquets publics SDK/starter, démo indépendante et limites de la recette locale. |
-| [docs/IMPLEMENTATION-T32.md](docs/IMPLEMENTATION-T32.md) | Première publication et premier update réels de l'original sur Cloudflare, preuves, limites et recettes restantes. |
+| [docs/IMPLEMENTATION-T32.md](docs/IMPLEMENTATION-T32.md) | Première publication et premier update réels de l'original, puis publication du Lab sur Cloudflare avec provenance, conservation et limites des recettes. |
 | [docs/IMPLEMENTATION-T36.md](docs/IMPLEMENTATION-T36.md) | Préparation de la release initiale de l’original : versions, usage, preuves et limites. |
 | [docs/IMPLEMENTATION-T38.md](docs/IMPLEMENTATION-T38.md) | Contribution amont des certificats TLS du Docker local, cause et qualification bornée. |
 | [docs/IMPLEMENTATION-T39.md](docs/IMPLEMENTATION-T39.md) | Checkpoints du flux OpenAI, observation Site A et limites de la recette T39. |

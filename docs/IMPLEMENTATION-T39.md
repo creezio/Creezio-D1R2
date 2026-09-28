@@ -1,6 +1,16 @@
 # T-39 — checkpoints du flux conversationnel
 
-Cette correction prépare la recette ciblée de la première application. Elle ne clôt pas [T-39](TODO.md#T-39), qui exige encore deux Sites, le fork, les widgets, la mise à jour et le retour utilisateur.
+Cette correction prépare la recette ciblée de la première application. Les deux Sites publics version 5, le fork, le paquet 0.1.2, ses widgets historiques et sa mise à jour ont ensuite été qualifiés dans leur périmètre. La publication et la lecture navigateur ciblée de Lab Cloudflare sont maintenant vérifiées ; l'exactitude de toute la prose IA, le retour utilisateur et [T-39](TODO.md#T-39) exhaustive restent ouverts.
+
+## Témoins ciblés A/B avant Cloudflare Lab
+
+Le MCP applicatif Lab 0.1.2 a réellement exécuté `purchase_request_get` et `purchase_request_list` dans ChatGPT avec la portée métier `creezio.purchase-requests:use`, puis rendu la fiche et la liste. Les mutations n'ont pas été appelées. Sur le Site B version 5, une session APP a relu un résultat durable du widget historique `request-card` (200) ; la même instance via la route ADMIN, avec le seul cookie APP et sans en-tête Authorization, a répondu 401 `authentication_required`. Une nouvelle lecture APP a réussi et la déconnexion a suivi. Reçu expurgé hors dépôt : `CREEZIO-T39-SITES-LAB-V5-WIDGET-APP-ADMIN-DENIAL-2026-09-28.json`. Ce témoin prouve la frontière d'audience du transport widget natif hébergé, ni un refus `tools/call` dans ChatGPT ni une révocation. Le 401 APP sur `/api/admin/modules` et le refus de désactiver Access couvrent séparément l'API admin et une garde de mise à jour.
+
+## Témoin navigateur Cloudflare Lab après publication
+
+Après arrêt du Docker local, le front Cloudflare Lab a affiché la demande témoin révision 5, retirée, montant métier `123,45 €` et sa pièce jointe. Deux `request-card` historiques et un `request-picker` ont atteint « Widget prêt » dans la conversation existante, puis après rechargement et retour depuis « Mes demandes ». Les cartes ont gardé le montant `123,45 €`. L'administration affiche `creezio.purchase-requests@0.1.2` présent, activé et configuré ; son étiquette « Fonctionnement non vérifié » n'a pas changé. Les sessions APP et admin ont été déconnectées. Reçu et captures hors dépôt : `CREEZIO-T39-CF-LAB-BROWSER-READONLY-2026-09-28.md`.
+
+Une réponse **texte IA historique** dans ce fil affiche toutefois « Montant : 12 345 EUR », soit cent fois la valeur de la demande et des deux widgets. Une autre réponse historique donne correctement `123,45 € (soit 12345 cents)`. La donnée métier et les widgets observés sont cohérents ; la date exacte de génération du texte divergent n'est pas établie. Cette anomalie interdit de déclarer exacte toute la prose IA. La lecture navigateur n'a cliqué aucune action de widget, créé aucun tour ni muté la demande. Le retour utilisateur et les autres identités, modules et scénarios restent à qualifier.
 
 ## Observation Site A
 
