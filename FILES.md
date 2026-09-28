@@ -66,7 +66,7 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - [configuration](configuration/) : composition explicite et verrou de l'application ; pas de module témoin inclus par défaut.
 - [scripts/build](scripts/build/) : génération des imports sélectionnés et contrôle de compatibilité Worker, sans installation implicite.
 - [app](app/) : entrées natives `/access/admin` et `/access/app`, workspace et front facultatif composé ; sessions et projections autorisées précèdent les vues protégées.
-- [vite.config.ts](vite.config.ts), [tsconfig.json](tsconfig.json), [scripts/run-framework.mjs](scripts/run-framework.mjs) : outillage figé et build commun ; un seul `dist` et un seul état local `.wrangler/state`.
+- [vite.config.ts](vite.config.ts), [tsconfig.json](tsconfig.json), [scripts/run-framework.mjs](scripts/run-framework.mjs) : outillage figé et build commun avec génération Vite de `dist/client/licenses.md` ; un seul `dist` et un seul état local `.wrangler/state`.
 - [.openai/hosting.json](.openai/hosting.json) : noms logiques DB/BUCKET, sans identité de Site ni ressource distante créée.
 - [tests/runtime](tests/runtime/) : contrôles de composition, environnement, routage et workerd ; module témoin avec ses propres docs et six suites.
 - [État T-03](docs/IMPLEMENTATION-T03.md) : périmètre vérifié, commandes et limites ; `.creezio`, `.quality`, `.wrangler` et `dist` restent locaux et ignorés.

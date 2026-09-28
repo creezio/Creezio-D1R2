@@ -27,6 +27,7 @@ export default defineConfig(async () => {
   ] });
   const { cloudflare } = await import('@cloudflare/vite-plugin');
   return {
+    build: { license: { fileName: 'licenses.md' } },
     server: { host: local?.host ?? '127.0.0.1', port: local?.port ?? 5173, strictPort: true },
     plugins: [
       vinext(),
