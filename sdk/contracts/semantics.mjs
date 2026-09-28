@@ -102,6 +102,49 @@ export function checkModule(module, report) {
       if(!file.permissions.length)report('file.permissions',p,'A file category requires explicit permissions.');
     }
   });
+  (c.connectors??[]).forEach((connector,i)=>{
+    const p=`/contracts/connectors/${i}`;
+    if(connector.moduleId!==ownId)report('connector.owner',p,'A connector belongs to its declaring module.');
+    for(const role of ['config','vault']){
+      const storage=connector[role],model=c.models.find(item=>item.id===storage.modelId);
+      const columns=[storage.contextField,...Object.values(storage.fields)];
+      if(storage.moduleId!==ownId||!model||model.public||model.scope!=='context'
+        ||model.contextField!==storage.contextField||!same(model.primaryKey,[storage.contextField,storage.fields.id]))
+        report('connector.storage',`${p}/${role}`,'Connector storage must use its own private model keyed by context and ID.');
+      if(new Set(columns).size!==columns.length||columns.some(name=>!model?.fields.some(field=>field.id===name)))
+        report('connector.field',`${p}/${role}`,'Storage mappings require distinct declared columns.');
+      if(role==='vault'&&columns.some(name=>{const field=model?.fields.find(item=>item.id===name);
+        return !field||!field.protected||field.nullable||field.computed
+          ||field.type!==(name===storage.fields.version?'integer':'string');}))
+        report('connector.secret',`${p}/${role}`,'Vault columns are protected, required and persisted.');
+      if(role==='vault'&&(!(model?.fields.find(field=>field.id===storage.fields.version)?.constraints?.minimum>=1)
+        ||!same([...(model?.fields.find(field=>field.id===storage.fields.state)?.constraints?.enum??[])].sort(),['active','revoked'])))
+        report('connector.secret',`${p}/${role}`,'Vault versions are positive integers and state is active or revoked.');
+      if(role==='config'){
+        const context=model?.fields.find(field=>field.id===storage.contextField);
+        if(!context||context.type!=='string'||!context.protected||context.nullable||context.computed)
+          report('connector.field',`${p}/${role}/contextField`,'The context column is a protected required persisted string.');
+        const types={id:'string',origin:'string',keyRef:'string',secretVersion:'integer',enabled:'boolean',revision:'integer',updatedAt:'date-time'};
+        for(const [key,type] of Object.entries(types)){
+          const field=model?.fields.find(item=>item.id===storage.fields[key]);
+          if(!field||field.type!==type||field.computed||(!['keyRef','secretVersion'].includes(key)&&field.nullable))
+            report('connector.field',`${p}/${role}/fields/${key}`,'Configuration columns require their declared persisted types.');
+        }
+        if(!(model?.fields.find(field=>field.id===storage.fields.revision)?.constraints?.minimum>=1))
+          report('connector.field',`${p}/${role}/fields/revision`,'Configuration revisions are positive integers.');
+        if(!(model?.fields.find(field=>field.id===storage.fields.secretVersion)?.constraints?.minimum>=1))
+          report('connector.field',`${p}/${role}/fields/secretVersion`,'Present secret versions are positive integers.');
+      }
+    }
+    if(connector.auth.kind==='api-key-header'&&/^x-(?:forwarded|real|original|http|method|override|host|cookie|origin|proxy|cf|amz)(?:-|$)/i.test(connector.auth.name))
+      report('connector.auth',`${p}/auth`,'A credential header cannot alter routing, proxy identity or cookies.');
+    connector.resources.forEach((resource,j)=>{
+      const parts=resource.path.slice(1).split('/');
+      if(parts.some(part=>part!=='{id}'&&(!/^[A-Za-z0-9_~-][A-Za-z0-9._~-]*$/.test(part)||part==='.'||part==='..'))
+        ||parts.filter(part=>part==='{id}').length>1||parts.includes('{id}')!==resource.params.includes('id'))
+        report('connector.resource',`${p}/resources/${j}`,'Only a fixed path and one declared ID segment are allowed.');
+    });
+  });
   c.operations.forEach((op, i) => {
     const p = `/contracts/operations/${i}`;
     unique(op.audiences, `${p}/audiences`, report); unique(op.actors, `${p}/actors`, report);
@@ -250,7 +293,7 @@ function checkPackaging(module, report) {
   requireFile(module.entrypoints.plugin.manifest,'runtime','/entrypoints/plugin/manifest'); requireFile(module.entrypoints.plugin.mcp,'runtime','/entrypoints/plugin/mcp'); requireFile(module.identity.license.file,'runtime','/identity/license/file');
   for (const [section, value] of Object.entries(module.contracts)) if (section !== 'schemas') walkContracts(value, (node, location) => {
     if (node && typeof node === 'object' && !Array.isArray(node)) {
-      if (typeof node.path === 'string' && !location.startsWith('/contracts/api/')) requireFile(node.path,'runtime',`${location}/path`);
+      if (typeof node.path === 'string' && !location.startsWith('/contracts/api/') && !/^\/contracts\/connectors\/\d+\/resources\/\d+$/.test(location)) requireFile(node.path,'runtime',`${location}/path`);
       if (typeof node.template === 'string') requireFile(node.template,'runtime',`${location}/template`);
       for (const key of ['assets','styles']) if (Array.isArray(node[key])) node[key].forEach((file,i) => requireFile(file,'runtime',`${location}/${key}/${i}`));
     }

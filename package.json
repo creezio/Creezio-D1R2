@@ -19,7 +19,7 @@
     "compose": "node scripts/build/compose-runtime.mjs",
     "data:access": "node scripts/data/prepare-access.mjs --write",
     "data:runtime": "node scripts/data/prepare-runtime.mjs --write",
-    "check:data": "node scripts/data/prepare-access.mjs && node scripts/data/prepare-runtime.mjs && node scripts/data/prepare-modules-settings.mjs && node scripts/data/prepare-native-module.mjs conversations && node scripts/data/prepare-native-module.mjs openai && node scripts/data/prepare-native-module.mjs messaging && node scripts/data/prepare-native-module.mjs crm",
+    "check:data": "node scripts/data/prepare-access.mjs && node scripts/data/prepare-runtime.mjs && node scripts/data/prepare-modules-settings.mjs && node scripts/data/prepare-native-module.mjs conversations && node scripts/data/prepare-native-module.mjs openai && node scripts/data/prepare-native-module.mjs messaging && node scripts/data/prepare-native-module.mjs crm && node scripts/data/prepare-native-module.mjs support && node scripts/data/prepare-native-module.mjs pages-navigation && node scripts/data/prepare-native-module.mjs analytics && node scripts/data/prepare-native-module.mjs catalog --family=common && node scripts/data/prepare-native-module.mjs n8n --family=connectors",
     "dev": "node scripts/local/serve.mjs dev",
     "build": "node scripts/run-framework.mjs build",
     "build:sites": "node scripts/sites/build.mjs",
@@ -54,7 +54,17 @@
     "test:crm": "node extensions/native/crm/gate.mjs && node --test tests/crm/integration.test.mjs tests/modules/crm-transports.test.mjs",
     "test:messaging": "node extensions/native/messaging/gate.mjs && node --test tests/modules/messaging-integration.test.mjs",
     "test:widgets": "node --test --test-concurrency=1 tests/widgets/*.test.mjs",
-    "test:cloudflare": "node --test --test-concurrency=1 tests/cloudflare/*.test.mjs"
+    "test:cloudflare": "node --test --test-concurrency=1 tests/cloudflare/*.test.mjs",
+    "data:support": "node scripts/data/prepare-native-module.mjs support --write",
+    "test:support": "node extensions/native/support/gate.mjs && node --test tests/support/integration.test.mjs",
+    "data:pages-navigation": "node scripts/data/prepare-native-module.mjs pages-navigation --write",
+    "test:pages-navigation": "node extensions/native/pages-navigation/gate.mjs && node --test tests/pages-navigation/integration.test.mjs",
+    "data:analytics": "node scripts/data/prepare-native-module.mjs analytics --write",
+    "test:analytics": "node extensions/native/analytics/gate.mjs && node --test tests/analytics/integration.test.mjs",
+    "data:catalog": "node scripts/data/prepare-native-module.mjs catalog --family=common --write",
+    "test:catalog": "node extensions/common/catalog/gate.mjs && node --test tests/catalog/integration.test.mjs",
+    "data:n8n": "node scripts/data/prepare-native-module.mjs n8n --family=connectors --write",
+    "test:n8n": "node extensions/connectors/n8n/gate.mjs && node --test tests/n8n/*.test.mjs tests/connectors/*.test.mjs"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",

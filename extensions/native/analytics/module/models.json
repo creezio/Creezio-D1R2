@@ -1,0 +1,164 @@
+[
+  {
+    "id": "event",
+    "title": "Événement déclaré",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 36
+        }
+      },
+      {
+        "id": "principal_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "actor_principal_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "event_type",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "page_view",
+            "click",
+            "activity",
+            "error"
+          ]
+        }
+      },
+      {
+        "id": "action_id",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 80
+        }
+      },
+      {
+        "id": "surface",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 64
+        }
+      },
+      {
+        "id": "path",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      {
+        "id": "error_code",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 80
+        }
+      },
+      {
+        "id": "duration_ms",
+        "type": "integer",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 0,
+          "maximum": 86400000
+        }
+      },
+      {
+        "id": "created_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [
+      {
+        "id": "by-time",
+        "fields": [
+          "context_id",
+          "created_at",
+          "id"
+        ],
+        "unique": false
+      }
+    ],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.analytics",
+        "kind": "permission",
+        "id": "emit"
+      },
+      {
+        "moduleId": "creezio.analytics",
+        "kind": "permission",
+        "id": "read"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  }
+]

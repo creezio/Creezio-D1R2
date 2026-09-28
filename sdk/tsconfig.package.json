@@ -20,6 +20,7 @@
     "operations/handler.ts",
     "operations/client.ts",
     "operations/command-journal.ts",
+    "connectors/types.ts",
     "delivery/context.tsx",
     "delivery/transport.ts",
     "files/types.ts",

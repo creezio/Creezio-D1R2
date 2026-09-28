@@ -311,6 +311,9 @@
           },
           "minItems": 0,
           "maxItems": 1000
+        },
+        "connectors": {
+          "$ref": "urn:creezio:contracts:v1:connectors"
         }
       },
       "required": [

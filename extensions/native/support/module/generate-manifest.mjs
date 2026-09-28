@@ -1,0 +1,142 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+
+const root=new URL('../',import.meta.url);
+const m=JSON.parse(readFileSync(new URL('module/manifest.json',root),'utf8'));
+const id='creezio.support',revision='t19-support-v1';
+const ref=(kind,name)=>({moduleId:id,kind,id:name});
+const S=(max=128,min=1)=>({minLength:min,maxLength:max});
+const I=(min=0)=>({minimum:min,maximum:Number.MAX_SAFE_INTEGER});
+const field=(name,type,options={})=>({id:name,type,nullable:options.nullable??false,
+  protected:options.protected??false,computed:false,...(options.constraints?{constraints:options.constraints}:{})});
+const common=[field('context_id','string',{protected:true,constraints:S()}),field('id','string',{constraints:S()}),
+  field('created_at','date-time')];
+const ticket={id:'ticket',title:'Tickets support',scope:'context',contextField:'context_id',
+  fields:[...common,field('requester_id','string',{constraints:S()}),
+    field('subject','string',{constraints:S(240)}),field('status','string',{constraints:{enum:['ouvert','repondu','resolu','ferme']}}),
+    field('assigned_to','string',{nullable:true,constraints:S()}),field('updated_at','date-time'),
+    field('last_message_at','date-time',{nullable:true}),field('last_preview','string',{nullable:true,constraints:S(240,0)}),
+    field('message_count','integer',{constraints:I()}),field('revision','integer',{constraints:I(1)})],
+  primaryKey:['context_id','id'],indexes:[{id:'recent',fields:['context_id','updated_at','id'],unique:false}],
+  relations:[],permissions:[ref('permission','use')],deletion:{mode:'soft',requiresApproval:false},public:false};
+const message={id:'message',title:'Messages support',scope:'context',contextField:'context_id',
+  fields:[...common,field('ticket_id','string',{constraints:S()}),field('origin','string',{constraints:{enum:['client','support']}}),
+    field('author_id','string',{constraints:S()}),field('body','string',{constraints:S(4000)})],
+  primaryKey:['context_id','ticket_id','id'],
+  indexes:[{id:'by-ticket',fields:['context_id','ticket_id','created_at','id'],unique:false}],
+  relations:[{id:'ticket',fields:['context_id','ticket_id'],target:ref('model','ticket'),
+    targetFields:['context_id','id'],onDelete:'restrict'}],permissions:[ref('permission','use')],
+  deletion:{mode:'hard',requiresApproval:false},public:false};
+const obj=(properties,required=Object.keys(properties))=>({type:'object',properties,required,additionalProperties:false});
+const str=(max=128,min=1)=>({type:'string',minLength:min,maxLength:max});
+const integer=(min=0,max=Number.MAX_SAFE_INTEGER)=>({type:'integer',minimum:min,maximum:max});
+const nullable=value=>({anyOf:[value,{type:'null'}]});
+const schemas=[],schema=(name,value)=>{schemas.push({id:name,schema:value});return {schemaId:name};};
+const ticketView=obj({id:str(),requesterId:str(),subject:str(240),status:{type:'string',enum:['ouvert','repondu','resolu','ferme']},
+  assignedTo:nullable(str()),createdAt:str(35),updatedAt:str(35),lastMessageAt:nullable(str(35)),
+  lastPreview:nullable(str(240,0)),messageCount:integer(),revision:integer(1)});
+const messageView=obj({id:str(),ticketId:str(),origin:{type:'string',enum:['client','support']},
+  authorId:str(),body:str(4000),createdAt:str(35)});
+const ticketOutput=schema('ticket-output',obj({item:ticketView}));
+const ticketPage=schema('ticket-page',obj({items:{type:'array',items:ticketView,maxItems:25},nextCursor:nullable(str(2048))}));
+const messageOutput=schema('message-output',obj({item:messageView,ticket:ticketView}));
+const messagePage=schema('message-page',obj({items:{type:'array',items:messageView,maxItems:50},nextCursor:nullable(str(2048))}));
+const statusOutput=schema('transport-output',obj({state:{type:'string',enum:['unavailable']},externalEmail:{type:'boolean'}}));
+const requestKey=str(),revisionNumber=integer(1),status={type:'string',enum:['ouvert','repondu','resolu','ferme']};
+const inputs={
+  'ticket.create':schema('ticket-create-input',obj({requestKey,subject:str(240),body:str(4000,0)},['requestKey','subject'])),
+  'ticket.list':schema('ticket-list-input',obj({limit:integer(1,25),cursor:str(2048),query:str(120),status},['limit'])),
+  'ticket.read':schema('ticket-read-input',obj({id:str()})),
+  'ticket.status':schema('ticket-status-input',obj({requestKey,id:str(),revision:revisionNumber,status})),
+  'ticket.resolve':schema('ticket-resolve-input',obj({requestKey,id:str(),revision:revisionNumber})),
+  'ticket.claim':schema('ticket-claim-input',obj({requestKey,id:str(),revision:revisionNumber,claim:{type:'boolean'}})),
+  'message.list':schema('message-list-input',obj({ticketId:str(),limit:integer(1,50),cursor:str(2048)},['ticketId','limit'])),
+  'message.customer':schema('message-customer-input',obj({requestKey,ticketId:str(),revision:revisionNumber,body:str(4000)})),
+  'message.reply':schema('message-reply-input',obj({requestKey,ticketId:str(),revision:revisionNumber,body:str(4000)})),
+  'transport.status':schema('transport-status-input',obj({},[]))};
+const permissions=[{id:'use',title:'Utiliser le support',audiences:['admin','app'],
+  actors:['user','delegated-user','machine'],scopes:['support.use'],context:'required',default:'deny',
+  resources:[ref('model','ticket'),ref('model','message')],actions:['read','create','update','execute'],
+  enforcement:{request:true,commit:true},public:false},
+  {id:'manage',title:'Gérer la file support',audiences:['admin'],actors:['user','delegated-user','machine'],
+    scopes:['support.manage'],context:'required',default:'deny',resources:[ref('model','ticket'),ref('model','message')],
+    actions:['read','update','execute'],enforcement:{request:true,commit:true},public:false}];
+const errors=['invalid_input','unauthorized','forbidden','not_found','conflict','rate_limited','unavailable','unknown']
+  .map(code=>({code,retryable:['rate_limited','unavailable','unknown'].includes(code),outcome:code==='unknown'?'unknown':'rejected'}));
+const spec=[
+  ['ticket.create','command',['app'],['use'],[],['ticket','message'],ticketOutput],
+  ['ticket.list','query',['admin','app'],['use'],['ticket'],[],ticketPage],
+  ['ticket.read','query',['admin','app'],['use'],['ticket'],[],ticketOutput],
+  ['ticket.status','command',['admin'],['use','manage'],['ticket'],['ticket'],ticketOutput],
+  ['ticket.resolve','command',['app'],['use'],['ticket'],['ticket'],ticketOutput],
+  ['ticket.claim','command',['admin'],['use','manage'],['ticket'],['ticket'],ticketOutput],
+  ['message.list','query',['admin','app'],['use'],['ticket','message'],[],messagePage],
+  ['message.customer','command',['app'],['use'],['ticket'],['ticket','message'],messageOutput],
+  ['message.reply','command',['admin'],['use','manage'],['ticket'],['ticket','message'],messageOutput],
+  ['transport.status','query',['admin','app'],['use'],[],[],statusOutput]
+];
+const operations=spec.map(([name,kind,audiences,required,reads,writes,output])=>({
+  id:name,title:name,kind,input:inputs[name],output,permissions:required.map(value=>ref('permission',value)),
+  audiences,actors:['user','delegated-user','machine'],context:'required',
+  handler:{path:'module/operations.ts',export:name.replace(/\.([a-z])/g,(_,letter)=>letter.toUpperCase())},
+  effects:{reads:reads.map(value=>ref('model',value)),writes:writes.map(value=>ref('model',value)),
+    emits:[],calls:[],providers:[]},errors,
+  pagination:['ticket.list','message.list'].includes(name)?{mode:'cursor',cursorField:'cursor',limitField:'limit',maxItems:name==='ticket.list'?25:50}:{mode:'none'},
+  idempotency:kind==='command'?{mode:'required',keyField:'requestKey',scope:'actor-context-operation',retentionSeconds:86400}:{mode:'none'},
+  approval:{mode:'none'},concurrency:{mode:'none'},
+  execution:{maxDurationMs:10000,maxItems:name==='ticket.list'?500:name==='message.list'?51:10,resumable:false},
+  audit:{required:true,redactFields:['body','query']},public:false}));
+const api=[],tools=[];
+for(const op of operations){const command=op.kind==='command';
+  for(const audience of op.audiences){const input=schemas.find(item=>item.id===op.input.schemaId).schema;
+    api.push({id:`${audience}.${op.id}`,method:command?'POST':'GET',path:`/api/${audience}/support/${op.id.replaceAll('.','/')}`,
+      operation:ref('operation',op.id),audience,auth:['session','oauth','api-token'],
+      parameters:command?[]:Object.keys(input.properties).map(name=>({name:name.replace(/[A-Z]/g,letter=>`-${letter.toLowerCase()}`),in:'query',inputField:name,
+        required:input.required.includes(name)})),input:op.input,output:op.output,rateLimit:{requests:60,windowSeconds:60}});}
+  tools.push({id:op.id,name:`support_${op.id.replaceAll('.','_')}`,operation:ref('operation',op.id),
+    audiences:op.audiences,auth:['oauth','api-token'],input:op.input,output:op.output,
+    annotations:{readOnly:!command,destructive:false,idempotent:!command,openWorld:false},textFallback:true});}
+m.identity={id,title:'Support natif',publisher:'creezio',origin:'https://github.com/creezio/Creezio-D1R2',
+  version:'0.0.0',source:{kind:'snapshot',revision,integrity:`sha256-${createHash('sha256').update(revision).digest('hex')}`},
+  license:{expression:'NOASSERTION',file:'LICENSE'}};
+m.compatibility={core:'^0.0.0',sdk:'^1.2.0',requiredCapabilities:['runtime.worker','data.d1.shared'],optionalCapabilities:[]};
+m.entrypoints={server:{path:'module/entry.server.ts',export:'support'},ui:{path:'ui/index.tsx',export:'SupportWorkspaceView'},
+  plugin:{manifest:'plugin/plugin.json',mcp:'plugin/mcp.json',contributions:{path:'plugin/contributions.ts',export:'contributions'}}};
+m.dependencies=[{moduleId:'creezio.access',origin:m.identity.origin,versionRange:'^0.0.0',optional:false,
+  contracts:[],whenAbsent:'block',whenIncompatible:'block',autoInstall:false}];
+const viewInput=schema('support-view-input',obj({},[]));
+const pendingState=obj({sessionId:str(),audience:{type:'string',enum:['admin','app']},contextId:str(),
+  bindingId:str(257),requestKey:str(512),intent:str(64),targetId:str()},
+  ['sessionId','audience','contextId','bindingId','requestKey']);
+const panelState=schema('support-panel-state',obj({sessionId:str(),audience:{type:'string',enum:['admin','app']},
+  contextId:str(),ticketId:str(),pending:pendingState},[]));
+m.contracts={schemas,models:[ticket,message],files:[],events:[],settings:[],search:[],permissions,operations,api,
+  mcp:{tools,resources:[],prompts:[],skills:[]},ui:{views:[{id:'workspace',title:'Support',surfaces:['workspace'],
+    route:'/admin/support',component:{path:'ui/index.tsx',export:'SupportWorkspaceView'},permissions:[ref('permission','use')],
+    operations:operations.map(op=>ref('operation',op.id)),input:viewInput,
+    panel:{identityFields:[],navigation:'sdk',retention:'preserve',inactiveEffects:'suspend',stateSchema:panelState}},
+    {id:'front',title:'Support',surfaces:['front'],route:'/support',
+      component:{path:'ui/index.tsx',export:'SupportWorkspaceView'},permissions:[ref('permission','use')],
+      operations:operations.filter(op=>op.audiences.includes('app')).map(op=>ref('operation',op.id)),input:viewInput,
+      panel:{identityFields:[],navigation:'sdk',retention:'preserve',inactiveEffects:'suspend',stateSchema:panelState}}],
+    navigation:[{id:'support',title:'Support',view:ref('view','workspace'),permissions:[ref('permission','use')],
+      surfaces:['workspace'],order:60},
+      {id:'support-front',title:'Support',view:ref('view','front'),permissions:[ref('permission','use')],
+        surfaces:['front'],order:60}],slots:[],front:{mode:'provided'},
+      themes:[],styles:[]},widgets:[],publicContracts:[]};
+m.documentation.versionBinding={moduleVersion:'0.0.0',sourceRevision:revision};
+for(const name of ['backend','ui','api-mcp','widgets','package','docs'])m.validation.suites[name].tests=[`tests/${name}/contract.test.mjs`];
+m.validation.suites.widgets.mode='not-applicable';
+m.validation.suites.widgets.justification={reason:'Support threads use text and do not need a visual widget.',policyRule:'support.text-tools'};
+m.packaging.runtime.files=['module/manifest.json','module/models.json','module/entry.server.ts','module/operations.ts',
+  'module/service.ts','ui/index.tsx','ui/state.ts','README.md','prd.md','CHANGELOG.md','LICENSE',
+  'plugin/plugin.json','plugin/mcp.json','plugin/contributions.ts'];
+m.packaging.validation.files=['AGENTS.md','FILES.md','interview.md','TODO.md','gate.mjs','module/generate-manifest.mjs',
+  'ci/run-suite.mjs','tests/helpers.mjs',...['backend','ui','api-mcp','widgets','package','docs'].flatMap(name=>
+    [`ci/${name}.mjs`,`tests/${name}/contract.test.mjs`])];
+m.packaging.validationBinding={moduleId:id,moduleVersion:'0.0.0',sourceRevision:revision};
+m.lifecycle.absent={widgets:{reason:'MCP tools return support text without a widget.',policyRule:'support.text-tools'},
+  files:{reason:'Support v1 has no attachment category.',policyRule:'support.no-files'}};
+m.lifecycle.configuration='explicit-state';
+writeFileSync(new URL('module/models.json',root),JSON.stringify([ticket,message],null,2)+'\n');
+writeFileSync(new URL('module/manifest.json',root),JSON.stringify(m,null,2)+'\n');

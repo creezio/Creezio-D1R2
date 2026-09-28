@@ -1,5 +1,13 @@
 # Changelog
 
+## En cours — connecteurs externes déclaratifs et n8n (T26)
+
+Le SDK candidat 1.2 ajoute les descripteurs et le port de connecteur génériques. Les modules déclarent leurs ressources GET et leurs modèles privés de configuration/coffre ; le Worker les compose sans branche spéciale par fournisseur. Le module n8n configure une instance externe et propose la lecture autorisée des workflows/exécutions. Les mutations distantes, callbacks et recettes fournisseur restent ouverts ; aucun n8n n'est embarqué. Voir [T26](docs/IMPLEMENTATION-T26.md).
+
+## En cours — Support, pages, analytics et catalogue (T19/T21/T22/T25)
+
+Trois modules natifs rejoignent la composition du socle et des thèmes : tickets et discussions Support, pages avec brouillons/snapshots publiés et navigation, tableaux Analytics alimentés par les événements déclarés. Les interfaces réutilisent les composants du Creezio original. Le Catalogue est une extension métier optionnelle avec son profil de qualification, ses produits/catégories, son port public et deux widgets liste/fiche. Les schémas sont générés centralement et les suites propres/intégrations rejoignent la CI ; voir les documents de réalisation pour les recettes acquises et les raccords encore ouverts.
+
 ## En cours — messagerie partagée et journal SDK (T18/T30)
 
 Un utilisateur autorisé retrouve les mêmes boîtes, brouillons et pièces jointes dans le workspace et le front. Les modèles sont rattachés au principal et au contexte ; les permissions restent distinctes par audience. Le SDK candidat 1.2 expose un journal de mutation qui conserve la clé avant émission, bloque le nouvel envoi après une issue incertaine et vérifie le statut sans replay. Les archives SDK déjà publiées restent inchangées. Voir [T18](docs/IMPLEMENTATION-T18.md) et [le contrat SDK](sdk/operations/README.md).

@@ -1,0 +1,9 @@
+# PRD — connecteur n8n, tranche lecture
+
+Objectif : configurer un n8n externe depuis Creezio et consulter avec droits ses workflows et exécutions, sans service embarqué. REQ-2601 couvre la connexion sortante ; REQ-2602 couvre distinctement les appels entrants par les API et MCP Creezio déjà fournies par l’hôte.
+
+Parcours : un administrateur saisit l’URL HTTPS de son instance, puis la clé API. La configuration est versionnée par contexte ; la clé est scellée dans le coffre. Il active la connexion, vérifie l’accès puis consulte les listes paginées et fiches de métadonnées. Un principal app ou machine autorisé peut lire les mêmes métadonnées avec `n8n.read` sans voir la clé ni les réglages sensibles. Une révocation coupe le port distant. Les phases d’accès non résolues suspendent l’affichage sans détruire le formulaire ; une vraie déconnexion ou un changement de contexte le purge.
+
+Critères : URL utilisateur autorisée sans republication, aucun secret D1 en clair/sortie/log, origine HTTPS contrôlée, ressources HTTP fixes, refus des redirections et adresses locales, pagination par curseur sans saut, projections sans `nodes`, `credentials`, `pinData`, `staticData`, `data` ni `workflowData`, refus des réponses malformées ou hors budget, états et erreurs explicites. Les écritures de configuration utilisent clé de demande et révision CAS. Une recette n8n réelle reste à mener avec une instance et une clé autorisées.
+
+Hors de cette tranche : mutation distante `publish/unpublish`, retry/stop/delete d’exécutions, déclenchement webhook, callback n8n dédié, règles T24, n8n embarqué, maintenance et scheduler. Ces capacités restent dans le périmètre final T26 mais exigent contrat d’effet externe/reprise, sécurité webhook et recette propre. Aucun endpoint REST générique `execute` n’est supposé.

@@ -13,6 +13,7 @@
     "dist/types/sdk/access",
     "dist/types/sdk/delivery",
     "dist/types/sdk/contracts",
+    "dist/types/sdk/connectors",
     "dist/types/sdk/files",
     "dist/types/sdk/front",
     "dist/types/sdk/operations/client.d.ts",
@@ -42,6 +43,10 @@
     "./operations/command-journal": {
       "types": "./dist/types/sdk/operations/command-journal.d.ts",
       "import": "./dist/esm/operations/command-journal.js"
+    },
+    "./connectors/types": {
+      "types": "./dist/types/sdk/connectors/types.d.ts",
+      "import": "./dist/esm/connectors/types.js"
     },
     "./delivery/context": {
       "types": "./dist/types/sdk/delivery/context.d.ts",

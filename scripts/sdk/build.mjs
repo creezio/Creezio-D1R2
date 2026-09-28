@@ -13,6 +13,7 @@ const entries={
   'operations/handler':'operations/handler.ts',
   'operations/client':'operations/client.ts',
   'operations/command-journal':'operations/command-journal.ts',
+  'connectors/types':'connectors/types.ts',
   'delivery/context':'delivery/context.tsx',
   'delivery/transport':'delivery/transport.ts',
   'files/types':'files/types.ts',

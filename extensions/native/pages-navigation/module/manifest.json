@@ -1,0 +1,6114 @@
+{
+  "schemaVersion": "1.0.0",
+  "identity": {
+    "id": "creezio.pages-navigation",
+    "title": "Pages et navigation",
+    "publisher": "creezio",
+    "origin": "https://github.com/creezio/Creezio-D1R2",
+    "version": "0.0.0",
+    "source": {
+      "kind": "snapshot",
+      "revision": "t21-pages-navigation-v1",
+      "integrity": "sha256-9ca825a0828741ea46801c300ed65c8f67655ac505632bd0e81f0baa0e96c5f1"
+    },
+    "license": {
+      "expression": "NOASSERTION",
+      "file": "LICENSE"
+    }
+  },
+  "compatibility": {
+    "core": "^0.0.0",
+    "sdk": "^1.2.0",
+    "requiredCapabilities": [
+      "runtime.worker",
+      "data.d1.shared",
+      "files.r2.shared"
+    ],
+    "optionalCapabilities": []
+  },
+  "entrypoints": {
+    "server": {
+      "path": "module/entry.server.ts",
+      "export": "pagesNavigation"
+    },
+    "ui": {
+      "path": "ui/index.tsx",
+      "export": "PagesNavigationAdminView"
+    },
+    "plugin": {
+      "manifest": "plugin/plugin.json",
+      "mcp": "plugin/mcp.json",
+      "contributions": {
+        "path": "plugin/contributions.ts",
+        "export": "contributions"
+      }
+    }
+  },
+  "dependencies": [
+    {
+      "moduleId": "creezio.access",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "optional": false,
+      "contracts": [],
+      "whenAbsent": "block",
+      "whenIncompatible": "block",
+      "autoInstall": false
+    }
+  ],
+  "contracts": {
+    "schemas": [
+      {
+        "id": "page-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "page": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "slug": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "publishedRevision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "publishedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 35
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sections": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "hero",
+                          "features",
+                          "pricing",
+                          "cta",
+                          "footer"
+                        ]
+                      },
+                      "position": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10000
+                      },
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "content": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "kind",
+                      "position",
+                      "enabled",
+                      "content"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "maxItems": 30
+                },
+                "settings": {
+                  "type": "object",
+                  "properties": {
+                    "brandName": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 500
+                    },
+                    "tagline": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 500
+                    },
+                    "accent": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 500
+                    },
+                    "background": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 500
+                    },
+                    "logoUrl": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 500
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": false
+                },
+                "seo": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 240
+                    },
+                    "description": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 500
+                    },
+                    "canonical": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 240
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "id",
+                "slug",
+                "title",
+                "revision",
+                "publishedRevision",
+                "updatedAt",
+                "publishedAt",
+                "sections",
+                "settings",
+                "seo"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "page"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "published-page-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "page": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "slug": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240
+                },
+                "sections": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "hero",
+                          "features",
+                          "pricing",
+                          "cta",
+                          "footer"
+                        ]
+                      },
+                      "position": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10000
+                      },
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "content": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "kind",
+                      "position",
+                      "enabled",
+                      "content"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "maxItems": 30
+                },
+                "settings": {
+                  "type": "object",
+                  "properties": {
+                    "brandName": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 500
+                    },
+                    "tagline": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 500
+                    },
+                    "accent": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 500
+                    },
+                    "background": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 500
+                    },
+                    "logoUrl": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 500
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": false
+                },
+                "seo": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 240
+                    },
+                    "description": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 500
+                    },
+                    "canonical": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 240
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": false
+                },
+                "publishedRevision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "publishedAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                }
+              },
+              "required": [
+                "id",
+                "slug",
+                "title",
+                "sections",
+                "settings",
+                "seo",
+                "publishedRevision",
+                "publishedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "page"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "page-id-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "pageId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "pageId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "page-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "page-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "slug": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 240
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "publishedRevision": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  },
+                  "publishedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 35
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "slug",
+                  "title",
+                  "revision",
+                  "publishedRevision",
+                  "updatedAt",
+                  "publishedAt"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 50
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "published-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "slug": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 240
+                  },
+                  "publishedRevision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "publishedAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  }
+                },
+                "required": [
+                  "id",
+                  "slug",
+                  "title",
+                  "publishedRevision",
+                  "publishedAt"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 50
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "page-create-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "slug": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            }
+          },
+          "required": [
+            "requestKey",
+            "id",
+            "slug",
+            "title"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "page-save-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "pageId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "slug": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "sections": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "hero",
+                      "features",
+                      "pricing",
+                      "cta",
+                      "footer"
+                    ]
+                  },
+                  "position": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "content": {
+                    "type": "object",
+                    "additionalProperties": true
+                  }
+                },
+                "required": [
+                  "id",
+                  "kind",
+                  "position",
+                  "enabled",
+                  "content"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 30
+            },
+            "settings": {
+              "type": "object",
+              "properties": {
+                "brandName": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 500
+                },
+                "tagline": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 500
+                },
+                "accent": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 500
+                },
+                "background": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 500
+                },
+                "logoUrl": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 500
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            },
+            "seo": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 240
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 500
+                },
+                "canonical": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 240
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestKey",
+            "pageId",
+            "revision",
+            "slug",
+            "title",
+            "sections",
+            "settings",
+            "seo"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "page-state-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "pageId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "pageId",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "navigation-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "navigation": {
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "label": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "href": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 512
+                      },
+                      "icon": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 80
+                      },
+                      "group": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 80
+                      },
+                      "order": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10000
+                      },
+                      "hidden": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "label",
+                      "href",
+                      "icon",
+                      "group",
+                      "order",
+                      "hidden"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "maxItems": 100
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "publishedRevision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "updatedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 35
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "publishedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 35
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "items",
+                "revision",
+                "publishedRevision",
+                "updatedAt",
+                "publishedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "navigation"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "published-navigation-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "navigation": {
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "label": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "href": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 512
+                      },
+                      "icon": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 80
+                      },
+                      "group": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 80
+                      },
+                      "order": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10000
+                      },
+                      "hidden": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "label",
+                      "href",
+                      "icon",
+                      "group",
+                      "order",
+                      "hidden"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "maxItems": 100
+                },
+                "publishedRevision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "publishedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 35
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "items",
+                "publishedRevision",
+                "publishedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "navigation"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "navigation-save-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "href": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "icon": {
+                    "type": "string",
+                    "minLength": 0,
+                    "maxLength": 80
+                  },
+                  "group": {
+                    "type": "string",
+                    "minLength": 0,
+                    "maxLength": 80
+                  },
+                  "order": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  },
+                  "hidden": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "id",
+                  "label",
+                  "href",
+                  "icon",
+                  "group",
+                  "order",
+                  "hidden"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 100
+            }
+          },
+          "required": [
+            "requestKey",
+            "revision",
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "navigation-state-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "empty-input",
+        "schema": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "media-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "pageId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          "required": [
+            "pageId",
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "media-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "pageId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "fileId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 67
+                  },
+                  "filename": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "contentType": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "byteSize": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "reference": {
+                    "type": "object",
+                    "properties": {
+                      "fileId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 67
+                      },
+                      "intentId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "generation": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "digest": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      }
+                    },
+                    "required": [
+                      "fileId",
+                      "intentId",
+                      "generation",
+                      "digest"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "pageId",
+                  "fileId",
+                  "filename",
+                  "contentType",
+                  "byteSize",
+                  "reference"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 50
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "media-link-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "pageId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "staged": {
+              "type": "object",
+              "properties": {
+                "fileId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 67
+                },
+                "intentId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "generation": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "digest": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                }
+              },
+              "required": [
+                "fileId",
+                "intentId",
+                "generation",
+                "digest"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestKey",
+            "pageId",
+            "revision",
+            "staged"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "media-link-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "media": {
+              "type": "object",
+              "properties": {
+                "pageId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "fileId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 67
+                },
+                "filename": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "contentType": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "byteSize": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "reference": {
+                  "type": "object",
+                  "properties": {
+                    "fileId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 67
+                    },
+                    "intentId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "generation": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "digest": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    }
+                  },
+                  "required": [
+                    "fileId",
+                    "intentId",
+                    "generation",
+                    "digest"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "pageId",
+                "fileId",
+                "filename",
+                "contentType",
+                "byteSize",
+                "reference"
+              ],
+              "additionalProperties": false
+            },
+            "page": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "slug": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "publishedRevision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "publishedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 35
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "slug",
+                "title",
+                "revision",
+                "publishedRevision",
+                "updatedAt",
+                "publishedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "media",
+            "page"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "media-unlink-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "pageId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "fileId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 67
+            }
+          },
+          "required": [
+            "requestKey",
+            "pageId",
+            "revision",
+            "fileId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "media-unlink-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "removed": {
+              "const": true
+            },
+            "page": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "slug": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "publishedRevision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "publishedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 35
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "slug",
+                "title",
+                "revision",
+                "publishedRevision",
+                "updatedAt",
+                "publishedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "removed",
+            "page"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "editor-view-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "pageId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "editor-panel-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "audience": {
+              "type": "string",
+              "enum": [
+                "admin",
+                "app"
+              ]
+            },
+            "contextId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "pageId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "tab": {
+              "type": "string",
+              "enum": [
+                "pages",
+                "navigation"
+              ]
+            },
+            "pending": {
+              "type": "object",
+              "properties": {
+                "sessionId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "audience": {
+                  "type": "string",
+                  "enum": [
+                    "admin",
+                    "app"
+                  ]
+                },
+                "contextId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "bindingId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 257
+                },
+                "requestKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                "intent": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "targetId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "required": [
+                "sessionId",
+                "audience",
+                "contextId",
+                "bindingId",
+                "requestKey"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "page",
+        "title": "Pages éditoriales",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "slug",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 160
+            }
+          },
+          {
+            "id": "title",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 240
+            }
+          },
+          {
+            "id": "draft_sections",
+            "type": "json",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "draft_settings",
+            "type": "json",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "draft_seo",
+            "type": "json",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "published_slug",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 160
+            }
+          },
+          {
+            "id": "published_title",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 240
+            }
+          },
+          {
+            "id": "published_sections",
+            "type": "json",
+            "nullable": true,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "published_settings",
+            "type": "json",
+            "nullable": true,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "published_seo",
+            "type": "json",
+            "nullable": true,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "created_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "published_at",
+            "type": "date-time",
+            "nullable": true,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "published_revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "recent-pages",
+            "fields": [
+              "context_id",
+              "updated_at",
+              "id"
+            ],
+            "unique": false
+          },
+          {
+            "id": "by-slug",
+            "fields": [
+              "context_id",
+              "slug"
+            ],
+            "unique": true
+          },
+          {
+            "id": "by-published-slug",
+            "fields": [
+              "context_id",
+              "published_slug"
+            ],
+            "unique": true
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          },
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "view"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "navigation",
+        "title": "Navigation éditoriale",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "primary"
+              ]
+            }
+          },
+          {
+            "id": "draft_items",
+            "type": "json",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "published_items",
+            "type": "json",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "published_at",
+            "type": "date-time",
+            "nullable": true,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "published_revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          },
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "view"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "file_metadata",
+        "title": "Private media file metadata",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "file_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 67
+            }
+          },
+          {
+            "id": "file_owner",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 260
+            }
+          },
+          {
+            "id": "object_key",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "id": "digest",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 64,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "byte_size",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "content_type",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "filename",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 255
+            }
+          },
+          {
+            "id": "version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "state",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "staging",
+                "staged",
+                "available",
+                "abandoned",
+                "deleted"
+              ]
+            }
+          },
+          {
+            "id": "intent_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "generation",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "file_id"
+        ],
+        "indexes": [
+          {
+            "id": "intent",
+            "fields": [
+              "context_id",
+              "intent_id",
+              "generation"
+            ],
+            "unique": true
+          },
+          {
+            "id": "object-key",
+            "fields": [
+              "context_id",
+              "object_key"
+            ],
+            "unique": true
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "page_media",
+        "title": "Médias associés aux pages",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "page_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "file_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 67
+            }
+          },
+          {
+            "id": "filename",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 255
+            }
+          },
+          {
+            "id": "content_type",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "byte_size",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 64,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "intent_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "generation",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "created_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "page_id",
+          "file_id"
+        ],
+        "indexes": [
+          {
+            "id": "by-page",
+            "fields": [
+              "context_id",
+              "page_id",
+              "created_at",
+              "file_id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [
+          {
+            "id": "page",
+            "fields": [
+              "context_id",
+              "page_id"
+            ],
+            "target": {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            },
+            "targetFields": [
+              "context_id",
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": false
+        },
+        "public": false
+      }
+    ],
+    "files": [
+      {
+        "id": "media",
+        "metadataModel": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "model",
+          "id": "file_metadata"
+        },
+        "contextField": "context_id",
+        "ownerField": "file_owner",
+        "storageFields": {
+          "id": "file_id",
+          "objectKey": "object_key",
+          "digest": "digest",
+          "byteSize": "byte_size",
+          "contentType": "content_type",
+          "filename": "filename",
+          "version": "version",
+          "state": "state",
+          "intentId": "intent_id",
+          "generation": "generation"
+        },
+        "mimeTypes": [
+          "image/png",
+          "image/jpeg",
+          "image/webp"
+        ],
+        "maxBytes": 10485760,
+        "public": false,
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "attachment": {
+          "models": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            }
+          ],
+          "multiple": true
+        },
+        "deletion": "restrict"
+      }
+    ],
+    "events": [],
+    "settings": [],
+    "search": [],
+    "permissions": [
+      {
+        "id": "edit",
+        "title": "Éditer et publier les pages",
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "scopes": [
+          "pages.edit"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "model",
+            "id": "page"
+          },
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "model",
+            "id": "navigation"
+          },
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "model",
+            "id": "file_metadata"
+          },
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "model",
+            "id": "page_media"
+          },
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "file",
+            "id": "media"
+          }
+        ],
+        "actions": [
+          "read",
+          "create",
+          "update",
+          "delete",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      },
+      {
+        "id": "view",
+        "title": "Lire les contenus publiés",
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "scopes": [
+          "pages.view"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "model",
+            "id": "page"
+          },
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "model",
+            "id": "navigation"
+          }
+        ],
+        "actions": [
+          "read",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      }
+    ],
+    "operations": [
+      {
+        "id": "page.list",
+        "title": "Lister les pages éditoriales",
+        "kind": "query",
+        "input": {
+          "schemaId": "page-list-input"
+        },
+        "output": {
+          "schemaId": "page-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "pageList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 50
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 50,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "page.create",
+        "title": "Créer une page",
+        "kind": "command",
+        "input": {
+          "schemaId": "page-create-input"
+        },
+        "output": {
+          "schemaId": "page-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "pageCreate"
+        },
+        "effects": {
+          "reads": [],
+          "writes": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "page.read",
+        "title": "Lire le brouillon de page",
+        "kind": "query",
+        "input": {
+          "schemaId": "page-id-input"
+        },
+        "output": {
+          "schemaId": "page-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "pageRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "page.save",
+        "title": "Enregistrer la page",
+        "kind": "command",
+        "input": {
+          "schemaId": "page-save-input"
+        },
+        "output": {
+          "schemaId": "page-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "pageSave"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "page.preview",
+        "title": "Prévisualiser le brouillon",
+        "kind": "query",
+        "input": {
+          "schemaId": "page-id-input"
+        },
+        "output": {
+          "schemaId": "page-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "pagePreview"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "page.publish",
+        "title": "Publier le snapshot éditorial",
+        "kind": "command",
+        "input": {
+          "schemaId": "page-state-input"
+        },
+        "output": {
+          "schemaId": "published-page-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "pagePublish"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "page.reset",
+        "title": "Rétablir le brouillon depuis le publié",
+        "kind": "command",
+        "input": {
+          "schemaId": "page-state-input"
+        },
+        "output": {
+          "schemaId": "page-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "pageReset"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "page.published.list",
+        "title": "Lister les pages publiées",
+        "kind": "query",
+        "input": {
+          "schemaId": "page-list-input"
+        },
+        "output": {
+          "schemaId": "published-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "view"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "pagePublishedList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 50
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 50,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "page.published.read",
+        "title": "Lire une page publiée",
+        "kind": "query",
+        "input": {
+          "schemaId": "page-id-input"
+        },
+        "output": {
+          "schemaId": "published-page-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "view"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "pagePublishedRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "navigation.read",
+        "title": "Lire la navigation en édition",
+        "kind": "query",
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "navigation-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "navigationRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "navigation"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "navigation.save",
+        "title": "Enregistrer la navigation",
+        "kind": "command",
+        "input": {
+          "schemaId": "navigation-save-input"
+        },
+        "output": {
+          "schemaId": "navigation-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "navigationSave"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "navigation"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "navigation"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "navigation.publish",
+        "title": "Publier la navigation",
+        "kind": "command",
+        "input": {
+          "schemaId": "navigation-state-input"
+        },
+        "output": {
+          "schemaId": "published-navigation-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "navigationPublish"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "navigation"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "navigation"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "navigation.reset",
+        "title": "Rétablir la navigation brouillon",
+        "kind": "command",
+        "input": {
+          "schemaId": "navigation-state-input"
+        },
+        "output": {
+          "schemaId": "navigation-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "navigationReset"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "navigation"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "navigation"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "navigation.published",
+        "title": "Lire la navigation publiée",
+        "kind": "query",
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "published-navigation-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "view"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "navigationPublished"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "navigation"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "media.list",
+        "title": "Lister les médias privés d’une page",
+        "kind": "query",
+        "input": {
+          "schemaId": "media-list-input"
+        },
+        "output": {
+          "schemaId": "media-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "mediaList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page_media"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 50
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 50,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "media.link",
+        "title": "Lier un média privé",
+        "kind": "command",
+        "input": {
+          "schemaId": "media-link-input"
+        },
+        "output": {
+          "schemaId": "media-link-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "mediaLink"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page_media"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "file",
+              "id": "media"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "media.unlink",
+        "title": "Détacher un média privé",
+        "kind": "command",
+        "input": {
+          "schemaId": "media-unlink-input"
+        },
+        "output": {
+          "schemaId": "media-unlink-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "mediaUnlink"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page_media"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page_media"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      }
+    ],
+    "api": [
+      {
+        "id": "admin.page.list",
+        "method": "GET",
+        "path": "/api/admin/pages-navigation/page/list",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "page.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "page-list-input"
+        },
+        "output": {
+          "schemaId": "page-list-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.page.create",
+        "method": "POST",
+        "path": "/api/admin/pages-navigation/page/create",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "page.create"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "page-create-input"
+        },
+        "output": {
+          "schemaId": "page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.page.read",
+        "method": "GET",
+        "path": "/api/admin/pages-navigation/page/read",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "page.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "page_id",
+            "in": "query",
+            "inputField": "pageId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "page-id-input"
+        },
+        "output": {
+          "schemaId": "page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.page.save",
+        "method": "POST",
+        "path": "/api/admin/pages-navigation/page/save",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "page.save"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "page-save-input"
+        },
+        "output": {
+          "schemaId": "page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.page.preview",
+        "method": "GET",
+        "path": "/api/admin/pages-navigation/page/preview",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "page.preview"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "page_id",
+            "in": "query",
+            "inputField": "pageId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "page-id-input"
+        },
+        "output": {
+          "schemaId": "page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.page.publish",
+        "method": "POST",
+        "path": "/api/admin/pages-navigation/page/publish",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "page.publish"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "page-state-input"
+        },
+        "output": {
+          "schemaId": "published-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.page.reset",
+        "method": "POST",
+        "path": "/api/admin/pages-navigation/page/reset",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "page.reset"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "page-state-input"
+        },
+        "output": {
+          "schemaId": "page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.page.published.list",
+        "method": "GET",
+        "path": "/api/admin/pages-navigation/page/published/list",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "page.published.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "page-list-input"
+        },
+        "output": {
+          "schemaId": "published-list-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.page.published.list",
+        "method": "GET",
+        "path": "/api/app/pages-navigation/page/published/list",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "page.published.list"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "page-list-input"
+        },
+        "output": {
+          "schemaId": "published-list-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.page.published.read",
+        "method": "GET",
+        "path": "/api/admin/pages-navigation/page/published/read",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "page.published.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "page_id",
+            "in": "query",
+            "inputField": "pageId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "page-id-input"
+        },
+        "output": {
+          "schemaId": "published-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.page.published.read",
+        "method": "GET",
+        "path": "/api/app/pages-navigation/page/published/read",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "page.published.read"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "page_id",
+            "in": "query",
+            "inputField": "pageId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "page-id-input"
+        },
+        "output": {
+          "schemaId": "published-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.navigation.read",
+        "method": "GET",
+        "path": "/api/admin/pages-navigation/navigation/read",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "navigation.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "navigation-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.navigation.save",
+        "method": "POST",
+        "path": "/api/admin/pages-navigation/navigation/save",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "navigation.save"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "navigation-save-input"
+        },
+        "output": {
+          "schemaId": "navigation-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.navigation.publish",
+        "method": "POST",
+        "path": "/api/admin/pages-navigation/navigation/publish",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "navigation.publish"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "navigation-state-input"
+        },
+        "output": {
+          "schemaId": "published-navigation-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.navigation.reset",
+        "method": "POST",
+        "path": "/api/admin/pages-navigation/navigation/reset",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "navigation.reset"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "navigation-state-input"
+        },
+        "output": {
+          "schemaId": "navigation-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.navigation.published",
+        "method": "GET",
+        "path": "/api/admin/pages-navigation/navigation/published",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "navigation.published"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "published-navigation-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.navigation.published",
+        "method": "GET",
+        "path": "/api/app/pages-navigation/navigation/published",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "navigation.published"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "published-navigation-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.media.list",
+        "method": "GET",
+        "path": "/api/admin/pages-navigation/media/list",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "media.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "page_id",
+            "in": "query",
+            "inputField": "pageId",
+            "required": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "media-list-input"
+        },
+        "output": {
+          "schemaId": "media-list-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.media.link",
+        "method": "POST",
+        "path": "/api/admin/pages-navigation/media/link",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "media.link"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "media-link-input"
+        },
+        "output": {
+          "schemaId": "media-link-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.media.unlink",
+        "method": "POST",
+        "path": "/api/admin/pages-navigation/media/unlink",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "media.unlink"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "media-unlink-input"
+        },
+        "output": {
+          "schemaId": "media-unlink-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      }
+    ],
+    "mcp": {
+      "tools": [
+        {
+          "id": "page.list",
+          "name": "pages_page_list",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "page.list"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "page-list-input"
+          },
+          "output": {
+            "schemaId": "page-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "page.create",
+          "name": "pages_page_create",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "page.create"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "page-create-input"
+          },
+          "output": {
+            "schemaId": "page-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "page.read",
+          "name": "pages_page_read",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "page.read"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "page-id-input"
+          },
+          "output": {
+            "schemaId": "page-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "page.save",
+          "name": "pages_page_save",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "page.save"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "page-save-input"
+          },
+          "output": {
+            "schemaId": "page-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "page.preview",
+          "name": "pages_page_preview",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "page.preview"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "page-id-input"
+          },
+          "output": {
+            "schemaId": "page-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "page.publish",
+          "name": "pages_page_publish",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "page.publish"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "page-state-input"
+          },
+          "output": {
+            "schemaId": "published-page-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "page.reset",
+          "name": "pages_page_reset",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "page.reset"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "page-state-input"
+          },
+          "output": {
+            "schemaId": "page-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "page.published.list",
+          "name": "pages_page_published_list",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "page.published.list"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "page-list-input"
+          },
+          "output": {
+            "schemaId": "published-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "page.published.read",
+          "name": "pages_page_published_read",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "page.published.read"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "page-id-input"
+          },
+          "output": {
+            "schemaId": "published-page-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "navigation.read",
+          "name": "pages_navigation_read",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "navigation.read"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "empty-input"
+          },
+          "output": {
+            "schemaId": "navigation-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "navigation.save",
+          "name": "pages_navigation_save",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "navigation.save"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "navigation-save-input"
+          },
+          "output": {
+            "schemaId": "navigation-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "navigation.publish",
+          "name": "pages_navigation_publish",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "navigation.publish"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "navigation-state-input"
+          },
+          "output": {
+            "schemaId": "published-navigation-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "navigation.reset",
+          "name": "pages_navigation_reset",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "navigation.reset"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "navigation-state-input"
+          },
+          "output": {
+            "schemaId": "navigation-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "navigation.published",
+          "name": "pages_navigation_published",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "navigation.published"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "empty-input"
+          },
+          "output": {
+            "schemaId": "published-navigation-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "media.list",
+          "name": "pages_media_list",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "media.list"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "media-list-input"
+          },
+          "output": {
+            "schemaId": "media-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "media.link",
+          "name": "pages_media_link",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "media.link"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "media-link-input"
+          },
+          "output": {
+            "schemaId": "media-link-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "media.unlink",
+          "name": "pages_media_unlink",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "media.unlink"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "media-unlink-input"
+          },
+          "output": {
+            "schemaId": "media-unlink-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        }
+      ],
+      "resources": [],
+      "prompts": [],
+      "skills": [
+        {
+          "id": "editorial",
+          "path": "plugin/skills/editorial.md",
+          "audiences": [
+            "admin"
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.list"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.create"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.read"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.save"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.preview"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.publish"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.reset"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "navigation.read"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "navigation.save"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "navigation.publish"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "navigation.reset"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "media.list"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "media.link"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "media.unlink"
+            }
+          ],
+          "resources": [],
+          "integrity": "sha256-9d0c58f5d52e99088b3e0cfd36afd2279c8cc89ad2152180dffe829e4ea6db11"
+        }
+      ]
+    },
+    "ui": {
+      "views": [
+        {
+          "id": "admin",
+          "title": "Pages et navigation",
+          "surfaces": [
+            "workspace"
+          ],
+          "route": "/admin/pages",
+          "component": {
+            "path": "ui/index.tsx",
+            "export": "PagesNavigationAdminView"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "permission",
+              "id": "edit"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.list"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.create"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.read"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.save"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.preview"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.publish"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.reset"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.published.list"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.published.read"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "navigation.read"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "navigation.save"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "navigation.publish"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "navigation.reset"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "navigation.published"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "media.list"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "media.link"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "media.unlink"
+            }
+          ],
+          "input": {
+            "schemaId": "editor-view-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend",
+            "stateSchema": {
+              "schemaId": "editor-panel-state"
+            }
+          }
+        },
+        {
+          "id": "front",
+          "title": "Pages",
+          "surfaces": [
+            "front"
+          ],
+          "route": "/pages",
+          "component": {
+            "path": "ui/front-page.tsx",
+            "export": "PagesNavigationFrontView"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "permission",
+              "id": "view"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.published.list"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.published.read"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "navigation.published"
+            }
+          ],
+          "input": {
+            "schemaId": "editor-view-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend",
+            "stateSchema": {
+              "schemaId": "editor-panel-state"
+            }
+          }
+        }
+      ],
+      "navigation": [
+        {
+          "id": "pages-navigation-admin",
+          "title": "Pages et navigation",
+          "view": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "view",
+            "id": "admin"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "permission",
+              "id": "edit"
+            }
+          ],
+          "surfaces": [
+            "workspace"
+          ],
+          "order": 40
+        },
+        {
+          "id": "pages-navigation-front",
+          "title": "Pages",
+          "view": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "view",
+            "id": "front"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "permission",
+              "id": "view"
+            }
+          ],
+          "surfaces": [
+            "front"
+          ],
+          "order": 40
+        }
+      ],
+      "slots": [],
+      "front": {
+        "mode": "provided"
+      },
+      "themes": [],
+      "styles": []
+    },
+    "widgets": [],
+    "publicContracts": []
+  },
+  "documentation": {
+    "installed": {
+      "readme": {
+        "path": "README.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "prd": {
+        "path": "prd.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "changelog": {
+        "path": "CHANGELOG.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      }
+    },
+    "development": {
+      "agents": {
+        "path": "AGENTS.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "files": {
+        "path": "FILES.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "interview": {
+        "path": "interview.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "todo": {
+        "path": "TODO.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      }
+    },
+    "versionBinding": {
+      "moduleVersion": "0.0.0",
+      "sourceRevision": "t21-pages-navigation-v1"
+    },
+    "localRevisions": {
+      "installedVersionDistinct": true,
+      "approvedImmutable": true
+    },
+    "installationHistory": {
+      "distinctFromPackageChangelog": true
+    }
+  },
+  "validation": {
+    "gate": "gate.mjs",
+    "suites": {
+      "backend": {
+        "mode": "required",
+        "script": "ci/backend.mjs",
+        "tests": [
+          "tests/backend/contract.test.mjs"
+        ]
+      },
+      "ui": {
+        "mode": "required",
+        "script": "ci/ui.mjs",
+        "tests": [
+          "tests/ui/contract.test.mjs"
+        ]
+      },
+      "api-mcp": {
+        "mode": "required",
+        "script": "ci/api-mcp.mjs",
+        "tests": [
+          "tests/api-mcp/contract.test.mjs"
+        ]
+      },
+      "widgets": {
+        "mode": "not-applicable",
+        "script": "ci/widgets.mjs",
+        "tests": [
+          "tests/widgets/contract.test.mjs"
+        ],
+        "justification": {
+          "reason": "Published pages render through the front view, not an MCP widget.",
+          "policyRule": "pages-navigation.no-widget-renderer"
+        }
+      },
+      "package": {
+        "mode": "required",
+        "script": "ci/package.mjs",
+        "tests": [
+          "tests/package/contract.test.mjs"
+        ]
+      },
+      "docs": {
+        "mode": "required",
+        "script": "ci/docs.mjs",
+        "tests": [
+          "tests/docs/contract.test.mjs"
+        ]
+      }
+    },
+    "policy": {
+      "id": "creezio.local-contracts",
+      "version": "1.0.0",
+      "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
+    },
+    "isolation": {
+      "productionSecrets": false,
+      "publicationRights": false
+    },
+    "evidence": {
+      "sourceIntegrity": true,
+      "artifactIntegrity": true,
+      "profile": true,
+      "executedSuites": true
+    }
+  },
+  "packaging": {
+    "runtime": {
+      "files": [
+        "module/manifest.json",
+        "module/models.json",
+        "module/entry.server.ts",
+        "module/operations.ts",
+        "module/service.ts",
+        "ui/contracts.ts",
+        "ui/index.tsx",
+        "ui/front-page.tsx",
+        "ui/prefabs.tsx",
+        "ui/landing.css",
+        "ui/types.ts",
+        "ui/state.ts",
+        "README.md",
+        "prd.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "plugin/plugin.json",
+        "plugin/mcp.json",
+        "plugin/contributions.ts",
+        "plugin/skills/editorial.md"
+      ],
+      "references": []
+    },
+    "validation": {
+      "files": [
+        "AGENTS.md",
+        "FILES.md",
+        "interview.md",
+        "TODO.md",
+        "gate.mjs",
+        "module/generate-manifest.mjs",
+        "ci/run-suite.mjs",
+        "tests/helpers.mjs",
+        "ci/backend.mjs",
+        "tests/backend/contract.test.mjs",
+        "ci/ui.mjs",
+        "tests/ui/contract.test.mjs",
+        "ci/api-mcp.mjs",
+        "tests/api-mcp/contract.test.mjs",
+        "ci/widgets.mjs",
+        "tests/widgets/contract.test.mjs",
+        "ci/package.mjs",
+        "tests/package/contract.test.mjs",
+        "ci/docs.mjs",
+        "tests/docs/contract.test.mjs"
+      ],
+      "references": []
+    },
+    "validationBinding": {
+      "moduleId": "creezio.pages-navigation",
+      "moduleVersion": "0.0.0",
+      "sourceRevision": "t21-pages-navigation-v1"
+    },
+    "noRuntimeTests": true,
+    "installation": "build-and-publish",
+    "providerInstallation": false
+  },
+  "lifecycle": {
+    "deactivation": "preserve-data",
+    "configuration": "explicit-state",
+    "uninstall": "explicit-approved-action",
+    "activationRequirements": [],
+    "absent": {
+      "widgets": {
+        "reason": "No MCP widget renderer is used for editorial pages.",
+        "policyRule": "pages-navigation.no-widget-renderer"
+      }
+    },
+    "dependencyChanges": {
+      "install": "resolve-explicit-consumer-selection",
+      "activate": "require-active-dependencies",
+      "update": "validate-dependent-contracts",
+      "deactivate": "block-or-explicit-dependent-plan",
+      "uninstall": "block-or-explicit-dependent-plan",
+      "data": "preserve"
+    }
+  }
+}

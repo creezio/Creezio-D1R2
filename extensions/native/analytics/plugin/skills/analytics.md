@@ -1,0 +1,3 @@
+# Analytique Creezio
+
+Les événements de ce module sont explicitement déclarés par un client autorisé. Utiliser `event.record` pour déclarer un événement sans texte libre ni charge utile sensible. Lire avec `event.list`, `analytics.snapshot` et `event.export` dans un contexte autorisé. Les compteurs ne mesurent que les événements déclarés ; l'absence de collecte automatique ne signifie pas une activité nulle. Respecter `nextCursor` et `complete` pour parcourir une période sans présenter une page partielle comme un total global. Aucun journal HTTP, catalogue d'endpoints ou temps actif n'est fourni par ces opérations.

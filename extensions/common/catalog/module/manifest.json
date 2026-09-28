@@ -1,0 +1,6328 @@
+{
+  "schemaVersion": "1.0.0",
+  "identity": {
+    "id": "creezio.catalog",
+    "title": "Catalogue métier",
+    "publisher": "creezio",
+    "origin": "https://github.com/creezio/Creezio-D1R2",
+    "version": "0.1.0",
+    "source": {
+      "kind": "snapshot",
+      "revision": "t25-catalog-v1",
+      "integrity": "sha256-2a2a90a5ca96006a5eeb618242b732371e99b5bd0258f68685ccd6c64755a2d1"
+    },
+    "license": {
+      "expression": "NOASSERTION",
+      "file": "LICENSE"
+    }
+  },
+  "compatibility": {
+    "core": "^0.0.0",
+    "sdk": "^1.2.0",
+    "requiredCapabilities": [
+      "runtime.worker",
+      "data.d1.shared",
+      "files.r2.shared"
+    ],
+    "optionalCapabilities": []
+  },
+  "entrypoints": {
+    "server": {
+      "path": "module/entry.server.ts",
+      "export": "catalog"
+    },
+    "ui": {
+      "path": "ui/index.tsx",
+      "export": "CatalogAdminView"
+    },
+    "plugin": {
+      "manifest": "plugin/plugin.json",
+      "mcp": "plugin/mcp.json",
+      "contributions": {
+        "path": "plugin/contributions.ts",
+        "export": "contributions"
+      }
+    }
+  },
+  "dependencies": [
+    {
+      "moduleId": "creezio.access",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "optional": false,
+      "contracts": [],
+      "whenAbsent": "block",
+      "whenIncompatible": "block",
+      "autoInstall": false
+    }
+  ],
+  "contracts": {
+    "schemas": [
+      {
+        "id": "category-create-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "slug": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "position": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000
+            },
+            "parentId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 36
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "requestKey",
+            "name",
+            "slug",
+            "position",
+            "parentId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "category-update-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "slug": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "position": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000
+            }
+          },
+          "required": [
+            "requestKey",
+            "id",
+            "revision",
+            "name",
+            "slug",
+            "position"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "state-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "id",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "category-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "includeArchived": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "category-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "category": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 36
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "slug": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "position": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100000
+                },
+                "parentId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 36
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "archivedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 35
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "createdAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "slug",
+                "position",
+                "parentId",
+                "archivedAt",
+                "revision",
+                "createdAt",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "category"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "category-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "slug": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "position": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000
+                  },
+                  "parentId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 36
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "archivedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 35
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "slug",
+                  "position",
+                  "parentId",
+                  "archivedAt",
+                  "revision",
+                  "createdAt",
+                  "updatedAt"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 50
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "complete": {
+              "type": "boolean"
+            },
+            "scanned": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 500
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor",
+            "complete",
+            "scanned"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "product-create-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "sku": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "description": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 1200
+            },
+            "attributes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "value": {
+                    "type": "string",
+                    "minLength": 0,
+                    "maxLength": 160
+                  }
+                },
+                "required": [
+                  "key",
+                  "value"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 12
+            },
+            "categoryId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 36
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "priceMinor": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000000000
+            },
+            "currency": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 3
+            }
+          },
+          "required": [
+            "requestKey",
+            "sku",
+            "name",
+            "description",
+            "attributes",
+            "categoryId",
+            "priceMinor",
+            "currency"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "product-update-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "sku": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "description": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 1200
+            },
+            "attributes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "value": {
+                    "type": "string",
+                    "minLength": 0,
+                    "maxLength": 160
+                  }
+                },
+                "required": [
+                  "key",
+                  "value"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 12
+            },
+            "categoryId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 36
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "priceMinor": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000000000
+            },
+            "currency": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 3
+            }
+          },
+          "required": [
+            "requestKey",
+            "id",
+            "revision",
+            "sku",
+            "name",
+            "description",
+            "attributes",
+            "categoryId",
+            "priceMinor",
+            "currency"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "product-id-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "product-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "product": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 36
+                },
+                "sku": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 1200
+                },
+                "attributes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      "value": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 160
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "value"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "maxItems": 12
+                },
+                "categoryId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 36
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "priceMinor": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1000000000000
+                },
+                "currency": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 3
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "draft",
+                    "published",
+                    "archived"
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "createdAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                }
+              },
+              "required": [
+                "id",
+                "sku",
+                "name",
+                "description",
+                "attributes",
+                "categoryId",
+                "priceMinor",
+                "currency",
+                "status",
+                "revision",
+                "createdAt",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "product"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "published-product-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "product": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 36
+                },
+                "sku": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 1200
+                },
+                "attributes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      "value": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 160
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "value"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "maxItems": 12
+                },
+                "categoryId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 36
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "priceMinor": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1000000000000
+                },
+                "currency": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 3
+                },
+                "status": {
+                  "const": "published"
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "createdAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                }
+              },
+              "required": [
+                "id",
+                "sku",
+                "name",
+                "description",
+                "attributes",
+                "categoryId",
+                "priceMinor",
+                "currency",
+                "status",
+                "revision",
+                "createdAt",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "product"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "product-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 25
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "query": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 120
+            },
+            "categoryId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "published",
+                "archived"
+              ]
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "product-search-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 25
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "query": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 120
+            },
+            "categoryId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "product-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "sku": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "categoryId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 36
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "priceMinor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 3
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "draft",
+                      "published",
+                      "archived"
+                    ]
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  }
+                },
+                "required": [
+                  "id",
+                  "sku",
+                  "name",
+                  "categoryId",
+                  "priceMinor",
+                  "currency",
+                  "status",
+                  "revision",
+                  "updatedAt"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 25
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "complete": {
+              "type": "boolean"
+            },
+            "scanned": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 500
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor",
+            "complete",
+            "scanned"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "product-search-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "sku": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "categoryId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 36
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "priceMinor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 3
+                  },
+                  "status": {
+                    "const": "published"
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  }
+                },
+                "required": [
+                  "id",
+                  "sku",
+                  "name",
+                  "categoryId",
+                  "priceMinor",
+                  "currency",
+                  "status",
+                  "revision",
+                  "updatedAt"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 25
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "complete": {
+              "type": "boolean"
+            },
+            "scanned": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 500
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor",
+            "complete",
+            "scanned"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "media-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "productId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            }
+          },
+          "required": [
+            "productId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "media-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "productId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "fileId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 67
+                  },
+                  "filename": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "contentType": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "byteSize": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "digest": {
+                    "type": "string",
+                    "minLength": 64,
+                    "maxLength": 64
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  },
+                  "reference": {
+                    "type": "object",
+                    "properties": {
+                      "fileId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 67
+                      },
+                      "intentId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "generation": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "digest": {
+                        "type": "string",
+                        "minLength": 64,
+                        "maxLength": 64
+                      }
+                    },
+                    "required": [
+                      "fileId",
+                      "intentId",
+                      "generation",
+                      "digest"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "productId",
+                  "fileId",
+                  "filename",
+                  "contentType",
+                  "byteSize",
+                  "digest",
+                  "createdAt",
+                  "reference"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 5
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "media-link-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "productId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "staged": {
+              "type": "object",
+              "properties": {
+                "fileId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 67
+                },
+                "intentId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "generation": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "digest": {
+                  "type": "string",
+                  "minLength": 64,
+                  "maxLength": 64
+                }
+              },
+              "required": [
+                "fileId",
+                "intentId",
+                "generation",
+                "digest"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestKey",
+            "productId",
+            "revision",
+            "staged"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "media-link-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "media": {
+              "type": "object",
+              "properties": {
+                "productId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 36
+                },
+                "fileId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 67
+                },
+                "filename": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "contentType": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "byteSize": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "digest": {
+                  "type": "string",
+                  "minLength": 64,
+                  "maxLength": 64
+                },
+                "createdAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "reference": {
+                  "type": "object",
+                  "properties": {
+                    "fileId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 67
+                    },
+                    "intentId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "generation": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "digest": {
+                      "type": "string",
+                      "minLength": 64,
+                      "maxLength": 64
+                    }
+                  },
+                  "required": [
+                    "fileId",
+                    "intentId",
+                    "generation",
+                    "digest"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "productId",
+                "fileId",
+                "filename",
+                "contentType",
+                "byteSize",
+                "digest",
+                "createdAt",
+                "reference"
+              ],
+              "additionalProperties": false
+            },
+            "product": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 36
+                },
+                "sku": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 1200
+                },
+                "attributes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      "value": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 160
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "value"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "maxItems": 12
+                },
+                "categoryId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 36
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "priceMinor": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1000000000000
+                },
+                "currency": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 3
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "draft",
+                    "published",
+                    "archived"
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "createdAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                }
+              },
+              "required": [
+                "id",
+                "sku",
+                "name",
+                "description",
+                "attributes",
+                "categoryId",
+                "priceMinor",
+                "currency",
+                "status",
+                "revision",
+                "createdAt",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "media",
+            "product"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "media-unlink-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "productId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "fileId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 67
+            }
+          },
+          "required": [
+            "requestKey",
+            "productId",
+            "revision",
+            "fileId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "media-unlink-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "removed": {
+              "const": true
+            },
+            "product": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 36
+                },
+                "sku": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 1200
+                },
+                "attributes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      "value": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 160
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "value"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "maxItems": 12
+                },
+                "categoryId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 36
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "priceMinor": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1000000000000
+                },
+                "currency": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 3
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "draft",
+                    "published",
+                    "archived"
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "createdAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                }
+              },
+              "required": [
+                "id",
+                "sku",
+                "name",
+                "description",
+                "attributes",
+                "categoryId",
+                "priceMinor",
+                "currency",
+                "status",
+                "revision",
+                "createdAt",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "removed",
+            "product"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "catalog-view-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "catalog-panel-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "audience": {
+              "type": "string",
+              "enum": [
+                "admin",
+                "app"
+              ]
+            },
+            "contextId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "tab": {
+              "type": "string",
+              "enum": [
+                "products",
+                "categories"
+              ]
+            },
+            "query": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 120
+            },
+            "categoryId": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 36
+            },
+            "selectedId": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 36
+            },
+            "pending": {
+              "type": "object",
+              "properties": {
+                "sessionId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "audience": {
+                  "type": "string",
+                  "enum": [
+                    "admin",
+                    "app"
+                  ]
+                },
+                "contextId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "bindingId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 257
+                },
+                "requestKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                "intent": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "targetId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "required": [
+                "sessionId",
+                "audience",
+                "contextId",
+                "bindingId",
+                "requestKey"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "widget-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "query": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 120
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "category",
+        "title": "Catégorie de catalogue",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 36
+            }
+          },
+          {
+            "id": "name",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 120
+            }
+          },
+          {
+            "id": "slug",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 80
+            }
+          },
+          {
+            "id": "parent_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 36
+            }
+          },
+          {
+            "id": "position",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 100000
+            }
+          },
+          {
+            "id": "archived_at",
+            "type": "date-time",
+            "nullable": true,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "created_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "by-slug",
+            "fields": [
+              "context_id",
+              "slug"
+            ],
+            "unique": true
+          },
+          {
+            "id": "by-position",
+            "fields": [
+              "context_id",
+              "position",
+              "id"
+            ],
+            "unique": false
+          },
+          {
+            "id": "by-parent",
+            "fields": [
+              "context_id",
+              "parent_id",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "view"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "product",
+        "title": "Produit de catalogue",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 36
+            }
+          },
+          {
+            "id": "sku",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 80
+            }
+          },
+          {
+            "id": "name",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 160
+            }
+          },
+          {
+            "id": "description",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 1200
+            }
+          },
+          {
+            "id": "attributes",
+            "type": "json",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "category_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 36
+            }
+          },
+          {
+            "id": "price_minor",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 1000000000000
+            }
+          },
+          {
+            "id": "currency",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 3,
+              "maxLength": 3
+            }
+          },
+          {
+            "id": "status",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "draft",
+                "published",
+                "archived"
+              ]
+            }
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "created_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "by-sku",
+            "fields": [
+              "context_id",
+              "sku"
+            ],
+            "unique": true
+          },
+          {
+            "id": "by-updated",
+            "fields": [
+              "context_id",
+              "updated_at",
+              "id"
+            ],
+            "unique": false
+          },
+          {
+            "id": "by-category",
+            "fields": [
+              "context_id",
+              "category_id",
+              "updated_at",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [
+          {
+            "id": "category",
+            "fields": [
+              "context_id",
+              "category_id"
+            ],
+            "target": {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "category"
+            },
+            "targetFields": [
+              "context_id",
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "view"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "file_metadata",
+        "title": "Métadonnée privée des images",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "file_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 67
+            }
+          },
+          {
+            "id": "file_owner",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 260
+            }
+          },
+          {
+            "id": "object_key",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "id": "digest",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 64,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "byte_size",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "content_type",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "filename",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 255
+            }
+          },
+          {
+            "id": "version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "state",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "staging",
+                "staged",
+                "available",
+                "abandoned",
+                "deleted"
+              ]
+            }
+          },
+          {
+            "id": "intent_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "generation",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "file_id"
+        ],
+        "indexes": [
+          {
+            "id": "by-intent",
+            "fields": [
+              "context_id",
+              "intent_id",
+              "generation"
+            ],
+            "unique": true
+          },
+          {
+            "id": "by-object",
+            "fields": [
+              "context_id",
+              "object_key"
+            ],
+            "unique": true
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "product_media",
+        "title": "Image liée à un produit",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "product_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 36
+            }
+          },
+          {
+            "id": "file_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 67
+            }
+          },
+          {
+            "id": "filename",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 255
+            }
+          },
+          {
+            "id": "content_type",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "byte_size",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 64,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "intent_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "generation",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "created_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "product_id",
+          "file_id"
+        ],
+        "indexes": [
+          {
+            "id": "by-product",
+            "fields": [
+              "context_id",
+              "product_id",
+              "created_at",
+              "file_id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [
+          {
+            "id": "product",
+            "fields": [
+              "context_id",
+              "product_id"
+            ],
+            "target": {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            },
+            "targetFields": [
+              "context_id",
+              "id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "view"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": false
+        },
+        "public": false
+      }
+    ],
+    "files": [
+      {
+        "id": "images",
+        "metadataModel": {
+          "moduleId": "creezio.catalog",
+          "kind": "model",
+          "id": "file_metadata"
+        },
+        "contextField": "context_id",
+        "ownerField": "file_owner",
+        "ownerScope": "principal",
+        "storageFields": {
+          "id": "file_id",
+          "objectKey": "object_key",
+          "digest": "digest",
+          "byteSize": "byte_size",
+          "contentType": "content_type",
+          "filename": "filename",
+          "version": "version",
+          "state": "state",
+          "intentId": "intent_id",
+          "generation": "generation"
+        },
+        "mimeTypes": [
+          "image/png",
+          "image/jpeg",
+          "image/webp"
+        ],
+        "maxBytes": 2097152,
+        "public": false,
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "attachment": {
+          "models": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            }
+          ],
+          "multiple": true
+        },
+        "deletion": "restrict"
+      }
+    ],
+    "events": [],
+    "settings": [],
+    "search": [],
+    "permissions": [
+      {
+        "id": "manage",
+        "title": "Gérer le catalogue",
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "scopes": [
+          "catalog.manage"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "model",
+            "id": "category"
+          },
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "model",
+            "id": "product"
+          },
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "model",
+            "id": "file_metadata"
+          },
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "model",
+            "id": "product_media"
+          },
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "file",
+            "id": "images"
+          }
+        ],
+        "actions": [
+          "read",
+          "create",
+          "update",
+          "delete",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      },
+      {
+        "id": "view",
+        "title": "Consulter le catalogue publié",
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "scopes": [
+          "catalog.view"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "model",
+            "id": "category"
+          },
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "model",
+            "id": "product"
+          },
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "model",
+            "id": "product_media"
+          }
+        ],
+        "actions": [
+          "read",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      }
+    ],
+    "operations": [
+      {
+        "id": "category.create",
+        "title": "Créer une catégorie",
+        "kind": "command",
+        "input": {
+          "schemaId": "category-create-input"
+        },
+        "output": {
+          "schemaId": "category-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "categoryCreate"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "category"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "category"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "description",
+            "attributes"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "category.update",
+        "title": "Modifier une catégorie",
+        "kind": "command",
+        "input": {
+          "schemaId": "category-update-input"
+        },
+        "output": {
+          "schemaId": "category-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "categoryUpdate"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "category"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "category"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "description",
+            "attributes"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "category.archive",
+        "title": "Archiver une catégorie vide",
+        "kind": "command",
+        "input": {
+          "schemaId": "state-input"
+        },
+        "output": {
+          "schemaId": "category-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "categoryArchive"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "category"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "category"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "description",
+            "attributes"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "category.list",
+        "title": "Lister les catégories",
+        "kind": "query",
+        "input": {
+          "schemaId": "category-list-input"
+        },
+        "output": {
+          "schemaId": "category-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "view"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "categoryList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "category"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 50
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "description",
+            "attributes"
+          ]
+        },
+        "public": true
+      },
+      {
+        "id": "product.create",
+        "title": "Créer un brouillon produit",
+        "kind": "command",
+        "input": {
+          "schemaId": "product-create-input"
+        },
+        "output": {
+          "schemaId": "product-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "productCreate"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "category"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "category"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "description",
+            "attributes"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "product.update",
+        "title": "Modifier un produit",
+        "kind": "command",
+        "input": {
+          "schemaId": "product-update-input"
+        },
+        "output": {
+          "schemaId": "product-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "productUpdate"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "category"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "category"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "description",
+            "attributes"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "product.publish",
+        "title": "Publier un produit",
+        "kind": "command",
+        "input": {
+          "schemaId": "state-input"
+        },
+        "output": {
+          "schemaId": "product-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "productPublish"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "category"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "category"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "description",
+            "attributes"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "product.archive",
+        "title": "Archiver un produit",
+        "kind": "command",
+        "input": {
+          "schemaId": "state-input"
+        },
+        "output": {
+          "schemaId": "product-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "productArchive"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "description",
+            "attributes"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "product.list",
+        "title": "Lister les produits en édition",
+        "kind": "query",
+        "input": {
+          "schemaId": "product-list-input"
+        },
+        "output": {
+          "schemaId": "product-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "productList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 25
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "description",
+            "attributes"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "product.read",
+        "title": "Lire un produit en édition",
+        "kind": "query",
+        "input": {
+          "schemaId": "product-id-input"
+        },
+        "output": {
+          "schemaId": "product-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "productRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "description",
+            "attributes"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "product.search",
+        "title": "Rechercher les produits publiés",
+        "kind": "query",
+        "input": {
+          "schemaId": "product-search-input"
+        },
+        "output": {
+          "schemaId": "product-search-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "view"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "productSearch"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 25
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "description",
+            "attributes"
+          ]
+        },
+        "public": true
+      },
+      {
+        "id": "product.get",
+        "title": "Lire un produit publié",
+        "kind": "query",
+        "input": {
+          "schemaId": "product-id-input"
+        },
+        "output": {
+          "schemaId": "published-product-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "view"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "productGet"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "description",
+            "attributes"
+          ]
+        },
+        "public": true
+      },
+      {
+        "id": "media.list",
+        "title": "Lister les médias liés",
+        "kind": "query",
+        "input": {
+          "schemaId": "media-list-input"
+        },
+        "output": {
+          "schemaId": "media-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "view"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "mediaList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product_media"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 10,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "description",
+            "attributes"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "media.link",
+        "title": "Lier une image privée",
+        "kind": "command",
+        "input": {
+          "schemaId": "media-link-input"
+        },
+        "output": {
+          "schemaId": "media-link-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "mediaLink"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product_media"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product_media"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "file",
+              "id": "images"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 20,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "description",
+            "attributes"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "media.unlink",
+        "title": "Détacher une image",
+        "kind": "command",
+        "input": {
+          "schemaId": "media-unlink-input"
+        },
+        "output": {
+          "schemaId": "media-unlink-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "mediaUnlink"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product_media"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "model",
+              "id": "product_media"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 20,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "description",
+            "attributes"
+          ]
+        },
+        "public": false
+      }
+    ],
+    "api": [
+      {
+        "id": "admin.category.create",
+        "method": "POST",
+        "path": "/api/admin/catalog/category/create",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "category.create"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "category-create-input"
+        },
+        "output": {
+          "schemaId": "category-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.category.update",
+        "method": "POST",
+        "path": "/api/admin/catalog/category/update",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "category.update"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "category-update-input"
+        },
+        "output": {
+          "schemaId": "category-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.category.archive",
+        "method": "POST",
+        "path": "/api/admin/catalog/category/archive",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "category.archive"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "state-input"
+        },
+        "output": {
+          "schemaId": "category-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.category.list",
+        "method": "GET",
+        "path": "/api/admin/catalog/category/list",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "category.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "include_archived",
+            "in": "query",
+            "inputField": "includeArchived",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "category-list-input"
+        },
+        "output": {
+          "schemaId": "category-list-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.category.list",
+        "method": "GET",
+        "path": "/api/app/catalog/category/list",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "category.list"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "include_archived",
+            "in": "query",
+            "inputField": "includeArchived",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "category-list-input"
+        },
+        "output": {
+          "schemaId": "category-list-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.product.create",
+        "method": "POST",
+        "path": "/api/admin/catalog/product/create",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "product.create"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "product-create-input"
+        },
+        "output": {
+          "schemaId": "product-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.product.update",
+        "method": "POST",
+        "path": "/api/admin/catalog/product/update",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "product.update"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "product-update-input"
+        },
+        "output": {
+          "schemaId": "product-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.product.publish",
+        "method": "POST",
+        "path": "/api/admin/catalog/product/publish",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "product.publish"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "state-input"
+        },
+        "output": {
+          "schemaId": "product-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.product.archive",
+        "method": "POST",
+        "path": "/api/admin/catalog/product/archive",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "product.archive"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "state-input"
+        },
+        "output": {
+          "schemaId": "product-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.product.list",
+        "method": "GET",
+        "path": "/api/admin/catalog/product/list",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "product.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": false
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "inputField": "categoryId",
+            "required": false
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "inputField": "status",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "product-list-input"
+        },
+        "output": {
+          "schemaId": "product-list-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.product.read",
+        "method": "GET",
+        "path": "/api/admin/catalog/product/read",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "product.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "product-id-input"
+        },
+        "output": {
+          "schemaId": "product-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.product.search",
+        "method": "GET",
+        "path": "/api/admin/catalog/product/search",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "product.search"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": false
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "inputField": "categoryId",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "product-search-input"
+        },
+        "output": {
+          "schemaId": "product-search-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.product.search",
+        "method": "GET",
+        "path": "/api/app/catalog/product/search",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "product.search"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": false
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "inputField": "categoryId",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "product-search-input"
+        },
+        "output": {
+          "schemaId": "product-search-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.product.get",
+        "method": "GET",
+        "path": "/api/admin/catalog/product/get",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "product.get"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "product-id-input"
+        },
+        "output": {
+          "schemaId": "published-product-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.product.get",
+        "method": "GET",
+        "path": "/api/app/catalog/product/get",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "product.get"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "product-id-input"
+        },
+        "output": {
+          "schemaId": "published-product-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.media.list",
+        "method": "GET",
+        "path": "/api/admin/catalog/media/list",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "media.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "query",
+            "inputField": "productId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "media-list-input"
+        },
+        "output": {
+          "schemaId": "media-list-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.media.list",
+        "method": "GET",
+        "path": "/api/app/catalog/media/list",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "media.list"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "query",
+            "inputField": "productId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "media-list-input"
+        },
+        "output": {
+          "schemaId": "media-list-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.media.link",
+        "method": "POST",
+        "path": "/api/admin/catalog/media/link",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "media.link"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "media-link-input"
+        },
+        "output": {
+          "schemaId": "media-link-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.media.unlink",
+        "method": "POST",
+        "path": "/api/admin/catalog/media/unlink",
+        "operation": {
+          "moduleId": "creezio.catalog",
+          "kind": "operation",
+          "id": "media.unlink"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "media-unlink-input"
+        },
+        "output": {
+          "schemaId": "media-unlink-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      }
+    ],
+    "mcp": {
+      "tools": [
+        {
+          "id": "category.create",
+          "name": "catalog_category_create",
+          "operation": {
+            "moduleId": "creezio.catalog",
+            "kind": "operation",
+            "id": "category.create"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "category-create-input"
+          },
+          "output": {
+            "schemaId": "category-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "category.update",
+          "name": "catalog_category_update",
+          "operation": {
+            "moduleId": "creezio.catalog",
+            "kind": "operation",
+            "id": "category.update"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "category-update-input"
+          },
+          "output": {
+            "schemaId": "category-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "category.archive",
+          "name": "catalog_category_archive",
+          "operation": {
+            "moduleId": "creezio.catalog",
+            "kind": "operation",
+            "id": "category.archive"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "state-input"
+          },
+          "output": {
+            "schemaId": "category-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "category.list",
+          "name": "catalog_category_list",
+          "operation": {
+            "moduleId": "creezio.catalog",
+            "kind": "operation",
+            "id": "category.list"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "category-list-input"
+          },
+          "output": {
+            "schemaId": "category-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "product.create",
+          "name": "catalog_product_create",
+          "operation": {
+            "moduleId": "creezio.catalog",
+            "kind": "operation",
+            "id": "product.create"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "product-create-input"
+          },
+          "output": {
+            "schemaId": "product-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "product.update",
+          "name": "catalog_product_update",
+          "operation": {
+            "moduleId": "creezio.catalog",
+            "kind": "operation",
+            "id": "product.update"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "product-update-input"
+          },
+          "output": {
+            "schemaId": "product-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "product.publish",
+          "name": "catalog_product_publish",
+          "operation": {
+            "moduleId": "creezio.catalog",
+            "kind": "operation",
+            "id": "product.publish"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "state-input"
+          },
+          "output": {
+            "schemaId": "product-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "product.archive",
+          "name": "catalog_product_archive",
+          "operation": {
+            "moduleId": "creezio.catalog",
+            "kind": "operation",
+            "id": "product.archive"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "state-input"
+          },
+          "output": {
+            "schemaId": "product-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "product.list",
+          "name": "catalog_product_list",
+          "operation": {
+            "moduleId": "creezio.catalog",
+            "kind": "operation",
+            "id": "product.list"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "product-list-input"
+          },
+          "output": {
+            "schemaId": "product-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "product.read",
+          "name": "catalog_product_read",
+          "operation": {
+            "moduleId": "creezio.catalog",
+            "kind": "operation",
+            "id": "product.read"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "product-id-input"
+          },
+          "output": {
+            "schemaId": "product-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "product.search",
+          "name": "catalog_product_search",
+          "operation": {
+            "moduleId": "creezio.catalog",
+            "kind": "operation",
+            "id": "product.search"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "product-search-input"
+          },
+          "output": {
+            "schemaId": "product-search-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "widget": {
+            "moduleId": "creezio.catalog",
+            "kind": "widget",
+            "id": "product-list"
+          },
+          "textFallback": true
+        },
+        {
+          "id": "product.get",
+          "name": "catalog_product_get",
+          "operation": {
+            "moduleId": "creezio.catalog",
+            "kind": "operation",
+            "id": "product.get"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "product-id-input"
+          },
+          "output": {
+            "schemaId": "published-product-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "widget": {
+            "moduleId": "creezio.catalog",
+            "kind": "widget",
+            "id": "product-detail"
+          },
+          "textFallback": true
+        },
+        {
+          "id": "media.list",
+          "name": "catalog_media_list",
+          "operation": {
+            "moduleId": "creezio.catalog",
+            "kind": "operation",
+            "id": "media.list"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "media-list-input"
+          },
+          "output": {
+            "schemaId": "media-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "media.link",
+          "name": "catalog_media_link",
+          "operation": {
+            "moduleId": "creezio.catalog",
+            "kind": "operation",
+            "id": "media.link"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "media-link-input"
+          },
+          "output": {
+            "schemaId": "media-link-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "media.unlink",
+          "name": "catalog_media_unlink",
+          "operation": {
+            "moduleId": "creezio.catalog",
+            "kind": "operation",
+            "id": "media.unlink"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "media-unlink-input"
+          },
+          "output": {
+            "schemaId": "media-unlink-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        }
+      ],
+      "resources": [
+        {
+          "id": "product-list-ui",
+          "uri": "ui://creezio.catalog/product-list",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "permission",
+              "id": "view"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/product-list.html"
+          },
+          "widget": {
+            "moduleId": "creezio.catalog",
+            "kind": "widget",
+            "id": "product-list"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        },
+        {
+          "id": "product-detail-ui",
+          "uri": "ui://creezio.catalog/product-detail",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "permission",
+              "id": "view"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/product-detail.html"
+          },
+          "widget": {
+            "moduleId": "creezio.catalog",
+            "kind": "widget",
+            "id": "product-detail"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        }
+      ],
+      "prompts": [],
+      "skills": [
+        {
+          "id": "catalog",
+          "path": "plugin/skills/catalog.md",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "product.search"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "product.get"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "category.list"
+            }
+          ],
+          "resources": [
+            "product-list-ui",
+            "product-detail-ui"
+          ],
+          "integrity": "sha256-999019a99fcfd9ee79dca23e528b5bef5ca72f3bf137d93f259a90b30d072e46"
+        }
+      ]
+    },
+    "ui": {
+      "views": [
+        {
+          "id": "admin",
+          "title": "Catalogue",
+          "surfaces": [
+            "workspace"
+          ],
+          "route": "/admin/catalog",
+          "component": {
+            "path": "ui/index.tsx",
+            "export": "CatalogAdminView"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "permission",
+              "id": "manage"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "category.create"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "category.update"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "category.archive"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "category.list"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "product.create"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "product.update"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "product.publish"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "product.archive"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "product.list"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "product.read"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "product.search"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "product.get"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "media.list"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "media.link"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "media.unlink"
+            }
+          ],
+          "input": {
+            "schemaId": "catalog-view-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend",
+            "stateSchema": {
+              "schemaId": "catalog-panel-state"
+            }
+          }
+        },
+        {
+          "id": "front",
+          "title": "Catalogue",
+          "surfaces": [
+            "front"
+          ],
+          "route": "/catalog",
+          "component": {
+            "path": "ui/front.tsx",
+            "export": "CatalogFrontView"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "permission",
+              "id": "view"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "category.list"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "product.search"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "product.get"
+            },
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "operation",
+              "id": "media.list"
+            }
+          ],
+          "input": {
+            "schemaId": "catalog-view-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend",
+            "stateSchema": {
+              "schemaId": "catalog-panel-state"
+            }
+          }
+        }
+      ],
+      "navigation": [
+        {
+          "id": "catalog-admin",
+          "title": "Catalogue",
+          "view": {
+            "moduleId": "creezio.catalog",
+            "kind": "view",
+            "id": "admin"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "permission",
+              "id": "manage"
+            }
+          ],
+          "surfaces": [
+            "workspace"
+          ],
+          "order": 65
+        },
+        {
+          "id": "catalog-front",
+          "title": "Catalogue",
+          "view": {
+            "moduleId": "creezio.catalog",
+            "kind": "view",
+            "id": "front"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.catalog",
+              "kind": "permission",
+              "id": "view"
+            }
+          ],
+          "surfaces": [
+            "front"
+          ],
+          "order": 65
+        }
+      ],
+      "slots": [],
+      "front": {
+        "mode": "provided"
+      },
+      "themes": [],
+      "styles": []
+    },
+    "widgets": [
+      {
+        "id": "product-list",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "product-list-ui",
+        "renderer": {
+          "path": "ui/widgets/product-list.ts",
+          "export": "startProductList"
+        },
+        "input": {
+          "schemaId": "product-search-output"
+        },
+        "state": {
+          "schemaId": "widget-state"
+        },
+        "result": {
+          "schemaId": "product-search-output"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "view"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "refresh",
+            "label": "Actualiser",
+            "input": {
+              "schemaId": "product-search-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.catalog",
+                "kind": "operation",
+                "id": "product.search"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 65536,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      },
+      {
+        "id": "product-detail",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "product-detail-ui",
+        "renderer": {
+          "path": "ui/widgets/product-detail.ts",
+          "export": "startProductDetail"
+        },
+        "input": {
+          "schemaId": "published-product-output"
+        },
+        "state": {
+          "schemaId": "widget-state"
+        },
+        "result": {
+          "schemaId": "published-product-output"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "view"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "refresh",
+            "label": "Actualiser",
+            "input": {
+              "schemaId": "product-id-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.catalog",
+                "kind": "operation",
+                "id": "product.get"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 65536,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      }
+    ],
+    "publicContracts": [
+      {
+        "id": "catalog.products",
+        "version": "1.0.0",
+        "models": [],
+        "operations": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "operation",
+            "id": "product.search"
+          },
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "operation",
+            "id": "product.get"
+          },
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "operation",
+            "id": "category.list"
+          }
+        ],
+        "events": [],
+        "schemas": [
+          {
+            "schemaId": "product-search-input"
+          },
+          {
+            "schemaId": "product-search-output"
+          },
+          {
+            "schemaId": "product-id-input"
+          },
+          {
+            "schemaId": "published-product-output"
+          },
+          {
+            "schemaId": "category-list-input"
+          },
+          {
+            "schemaId": "category-list-output"
+          }
+        ]
+      }
+    ]
+  },
+  "documentation": {
+    "installed": {
+      "readme": {
+        "path": "README.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "prd": {
+        "path": "prd.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "changelog": {
+        "path": "CHANGELOG.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      }
+    },
+    "development": {
+      "agents": {
+        "path": "AGENTS.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "files": {
+        "path": "FILES.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "interview": {
+        "path": "interview.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "todo": {
+        "path": "TODO.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      }
+    },
+    "versionBinding": {
+      "moduleVersion": "0.1.0",
+      "sourceRevision": "t25-catalog-v1"
+    },
+    "localRevisions": {
+      "installedVersionDistinct": true,
+      "approvedImmutable": true
+    },
+    "installationHistory": {
+      "distinctFromPackageChangelog": true
+    }
+  },
+  "validation": {
+    "gate": "gate.mjs",
+    "suites": {
+      "backend": {
+        "mode": "required",
+        "script": "ci/backend.mjs",
+        "tests": [
+          "tests/backend/contract.test.mjs"
+        ]
+      },
+      "ui": {
+        "mode": "required",
+        "script": "ci/ui.mjs",
+        "tests": [
+          "tests/ui/contract.test.mjs"
+        ]
+      },
+      "api-mcp": {
+        "mode": "required",
+        "script": "ci/api-mcp.mjs",
+        "tests": [
+          "tests/api-mcp/contract.test.mjs"
+        ]
+      },
+      "widgets": {
+        "mode": "required",
+        "script": "ci/widgets.mjs",
+        "tests": [
+          "tests/widgets/contract.test.mjs"
+        ]
+      },
+      "package": {
+        "mode": "required",
+        "script": "ci/package.mjs",
+        "tests": [
+          "tests/package/contract.test.mjs"
+        ]
+      },
+      "docs": {
+        "mode": "required",
+        "script": "ci/docs.mjs",
+        "tests": [
+          "tests/docs/contract.test.mjs"
+        ]
+      }
+    },
+    "policy": {
+      "id": "creezio.local-contracts",
+      "version": "1.0.0",
+      "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
+    },
+    "isolation": {
+      "productionSecrets": false,
+      "publicationRights": false
+    },
+    "evidence": {
+      "sourceIntegrity": true,
+      "artifactIntegrity": true,
+      "profile": true,
+      "executedSuites": true
+    }
+  },
+  "packaging": {
+    "runtime": {
+      "files": [
+        "module/manifest.json",
+        "module/models.json",
+        "module/entry.server.ts",
+        "module/operations.ts",
+        "module/service.ts",
+        "module/public-contract.ts",
+        "ui/index.tsx",
+        "ui/front.tsx",
+        "ui/contracts.ts",
+        "ui/money.ts",
+        "ui/panel-state.ts",
+        "ui/session.ts",
+        "ui/widgets/runtime.ts",
+        "ui/widgets/product-list.ts",
+        "ui/widgets/product-detail.ts",
+        "ui/widgets/product-list.html",
+        "ui/widgets/product-detail.html",
+        "README.md",
+        "prd.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "plugin/plugin.json",
+        "plugin/mcp.json",
+        "plugin/contributions.ts",
+        "plugin/skills/catalog.md"
+      ],
+      "references": []
+    },
+    "validation": {
+      "files": [
+        "AGENTS.md",
+        "FILES.md",
+        "interview.md",
+        "TODO.md",
+        "gate.mjs",
+        "module/generate-manifest.mjs",
+        "ci/run-suite.mjs",
+        "tests/helpers.mjs",
+        "ci/backend.mjs",
+        "tests/backend/contract.test.mjs",
+        "ci/ui.mjs",
+        "tests/ui/contract.test.mjs",
+        "ci/api-mcp.mjs",
+        "tests/api-mcp/contract.test.mjs",
+        "ci/widgets.mjs",
+        "tests/widgets/contract.test.mjs",
+        "ci/package.mjs",
+        "tests/package/contract.test.mjs",
+        "ci/docs.mjs",
+        "tests/docs/contract.test.mjs"
+      ],
+      "references": []
+    },
+    "validationBinding": {
+      "moduleId": "creezio.catalog",
+      "moduleVersion": "0.1.0",
+      "sourceRevision": "t25-catalog-v1"
+    },
+    "noRuntimeTests": true,
+    "installation": "build-and-publish",
+    "providerInstallation": false
+  },
+  "lifecycle": {
+    "deactivation": "preserve-data",
+    "configuration": "explicit-state",
+    "uninstall": "explicit-approved-action",
+    "activationRequirements": [],
+    "absent": {},
+    "dependencyChanges": {
+      "install": "resolve-explicit-consumer-selection",
+      "activate": "require-active-dependencies",
+      "update": "validate-dependent-contracts",
+      "deactivate": "block-or-explicit-dependent-plan",
+      "uninstall": "block-or-explicit-dependent-plan",
+      "data": "preserve"
+    }
+  }
+}

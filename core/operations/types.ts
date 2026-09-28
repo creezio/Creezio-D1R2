@@ -4,6 +4,7 @@ import type { OperationOutboxIntent } from './store-types.ts';
 import type { ModuleSettingsHostInventory } from '../../sdk/module-settings/types.ts';
 import type {OperationFilesPort} from '../../sdk/files/types.ts';
 import type {ProviderSecretsPort} from '../../sdk/providers/types.ts';
+import type {ConnectorPort} from '../../sdk/connectors/types.ts';
 import type {WidgetOperationPort} from '../widgets/host.ts';
 import {OperationError} from '@creezio/sdk/operations/error';
 export {OperationError};
@@ -58,6 +59,8 @@ export interface OperationContext {
   readonly files?: OperationFilesPort;
   /** Narrow, plan-only vault capability for the native provider configuration command. */
   readonly providerSecrets?: ProviderSecretsPort;
+  /** Declared, host-controlled outbound read capability; no URL, headers or secret reach module code. */
+  readonly connector?: ConnectorPort;
   /** Server-selected readiness only; it carries neither credentials nor authority to emit. */
   readonly providerAvailability?: OperationProviderAvailability;
   /** Build-owned inventory; supplied only to the trusted native modules-settings implementation. */

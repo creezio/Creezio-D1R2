@@ -1,0 +1,7 @@
+# T19 — Tickets de support
+
+REQ-1901 et US-19 : un demandeur app ouvre un ticket et voit son propre historique. Un membre de l'équipe admin avec `support.manage` lit la file du contexte, répond localement, classe le ticket et le prend en charge. Le demandeur peut écrire de nouveau, ce qui rouvre son ticket, ou le marquer résolu. Réponses, statuts, historique, refus de droit, conflits de révision et pagination sont testables via workspace, API et MCP sur les mêmes données.
+
+Les deux layouts proviennent du Support Creezio original : `packages/support/ui/support-client.tsx` pour le demandeur et `packages/admin/ui/tickets-admin-client.tsx` pour l'agent. Le comportement flotte de cette dernière, son pull automatique, les provenances hôte/serveur et le relais de réponse ne peuvent être reproduits sans contrat de transport ; l'interface présente la file locale du contexte et « Actualiser ». Une réponse locale est visible dans l'app, sans fausse notification ni faux envoi d'e-mail. Les liens CRM, Messagerie et tâches Work sont différés jusqu'à leurs contrats publics.
+
+Une mutation UI exige que le panneau accepte durablement les métadonnées de sa clé de demande avant l'envoi. Une issue inconnue, une lecture de statut refusée ou un effacement de la clé impossible ne rend pas la commande répétable. Le contrôle visible lit uniquement le statut de cette clé ; le brouillon par ticket et la sélection n'effacent pas cette preuve. La session, l'audience et le contexte isolent la restauration du panneau.

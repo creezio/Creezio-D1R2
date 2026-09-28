@@ -17,6 +17,8 @@ import {fileOwnerId, resolveFileCategory, type RuntimeFileCatalog} from '../file
 import {FileError} from '../files/mapping.ts';
 import type {OperationFilesPort} from '../../sdk/files/types.ts';
 import {createProviderSecretsPort} from '../providers/secrets.ts';
+import {createConnectorHost} from '../connectors/host.ts';
+import type {ConnectorDescriptor} from '../../sdk/connectors/types.ts';
 import {VaultError,type VaultKeyring} from '../vault/crypto.ts';
 import type {VaultStorage} from '../vault/service.ts';
 import {operationDigest} from './digest.ts';
@@ -79,6 +81,8 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
   readonly registry: OperationRegistry; readonly permissions: readonly PermissionDefinition[];
   readonly files?: {readonly catalog: RuntimeFileCatalog; readonly bucket: FileBucket};
   readonly providerSecrets?: {readonly storage:VaultStorage;readonly keyring:VaultKeyring;readonly providerId:string};
+  readonly connectors?:readonly {readonly descriptor:ConnectorDescriptor;readonly keyring:VaultKeyring|null;
+    readonly fetcher?:typeof fetch}[];
   readonly providerAvailability?: (request: OperationRequest, providerId: string) => Promise<OperationProviderAvailability>;
   readonly runtimeInventory?: ModuleSettingsHostInventory;
   readonly approvals?:WidgetApprovalService;
@@ -87,6 +91,10 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
   if (catalog.compositionDigest !== registry.compositionDigest) throw new OperationError('invalid_catalog');
   const hostInventory = captureHostInventory(options.runtimeInventory, registry.compositionDigest);
   const data = createDataAccess(options.db, { catalog, permissions: options.permissions }), store = createOperationStore({ db: options.db, data });
+  if((options.connectors?.length??0)>16)throw new OperationError('invalid_catalog');
+  const connectors=(options.connectors??[]).map(item=>createConnectorHost({data,catalog,...item}));
+  if(new Set(connectors.map(item=>`${item.descriptor.moduleId}\0${item.descriptor.id}`)).size!==connectors.length)
+    throw new OperationError('invalid_catalog');
   const nativeAccess = createNativeAccessOperationAdapter(options.db, options.permissions, catalog);
   async function authorize(request: OperationRequest | OperationStatusRequest | OperationLookupRequest, operation: RegisteredOperation): Promise<DataLease> {
     const declaration = operation.declaration;
@@ -124,7 +132,11 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
         if (op.effects.providers.length) {
           if (op.effects.providers.length !== 1) throw new OperationError('unsupported');
           const providerId = op.effects.providers[0];
-          const value = options.providerAvailability
+          const connector=connectors.find(item=>item.descriptor.moduleId===operation.moduleId
+            &&item.descriptor.id===providerId);
+          const value = connector
+            ? {providerId,state:await connector.availability(lease),modelIds:[]}
+            : options.providerAvailability
             ? await options.providerAvailability(request, providerId)
             : {providerId, state: 'missing' as const, modelIds: []};
           const snapshot = copyJson(value, 16_384) as unknown as OperationProviderAvailability;
@@ -203,19 +215,39 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
         if (request.signal?.aborted) onAbort(); else request.signal?.addEventListener('abort', onAbort, { once: true });
         const timer = setTimeout(() => cancel('timeout'), op.execution.maxDurationMs);
         close = () => { active = false; clearTimeout(timer); request.signal?.removeEventListener('abort', onAbort); };
-        const identity = data.describeLease(lease), context: OperationContext = Object.freeze({ moduleId: operation.moduleId, operationId: op.id,
+        const identity = data.describeLease(lease);
+        const connector=connectors.find(item=>item.descriptor.moduleId===operation.moduleId
+          &&op.effects.providers.includes(item.descriptor.id));
+        const moduleConnectors=connectors.filter(item=>item.descriptor.moduleId===operation.moduleId);
+        const secretConnector=moduleConnectors.length===1?moduleConnectors[0]:null;
+        const secretKeyring=secretConnector?options.connectors?.find(item=>item.descriptor.moduleId===operation.moduleId
+          &&item.descriptor.id===secretConnector.descriptor.id)?.keyring:null;
+        const secretSource=operation.moduleId==='creezio.openai'&&options.providerSecrets
+          ?options.providerSecrets
+          :secretConnector&&secretKeyring
+          ?{storage:secretConnector.descriptor.vault,keyring:secretKeyring,providerId:secretConnector.descriptor.id}
+          :null;
+        const context: OperationContext = Object.freeze({ moduleId: operation.moduleId, operationId: op.id,
           executionId: start.execution.id, contextId: identity.contextId, audience: identity.audience, principalId: identity.principalId,
           actorPrincipalId: identity.actorPrincipalId, signal: controller.signal, data: operationData,
           ...(providerAvailability ? {providerAvailability} : {}),
-          ...(options.providerSecrets && operation.moduleId === 'creezio.openai' && op.kind === 'command'
-            && op.id.startsWith('config.key.') && options.providerSecrets.storage.moduleId === operation.moduleId
+          ...(secretSource && op.kind === 'command'
+            && op.id.startsWith('config.key.') && secretSource.storage.moduleId === operation.moduleId
             && op.effects.writes.some(ref => ref.kind === 'model' && ref.moduleId === operation.moduleId
-              && ref.id === options.providerSecrets!.storage.modelId)
-            ? {providerSecrets:createProviderSecretsPort({data,catalog,lease,...options.providerSecrets,
+              && ref.id === secretSource.storage.modelId)
+            ? {providerSecrets:createProviderSecretsPort({data,catalog,lease,...secretSource,
               register(token){
                 ensure();if(issued.size >= OPERATION_LIMITS.maxPlans)throw new OperationError('invalid_input');
                 spend(1);issued.set(token,{write:true,compared:false,secret:true});
               }})} : {}),
+          ...(connector&&op.kind==='query'&&operation.moduleId===connector.descriptor.moduleId
+            &&op.effects.providers.includes(connector.descriptor.id)
+            ? {connector:connector.port({lease,credential:request.credential,contextId:identity.contextId,
+              audience:identity.audience,actors:op.actors.filter((actor):actor is AuthorizationActor=>
+                ['user','machine','delegated-user','impersonated-user'].includes(actor)),
+              requiredPermissionIds:op.permissions.map(ref=>`${ref.moduleId}:${ref.id}`),signal:controller.signal,
+              ensureActive:ensure})}
+            : {}),
           ...(options.files ? {files: Object.freeze({async preparePublication(categoryId, reference) {
             ensure();
             if (op.kind !== 'command' || !op.effects.writes.some(ref => ref.moduleId === operation.moduleId && ref.kind === 'file' && ref.id === categoryId))

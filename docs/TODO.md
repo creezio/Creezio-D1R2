@@ -3,7 +3,7 @@ Révision 40 — 28 septembre 2026. **Release initiale de l’original publiée 
 
 ## Jalon prioritaire : première app utilisable
 
-T-14/T-15, le SDK et le paquet témoin sont consommables. Les anciens widgets sont rétablis et le cycle durable est intégré ; la priorité est de terminer la recette applicative Cloudflare de Lab, dont la publication et la conservation native de l'historique incertain sont confirmées. Les Sites A/B version 5, les lectures MCP ChatGPT et le refus d'audience du widget natif sont déjà prouvés dans leur périmètre. La recette ciblée T-39 et le retour utilisateur suivent ; les lots différés gardent leurs exigences.
+T-14/T-15, le SDK et le paquet témoin sont consommables. Les Sites A/B version 5, les lectures MCP ChatGPT et la recette applicative Cloudflare de Lab sont qualifiés dans les limites de leurs preuves : données et widgets conservés, refus d'audience et réponse OpenAI réelle. Le retour utilisateur et le défaut historique de prose restent ouverts. Les PR #42 à #44 ajoutent la messagerie et le CRM ; le partage des mêmes boîtes entre workspace et front est vérifié sur Linux. Le travail actif porte maintenant sur les tranches indépendantes Support, Pages, Analytics, Catalogue et n8n ; leurs limites sont détaillées ci-dessous, sans les déclarer exhaustivement achevées.
 
 Après ce jalon, avancer d'abord les parties indépendantes de T-18 à T-22, T-25 à T-29 et T-33, puis les parties indépendantes de T-36/T-39 et leurs recettes propres ; compléter T-36/T-39 exhaustifs après les lots dont ils dépendent. T-17 Work est dans le dernier bloc, suivi de T-23/T-24 et des raccords dépendants. T-23/T-24 exigent un plan expliqué et une validation explicite préalable. T-34 premium et T-35 accompagnement avec accès au code exigent aussi une validation explicite future ; reconstruction WinHub/TempoFlow interdite avant un tel accord. Les compléments T-04/T-05/T-06/T-10 hors première app sont reportés, à expliquer en détail avant reprise. L'ancien GO est restreint par ces priorités du 28 septembre ; les exigences et preuves futures demeurent.
 
@@ -85,15 +85,15 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-38](#T-38) | P8 | Adoption des mises à jour et contributions | Fork initial de [T-37](#T-37) | En cours — module 0.1.2 adopté ; widgets historiques et cycle durable qualifiés, recette Cloudflare Lab ouverte |
 | [T-39](#T-39) | P9 | Recette ciblée puis exhaustive | Preuves initiales de [T-38](#T-38) | En cours — flux Site A, conservation Site B et refus ciblés qualifiés ; Cloudflare et consolidation ouverts |
 | [T-17](#T-17) | P5 | Tâches humaines et travail | [T-11](#T-11), [T-14](#T-14) | À faire — dernier bloc |
-| [T-18](#T-18) | P5 | Messagerie native | [T-11](#T-11), [T-14](#T-14) | PR #42 intégrée ; partage workspace/front et suivi SDK en qualification |
-| [T-19](#T-19) | P5 | Support | [T-11](#T-11), [T-17](#T-17), [T-18](#T-18) | À faire — après première app |
+| [T-18](#T-18) | P5 | Messagerie native | [T-11](#T-11), [T-14](#T-14) | PR #42/#44 intégrées ; partage workspace/front vérifié sur Linux |
+| [T-19](#T-19) | P5 | Support | [T-11](#T-11), [T-17](#T-17), [T-18](#T-18) | En cours — première tranche en intégration |
 | [T-20](#T-20) | P5 | CRM | [T-11](#T-11) | Tranche locale intégrée PR #43, navigateur et CI candidate vérifiés ; compléments ouverts |
-| [T-21](#T-21) | P5 | Pages et navigation | [T-11](#T-11), [T-13](#T-13) | À faire — après première app |
-| [T-22](#T-22) | P5 | Analytics et diagnostics | [T-11](#T-11), [T-17](#T-17) | À faire — après première app |
+| [T-21](#T-21) | P5 | Pages et navigation | [T-11](#T-11), [T-13](#T-13) | En cours — première tranche en intégration |
+| [T-22](#T-22) | P5 | Analytics et diagnostics | [T-11](#T-11), [T-17](#T-17) | En cours — première tranche en intégration |
 | [T-23](#T-23) | P5 | Intentions et développement piloté | [T-12](#T-12), [T-17](#T-17) | À faire — dernier bloc, plan et accord explicite préalables |
 | [T-24](#T-24) | P5 | Règles et automatisation sans scheduler | [T-11](#T-11), [T-17](#T-17) | À faire — dernier bloc, plan et accord explicite préalables |
-| [T-25](#T-25) | P5 | Catalogue métier réutilisable complet | [T-11](#T-11), [T-13](#T-13), [T-16](#T-16) | À faire — après module témoin |
-| [T-26](#T-26) | P5 | Connecteur n8n | [T-10](#T-10), [T-11](#T-11), [T-16](#T-16), [T-24](#T-24) | À faire — après première app |
+| [T-25](#T-25) | P5 | Catalogue métier réutilisable complet | [T-11](#T-11), [T-13](#T-13), [T-16](#T-16) | En cours — première tranche en intégration |
+| [T-26](#T-26) | P5 | Connecteur n8n | [T-10](#T-10), [T-11](#T-11), [T-16](#T-16), [T-24](#T-24) | En cours — port externe et module |
 | [T-27](#T-27) | P5 | Connecteur Stripe | [T-11](#T-11), [T-16](#T-16) | À faire — après première app |
 | [T-28](#T-28) | P5 | Connecteur Meili | [T-05](#T-05), [T-11](#T-11) | À faire — après première app |
 | [T-29](#T-29) | P5 | Autres connecteurs et frontières externes | [T-11](#T-11), [T-16](#T-16), [T-18](#T-18), [T-23](#T-23) | À faire — après première app |
@@ -291,20 +291,20 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 - Dépendances : [T-11](#T-11), [T-14](#T-14).
 - Travail/livrables : Module messaging : boîtes/messages/brouillons/pièces jointes et port de transport.
 - Réalisation : adaptation des écrans `packages/mails/ui` du kit original dans le module standard, avec les données D1/R2 et les opérations communes ; aucun service SMTP/IMAP ni ordonnanceur hébergé dans le socle. Le périmètre sans transport conserve lecture et rédaction, avec envoi/réception explicitement indisponibles.
-- Acquis locaux : PR #42 fusionnée sur `92b0958`, même arbre que le candidat `4318bda`, revue indépendante exacte et CI PR/main 1 186/1 186 sans omission. Le navigateur conserve boîte et brouillon après sauvegardes, reload et changement d’onglet ; la pièce jointe téléchargée correspond au hash original. Upload réalisé par API native, sélecteur de fichiers navigateur non exercé. Choix utilisateur confirmé : mêmes boîtes et brouillons dans le workspace et le front. Le contrat partagé principal/contexte passe D1/R2 ; son interface utilise le journal SDK 1.2 candidat. Restent sa recette navigateur, fournisseur externe, widgets, limites chat et recettes hébergées. La [note T18](IMPLEMENTATION-T18.md) distingue ces preuves ; le lot complet reste ouvert.
+- Acquis locaux : PR #42 fusionnée sur `92b0958`, même arbre que le candidat `4318bda`, revue indépendante exacte et CI PR/main 1 186/1 186 sans omission. Le navigateur conserve boîte et brouillon après sauvegardes, reload et changement d’onglet ; la pièce jointe téléchargée correspond au hash original. Upload réalisé par API native, sélecteur de fichiers navigateur non exercé. Choix utilisateur confirmé : mêmes boîtes et brouillons dans le workspace et le front. Le contrat partagé principal/contexte passe D1/R2 ; son interface utilise le journal SDK 1.2 candidat. PR #44 intégrée sur `9cd410b` : CI candidate 1 196/1 196 et recette Linux des mêmes boîtes, brouillon modifié entre admin/app et pièce jointe privée de 108 octets vérifiée. Fournisseur externe, widgets, limites chat et recettes hébergées restent ouverts. La [note T18](IMPLEMENTATION-T18.md) distingue ces preuves ; le lot complet reste ouvert.
 - Besoin : [US-18](USER-STORIES.md#US-18). Acceptation : [REQ-1801](EXIGENCES.md#REQ-1801).
 - Validation : implémenter puis exécuter les recettes liées, sur **workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : PR #42/#44, CI candidate et main 1 196/1 196 sur le partage, recette Linux admin/app ; voir les limites de T18.
 
 <a id="T-19"></a>
 ## T-19 — Support
 
-- Lot : **P5** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P5** ; état : **en cours — intégration de la première tranche** ; responsable : root avec les agents Sol.
 - Dépendances : [T-11](#T-11), [T-17](#T-17), [T-18](#T-18).
 - Travail/livrables : Module support et relations autorisées avec contacts/messages/tâches.
 - Besoin : [US-19](USER-STORIES.md#US-19). Acceptation : [REQ-1901](EXIGENCES.md#REQ-1901).
 - Validation : implémenter puis exécuter les recettes liées, sur **workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Acquis ciblés : 18 contrôles des six suites et intégration D1 réelle ; composition workspace/front en cours. Recettes navigateur/hébergées et relations intermodules encore ouvertes. Voir [Support](IMPLEMENTATION-T19.md). Pas de CI finale ni de publication de cette tranche revendiquée.
 
 <a id="T-20"></a>
 ## T-20 — CRM
@@ -315,27 +315,27 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 - Acquis ciblés : PR #43 fusionnée sur `c566fc1`, arbre identique au candidat `76327f8`, revue indépendante et CI candidate 1 188/1 188 sans omission. Intégration réelle D1 et HTTP/MCP, partage ADMIN/APP autorisé, refus de scope, révocation, cohérence des relations et course concurrente. Le navigateur vérifie kanban, fiches liées, archives, conservation des brouillons par sous-vue et mise à jour partagée workspace/front standard. La CI main 36473024844 a également réussi 1 188/1 188 tests ; restent profils hébergés, widgets visuels et contrats intermodules. Voir [T20](IMPLEMENTATION-T20.md).
 - Besoin : [US-20](USER-STORIES.md#US-20). Acceptation : [REQ-2001](EXIGENCES.md#REQ-2001).
 - Validation : implémenter puis exécuter les recettes liées, sur **workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : PR #43, CI candidate/main 1 188/1 188, recettes D1/HTTP/MCP et navigateur ; voir les limites de T20.
 
 <a id="T-21"></a>
 ## T-21 — Pages et navigation
 
-- Lot : **P5** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P5** ; état : **en cours — intégration de la première tranche** ; responsable : root avec les agents Sol.
 - Dépendances : [T-11](#T-11), [T-13](#T-13).
 - Travail/livrables : Module pages-navigation, médias/SEO/édition et reset contrôlé.
 - Besoin : [US-21](USER-STORIES.md#US-21). Acceptation : [REQ-2101](EXIGENCES.md#REQ-2101).
 - Validation : implémenter puis exécuter les recettes liées, sur **front, workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Acquis ciblés : 19 contrôles des six suites et intégration D1 réelle ; snapshots séparés des brouillons. Recettes navigateur, publication anonyme, médias publics, SEO et navigation éditoriale encore ouverts. Voir [Pages/navigation](IMPLEMENTATION-T21.md). Pas de CI finale ni de publication de cette tranche revendiquée.
 
 <a id="T-22"></a>
 ## T-22 — Analytics et diagnostics
 
-- Lot : **P5** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P5** ; état : **en cours — intégration de la première tranche** ; responsable : root avec les agents Sol.
 - Dépendances : [T-11](#T-11), [T-17](#T-17).
 - Travail/livrables : Module analytics, consultation de l’audit, productivité/usage et exports limités.
 - Besoin : [US-22](USER-STORIES.md#US-22). Acceptation : [REQ-2201](EXIGENCES.md#REQ-2201).
 - Validation : implémenter puis exécuter les recettes liées, sur **workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Acquis ciblés : 13 contrôles des six suites et intégration D1 réelle sur 520 événements. Événements explicites seulement ; instrumentation, logs hôte, navigateur et productivité restent ouverts. Voir [Analytics](IMPLEMENTATION-T22.md). Pas de CI finale ni de publication de cette tranche revendiquée.
 
 <a id="T-23"></a>
 ## T-23 — Intentions et développement piloté
@@ -364,24 +364,24 @@ Priorité : dernier bloc après T-17. Expliquer fonctions, effets, limites, plan
 <a id="T-25"></a>
 ## T-25 — Catalogue métier réutilisable
 
-- Lot : **P5** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P5** ; état : **en cours — intégration de la première tranche** ; responsable : root avec les agents Sol.
 - Dépendances : [T-11](#T-11), [T-13](#T-13), [T-16](#T-16).
 - Travail/livrables : Module catalogue, données produit et ports publics de référence.
 - Besoin : [US-25](USER-STORIES.md#US-25). Acceptation : [REQ-2501](EXIGENCES.md#REQ-2501).
 - Validation : implémenter puis exécuter les recettes liées, sur **app fraîche et widgets** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Acquis ciblés : 14 contrôles des six suites et intégration D1/R2/HTTP/MCP ; profil front de 11 modules composé, deux widgets liste/fiche. Navigateur, chat réel et diffusion des médias restent ouverts. Voir [Catalogue](IMPLEMENTATION-T25.md). Pas de CI finale ni de publication de cette tranche revendiquée.
 
 <a id="T-26"></a>
 ## T-26 — Connecteur n8n
 
 La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux règles d'automatisation attend T-24 et sa validation.
 
-- Lot : **P5** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P5** ; état : **en cours — connecteur externe** ; responsable : root et agents Sol.
 - Dépendances : [T-10](#T-10), [T-11](#T-11), [T-16](#T-16), [T-24](#T-24).
 - Travail/livrables : Module n8n : connexion, workflows autorisés, déclenchements/suivi/widgets et callbacks.
 - Besoin : [US-26](USER-STORIES.md#US-26). Acceptation : [REQ-2601](EXIGENCES.md#REQ-2601), [REQ-2602](EXIGENCES.md#REQ-2602).
 - Validation : implémenter puis exécuter les recettes liées, sur **n8n réel + Site public** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Réalisation en cours : réglages URL/clé, coffre natif et lectures API/MCP sur des ressources déclarées. Le port générique et le contrat déclaratif sont intégrés en source avec tests D1/coffre/HTTP/MCP. Mutations distantes, widgets, callbacks et recette n8n réelle restent ouverts ; aucun moteur tiers embarqué ni ordonnanceur. Voir [T26](IMPLEMENTATION-T26.md).
 
 <a id="T-27"></a>
 ## T-27 — Connecteur Stripe

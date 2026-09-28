@@ -111,6 +111,42 @@
       "enabled": true,
       "configuration": [],
       "integrations": []
+    },
+    {
+      "moduleId": "creezio.support",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/native/support"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
+    },
+    {
+      "moduleId": "creezio.pages-navigation",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/native/pages-navigation"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
+    },
+    {
+      "moduleId": "creezio.analytics",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/native/analytics"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
     }
   ],
   "front": {
@@ -125,7 +161,10 @@
         "creezio.openai",
         "creezio.delivery",
         "creezio.messaging",
-        "creezio.crm"
+        "creezio.crm",
+        "creezio.support",
+        "creezio.pages-navigation",
+        "creezio.analytics"
       ]
     },
     "app": {
@@ -134,7 +173,10 @@
         "creezio.conversations",
         "creezio.openai",
         "creezio.messaging",
-        "creezio.crm"
+        "creezio.crm",
+        "creezio.support",
+        "creezio.pages-navigation",
+        "creezio.analytics"
       ]
     }
   }

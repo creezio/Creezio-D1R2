@@ -1,0 +1,3 @@
+# Éditer les pages Creezio
+
+Lire le brouillon et sa révision avant `page.save` ou `navigation.save`. Prévisualiser le brouillon puis demander une publication explicite avant `page.publish` ou `navigation.publish`. Le résultat publié est un snapshot D1 ; ne jamais prétendre qu'un Site ou une route anonyme a été déployé ou qualifié. `page.reset` et `navigation.reset` ne doivent être utilisés qu'à la demande explicite, après lecture du brouillon et de la version publiée. Un conflit de révision exige une nouvelle lecture, pas un rejeu automatique. Les médias restent privés tant qu'aucune projection publique contrôlée n'est active.

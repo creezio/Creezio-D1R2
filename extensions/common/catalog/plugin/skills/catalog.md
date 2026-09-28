@@ -1,0 +1,3 @@
+# Catalogue métier
+
+Rechercher avec `catalog_product_search` puis consulter avec `catalog_product_get`. Ces deux opérations exposent seulement les produits publiés et appliquent le contexte, l’audience et la permission courante. Les prix sont des **entiers en unités mineures** accompagnés d’une devise ; ne jamais les multiplier par 100. La réponse n’est ni un stock, ni un prix négocié, ni une autorisation de panier ou paiement. Les widgets liste et fiche utilisent exactement ces réponses, avec repli texte. Une archive, un brouillon ou un média privé inaccessible ne doit pas être présenté comme disponible au client. Le port `catalog.products@1.0.0` est consommable par un module autorisé, sans exposition HTTP anonyme.

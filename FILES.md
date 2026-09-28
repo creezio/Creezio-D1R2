@@ -1,5 +1,9 @@
 # Repères du dépôt
 
+`scripts/modules/validate-archives.mjs` vérifie puis assemble les archives runtime/validation des modules du dépôt avec un paquet SDK public identifié par SHA-256. La CI exécute leurs six suites depuis cet assemblage et refuse les imports externes non déclarés, fichiers manquants ou générateurs non reproductibles. Ce contrôle ne remplace pas l'isolation nécessaire pour exécuter du code tiers non approuvé.
+
+Les connecteurs optionnels déclarent `contracts.connectors`, validé par `sdk/contracts/schemas/v1/connectors.schema.json` et composé dans le catalogue généré des fournisseurs. `sdk/connectors/types.ts` définit le port public ; `core/connectors/host.ts` applique ses gardes et son transport. `extensions/connectors/n8n/` contient le premier module, `data/schema/n8n.sql` son SQL central, et `tests/connectors/` / `tests/n8n/` les recettes hôte et D1/HTTP/MCP. Le profil `configuration/composition.connectors.json` et la [note T26](docs/IMPLEMENTATION-T26.md) distinguent les capacités réalisées et les limites.
+
 Le journal public des mutations de panneau réside dans `sdk/operations/command-journal.ts`, avec ses contrôles dans `tests/operations/command-journal.test.mjs` et `command-journal-package.test.mjs`. Il partage le client d'opérations existant ; son export et ses déclarations appartiennent à la source SDK 1.2 candidate, sans nouvelle release publique implicite.
 
 Le [CRM natif](extensions/native/crm/README.md) porte les modèles, opérations et vues dans `extensions/native/crm/`. Son SQL central est `data/schema/crm.sql` ; les tests D1 et HTTP/MCP résident dans `tests/crm/integration.test.mjs` et `tests/modules/crm-transports.test.mjs`. Le [suivi T20](docs/IMPLEMENTATION-T20.md) distingue interfaces originales, contrats et recettes restantes.
@@ -174,6 +178,14 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - `app/approvals/` : entrée native de décision humaine, indépendante du client MCP qui a demandé l'action.
 - [extensions/widgets-witness](extensions/widgets-witness/) : module optionnel de recette avec plusieurs widgets, absent du démarrage standard.
 - [tests/widgets](tests/widgets/) et [réalisation T16](docs/IMPLEMENTATION-T16.md) : contrôles des transports, droits, hôtes et périmètres à qualifier.
+
+## Modules natifs et catalogue T19–T25
+
+- `extensions/native/support/`, `extensions/native/pages-navigation/` et `extensions/native/analytics/` : modèles, opérations, contributions workspace/front et six suites propres ; interfaces adaptées des composants Creezio originaux.
+- `extensions/common/catalog/` : extension métier optionnelle, port `catalog.products`, interfaces et deux widgets. `configuration/composition.catalog.json` compose sa recette sur le thème standard.
+- `data/schema/{support,pages-navigation,analytics,catalog}.sql` : artefacts du générateur central ; aucun script de transformation dans les modules.
+- `tests/{support,pages-navigation,analytics,catalog}/` : intégrations D1/R2 et transports selon le module ; inclusion obligatoire dans l'agrégat qualité.
+- [T19](docs/IMPLEMENTATION-T19.md), [T21](docs/IMPLEMENTATION-T21.md), [T22](docs/IMPLEMENTATION-T22.md) et [T25](docs/IMPLEMENTATION-T25.md) : périmètres réalisés et recettes encore ouvertes.
 
 ## Distribution indépendante T30
 

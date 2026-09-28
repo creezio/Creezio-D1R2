@@ -1,0 +1,293 @@
+[
+  {
+    "id": "ticket",
+    "title": "Tickets support",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "created_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "requester_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "subject",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 240
+        }
+      },
+      {
+        "id": "status",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "ouvert",
+            "repondu",
+            "resolu",
+            "ferme"
+          ]
+        }
+      },
+      {
+        "id": "assigned_to",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "updated_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "last_message_at",
+        "type": "date-time",
+        "nullable": true,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "last_preview",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 0,
+          "maxLength": 240
+        }
+      },
+      {
+        "id": "message_count",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [
+      {
+        "id": "recent",
+        "fields": [
+          "context_id",
+          "updated_at",
+          "id"
+        ],
+        "unique": false
+      }
+    ],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.support",
+        "kind": "permission",
+        "id": "use"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "message",
+    "title": "Messages support",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "created_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "ticket_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "origin",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "client",
+            "support"
+          ]
+        }
+      },
+      {
+        "id": "author_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "body",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 4000
+        }
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "ticket_id",
+      "id"
+    ],
+    "indexes": [
+      {
+        "id": "by-ticket",
+        "fields": [
+          "context_id",
+          "ticket_id",
+          "created_at",
+          "id"
+        ],
+        "unique": false
+      }
+    ],
+    "relations": [
+      {
+        "id": "ticket",
+        "fields": [
+          "context_id",
+          "ticket_id"
+        ],
+        "target": {
+          "moduleId": "creezio.support",
+          "kind": "model",
+          "id": "ticket"
+        },
+        "targetFields": [
+          "context_id",
+          "id"
+        ],
+        "onDelete": "restrict"
+      }
+    ],
+    "permissions": [
+      {
+        "moduleId": "creezio.support",
+        "kind": "permission",
+        "id": "use"
+      }
+    ],
+    "deletion": {
+      "mode": "hard",
+      "requiresApproval": false
+    },
+    "public": false
+  }
+]

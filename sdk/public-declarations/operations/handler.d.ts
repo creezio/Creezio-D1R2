@@ -38,12 +38,22 @@ export interface OperationDataPort {
   planPatch(modelId:string,input:DataPatch):DataPlan;
   planDelete(modelId:string,input:DataDelete):DataPlan;
 }
+/** Plan-only vault capability for a declared connector key configuration command. */
+export interface ProviderSecretsPort {
+  preparePut(input:Readonly<{providerId:string;secret:string}>):Promise<Readonly<{plan:DataPlan;reference:string;version:number}>>;
+  prepareReplace(input:Readonly<{providerId:string;reference:string;expectedVersion:number;secret:string}>):
+    Promise<Readonly<{plan:DataPlan;reference:string;version:number}>>;
+  prepareRevoke(input:Readonly<{providerId:string;reference:string;expectedVersion:number}>):
+    Promise<Readonly<{plan:DataPlan;version:number}>>;
+}
 import type {OperationFilesPort} from '@creezio/sdk/files/types';
+import type {ConnectorPort} from '@creezio/sdk/connectors/types';
 export interface OperationContext {
   readonly moduleId:string;readonly operationId:string;readonly executionId:string;
   readonly contextId:string;readonly audience:'admin'|'app';
   readonly principalId:string;readonly actorPrincipalId:string;readonly signal:AbortSignal;
-  readonly data:OperationDataPort;readonly files?:OperationFilesPort;
+  readonly data:OperationDataPort;readonly files?:OperationFilesPort;readonly connector?:ConnectorPort;
+  readonly providerSecrets?:ProviderSecretsPort;
 }
 export interface OperationHandlerResult {readonly output:unknown;readonly plans?:readonly DataPlan[]}
 export type OperationHandler=(input:JsonValue,context:OperationContext)=>OperationHandlerResult|Promise<OperationHandlerResult>;

@@ -1,0 +1,14 @@
+# Catalogue métier Creezio
+
+`creezio.catalog` est un module commun installable, distinct du Product Hub de plugins de Creezio original. Les parcours produits, catégories, formulaire et grille s’inspirent de l’UI catalogue WinHub, sans importer WinHub, ses règles B2B, Meili, pricing-groups, stock, panier ou paiements.
+
+Le catalogue possède ses catégories, produits et images privées dans le D1/R2 de l’application, sous `context_id`. Les audiences `admin` et `app` contrôlent les droits mais ne créent pas deux catalogues. Le prix `priceMinor` est un entier en unités mineures avec `currency` explicite ; aucun calcul de TVA, prix de groupe ou disponibilité n’est inféré. Un brouillon ou produit archivé ne sort pas de `product.search`/`product.get`. Les mutations d’édition utilisent la révision attendue et une clé d’idempotence. Les recherches D1 renvoient `complete`, `scanned` et `nextCursor` et reprennent après la dernière ligne inspectée lorsque le lot de 500 n’a pas épuisé le contexte.
+
+Le port **`catalog.products@1.0.0`** exporte `product.search`, `product.get` et `category.list` et leurs schémas pour d’autres modules autorisés, notamment futurs panier/paiement. « Public » signifie contrat versionné consommable après installation, activation et permission ; **aucun accès HTTP anonyme** n’est créé. Un consommateur absent, désactivé ou incompatible n’appelle pas ce port. API, MCP, UI front et deux widgets liste/fiche partagent ces mêmes opérations et refus.
+
+L’éditeur admin requiert le SDK `^1.2.0` pour son journal public de commandes. Il conserve l’identifiant d’action dans l’état du panneau avant chaque mutation. Si la réponse est incertaine, l’éditeur bloque toute nouvelle mutation et propose une vérification de statut sans réémettre la commande ; si cet état ne peut être enregistré, rien n’est envoyé. Le journal ne contient ni description, ni prix, ni image.
+Les filtres, l’onglet et la sélection du panneau sont restaurés uniquement lorsque les identifiants de session, d’audience et de contexte correspondent exactement. Un ancien état sans ces identifiants est ignoré ; aucune conversion implicite ne lui attribue le contexte courant.
+
+Les images sont déposées et liées dans R2 sous droit admin, avec cinq liens maximum par produit. Le transport privé existant vérifie le propriétaire du fichier et ne diffuse pas les octets à tous les clients front ; la grille front présente un emplacement sans image tant qu’un port de diffusion autorisé n’existe pas. `media.list` ne retourne aucune métadonnée d’un produit non publié en audience app. Détacher un lien ne purge pas l’objet R2.
+
+Lancer `node gate.mjs` puis `node --test tests/catalog/integration.test.mjs` pour les contrôles locaux D1/R2/ACL. La recette navigateur et ChatGPT externe restent distinctes des tests de contrat.

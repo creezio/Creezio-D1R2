@@ -5,3 +5,4 @@ export type { OperationContext, OperationHandler, OperationHandlerResult, Operat
   from '../../core/operations/types.ts';
 export type { JsonValue, DataPlan, DataModel } from '../../core/data/types.ts';
 export type { StagedFileReference, OperationFilesPort } from '../files/types.ts';
+export type { ProviderSecretsPort } from '../providers/types.ts';

@@ -6,7 +6,7 @@ import { dataCatalog } from './.creezio/generated/data-catalog';
 import {fileCatalog} from './.creezio/generated/file-catalog';
 import type {FileBucket} from './core/files/service';
 import { runtimeInventory } from './.creezio/generated/module-inventory';
-import {openAiProvider, toolCatalog} from './.creezio/generated/provider-catalog';
+import {openAiProvider, toolCatalog, connectors} from './.creezio/generated/provider-catalog';
 import {createOpenAiProviderHost, readProviderKeyring} from './core/providers/host';
 import { createOperationRegistry } from './core/operations/registry';
 import { createDeclaredHttpDispatcher } from './core/operations/http';
@@ -20,7 +20,7 @@ import {createWidgetApprovalService} from './core/widgets/approval';
 
 const registry = createOperationRegistry({catalog: operationCatalog, validators: operationValidators, handlers: operationHandlers});
 const declaredHttp = createDeclaredHttpDispatcher({registry, dataCatalog, fileCatalog, permissions, bindings: httpBindings,
-  workspaceCatalog, frontCatalog, runtimeInventory, toolCatalog, widgetCatalog, widgetValidators, ...(openAiProvider ? {openAiProvider} : {})});
+  workspaceCatalog, frontCatalog, runtimeInventory, toolCatalog, widgetCatalog, widgetValidators, connectors, ...(openAiProvider ? {openAiProvider} : {})});
 const oauthHttp = {dispatch(request: Request, resolved: Parameters<typeof dispatchOAuthHttp>[1], rawEnvironment: unknown,
   requestId: string, path: string) {
   return dispatchOAuthHttp(request, resolved, rawEnvironment, permissions, requestId, path, nativeAccess, permissionTitles);
@@ -36,6 +36,7 @@ const mcpHttp = {async dispatch(request: Request, resolved: Parameters<typeof di
     ...openAiProvider,keyring}) : null;
   const approvals = createWidgetApprovalService({db:resolved.bindings.DB,catalog:dataCatalog,permissions,registry});
   const engine = createOperationEngine({db: resolved.bindings.DB, catalog: dataCatalog, registry, permissions, runtimeInventory,
+    connectors:connectors.map(descriptor=>({descriptor,keyring})),
     widgets:{catalog:widgetCatalog,validators:widgetValidators},
     approvals,
     ...(provider ? {providerAvailability:async(request,providerId)=>providerId==='openai.responses.v1'

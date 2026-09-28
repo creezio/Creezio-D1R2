@@ -1,0 +1,2296 @@
+{
+  "schemaVersion": "1.0.0",
+  "identity": {
+    "id": "creezio.analytics",
+    "title": "Analytique et diagnostics",
+    "publisher": "creezio",
+    "origin": "https://github.com/creezio/Creezio-D1R2",
+    "version": "0.0.0",
+    "source": {
+      "kind": "snapshot",
+      "revision": "t22-analytics-reported-v1",
+      "integrity": "sha256-3998faaff2a9ccfaea115f83739b45310fff2549f2c60ab79d20cbc7048f6e51"
+    },
+    "license": {
+      "expression": "NOASSERTION",
+      "file": "LICENSE"
+    }
+  },
+  "compatibility": {
+    "core": "^0.0.0",
+    "sdk": "^1.0.0",
+    "requiredCapabilities": [
+      "runtime.worker",
+      "data.d1.shared"
+    ],
+    "optionalCapabilities": []
+  },
+  "entrypoints": {
+    "server": {
+      "path": "module/entry.server.ts",
+      "export": "analytics"
+    },
+    "ui": {
+      "path": "ui/index.tsx",
+      "export": "AnalyticsAdminView"
+    },
+    "plugin": {
+      "manifest": "plugin/plugin.json",
+      "mcp": "plugin/mcp.json",
+      "contributions": {
+        "path": "plugin/contributions.ts",
+        "export": "contributions"
+      }
+    }
+  },
+  "dependencies": [
+    {
+      "moduleId": "creezio.access",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "optional": false,
+      "contracts": [],
+      "whenAbsent": "block",
+      "whenIncompatible": "block",
+      "autoInstall": false
+    }
+  ],
+  "contracts": {
+    "schemas": [
+      {
+        "id": "event-record-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "page_view",
+                "click",
+                "activity",
+                "error"
+              ]
+            },
+            "surface": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "actionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "errorCode": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "reportedDurationMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 86400000
+            }
+          },
+          "required": [
+            "requestKey",
+            "type",
+            "surface"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "event-record-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "event": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 36
+                },
+                "principalId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "actorPrincipalId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "page_view",
+                    "click",
+                    "activity",
+                    "error"
+                  ]
+                },
+                "actionId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "surface": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "path": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "errorCode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reportedDurationMs": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 86400000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "occurredAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "source": {
+                  "const": "reported"
+                }
+              },
+              "required": [
+                "id",
+                "principalId",
+                "actorPrincipalId",
+                "type",
+                "actionId",
+                "surface",
+                "path",
+                "errorCode",
+                "reportedDurationMs",
+                "occurredAt",
+                "source"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "event"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "event-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "period": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "year"
+              ]
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "query": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 120
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "page_view",
+                "click",
+                "activity",
+                "error"
+              ]
+            },
+            "principalId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "period",
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "event-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "period": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "string",
+                  "enum": [
+                    "day",
+                    "week",
+                    "month",
+                    "year"
+                  ]
+                },
+                "from": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "to": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                }
+              },
+              "required": [
+                "period",
+                "from",
+                "to"
+              ],
+              "additionalProperties": false
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "principalId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "actorPrincipalId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "page_view",
+                      "click",
+                      "activity",
+                      "error"
+                    ]
+                  },
+                  "actionId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "surface": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "path": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "errorCode": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reportedDurationMs": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 86400000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "occurredAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  },
+                  "source": {
+                    "const": "reported"
+                  }
+                },
+                "required": [
+                  "id",
+                  "principalId",
+                  "actorPrincipalId",
+                  "type",
+                  "actionId",
+                  "surface",
+                  "path",
+                  "errorCode",
+                  "reportedDurationMs",
+                  "occurredAt",
+                  "source"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 50
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "complete": {
+              "type": "boolean"
+            },
+            "scanned": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 500
+            }
+          },
+          "required": [
+            "period",
+            "items",
+            "nextCursor",
+            "complete",
+            "scanned"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "analytics-snapshot-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "period": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "year"
+              ]
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "principalId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "period"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "analytics-snapshot-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "period": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "string",
+                  "enum": [
+                    "day",
+                    "week",
+                    "month",
+                    "year"
+                  ]
+                },
+                "from": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "to": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                }
+              },
+              "required": [
+                "period",
+                "from",
+                "to"
+              ],
+              "additionalProperties": false
+            },
+            "source": {
+              "const": "reported"
+            },
+            "complete": {
+              "type": "boolean"
+            },
+            "scanned": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 500
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "totals": {
+              "type": "object",
+              "properties": {
+                "events": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "pageViews": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "clicks": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "errors": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "reportedDurationMs": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "events",
+                "pageViews",
+                "clicks",
+                "errors",
+                "reportedDurationMs"
+              ],
+              "additionalProperties": false
+            },
+            "activePrincipals": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "timeline": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "name",
+                  "count"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 366
+            },
+            "hours": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "name",
+                  "count"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 24
+            },
+            "pages": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "name",
+                  "count"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 20
+            },
+            "clicks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "name",
+                  "count"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 20
+            },
+            "users": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "name",
+                  "count"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 20
+            }
+          },
+          "required": [
+            "period",
+            "source",
+            "complete",
+            "scanned",
+            "nextCursor",
+            "totals",
+            "activePrincipals",
+            "timeline",
+            "hours",
+            "pages",
+            "clicks",
+            "users"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "event-export-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "period": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "year"
+              ]
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "query": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 120
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "page_view",
+                "click",
+                "activity",
+                "error"
+              ]
+            },
+            "principalId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "format": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv"
+              ]
+            }
+          },
+          "required": [
+            "period",
+            "limit",
+            "format"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "event-export-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "format": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv"
+              ]
+            },
+            "content": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 180000
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "complete": {
+              "type": "boolean"
+            },
+            "period": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "string",
+                  "enum": [
+                    "day",
+                    "week",
+                    "month",
+                    "year"
+                  ]
+                },
+                "from": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "to": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                }
+              },
+              "required": [
+                "period",
+                "from",
+                "to"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "format",
+            "content",
+            "nextCursor",
+            "complete",
+            "period"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "analytics-view-input",
+        "schema": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "analytics-panel-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "audience": {
+              "type": "string",
+              "enum": [
+                "admin",
+                "app"
+              ]
+            },
+            "contextId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "period": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "year"
+              ]
+            },
+            "query": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 120
+            },
+            "type": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 16
+            },
+            "principalId": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "sessionId",
+            "audience",
+            "contextId",
+            "period",
+            "query",
+            "type",
+            "principalId"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "event",
+        "title": "Événement déclaré",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 36
+            }
+          },
+          {
+            "id": "principal_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "actor_principal_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "event_type",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "page_view",
+                "click",
+                "activity",
+                "error"
+              ]
+            }
+          },
+          {
+            "id": "action_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 80
+            }
+          },
+          {
+            "id": "surface",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "path",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          {
+            "id": "error_code",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 80
+            }
+          },
+          {
+            "id": "duration_ms",
+            "type": "integer",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 86400000
+            }
+          },
+          {
+            "id": "created_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "by-time",
+            "fields": [
+              "context_id",
+              "created_at",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "emit"
+          },
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      }
+    ],
+    "files": [],
+    "events": [],
+    "settings": [],
+    "search": [],
+    "permissions": [
+      {
+        "id": "emit",
+        "title": "Déclarer un événement analytique",
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "scopes": [
+          "analytics.emit"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "model",
+            "id": "event"
+          }
+        ],
+        "actions": [
+          "create",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      },
+      {
+        "id": "read",
+        "title": "Lire les événements et diagnostics déclarés",
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "scopes": [
+          "analytics.read"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "model",
+            "id": "event"
+          }
+        ],
+        "actions": [
+          "read",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      }
+    ],
+    "operations": [
+      {
+        "id": "event.record",
+        "title": "Déclarer un événement",
+        "kind": "command",
+        "input": {
+          "schemaId": "event-record-input"
+        },
+        "output": {
+          "schemaId": "event-record-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "emit"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "eventRecord"
+        },
+        "effects": {
+          "reads": [],
+          "writes": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "event"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 1,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "content"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "event.list",
+        "title": "Lister les événements",
+        "kind": "query",
+        "input": {
+          "schemaId": "event-list-input"
+        },
+        "output": {
+          "schemaId": "event-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "eventList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "event"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 50
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "content"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "analytics.snapshot",
+        "title": "Mesures déclarées",
+        "kind": "query",
+        "input": {
+          "schemaId": "analytics-snapshot-input"
+        },
+        "output": {
+          "schemaId": "analytics-snapshot-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "analyticsSnapshot"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "event"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "content"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "event.export",
+        "title": "Exporter une page d’événements",
+        "kind": "query",
+        "input": {
+          "schemaId": "event-export-input"
+        },
+        "output": {
+          "schemaId": "event-export-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "eventExport"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "event"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 50
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "content"
+          ]
+        },
+        "public": false
+      }
+    ],
+    "api": [
+      {
+        "id": "admin.event.record",
+        "method": "POST",
+        "path": "/api/admin/analytics/event/record",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "event.record"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "event-record-input"
+        },
+        "output": {
+          "schemaId": "event-record-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.event.record",
+        "method": "POST",
+        "path": "/api/app/analytics/event/record",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "event.record"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "event-record-input"
+        },
+        "output": {
+          "schemaId": "event-record-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.event.list",
+        "method": "GET",
+        "path": "/api/admin/analytics/event/list",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "event.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "inputField": "period",
+            "required": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": false
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "inputField": "type",
+            "required": false
+          },
+          {
+            "name": "principal_id",
+            "in": "query",
+            "inputField": "principalId",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "event-list-input"
+        },
+        "output": {
+          "schemaId": "event-list-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.analytics.snapshot",
+        "method": "GET",
+        "path": "/api/admin/analytics/analytics/snapshot",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "analytics.snapshot"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "inputField": "period",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "principal_id",
+            "in": "query",
+            "inputField": "principalId",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "analytics-snapshot-input"
+        },
+        "output": {
+          "schemaId": "analytics-snapshot-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.event.export",
+        "method": "GET",
+        "path": "/api/admin/analytics/event/export",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "event.export"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "inputField": "period",
+            "required": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": false
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "inputField": "type",
+            "required": false
+          },
+          {
+            "name": "principal_id",
+            "in": "query",
+            "inputField": "principalId",
+            "required": false
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "inputField": "format",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "event-export-input"
+        },
+        "output": {
+          "schemaId": "event-export-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      }
+    ],
+    "mcp": {
+      "tools": [
+        {
+          "id": "event.record",
+          "name": "analytics_event_record",
+          "operation": {
+            "moduleId": "creezio.analytics",
+            "kind": "operation",
+            "id": "event.record"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "event-record-input"
+          },
+          "output": {
+            "schemaId": "event-record-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "event.list",
+          "name": "analytics_event_list",
+          "operation": {
+            "moduleId": "creezio.analytics",
+            "kind": "operation",
+            "id": "event.list"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "event-list-input"
+          },
+          "output": {
+            "schemaId": "event-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "analytics.snapshot",
+          "name": "analytics_analytics_snapshot",
+          "operation": {
+            "moduleId": "creezio.analytics",
+            "kind": "operation",
+            "id": "analytics.snapshot"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "analytics-snapshot-input"
+          },
+          "output": {
+            "schemaId": "analytics-snapshot-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "event.export",
+          "name": "analytics_event_export",
+          "operation": {
+            "moduleId": "creezio.analytics",
+            "kind": "operation",
+            "id": "event.export"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "event-export-input"
+          },
+          "output": {
+            "schemaId": "event-export-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        }
+      ],
+      "resources": [],
+      "prompts": [],
+      "skills": [
+        {
+          "id": "analytics",
+          "path": "plugin/skills/analytics.md",
+          "audiences": [
+            "admin"
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "event.record"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "event.list"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "analytics.snapshot"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "event.export"
+            }
+          ],
+          "resources": [],
+          "integrity": "sha256-f8a715f289ca46710d7ed943f840c7412827fef3bff0eb05f8b2df658bc10591"
+        }
+      ]
+    },
+    "ui": {
+      "views": [
+        {
+          "id": "admin",
+          "title": "Analytique",
+          "surfaces": [
+            "workspace"
+          ],
+          "route": "/admin/analytics",
+          "component": {
+            "path": "ui/index.tsx",
+            "export": "AnalyticsAdminView"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "event.record"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "event.list"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "analytics.snapshot"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "event.export"
+            }
+          ],
+          "input": {
+            "schemaId": "analytics-view-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend",
+            "stateSchema": {
+              "schemaId": "analytics-panel-state"
+            }
+          }
+        }
+      ],
+      "navigation": [
+        {
+          "id": "analytics-admin",
+          "title": "Analytique",
+          "view": {
+            "moduleId": "creezio.analytics",
+            "kind": "view",
+            "id": "admin"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "surfaces": [
+            "workspace"
+          ],
+          "order": 70
+        }
+      ],
+      "slots": [],
+      "front": {
+        "mode": "absent",
+        "justification": {
+          "reason": "Analytics are an authorized workspace view; app emission uses the API.",
+          "policyRule": "analytics.workspace-only"
+        }
+      },
+      "themes": [],
+      "styles": []
+    },
+    "widgets": [],
+    "publicContracts": []
+  },
+  "documentation": {
+    "installed": {
+      "readme": {
+        "path": "README.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "prd": {
+        "path": "prd.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "changelog": {
+        "path": "CHANGELOG.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      }
+    },
+    "development": {
+      "agents": {
+        "path": "AGENTS.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "files": {
+        "path": "FILES.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "interview": {
+        "path": "interview.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "todo": {
+        "path": "TODO.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      }
+    },
+    "versionBinding": {
+      "moduleVersion": "0.0.0",
+      "sourceRevision": "t22-analytics-reported-v1"
+    },
+    "localRevisions": {
+      "installedVersionDistinct": true,
+      "approvedImmutable": true
+    },
+    "installationHistory": {
+      "distinctFromPackageChangelog": true
+    }
+  },
+  "validation": {
+    "gate": "gate.mjs",
+    "suites": {
+      "backend": {
+        "mode": "required",
+        "script": "ci/backend.mjs",
+        "tests": [
+          "tests/backend/contract.test.mjs"
+        ]
+      },
+      "ui": {
+        "mode": "required",
+        "script": "ci/ui.mjs",
+        "tests": [
+          "tests/ui/contract.test.mjs"
+        ]
+      },
+      "api-mcp": {
+        "mode": "required",
+        "script": "ci/api-mcp.mjs",
+        "tests": [
+          "tests/api-mcp/contract.test.mjs"
+        ]
+      },
+      "widgets": {
+        "mode": "not-applicable",
+        "script": "ci/widgets.mjs",
+        "tests": [
+          "tests/widgets/contract.test.mjs"
+        ],
+        "justification": {
+          "reason": "Analytics use the workspace view; no MCP widget renderer.",
+          "policyRule": "analytics.no-widget-renderer"
+        }
+      },
+      "package": {
+        "mode": "required",
+        "script": "ci/package.mjs",
+        "tests": [
+          "tests/package/contract.test.mjs"
+        ]
+      },
+      "docs": {
+        "mode": "required",
+        "script": "ci/docs.mjs",
+        "tests": [
+          "tests/docs/contract.test.mjs"
+        ]
+      }
+    },
+    "policy": {
+      "id": "creezio.local-contracts",
+      "version": "1.0.0",
+      "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
+    },
+    "isolation": {
+      "productionSecrets": false,
+      "publicationRights": false
+    },
+    "evidence": {
+      "sourceIntegrity": true,
+      "artifactIntegrity": true,
+      "profile": true,
+      "executedSuites": true
+    }
+  },
+  "packaging": {
+    "runtime": {
+      "files": [
+        "module/manifest.json",
+        "module/models.json",
+        "module/entry.server.ts",
+        "module/operations.ts",
+        "module/service.ts",
+        "ui/index.tsx",
+        "ui/contracts.ts",
+        "ui/panel-state.ts",
+        "README.md",
+        "prd.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "plugin/plugin.json",
+        "plugin/mcp.json",
+        "plugin/contributions.ts",
+        "plugin/skills/analytics.md"
+      ],
+      "references": []
+    },
+    "validation": {
+      "files": [
+        "AGENTS.md",
+        "FILES.md",
+        "interview.md",
+        "TODO.md",
+        "gate.mjs",
+        "module/generate-manifest.mjs",
+        "ci/run-suite.mjs",
+        "tests/helpers.mjs",
+        "ci/backend.mjs",
+        "tests/backend/contract.test.mjs",
+        "ci/ui.mjs",
+        "tests/ui/contract.test.mjs",
+        "ci/api-mcp.mjs",
+        "tests/api-mcp/contract.test.mjs",
+        "ci/widgets.mjs",
+        "tests/widgets/contract.test.mjs",
+        "ci/package.mjs",
+        "tests/package/contract.test.mjs",
+        "ci/docs.mjs",
+        "tests/docs/contract.test.mjs"
+      ],
+      "references": []
+    },
+    "validationBinding": {
+      "moduleId": "creezio.analytics",
+      "moduleVersion": "0.0.0",
+      "sourceRevision": "t22-analytics-reported-v1"
+    },
+    "noRuntimeTests": true,
+    "installation": "build-and-publish",
+    "providerInstallation": false
+  },
+  "lifecycle": {
+    "deactivation": "preserve-data",
+    "configuration": "explicit-state",
+    "uninstall": "explicit-approved-action",
+    "activationRequirements": [],
+    "absent": {
+      "widgets": {
+        "reason": "Analytics have no MCP widget renderer.",
+        "policyRule": "analytics.no-widget-renderer"
+      },
+      "files": {
+        "reason": "Analytics events do not store files.",
+        "policyRule": "analytics.no-files"
+      }
+    },
+    "dependencyChanges": {
+      "install": "resolve-explicit-consumer-selection",
+      "activate": "require-active-dependencies",
+      "update": "validate-dependent-contracts",
+      "deactivate": "block-or-explicit-dependent-plan",
+      "uninstall": "block-or-explicit-dependent-plan",
+      "data": "preserve"
+    }
+  }
+}

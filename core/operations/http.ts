@@ -18,6 +18,7 @@ import type {RuntimeFileCatalog} from '../files/catalog.ts';
 import type {FileBucket} from '../files/service.ts';
 import {createOpenAiProviderHost,readProviderKeyring} from '../providers/host.ts';
 import type {ProviderConfigStorage,ProviderHttpPort,ProviderTransport} from '../../sdk/providers/types.ts';
+import type {ConnectorDescriptor} from '../../sdk/connectors/types.ts';
 import type {VaultStorage} from '../vault/service.ts';
 import {createTurnBridge} from '../conversations/turn-bridge.ts';
 import type {ProviderOperationSchema} from '../providers/tools.ts';
@@ -285,6 +286,7 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
   readonly frontCatalog?: FrontAuthorizationCatalog & {readonly front: {readonly kind: 'workspace' | 'headless' | 'theme'}};
   readonly openAiProvider?: {readonly config:ProviderConfigStorage;readonly vault:VaultStorage;
     readonly transport:(http:ProviderHttpPort)=>ProviderTransport};
+  readonly connectors?:readonly ConnectorDescriptor[];
   readonly toolCatalog?:readonly ProviderOperationSchema[];
   readonly widgetCatalog?:CompiledWidgetCatalog;
   readonly widgetValidators?:WidgetValidatorMap;
@@ -320,6 +322,7 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
         ?provider.availability(request):{providerId,state:'missing' as const,modelIds:[]}} : {}),
       ...(options.openAiProvider&&keyring?{providerSecrets:{storage:options.openAiProvider.vault,keyring,
         providerId:'openai.responses.v1'}}:{}),
+      ...(options.connectors?{connectors:options.connectors.map(descriptor=>({descriptor,keyring}))}:{}),
       ...(options.fileCatalog ? {files:{catalog:options.fileCatalog,bucket:environment.bindings.BUCKET as unknown as FileBucket}} : {})});
     if(driveMatch){
       if(request.method!=='POST')return failure('method_not_allowed',405,requestId,{allow:'POST'},request.method==='HEAD');

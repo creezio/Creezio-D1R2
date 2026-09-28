@@ -1,0 +1,9 @@
+# PRD installé — Pages et navigation 0.0.0
+
+Un administrateur éditorial crée une page, organise des sections préfabriquées, modifie les réglages/SEO et prévisualise son brouillon enregistré. Il publie explicitement un snapshot D1. Les collaborateurs autorisés lisent uniquement le snapshot publié sur le front authentifié. La navigation front suit le même cycle brouillon, publication et reset. La révision attendue empêche d'écraser silencieusement le travail concurrent ; les opérations commandées sont idempotentes dans le moteur commun.
+
+Une pièce jointe R2 est liée à la page par un plan gardé ; l'objet reste privé. L'éditeur peut le télécharger ou le détacher sans purge implicite. Les liens externes de sections/navigation acceptent uniquement chemins locaux ou URL HTTP(S) sans identifiants ; le contenu est borné.
+
+Avant chaque mutation, l'éditeur conserve sa clé de suivi avec la session, l'audience et le contexte, sans copier le contenu de la page. Une réponse incertaine suspend les nouvelles mutations ; « Vérifier le résultat » lit l'exécution d'origine sans renvoyer l'action. Un refus de lecture ne prouve pas un échec d'écriture. Les sélections et changements d'onglet conservent le suivi ; une nouvelle identité ne le reprend pas.
+
+L'expérience visuelle conserve la structure et les composants du landing original. La route HTTP anonyme des pages publiées, les médias publics, le SEO serveur et les overrides du catalogue sidebar attendent des ports hôte distincts. Aucun de ces effets n'est inféré d'un snapshot D1 ni du site public.

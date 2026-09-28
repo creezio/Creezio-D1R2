@@ -5,14 +5,14 @@ import { gzipSync } from 'node:zlib';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 
-// The selected local composition now includes Messaging and CRM with their
-// handlers, static validators and SSR views. The T20 build measured 6,692,500
-// raw / 1,116,939 gzip bytes; its CI predecessor measured 6,691,939 raw bytes.
-// Keep about 3% raw-size margin. The existing gzip, graph and timing ceilings
+// The selected local composition includes Support, Pages and Analytics with
+// their handlers, static validators and original SSR views. The T19/T21/T22
+// build measured 8,066,612 raw / 1,254,636 gzip bytes (83 Worker files).
+// Keep under 3% raw-size margin. The existing gzip, graph and timing ceilings
 // remain unchanged. New compositions must
 // still be measured explicitly rather than treated as arbitrarily extensible.
 // They are neither provider quotas nor production latency guarantees.
-export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 6_900_000, workerGzipBytes: 1_290_000,
+export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 8_300_000, workerGzipBytes: 1_290_000,
   selectedGraphInputs: 32, startupMs: 15_000, routeMs: 3_000 });
 
 export function assertRuntimeBudgets(report) {

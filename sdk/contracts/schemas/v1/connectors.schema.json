@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:connectors",
+  "title": "Creezio external connector capabilities",
+  "type": "array",
+  "maxItems": 16,
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+      },
+      "moduleId": {
+        "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+      },
+      "config": {
+        "type": "object",
+        "properties": {
+          "moduleId": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "modelId": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "contextField": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "fields": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "origin": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "keyRef": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "secretVersion": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "enabled": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "revision": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "updatedAt": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              }
+            },
+            "required": [
+              "id",
+              "origin",
+              "keyRef",
+              "secretVersion",
+              "enabled",
+              "revision",
+              "updatedAt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "moduleId",
+          "modelId",
+          "contextField",
+          "fields"
+        ],
+        "additionalProperties": false
+      },
+      "vault": {
+        "type": "object",
+        "properties": {
+          "moduleId": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "modelId": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "contextField": {
+            "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+          },
+          "fields": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "bindingId": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "ciphertext": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "keyId": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "version": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "state": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              }
+            },
+            "required": [
+              "id",
+              "bindingId",
+              "ciphertext",
+              "keyId",
+              "version",
+              "state"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "moduleId",
+          "modelId",
+          "contextField",
+          "fields"
+        ],
+        "additionalProperties": false
+      },
+      "auth": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "bearer"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "api-key-header"
+              },
+              "name": {
+                "type": "string",
+                "pattern": "^X-[A-Za-z0-9-]{1,62}$"
+              }
+            },
+            "required": [
+              "kind",
+              "name"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "resources": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 16,
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+            },
+            "method": {
+              "const": "GET"
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "^/(?!/)[A-Za-z0-9_~./{}-]+$"
+            },
+            "params": {
+              "type": "array",
+              "maxItems": 3,
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "id",
+                  "cursor",
+                  "limit"
+                ]
+              }
+            }
+          },
+          "required": [
+            "id",
+            "method",
+            "path",
+            "params"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "id",
+      "moduleId",
+      "config",
+      "vault",
+      "auth",
+      "resources"
+    ],
+    "additionalProperties": false
+  }
+}

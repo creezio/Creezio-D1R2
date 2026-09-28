@@ -1,0 +1,657 @@
+[
+  {
+    "id": "page",
+    "title": "Pages éditoriales",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "slug",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 160
+        }
+      },
+      {
+        "id": "title",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 240
+        }
+      },
+      {
+        "id": "draft_sections",
+        "type": "json",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "draft_settings",
+        "type": "json",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "draft_seo",
+        "type": "json",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "published_slug",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 160
+        }
+      },
+      {
+        "id": "published_title",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 240
+        }
+      },
+      {
+        "id": "published_sections",
+        "type": "json",
+        "nullable": true,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "published_settings",
+        "type": "json",
+        "nullable": true,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "published_seo",
+        "type": "json",
+        "nullable": true,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "created_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "updated_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "published_at",
+        "type": "date-time",
+        "nullable": true,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "published_revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [
+      {
+        "id": "recent-pages",
+        "fields": [
+          "context_id",
+          "updated_at",
+          "id"
+        ],
+        "unique": false
+      },
+      {
+        "id": "by-slug",
+        "fields": [
+          "context_id",
+          "slug"
+        ],
+        "unique": true
+      },
+      {
+        "id": "by-published-slug",
+        "fields": [
+          "context_id",
+          "published_slug"
+        ],
+        "unique": true
+      }
+    ],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.pages-navigation",
+        "kind": "permission",
+        "id": "edit"
+      },
+      {
+        "moduleId": "creezio.pages-navigation",
+        "kind": "permission",
+        "id": "view"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "navigation",
+    "title": "Navigation éditoriale",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "primary"
+          ]
+        }
+      },
+      {
+        "id": "draft_items",
+        "type": "json",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "published_items",
+        "type": "json",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "updated_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "published_at",
+        "type": "date-time",
+        "nullable": true,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "published_revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.pages-navigation",
+        "kind": "permission",
+        "id": "edit"
+      },
+      {
+        "moduleId": "creezio.pages-navigation",
+        "kind": "permission",
+        "id": "view"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "file_metadata",
+    "title": "Private media file metadata",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "file_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 67
+        }
+      },
+      {
+        "id": "file_owner",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 260
+        }
+      },
+      {
+        "id": "object_key",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 512
+        }
+      },
+      {
+        "id": "digest",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      {
+        "id": "byte_size",
+        "type": "integer",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "content_type",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "filename",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 255
+        }
+      },
+      {
+        "id": "version",
+        "type": "integer",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "state",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "staging",
+            "staged",
+            "available",
+            "abandoned",
+            "deleted"
+          ]
+        }
+      },
+      {
+        "id": "intent_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "generation",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "file_id"
+    ],
+    "indexes": [
+      {
+        "id": "intent",
+        "fields": [
+          "context_id",
+          "intent_id",
+          "generation"
+        ],
+        "unique": true
+      },
+      {
+        "id": "object-key",
+        "fields": [
+          "context_id",
+          "object_key"
+        ],
+        "unique": true
+      }
+    ],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.pages-navigation",
+        "kind": "permission",
+        "id": "edit"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "page_media",
+    "title": "Médias associés aux pages",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "page_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "file_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 67
+        }
+      },
+      {
+        "id": "filename",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 255
+        }
+      },
+      {
+        "id": "content_type",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "byte_size",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "digest",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      {
+        "id": "intent_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "generation",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "created_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "page_id",
+      "file_id"
+    ],
+    "indexes": [
+      {
+        "id": "by-page",
+        "fields": [
+          "context_id",
+          "page_id",
+          "created_at",
+          "file_id"
+        ],
+        "unique": false
+      }
+    ],
+    "relations": [
+      {
+        "id": "page",
+        "fields": [
+          "context_id",
+          "page_id"
+        ],
+        "target": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "model",
+          "id": "page"
+        },
+        "targetFields": [
+          "context_id",
+          "id"
+        ],
+        "onDelete": "restrict"
+      }
+    ],
+    "permissions": [
+      {
+        "moduleId": "creezio.pages-navigation",
+        "kind": "permission",
+        "id": "edit"
+      }
+    ],
+    "deletion": {
+      "mode": "hard",
+      "requiresApproval": false
+    },
+    "public": false
+  }
+]

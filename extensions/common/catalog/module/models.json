@@ -1,0 +1,717 @@
+[
+  {
+    "id": "category",
+    "title": "Catégorie de catalogue",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 36
+        }
+      },
+      {
+        "id": "name",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      {
+        "id": "slug",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 80
+        }
+      },
+      {
+        "id": "parent_id",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 36
+        }
+      },
+      {
+        "id": "position",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 0,
+          "maximum": 100000
+        }
+      },
+      {
+        "id": "archived_at",
+        "type": "date-time",
+        "nullable": true,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "created_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "updated_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [
+      {
+        "id": "by-slug",
+        "fields": [
+          "context_id",
+          "slug"
+        ],
+        "unique": true
+      },
+      {
+        "id": "by-position",
+        "fields": [
+          "context_id",
+          "position",
+          "id"
+        ],
+        "unique": false
+      },
+      {
+        "id": "by-parent",
+        "fields": [
+          "context_id",
+          "parent_id",
+          "id"
+        ],
+        "unique": false
+      }
+    ],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.catalog",
+        "kind": "permission",
+        "id": "manage"
+      },
+      {
+        "moduleId": "creezio.catalog",
+        "kind": "permission",
+        "id": "view"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "product",
+    "title": "Produit de catalogue",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 36
+        }
+      },
+      {
+        "id": "sku",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 80
+        }
+      },
+      {
+        "id": "name",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 160
+        }
+      },
+      {
+        "id": "description",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 0,
+          "maxLength": 1200
+        }
+      },
+      {
+        "id": "attributes",
+        "type": "json",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "category_id",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 36
+        }
+      },
+      {
+        "id": "price_minor",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 0,
+          "maximum": 1000000000000
+        }
+      },
+      {
+        "id": "currency",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 3,
+          "maxLength": 3
+        }
+      },
+      {
+        "id": "status",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "draft",
+            "published",
+            "archived"
+          ]
+        }
+      },
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "created_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "updated_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [
+      {
+        "id": "by-sku",
+        "fields": [
+          "context_id",
+          "sku"
+        ],
+        "unique": true
+      },
+      {
+        "id": "by-updated",
+        "fields": [
+          "context_id",
+          "updated_at",
+          "id"
+        ],
+        "unique": false
+      },
+      {
+        "id": "by-category",
+        "fields": [
+          "context_id",
+          "category_id",
+          "updated_at",
+          "id"
+        ],
+        "unique": false
+      }
+    ],
+    "relations": [
+      {
+        "id": "category",
+        "fields": [
+          "context_id",
+          "category_id"
+        ],
+        "target": {
+          "moduleId": "creezio.catalog",
+          "kind": "model",
+          "id": "category"
+        },
+        "targetFields": [
+          "context_id",
+          "id"
+        ],
+        "onDelete": "restrict"
+      }
+    ],
+    "permissions": [
+      {
+        "moduleId": "creezio.catalog",
+        "kind": "permission",
+        "id": "manage"
+      },
+      {
+        "moduleId": "creezio.catalog",
+        "kind": "permission",
+        "id": "view"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "file_metadata",
+    "title": "Métadonnée privée des images",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "file_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 67
+        }
+      },
+      {
+        "id": "file_owner",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 260
+        }
+      },
+      {
+        "id": "object_key",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 512
+        }
+      },
+      {
+        "id": "digest",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      {
+        "id": "byte_size",
+        "type": "integer",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "content_type",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "filename",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 255
+        }
+      },
+      {
+        "id": "version",
+        "type": "integer",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "state",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "staging",
+            "staged",
+            "available",
+            "abandoned",
+            "deleted"
+          ]
+        }
+      },
+      {
+        "id": "intent_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "generation",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "file_id"
+    ],
+    "indexes": [
+      {
+        "id": "by-intent",
+        "fields": [
+          "context_id",
+          "intent_id",
+          "generation"
+        ],
+        "unique": true
+      },
+      {
+        "id": "by-object",
+        "fields": [
+          "context_id",
+          "object_key"
+        ],
+        "unique": true
+      }
+    ],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.catalog",
+        "kind": "permission",
+        "id": "manage"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "product_media",
+    "title": "Image liée à un produit",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "product_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 36
+        }
+      },
+      {
+        "id": "file_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 67
+        }
+      },
+      {
+        "id": "filename",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 255
+        }
+      },
+      {
+        "id": "content_type",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "byte_size",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "digest",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      {
+        "id": "intent_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "generation",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "created_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "product_id",
+      "file_id"
+    ],
+    "indexes": [
+      {
+        "id": "by-product",
+        "fields": [
+          "context_id",
+          "product_id",
+          "created_at",
+          "file_id"
+        ],
+        "unique": false
+      }
+    ],
+    "relations": [
+      {
+        "id": "product",
+        "fields": [
+          "context_id",
+          "product_id"
+        ],
+        "target": {
+          "moduleId": "creezio.catalog",
+          "kind": "model",
+          "id": "product"
+        },
+        "targetFields": [
+          "context_id",
+          "id"
+        ],
+        "onDelete": "restrict"
+      }
+    ],
+    "permissions": [
+      {
+        "moduleId": "creezio.catalog",
+        "kind": "permission",
+        "id": "manage"
+      },
+      {
+        "moduleId": "creezio.catalog",
+        "kind": "permission",
+        "id": "view"
+      }
+    ],
+    "deletion": {
+      "mode": "hard",
+      "requiresApproval": false
+    },
+    "public": false
+  }
+]

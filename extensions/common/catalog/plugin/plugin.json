@@ -1,0 +1,6 @@
+{
+  "name": "creezio-catalog",
+  "version": "0.1.0",
+  "description": "Catalogue métier commun Creezio : produits publiés, catégories et vues conversationnelles.",
+  "mcpServers": {}
+}

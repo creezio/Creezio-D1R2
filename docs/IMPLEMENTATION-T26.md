@@ -1,0 +1,11 @@
+# T26 — Connecteur n8n externe
+
+`creezio.n8n` se connecte à une instance n8n déjà disponible avec son origine HTTPS et sa clé API. Creezio n'installe ni n'exécute n8n. Le module optionnel fournit sa configuration par contexte, le stockage chiffré de la clé, sa révocation, la vérification de connexion et la lecture paginée des workflows/exécutions. Son profil de qualification `configuration/composition.connectors.json` l'associe au front standard et au Catalogue ; les compositions usuelles ne l'activent pas.
+
+Le contrat facultatif `contracts.connectors` décrit les modèles privés de configuration/coffre, le mode d'authentification et les ressources GET fixes. Le compilateur découvre ces déclarations dans les modules activés. L'hôte générique applique les droits courants, le contexte, la version de clé et la durée de vie de l'opération ; le handler reçoit un port nommé, jamais le secret déchiffré ou un client HTTP libre. Il peut y avoir plusieurs connecteurs dans une application ; cette première surface de configuration prévoit un connecteur par module.
+
+Les ressources exposées sont les listes et fiches des workflows et des exécutions de l'API publique n8n. Le module projette leurs métadonnées ; il ne retourne pas les nœuds, identifiants de credentials, données d'exécution ou réponses fournisseur brutes. Le transport limite les requêtes, la taille reçue et la durée, refuse les redirections et ne journalise pas la clé. Le contrôle d'URL refuse les adresses IP littérales et les noms locaux ; il ne constitue pas une protection DNS contre le rebinding.
+
+Les six suites du module et l'intégration D1/coffre/HTTP/MCP exercent la configuration, les droits admin/app, les comptes machine, les révisions et le refus après révocation ou version de clé incohérente. L'API externe est simulée dans cette recette ; aucun accès à une vraie instance n8n n'est revendiqué. Le port et les raccords génériques font l'objet de contrôles séparés.
+
+Les déclenchements distants, callbacks, widgets n8n et recettes sur une instance réelle/Site restent ouverts. Les futures mutations devront conserver leur intention et traiter un résultat fournisseur inconnu sans répétition automatique. Aucun endpoint générique d'exécution n8n n'est inventé. Le raccord aux règles Creezio attend T24 et la validation demandée par l'utilisateur.

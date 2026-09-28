@@ -21,7 +21,7 @@ export const REQUIRED_DOCUMENTS = Object.freeze([
 const IGNORED = new Set(['.git', '.quality', '.creezio', 'node_modules', 'dist', 'build', 'coverage', '.next', '.wrangler', '.cache', 'private', 'docker-data']);
 const TEXT_FILE = /\.(?:md|mdx|mjs|cjs|js|jsx|ts|tsx|json|ya?ml|toml|txt|html|css|env|example)$/i;
 const MODULE_DOCUMENTS = ['README.md', 'AGENTS.md', 'FILES.md', 'prd.md', 'interview.md', 'TODO.md', 'CHANGELOG.md'];
-const MODULE_FAMILIES = ['extensions/native', 'extensions/common', 'application/extensions', 'themes'];
+const MODULE_FAMILIES = ['extensions/native', 'extensions/common', 'extensions/connectors', 'application/extensions', 'themes'];
 const MAX_TEXT_BYTES = 8 * 1024 * 1024;
 const slash = path => path.split(sep).join('/');
 const inside = (root, path) => { const rel = relative(root, path); return rel === '' || (!rel.startsWith(`..${sep}`) && rel !== '..' && !/^(?:[A-Za-z]:|[\\/])/.test(rel)); };

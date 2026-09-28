@@ -16,12 +16,19 @@ Le même contrat s'applique aux emplacements suivants :
 |---|---|
 | `extensions/native/` | Capacités natives livrées avec Creezio. Leur découpage ne les rend pas facultatives dans la recette de parité. |
 | `extensions/common/` | Modules communs installables et versionnés individuellement, dont les connecteurs externes. |
+| `extensions/connectors/` | Connecteurs communs optionnels vers des services externes ; même contrat et mêmes suites. |
 | `application/extensions/` | Modules appartenant à l'application dérivée. |
 | Paquet d'un éditeur tiers | Même contrat, avec éditeur, origine, version, dépendances et intégrité vérifiables. |
 
 Un module n'impose pas un Worker, un conteneur ou une base physique supplémentaire. L'application assemble les modules sélectionnés dans son déploiement commun. Une démo d'éditeur peut être une application distincte, mais elle ne devient pas une dépendance du paquet consommé.
 
 Un connecteur reçoit les accès d'un service déjà disponible. Il fournit l'intégration prête à configurer ; Creezio n'installe, n'héberge, ne met à jour et ne sauvegarde pas le service fournisseur. La planification reste extérieure à Creezio : les opérations bornées et leurs reprises sont appelées par un client autorisé.
+
+La première surface exécutable est `contracts.connectors` (facultatif), validée par `sdk/contracts/schemas/v1/connectors.schema.json`. Chaque déclaration appartient au module et nomme ses modèles privés de configuration/coffre, leurs champs, le mode `bearer` ou `api-key-header` et les ressources GET fixes autorisées. Le compilateur les enregistre automatiquement ; aucun import spécial du module n'est ajouté dans le Worker. Le handler utilise `context.connector` du SDK public, sélectionné par son effet fournisseur déclaré. Il ne reçoit ni clé déchiffrée ni client HTTP arbitraire. La configuration de clé expose seulement le port natif de scellement/révocation aux opérations prévues. Les paquets utilisent les imports `@creezio/sdk/*` publiés.
+
+La CI des nouveaux modules Support, Pages, Analytics, Catalogue et n8n assemble leurs véritables archives runtime/validation avec le SDK empaqueté, puis y exécute les six suites. Le générateur relit uniquement le manifeste propre livré ; il ne dépend pas du dossier d'un autre module. Le compilateur SQL central est testé dans les intégrations du socle, sans devenir un import privé des suites distribuées. `scripts/modules/validate-archives.mjs` réalise ce contrôle sur le code approuvé du dépôt ; il ne constitue pas une sandbox pour une extension tierce inconnue.
+
+Cette surface GET ne prétend pas couvrir toutes les API externes. Ajouter une mutation ou un callback exige son contrat d'effet et ses tests, notamment résultat incertain, non-répétition et authentification fournisseur. Déclarer les limites du connecteur, sa disponibilité réelle et les suites non applicables ; ne jamais simuler un service tiers absent. Voir [T26](IMPLEMENTATION-T26.md).
 
 ## 2. Structure canonique des sources
 
