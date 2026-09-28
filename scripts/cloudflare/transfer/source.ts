@@ -109,17 +109,175 @@ function policy(entry:ModelEntry):CapturedTable['policy'] {
   if(entry.moduleId==='creezio.openai'&&['provider_config','provider_secret'].includes(entry.modelId))return 'transform';
   return 'copy';
 }
-function checkedState(entry:ModelEntry,row:Record<string,unknown>){
+type SourceDb=Awaited<ReturnType<typeof openLocalStorage>>['db'];
+type QuietHistory=Readonly<{rows:ReadonlyMap<string,string>;count:number}>;
+function rowKey(entry:ModelEntry,row:Record<string,unknown>){
+  return `${entry.table}\0${JSON.stringify(entry.model.primaryKey.map(key=>row[key]))}`;
+}
+async function selectedRows(db:SourceDb,entry:ModelEntry|undefined,where:string):Promise<Record<string,unknown>[]> {
+  if(!entry)return [];
+  const columns=entry.model.fields.map(field=>field.id);
+  const query=`SELECT ${columns.map(quote).join(',')} FROM ${quote(entry.table)} WHERE ${where}
+    ORDER BY ${entry.model.primaryKey.map(quote).join(',')} LIMIT 1 OFFSET ?`;
+  const rows:Record<string,unknown>[]=[];
+  for(let offset=0;;offset++){
+    const result=await db.prepare(query).bind(offset).all();
+    if(result.success!==true||!Array.isArray(result.results))return fail('source_unavailable');
+    const row=result.results[0] as Record<string,unknown>|undefined;
+    if(!row)break;
+    rows.push(row);
+  }
+  return rows;
+}
+function parsedRecord(value:unknown):Record<string,unknown>|null{
+  if(typeof value!=='string')return null;
+  try{const parsed:unknown=JSON.parse(value);return plain(parsed)?parsed:null;}
+  catch{return null;}
+}
+async function preflightEffects(db:SourceDb,entries:readonly ModelEntry[]):Promise<QuietHistory>{
+  // Only the old, receipt-free OpenAI turn has a safe historical projection:
+  // the copied key still returns its execution, and turn.drive cannot create a
+  // second provider request from an unknown outbox without a receipt.
+  const entry=(moduleId:string,modelId:string)=>entries.find(item=>item.moduleId===moduleId&&item.modelId===modelId);
+  const runtime=(modelId:string)=>entry('creezio.runtime',modelId);
+  const conversations=(modelId:string)=>entry('creezio.conversations',modelId);
+  const [executions,outbox,turns,parents,attempts,approvals,files]=await Promise.all([
+    selectedRows(db,runtime('executions'),"state NOT IN ('succeeded','failed')"),
+    selectedRows(db,runtime('outbox'),"state NOT IN ('succeeded','failed')"),
+    selectedRows(db,conversations('turn'),"state NOT IN ('succeeded','failed','cancelled')"),
+    selectedRows(db,conversations('conversation'),'active_turn_id IS NOT NULL'),
+    selectedRows(db,runtime('attempts'),"state NOT IN ('succeeded','failed')"),
+    selectedRows(db,runtime('approvals'),"state NOT IN ('consumed','rejected')"),
+    selectedRows(db,conversations('file_metadata'),"state IN ('staging','staged')"),
+  ]);
+  if(approvals.length||files.length)return fail('active_effect');
+  if(!executions.length&&!outbox.length&&!turns.length&&!parents.length&&!attempts.length)
+    return {rows:new Map(),count:0};
+  if(!executions.length||executions.length!==outbox.length||outbox.length!==turns.length
+    ||turns.length!==parents.length)return fail('active_effect');
+  const executionEntry=runtime('executions'),outboxEntry=runtime('outbox'),turnEntry=conversations('turn'),
+    parentEntry=conversations('conversation'),messageEntry=conversations('message'),
+    eventEntry=conversations('event'),attemptEntry=runtime('attempts'),auditEntry=runtime('audit');
+  if(!executionEntry||!outboxEntry||!turnEntry||!parentEntry||!messageEntry||!eventEntry
+    ||!attemptEntry||!auditEntry)return fail('active_effect');
+  const byExecution=new Map(executions.map(row=>[row.id,row]));
+  const byOutbox=new Map(outbox.map(row=>[row.execution_id,row]));
+  const turnKey=(row:Record<string,unknown>)=>
+    JSON.stringify([row.context_id,row.owner_id,row.audience,row.conversation_id,row.id]);
+  const parentKey=(row:Record<string,unknown>)=>
+    JSON.stringify([row.context_id,row.owner_id,row.audience,row.id]);
+  const byTurn=new Map(turns.map(row=>[turnKey(row),row]));
+  const byParent=new Map(parents.map(row=>[parentKey(row),row]));
+  if(byExecution.size!==executions.length||byOutbox.size!==outbox.length
+    ||byTurn.size!==turns.length||byParent.size!==parents.length)return fail('active_effect');
+  const now=Date.now();
+  for(const execution of executions){
+    const delivery=byOutbox.get(execution.id),payload=parsedRecord(delivery?.payload),
+      output=parsedRecord(execution.output);
+    if(execution.state!=='unknown'||execution.module_id!=='creezio.conversations'
+      ||execution.operation_id!=='turn.start'||typeof execution.actor_principal_id!=='string'
+      ||!ID.test(execution.actor_principal_id)||!Number.isSafeInteger(execution.claim_expires_at_ms)
+      ||Number(execution.claim_expires_at_ms)>now||!delivery||delivery.state!=='unknown'
+      ||delivery.provider!=='openai.responses.v1'||delivery.receipt!==null
+      ||!Number.isSafeInteger(delivery.claim_expires_at_ms)
+      ||Number(delivery.claim_expires_at_ms)>now||delivery.provider_idempotency_key!==delivery.intent_id
+      ||typeof delivery.claim_nonce!=='string'||!ID.test(delivery.claim_nonce)
+      ||!payload||payload.turnId!==delivery.intent_id||payload.step!==0
+      ||Object.keys(payload).sort().join(',')!=='conversationId,messageId,modelId,step,turnId'
+      ||typeof payload.conversationId!=='string'||!ID.test(payload.conversationId)
+      ||typeof payload.messageId!=='string'||!ID.test(payload.messageId)
+      ||typeof payload.modelId!=='string'||!ID.test(payload.modelId)
+      ||!output||!plain(output.turn)||output.turn.id!==delivery.intent_id
+      ||output.turn.conversationId!==payload.conversationId
+      ||!plain(output.message)||output.message.id!==payload.messageId
+      ||output.message.conversationId!==payload.conversationId)return fail('active_effect');
+    const turn=byTurn.get(JSON.stringify([execution.context_id,execution.principal_id,
+      execution.audience,payload.conversationId,delivery.intent_id]));
+    const parent=byParent.get(JSON.stringify([execution.context_id,execution.principal_id,
+      execution.audience,payload.conversationId]));
+    if(!turn||turn.state!=='unknown'||turn.provider_id!=='openai.responses.v1'
+      ||!parent||parent.active_turn_id!==turn.id||parent.archived_at!==null)
+      return fail('active_effect');
+    const messages=await db.prepare(`SELECT context_id,owner_id,audience,conversation_id,id,role,body
+      FROM ${quote(messageEntry.table)} WHERE context_id=? AND owner_id=? AND audience=?
+      AND conversation_id=? AND id=? LIMIT 2`).bind(execution.context_id,execution.principal_id,
+      execution.audience,payload.conversationId,payload.messageId).all();
+    const message=messages.results?.[0] as Record<string,unknown>|undefined;
+    const events=await db.prepare(`SELECT context_id,owner_id,audience,conversation_id,turn_id,sequence,kind
+      FROM ${quote(eventEntry.table)} WHERE context_id=? AND owner_id=? AND audience=?
+      AND conversation_id=? AND turn_id=? ORDER BY sequence`).bind(execution.context_id,
+      execution.principal_id,execution.audience,payload.conversationId,turn.id).all();
+    if(messages.success!==true||!Array.isArray(messages.results)||messages.results.length!==1
+      ||!message||message.context_id!==execution.context_id
+      ||message.owner_id!==execution.principal_id||message.audience!==execution.audience
+      ||message.conversation_id!==payload.conversationId||message.role!=='user'
+      ||output.message.role!=='user'||output.message.body!==message.body
+      ||events.success!==true||!Array.isArray(events.results)||events.results.length<2
+      ||events.results.some(row=>row.context_id!==execution.context_id
+        ||row.owner_id!==execution.principal_id||row.audience!==execution.audience
+        ||row.conversation_id!==payload.conversationId||row.turn_id!==turn.id
+        ||!['queued','cancel_requested','unknown'].includes(String(row.kind)))
+      ||events.results[0]?.kind!=='queued'||events.results[0]?.sequence!==1
+      ||events.results.at(-1)?.kind!=='unknown'
+      ||events.results.at(-1)?.sequence!==turn.last_sequence)return fail('active_effect');
+    const deliveries=await db.prepare(`SELECT id FROM ${quote(outboxEntry.table)} WHERE execution_id=? LIMIT 2`)
+      .bind(execution.id).all();
+    const priorAttempts=await db.prepare(`SELECT state,claim_nonce,number,settled_at_ms
+      FROM ${quote(attemptEntry.table)} WHERE execution_id=?`)
+      .bind(execution.id).all();
+    const audit=await db.prepare(`SELECT event,attempt_nonce,outbox_id,actor_principal_id,principal_id,context_id,audience
+      FROM ${quote(auditEntry.table)} WHERE execution_id=?`).bind(execution.id).all();
+    if(deliveries.success!==true||!Array.isArray(deliveries.results)||deliveries.results.length!==1
+      ||deliveries.results[0]?.id!==delivery.id||priorAttempts.success!==true
+      ||!Array.isArray(priorAttempts.results)||!priorAttempts.results.some(row=>
+        row.state==='succeeded'&&row.claim_nonce===execution.claim_nonce
+        &&row.number===execution.attempt_number)
+      ||audit.success!==true||!Array.isArray(audit.results)
+      ||!audit.results.some(row=>row.event==='started')
+      ||(execution.attempt_number===1
+        ?!audit.results.some(row=>row.event==='started'&&row.attempt_nonce===execution.claim_nonce)
+        :!Number.isSafeInteger(execution.attempt_number)||Number(execution.attempt_number)<2
+          ||!audit.results.some(row=>row.event==='resumed'&&row.attempt_nonce===execution.claim_nonce))
+      ||!audit.results.some(row=>row.event==='committed'&&row.attempt_nonce===execution.claim_nonce)
+      ||!audit.results.some(row=>row.event==='delivery-claimed'&&row.outbox_id===delivery.intent_id
+        &&row.attempt_nonce===delivery.claim_nonce)
+      ||!audit.results.some(row=>row.event==='delivery-unknown'&&row.outbox_id===delivery.intent_id
+        &&row.attempt_nonce===delivery.claim_nonce)
+      ||audit.results.some(row=>row.actor_principal_id!==execution.actor_principal_id
+        ||row.principal_id!==execution.principal_id||row.context_id!==execution.context_id
+        ||row.audience!==execution.audience))return fail('active_effect');
+  }
+  for(const attempt of attempts){
+    const execution=byExecution.get(attempt.execution_id);
+    if(!execution||attempt.state!=='unknown'||!Number.isSafeInteger(attempt.number)
+      ||Number(attempt.number)<1||Number(attempt.number)>=Number(execution.attempt_number)
+      ||!Number.isSafeInteger(attempt.settled_at_ms)
+      ||typeof attempt.claim_nonce!=='string'||!ID.test(attempt.claim_nonce)
+      ||attempt.claim_nonce===execution.claim_nonce)return fail('active_effect');
+    const origin=await db.prepare(`SELECT event FROM ${quote(auditEntry.table)} WHERE execution_id=?
+      AND attempt_nonce=? AND event=? LIMIT 1`).bind(execution.id,attempt.claim_nonce,
+      attempt.number===1?'started':'resumed').all();
+    if(origin.success!==true||!Array.isArray(origin.results)||origin.results.length!==1)
+      return fail('active_effect');
+  }
+  const allowed=new Map<string,string>();
+  for(const [selected,model] of [[executions,executionEntry],[outbox,outboxEntry],
+    [turns,turnEntry],[parents,parentEntry],[attempts,attemptEntry]] as const)
+    for(const row of selected)allowed.set(rowKey(model,row),JSON.stringify(row));
+  return {rows:allowed,count:executions.length};
+}
+function checkedState(entry:ModelEntry,row:Record<string,unknown>,quiet:QuietHistory){
   const value=(field:string)=>row[field];
+  const retained=quiet.rows.get(rowKey(entry,row))===JSON.stringify(row);
   if(entry.moduleId==='creezio.runtime'){
-    if(entry.modelId==='executions'&&!['succeeded','failed'].includes(String(value('state')))
-      ||entry.modelId==='attempts'&&!['succeeded','failed'].includes(String(value('state')))
-      ||entry.modelId==='outbox'&&!['succeeded','failed'].includes(String(value('state')))
+    if(entry.modelId==='executions'&&!['succeeded','failed'].includes(String(value('state')))&&!retained
+      ||entry.modelId==='attempts'&&!['succeeded','failed'].includes(String(value('state')))&&!retained
+      ||entry.modelId==='outbox'&&!['succeeded','failed'].includes(String(value('state')))&&!retained
       ||entry.modelId==='approvals'&&!['consumed','rejected'].includes(String(value('state'))))return fail('active_effect');
   }
   if(entry.moduleId==='creezio.conversations'){
-    if(entry.modelId==='turn'&&!['succeeded','failed','cancelled'].includes(String(value('state')))
-      ||entry.modelId==='conversation'&&value('active_turn_id')!==null
+    if(entry.modelId==='turn'&&!['succeeded','failed','cancelled'].includes(String(value('state')))&&!retained
+      ||entry.modelId==='conversation'&&value('active_turn_id')!==null&&!retained
       ||entry.modelId==='file_metadata'&&['staging','staged'].includes(String(value('state'))))return fail('active_effect');
   }
 }
@@ -184,6 +342,8 @@ function metadata(value:unknown){
 function isManifest(value:unknown):value is TransferManifest {
   return plain(value)&&value.schemaVersion===1&&plain(value.identity)
     &&HASH.test(String(value.manifestDigest))&&Array.isArray(value.tables)
+    &&(value.uncertainHistoryCount===undefined||Number.isSafeInteger(value.uncertainHistoryCount)
+      &&Number(value.uncertainHistoryCount)>=0)
     &&value.tables.length<=1024&&plain(value.objects)&&Array.isArray(value.objects.segments)
     &&value.objects.segments.length<=256;
 }
@@ -206,8 +366,10 @@ export async function captureLocalTransfer(input:{config:ReturnType<typeof loadL
   try{
     try{lock=await acquireLocalRuntimeLock(config,'export');}
     catch(error){if((error as {code?:string}).code==='local_busy')return fail('source_busy');throw error;}
-    const created=await safeDirectory(config,input.directory,true);
-    if(!created){
+    let existingDirectory=false;
+    try{await lstat(input.directory);existingDirectory=true;}
+    catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')return fail('unsafe_path');}
+    if(existingDirectory){
       let existing:TransferManifest;
       try{existing=await loadCapturedTransfer({config,directory:input.directory,transferId:input.transferId});}
       catch{return fail('capture_incomplete');}
@@ -218,6 +380,9 @@ export async function captureLocalTransfer(input:{config:ReturnType<typeof loadL
     storage=await openLocalStorage(config);
     const inspected=await inspectCompositionSchema(storage.db,input.plan);
     if(inspected.state!=='ready'||!HASH.test(String(inspected.receiptId)))return fail('schema_mismatch');
+    const quiet=await preflightEffects(storage.db,entries);
+    // A predictable active effect cannot leave a partial capture directory.
+    if(!await safeDirectory(config,input.directory,true))return fail('capture_incomplete');
     const identity:TransferIdentity={transferId:input.transferId,applicationId:input.plan.applicationId,
       sourceSha:input.sourceSha,compositionDigest:input.plan.compositionDigest as TransferDigest,
       lockDigest:input.plan.lockDigest as TransferDigest,modelDigest:input.plan.modelDigest as TransferDigest,
@@ -242,7 +407,7 @@ export async function captureLocalTransfer(input:{config:ReturnType<typeof loadL
           if(result.success!==true||!Array.isArray(result.results))return fail('source_unavailable');
           const row=result.results[0] as Record<string,unknown>|undefined;
           if(!row)break;
-          checkedState(entry,row);sourceRowCount++;
+          checkedState(entry,row,quiet);sourceRowCount++;
           if(action==='skip')continue;
           if(entry.moduleId==='creezio.access'&&entry.modelId==='access_audit')
             row.session_id=null;
@@ -337,7 +502,8 @@ export async function captureLocalTransfer(input:{config:ReturnType<typeof loadL
       }
       await finishSegment();
     }finally{await segmentHandle?.close();}
-    const base={schemaVersion:1 as const,identity,capturedAt:new Date().toISOString(),policyDigest,tables,
+    const base={schemaVersion:1 as const,identity,capturedAt:new Date().toISOString(),policyDigest,
+      uncertainHistoryCount:quiet.count,tables,
       objects:{count,byteLength:bytes,segments:objectSegments}};
     const manifest:TransferManifest={...base,manifestDigest:schemaDigest(base) as TransferDigest};
     const manifestPath=file(input.directory,'manifest.json'),temporary=file(input.directory,'manifest.tmp');

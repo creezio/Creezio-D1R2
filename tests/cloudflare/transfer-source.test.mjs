@@ -24,6 +24,66 @@ function fixture(t){
   writeFileSync(path.join(root,'.openai','hosting.json'),JSON.stringify({d1:'DB',r2:'BUCKET'}));
   return loadLocalConfiguration({root});
 }
+function table(moduleId,modelId){
+  return [plan.host,...plan.runtimeCatalog.modules].find(group=>group.moduleId===moduleId)
+    .models.find(model=>model.modelId===modelId).table;
+}
+async function seedQuietUnknown(db){
+  const now=Date.now(),at=new Date(now-60_000).toISOString();
+  const executionId='execution-quiet',turnId='turn-quiet',conversationId='conversation-quiet',
+    owner='owner-one',actor='owner-one',context='application',audience='admin',nonce='claim-quiet';
+  await db.prepare(`INSERT INTO "${table('creezio.conversations','conversation')}"
+    (context_id,owner_id,audience,id,title,mode,created_at,updated_at,archived_at,active_turn_id,revision)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
+    .bind(context,owner,audience,conversationId,'Quiet uncertainty','chat',at,at,null,turnId,2).run();
+  await db.prepare(`INSERT INTO "${table('creezio.conversations','turn')}"
+    (context_id,owner_id,audience,conversation_id,id,state,provider_id,created_at,updated_at,
+      revision,last_sequence,error_code,widget_context_snapshot)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .bind(context,owner,audience,conversationId,turnId,'unknown','openai.responses.v1',at,at,
+      2,2,'provider_unknown',null).run();
+  await db.prepare(`INSERT INTO "${table('creezio.conversations','message')}"
+    (context_id,owner_id,audience,conversation_id,id,role,body,content,created_at,revision)
+    VALUES (?,?,?,?,?,?,?,?,?,?)`)
+    .bind(context,owner,audience,conversationId,'message-quiet','user','Uncertain request',null,at,1).run();
+  for(const [sequence,kind,payload] of [[1,'queued',{modelId:'gpt-4o'}],[2,'unknown',{}]]){
+    await db.prepare(`INSERT INTO "${table('creezio.conversations','event')}"
+      (context_id,owner_id,audience,conversation_id,turn_id,sequence,kind,payload,created_at)
+      VALUES (?,?,?,?,?,?,?,?,?)`)
+      .bind(context,owner,audience,conversationId,turnId,sequence,kind,JSON.stringify(payload),at).run();
+  }
+  await db.prepare(`INSERT INTO "${table('creezio.runtime','executions')}"
+    (id,scope_hash,input_hash,module_id,operation_id,operation_version,actor_principal_id,
+      principal_id,context_id,audience,state,output,error_code,claim_nonce,attempt_number,
+      created_at_ms,updated_at_ms,claim_expires_at_ms,retained_until_ms)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .bind(executionId,'sha256:'+'a'.repeat(64),'sha256:'+'b'.repeat(64),'creezio.conversations',
+      'turn.start','sha256-'+'c'.repeat(64),actor,owner,context,audience,'unknown',
+      JSON.stringify({turn:{id:turnId,conversationId},
+        message:{id:'message-quiet',conversationId,role:'user',body:'Uncertain request'}}),null,nonce,1,
+      now-60_000,now-30_000,now-10_000,now+86_400_000).run();
+  await db.prepare(`INSERT INTO "${table('creezio.runtime','attempts')}"
+    (id,execution_id,claim_nonce,number,state,created_at_ms,settled_at_ms)
+    VALUES (?,?,?,?,?,?,?)`)
+    .bind('attempt-quiet',executionId,nonce,1,'succeeded',now-60_000,now-59_000).run();
+  await db.prepare(`INSERT INTO "${table('creezio.runtime','outbox')}"
+    (id,execution_id,intent_id,provider,provider_idempotency_key,payload,state,receipt,
+      claim_nonce,created_at_ms,updated_at_ms,claim_expires_at_ms)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .bind('outbox-quiet',executionId,turnId,'openai.responses.v1',turnId,
+      JSON.stringify({conversationId,turnId,messageId:'message-quiet',modelId:'gpt-4o',step:0}),
+      'unknown',null,'delivery-quiet',now-59_000,now-30_000,now-10_000).run();
+  for(const [index,event,outboxId,auditNonce] of [[1,'started',null,nonce],
+    [2,'committed',null,nonce],[3,'delivery-claimed',turnId,'delivery-quiet'],
+    [4,'delivery-unknown',turnId,'delivery-quiet']]){
+    await db.prepare(`INSERT INTO "${table('creezio.runtime','audit')}"
+      (id,execution_id,attempt_nonce,outbox_id,event,actor_principal_id,principal_id,
+        context_id,audience,code,created_at_ms) VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
+      .bind(`audit-${index}`,executionId,auditNonce,outboxId,event,actor,owner,context,audience,null,
+        now-60_000+index*1000).run();
+  }
+  return {executionId,turnId,conversationId};
+}
 
 test('capture refuses a model cycle or a copied child of an excluded model before creating a snapshot',
   async t=>{
@@ -109,6 +169,129 @@ test('active conversation state blocks capture without changing the source',{tim
   try{assert.equal((await reopened.db.prepare(`SELECT active_turn_id FROM "${table}" WHERE id='conversation-one'`).first())
     .active_turn_id,'turn-live');}finally{await reopened.dispose();}
 });
+
+test('a quiescent unknown OpenAI turn is copied exactly with its uncertainty evidence',
+  {timeout:90000},async t=>{
+    const config=fixture(t),transferId='quiet-unknown',directory=path.join(config.root,'.wrangler','transfers',transferId),
+      store=await openLocalStorage(config);
+    let source;
+    try{
+      assert.equal((await applyCompositionSchema(store.db,plan,{expectedPlanDigest:plan.planDigest})).ok,true);
+      source=await seedQuietUnknown(store.db);
+    }finally{await store.dispose();}
+    const result=await captureLocalTransfer({config,plan,transferId,sourceSha:'a'.repeat(40),target,
+      directory,secretSelections:[]});
+    assert.equal(result.manifest.uncertainHistoryCount,1);
+    const preserved=await loadCapturedTransfer({config,directory,transferId});
+    assert.equal(preserved.uncertainHistoryCount,1);
+    for(const [model,field,wanted] of [['executions','id',source.executionId],
+      ['outbox','intent_id',source.turnId]]){
+      const meta=result.manifest.tables.find(item=>item.moduleId==='creezio.runtime'&&item.modelId===model);
+      const rows=[];for await(const row of readCapturedTable(result.manifest,directory,meta.table))rows.push(row);
+      assert.equal(rows.length,1);
+      assert.equal(rows[0].values[meta.columns.indexOf(field)].value,wanted);
+      assert.equal(rows[0].values[meta.columns.indexOf('state')].value,'unknown');
+    }
+    const parent=result.manifest.tables.find(item=>item.moduleId==='creezio.conversations'
+      &&item.modelId==='conversation');
+    const rows=[];for await(const row of readCapturedTable(result.manifest,directory,parent.table))rows.push(row);
+    assert.equal(rows[0].values[parent.columns.indexOf('active_turn_id')].value,source.turnId);
+    const message=result.manifest.tables.find(item=>item.moduleId==='creezio.conversations'
+      &&item.modelId==='message');
+    const savedMessages=[];for await(const row of readCapturedTable(result.manifest,directory,message.table))
+      savedMessages.push(row);
+    assert.equal(savedMessages.length,1);
+    assert.equal(savedMessages[0].values[message.columns.indexOf('body')].value,'Uncertain request');
+    const event=result.manifest.tables.find(item=>item.moduleId==='creezio.conversations'
+      &&item.modelId==='event');
+    const savedEvents=[];for await(const row of readCapturedTable(result.manifest,directory,event.table))
+      savedEvents.push(row);
+    assert.deepEqual(savedEvents.map(row=>row.values[event.columns.indexOf('kind')].value),
+      ['queued','unknown']);
+    const reopened=await openLocalStorage(config);
+    try{
+      const original=await reopened.db.prepare(`SELECT state,receipt FROM "${table('creezio.runtime','outbox')}"
+        WHERE intent_id=?`).bind(source.turnId).first();
+      assert.deepEqual(original,{state:'unknown',receipt:null});
+    }finally{await reopened.dispose();}
+  });
+
+test('a resumed turn claim and duplicate message ID in another conversation remain exportable',
+  {timeout:90000},async t=>{
+    const config=fixture(t),transferId='quiet-resumed',directory=path.join(config.root,'.wrangler','transfers',transferId),
+      store=await openLocalStorage(config);
+    try{
+      assert.equal((await applyCompositionSchema(store.db,plan,{expectedPlanDigest:plan.planDigest})).ok,true);
+      await seedQuietUnknown(store.db);
+      await store.db.prepare(`UPDATE "${table('creezio.runtime','executions')}"
+        SET claim_nonce='claim-resumed',attempt_number=2`).run();
+      await store.db.prepare(`UPDATE "${table('creezio.runtime','attempts')}"
+        SET state='unknown' WHERE id='attempt-quiet'`).run();
+      await store.db.prepare(`INSERT INTO "${table('creezio.runtime','attempts')}"
+        (id,execution_id,claim_nonce,number,state,created_at_ms,settled_at_ms)
+        VALUES (?,?,?,?,?,?,?)`)
+        .bind('attempt-resumed','execution-quiet','claim-resumed',2,'succeeded',Date.now()-20_000,
+          Date.now()-19_000).run();
+      await store.db.prepare(`UPDATE "${table('creezio.runtime','audit')}"
+        SET attempt_nonce='claim-resumed' WHERE event='committed'`).run();
+      await store.db.prepare(`INSERT INTO "${table('creezio.runtime','audit')}"
+        (id,execution_id,attempt_nonce,outbox_id,event,actor_principal_id,principal_id,
+          context_id,audience,code,created_at_ms) VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
+        .bind('audit-resumed','execution-quiet','claim-resumed',null,'resumed','owner-one',
+          'owner-one','application','admin',null,Date.now()-20_000).run();
+      const at=new Date().toISOString();
+      await store.db.prepare(`INSERT INTO "${table('creezio.conversations','conversation')}"
+        (context_id,owner_id,audience,id,title,mode,created_at,updated_at,archived_at,active_turn_id,revision)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
+        .bind('application','owner-one','admin','another-conversation','Other','chat',at,at,null,null,1).run();
+      await store.db.prepare(`INSERT INTO "${table('creezio.conversations','message')}"
+        (context_id,owner_id,audience,conversation_id,id,role,body,content,created_at,revision)
+        VALUES (?,?,?,?,?,?,?,?,?,?)`)
+        .bind('application','owner-one','admin','another-conversation','message-quiet','user',
+          'Independent message',null,at,1).run();
+    }finally{await store.dispose();}
+    const result=await captureLocalTransfer({config,plan,transferId,sourceSha:'a'.repeat(40),target,
+      directory,secretSelections:[]});
+    assert.equal(result.manifest.uncertainHistoryCount,1);
+  });
+
+test('unknown history with a receipt, live claim, or broken audit chain is refused before capture files',
+  {timeout:90000},async t=>{
+    for(const [name,mutation] of [
+      ['receipt',db=>db.prepare(`UPDATE "${table('creezio.runtime','outbox')}" SET receipt=?`)
+        .bind(JSON.stringify({providerReference:'known',cursor:0})).run()],
+      ['live-claim',db=>db.prepare(`UPDATE "${table('creezio.runtime','outbox')}"
+        SET claim_expires_at_ms=?`).bind(Date.now()+60_000).run()],
+      ['actor-mismatch',db=>db.prepare(`UPDATE "${table('creezio.runtime','audit')}"
+        SET actor_principal_id=? WHERE event='delivery-unknown'`).bind('other-actor').run()],
+      ['nonce-mismatch',db=>db.prepare(`UPDATE "${table('creezio.runtime','outbox')}"
+        SET claim_nonce=?`).bind('other-claim').run()],
+      ['missing-message',db=>db.prepare(`DELETE FROM "${table('creezio.conversations','message')}"
+        WHERE id=?`).bind('message-quiet').run()],
+      ['message-scope',async db=>{
+        const at=new Date().toISOString();
+        await db.prepare(`INSERT INTO "${table('creezio.conversations','conversation')}"
+          (context_id,owner_id,audience,id,title,mode,created_at,updated_at,archived_at,
+            active_turn_id,revision) VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
+          .bind('application','owner-one','admin','another-conversation','Other','chat',at,at,null,
+            null,1).run();
+        await db.prepare(`UPDATE "${table('creezio.conversations','message')}"
+          SET conversation_id=? WHERE id=?`).bind('another-conversation','message-quiet').run();
+      }],
+    ]){
+      await t.test(name,{timeout:90000},async nested=>{
+        const config=fixture(nested),transferId=`refuse-${name}`,
+          directory=path.join(config.root,'.wrangler','transfers',transferId),store=await openLocalStorage(config);
+        try{
+          assert.equal((await applyCompositionSchema(store.db,plan,{expectedPlanDigest:plan.planDigest})).ok,true);
+          await seedQuietUnknown(store.db);await mutation(store.db);
+        }finally{await store.dispose();}
+        await assert.rejects(captureLocalTransfer({config,plan,transferId,sourceSha:'a'.repeat(40),
+          target,directory,secretSelections:[]}),error=>error.code==='active_effect');
+        assert.equal(existsSync(directory),false);
+      });
+    }
+  });
 
 test('selected provider secret is rekeyed; unselected connection is disabled',{timeout:90000},async t=>{
   const config=fixture(t),store=await openLocalStorage(config),reference=createVaultReference(),

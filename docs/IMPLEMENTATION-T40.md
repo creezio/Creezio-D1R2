@@ -2,6 +2,16 @@
 
 Cette correction applique les exigences existantes REQ-1104/1105 et REQ-1602/1603. Elle ne change ni les priorités ni l’architecture du produit.
 
+## Qualification après intégration — 28 septembre 2026
+
+Core PR #38 est intégrée sur `a8130407d5bd54261d56755a4db2949932a94d1b`, avec 1 174/1 174 tests CI. Lab PR #5 adopte ce socle sur `fc1ddc02d5c6e8f1a336e8f5e51d7ce397bc354b`, avec 1 177/1 177 tests CI. Les deux mêmes Sites publics servent leur version 5 : original source `833701dd15e6fa81b2f329169a99b7aeb0270412`, Lab source `1a93fa85a3c1c44794b0e82dfc5eda4c409eba12`. Les déclarations au registre sont synchronisées.
+
+Sur Lab, les deux messages outils créés avant la mise à jour retrouvent leur fiche et leur sélecteur. La lecture native historique réussit, puis le navigateur conserve ces widgets après rechargement et aller-retour entre les onglets. Conversation révision 5, six messages, deux tours terminés, brouillon exact, deux demandes révision 5 et fichiers R2 sont conservés. Une session APP seule reçoit 401 sur l’API administrative, puis réussit une lecture métier avec cette même session. Le refus de désactiver Access à cause de ses consommateurs avait déjà été observé ; aucune désactivation n’a été appliquée.
+
+Le Docker Lab utilise la même source dans son volume existant. `schema:apply` a ajouté seulement `plan-outcomes`, puis `schema:inspect` a confirmé `ready`. Le même propriétaire, ses droits, la connexion OpenAI, la demande témoin, son fichier et les trois tours réussis sont conservés. Les deux anciens plans, dont le verrou cible précède T40, ont ensuite été annulés avec un motif historique explicite ; journal acceptation→annulation, révision 2 et déconnexion vérifiés. Cette annulation ne prétend pas confirmer rétroactivement leur publication.
+
+Preuves hors dépôt : `CREEZIO-T40-SITES-ORIGINAL-V5-QUALIFICATION`, `CREEZIO-T40-SITES-LAB-V5-HISTORICAL-WIDGET-READ`, `CREEZIO-T40-SITES-LAB-V5-APP-ADMIN-DENIAL`, `CREEZIO-T40-LAB-LINUX-AFTER-FC1DDC0` et les attestations/clôtures `CREEZIO-T40-LAB-LEGACY-*`, datées du 28 septembre 2026. Le diagnostic et le traitement du blocage de la première capture Cloudflare de Lab sont suivis dans [T32](IMPLEMENTATION-T32.md). Les paragraphes suivants décrivent le diagnostic et la construction de la correction, avant cette qualification.
+
 ## Point de départ vérifié
 
 Lab main `26180ed6c2409ae85944f33b1909e7d076c661aa`, CI 1 165/1 165, adopte le module externe de demandes d’achat 0.1.2. Le même Site B a été mis à jour le 28 septembre 2026 à 09:21 UTC, version 4, environnement 4, source Sites `cd422d6`. Le registre a confirmé cette publication. Docker Linux utilise ce même main dans son volume conservé.
@@ -24,15 +34,15 @@ La correction candidate utilise la compatibilité déclarée du widget et le sch
 
 Les contextes conservent la version d’origine du widget. Leurs valeurs sont revalidées avec les champs persistés de l’action courante ; les références locales de schéma gardent leur racine d’origine. Les approbations et commandes incertaines gardent leur journal et ne sont pas relancées sous un nouveau contrat. Les contrôles ciblés historiques et backend passent 13/13, la composition 31/31 et les six suites du module Conversations sont vertes. Le test D1 vérifie séparément les droits et le confinement de la lecture ; la nouvelle requête reste à qualifier de bout en bout sur Lab.
 
-## Qualification restante
+## Étapes de qualification
 
-- Finaliser les verrous et le contrôle commun, puis revue et CI de la candidate exacte.
-- Adopter les corrections dans Lab en conservant module 0.1.2, front, données et ressources existantes.
-- Revoir les mêmes anciens messages et widgets, sans recréer leurs tours.
+- Verrous, revue et CI intégrés dans les PR #38 Core et #5 Lab.
+- Corrections adoptées sur le même Site Lab et le Docker Linux, avec module 0.1.2, front et données conservés.
+- Mêmes anciens messages et widgets revus sur le Site, sans recréer leurs tours.
 - Qualifier le cycle durable sur un prochain changement réel ; les deux cycles D1 restent une preuve locale distincte.
 - Publier Lab dans ses propres ressources Cloudflare et conserver les limites documentées de la recette ChatGPT.
 
-L’évolution de la D1 locale initialisée utilise le même moteur central que les autres publications. Le raccord opérateur `schema:inspect` / `schema:apply` est testé : inspection sous verrou, confirmation du digest exact puis application additive, sans réinstallation du compte et sans script SQL dans les modules. Six contrôles ciblés passent, dont une D1 initialisée conservant son compte et sa ligne témoin pendant l’ajout de `plan-outcomes`. L’application réelle sur Docker Lab reste à faire.
+L’évolution de la D1 locale initialisée utilise le même moteur central que les autres publications. Le raccord opérateur `schema:inspect` / `schema:apply` est testé : inspection sous verrou, confirmation du digest exact puis application additive, sans réinstallation du compte et sans script SQL dans les modules. Six contrôles ciblés passent, dont une D1 initialisée conservant son compte et sa ligne témoin pendant l’ajout de `plan-outcomes`. L’application réelle sur Docker Lab est désormais qualifiée ci-dessus.
 
 La première CI de cette correction a exécuté 1 172 tests, dont trois échecs : deux inventaires attendus restés aux anciens nombres de tables/outils, et une fixture D1 dépourvue du nouveau validateur de contexte. Les attentes et la fixture sont corrigées sans assouplir la production ; les contrôles schéma et D1 concernés passent. La CI du candidat final reste requise.
 

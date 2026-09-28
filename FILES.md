@@ -1,6 +1,6 @@
 # Repères du dépôt
 
-État : Core PR #37 et Lab PR #4 intégrées. Les deux Sites du compte courant sont publiés ; Lab 0.1.2 est actif sur Sites et Docker. Correction des widgets historiques et du cycle durable des plans en cours ; Lab Cloudflare reste à publier. Le [TODO](docs/TODO.md) porte l’état courant et les preuves détaillées.
+État : Core PR #38 et Lab PR #5 intégrées. Les deux Sites version 5 et Lab Linux sont qualifiés sur les anciens widgets, brouillons et données. La première capture Cloudflare Lab a refusé un historique incertain ; sa conservation fidèle est en cours de correction. Le [TODO](docs/TODO.md) porte l’état courant et les preuves détaillées.
 
 | Emplacement | Responsabilité |
 |---|---|
@@ -36,7 +36,7 @@
 | [docs/IMPLEMENTATION-T36.md](docs/IMPLEMENTATION-T36.md) | Préparation de la release initiale de l’original : versions, usage, preuves et limites. |
 | [docs/IMPLEMENTATION-T38.md](docs/IMPLEMENTATION-T38.md) | Contribution amont des certificats TLS du Docker local, cause et qualification bornée. |
 | [docs/IMPLEMENTATION-T39.md](docs/IMPLEMENTATION-T39.md) | Checkpoints du flux OpenAI, observation Site A et limites de la recette T39. |
-| [docs/IMPLEMENTATION-T40.md](docs/IMPLEMENTATION-T40.md) | Mise à jour Lab 0.1.2, régression des widgets historiques et correction du cycle durable des plans. |
+| [docs/IMPLEMENTATION-T40.md](docs/IMPLEMENTATION-T40.md) | Mise à jour Lab 0.1.2, restauration des widgets historiques, cycle durable des plans et qualifications réelles. |
 | [docs/LICENCES-ET-OFFRES.md](docs/LICENCES-ET-OFFRES.md) | Politiques/activation/accompagnement et décisions commerciales différées. |
 | [docs/QUALIFICATION-SITES.md](docs/QUALIFICATION-SITES.md) | Preuves techniques limitées, distinctes du CMS. |
 | [docs/INSTALLATION-LOCALE.md](docs/INSTALLATION-LOCALE.md) | Inspection, premier compte local, configuration commune et reprises sans écrasement. |
@@ -180,6 +180,8 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - `tests/modules/package-receipt.test.mjs`, `tests/workspace/package-context.test.mjs` et `tests/local/composed-installation.test.mjs` : preuves ciblées ; [réalisation T30](docs/IMPLEMENTATION-T30.md) pour la portée d'intégration.
 
 ## Livraison locale T32
+
+- `scripts/cloudflare/transfer/source.ts` et `types.ts` : préflight des effets sous verrou, capture fidèle des historiques OpenAI incertains admissibles et compteur dans le manifeste ; `tests/cloudflare/transfer-source.test.mjs` qualifie conservation et refus.
 
 - `scripts/cloudflare/{config,composition,build}.mjs` : projection de la composition et build du même code sur le profil Cloudflare ; `scripts/cloudflare/{pipeline,provisioning,sandbox,publisher}.mjs` orchestre les effets et vérifications distants. Le pipeline porte aussi la candidate d'update REQ-3203.
 - `scripts/cloudflare/{local-service,operator-http,local-journal,target-vault}.mjs` : service loopback limité, session et jobs, journaux locaux et clé de coffre de production par transfert ; `scripts/cloudflare/artifact-path.mjs` isole les artefacts d'update par intention ; `scripts/cloudflare/{transfer,remote}/` contient la capture D1/R2 et les ports distants.

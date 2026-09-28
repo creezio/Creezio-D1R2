@@ -64,6 +64,8 @@ export interface TransferManifest {
   readonly identity:TransferIdentity;
   readonly capturedAt:string;
   readonly policyDigest:TransferDigest;
+  /** Preserved, non-replayable OpenAI turn uncertainty; zero for a quiescent snapshot. */
+  readonly uncertainHistoryCount?:number;
   readonly tables:readonly CapturedTable[];
   readonly objects:CapturedObjectIndex;
   readonly manifestDigest:TransferDigest;

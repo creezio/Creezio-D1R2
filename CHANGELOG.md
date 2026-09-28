@@ -1,10 +1,14 @@
 # Changelog
 
-## En cours — conservation des widgets et cycle des plans (T40)
+## En cours — transfert fidèle des historiques incertains (T32)
 
-La mise à jour réelle du module Lab 0.1.0 vers 0.1.2 conserve ses données mais rend ses anciens widgets indisponibles. Une correction de la projection compatible des messages est en développement. Le cycle des plans ajoute une confirmation fondée sur le runtime réel, une annulation motivée et un journal durable, sans réécrire les anciens plans. Les tests ciblés ne remplacent pas la qualification après publication. Voir [le suivi T40](docs/IMPLEMENTATION-T40.md).
+La capture locale vérifie les effets avant de créer ses fichiers. Elle accepte uniquement un ancien tour OpenAI incertain sans reçu fournisseur, avec tentative terminée, claims expirés et identité/journal cohérents, sous le verrou exclusif du runtime arrêté. Les lignes restent inchangées ; le manifeste compte ces historiques. Tout autre effet actif est refusé. Cette correction ne relance aucun appel et ne transforme aucun résultat inconnu en succès ou échec. La publication réelle Lab reste à qualifier.
 
-Le parcours local ajoute `schema:inspect` et `schema:apply` pour appliquer le plan central à une base déjà gérée, sous le verrou existant et après confirmation de son empreinte. Il ne recrée aucun compte et conserve le refus des évolutions incompatibles. La qualification Docker réelle reste distincte des tests de cette commande.
+## 28 septembre 2026 — conservation des widgets et cycle des plans (T40)
+
+La projection compatible rétablit les anciens widgets après la mise à jour réelle du module Lab 0.1.0 vers 0.1.2. Core PR #38 est intégré ; les deux Sites version 5 et Lab Linux conservent leurs données, messages et fichiers. Le cycle des plans ajoute une confirmation fondée sur le runtime réel, une annulation motivée et un journal durable, sans réécrire les anciens plans. Les anciens plans Lab Sites/Linux sont clôturés par annulation motivée sans confirmation rétroactive. Voir [le suivi T40](docs/IMPLEMENTATION-T40.md).
+
+Le parcours local ajoute `schema:inspect` et `schema:apply` pour appliquer le plan central à une base déjà gérée, sous le verrou existant et après confirmation de son empreinte. Il ne recrée aucun compte et conserve le refus des évolutions incompatibles. La commande a ajouté sur Lab Linux la seule table des issues de plans et conservé le compte ainsi que les données du même volume.
 
 ## 28 septembre 2026 — checkpoints du chat administrateur intégrés (T-39)
 
