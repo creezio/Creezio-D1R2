@@ -1,5 +1,5 @@
 # Backlog de réalisation
-Révision 34 — 28 septembre 2026. **Chantiers actifs : T-32, livraison Docker local vers Cloudflare, et préparation T-36.** PR #1 à #28 intégrées ; PR #28 fusionnée sur main `f8dc03c6076109479ad87facedc55234a343dcc4`, CI du nouveau main réussie avec 1 152/1 152 tests. SDK `sdk-v1.1.0` et starter `module-v0.1.0` publics, démo T30 réelle qualifiée localement avec limites documentées. Le callback OAuth GitHub du registre a réussi avec l'utilisateur réel. Les exigences demeurent inchangées ; la première publication et la première mise à jour conservatrice de l'application originale sur Cloudflare sont qualifiées dans leur périmètre, tandis que la démo reste ouverte.
+Révision 35 — 28 septembre 2026. **Chantiers actifs : fork Lab T-37 et préparation de mise à jour T-38.** PR #1 à #29 intégrées ; le main `eb97109493b3a945eaa882c216591bc468764014` a réussi 1 152/1 152 tests CI. Le SDK `sdk-v1.1.0`, le starter `module-v0.1.0` et la release source initiale `app/v0.0.0` sont publics. Le Site A a été qualifié dans le périmètre initial ; le vrai fork public Creez-io/Creezio-Lab et son Site B existent, sans publication du Site B à ce stade. Les recettes exhaustives T-36 et la démo Cloudflare restent ouvertes. Les exigences demeurent inchangées.
 
 ## Jalon prioritaire : première app utilisable
 
@@ -80,8 +80,8 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-30](#T-30) | P3 | Starter, paquets et extension externe | [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-16](#T-16) | En cours — distribution initiale publique et recette locale acquises, autres critères ouverts |
 | [T-31](#T-31) | P1 | Docker local persistant | [T-03](#T-03), [T-05](#T-05), [T-07](#T-07) | En cours |
 | [T-32](#T-32) | P6 | Publication complète Cloudflare | [T-08](#T-08), [T-30](#T-30), [T-31](#T-31) | En cours — original publié et mis à jour, SDK 1.1.0 public, démo ouverte |
-| [T-36](#T-36) | P7 | Version initiale de l’original, puis compléments | Jalon initial : [T-08](#T-08), [T-09](#T-09), [T-10](#T-10), [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-14](#T-14), [T-15](#T-15), [T-16](#T-16), tranche témoin [T-30](#T-30), [T-31](#T-31), [T-32](#T-32) | En cours — préparation du jalon initial `app/v0.0.0` |
-| [T-37](#T-37) | P7 | Vrai fork Creezio Lab et Site B | Version initiale publiée de [T-36](#T-36) | À faire |
+| [T-36](#T-36) | P7 | Version initiale de l’original, puis compléments | Jalon initial : [T-08](#T-08), [T-09](#T-09), [T-10](#T-10), [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-14](#T-14), [T-15](#T-15), [T-16](#T-16), tranche témoin [T-30](#T-30), [T-31](#T-31), [T-32](#T-32) | En cours — jalon `app/v0.0.0` public et Site A qualifié, recette complète ouverte |
+| [T-37](#T-37) | P7 | Vrai fork Creezio Lab et Site B | Version initiale publiée de [T-36](#T-36) | En cours — fork et Site B créés, publication et recette attendues |
 | [T-38](#T-38) | P8 | Adoption des mises à jour et contributions | Fork initial de [T-37](#T-37) | À faire — preuve installation/update prioritaire |
 | [T-39](#T-39) | P9 | Recette ciblée puis exhaustive | Preuves initiales de [T-38](#T-38) | À faire — recette ciblée prioritaire |
 | [T-17](#T-17) | P5 | Tâches humaines et travail | [T-11](#T-11), [T-14](#T-14) | À faire — après première app |
@@ -470,28 +470,28 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Travail/livrables : Version initiale de l’original avec manifeste versions/propriété, docs, artefacts et provenance selon Git flow ; compléter la release au fil des modules et qualifications différés. La première version publiée peut être consommée par T-37 sans déclarer T-36 entièrement vérifié.
 - Besoin : [US-36](USER-STORIES.md#US-36). Acceptation : [REQ-3601](EXIGENCES.md#REQ-3601), [REQ-3602](EXIGENCES.md#REQ-3602).
 - Validation : implémenter puis exécuter les recettes liées, sur **CI, Site A et artefacts publiés** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Version candidate : `app/v0.0.0` depuis le main `f8dc03c` après qualification ; conserver SDK/core/modules à leurs versions actuelles. Voir [préparation, usage et limites T36](IMPLEMENTATION-T36.md).
-- Preuves : tag et artefact applicatif absents à ce stade ; renseigner PR/commit final, provenance, examen des droits de distribution/reprise/contribution, installation neuve, Site A, résultats et limites avant de rendre le jalon consommable par T-37.
+- Version initiale : [`app/v0.0.0`](https://github.com/creezio/Creezio-D1R2/releases/tag/app/v0.0.0) depuis le main qualifié `eb971094` ; SDK/core/modules conservent leurs versions déclarées. Voir [preuves, usage et limites T36](IMPLEMENTATION-T36.md).
+- Preuves : archive source et notices publiées, CI main 1 152/1 152 et Site A qualifié dans son périmètre ; la recette complète et les profils restants demeurent ouverts. Le jalon initial est consommable par T-37.
 
 <a id="T-37"></a>
 ## T-37 — Vrai fork Creezio Lab et Site B
 
-- Lot : **P7** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P7** ; état : **en cours** ; responsable nominatif : à attribuer au démarrage.
 - Dépendances : version initiale publiée et qualifiée de [T-36](#T-36), sans attendre la clôture exhaustive de ce lot.
 - Travail/livrables : Vrai fork public Creez-io/Creezio-Lab de la version initiale, Site B et **un module métier témoin** avec thème/front propre ; les modules supplémentaires et le parcours complet de validation de budget suivent après la première app.
 - Besoin : [US-37](USER-STORIES.md#US-37). Acceptation : [REQ-3701](EXIGENCES.md#REQ-3701), [REQ-3702](EXIGENCES.md#REQ-3702).
 - Validation : implémenter puis exécuter les recettes liées, sur **GitHub et deux Sites publics** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : fork public `Creez-io/Creezio-Lab` créé depuis la source initiale et Site B public `appgprj_6ab9b5c3b8e0819183eaa7bcc167b204` créé mais non publié ; module métier, UI dérivée, publication et recette restent à qualifier.
 
 <a id="T-38"></a>
 ## T-38 — Adoption des mises à jour et contributions
 
-- Lot : **P8** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P8** ; état : **préparation parallèle, recette non commencée** ; responsable nominatif : à attribuer au démarrage.
 - Dépendances : fork initial utilisable de [T-37](#T-37).
 - Travail/livrables : Pour la première app, installation du vrai paquet témoin puis adoption, par le fork B, d'une nouvelle version issue de l'original A et mise à jour du module/thème sans perte des données ni du front, avec refus d'une mise à jour incompatible ; publication Cloudflare du fork via le parcours T-32. Les contributions amont et intégrations facultatives restantes gardent leurs preuves propres dans T-38.
 - Besoin : [US-38](USER-STORIES.md#US-38). Acceptation : [REQ-3801](EXIGENCES.md#REQ-3801), [REQ-3802](EXIGENCES.md#REQ-3802), [REQ-3803](EXIGENCES.md#REQ-3803).
 - Validation : implémenter puis exécuter les recettes liées, sur **A/B, Cloudflare, tarballs et GitHub** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : le Starter prépare une candidate 0.1.1 distincte de la release 0.1.0 ; le préflight des trois octets externes et le plan sans effet sont en cours. Aucun remplacement installé, aucune mise à jour du fork ni conservation après cette mise à jour ne sont encore revendiqués.
 
 <a id="T-39"></a>
 ## T-39 — Recette finale et validation utilisateur

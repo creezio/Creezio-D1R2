@@ -4,7 +4,7 @@ Le profil Sites utilise le même Worker, les mêmes modules et les mêmes compte
 
 La cible se lit depuis le manifeste `.openai/hosting.json` du Site sélectionné. Un changement de compte GPT qui rend une ancienne cible inaccessible autorise une nouvelle cible publique, avec conservation de sa provenance ; les publications suivantes réutilisent cette cible. Les sources et données de l'ancien Site sont préservées.
 
-`npm run build:sites` prépare le schéma central et compile le Worker commun avec la composition Sites. Par défaut, le manifeste est celui du checkout courant ; `CREEZIO_SITES_MANIFEST` peut indiquer le chemin absolu d'un checkout Sites sélectionné. Cela permet de réutiliser les dépendances du checkout de développement. Le résultat reste dans son unique `dist/`. La source publiée doit contenir les mêmes fichiers applicatifs et le journal DDL de la cible ; ne pas copier de dépendances, données locales ou secrets.
+Dans un checkout neuf sous Node 24, exécuter `npm ci --ignore-scripts` puis `npm run sdk:build` avant `npm run build:sites`. Le build Sites prépare le schéma central et compile le Worker commun avec la composition Sites. Par défaut, le manifeste est celui du checkout courant ; `CREEZIO_SITES_MANIFEST` peut indiquer le chemin absolu d'un checkout Sites sélectionné. Cela permet de réutiliser les dépendances du checkout de développement. Le résultat reste dans son unique `dist/`. La source publiée doit contenir les mêmes fichiers applicatifs et le journal DDL de la cible ; ne pas copier de dépendances, données locales ou secrets.
 
 ## Schéma central
 

@@ -2,7 +2,7 @@
 
 Ce parcours initialise explicitement une installation locale neuve. Il fonctionne hors ligne, sans compte Cloudflare ni fournisseur externe. Le développement local reste distinct de la publication officielle et de son enregistrement Creezio.
 
-Avec Node 24 et les dépendances verrouillées déjà installées :
+Avec Node 24, installer les dépendances verrouillées par `npm ci --ignore-scripts`, puis exécuter `npm run sdk:build` dans un checkout neuf avant `dev`, `build` ou `start`. Le Dockerfile officiel effectue déjà cette préparation. Ensuite :
 
 1. Arrêter le serveur local de cette installation.
 2. Exécuter `npm run access:inspect` pour connaître l'état de sa base.

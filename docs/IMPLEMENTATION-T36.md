@@ -1,16 +1,16 @@
 # T36 — Première release de l’original
 
-État : **préparation du jalon initial**, T36 global en cours. Base de travail : main `f8dc03c` après PR #28 ; la release doit porter le SHA main final qualifié après la PR documentaire et les qualifications restantes. Aucun tag ni artefact applicatif public n’est attesté ici.
+État : **jalon source initial public et consommable**, T36 global encore en cours. La PR #29 a produit le main `eb97109493b3a945eaa882c216591bc468764014` (arbre `f5fe2e413944bfadeb907c1d9515ab3d927b187b`) ; sa CI main a réussi 1 152/1 152 tests. Le tag `app/v0.0.0` et son archive source sont publics. La qualification ciblée du Site A est distincte de la recette exhaustive de T36.
 
 ## Versions et usage
 
-- Tag applicatif prévu : `app/v0.0.0`, aligné sur [`package.json`](../package.json) et la [composition Sites](../configuration/composition.sites.json). Conserver `sdk.coreVersion`, les cinq modules natifs et le thème sélectionné à `0.0.0` ; ne pas augmenter les versions du SDK ou du starter pour cette release.
+- [Tag applicatif publié `app/v0.0.0`](https://github.com/creezio/Creezio-D1R2/releases/tag/app/v0.0.0), aligné sur [`package.json`](../package.json) et la [composition Sites](../configuration/composition.sites.json). L'archive `creezio-app-0.0.0-source.tar.gz` fait 1 532 513 octets, SHA-256 `097a7eb02e5c955a048d014cd120f95672fac5e501c1e960998f13da18a717fb`. `sdk.coreVersion`, les cinq modules natifs et le thème sélectionné restent à `0.0.0` ; le SDK de composition reste à `1.1.0`.
 - Le SDK [`sdk-v1.1.0`](https://github.com/creezio/Creezio-D1R2/releases/tag/sdk-v1.1.0) est public depuis le main `f8dc03c` (arbre `1bb34da8b587f2b8a89b301efda4db8522565f87`, CI 1 152/1 152). Son [archive](https://github.com/creezio/Creezio-D1R2/releases/download/sdk-v1.1.0/creezio-sdk-1.1.0.tgz) fait 66 315 octets, SHA-256 `f874f0ed29a41ec45b8f686884b5e2260b9600d9045588174fff8a7fcdd5eeec`. Le starter `module-v0.1.0` reste public ; sa démo Cloudflare est à qualifier.
-- Pour une installation neuve, suivre l’[installation locale](INSTALLATION-LOCALE.md) ou le [parcours opératoire Sites](INSTALLATION-SITES.md). Consulter séparément la [qualification Sites](QUALIFICATION-SITES.md) pour ses preuves et limites. La première version applicative publiée et qualifiée pourra servir de base au [vrai fork T37](TODO.md#T-37).
+- Pour une installation neuve, suivre l’[installation locale](INSTALLATION-LOCALE.md) ou le [parcours opératoire Sites](INSTALLATION-SITES.md). Consulter séparément la [qualification Sites](QUALIFICATION-SITES.md) pour ses preuves et limites. Cette version publique sert de base au [vrai fork T37](TODO.md#T-37) ; le Site B du fork n'est pas encore publié.
 
-## Preuves et droits à renseigner avant publication
+## Preuves du jalon initial et droits
 
-Après PR, revue et fusion selon le [Git flow](GIT-FLOW.md) : consigner le SHA et l’arbre du main final, le tag annoté immuable `app/v0.0.0`, l’archive exacte et son empreinte, les versions/provenances de la composition, du lockfile et des modules. Vérifier l’installation à neuf, la publication sur le Site A autorisé et les parcours ciblés ; relier les résultats CI et l’artefact public. La première version devient consommable par T37 seulement après ces preuves.
+Le main, le tag annoté, l'archive exacte, ses notices et la CI sont liés à la release. Le Site A `appgprj_6ab93b30a80c8191b764f797c34c56c8` a livré ce main et conservé les données observées ; API, réponse OpenAI et deux widgets ont été qualifiés dans leur périmètre. Voir les preuves extérieures `CREEZIO-T36-APP-PUBLIC-RELEASE-2026-09-28.json` et `CREEZIO-T36-SITES-QUALIFICATION-2026-09-28.json`. L'installation neuve et les autres profils de T36 gardent leurs propres contrôles.
 
 Examiner les conditions de distribution et les droits de reprise/contribution exigés par [REQ-3601](EXIGENCES.md#REQ-3601) : inventorier les sources et composants distribués, les notices et les périmètres effectivement couverts par [LICENSE](../LICENSE), puis consigner la décision pour chaque composant publié. Ce contrôle ne fixe pas de licence commerciale finale.
 

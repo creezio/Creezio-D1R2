@@ -38,6 +38,8 @@ Le verrou de composition enregistre le graphe résolu, versions exactes, origine
 
 Le développement hors ligne utilise les sources ou artefacts déjà disponibles et vérifiés. Une dépendance non disponible bloque la préparation concernée avec diagnostic ; pas de téléchargement arbitraire ou de paquet homonyme de remplacement. Le retrait d'un paquet d'un catalogue n'arrête pas une version déjà déployée ; il peut empêcher une reconstruction future sans archive vérifiée. Le registre central ne devient pas une dépendance réseau de chaque opération métier.
 
+Pour prévisualiser une mise à jour depuis des archives externes, l'outillage lit en mémoire le runtime, la validation détachée et leur reçu avec les trois SHA-256 attendus. Il vérifie les inventaires, l'identité, la provenance et une version strictement supérieure, puis fournit une entrée candidate au résolveur ; cette lecture n'installe aucun fichier et ne change ni composition, ni verrou, ni données. Les chemins candidats du verrou sont dérivés des empreintes vérifiées sous `.creezio/module-artifacts/<moduleId>/` pour le runtime et la validation ; les chemins déclarés par le reçu ne désignent jamais une destination d'écriture. Le plan recalcule ensuite compatibilité SDK/Core, dépendances et impacts. Après acceptation explicite, l'installation des archives versionnées et le nouveau verrou doivent être vérifiés sur leurs octets réels en conservant l'ancienne version pour retour arrière. Un plan prêt ne vaut ni installation ni publication.
+
 ## Opérations du gestionnaire de modules
 
 | Action | Vérification et résultat |

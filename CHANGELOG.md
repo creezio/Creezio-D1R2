@@ -1,8 +1,10 @@
 # Changelog
 
-## En cours — release initiale `app/v0.0.0` (T36)
+## 28 septembre 2026 — release source initiale `app/v0.0.0` (T36)
 
-Préparation depuis le main `f8dc03c` : version applicative et modules natifs conservés à `0.0.0`, SDK de composition à `1.1.0`. Le build commun demande à Vite de produire `dist/client/licenses.md` pour les dépendances embarquées ; contenu et service sur chaque hébergement restent à vérifier. Le tag applicatif, son archive exacte et la preuve Site A restent à établir après qualification du main final. Le SDK [`sdk-v1.1.0`](https://github.com/creezio/Creezio-D1R2/releases/tag/sdk-v1.1.0) est public ; voir [préparation et limites T36](docs/IMPLEMENTATION-T36.md).
+Le main `eb97109493b3a945eaa882c216591bc468764014` a passé 1 152/1 152 tests CI. La release source publique [`app/v0.0.0`](https://github.com/creezio/Creezio-D1R2/releases/tag/app/v0.0.0) conserve la version de contrat Core et les modules natifs à `0.0.0`, avec SDK de composition `1.1.0`. Son archive fait 1 532 513 octets, SHA-256 `097a7eb02e5c955a048d014cd120f95672fac5e501c1e960998f13da18a717fb`. Le Site A public a été qualifié sur ce main : API, réponse OpenAI et deux widgets ; la recette complète T36 reste ouverte. Le vrai fork Lab T37 est en cours, et T38 prépare la lecture sans effet d'un paquet module 0.1.1 distinct de la 0.1.0 active. Voir [réalisation et limites T36](docs/IMPLEMENTATION-T36.md).
+
+Le préflight T38 vérifie les archives runtime et validation et leur reçu contre trois empreintes attendues avant d'exposer une candidate au plan de modules ; aucun paquet ni donnée n'est remplacé à cette étape. Dans un checkout neuf, `npm run sdk:build` suit `npm ci --ignore-scripts` avant les commandes locales et Sites ; l'image Docker exécute déjà ce build.
 
 ## En cours — publication Cloudflare T32
 

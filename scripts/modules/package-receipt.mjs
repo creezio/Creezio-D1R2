@@ -2,7 +2,9 @@ import {createHash} from 'node:crypto';
 import {existsSync,lstatSync,readFileSync,realpathSync,statSync} from 'node:fs';
 import path from 'node:path';
 import {gunzipSync} from 'node:zlib';
-import {canonicalJson,contractIntegrity,validateArtifactReceipt} from '../../sdk/contracts/validate.mjs';
+import semver from 'semver';
+import {canonicalJson,contractIntegrity,validateArtifactReceipt,validateModule} from '../../sdk/contracts/validate.mjs';
+import {deterministicModuleArchive} from './archives.mjs';
 import {safePackagePath} from '../../sdk/contracts/references.mjs';
 
 export class PackageReceiptError extends Error {
@@ -65,6 +67,71 @@ function exact(entries,names){
     ||names.some(name=>!safePackagePath(name)))fail('archive_inventory');
   const declared=new Set(names);
   if(entries.some(entry=>!declared.has(entry.path)))fail('archive_inventory');
+}
+
+/** Read a future package from supplied bytes while the current version stays installed. No writes. */
+export function verifyCandidatePackageReceipt({currentNode,packageName,version,allowedOrigins,
+  runtimeBytes,validationBytes,receiptBytes,expected}) {
+  const digest=/^sha256-[a-f0-9]{64}$/;
+  if(!currentNode||typeof packageName!=='string'
+    ||!/^(?:@[a-z0-9._-]+\/)?[a-z0-9][a-z0-9._-]*$/.test(packageName)
+    ||!semver.valid(version)||!semver.valid(currentNode.version)
+    ||!semver.gt(version,currentNode.version)
+    ||!Array.isArray(allowedOrigins)||!expected
+    ||![expected.runtime,expected.validation,expected.receipt].every(item=>digest.test(item))
+    ||![runtimeBytes,validationBytes,receiptBytes].every(item=>item instanceof Uint8Array)
+    ||receiptBytes.byteLength>64*1024||runtimeBytes.byteLength>64*1024*1024
+    ||validationBytes.byteLength>64*1024*1024)fail('candidate_input');
+  const runtime=Buffer.from(runtimeBytes),detached=Buffer.from(validationBytes);
+  const receiptRaw=Buffer.from(receiptBytes);
+  if(sha(runtime)!==expected.runtime||sha(detached)!==expected.validation
+    ||sha(receiptRaw)!==expected.receipt)fail('candidate_digest');
+  let receipt;try{receipt=JSON.parse(receiptRaw.toString('utf8'));}catch{fail('receipt_json');}
+  if(validateArtifactReceipt(receipt).errors.length)fail('receipt_schema');
+  const entries=tarEntries(runtime),validationEntries=tarEntries(detached);
+  const index=new Map(entries.map(entry=>[entry.path,entry.bytes]));
+  let pkg,descriptor;
+  try{pkg=JSON.parse(index.get('package/package.json')?.toString('utf8'));
+    descriptor=JSON.parse(index.get('package/module/manifest.json')?.toString('utf8'));}
+  catch{fail('candidate_manifest');}
+  if(validateModule(descriptor).errors.length)fail('candidate_descriptor');
+  if(pkg?.name!==packageName||pkg.version!==version
+    ||descriptor.identity.id!==currentNode.moduleId
+    ||descriptor.identity.origin!==currentNode.origin
+    ||descriptor.identity.version!==version
+    ||!allowedOrigins.includes(descriptor.identity.origin))fail('candidate_identity');
+  if(receipt.module.id!==descriptor.identity.id||receipt.module.origin!==descriptor.identity.origin
+    ||receipt.module.version!==version
+    ||canonicalJson(receipt.module.source)!==canonicalJson(descriptor.identity.source)
+    ||receipt.contractIntegrity!==contractIntegrity(descriptor)
+    ||canonicalJson(receipt.policy)!==canonicalJson(descriptor.validation.policy)
+    ||receipt.runtime.integrity!==expected.runtime
+    ||receipt.validation.integrity!==expected.validation
+    ||receipt.runtime.location.kind!=='local'||receipt.validation.location.kind!=='local'
+    ||receipt.runtime.location.path===receipt.validation.location.path
+    ||receipt.validation.location.path===currentNode.validation?.location?.path)
+    fail('candidate_receipt');
+  exact(entries,descriptor.packaging.runtime.files.map(name=>`package/${name}`));
+  exact(validationEntries,descriptor.packaging.validation.files);
+  const central=deterministicModuleArchive(entries.map(entry=>({
+    path:entry.path.slice('package/'.length),bytes:entry.bytes})));
+  const centralIntegrity=sha(central);
+  const source={kind:'package',name:packageName};
+  // A receipt proves the supplied bytes; its file paths do not select staging targets.
+  const artifactDirectory=`.creezio/module-artifacts/${descriptor.identity.id}`;
+  const lockNode={moduleId:descriptor.identity.id,origin:descriptor.identity.origin,
+    version,source:structuredClone(descriptor.identity.source),
+    contractIntegrity:contractIntegrity(descriptor),
+    runtime:{integrity:centralIntegrity,location:{kind:'local',
+      path:`${artifactDirectory}/runtime-${centralIntegrity.slice(7)}.tgz`}},
+    validation:{integrity:expected.validation,location:{kind:'local',
+      path:`${artifactDirectory}/validation-${expected.validation.slice(7)}.tgz`}},
+    dependencies:[]};
+  const candidateKey=contractIntegrity({moduleId:lockNode.moduleId,origin:lockNode.origin,
+    version,source,contractIntegrity:lockNode.contractIntegrity,
+    runtime:centralIntegrity,validation:expected.validation});
+  return Object.freeze({candidateKey,moduleId:lockNode.moduleId,origin:lockNode.origin,
+    version,source,descriptor,lockNode});
 }
 
 /** Verify both independently acquired tarballs against one explicit, local receipt and installed package. */
