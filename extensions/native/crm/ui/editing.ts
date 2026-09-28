@@ -9,10 +9,10 @@ export type CrmEditField=keyof Omit<CrmEditForm,'id'|'revision'>;
 export type CrmSubviewDraft={name:string;city:string;query:string;appliedQuery:string;archived:boolean;
   selected:string|null;selectedSnapshot:CrmItem|null;form:CrmEditForm|null};
 export type CrmSubviewDrafts=Partial<Record<CrmEntity,CrmSubviewDraft>>;
-export type CrmScope={session:string;audience:string;contextId:string};
+export type CrmScope={session:string;audience:string;contextId:string;panelId:string};
 export function crmScopeTransition(prior:CrmScope,next:CrmScope,phase:string){
   const transient=!next.session&&(phase==='loading'||phase==='unavailable');
-  const scopeChanged=prior.audience!==next.audience||prior.contextId!==next.contextId||
+  const scopeChanged=prior.panelId!==next.panelId||prior.audience!==next.audience||prior.contextId!==next.contextId||
     !!prior.session&&(next.session?prior.session!==next.session:!transient);
   return {transient,scopeChanged,purge:scopeChanged||!next.session&&phase==='anonymous'};
 }

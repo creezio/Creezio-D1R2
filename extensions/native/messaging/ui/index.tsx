@@ -67,6 +67,7 @@ export function MessagingView(props:RuntimeViewProps) {
   const journal=useRef<ReturnType<typeof createCommandJournal>|null>(null);
   const boxSerial=useRef(createLatestRequest()),listSerial=useRef(createLatestRequest());
   const selectionSerial=useRef(createLatestRequest()),threadSerial=useRef(createLatestRequest());
+  const selectionIdentity=useRef(createLatestRequest());
   const busySerial=useRef(createLatestRequest());
   const epoch=useRef(0),prior=useRef({sessionId:'',contextId:'',audience:'',active:false,
     authorized:false,client:null as RuntimeViewProps['client']|null,access:null as RuntimeViewProps['access']|null});
@@ -116,6 +117,7 @@ export function MessagingView(props:RuntimeViewProps) {
       setHydratedScope('');
       setPending(null);setBoxes([]);setBoxId('');setFolder('inbox');setMessages([]);setDrafts([]);setSelectedId(null);
       setMessage(null);setDraft(null);setAttachments([]);setThread([]);setThreadCursor(null);
+      setQuery('');setUnreadOnly(false);setNewBox(false);setBoxName('');setBoxAddress('');
       setComposer(false);setEditor(blank);setNotice('');
     }
     if(!sessionId)return;
@@ -166,7 +168,8 @@ export function MessagingView(props:RuntimeViewProps) {
     else setMessages(old=>append?[...old,...(collected as Message[])]:collected as Message[]);
     if(folder==='drafts'&&restoreDraft.current){setSelectedId(restoreDraft.current);restoreDraft.current=null;}
   },[boxId,folder,cursor,query,unreadOnly,props.client,props.access,props.audience,props.contextId,sessionId,enabled]);
-  useEffect(()=>{listSerial.current.invalidate();selectionSerial.current.invalidate();threadSerial.current.invalidate();
+  useEffect(()=>{listSerial.current.invalidate();selectionSerial.current.invalidate();
+    selectionIdentity.current.invalidate();threadSerial.current.invalidate();
     setLoading(false);setThreadLoading(false);setMessages([]);setDrafts([]);setCursor(null);
     setSelectedId(null);setMessage(null);setDraft(null);setAttachments([]);setThread([]);setThreadCursor(null);
   },[boxId,folder,sessionId]);
@@ -206,7 +209,9 @@ export function MessagingView(props:RuntimeViewProps) {
         if(selectionCurrent()){setThread(related);setThreadCursor(next);}
       }
       if(found.direction==='inbound'&&!found.read&&!journal.current?.pending){
-        const selectedCurrent=()=>scoped(boxId)&&live.current.folder===folder&&live.current.selectedId===id;
+        const identityToken=selectionIdentity.current.capture();
+        const selectedCurrent=()=>scoped(boxId)&&live.current.folder===folder&&
+          live.current.selectedId===id&&selectionIdentity.current.accepts(identityToken);
         const marked=await executeMutation<{message:Message}>('message.update',{boxId,
           messageId:id,revision:found.revision,read:true},selectedCurrent,id);
         if(selectedCurrent()&&marked.kind==='ok'&&marked.value.message?.id===id){setMessage(marked.value.message);
@@ -308,9 +313,12 @@ export function MessagingView(props:RuntimeViewProps) {
       setNotice('Modification confirmée. Liste actualisée ; relisez le détail si nécessaire.');
     }finally{finishBusy(busyToken);}
   }
-  function chooseFolder(next:Folder){if(next===folder)return;invalidateReads();setFolder(next);savePosition(next,boxId);}
-  function chooseBox(next:string){if(next===boxId)return;invalidateReads();setBoxId(next);savePosition(folder,next);}
-  function chooseItem(next:string){selectionSerial.current.invalidate();threadSerial.current.invalidate();setThreadLoading(false);
+  function chooseFolder(next:Folder){if(next===folder)return;invalidateReads();selectionIdentity.current.invalidate();
+    setFolder(next);savePosition(next,boxId);}
+  function chooseBox(next:string){if(next===boxId)return;invalidateReads();selectionIdentity.current.invalidate();
+    setBoxId(next);savePosition(folder,next);}
+  function chooseItem(next:string){selectionSerial.current.invalidate();selectionIdentity.current.invalidate();
+    threadSerial.current.invalidate();setThreadLoading(false);
     setSelectedId(next);savePosition(folder,boxId,folder==='drafts'?next:undefined);}
   function beginResize(event:React.PointerEvent<HTMLDivElement>,index:0|1){
     const parent=event.currentTarget.parentElement;if(!parent)return;

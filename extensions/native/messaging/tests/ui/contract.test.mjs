@@ -90,6 +90,10 @@ test('panel restore survives first mount, while a real identity or context chang
   assert.equal(contracts.scopeChanged(initial,{...initial,client:{}}),false);
   assert.equal(contracts.scopeChanged(initial,{...initial,sessionId:'',phase:'loading'}),false,
     'a transient access refresh does not purge the current command');
+  assert.equal(contracts.scopeChanged(initial,{...initial,sessionId:'',phase:'unavailable'}),false,
+    'a temporarily unavailable session keeps local search and box-form input');
+  assert.equal(contracts.scopeChanged(initial,{...initial,sessionId:'s2',phase:'authenticated'}),true,
+    'a different authenticated session purges local search and box-form input');
   assert.equal(contracts.scopeChanged(initial,{...initial,sessionId:'',phase:'anonymous'}),true,
     'a completed logout does purge the command');
   assert.equal(contracts.scopeChanged({...initial,sessionId:''},initial),false,
@@ -181,6 +185,28 @@ test('a stale busy completion cannot unlock a newer operation, while navigation 
   const next=busy.begin();
   assert.equal(busy.accepts(original),false);
   assert.equal(busy.accepts(next),true);
+});
+
+test('A to B to A navigation makes an old automatic read mark stale without losing its request key',async()=>{
+  const identity=contracts.createLatestRequest();
+  const token=identity.capture();let selected='message-a',finish;
+  const scope={sessionId:'session-a',audience:'app',contextId:'application'};
+  const issued={...scope,bindingId:'creezio.messaging:app.message.update',requestKey:'read-key',
+    intent:'message.update',targetId:'message-a'};
+  let saved=null;
+  const client={audience:'app',invoke:()=>new Promise(resolve=>{finish=resolve;})};
+  const journal=createCommandJournal(scope);
+  const current=()=>selected==='message-a'&&identity.accepts(token);
+  const running=journal.execute(client,issued,{messageId:'message-a',read:true},current,
+    pending=>{saved=pending;return true;});
+  assert.equal(saved.requestKey,'read-key');
+  selected='message-b';identity.invalidate();
+  selected='message-a';identity.invalidate();
+  finish({kind:'execution',execution:{state:'succeeded',output:{message:{id:'message-a',read:true,revision:2}}}});
+  const outcome=await running;
+  assert.equal(outcome.result.code,'stale');
+  assert.equal(outcome.pending.requestKey,'read-key');
+  assert.equal(saved.requestKey,'read-key','the result must be inspected after the navigation');
 });
 
 test('operation bridge addresses the shared messaging binding without raw transport',async()=>{

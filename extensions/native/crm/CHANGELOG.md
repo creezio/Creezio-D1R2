@@ -1,6 +1,6 @@
 # Changelog
 
-Le retour dans un onglet conserve maintenant les brouillons pendant la vérification native de session (`loading` ou `unavailable`). L'interface reste masquée jusqu'à vérification ; une déconnexion confirmée ou une nouvelle session, audience ou contexte purge les états. Les modèles et opérations CRM ne changent pas.
+Le retour dans un onglet conserve maintenant les brouillons pendant la vérification native de session (`loading` ou `unavailable`). L'interface reste masquée jusqu'à vérification ; une déconnexion confirmée ou une nouvelle session, audience, contexte ou identité de panneau purge les états. Au premier chargement, une commande en attente est restaurée seulement après vérification de sa session, sans réémission. Les modèles et opérations CRM ne changent pas.
 
 ## 0.0.0 — candidat source T20
 

@@ -22,7 +22,8 @@ export type UiIdentity = MessagingScope & {sessionId:string;phase?:'loading'|'an
 /** Only the newest read of a list or selection may publish its result. */
 export function createLatestRequest(){
   let serial=0;
-  return {begin:()=>++serial,invalidate:()=>{serial++;},accepts:(candidate:number)=>candidate===serial};
+  return {begin:()=>++serial,capture:()=>serial,invalidate:()=>{serial++;},
+    accepts:(candidate:number)=>candidate===serial};
 }
 export function scopeChanged(previous:UiIdentity|null,current:UiIdentity):boolean {
   return previous!==null&&(previous.contextId!==current.contextId||previous.audience!==current.audience||

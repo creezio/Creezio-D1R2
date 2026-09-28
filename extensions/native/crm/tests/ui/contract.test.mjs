@@ -76,7 +76,7 @@ test('three CRM subviews keep separate drafts and their opening revisions',()=>{
 });
 
 test('an access refresh preserves CRM drafts, while a real scope change purges them',()=>{
-  const admin={session:'session-a',audience:'admin',contextId:'application'};
+  const admin={session:'session-a',audience:'admin',contextId:'application',panelId:'crm-panel'};
   const loading={...admin,session:''};
   assert.deepEqual(crmScopeTransition(admin,loading,'loading'),
     {transient:true,scopeChanged:false,purge:false});
@@ -86,6 +86,17 @@ test('an access refresh preserves CRM drafts, while a real scope change purges t
   assert.equal(crmScopeTransition(admin,{...admin,session:'session-b'},'authenticated').purge,true);
   assert.equal(crmScopeTransition(admin,{...admin,audience:'app',session:''},'loading').purge,true);
   assert.equal(crmScopeTransition(admin,{...admin,contextId:'other',session:''},'loading').purge,true);
+  assert.equal(crmScopeTransition(admin,{...admin,panelId:'other-panel'},'authenticated').purge,true);
+});
+
+test('a pending CRM command from a loading mount is restored only after session verification',()=>{
+  const saved={sessionId:'session-a',audience:'admin',contextId:'application',
+    entity:'company',action:'update',requestKey:'update-a'};
+  const loading={sessionId:'',audience:'admin',contextId:'application'};
+  assert.equal(readPendingCommand(saved,loading),null);
+  const restored=readPendingCommand(saved,{...loading,sessionId:'session-a'});
+  assert.deepEqual(createCommandJournal(restored).pending,saved);
+  assert.equal(readPendingCommand(saved,{...loading,sessionId:'session-b'}),null);
 });
 
 test('workspace declares CRM navigation, inactive suspension and all business operations',()=>{

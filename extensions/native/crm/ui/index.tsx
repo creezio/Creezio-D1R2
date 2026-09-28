@@ -48,6 +48,7 @@ export function CrmWorkspaceView(props:WorkspaceViewProps){
   const [loading,setLoading]=useState(false);
   const journal=useRef(createCommandJournal(readPendingCommand(saved.current?.data?.pending,
     {sessionId:session,contextId:props.contextId,audience:props.audience})));
+  const initialPendingHydrated=useRef(!!session);
   const [busy,setBusy]=useState(!!journal.current.pending);
   const [checking,setChecking]=useState(false);
   const [error,setError]=useState('');
@@ -64,14 +65,15 @@ export function CrmWorkspaceView(props:WorkspaceViewProps){
   const [form,setForm]=useState<Form|null>(null);
   const subviewDrafts=useRef<CrmSubviewDrafts>({});
   const generation=useRef(0),listSerial=useRef(0),busyRef=useRef(!!journal.current.pending);
-  const panelIdentity=useRef({session,entity,archived,client:props.client,access:props.access,
+  const panelIdentity=useRef({session,entity,archived,panelId:props.panelId,client:props.client,access:props.access,
     audience:props.audience,contextId:props.contextId});
-  const identity=useRef({active,session,entity,archived,client:props.client,access:props.access,
+  const identity=useRef({active,session,entity,archived,panelId:props.panelId,client:props.client,access:props.access,
     audience:props.audience,contextId:props.contextId});
   if(identity.current.active!==active||identity.current.session!==session||identity.current.client!==props.client||
     identity.current.access!==props.access||identity.current.audience!==props.audience||
-    identity.current.contextId!==props.contextId||identity.current.entity!==entity||identity.current.archived!==archived){
-    generation.current++;identity.current={active,session,entity,archived,
+    identity.current.contextId!==props.contextId||identity.current.panelId!==props.panelId||
+    identity.current.entity!==entity||identity.current.archived!==archived){
+    generation.current++;identity.current={active,session,entity,archived,panelId:props.panelId,
       client:props.client,access:props.access,audience:props.audience,contextId:props.contextId};}
   const current=useCallback((token:number)=>active&&!!session&&generation.current===token&&
     props.access.getSnapshot().session?.id===session,[active,session,props.access]);
@@ -122,19 +124,27 @@ export function CrmWorkspaceView(props:WorkspaceViewProps){
     const prior=panelIdentity.current;
     const phase=access.pending?'loading':access.phase;
     const {transient,scopeChanged,purge}=crmScopeTransition(prior,
-      {session,audience:props.audience,contextId:props.contextId},phase);
+      {session,audience:props.audience,contextId:props.contextId,panelId:props.panelId},phase);
     const changed=scopeChanged||prior.client!==props.client||prior.access!==props.access||
       prior.entity!==entity||prior.archived!==archived;
-    if(!transient||scopeChanged)panelIdentity.current={session,entity,archived,client:props.client,access:props.access,
+    if(!transient||scopeChanged)panelIdentity.current={session,entity,archived,panelId:props.panelId,
+      client:props.client,access:props.access,
       audience:props.audience,contextId:props.contextId};
     if(purge){subviewDrafts.current={};setName('');setCity('');setQuery('');setAppliedQuery('');setArchived(false);
-      journal.current=createCommandJournal();busyRef.current=false;setBusy(false);setChecking(false);}
+      journal.current=createCommandJournal();initialPendingHydrated.current=true;
+      busyRef.current=false;setBusy(false);setChecking(false);}
+    if(session&&!initialPendingHydrated.current){
+      journal.current=createCommandJournal(readPendingCommand(saved.current?.data?.pending,
+        {sessionId:session,contextId:props.contextId,audience:props.audience}));
+      initialPendingHydrated.current=true;
+    }
     if(changed||purge){setItems([]);setNextCursor(null);setError('');}
     if(purge){setSelected(null);setSelectedSnapshot(null);setForm(null);}
     if(!active||!session){setLoading(false);setChecking(false);return;}
     busyRef.current=!!journal.current.pending;setBusy(busyRef.current);
     void refresh(token,entity,scopeChanged?'':appliedQueryRef.current,scopeChanged?false:archived);
-  },[active,session,access.phase,access.pending,entity,archived,refresh,props.client,props.access,props.audience,props.contextId]);
+  },[active,session,access.phase,access.pending,entity,archived,refresh,props.client,props.access,
+    props.audience,props.contextId,props.panelId]);
   const selectedItem=items.find(item=>item.id===selected)??(selectedSnapshot?.id===selected?selectedSnapshot:null);
   const choose=(id:string)=>{const item=items.find(value=>value.id===id);if(!item)return;
     setSelected(id);setSelectedSnapshot(item);setForm(formFrom(item));};
@@ -221,7 +231,8 @@ export function CrmWorkspaceView(props:WorkspaceViewProps){
     const output=await command(archived?'restore':'archive',{id:selectedItem.id,revision:form.revision});
     if(output&&selectedRef.current===selectedItem.id){setSelected(null);setForm(null);}
   };
-  const ownScope=panelIdentity.current.session===session&&panelIdentity.current.audience===props.audience&&
+  const ownScope=panelIdentity.current.session===session&&panelIdentity.current.panelId===props.panelId&&
+    panelIdentity.current.audience===props.audience&&
     panelIdentity.current.contextId===props.contextId;
   if(!active||!session||!ownScope)return <div className="p-6 text-sm">CRM indisponible pour cette session.</div>;
   return <div className="flex w-full flex-col gap-4 p-6">
