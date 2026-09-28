@@ -39,12 +39,14 @@ function fixture(t){
     {type:'plain_text',name:'CREEZIO_WIDGET_SANDBOX_ORIGIN',text:target.widgetSandboxOrigin},
     {type:'secret_text',name:'CREEZIO_VAULT_KEYRING'}]};
   const flags={wrongModule:false,missingDependency:false,extraModule:false,foreignModule:false,
+    indexBase64:null,
     wrongAsset:false,wrongVersion:false,sessionReply:()=>Response.json(
       {error:{code:'authentication_required'},requestId:'anonymous-probe'},{status:401})};
   const seen=[];
   function version(){
     const modules=[{name:'index.js',content_type:'application/javascript+module',
-      content_base64:Buffer.from(flags.wrongModule?'other':readFileSync(path.join(artifactRoot,'dist/server/index.js'))).toString('base64')}];
+      content_base64:flags.indexBase64??Buffer.from(flags.wrongModule?'other':
+        readFileSync(path.join(artifactRoot,'dist/server/index.js'))).toString('base64')}];
     if(!flags.missingDependency)modules.push({name:'dep.js',content_type:'application/javascript+module',
       content_base64:readFileSync(path.join(artifactRoot,'dist/server/dep.js')).toString('base64')});
     if(flags.extraModule)modules.push({name:'ssr/unused.js',content_type:'application/javascript+module',
@@ -79,6 +81,28 @@ test('reconciliation verifies active modules, public asset bytes, bindings and a
     +readFileSync(path.join(input.artifactRoot,'dist/server/dep.js')).length,configurationModules:1,
     excludedLocalModules:1,assets:1,assetBytes:7});
   assert.equal(input.seen.length,3);
+});
+
+test('reconciliation verifies a multi-megabyte module without overflowing base64 validation',async t=>{
+  const input=fixture(t),modulePath=path.join(input.artifactRoot,'dist/server/index.js');
+  const prefix=Buffer.from('import {value} from "./dep.js"; export default {value};\n');
+  const module=Buffer.concat([prefix,Buffer.alloc(4*1024*1024,32)]);
+  writeFileSync(modulePath,module);
+  input.artifact.artifactDigest=measureRuntimeArtifacts(input.artifactRoot).digest;
+  input.settings.annotations['workers/message']=
+    `Creezio ${input.artifact.artifactDigest} ${input.artifact.sourceSha}`;
+  const receipt=await inspectCloudflareDelivery(input);
+  assert.equal(receipt.remoteVerified.modules,2);
+  assert.equal(receipt.remoteVerified.moduleBytes,module.length+
+    readFileSync(path.join(input.artifactRoot,'dist/server/dep.js')).length);
+});
+
+test('remote module base64 must use the exact canonical alphabet, padding and tail bits',async t=>{
+  const input=fixture(t);
+  for(const encoded of ['!!!!','A===','YW Jj','/x==']){
+    input.flags.indexBase64=encoded;
+    await assert.rejects(inspectCloudflareDelivery(input),{code:'content_format'});
+  }
 });
 test('wrong remote module, missing imported module and wrong public asset block confirmation',async t=>{
   const input=fixture(t);input.flags.wrongModule=true;

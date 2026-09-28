@@ -82,11 +82,19 @@ function relativeImports(name,bytes){
   return imports;
 }
 function base64Bytes(value){
-  if(typeof value!=='string'||value.length>MAX_CONTENT*2||
-    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value))
+  if(typeof value!=='string'||value.length>MAX_CONTENT*2||value.length%4!==0)
     fail('content_format');
+  const padding=value.endsWith('==')?2:value.endsWith('=')?1:0;
+  const contentLength=value.length-padding;
+  const expectedBytes=value.length/4*3-padding;
+  if(expectedBytes>MAX_CONTENT)fail('content_format');
+  for(let index=0;index<contentLength;index++){
+    const code=value.charCodeAt(index);
+    if(!(code>=65&&code<=90||code>=97&&code<=122||code>=48&&code<=57
+      ||code===43||code===47))fail('content_format');
+  }
   const bytes=Buffer.from(value,'base64');
-  if(bytes.length>MAX_CONTENT||bytes.toString('base64')!==value)fail('content_format');
+  if(bytes.length!==expectedBytes||bytes.toString('base64')!==value)fail('content_format');
   return bytes;
 }
 function bindingsMatch(bindings,target,requireVault=false){
