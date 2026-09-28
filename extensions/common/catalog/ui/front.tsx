@@ -95,7 +95,7 @@ export function CatalogFrontView(props:RuntimeViewProps){
   },[enabled,selected,sessionId,props.client,props.access,props.audience,props.contextId]);
   if(!enabled||!ownScope)return <p className="p-6 text-sm text-slate-500">Catalogue disponible après connexion autorisée.</p>;
   return <main className="space-y-5 p-5 text-slate-900"><header><h1 className="text-2xl font-semibold">Catalogue</h1>
-    <p className="text-sm text-slate-600">Produits publiés · prix en unités mineures de la devise</p></header>
+    <p className="text-sm text-slate-600">Produits publiés</p></header>
     {notice&&<p role="alert" className="rounded border border-rose-200 bg-rose-50 p-3 text-sm">{notice}</p>}
     {selected&&product?<section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <button className={button} onClick={()=>{detailSerial.current++;selectedRef.current='';setSelected('');setProduct(null);setMedia([]);}}>
