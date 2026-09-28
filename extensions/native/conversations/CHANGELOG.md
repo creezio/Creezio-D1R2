@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.0 — T15/T16, diagnostic du catalogue d'outils
+
+- Le panneau distingue les outils omis par nombre ou taille et la borne d'inspection du catalogue, sans révéler les noms d'opérations refusées.
+- Une reprise du même tour utilise le dernier snapshot de diagnostics ; elle n'additionne pas plusieurs fois les mêmes omissions. L'interface et l'historique existants sont conservés.
+
 ## 0.0.0 — T40, historique des widgets après mise à jour
 
 - La requête protégée `widget.render.read` retrouve le résultat durable d’une instance depuis son message natif et laisse l’hôte vérifier l’exécution, le propriétaire, l’acteur, l’audience, le contexte et les droits actuels. Le panneau utilise le renderer courant uniquement si sa compatibilité est déclarée ; aucune ancienne ressource HTML ni opération métier n’est rejouée.

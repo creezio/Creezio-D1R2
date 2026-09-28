@@ -130,9 +130,21 @@ test('progress projection exposes bounded text and known steps without raw provi
 test('tool exclusions remain visible after a turn without exposing operation names or payloads',()=>{
   const projected=projectTurnEvents([{turnId:'t',sequence:1,kind:'started',payload:{body:'',
     toolDiagnostics:[{code:'forbidden',count:2,name:'private_operation'},
-      {code:'unsupported_schema',count:1,secret:'hidden'}],toolDiagnosticsTruncated:false},createdAt:''}]);
+      {code:'unsupported_schema',count:1,secret:'hidden'},
+      {code:'count_limit',count:2},{code:'byte_limit',count:3},
+      {code:'catalog_limit',count:1}],toolDiagnosticsTruncated:false},createdAt:''}]);
   assert.match(projected.toolDiagnostics,/2 sans autorisation/);
   assert.match(projected.toolDiagnostics,/1 schéma non compatible/);
+  assert.match(projected.toolDiagnostics,/2 limite de nombre atteinte/);
+  assert.match(projected.toolDiagnostics,/3 limite de taille atteinte/);
+  assert.match(projected.toolDiagnostics,/catalogue limité à 1 000 entrées \(suite non inspectée\)/);
+  const resumed=projectTurnEvents([{turnId:'t',sequence:1,kind:'started',payload:{
+    toolDiagnostics:[{code:'count_limit',count:2}],toolDiagnosticsTruncated:true},createdAt:''},
+  {turnId:'t',sequence:2,kind:'unknown',payload:{},createdAt:''},
+  {turnId:'t',sequence:3,kind:'started',payload:{
+    toolDiagnostics:[{code:'count_limit',count:1}],toolDiagnosticsTruncated:false},createdAt:''}]);
+  assert.match(resumed.toolDiagnostics,/1 limite de nombre atteinte/);
+  assert.doesNotMatch(resumed.toolDiagnostics,/2 limite de nombre|diagnostics limités/);
   assert.doesNotMatch(JSON.stringify(projected),/private_operation|hidden/);
   const terminal=renderToStaticMarkup(React.createElement(ConversationPanel,{...props,
     messages:[{id:'answer',role:'assistant',content:'Réponse'}],turnState:null,

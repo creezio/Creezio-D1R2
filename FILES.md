@@ -1,5 +1,7 @@
 # Repères du dépôt
 
+La projection du chat dans `core/providers/tools.ts` conserve les droits des opérations et borne les définitions envoyées au fournisseur. `scripts/build/provider-output-description.mjs` extrait les annotations JSON Schema de sortie pour cette projection ; `tests/openai/provider-host.test.mjs` et `tests/runtime/provider-composition.test.mjs` vérifient leurs limites et leur raccord. Les diagnostics restent dans le panneau Conversations original.
+
 `scripts/modules/validate-archives.mjs` vérifie puis assemble les archives runtime/validation des modules du dépôt avec un paquet SDK public identifié par SHA-256. La CI exécute leurs six suites depuis cet assemblage et refuse les imports externes non déclarés, fichiers manquants ou générateurs non reproductibles. Ce contrôle ne remplace pas l'isolation nécessaire pour exécuter du code tiers non approuvé.
 
 Les connecteurs optionnels déclarent `contracts.connectors`, validé par `sdk/contracts/schemas/v1/connectors.schema.json` et composé dans le catalogue généré des fournisseurs. `sdk/connectors/types.ts` définit le port public ; `core/connectors/host.ts` applique ses gardes et son transport. `extensions/connectors/n8n/` contient le premier module, `data/schema/n8n.sql` son SQL central, et `tests/connectors/` / `tests/n8n/` les recettes hôte et D1/HTTP/MCP. Le profil `configuration/composition.connectors.json` et la [note T26](docs/IMPLEMENTATION-T26.md) distinguent les capacités réalisées et les limites.

@@ -5,6 +5,7 @@ import { compileOperationSchemas } from '../operations/schemas.mjs';
 import { compileHttpBindings } from '../operations/http-bindings.mjs';
 import { compileMcpBindings } from '../mcp/bindings.mjs';
 import { compileWidgetCatalog, compileWidgetContextValidators, projectWidgetProviderTools } from '../widgets/compile.mjs';
+import {providerOutputDescription} from './provider-output-description.mjs';
 import { serializeMcpCatalogWithWidgetResources } from '../widgets/serialize.mjs';
 import { createOperationRegistry } from '../../core/operations/registry.ts';
 import { compileModuleInventoryWithDocuments } from '../../sdk/modules/inventory.mjs';
@@ -293,11 +294,15 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   // A provider receives the exact input contracts, never schemas reconstructed from UI labels.
   // Runtime discovery still checks operation exposure, effects and the caller's current rights.
   const toolCatalog = operationPlan.catalog.modules.flatMap(module => module.operations.filter(entry => entry.active).map(entry => {
-    const reference = entry.operation.input;
-    const inputSchema = indexes.get(module.moduleId)?.descriptor.contracts.schemas.find(schema => schema.id === reference.schemaId)?.schema;
+    const schemas=indexes.get(module.moduleId)?.descriptor.contracts.schemas;
+    const inputSchema=schemas?.find(schema=>schema.id===entry.operation.input.schemaId)?.schema;
+    const outputSchema=schemas?.find(schema=>schema.id===entry.operation.output.schemaId)?.schema;
     if (!inputSchema) fail('provider.input-schema', 'An active operation has no canonical input schema.');
+    if (!outputSchema) fail('provider.output-schema', 'An active operation has no canonical output schema.');
+    const outputDescription=entry.operation.kind==='query'?providerOutputDescription(outputSchema):'';
     return {moduleId: module.moduleId, operationId: entry.operation.id, inputSchema, schemaDigest: contractIntegrity(inputSchema),
-      audiences: ['admin','app'].filter(audience => composition.exposure[audience].moduleIds.includes(module.moduleId))};
+      audiences: ['admin','app'].filter(audience => composition.exposure[audience].moduleIds.includes(module.moduleId)),
+      ...(outputDescription?{outputDescription}:{})};
   }));
   const providerImports = [];
   const connectors=located.flatMap(item=>{

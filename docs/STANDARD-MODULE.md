@@ -140,6 +140,8 @@ Un thème personnalise le front, ses composants et sa présentation. Il ne rempl
 
 Le plugin est une projection du module vers les conversations. Son manifeste, ses outils/ressources MCP, ses skills et ses widgets suivent le [contrat ChatGPT](COMPATIBILITE-CHATGPT.md). Les opérations restent exploitables sans widget ; l'absence d'UI dans un client ne rend pas les résultats inutilisables.
 
+Décrire les unités et conventions des données dans les `description` de leurs champs JSON Schema, notamment quand un entier représente un montant en unité mineure. Ces annotations restent distinctes des titres affichés à l'utilisateur. Le cœur peut projeter un résumé borné des descriptions de sortie vers le fournisseur du chat ; MCP conserve le schéma de sortie. Aucune unité, devise ou conversion n'est déduite d'un nom de champ, et une annotation ne garantit pas à elle seule l'exactitude de la réponse du modèle.
+
 Les contributions précisent leur audience : MCP/plugin d'administration ou MCP/plugin applicatif. Il s'agit de catalogues et droits distincts dans le même backend, sans exposition administrative automatique. Un site public ne rend aucune opération protégée anonyme.
 
 Les appels utilisent une session utilisateur, une identité machine ou une délégation OAuth vérifiée selon le canal. Les outils, le front et les widgets appellent le même exécuteur autorisé. Un jeton ne remplace pas une approbation humaine exigée et une identité GPT ne crée aucun droit Creezio.

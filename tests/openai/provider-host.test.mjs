@@ -57,3 +57,71 @@ test('tool projection advertises only compatible authorized reads and never muta
   assert.ok(result.diagnostics.includes('creezio.conversations:malformed.read:unsupported_schema'));
   assert.ok(result.diagnostics.includes('creezio.conversations:reference.read:unsupported_schema'));
 });
+
+test('tool projection admits reads past sixteen and reports only authorized count omissions',async()=>{
+  const schema={type:'object',properties:{},required:[],additionalProperties:false};
+  const digest='sha256-'+'a'.repeat(64);
+  const catalog=Array.from({length:131},(_,index)=>({moduleId:'creezio.conversations',
+    operationId:`read${index}`,inputSchema:schema,schemaDigest:digest,audiences:['admin']}));
+  const registry={resolve(_moduleId,id){return {declaration:{id,title:`Read ${id}`,kind:'query',
+    audiences:['admin'],actors:['user'],permissions:[],approval:{mode:'none'},
+    effects:{reads:[],writes:[],emits:[],calls:[],providers:[]}}};}};
+  const data={async authorize(_credential,_target,{moduleId}){
+    if(moduleId==='creezio.conversations'&&this.reads++===0)throw new Error('forbidden');
+    return {};
+  },reads:0,dispose(){}};
+  const options={catalog,registry,data,request:{credential:{kind:'session',token:'opaque'},
+    contextId:'ctx',audience:'admin'}};
+  const first=await projectAuthorizedReadTools(options);
+  assert.equal(first.tools.length,128);
+  assert.equal(first.tools[0].operationId,'read1');
+  assert.equal(first.tools[127].operationId,'read128');
+  assert.equal(first.diagnostics.filter(item=>item==='catalog:count_limit').length,2);
+  assert.equal(first.diagnostics.filter(item=>item.endsWith(':forbidden')).length,1);
+  data.reads=0;
+  const second=await projectAuthorizedReadTools(options);
+  assert.deepEqual(second.tools.map(item=>item.provider.name),first.tools.map(item=>item.provider.name));
+  assert.deepEqual(second.diagnostics,first.diagnostics);
+  data.reads=0;
+  const exact=await projectAuthorizedReadTools({...options,catalog:catalog.slice(0,129)});
+  assert.equal(exact.tools.length,128);
+  assert.equal(exact.diagnostics.includes('catalog:count_limit'),false);
+});
+
+test('tool projection enforces exact OpenAI tools JSON bytes and carries bounded output annotations',async()=>{
+  const schema={type:'object',properties:{key:{type:'string',enum:['é'.repeat(3500)]}},
+    required:['key'],additionalProperties:false};
+  const digest='sha256-'+'b'.repeat(64);
+  const catalog=Array.from({length:20},(_,index)=>({moduleId:'creezio.conversations',
+    operationId:`read${index}`,inputSchema:schema,schemaDigest:digest,audiences:['admin'],
+    ...(index===0?{outputDescription:'request.amountMinor: Value in minor currency units.'}
+      :index===1?{outputDescription:'x'.repeat(1000)}:{})}));
+  const registry={resolve(_moduleId,id){return {declaration:{id,title:'Read request',kind:'query',
+    audiences:['admin'],actors:['user'],permissions:[],approval:{mode:'none'},
+    effects:{reads:[],writes:[],emits:[],calls:[],providers:[]}}};}};
+  const data={async authorize(){return {};},dispose(){}};
+  const result=await projectAuthorizedReadTools({catalog,registry,data,
+    request:{credential:{kind:'session',token:'opaque'},contextId:'ctx',audience:'admin'}});
+  const payload=result.tools.map(({provider})=>({type:'function',name:provider.name,
+    description:provider.description,parameters:provider.parameters,strict:provider.strict??true}));
+  assert.ok(result.tools.length>0&&result.tools.length<20);
+  assert.ok(Buffer.byteLength(JSON.stringify(payload))<=64*1024);
+  assert.ok(Buffer.byteLength(JSON.stringify([...payload,payload[0]]))>64*1024);
+  assert.equal(result.diagnostics.filter(item=>item==='catalog:byte_limit').length,20-result.tools.length);
+  assert.match(result.tools[0].provider.description,/request\.amountMinor: Value in minor currency units\./);
+  assert.ok(Buffer.byteLength(result.tools[0].provider.description)<=1024);
+  assert.equal(result.tools[1].provider.description,'Read request');
+  assert.doesNotMatch(result.tools[1].provider.description,/minor|currency/i);
+});
+
+test('catalogue scan bound is visible without claiming authorization of uninspected entries',async()=>{
+  const catalog=Array.from({length:1001},()=>({moduleId:'invalid module',operationId:'read',
+    inputSchema:{},schemaDigest:'sha256-'+'a'.repeat(64),audiences:['admin']}));
+  const result=await projectAuthorizedReadTools({catalog,registry:{resolve(){throw new Error('unexpected');}},
+    data:{async authorize(){throw new Error('unexpected');},dispose(){}},
+    request:{credential:{kind:'session',token:'opaque'},contextId:'ctx',audience:'admin'}});
+  assert.equal(result.tools.length,0);
+  assert.equal(result.diagnostics[0],'catalog:catalog_limit');
+  assert.equal(result.diagnostics.length,1001);
+  assert.equal(result.diagnostics.filter(item=>item==='catalog:count_limit').length,0);
+});

@@ -4,6 +4,7 @@ import {copyFileSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {composeRuntime} from '../../scripts/build/compose-runtime.mjs';
+import {providerOutputDescription} from '../../scripts/build/provider-output-description.mjs';
 import {contractIntegrity} from '../../sdk/contracts/validate.mjs';
 import {temporaryDirectory} from '../quality/temporary.mjs';
 
@@ -13,6 +14,22 @@ const generated=readFileSync(path.join(repository,'.creezio/generated/provider-c
 const catalog=JSON.parse(generated.match(/export const toolCatalog: readonly ProviderOperationSchema\[\] = freeze\((\[[^\n]+\])\);/)?.[1]??'null');
 const widgetsSource=readFileSync(path.join(repository,'.creezio/generated/widget-catalog.ts'),'utf8');
 const widgets=JSON.parse(widgetsSource.match(/export const widgetCatalog: CompiledWidgetCatalog = freeze\((\{[^\n]+\})\);/)?.[1]??'null');
+
+test('output descriptions preserve declared field meaning in read and list schemas without copying schema data',()=>{
+  const request={type:'object',properties:{amountMinor:{type:'integer',minimum:0,
+    description:'Amount in the minor unit of currency, not a major-unit amount.'},
+    currency:{type:'string',description:'Three-letter currency code.'}}};
+  const read={type:'object',properties:{request:{anyOf:[request,{type:'null'}]}}};
+  const list={type:'object',properties:{items:{type:'array',items:request,maxItems:50}}};
+  assert.equal(providerOutputDescription(read),
+    'request.amountMinor: Amount in the minor unit of currency, not a major-unit amount.; request.currency: Three-letter currency code.');
+  assert.equal(providerOutputDescription(list),
+    'items[].amountMinor: Amount in the minor unit of currency, not a major-unit amount.; items[].currency: Three-letter currency code.');
+  const oversized={type:'object',properties:{secret:{type:'string',description:'x'.repeat(2000)},
+    valid:{type:'string',description:'Declared meaning.'}}};
+  assert.equal(providerOutputDescription(oversized),'valid: Declared meaning.');
+  assert.equal(providerOutputDescription({type:'object',properties:{amountMinor:{type:'integer'}}}),'');
+});
 
 test('provider tool schemas are the exact canonical inputs of selected operations',()=>{
   assert.ok(Array.isArray(catalog)&&catalog.length>0);

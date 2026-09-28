@@ -8,6 +8,8 @@ import type {CompiledWidgetCatalog} from '../../sdk/widgets/catalog.ts';
 export interface ProviderOperationSchema {
   readonly moduleId:string;readonly operationId:string;readonly inputSchema:unknown;
   readonly schemaDigest:string;readonly audiences:readonly AuthorizationAudience[];
+  /** Bounded annotations extracted from the canonical output schema at composition time. */
+  readonly outputDescription?:string;
   readonly widget?:Readonly<{moduleId:string;widgetId:string;version:string;resourceDigest:string;
     toolName:string;operationDigest:string}>;
 }
@@ -17,6 +19,9 @@ export interface ProjectedTool {readonly provider:ProviderTool;readonly moduleId
   readonly operationId:string;readonly widget?:NonNullable<ProviderOperationSchema['widget']>}
 const ID=/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
 const digest=/^sha256-[a-f0-9]{64}$/;
+const MAX_TOOLS=128,MAX_TOOLS_JSON_BYTES=64*1024,MAX_DESCRIPTION_BYTES=1024;
+const encoder=new TextEncoder();
+const utf8Bytes=(value:string)=>encoder.encode(value).length;
 const plain=(value:unknown):value is Record<string,unknown>=>!!value&&typeof value==='object'
   &&!Array.isArray(value)&&[Object.prototype,null].includes(Object.getPrototypeOf(value));
 
@@ -50,12 +55,34 @@ async function toolName(moduleId:string,operationId:string){
   const bytes=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(`${moduleId}:${operationId}`)));
   return `t_${Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('').slice(0,62)}`;
 }
+function toolDescription(title:string,outputDescription?:string){
+  const addition=typeof outputDescription==='string'&&outputDescription
+    &&utf8Bytes(outputDescription)<=768&&!/[\u0000-\u001f\u007f]/.test(outputDescription)
+    ?` Result fields: ${outputDescription}`:'';
+  const titleBudget=MAX_DESCRIPTION_BYTES-utf8Bytes(addition);
+  let description='',length=0;
+  for(const character of title){
+    const size=utf8Bytes(character);
+    if(length+size>titleBudget)break;
+    description+=character;
+    length+=size;
+  }
+  return description+addition;
+}
+
+/** Count the exact JSON UTF-8 sent in OpenAI Responses `tools`, excluding host-only metadata. */
+function providerToolBytes(tool:ProviderTool){
+  return utf8Bytes(JSON.stringify({type:'function',name:tool.name,description:tool.description,
+    parameters:tool.parameters,strict:tool.strict??true}));
+}
 
 /** The generated schema gives a shape; registry and fresh authorization give authority. */
 export async function projectAuthorizedReadTools(options:{readonly catalog:readonly ProviderOperationSchema[];
   readonly registry:OperationRegistry;readonly data:DataAccess;readonly request:ToolRequest;
   readonly widgets?:CompiledWidgetCatalog}){
   const tools:ProjectedTool[]=[],diagnostics:string[]=[],names=new Set<string>();
+  let toolsJsonBytes=2; // JSON array brackets.
+  if(options.catalog.length>1000)diagnostics.push('catalog:catalog_limit');
   for(const candidate of options.catalog.slice(0,1000)){
     const label=`${candidate.moduleId}:${candidate.operationId}`;
     if(!ID.test(candidate.moduleId)||!ID.test(candidate.operationId)||!digest.test(candidate.schemaDigest)){
@@ -98,12 +125,17 @@ export async function projectAuthorizedReadTools(options:{readonly catalog:reado
     const name=candidate.widget?.toolName??await toolName(candidate.moduleId,candidate.operationId);
     if(!/^[A-Za-z0-9_.-]{1,128}$/.test(name)){diagnostics.push(`${label}:widget_name`);continue;}
     if(names.has(name)){diagnostics.push(`${label}:collision`);continue;}
+    const provider:ProviderTool={bindingId:label,name,
+      description:toolDescription(op.title.slice(0,256),candidate.outputDescription),
+      parameters:schema,schemaDigest:candidate.schemaDigest,strict};
+    if(tools.length>=MAX_TOOLS){diagnostics.push('catalog:count_limit');continue;}
+    const addedBytes=providerToolBytes(provider)+(tools.length?1:0);
+    if(addedBytes>MAX_TOOLS_JSON_BYTES-toolsJsonBytes){diagnostics.push('catalog:byte_limit');continue;}
     names.add(name);
-    tools.push({provider:{bindingId:label,name,description:op.title.slice(0,256),
-      parameters:schema,schemaDigest:candidate.schemaDigest,strict},
+    toolsJsonBytes+=addedBytes;
+    tools.push({provider,
       moduleId:candidate.moduleId,operationId:candidate.operationId,
       ...(candidate.widget?{widget:candidate.widget}:{})});
-    if(tools.length>=16){diagnostics.push('catalog:limit');break;}
   }
   return Object.freeze({tools:Object.freeze(tools),diagnostics:Object.freeze(diagnostics)});
 }

@@ -371,15 +371,17 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
             // Progress is visible to the caller. Do not reveal catalog entries that
             // failed authorization, or their schema/operation names.
             const allowed=new Set(['invalid_catalog','inactive','unsupported_schema','invalid_schema',
-              'forbidden','collision','limit','unavailable']);
+              'forbidden','collision','limit','count_limit','byte_limit','catalog_limit','unavailable']);
             const counts=new Map<string,number>();
-            for(const item of diagnostics.slice(0,1000)){
+            // The projector inspects at most 1,000 entries and may add one
+            // separate inventory-bound marker. Aggregate all of them exactly.
+            for(const item of diagnostics.slice(0,1001)){
               const suffix=item.slice(item.lastIndexOf(':')+1);
               const code=allowed.has(suffix)?suffix:'other';
               counts.set(code,(counts.get(code)??0)+1);
             }
             return {toolDiagnostics:[...counts].map(([code,count])=>({code,count})),
-              toolDiagnosticsTruncated:diagnostics.length>1000};
+              toolDiagnosticsTruncated:diagnostics.length>1001};
           };
           const reconcileSnapshot=async(snapshot:Awaited<ReturnType<ProviderTransport['status']>>,
             streamError?:unknown):Promise<boolean|null>=>{

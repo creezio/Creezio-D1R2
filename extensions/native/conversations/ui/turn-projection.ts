@@ -11,7 +11,9 @@ export function projectTurnEvents(events:readonly ConversationEvent[]):{
   let preview='',truncated=false,cancelOutcomeUnknown=false;const steps:ConversationProgressStep[]=[];
   const diagnosticLabels:Record<string,string>={invalid_catalog:'catalogue invalide',inactive:'inactifs',
     unsupported_schema:'schéma non compatible',invalid_schema:'schéma invalide',forbidden:'sans autorisation',
-    collision:'noms en conflit',limit:'limite atteinte',unavailable:'indisponibles',other:'autres'};
+    collision:'noms en conflit',limit:'limite atteinte',count_limit:'limite de nombre atteinte',
+    byte_limit:'limite de taille atteinte',catalog_limit:'catalogue limité à 1 000 entrées',
+    unavailable:'indisponibles',other:'autres'};
   const diagnosticCounts=new Map<string,number>();
   for(const event of events){
     if(event.kind==='text_delta'){
@@ -20,6 +22,8 @@ export function projectTurnEvents(events:readonly ConversationEvent[]):{
       continue;
     }
     if(event.kind==='started'){
+      diagnosticCounts.clear();
+      truncated=false;
       const payload=object(event.payload);
       if(Array.isArray(payload?.toolDiagnostics))for(const raw of payload.toolDiagnostics){
         const item=object(raw),code=item?.code,count=item?.count;
@@ -46,7 +50,8 @@ export function projectTurnEvents(events:readonly ConversationEvent[]):{
     const step=known[event.kind];
     if(step)steps.push({id:String(event.sequence),...step});
   }
-  const details=[...diagnosticCounts].map(([code,count])=>`${count} ${diagnosticLabels[code]}`);
+  const details=[...diagnosticCounts].map(([code,count])=>code==='catalog_limit'
+    ?`${diagnosticLabels[code]} (suite non inspectée)`:`${count} ${diagnosticLabels[code]}`);
   if(truncated)details.push('diagnostics limités');
   return {preview,steps:steps.slice(-12),toolDiagnostics:details.length
     ?`Outils non proposés : ${details.join(', ')}.`:null,cancelOutcomeUnknown};
