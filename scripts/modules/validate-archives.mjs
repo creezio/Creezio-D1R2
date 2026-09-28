@@ -86,10 +86,13 @@ function sdkDescriptor(sdkArchive,sdkSha256){
     throw Error('SDK archive identity mismatch');
   return sdk;
 }
+export function packArchiveValidationArtifacts({root,moduleDirectory,descriptor}){
+  return packModuleArtifacts({root,moduleDirectory,moduleId:descriptor.identity.id,
+    descriptor,writeCache:true});
+}
 function checkModule(directory,sdk){
   const source=resolve(root,directory),manifest=JSON.parse(readFileSync(join(source,'module/manifest.json'),'utf8'));
-  const artifacts=packModuleArtifacts({root,moduleDirectory:source,moduleId:manifest.identity.id,
-    descriptor:manifest,writeCache:false});
+  const artifacts=packArchiveValidationArtifacts({root,moduleDirectory:source,descriptor:manifest});
   const names=new Set([...manifest.packaging.runtime.files,...manifest.packaging.validation.files]);
   let imports=0;
   for(const name of names){

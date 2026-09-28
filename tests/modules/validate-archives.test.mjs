@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,rmdirSync,writeFileSync,unlinkSync} from 'node:fs';
+import {existsSync,mkdtempSync,mkdirSync,rmdirSync,writeFileSync,unlinkSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
-import {parseArchiveValidationArgs,assertArchiveValidationStage,inspectSdkTarEntries,runArchiveValidation}
+import {parseArchiveValidationArgs,assertArchiveValidationStage,inspectSdkTarEntries,
+  packArchiveValidationArtifacts,runArchiveValidation}
   from '../../scripts/modules/validate-archives.mjs';
 
 const digest='a'.repeat(64);
@@ -39,6 +40,34 @@ test('wrong SDK digest refuses before creating an assembly',t=>{
   t.after(()=>{unlinkSync(fake);rmdirSync(temp);});
   assert.throws(()=>runArchiveValidation(['--sdk-archive',fake,'--sdk-sha256',digest,
     'extensions/native/pages-navigation']),/SDK archive digest mismatch/);
+});
+
+test('closed validation packs deterministic runtime and validation archives on an empty cache',t=>{
+  const root=mkdtempSync(path.join(tmpdir(),'creezio-archive-empty-cache-'));
+  const moduleDirectory=path.join(root,'module-source');
+  const file=path.join(moduleDirectory,'module','manifest.json');
+  const descriptor={identity:{id:'sample'},packaging:{
+    runtime:{files:['module/manifest.json']},validation:{files:['module/manifest.json']}}};
+  mkdirSync(path.dirname(file),{recursive:true});
+  writeFileSync(file,`${JSON.stringify(descriptor)}\n`);
+  const cache=path.join(root,'.creezio','module-artifacts','sample');
+  let packed;
+  t.after(()=>{
+    if(packed){
+      unlinkSync(path.join(root,...packed.runtime.path.split('/')));
+      unlinkSync(path.join(root,...packed.validation.path.split('/')));
+      rmdirSync(cache);
+      rmdirSync(path.dirname(cache));
+      rmdirSync(path.join(root,'.creezio'));
+    }
+    unlinkSync(file);rmdirSync(path.dirname(file));rmdirSync(moduleDirectory);rmdirSync(root);
+  });
+  assert.equal(existsSync(cache),false);
+  packed=packArchiveValidationArtifacts({root,moduleDirectory,descriptor});
+  assert.ok(existsSync(path.join(root,...packed.runtime.path.split('/'))));
+  assert.ok(existsSync(path.join(root,...packed.validation.path.split('/'))));
+  assert.deepEqual(packArchiveValidationArtifacts({root,moduleDirectory,descriptor}).runtime,packed.runtime);
+  assert.deepEqual(packArchiveValidationArtifacts({root,moduleDirectory,descriptor}).validation,packed.validation);
 });
 
 test('SDK tar inventory refuses traversal and non-file links before extraction',()=>{
