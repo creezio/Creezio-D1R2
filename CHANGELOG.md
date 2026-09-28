@@ -10,7 +10,7 @@ L'image Docker installe les certificats CA du système avant de lancer workerd. 
 
 ## En cours — inscription navigateur du registre (T-08)
 
-Le registre central propose une page propriétaire générique sur sa propre origine HTTPS. Les lectures de projets et d'installations sont bornées et cloisonnées, sans jeton ; les créations conservent leurs POST et leur CSRF existants. Le navigateur propose le jeton une seule fois au téléchargement et rapproche une réponse perdue par lecture, sans rejouer la création ni tourner le jeton automatiquement. Le callback GitHub redirige les navigations HTML vers cette page et conserve son JSON pour les clients API. Cette tranche reste candidate jusqu'aux contrôles CI et à la recette du service publié.
+Le registre central propose une page propriétaire générique sur sa propre origine HTTPS. Les lectures de projets et d'installations sont bornées et cloisonnées, sans jeton ; les créations conservent leurs POST et leur CSRF existants. Le navigateur propose le jeton une seule fois au téléchargement et rapproche une réponse perdue par lecture, sans rejouer la création ni tourner le jeton automatiquement. Le callback GitHub redirige les navigations HTML vers cette page et conserve son JSON pour les clients API. Les POST de rotation/révocation reconnaissent maintenant le flux vide du Worker sans accepter de contenu non vide ni affaiblir propriétaire/CSRF. Cette tranche reste candidate jusqu'aux contrôles CI et à la recette du service publié.
 
 ## 0.0.1 — en préparation, mise à jour individuelle d'un paquet externe (T38)
 

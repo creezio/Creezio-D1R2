@@ -5,10 +5,55 @@ import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {build} from 'esbuild';
 import {Miniflare} from 'miniflare';
+import {bootstrapRegistry} from '../../services/registry/bootstrap.ts';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const origin = 'https://registry.example.invalid';
 const schema = readFileSync(fileURLToPath(new URL('../../services/registry/schema.sql', import.meta.url)), 'utf8');
+
+test('Worker accepts zero-byte token actions and refuses payloads without weakening owner checks', async () => {
+  const bundle = await build({absWorkingDir: root, entryPoints: ['services/registry/worker.ts'],
+    bundle: true, write: false, platform: 'browser', format: 'esm', target: 'es2022', logLevel: 'silent'});
+  const runtime = new Miniflare({host: '127.0.0.1', port: 0, cf: false, modules: true,
+    compatibilityDate: '2026-05-15', script: bundle.outputFiles[0].text,
+    bindings: {REGISTRY_ORIGIN: origin}, d1Databases: {DB: 'registry-token-body-worker'}, d1Persist: false});
+  try {
+    const db = await runtime.getD1Database('DB');
+    await db.batch(schema.split(';').map(statement => statement.trim()).filter(Boolean)
+      .map(statement => db.prepare(statement)));
+    const owner = await bootstrapRegistry(db, {maintainerEmail: 'owner@example.invalid', serviceId: 'registry-primary'});
+    const auth = {cookie: `__Host-creezio-registry-owner=${owner.ownerToken}`, origin,
+      'x-creezio-request': '1'};
+    const create = async (path, value) => runtime.dispatchFetch(`${origin}${path}`, {method: 'POST',
+      headers: {...auth, 'content-type': 'application/json'}, body: JSON.stringify(value)});
+    const project = await create('/v1/projects', {name: 'Token body', origin: 'https://source.example.invalid/'});
+    assert.equal(project.status, 201);
+    const projectId = (await project.json()).projectId;
+    const installation = await create('/v1/installations', {projectId, target: 'sites'});
+    assert.equal(installation.status, 201);
+    const installationId = (await installation.json()).installationId;
+    const route = `${origin}/v1/installations/${installationId}/rotate`;
+    const version = async () => (await db.prepare('SELECT token_version FROM registry_installations WHERE id=?')
+      .bind(installationId).first()).token_version;
+    assert.equal((await runtime.dispatchFetch(route, {method: 'POST', headers: {cookie: auth.cookie, origin}})).status,
+      403, 'CSRF still applies to an empty Worker POST');
+    assert.equal((await runtime.dispatchFetch(route, {method: 'POST', headers: {origin,
+      'x-creezio-request': '1'}})).status, 401, 'owner session still required');
+    assert.equal((await runtime.dispatchFetch(route, {method: 'POST', headers: auth,
+      body: '{}'})).status, 400, 'nonempty bodies remain invalid');
+    assert.equal(await version(), 1);
+    const rotated = await runtime.dispatchFetch(route, {method: 'POST', headers: auth});
+    assert.equal(rotated.status, 200, 'Worker presents a zero-byte stream for a bodyless POST');
+    assert.equal(await version(), 2);
+    assert.equal((await runtime.dispatchFetch(route, {method: 'POST', headers: auth,
+      body: ''})).status, 200, 'an explicit empty stream is also allowed');
+    assert.equal(await version(), 3);
+    const revoke = await runtime.dispatchFetch(`${origin}/v1/installations/${installationId}/revoke`,
+      {method: 'POST', headers: auth});
+    assert.equal(revoke.status, 200);
+    assert.equal(await version(), 4);
+  } finally {await runtime.dispose();}
+});
 
 test('GitHub callback handles provider responses in the Worker runtime without following redirects', async () => {
   const bundle = await build({absWorkingDir: root, entryPoints: ['services/registry/worker.ts'],

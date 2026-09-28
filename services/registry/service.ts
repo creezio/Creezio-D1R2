@@ -1,7 +1,7 @@
 import {digest, digestCredential, issueCredential} from './credentials.ts';
 import {declaration, email, exact, id, installation, preflight, project} from './validation.ts';
 import type {RegistryDeclarationRequest, RegistryPreflightRequest} from './types.ts';
-import {AccessHttpError, readAccessJson} from '../../core/identity/http-policy.ts';
+import {AccessHttpError, HTTP_POLICY, readAccessJson} from '../../core/identity/http-policy.ts';
 import {registryPage, registryScript} from './web-ui.ts';
 
 export interface RegistryEnvironment {
@@ -52,6 +52,35 @@ async function body(request: Request): Promise<unknown> {
     if (error instanceof AccessHttpError && error.status >= 400 && error.status < 500)
       refuse('invalid_input', error.status === 413 ? 413 : 400);
     refuse('service_unavailable', 503);
+  }
+}
+/** Workers may expose a zero-byte POST as a non-null body stream. */
+async function emptyBody(request: Request): Promise<boolean> {
+  if (request.bodyUsed || request.signal.aborted) return false;
+  if (request.body === null) return true;
+  let reader: ReadableStreamDefaultReader<Uint8Array>;
+  try {reader = request.body.getReader();} catch {return false;}
+  let stop = () => {};
+  const stopped = new Promise<false>(resolve => {stop = () => resolve(false);});
+  const onAbort = () => {stop(); void reader.cancel().catch(() => {});};
+  request.signal.addEventListener('abort', onAbort, {once: true});
+  if (request.signal.aborted) onAbort();
+  const timer = setTimeout(onAbort, HTTP_POLICY.bodyDeadlineMs);
+  try {
+    const consumed = async () => {
+      // An artificial stream of empty chunks must not run indefinitely.
+      for (let chunks = 0; chunks < 16; chunks++) {
+        const part = await reader.read();
+        if (part.done) return true;
+        if (!(part.value instanceof Uint8Array) || part.value.byteLength !== 0) return false;
+      }
+      return false;
+    };
+    return await Promise.race([consumed(), stopped]);
+  } catch {return false;}
+  finally {
+    clearTimeout(timer); request.signal.removeEventListener('abort', onAbort);
+    try {void reader.cancel().catch(() => {});} catch { /* A rejected body is never retried. */ }
   }
 }
 function csrf(request: Request, origin: string): void {
@@ -394,7 +423,7 @@ export function createRegistryService(env: RegistryEnvironment, options: {now?: 
         csrf(request, origin);
         const actor = await owner(db, request, now);
         if (!actor) refuse('authentication_required', 401);
-        if (!id(tokenAction[1]) || request.body !== null) refuse('invalid_input', 400);
+        if (!id(tokenAction[1]) || !await emptyBody(request)) refuse('invalid_input', 400);
         if (tokenAction[2] === 'rotate') {
           const issued = await issueCredential('installation');
           const result = await db.prepare(`UPDATE registry_installations SET token_digest=?,token_version=token_version+1,rotated_at_ms=?
