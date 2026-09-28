@@ -198,11 +198,41 @@ test('modules settings operation commits head, plan, journal and execution in re
           currentInstalledDocuments:fixture.currentInstalledDocuments}});
       const publishedInvoke=(operationId,input)=>publishedEngine.invoke({credential:{kind:'session',token:session.token},
         moduleId,operationId,contextId:'application',audience:'admin',input});
+      const publishedRead=await publishedInvoke('plans.read',{planId:accepted.execution.output.planId});
+      assert.equal(publishedRead.execution.output.status,'accepted_pending_publication');
+      assert.equal(publishedRead.execution.output.matchesRuntimeTarget,true);
+      const confirmation={requestKey:'00000000-0000-4000-8000-000000000006',expectedRevision:1,
+        planId:accepted.execution.output.planId,expectedPlanDigest:accepted.execution.output.planDigest};
+      const premature=await invoke('plans.confirm-publication',{
+        ...confirmation,requestKey:'00000000-0000-4000-8000-000000000010'})
+        .then(value=>value.execution,error=>({state:'threw',errorCode:error.code}));
+      assert.equal(premature.errorCode,'conflict');
+      const confirmed=await publishedInvoke('plans.confirm-publication',confirmation);
+      assert.equal(confirmed.execution.state,'succeeded',JSON.stringify(confirmed.execution));
+      assert.equal(confirmed.execution.output.status,'effective');
+      assert.equal(confirmed.execution.output.revision,2);
+      assert.equal((await publishedInvoke('plans.confirm-publication',confirmation)).replayed,true);
       const effective=await publishedInvoke('plans.read',{planId:accepted.execution.output.planId});
       assert.equal(effective.execution.output.status,'effective');
+      assert.deepEqual(effective.execution.output.events.map(event=>event.eventKind),
+        ['plan-accepted','plan-effective']);
+      await db.prepare(`UPDATE ${table('plan-outcomes')} SET target_lock_digest = ? WHERE revision = 2`)
+        .bind('sha256-'+'a'.repeat(64)).run();
+      const corruptOutcome=await publishedInvoke('plans.read',{planId:accepted.execution.output.planId})
+        .then(value=>value.execution,error=>({state:'threw',errorCode:error.code}));
+      assert.equal(corruptOutcome.errorCode,'unavailable');
+      await db.prepare(`UPDATE ${table('plan-outcomes')} SET target_lock_digest = ? WHERE revision = 2`)
+        .bind(preview.execution.output.targetLockDigest).run();
+      const duplicate=await publishedInvoke('plans.confirm-publication',{
+        ...confirmation,requestKey:'00000000-0000-4000-8000-000000000011'})
+        .then(value=>value.execution,error=>({state:'threw',errorCode:error.code}));
+      assert.equal(duplicate.errorCode,'conflict');
+      const historical=await invoke('plans.read',{planId:accepted.execution.output.planId});
+      assert.equal(historical.execution.output.status,'effective',
+        'a later runtime change cannot erase a verified publication');
       const catalog2=await publishedInvoke('catalog.list',{limit:50});
-      assert.equal(catalog2.execution.output.revision,1);
-      const base2={revision:1,compositionDigest:catalog2.execution.output.compositionDigest,
+      assert.equal(catalog2.execution.output.revision,2);
+      const base2={revision:2,compositionDigest:catalog2.execution.output.compositionDigest,
         lockDigest:catalog2.execution.output.lockDigest,
         inventoryDigest:catalog2.execution.output.inventoryDigest};
       const intent2={schemaVersion:1,base:base2,actions:[{kind:'enable',moduleId:fixture.witness.identity.id,
@@ -210,16 +240,58 @@ test('modules settings operation commits head, plan, journal and execution in re
       const preview2=await publishedInvoke('plans.preview',{intent:intent2});
       assert.equal(preview2.execution.state,'succeeded',JSON.stringify(preview2.execution));
       const second=await publishedInvoke('plans.accept',{requestKey:'00000000-0000-4000-8000-000000000004',
-        expectedRevision:1,expectedPlanDigest:preview2.execution.output.planDigest,intent:intent2});
+        expectedRevision:2,expectedPlanDigest:preview2.execution.output.planDigest,intent:intent2});
       assert.equal(second.execution.state,'succeeded',JSON.stringify(second.execution));
-      assert.equal(second.execution.output.revision,2);
-      assert.equal((await db.prepare(`SELECT revision FROM ${table('head')}`).first()).revision,2);
+      assert.equal(second.execution.output.revision,3);
+      assert.equal((await db.prepare(`SELECT revision FROM ${table('head')}`).first()).revision,3);
       assert.equal((await db.prepare(`SELECT count(*) AS n FROM ${table('plans')}`).first()).n,2);
       assert.equal((await db.prepare(`SELECT count(*) AS n FROM ${table('journal')}`).first()).n,2);
+      assert.equal((await db.prepare(`SELECT count(*) AS n FROM ${table('plan-outcomes')}`).first()).n,1);
       const stale=await publishedInvoke('plans.accept',{requestKey:'00000000-0000-4000-8000-000000000005',
-        expectedRevision:1,expectedPlanDigest:preview2.execution.output.planDigest,intent:intent2})
+        expectedRevision:2,expectedPlanDigest:preview2.execution.output.planDigest,intent:intent2})
         .then(value=>value.execution,error=>({state:'threw',errorCode:error.code}));
       assert.notEqual(stale.state,'succeeded');
       assert.equal(stale.errorCode,'conflict');
+      const cancellation={
+        requestKey:'00000000-0000-4000-8000-000000000007',expectedRevision:3,
+        planId:second.execution.output.planId,expectedPlanDigest:second.execution.output.planDigest,
+        reason:'La cible précédente ne correspond plus au déploiement.'};
+      const cancelled=await publishedInvoke('plans.cancel-pending',cancellation);
+      assert.equal(cancelled.execution.state,'succeeded',JSON.stringify(cancelled.execution));
+      assert.equal(cancelled.execution.output.status,'cancelled');
+      assert.equal(cancelled.execution.output.revision,4);
+      assert.equal((await publishedInvoke('plans.cancel-pending',cancellation)).replayed,true);
+      const cancelledRead=await publishedInvoke('plans.read',{planId:second.execution.output.planId});
+      assert.equal(cancelledRead.execution.output.status,'cancelled');
+      assert.equal(cancelledRead.execution.output.events[1].reason,
+        'La cible précédente ne correspond plus au déploiement.');
+      const journalAfter=await publishedInvoke('journal.list',{limit:50});
+      assert.deepEqual(journalAfter.execution.output.items.map(event=>event.eventKind),
+        ['plan-accepted','plan-effective','plan-accepted','plan-cancelled']);
+      const firstPage=await publishedInvoke('journal.list',{limit:2});
+      assert.deepEqual(firstPage.execution.output.items.map(event=>event.revision),[1,2]);
+      assert.equal(firstPage.execution.output.nextAfterRevision,2);
+      const secondPage=await publishedInvoke('journal.list',
+        {limit:2,afterRevision:firstPage.execution.output.nextAfterRevision});
+      assert.deepEqual(secondPage.execution.output.items.map(event=>event.revision),[3,4]);
+      assert.equal(secondPage.execution.output.nextAfterRevision,null);
+      const nextCatalog=await publishedInvoke('catalog.list',{limit:50});
+      const base3={revision:4,compositionDigest:nextCatalog.execution.output.compositionDigest,
+        lockDigest:nextCatalog.execution.output.lockDigest,
+        inventoryDigest:nextCatalog.execution.output.inventoryDigest};
+      const intent3={...intent2,base:base3};
+      const preview3=await publishedInvoke('plans.preview',{intent:intent3});
+      assert.equal(preview3.execution.output.baselineChanged,true);
+      const withoutAcknowledgement=await publishedInvoke('plans.accept',{
+        requestKey:'00000000-0000-4000-8000-000000000008',expectedRevision:4,
+        expectedPlanDigest:preview3.execution.output.planDigest,intent:intent3})
+        .then(value=>value.execution,error=>({state:'threw',errorCode:error.code}));
+      assert.equal(withoutAcknowledgement.errorCode,'conflict');
+      const replacement=await publishedInvoke('plans.accept',{
+        requestKey:'00000000-0000-4000-8000-000000000009',expectedRevision:4,
+        expectedPlanDigest:preview3.execution.output.planDigest,intent:intent3,
+        acknowledgeBaselineChange:true});
+      assert.equal(replacement.execution.state,'succeeded',JSON.stringify(replacement.execution));
+      assert.equal(replacement.execution.output.revision,5);
     } finally {await runtime.dispose();}
   });

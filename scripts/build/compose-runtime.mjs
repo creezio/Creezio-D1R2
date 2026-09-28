@@ -4,7 +4,7 @@ import { compileCompositionSchema } from '../data/composition-schema.mjs';
 import { compileOperationSchemas } from '../operations/schemas.mjs';
 import { compileHttpBindings } from '../operations/http-bindings.mjs';
 import { compileMcpBindings } from '../mcp/bindings.mjs';
-import { compileWidgetCatalog, projectWidgetProviderTools } from '../widgets/compile.mjs';
+import { compileWidgetCatalog, compileWidgetContextValidators, projectWidgetProviderTools } from '../widgets/compile.mjs';
 import { serializeMcpCatalogWithWidgetResources } from '../widgets/serialize.mjs';
 import { createOperationRegistry } from '../../core/operations/registry.ts';
 import { compileModuleInventoryWithDocuments } from '../../sdk/modules/inventory.mjs';
@@ -194,7 +194,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   const dataPlan = compileCompositionSchema({ composition, lock, modules: located.map(item => item.descriptor) });
   const operationPlan = compileOperationSchemas({ composition, lock, modules: located.map(item => item.descriptor) });
   const output = confined(root, outputDir, { directory: true, missing: true });
-  const destinations = Object.fromEntries(['server.ts', 'client.tsx', 'widget-catalog.ts', 'data-catalog.ts', 'file-catalog.ts', 'provider-catalog.ts', 'module-inventory.ts', 'operations.ts', 'operation-validators.mjs', 'operation-validators.d.mts', 'composition.json'].map(name => [name, confined(root, path.join(output, name), { missing: true })]));
+  const destinations = Object.fromEntries(['server.ts', 'client.tsx', 'widget-catalog.ts', 'data-catalog.ts', 'file-catalog.ts', 'provider-catalog.ts', 'module-inventory.ts', 'operations.ts', 'operation-validators.mjs', 'operation-validators.d.mts', 'widget-context-validators.mjs', 'widget-context-validators.d.mts', 'composition.json'].map(name => [name, confined(root, path.join(output, name), { missing: true })]));
   if (located.some(item => contained(item.directory, output))
     || Object.values(destinations).some(destination => destination === compositionFile || destination === lockFile)) {
     fail('output.source-collision', 'Generated output must not overwrite selected module sources or composition inputs.');
@@ -454,6 +454,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   // precisely so typechecking does not need to infer the bundled implementation.
   const validatorDeclarations = [...new Set(operationPlan.catalog.modules.flatMap(module => module.schemas)
     .map(schema => schema.validator))].map(name => `export declare const ${name}: Validator;`).join('\n');
+  const contextValidators = compileWidgetContextValidators(widgetCatalog);
   const widgetValidatorEntries = widgetCatalog.widgets.map((widget, index) => {
     const names = new Map(operationPlan.catalog.modules.find(module => module.moduleId === widget.moduleId)
       .schemas.map(schema => [schema.schemaId, schema.validator]));
@@ -462,10 +463,15 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
       if (!name) fail('widget.schema', 'A widget schema has no compiled validator.');
       return `compiledValidators.${name}`;
     };
-    return `[widgetKey(widgetCatalog.widgets[${index}]), {input:${validator(widget.schemas.input)}, state:${validator(widget.schemas.state)}, result:${validator(widget.schemas.result)}, actionInputs:new Map([${widget.actions.map(action => `[${JSON.stringify(action.id)},${validator(action.input)}]`).join(',')}])}]`;
+    return `[widgetKey(widgetCatalog.widgets[${index}]), {input:${validator(widget.schemas.input)}, state:${validator(widget.schemas.state)}, result:${validator(widget.schemas.result)}, actionInputs:new Map([${widget.actions.map(action => `[${JSON.stringify(action.id)},${validator(action.input)}]`).join(',')}]), contextValues:new Map([${widget.actions.flatMap(action => {
+      const name = contextValidators.names.get(`${index}:${action.id}`);
+      return name ? [`[${JSON.stringify(action.id)},contextValidators.${name}]`] : [];
+    }).join(',')}])}]`;
   }).join(',\n');
+  const contextDeclarations = [...contextValidators.names.values()]
+    .map(name => `export declare const ${name}: (value:unknown)=>boolean;`).join('\n') || 'export {};';
   const rendered = {
-    'widget-catalog.ts': `${banner}import {widgetKey, type CompiledWidgetCatalog, type WidgetValidatorMap} from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/widgets/catalog.ts')))};\nimport * as compiledValidators from './operation-validators.mjs';\n${freezeSource}export const widgetCatalog: CompiledWidgetCatalog = freeze(${JSON.stringify(widgetCatalog)});\nexport const widgetValidators: WidgetValidatorMap = new Map([${widgetValidatorEntries}]);\n`,
+    'widget-catalog.ts': `${banner}import {widgetKey, type CompiledWidgetCatalog, type WidgetValidatorMap} from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/widgets/catalog.ts')))};\nimport * as compiledValidators from './operation-validators.mjs';\nimport * as contextValidators from './widget-context-validators.mjs';\n${freezeSource}export const widgetCatalog: CompiledWidgetCatalog = freeze(${JSON.stringify(widgetCatalog)});\nexport const widgetValidators: WidgetValidatorMap = new Map([${widgetValidatorEntries}]);\n`,
     'provider-catalog.ts': `${banner}import type {ProviderOperationSchema} from ${JSON.stringify(importSpecifier(output, path.join(root,'core/providers/tools.ts')))};\n${providerImports.join('\n')}\n${freezeSource}export const toolCatalog: readonly ProviderOperationSchema[] = freeze(${JSON.stringify(providerToolCatalog)});\nexport const openAiProvider = ${providerDefinition};\n`,
     'file-catalog.ts': `${banner}import type {RuntimeFileCatalog} from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/files/catalog.ts')))};\n${freezeSource}export const fileCatalog: RuntimeFileCatalog = freeze(${JSON.stringify(fileCatalog)});\n`,
     'module-inventory.ts': `${banner}import type { ModuleSettingsHostInventory } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/module-settings/types.ts')))};\n${freezeSource}${runtimeInventory
@@ -473,6 +479,8 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
       : 'export const runtimeInventory: ModuleSettingsHostInventory | undefined = undefined;\n'}`,
     'operation-validators.mjs': `${banner}${operationPlan.validatorsCode}`,
     'operation-validators.d.mts': `${banner}type ValidatorError = Readonly<{keyword:string;instancePath:string;schemaPath:string}>;\ntype Validator = ((data:unknown)=>boolean) & Readonly<{errors:readonly ValidatorError[]|null}>;\n${validatorDeclarations}\n`,
+    'widget-context-validators.mjs': `${banner}${contextValidators.code}`,
+    'widget-context-validators.d.mts': `${banner}${contextDeclarations}\n`,
     'operations.ts': `${banner}import type { RuntimeOperationCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/operations/types.ts')))};\nimport * as compiledValidators from './operation-validators.mjs';\n${operationImports.join('\n')}\nconst freeze = <T>(value: T): T => { if (value && typeof value === 'object') { for (const child of Object.values(value)) freeze(child); Object.freeze(value); } return value; };\nexport const operationCatalog: RuntimeOperationCatalog = freeze(${JSON.stringify(operationPlan.catalog)});\nexport const operationValidators = Object.freeze({${validatorEntries}});\nexport const operationHandlers = Object.freeze({${operationHandlers.map(item => `${JSON.stringify(item.name)}: ${item.handler}`).join(',\n')}});\n`,
     'data-catalog.ts': `${banner}import type { RuntimeDataCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/data/types.ts')))};\nconst freeze = <T>(value: T): T => { if (value && typeof value === 'object') { for (const child of Object.values(value)) freeze(child); Object.freeze(value); } return value; };\nexport const dataCatalog: RuntimeDataCatalog = freeze(${JSON.stringify(dataPlan.runtimeCatalog)});\n`,
     'server.ts': `${banner}import type { RuntimeModule, RuntimeNativeAccess } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/runtime/types.ts')))};\nimport type { OperationHttpBinding } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/operations/http-types.ts')))};\nimport type { PermissionDefinition } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/authorization/types.ts')))};\nimport type { WorkspaceAuthorizationCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/workspace/authorization.ts')))};\nimport type { McpCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/mcp/types.ts')))};\nimport type { RuntimeFrontCatalog } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/runtime/ui.ts')))};\nimport {widgetCatalog} from './widget-catalog.ts';\nexport {widgetCatalog};\nexport {widgetValidators} from './widget-catalog.ts';\n${serverImports.join('\n')}\n${freezeSource}export const compositionDigest = ${JSON.stringify(compositionDigest)};\nexport const nativeAccess: RuntimeNativeAccess = Object.freeze(${JSON.stringify(nativeAccess)});\nexport const modules: readonly RuntimeModule[] = [${serverModules.join(',\n')}];\nexport const httpBindings: readonly OperationHttpBinding[] = freeze(${JSON.stringify(httpBindings)});\nexport const mcpCatalog: McpCatalog = freeze(${mcpCatalogLiteral});\nexport const permissions: readonly PermissionDefinition[] = freeze(${JSON.stringify(permissions)});\nexport const permissionTitles: Readonly<Record<string, string>> = freeze(${JSON.stringify(permissionTitles)});\nexport const workspaceCatalog: WorkspaceAuthorizationCatalog = freeze(${JSON.stringify(workspaceCatalog)});\nexport const frontCatalog: RuntimeFrontCatalog = freeze(${JSON.stringify(frontCatalog)});\n`,

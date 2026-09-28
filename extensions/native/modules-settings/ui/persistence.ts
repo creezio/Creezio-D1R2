@@ -6,11 +6,14 @@ export function modulePendingPersistence(navigation: WorkspaceNavigation): Modul
   return Object.freeze({
     read() {
       const data = navigation.readPanelState()?.data;
-      return data && {requestKey: data.pendingRequestKey, owner: data.pendingOwner};
+      return data && {requestKey: data.pendingRequestKey, owner: data.pendingOwner,
+        operation: data.pendingOperation};
     },
-    save(value: Readonly<{requestKey: string; owner: string}> | null) {
+    save(value: Readonly<{requestKey: string; owner: string;
+      operation: 'plans.accept' | 'plans.confirm-publication' | 'plans.cancel-pending'}> | null) {
       const previous = navigation.readPanelState() ?? {};
-      const data = value ? {pendingRequestKey: value.requestKey, pendingOwner: value.owner} : {};
+      const data = value ? {pendingRequestKey: value.requestKey, pendingOwner: value.owner,
+        pendingOperation: value.operation} : {};
       return navigation.savePanelState({...previous, data});
     },
   });

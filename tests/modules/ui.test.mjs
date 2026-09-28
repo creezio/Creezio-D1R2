@@ -130,39 +130,52 @@ test('detail shows direct and transitive graph, optional inactivity and server d
 });
 
 test('plan states publication requirement and refuses an action on blocking diagnostics', () => {
+  const preview=props=>render(ui.PlanPreviewCard,{baselineAcknowledged:false,
+    onAcknowledgeBaseline(){},...props});
   const plan = {planDigest: 'sha256-' + 'a'.repeat(64), baseRevision: 4,
-    baseCompositionDigest: 'sha256-' + 'b'.repeat(64), targetCompositionDigest: 'sha256-' + 'c'.repeat(64),
+    baseCompositionDigest: 'sha256-' + 'b'.repeat(64), baseLockDigest: 'sha256-' + 'e'.repeat(64),
+    baselineChanged:false,targetCompositionDigest: 'sha256-' + 'c'.repeat(64),
     targetLockDigest: 'sha256-' + 'd'.repeat(64), requiresPublication: true, disabledContributionCount: 0,
     actions: [{kind: 'update', moduleId: 'atelier.panier', fromVersion: '2.0.0', toVersion: '2.1.0', requiresPublication: true}],
     diagnostics: [{code: 'dependency_conflict', severity: 'error', moduleId: 'atelier.panier', message: 'Catalogue incompatible'}]};
-  const blocked = render(ui.PlanPreviewCard, {plan, onAccept() {}, disabled: false});
+  const blocked = preview({plan, onAccept() {}, disabled: false});
   assert.match(blocked, /2.0.0 → 2.1.0/);
   assert.match(blocked, /Publication nécessaire/);
   assert.match(blocked, /construction et publication vérifiées/);
   assert.doesNotMatch(blocked, /contribution\(s\) seront désactivées/);
   assert.match(blocked, /<button[^>]*disabled=""[^>]*>Accepter le plan<\/button>/);
-  const ready = render(ui.PlanPreviewCard, {plan: {...plan, diagnostics: []}, onAccept() {}, disabled: false});
+  const ready = preview({plan: {...plan, diagnostics: []}, onAccept() {}, disabled: false});
   assert.doesNotMatch(ready, /<button[^>]*disabled=""[^>]*>Accepter le plan<\/button>/);
   assert.doesNotMatch(ready, /installé avec succès|publication terminée/i);
-  const unchanged = render(ui.PlanPreviewCard, {plan: {...plan, diagnostics: [], requiresPublication: false},
+  const unchanged = preview({plan: {...plan, diagnostics: [], requiresPublication: false},
     onAccept() {}, disabled: false});
   assert.match(unchanged, /Il n’y a rien à accepter/);
   assert.match(unchanged, /<button[^>]*disabled=""[^>]*>Accepter le plan<\/button>/);
-  const sideEffects = render(ui.PlanPreviewCard, {plan: {...plan, disabledContributionCount: 3}, onAccept() {}, disabled: false});
+  const sideEffects = preview({plan: {...plan, disabledContributionCount: 3}, onAccept() {}, disabled: false});
   assert.match(sideEffects, /3 contribution\(s\) seront désactivées/);
   assert.match(sideEffects, /intégrations facultatives/);
   const added = {...plan.actions[0], kind: 'add', fromVersion: null, audiences: ['admin', 'app']};
-  const exposure = render(ui.PlanPreviewCard, {plan: {...plan, actions: [added]}, onAccept() {}, disabled: false});
+  const exposure = preview({plan: {...plan, actions: [added]}, onAccept() {}, disabled: false});
   assert.match(exposure, /Interface prévue : Administrateur et utilisateurs/);
-  const headless = render(ui.PlanPreviewCard, {plan: {...plan, actions: [{...added, audiences: []}]}, onAccept() {}, disabled: false});
+  const headless = preview({plan: {...plan, actions: [{...added, audiences: []}]}, onAccept() {}, disabled: false});
   assert.match(headless, /Interface prévue : Sans interface \(headless\)/);
+  const changed=preview({plan:{...plan,diagnostics:[],baselineChanged:true},onAccept(){},disabled:false});
+  assert.match(changed,/dernière cible clôturée/);
+  assert.match(changed,/<button[^>]*disabled=""[^>]*>Accepter le plan<\/button>/);
+  const acknowledged=preview({plan:{...plan,diagnostics:[],baselineChanged:true},
+    baselineAcknowledged:true,onAccept(){},disabled:false});
+  assert.doesNotMatch(acknowledged,/<button[^>]*disabled=""[^>]*>Accepter le plan<\/button>/);
 });
 
 test('journal records acceptance without implying a deployed version and escapes metadata', () => {
   const html = render(ui.JournalCard, {items: [{revision: 8, planId: '<plan-id>', planDigest: 'sha256-x',
     actorPrincipalId: 'principal-1', baseCompositionDigest: 'sha256-b', targetCompositionDigest: 'sha256-c',
-    occurredAtMs: 1_700_000_000_000, eventKind: 'plan-accepted'}]});
+    occurredAtMs: 1_700_000_000_000, eventKind: 'plan-accepted'},
+  {revision: 9, planId: '<plan-id>', planDigest: 'sha256-x',actorPrincipalId:'principal-1',
+    baseCompositionDigest:'sha256-b',targetCompositionDigest:'sha256-c',
+    occurredAtMs:1_700_000_000_001,eventKind:'plan-effective'}]});
   assert.match(html, /Plan accepté/);
+  assert.match(html, /Publication vérifiée/);
   assert.match(html, /versions effectivement publiées/);
   assert.match(html, /&lt;plan-id&gt;/);
   assert.doesNotMatch(html, /<plan-id>/);
@@ -175,9 +188,11 @@ test('pending command retains only request identity in the declared panel state'
     readPanelState: () => state,
     savePanelState: next => {if (!writable) return false; state = next; return true;},
   });
-  const pending = {requestKey: '885772db-f52c-46fb-a913-a70503c1bdf3', owner: '["principal","session"]'};
+  const pending = {requestKey: '885772db-f52c-46fb-a913-a70503c1bdf3', owner: '["principal","session"]',
+    operation:'plans.cancel-pending'};
   assert.equal(persistence.save(pending), true);
-  assert.deepEqual(state, {scrollTop: 36, data: {pendingRequestKey: pending.requestKey, pendingOwner: pending.owner}});
+  assert.deepEqual(state, {scrollTop: 36, data: {pendingRequestKey: pending.requestKey,
+    pendingOwner: pending.owner,pendingOperation:pending.operation}});
   assert.deepEqual(persistence.read(), pending);
   writable = false;
   assert.equal(persistence.save(null), false);

@@ -222,3 +222,35 @@ test('controller refuses mutation if pending key cannot be stored',async()=>{
   assert.equal(h.calls.length,0);
   controller.dispose();
 });
+
+test('publication confirmation persists its operation before sending and reconciles that exact binding',async()=>{
+  const h=harness(), controller=createModuleSettingsController({operations:h.operations,
+    access:h.access,persistence:h.persistence});
+  const outcome=await controller.confirmPublication({expectedRevision:1,planId:'plan-1',expectedPlanDigest:hash});
+  assert.equal(outcome.kind,'unknown');
+  assert.equal(h.calls[0].stored.operation,'plans.confirm-publication');
+  assert.equal(h.calls[0].request.bindingId,MODULE_SETTINGS_BINDINGS.plansConfirmPublication);
+  h.setLookup(succeeded({planId:'plan-1',revision:2,status:'effective',planDigest:hash}));
+  const reconciled=await controller.reconcilePending();
+  assert.equal(reconciled.kind,'accepted');
+  assert.equal(reconciled.value.status,'effective');
+  assert.equal(h.calls[1].request.bindingId,MODULE_SETTINGS_BINDINGS.plansConfirmPublication);
+  assert.equal(h.getStored(),null);
+  controller.dispose();
+});
+
+test('an unknown persisted operation stays quarantined instead of becoming an accept lookup',async()=>{
+  const h=harness(), requestKey='885772db-f52c-46fb-a913-a70503c1bdf3';
+  const owner=JSON.stringify([session.principalId,session.id]);
+  h.persistence.save({requestKey,owner,operation:'plans.unrecognized'});
+  const controller=createModuleSettingsController({operations:h.operations,
+    access:h.access,persistence:h.persistence});
+  assert.equal(controller.getSnapshot().pendingCommand.operation,'unsupported');
+  assert.equal((await controller.reconcilePending()).code,'unsupported_operation');
+  assert.equal((await controller.accept({expectedRevision:0,expectedPlanDigest:hash,
+    intent:{schemaVersion:1,base:{revision:0,compositionDigest:hash,lockDigest:hash,
+      inventoryDigest:hash},actions:[]}})).kind,'unknown');
+  assert.deepEqual(h.calls,[]);
+  assert.deepEqual(h.getStored(),{requestKey,owner,operation:'plans.unrecognized'});
+  controller.dispose();
+});

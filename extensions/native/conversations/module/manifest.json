@@ -1157,6 +1157,54 @@
         }
       },
       {
+        "id": "widget-render-read-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "conversationId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "messageId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "instanceId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "conversationId",
+            "messageId",
+            "instanceId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "widget-render-read-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "instanceId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "output": {}
+          },
+          "required": [
+            "instanceId",
+            "output"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
         "id": "draft-read-input",
         "schema": {
           "type": "object",
@@ -5274,6 +5322,123 @@
         "public": false
       },
       {
+        "id": "widget.render.read",
+        "title": "Lire le résultat durable d’un widget historique",
+        "kind": "query",
+        "input": {
+          "schemaId": "widget-render-read-input"
+        },
+        "output": {
+          "schemaId": "widget-render-read-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.conversations",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "widgetRenderRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "conversation"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "model",
+              "id": "message"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 3,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "text",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
         "id": "draft.read",
         "title": "Lire un brouillon",
         "kind": "query",
@@ -6743,6 +6908,51 @@
         }
       },
       {
+        "id": "admin.widget.render.read",
+        "method": "GET",
+        "path": "/api/admin/conversations/widget/render/read",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "widget.render.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "query",
+            "inputField": "conversationId",
+            "required": true
+          },
+          {
+            "name": "message_id",
+            "in": "query",
+            "inputField": "messageId",
+            "required": true
+          },
+          {
+            "name": "instance_id",
+            "in": "query",
+            "inputField": "instanceId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "widget-render-read-input"
+        },
+        "output": {
+          "schemaId": "widget-render-read-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
         "id": "admin.draft.read",
         "method": "GET",
         "path": "/api/admin/conversations/draft/read",
@@ -7454,6 +7664,51 @@
         }
       },
       {
+        "id": "app.widget.render.read",
+        "method": "GET",
+        "path": "/api/app/conversations/widget/render/read",
+        "operation": {
+          "moduleId": "creezio.conversations",
+          "kind": "operation",
+          "id": "widget.render.read"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "query",
+            "inputField": "conversationId",
+            "required": true
+          },
+          {
+            "name": "message_id",
+            "in": "query",
+            "inputField": "messageId",
+            "required": true
+          },
+          {
+            "name": "instance_id",
+            "in": "query",
+            "inputField": "instanceId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "widget-render-read-input"
+        },
+        "output": {
+          "schemaId": "widget-render-read-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
         "id": "app.draft.read",
         "method": "GET",
         "path": "/api/app/conversations/draft/read",
@@ -8106,6 +8361,35 @@
           "textFallback": true
         },
         {
+          "id": "widget.render.read",
+          "name": "conversations_widget_render_read",
+          "operation": {
+            "moduleId": "creezio.conversations",
+            "kind": "operation",
+            "id": "widget.render.read"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "widget-render-read-input"
+          },
+          "output": {
+            "schemaId": "widget-render-read-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
           "id": "draft.read",
           "name": "conversations_draft_read",
           "operation": {
@@ -8431,6 +8715,11 @@
             {
               "moduleId": "creezio.conversations",
               "kind": "operation",
+              "id": "widget.render.read"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
               "id": "draft.read"
             },
             {
@@ -8565,6 +8854,11 @@
               "moduleId": "creezio.conversations",
               "kind": "operation",
               "id": "widget.context.read"
+            },
+            {
+              "moduleId": "creezio.conversations",
+              "kind": "operation",
+              "id": "widget.render.read"
             },
             {
               "moduleId": "creezio.conversations",

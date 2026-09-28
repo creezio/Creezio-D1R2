@@ -25,6 +25,22 @@ CREATE TABLE "cz_637265657a696f2e6d6f64756c65732d73657474696e6773_6a6f75726e616c
   PRIMARY KEY ("revision")
 ) WITHOUT ROWID;
 
+CREATE TABLE "cz_637265657a696f2e6d6f64756c65732d73657474696e6773_706c616e2d6f7574636f6d6573" (
+  "actor_principal_id" TEXT NOT NULL CHECK ("actor_principal_id" IS NOT NULL AND (typeof("actor_principal_id") = 'text' AND instr("actor_principal_id", char(0)) = 0 AND length("actor_principal_id") >= 1 AND length("actor_principal_id") <= 128)),
+  "base_composition_digest" TEXT NOT NULL CHECK ("base_composition_digest" IS NOT NULL AND (typeof("base_composition_digest") = 'text' AND instr("base_composition_digest", char(0)) = 0 AND length("base_composition_digest") >= 71 AND length("base_composition_digest") <= 71)),
+  "event_kind" TEXT NOT NULL CHECK ("event_kind" IS NOT NULL AND (typeof("event_kind") = 'text' AND instr("event_kind", char(0)) = 0 AND length("event_kind") >= 1 AND length("event_kind") <= 32 AND "event_kind" IN ('plan-effective', 'plan-cancelled'))),
+  "observed_composition_digest" TEXT NOT NULL CHECK ("observed_composition_digest" IS NOT NULL AND (typeof("observed_composition_digest") = 'text' AND instr("observed_composition_digest", char(0)) = 0 AND length("observed_composition_digest") >= 71 AND length("observed_composition_digest") <= 71)),
+  "observed_lock_digest" TEXT NOT NULL CHECK ("observed_lock_digest" IS NOT NULL AND (typeof("observed_lock_digest") = 'text' AND instr("observed_lock_digest", char(0)) = 0 AND length("observed_lock_digest") >= 71 AND length("observed_lock_digest") <= 71)),
+  "occurred_at_ms" INTEGER NOT NULL CHECK ("occurred_at_ms" IS NOT NULL AND (typeof("occurred_at_ms") = 'integer' AND "occurred_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "occurred_at_ms" >= 0 AND "occurred_at_ms" <= 9007199254740991)),
+  "plan_digest" TEXT NOT NULL CHECK ("plan_digest" IS NOT NULL AND (typeof("plan_digest") = 'text' AND instr("plan_digest", char(0)) = 0 AND length("plan_digest") >= 71 AND length("plan_digest") <= 71)),
+  "plan_id" TEXT NOT NULL CHECK ("plan_id" IS NOT NULL AND (typeof("plan_id") = 'text' AND instr("plan_id", char(0)) = 0 AND length("plan_id") >= 1 AND length("plan_id") <= 128)),
+  "reason" TEXT CHECK ("reason" IS NULL OR (typeof("reason") = 'text' AND instr("reason", char(0)) = 0 AND length("reason") >= 1 AND length("reason") <= 512)),
+  "revision" INTEGER NOT NULL CHECK ("revision" IS NOT NULL AND (typeof("revision") = 'integer' AND "revision" BETWEEN -9007199254740991 AND 9007199254740991 AND "revision" >= 1 AND "revision" <= 9007199254740991)),
+  "target_composition_digest" TEXT NOT NULL CHECK ("target_composition_digest" IS NOT NULL AND (typeof("target_composition_digest") = 'text' AND instr("target_composition_digest", char(0)) = 0 AND length("target_composition_digest") >= 71 AND length("target_composition_digest") <= 71)),
+  "target_lock_digest" TEXT NOT NULL CHECK ("target_lock_digest" IS NOT NULL AND (typeof("target_lock_digest") = 'text' AND instr("target_lock_digest", char(0)) = 0 AND length("target_lock_digest") >= 71 AND length("target_lock_digest") <= 71)),
+  PRIMARY KEY ("revision")
+) WITHOUT ROWID;
+
 CREATE TABLE "cz_637265657a696f2e6d6f64756c65732d73657474696e6773_706c616e73" (
   "accepted_at_ms" INTEGER NOT NULL CHECK ("accepted_at_ms" IS NOT NULL AND (typeof("accepted_at_ms") = 'integer' AND "accepted_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "accepted_at_ms" >= 0 AND "accepted_at_ms" <= 9007199254740991)),
   "accepted_by_principal_id" TEXT NOT NULL CHECK ("accepted_by_principal_id" IS NOT NULL AND (typeof("accepted_by_principal_id") = 'text' AND instr("accepted_by_principal_id", char(0)) = 0 AND length("accepted_by_principal_id") >= 1 AND length("accepted_by_principal_id") <= 128)),

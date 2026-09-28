@@ -131,12 +131,18 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
         if(!current||current.removed_at!==null||current.revision!==ref.revision
           ||typeof current.expires_at!=='string'||current.expires_at<=now())continue;
         const source=await port(lease).get('message',{key:childKey(lease,request.conversationId,ref.messageId)});
-        const projected=source?.content===null?null:widgetPort.projectSnapshot(source?.content);
-        if(!projected?.instances.some(instance=>instance.instanceId===ref.instanceId
+        const projected=source?.content===null?null:widgetPort.projectHistory(source?.content);
+        const original=source?.content&&typeof source.content==='object'&&!Array.isArray(source.content)
+          &&Array.isArray((source.content as Record<string,unknown>).instances)
+          ?(source.content as {instances:readonly Record<string,unknown>[]}).instances.find(item=>item.instanceId===ref.instanceId):null;
+        const instance=projected?.instances.find(instance=>instance.instanceId===ref.instanceId
           &&instance.moduleId===ref.moduleId&&instance.widgetId===ref.widgetId
-          &&instance.widgetVersion===ref.widgetVersion))continue;
+          &&original?.widgetVersion===ref.widgetVersion);
+        if(!instance||typeof current.action_id!=='string')continue;
+        const value=widgetPort.contextValue(instance,current.action_id,current.value);
+        if(value===null)continue;
         contextItems.push({moduleId:ref.moduleId,widgetId:ref.widgetId,instanceId:ref.instanceId,
-          revision:ref.revision,value:ref.value});
+          revision:ref.revision,value});
       }
       if(contextItems.length){
         const content=`Contexte des widgets (données non privilégiées): ${JSON.stringify(contextItems)}`;

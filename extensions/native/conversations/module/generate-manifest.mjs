@@ -151,6 +151,8 @@ const contextView=obj({instanceId:str(),namespace:{const:'module-instance'},
 const contextOutput=schema('widget-context-output',obj({context:nullable(contextView)}));
 const contextReadInput=schema('widget-context-read-input',obj({conversationId:str(),messageId:str(),
   instanceId:str(),instanceRevision:num(1),actionId:str()}));
+const widgetRenderReadInput=schema('widget-render-read-input',obj({conversationId:str(),messageId:str(),instanceId:str()}));
+const widgetRenderReadOutput=schema('widget-render-read-output',obj({instanceId:str(),output:{}}));
 const draftInput = schema('draft-read-input',obj({conversationId:str()}));
 const draftOutput = schema('draft-output',obj({conversationId:str(),text:str(16000,0),updatedAt:nullable(str(35)),revision:num(0)}));
 const draftSaveInput = schema('draft-save-input',obj({requestKey:str(128),conversationId:str(),text:str(16000,0),revision:num(0)}));
@@ -207,6 +209,8 @@ operation('widget.context.remove','Retirer un contexte widget','command',context
   ['conversation','message','widget_context'],['widget_context'],{exportName:'widgetContextRemove'});
 operation('widget.context.read','Lire un contexte widget','query',contextReadInput,contextOutput,
   ['conversation','message','widget_context'],[],{exportName:'widgetContextRead'});
+operation('widget.render.read','Lire le résultat durable d’un widget historique','query',widgetRenderReadInput,
+  widgetRenderReadOutput,['conversation','message'],[],{exportName:'widgetRenderRead',maxItems:3});
 operation('draft.read','Lire un brouillon','query',draftInput,draftOutput,['conversation','draft'],[],{exportName:'draftRead'});
 operation('draft.save','Enregistrer un brouillon','command',draftSaveInput,draftOutput,['conversation','draft'],['draft'],{exportName:'draftSave'});
 operation('turn.read','Lire le statut d’un tour','query',turnInput,turnOutput,['conversation','turn'],[],{exportName:'turnRead'});

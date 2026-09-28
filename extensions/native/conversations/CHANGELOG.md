@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.0 — T40, historique des widgets après mise à jour
+
+- La requête protégée `widget.render.read` retrouve le résultat durable d’une instance depuis son message natif et laisse l’hôte vérifier l’exécution, le propriétaire, l’acteur, l’audience, le contexte et les droits actuels. Le panneau utilise le renderer courant uniquement si sa compatibilité est déclarée ; aucune ancienne ressource HTML ni opération métier n’est rejouée.
+- Les contextes enregistrés conservent la version de leur instance et ne sont réinjectés qu’après validation des champs conservés par l’action courante. Les commandes incertaines et approbations anciennes restent bloquées si leur contrat a changé.
+
 ## 0.0.0 — T40, état du fournisseur dans un panneau vide
 
 - Le panneau Conversations lit la configuration publique OpenAI pour afficher son état, y compris avant la sélection d’une conversation. Le verdict `no_provider` initial du contrôleur ne masque plus un fournisseur prêt.

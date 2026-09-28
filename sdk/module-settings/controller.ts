@@ -2,7 +2,8 @@ import type {AccessController} from '../access/types.ts';
 import {createModuleSettingsClient, isModuleDocumentMetadata, type ModuleSettingsClient} from './client.ts';
 import type {ModuleSettingsController, ModuleSettingsPendingCommand, ModuleSettingsPendingPersistence,
   ModuleSettingsSnapshot, ModuleReadResult, ModuleIntent, ModulePlanPreview, ModuleCatalogPage,
-  ModuleDetail, ModulePlanRead, ModuleJournalPage, ModuleAcceptOutcome, ModuleDocumentList} from './types.ts';
+  ModuleDetail, ModulePlanRead, ModuleJournalPage, ModuleAcceptOutcome, ModuleTransitionOutcome,
+  ModuleMutationKind, ModuleDocumentList} from './types.ts';
 import type {OperationClient} from '../operations/client.ts';
 import {verifyInstalledDocumentContent} from '../modules/documents.ts';
 import type {InstalledModuleDocument, InstalledModuleDocumentMetadata} from '../modules/documents.ts';
@@ -14,7 +15,7 @@ const identityOf = (access: AccessController): string | null => {
     ? JSON.stringify([state.session.principalId, state.session.id]) : null;
 };
 const failed = <T>(error: string): ModuleReadResult<T> => Object.freeze({ok: false, error});
-const unknown = (requestKey: string, code: string): ModuleAcceptOutcome =>
+const unknown = (requestKey: string, code: string): ModuleAcceptOutcome | ModuleTransitionOutcome =>
   Object.freeze({kind: 'unknown', requestKey, code});
 const sameDocument = (left: InstalledModuleDocumentMetadata, right: InstalledModuleDocumentMetadata): boolean =>
   left.moduleId === right.moduleId && left.origin === right.origin && left.version === right.version
@@ -33,7 +34,9 @@ export function createModuleSettingsController(options: {operations: OperationCl
   let disposed = false, generation = 0, identity = identityOf(access), verifiedIdentity = identity;
   let identityVersion = 0, invalidation: string | null = null;
   function save(value: ModuleSettingsPendingCommand | null): boolean {
-    try { return persistence.save(value ? {requestKey: value.requestKey, owner: value.owner} : null) === true; }
+    if (value?.operation === 'unsupported') return false;
+    try { return persistence.save(value ? {requestKey: value.requestKey, owner: value.owner,
+      operation: value.operation} : null) === true; }
     catch { return false; }
   }
   function restore(owner: string | null): ModuleSettingsPendingCommand | null {
@@ -42,12 +45,16 @@ export function createModuleSettingsController(options: {operations: OperationCl
       const value: unknown = persistence.read();
       if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
       const row = value as Record<string, unknown>;
+      const operation = row.operation === undefined || row.operation === 'plans.accept'
+        ? 'plans.accept' : row.operation === 'plans.confirm-publication'
+          || row.operation === 'plans.cancel-pending' ? row.operation : 'unsupported';
       return row.owner === owner && typeof row.requestKey === 'string' && requestKeyPattern.test(row.requestKey)
-        ? Object.freeze({requestKey: row.requestKey, owner, code: 'reconciliation_required'}) : null;
+        ? Object.freeze({requestKey: row.requestKey, owner, operation,
+          code: operation === 'unsupported' ? 'unsupported_operation' : 'reconciliation_required'}) : null;
     } catch { return null; }
   }
   let pending = restore(identity);
-  let mutation: Promise<ModuleAcceptOutcome> | null = null;
+  let mutation: Promise<ModuleAcceptOutcome | ModuleTransitionOutcome> | null = null;
   let snapshot: ModuleSettingsSnapshot = Object.freeze({authorized: identity !== null, suspended: false,
     identityVersion, pendingCommand: pending});
   function publish() {
@@ -66,8 +73,10 @@ export function createModuleSettingsController(options: {operations: OperationCl
     if (state.pending !== null || state.phase === 'anonymous') {
       const marker = state.pending === null ? 'anonymous' : `pending:${state.pending}`;
       if (marker !== invalidation) identityVersion++;
-      invalidation = marker; verifiedIdentity = null; pending = null;
-      save(null);
+      invalidation = marker; verifiedIdentity = null;
+      const unsupported = pending?.operation === 'unsupported';
+      pending = null;
+      if (!unsupported) save(null);
     } else {
       invalidation = null;
       if (next !== null && next !== verifiedIdentity) {
@@ -122,14 +131,15 @@ export function createModuleSettingsController(options: {operations: OperationCl
       return Object.freeze({ok: true, value: Object.freeze({...selected, content})});
     }, viewIsCurrent);
   }
-  async function reconcile(): Promise<ModuleAcceptOutcome | null> {
+  async function reconcile(): Promise<ModuleAcceptOutcome | ModuleTransitionOutcome | null> {
     if (mutation) await mutation;
     const command = pending;
     if (!command || disposed) return null;
     if (identity !== command.owner) return unknown(command.requestKey, 'unauthorized');
+    if (command.operation === 'unsupported') return unknown(command.requestKey, 'unsupported_operation');
     const started = generation;
-    let result: ModuleAcceptOutcome;
-    try { result = await client.lookupAccept(command.requestKey,
+    let result: ModuleAcceptOutcome | ModuleTransitionOutcome;
+    try { result = await client.lookupCommand(command.operation, command.requestKey,
       () => !disposed && generation === started && identity === command.owner); }
     catch { result = unknown(command.requestKey, 'unavailable'); }
     if (pending !== command || disposed || generation !== started) return null;
@@ -141,17 +151,17 @@ export function createModuleSettingsController(options: {operations: OperationCl
       result = unknown(command.requestKey, 'persistence_unavailable'); }
     publish(); return result;
   }
-  function accept(input: {expectedRevision: number; expectedPlanDigest: string; intent: ModuleIntent}):
-    Promise<ModuleAcceptOutcome> {
-    if (disposed || identity === null) return Promise.resolve({kind: 'rejected', code: 'unauthorized'});
-    if (mutation) return Promise.resolve(unknown(pending?.requestKey ?? '', 'in_flight'));
-    if (pending) return Promise.resolve(unknown(pending.requestKey, pending.code));
+  function mutate<T extends ModuleAcceptOutcome | ModuleTransitionOutcome>(operation: ModuleMutationKind,
+    send: (requestKey: string, isCurrent: () => boolean) => Promise<T>): Promise<T> {
+    if (disposed || identity === null) return Promise.resolve({kind: 'rejected', code: 'unauthorized'} as T);
+    if (mutation) return Promise.resolve(unknown(pending?.requestKey ?? '', 'in_flight') as T);
+    if (pending) return Promise.resolve(unknown(pending.requestKey, pending.code) as T);
     const requestKey = crypto.randomUUID(), owner = identity;
-    const command: ModuleSettingsPendingCommand = Object.freeze({requestKey, owner, code: 'in_flight'});
-    if (!save(command)) return Promise.resolve({kind: 'rejected', code: 'persistence_unavailable'});
+    const command: ModuleSettingsPendingCommand = Object.freeze({requestKey, owner, operation, code: 'in_flight'});
+    if (!save(command)) return Promise.resolve({kind: 'rejected', code: 'persistence_unavailable'} as T);
     pending = command; publish();
     const started = generation;
-    const active = Promise.resolve().then(() => client.accept({...input, requestKey},
+    const active = Promise.resolve().then(() => send(requestKey,
       () => !disposed && generation === started && identity === owner)).catch(() => unknown(requestKey, 'outcome_unknown'))
       .then(result => {
         if (pending?.requestKey !== requestKey || disposed || generation !== started) return unknown(requestKey, 'stale');
@@ -162,8 +172,19 @@ export function createModuleSettingsController(options: {operations: OperationCl
         publish(); return result;
       }).finally(() => {if (mutation === active) mutation = null;});
     mutation = active;
-    return active;
+    return active as Promise<T>;
   }
+  const accept = (input: {expectedRevision: number; expectedPlanDigest: string; intent: ModuleIntent;
+    acknowledgeBaselineChange?: boolean}): Promise<ModuleAcceptOutcome> =>
+    mutate('plans.accept', (requestKey, isCurrent) => client.accept({...input, requestKey}, isCurrent));
+  const confirmPublication = (input: {expectedRevision: number; planId: string;
+    expectedPlanDigest: string}): Promise<ModuleTransitionOutcome> =>
+    mutate('plans.confirm-publication', (requestKey, isCurrent) =>
+      client.confirmPublication({...input, requestKey}, isCurrent));
+  const cancelPending = (input: {expectedRevision: number; planId: string;
+    expectedPlanDigest: string; reason: string}): Promise<ModuleTransitionOutcome> =>
+    mutate('plans.cancel-pending', (requestKey, isCurrent) =>
+      client.cancelPending({...input, requestKey}, isCurrent));
   return Object.freeze({
     getSnapshot: () => snapshot,
     subscribe(listener: () => void) {
@@ -178,6 +199,8 @@ export function createModuleSettingsController(options: {operations: OperationCl
     preview: (intent: ModuleIntent): Promise<ModuleReadResult<ModulePlanPreview>> =>
       read(isCurrent => client.preview(intent, isCurrent)),
     accept,
+    confirmPublication,
+    cancelPending,
     read: (planId: string): Promise<ModuleReadResult<ModulePlanRead>> =>
       read(isCurrent => client.read(planId, isCurrent)),
     journal: (input: {limit: number; afterRevision?: number | null}): Promise<ModuleReadResult<ModuleJournalPage>> =>

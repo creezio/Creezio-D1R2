@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {namedModule,compositionCase} from '../contracts/helpers.mjs';
 import {contractIntegrity} from '../../sdk/contracts/validate.mjs';
-import {catalogList,plansPreview,plansAccept,plansRead,journalList} from '../../extensions/native/modules-settings/module/service.ts';
+import {catalogList,plansPreview,plansAccept,plansCancelPending,plansRead,journalList}
+  from '../../extensions/native/modules-settings/module/service.ts';
 
 function fixture() {
   const original=namedModule('merchant.cart','merchant');
@@ -22,7 +23,7 @@ function fixture() {
     lockDigest:contractIntegrity(before.lock),inventoryDigest:inventory.digest};
   const intent={schemaVersion:1,base,actions:[{kind:'update',moduleId:updated.identity.id,
     candidateKey:candidate.candidateKey}]};
-  const records={head:null,plans:new Map(),journal:new Map()};
+  const records={head:null,plans:new Map(),journal:new Map(),'plan-outcomes':new Map()};
   const data={
     async get(model,{key}) {return model==='head'?records.head:records[model].get(key.id??key.revision)??null;},
     async list(model,{limit,after}) {const all=[...records[model].values()].filter(item=>!after||item.revision>after.revision)
@@ -70,6 +71,12 @@ test('module service derives catalog base from host and commits first plan as on
   assert.deepEqual(journal.items.map(item=>item.planId),[accepted.output.planId]);
   await assert.rejects(plansPreview({intent},context),{code:'conflict'},
     'an unpublished accepted plan cannot be overwritten from the old Worker composition');
+  const cancelled=await plansCancelPending({requestKey:'00000000-0000-4000-8000-000000000002',
+    expectedRevision:1,planId:accepted.output.planId,expectedPlanDigest:accepted.output.planDigest,
+    reason:'La cible ne correspond plus au runtime retenu.'},context);
+  assert.equal(cancelled.output.status,'cancelled');
+  assert.deepEqual(cancelled.plans.map(plan=>`${plan.action}:${plan.model}`),
+    ['patch:head','create:plan-outcomes']);
 });
 
 test('catalog separates available archives from Worker code and hides the exact current candidate',async()=>{

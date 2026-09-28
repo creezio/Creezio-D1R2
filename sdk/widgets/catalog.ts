@@ -80,6 +80,8 @@ export interface WidgetCatalogEntry {
   readonly moduleId: string;
   readonly widgetId: string;
   readonly version: string;
+  /** Declared renderer versions accepted for a stored native widget instance. */
+  readonly compatibility?: string;
   readonly resourceUri: string;
   readonly resourceMimeType: WidgetMimeType;
   readonly resourceDigest: Integrity;
@@ -171,6 +173,7 @@ export interface WidgetValidators {
   readonly state: ValueValidator;
   readonly result: ValueValidator;
   readonly actionInputs: ReadonlyMap<string, ValueValidator>;
+  readonly contextValues?: ReadonlyMap<string, ValueValidator>;
 }
 export type WidgetValidatorMap = ReadonlyMap<WidgetKey, WidgetValidators>;
 export type WidgetResourceMap = ReadonlyMap<ResourceKey, CompiledWidgetResource>;
@@ -287,6 +290,8 @@ export function validateCompiledWidgetCatalog(
   for (const w of catalog.widgets) {
     assert(validId(w.moduleId) && validId(w.widgetId), 'invalid widget identity');
     assert(w.version.length <= 128 && semver.test(w.version), 'invalid version');
+    assert(w.compatibility === undefined || typeof w.compatibility === 'string' &&
+      w.compatibility.length >= 1 && w.compatibility.length <= 256, 'invalid compatibility');
     assert(w.resourceMimeType === 'text/html;profile=mcp-app', 'invalid MIME');
     assert(validDigest(w.resourceDigest) && validDigest(w.bundleDigest), 'invalid digest');
     assert(w.resourceUri === resourceUriFor(w), 'resource URI must bind version and digest');

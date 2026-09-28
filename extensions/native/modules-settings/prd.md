@@ -16,11 +16,11 @@ Le résolveur commun part d’un inventaire compilé vérifié, jamais du graphe
 
 Le catalogue distingue la configuration de composition et celle qu'un fournisseur administre au runtime. Un réglage obligatoire ordinaire absent de la composition est « Configuration manquante » ; un réglage obligatoire associé à `provider` et absent de la composition reste « Configuration inconnue / Fonctionnement non vérifié », faute d'état runtime autorisé dans l'inventaire statique. Cette projection ne lit pas les données privées d'un autre module et ne bloque pas ses opérations ; l'état réel se consulte par le parcours autorisé du fournisseur.
 
-Les modèles privés head/plans/journal sont écrits via les plans du SDK dans le batch commun T06. Une permission dédiée creezio.modules-settings:manage s’applique aux comptes humains et délégations OAuth autorisées, dans l’audience admin et le contexte application. Aucune permission owner implicite.
+Les modèles privés head/plans/journal/plan-outcomes sont écrits via les plans du SDK dans le batch commun T06. Une permission dédiée creezio.modules-settings:manage s’applique aux comptes humains et délégations OAuth autorisées, dans l’audience admin et le contexte application. Aucune permission owner implicite.
 
 ## Interface et publication
 
-Conserver les composants de liste/fiche Product Hub avec navigation SDK et états de panneau. Les docs de version installée sont distinctes des futurs PRD éditables et du Kanban métier T23. Le plan accepté ne devient effectif que lorsque le Worker publié embarque les digests cibles. Sites attend une publication demandée dans GPT ; Docker/Cloudflare utilisent leurs adaptateurs de livraison, sans architecture métier différente.
+Conserver les composants de liste/fiche Product Hub avec navigation SDK et états de panneau. Les docs de version installée sont distinctes des futurs PRD éditables et du Kanban métier T23. Le plan accepté reste en attente jusqu'à une confirmation administrative native qui vérifie ensemble les empreintes de composition et de verrou du Worker réellement exécuté. Une confirmation est enregistrée comme événement durable ; un changement ultérieur du runtime ne modifie pas ce statut historique. Si les empreintes ne correspondent pas, l'administrateur peut annuler le plan en attente avec un motif conservé. Chaque clôture incrémente la révision par CAS atomique ; un nouveau plan utilise la composition et le verrou courants et exige la reconnaissance d'une baseline divergente. Les plans antérieurs sans événement ne reçoivent pas de confirmation rétroactive automatique. Sites attend une publication demandée dans GPT ; Docker/Cloudflare utilisent leurs adaptateurs de livraison, sans architecture métier différente.
 
 ## Documentation installée
 

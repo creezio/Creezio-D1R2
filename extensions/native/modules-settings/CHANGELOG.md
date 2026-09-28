@@ -1,5 +1,9 @@
 # Changelog
 
+## Non publié — cycle durable des plans
+
+Confirmation de publication par les deux empreintes runtime, annulation motivée d'un plan en attente et événement privé durable. L'historique reste lisible après un changement ultérieur du verrou. Le modèle `plan-outcomes` s'ajoute aux tables existantes ; aucune ligne antérieure n'est réécrite. Une nouvelle baseline différente doit être montrée et reconnue avant acceptation.
+
 ## Non publié — statut des réglages fournisseur
 
 Le Product Hub ne déduit plus « Configuration manquante / Indisponible » d'un réglage fournisseur obligatoire absent de la composition. Son état reste non vérifié tant qu'aucun état runtime autorisé n'est fourni ; les réglages ordinaires obligatoires absents restent signalés comme manquants.

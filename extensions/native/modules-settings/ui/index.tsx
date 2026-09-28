@@ -7,7 +7,7 @@ import {Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle
 import {createModuleSettingsController} from '../../../../sdk/module-settings/controller.ts';
 import type {ModuleSettingsController, ModuleSettingsSnapshot, ModuleCatalogPage, ModuleCatalogItem,
   ModuleDetail, ModuleIntent, ModuleJournalEntry, ModulePlanAcceptance, ModulePlanPreview,
-  ModulePlanRead, ModuleDocumentList} from '../../../../sdk/module-settings/types.ts';
+  ModulePlanRead, ModulePlanTransition, ModuleDocumentList} from '../../../../sdk/module-settings/types.ts';
 import type {ModuleActionKind} from '../../../../sdk/modules/types.ts';
 import type {InstalledModuleDocument} from '../../../../sdk/modules/documents.ts';
 import type {RuntimeViewProps} from '../../../../sdk/runtime/ui.ts';
@@ -24,7 +24,7 @@ const LIST_VIEW = 'creezio.modules-settings:list';
 
 function message(code: string) {
   if (code === 'unauthorized' || code === 'forbidden') return 'Accès réservé à la gestion des modules.';
-  if (code === 'stale' || code === 'conflict') return 'Le catalogue a changé. Actualisez les données et préparez un nouveau plan.';
+  if (code === 'stale' || code === 'conflict') return 'Le plan ou la version de référence a changé. Actualisez les données avant de continuer.';
   if (code === 'rate_limited') return 'Trop de demandes. Réessayez plus tard.';
   if (code === 'persistence_unavailable') return 'La reprise de la commande est indisponible dans cet onglet. Aucun plan n’a été envoyé.';
   if (code === 'invalid_response') return 'Réponse du serveur invalide. Aucune modification supplémentaire n’a été lancée.';
@@ -62,7 +62,7 @@ function useModuleController(props: RuntimeViewProps) {
 }
 
 function PendingNotice({controller, snapshot, onResolved}: {controller: ModuleSettingsController;
-  snapshot: ModuleSettingsSnapshot; onResolved: (accepted: ModulePlanAcceptance) => void}) {
+  snapshot: ModuleSettingsSnapshot; onResolved: (accepted: ModulePlanAcceptance | ModulePlanTransition) => void}) {
   const [checking, setChecking] = useState(false);
   const [feedback, setFeedback] = useState('');
   if (!snapshot.pendingCommand) return null;
@@ -76,7 +76,7 @@ function PendingNotice({controller, snapshot, onResolved}: {controller: ModuleSe
     } finally {setChecking(false);}
   }
   return <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-    Une demande d’acceptation doit être vérifiée avant toute autre modification.
+    Une commande de modules doit être vérifiée avant toute autre modification.
     <Button size="sm" variant="outline" className="ml-2" disabled={checking} onClick={() => void check()}>
       {checking ? 'Vérification…' : 'Vérifier la commande'}</Button>
     {feedback && <p className="mt-2">{feedback}</p>}
@@ -88,14 +88,47 @@ function AcceptedNotice({value}: {value: ModulePlanAcceptance | null}) {
     La livraison en cours reste la référence jusqu’à la construction et la publication vérifiées.
   </div>;
 }
-function PlanRecord({value}: {value: ModulePlanRead | null}) {
+function PlanRecord({value, controller, disabled, onChanged}: {value: ModulePlanRead | null;
+  controller: ModuleSettingsController | null; disabled: boolean; onChanged: () => void}) {
+  const [busy, setBusy] = useState(false);
+  const [reason, setReason] = useState('');
+  const [error, setError] = useState('');
+  async function close(kind: 'confirm' | 'cancel') {
+    if (!value || !controller || busy || disabled || value.status !== 'accepted_pending_publication') return;
+    setBusy(true);setError('');
+    try {
+      const base = {expectedRevision: value.plan.revision, planId: value.plan.id,
+        expectedPlanDigest: value.plan.planDigest};
+      const result = kind === 'confirm' ? await controller.confirmPublication(base)
+        : await controller.cancelPending({...base, reason: reason.trim()});
+      if (result.kind === 'accepted') {setReason('');onChanged();}
+      else if (result.kind === 'unknown') setError('Résultat incertain. Vérifiez la commande avant toute autre action.');
+      else setError(message(result.code));
+    } finally {setBusy(false);}
+  }
   return value && <Card><CardHeader><CardTitle className="text-base">Plan {value.plan.id}</CardTitle>
     <CardDescription>Révision {value.plan.revision} · {new Date(value.plan.acceptedAtMs).toLocaleString('fr-FR')}</CardDescription></CardHeader>
     <CardContent className="space-y-2 text-sm">
       <Badge variant={value.status === 'effective' ? 'success' : 'warning'}>
-        {value.status === 'effective' ? 'Publication vérifiée' : 'Publication en attente'}</Badge>
+        {value.status === 'effective' ? 'Publication vérifiée' : value.status === 'cancelled'
+          ? 'Plan annulé' : 'Publication en attente'}</Badge>
       <ul className="list-inside list-disc">{value.plan.summary.changes.map((change, index) =>
         <li key={`${change.moduleId}:${index}`}><code>{change.moduleId}</code> · {change.action}</li>)}</ul>
+      {value.status === 'accepted_pending_publication' && <div className="space-y-2 border-t border-slate-200 pt-3">
+        <p>{value.matchesRuntimeTarget
+          ? 'La livraison courante correspond exactement à la composition et au verrou cibles. Confirmez sa publication pour clore ce plan.'
+          : 'La livraison courante diffère de la cible. Vous pouvez annuler explicitement ce plan avec un motif conservé dans le journal.'}</p>
+        {value.matchesRuntimeTarget ? <Button size="sm" disabled={busy || disabled}
+          onClick={() => void close('confirm')}>Confirmer la publication</Button>
+          : <div className="space-y-2"><label className="block text-sm">Motif de l’annulation
+            <textarea className="mt-1 block w-full rounded-md border border-slate-300 p-2" maxLength={512}
+              value={reason} onChange={event => setReason(event.target.value)} /></label>
+            <Button size="sm" variant="outline" disabled={busy || disabled || !reason.trim()}
+              onClick={() => void close('cancel')}>Annuler ce plan en attente</Button></div>}
+        {error && <p role="alert" className="text-red-700">{error}</p>}
+      </div>}
+      {value.events.find(event => event.eventKind === 'plan-cancelled')?.reason &&
+        <p>Motif conservé : {value.events.find(event => event.eventKind === 'plan-cancelled')?.reason}</p>}
       {value.plan.summary.detailsPaged && <p className="text-xs text-slate-500">Le résumé est partiel ; consultez les autres détails du journal.</p>}
     </CardContent></Card>;
 }
@@ -138,11 +171,13 @@ function useJournal(controller: ModuleSettingsController | null, enabled: boolea
   return {items, next, record, error, refresh, more, open};
 }
 
-function JournalPanel({journal}: {journal: ReturnType<typeof useJournal>}) {
+function JournalPanel({journal, controller, disabled}: {journal: ReturnType<typeof useJournal>;
+  controller: ModuleSettingsController | null; disabled: boolean}) {
   return <div className="space-y-3">{journal.error && <p role="alert" className="text-sm text-red-700">{journal.error}</p>}
     <JournalCard items={journal.items} onOpen={id => void journal.open(id)} />
     {journal.next !== null && <Button size="sm" variant="outline" onClick={() => void journal.more()}>Plus anciens</Button>}
-    <PlanRecord value={journal.record} />
+    <PlanRecord value={journal.record} controller={controller} disabled={disabled}
+      onChanged={() => {void journal.refresh();}} />
   </div>;
 }
 
@@ -271,7 +306,9 @@ export function ModulesListView(props: RuntimeViewProps) {
       <Button size="sm" variant="outline" className="ml-auto" disabled={loading} onClick={() => {void load(); void journal.refresh();}}>
         <RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button></div>
     <p className="text-sm text-slate-600">Modules disponibles dans la livraison et composition courante. Les changements passent par un plan vérifié.</p>
-    <PendingNotice controller={controller} snapshot={snapshot} onResolved={value => {setAccepted(value); void journal.refresh();}} />
+    <PendingNotice controller={controller} snapshot={snapshot} onResolved={value => {
+      if (value.status === 'accepted_pending_publication') setAccepted(value);
+      void journal.refresh();}} />
     <AcceptedNotice value={accepted} />
     {error && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     <Tabs value={tab} onValueChange={setTab}><TabsList><TabsTrigger value="catalogue">Catalogue</TabsTrigger>
@@ -281,7 +318,8 @@ export function ModulesListView(props: RuntimeViewProps) {
           : <CatalogCards items={items} onOpen={moduleId => {props.navigation.open(DETAIL_VIEW, {moduleId});}} />}
         {next !== null && <Button size="sm" variant="outline" onClick={() => void more()}>Autres modules</Button>}
       </TabsContent>
-      <TabsContent value="journal" className="pt-4"><JournalPanel journal={journal} /></TabsContent>
+      <TabsContent value="journal" className="pt-4"><JournalPanel journal={journal} controller={controller}
+        disabled={!!snapshot.pendingCommand} /></TabsContent>
     </Tabs>
   </div>;
 }
@@ -320,6 +358,7 @@ export function ModuleDetailView(props: RuntimeViewProps) {
   const [exposure, setExposure] = useState<ExposureChoice | ''>('');
   const [intent, setIntent] = useState<ModuleIntent | null>(null);
   const [plan, setPlan] = useState<ModulePlanPreview | null>(null);
+  const [baselineAcknowledged, setBaselineAcknowledged] = useState(false);
   const [accepted, setAccepted] = useState<ModulePlanAcceptance | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -348,7 +387,7 @@ export function ModuleDetailView(props: RuntimeViewProps) {
   const load = useCallback(async () => {
     if (!enabled || !controller || !moduleId) return;
     const current = ++generation.current;
-    setPlan(null); setIntent(null);
+    setPlan(null); setIntent(null); setBaselineAcknowledged(false);
     setLoading(true);
     const result = await controller.detail(moduleId);
     if (current !== generation.current) return;
@@ -359,15 +398,17 @@ export function ModuleDetailView(props: RuntimeViewProps) {
   useEffect(() => {
     if (snapshot.identityVersion === identityVersion.current && props.authorized) return;
     identityVersion.current = snapshot.identityVersion;
-    generation.current++; setDetail(null); setPlan(null); setIntent(null); setAccepted(null); setError('');
+    generation.current++; setDetail(null); setPlan(null); setIntent(null); setAccepted(null);
+    setBaselineAcknowledged(false); setError('');
   }, [snapshot.identityVersion, props.authorized]);
   useEffect(() => {if (enabled) void load(); else generation.current++;}, [enabled, load, snapshot.identityVersion]);
-  useEffect(() => {setChoice(''); setExposure(''); setIntent(null); setPlan(null); setAccepted(null);}, [moduleId]);
+  useEffect(() => {setChoice(''); setExposure(''); setIntent(null); setPlan(null);
+    setBaselineAcknowledged(false); setAccepted(null);}, [moduleId]);
   async function prepare() {
     const requiresExposure = choice === 'add' || choice === 'enable';
     if (!enabled || !controller || !detail || !choice || busy || snapshot.pendingCommand || requiresExposure && !exposure) return;
     const current = generation.current;
-    setBusy(true); setPlan(null); setIntent(null); setAccepted(null); setError('');
+    setBusy(true); setPlan(null); setIntent(null); setBaselineAcknowledged(false); setAccepted(null); setError('');
     try {
       const page = await controller.list({limit: 1});
       if (current !== generation.current) return;
@@ -378,20 +419,23 @@ export function ModuleDetailView(props: RuntimeViewProps) {
       if (current !== generation.current) return;
       if (!preview.ok) {setError(message(preview.error)); return;}
       if (preview.value.baseRevision !== nextIntent.base.revision
-        || preview.value.baseCompositionDigest !== nextIntent.base.compositionDigest) {
+        || preview.value.baseCompositionDigest !== nextIntent.base.compositionDigest
+        || preview.value.baseLockDigest !== nextIntent.base.lockDigest) {
         setError(message('invalid_response')); return;
       }
       setIntent(nextIntent); setPlan(preview.value);
     } finally {if (current === generation.current) setBusy(false);}
   }
   async function accept() {
-    if (!enabled || !controller || !intent || !plan || busy || accepted || snapshot.pendingCommand || accepting.current) return;
+    if (!enabled || !controller || !intent || !plan || busy || accepted || snapshot.pendingCommand
+      || accepting.current || plan.baselineChanged && !baselineAcknowledged) return;
     const current = generation.current;
     accepting.current = true;
     setBusy(true); setError('');
     try {
       const result = await controller.accept({expectedRevision: plan.baseRevision,
-        expectedPlanDigest: plan.planDigest, intent});
+        expectedPlanDigest: plan.planDigest, intent,
+        ...(plan.baselineChanged ? {acknowledgeBaselineChange: true} : {})});
       if (current !== generation.current) return;
       if (result.kind === 'accepted') {setAccepted(result.value); void journal.refresh();}
       else if (result.kind === 'unknown') setError('Résultat incertain. Vérifiez la commande avant de préparer un nouveau plan.');
@@ -408,7 +452,9 @@ export function ModuleDetailView(props: RuntimeViewProps) {
         void load(); void journal.refresh(); void documentation.refresh();
       }}>
         <RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button></div>
-    <PendingNotice controller={controller} snapshot={snapshot} onResolved={value => {setAccepted(value); void journal.refresh();}} />
+    <PendingNotice controller={controller} snapshot={snapshot} onResolved={value => {
+      if (value.status === 'accepted_pending_publication') setAccepted(value);
+      void journal.refresh();}} />
     <AcceptedNotice value={accepted} />
     {error && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     {loading && !detail && <p className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Chargement…</p>}
@@ -446,13 +492,15 @@ export function ModuleDetailView(props: RuntimeViewProps) {
         <CardDescription>Le serveur vérifie l’inventaire compilé, le verrou et les dépendances avant l’acceptation.</CardDescription></CardHeader>
         <CardContent className="flex flex-wrap items-end gap-3"><label className="space-y-1 text-sm">Action
           <select className="block rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" value={choice}
-            onChange={event => {setChoice(event.target.value as Choice | ''); setExposure(''); setIntent(null); setPlan(null); setAccepted(null);}}
+            onChange={event => {setChoice(event.target.value as Choice | ''); setExposure('');
+              setIntent(null); setPlan(null); setBaselineAcknowledged(false); setAccepted(null);}}
             disabled={busy || !!snapshot.pendingCommand}>
             <option value="">Choisir une action</option>{choices(detail.module).map(value => <option key={value} value={value}>{choiceLabel[value]}</option>)}
           </select></label>
           {(choice === 'add' || choice === 'enable') && <label className="space-y-1 text-sm">Interface exposée
             <select className="block rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" value={exposure}
-              onChange={event => {setExposure(event.target.value as ExposureChoice | ''); setIntent(null); setPlan(null); setAccepted(null);}}
+              onChange={event => {setExposure(event.target.value as ExposureChoice | '');
+                setIntent(null); setPlan(null); setBaselineAcknowledged(false); setAccepted(null);}}
               disabled={busy || !!snapshot.pendingCommand}>
               <option value="">Choisir explicitement</option>
               <option value="admin">Administrateur</option><option value="app">Utilisateurs</option>
@@ -462,9 +510,11 @@ export function ModuleDetailView(props: RuntimeViewProps) {
             onClick={() => void prepare()}>
           {busy ? 'Préparation…' : 'Prévisualiser'}</Button></CardContent></Card>
         {plan && <PlanPreviewCard plan={plan} onAccept={() => void accept()}
+          baselineAcknowledged={baselineAcknowledged} onAcknowledgeBaseline={setBaselineAcknowledged}
           disabled={busy || !!snapshot.pendingCommand || !!accepted} />}
       </TabsContent>
-      <TabsContent value="journal" className="pt-4"><JournalPanel journal={journal} /></TabsContent>
+      <TabsContent value="journal" className="pt-4"><JournalPanel journal={journal} controller={controller}
+        disabled={!!snapshot.pendingCommand} /></TabsContent>
     </Tabs>}
   </div>;
 }

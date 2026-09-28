@@ -240,6 +240,19 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
             authorize(widget){if(widget.permissions.length)data.requirePermissions(lease,widget.permissions);},
             authorizeRender(render){try{return registry.resolve(render.moduleId,render.operationId).contractDigest===render.operationDigest;}
               catch{return false;}},
+            async readHistoricalRender(render){
+              let source:DataLease|undefined;
+              try {
+                const current=registry.resolve(render.moduleId,render.operationId);
+                if(current.declaration.kind!=='query')return null;
+                source=await authorize({...request,moduleId:render.moduleId,operationId:render.operationId},current);
+                const execution=await store.read(source,render.executionId);
+                return execution?.state==='succeeded'&&execution.moduleId===render.moduleId
+                  &&execution.operationId===render.operationId&&execution.operationVersion===render.operationDigest
+                  &&current.validateOutput(execution.output)===true?{output:execution.output}:null;
+              }catch{return null;}
+              finally{if(source)data.dispose(source);}
+            },
           })} : {}) });
         let attemptingCommit = false;
         let nativeStatements: readonly SqlStatement[] | undefined;

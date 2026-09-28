@@ -20,7 +20,7 @@ const ordered = (limit: number, where: Row, after: Row | null, indexId: string, 
 const summary = (row: Row) => ({id:row.id,title:row.title,mode:row.mode,updatedAt:row.updated_at,
   archivedAt:row.archived_at,revision:row.revision});
 const message = (row: Row,context?:OperationContext) => {
-  const content=row.content===null?null:context?.widgets?.projectSnapshot(row.content)??null;
+  const content=row.content===null?null:context?.widgets?.projectHistory(row.content)??null;
   return {id:row.id,conversationId:row.conversation_id,role:row.role,
     body:row.content!==null&&content===null?'Widget indisponible':row.body,
     content,createdAt:row.created_at,revision:row.revision};
@@ -181,11 +181,18 @@ async function changeWidgetContext(value:JsonValue,context:OperationContext,remo
     ||!Number.isSafeInteger(args.instanceRevision)||!Number.isSafeInteger(args.expectedRevision)
     ||Number(args.expectedRevision)<0)throw new OperationError('invalid_input');
   const source=await context.data.get('message',{key:childKey(context,String(conversationId),messageId)}) as Row|null;
-  const content=source?.content===null?null:context.widgets.projectSnapshot(source?.content);
+  const strict=source?.content===null?null:context.widgets.projectSnapshot(source?.content);
+  const content=strict??(source?.content===null?null:context.widgets.projectHistory(source?.content));
   if(!source||source.role!=='tool'||!content)throw new OperationError('not_found');
   const instance=content.instances.find(item=>item.instanceId===args.instanceId
     &&item.instanceRevision===args.instanceRevision);
   if(!instance)throw new OperationError('conflict');
+  const original=source.content&&typeof source.content==='object'&&!Array.isArray(source.content)
+    &&Array.isArray((source.content as Record<string,unknown>).instances)
+    ?(source.content as {instances:readonly Record<string,unknown>[]}).instances.find(item=>item.instanceId===instance.instanceId):null;
+  if(typeof original?.widgetVersion!=='string')throw new OperationError('not_found');
+  if(!strict&&instance.renderExecution&&await context.widgets.readHistory(source.content,instance.instanceId)===null)
+    throw new OperationError('not_found');
   let target:ReturnType<NonNullable<OperationContext['widgets']>['contextAction']>;
   try{target=context.widgets.contextAction(instance,String(args.actionId),args.input);}
   catch{throw new OperationError('forbidden');}
@@ -200,9 +207,9 @@ async function changeWidgetContext(value:JsonValue,context:OperationContext,remo
   const parentGuard=context.data.planGet('conversation',{key:key(context,String(conversationId)),where:{archived_at:null},required:true});
   const plan=prior?context.data.planPatch('widget_context',{key:k,compare:{field:'revision',expected},
     values:{value:contextValue,removed_at:remove?now:null,expires_at:expiresAt,updated_at:now,
-      widget_module_id:instance.moduleId,widget_id:instance.widgetId,widget_version:instance.widgetVersion,
+      widget_module_id:instance.moduleId,widget_id:instance.widgetId,widget_version:original.widgetVersion,
       message_id:messageId,action_id:String(args.actionId)}}):context.data.planCreate('widget_context',{values:{...k,
-    widget_module_id:instance.moduleId,widget_id:instance.widgetId,widget_version:instance.widgetVersion,
+    widget_module_id:instance.moduleId,widget_id:instance.widgetId,widget_version:original.widgetVersion,
     message_id:messageId,action_id:String(args.actionId),value:contextValue,revision:1,
     expires_at:expiresAt,removed_at:null,updated_at:now}});
   return {output:{context:{instanceId:instance.instanceId,namespace:target.namespace,revision:expected+1,
@@ -210,22 +217,38 @@ async function changeWidgetContext(value:JsonValue,context:OperationContext,remo
 }
 export const widgetContextReplace=(value:JsonValue,context:OperationContext)=>changeWidgetContext(value,context,false);
 export const widgetContextRemove=(value:JsonValue,context:OperationContext)=>changeWidgetContext(value,context,true);
+/** The caller supplies identities only. The snapshot and execution pointer come from the native message row. */
+export async function widgetRenderRead(value:JsonValue,context:OperationContext) {
+  const args=input(value),conversationId=args.conversationId,messageId=args.messageId,instanceId=args.instanceId;
+  await conversation(context,conversationId);
+  if(!validId(messageId)||!validId(instanceId)||!context.widgets)throw new OperationError('invalid_input');
+  const source=await context.data.get('message',{key:childKey(context,String(conversationId),messageId)}) as Row|null;
+  if(!source||source.role!=='tool'||source.content===null)throw new OperationError('not_found');
+  const output=await context.widgets.readHistory(source.content,instanceId);
+  if(output===null)throw new OperationError('not_found');
+  return {output:{instanceId,output:output.output}};
+}
 export async function widgetContextRead(value:JsonValue,context:OperationContext) {
   const args=input(value),conversationId=args.conversationId,messageId=args.messageId;
   await conversation(context,conversationId);
   if(!validId(messageId)||!validId(args.instanceId)||!validId(args.actionId)||!context.widgets
     ||!Number.isSafeInteger(args.instanceRevision))throw new OperationError('invalid_input');
   const source=await context.data.get('message',{key:childKey(context,String(conversationId),messageId)}) as Row|null;
-  const content=source?.content===null?null:context.widgets.projectSnapshot(source?.content);
+  const strict=source?.content===null?null:context.widgets.projectSnapshot(source?.content);
+  const content=strict??(source?.content===null?null:context.widgets.projectHistory(source?.content));
   const instance=content?.instances.find(item=>item.instanceId===args.instanceId
     &&item.instanceRevision===args.instanceRevision);
   if(!instance)throw new OperationError('not_found');
+  if(!strict&&instance.renderExecution&&await context.widgets.readHistory(source!.content,instance.instanceId)===null)
+    throw new OperationError('not_found');
   const k={...scope(context),conversation_id:String(conversationId),actor_principal_id:context.actorPrincipalId,
     instance_id:instance.instanceId,namespace:'module-instance'};
   const row=await context.data.get('widget_context',{key:k}) as Row|null;
   if(!row||row.action_id!==args.actionId||row.message_id!==messageId)return {output:{context:null}};
+  const storedValue=context.widgets.contextValue(instance,String(args.actionId),row.value);
+  if(storedValue===null)return {output:{context:null}};
   return {output:{context:{instanceId:instance.instanceId,namespace:'module-instance',revision:row.revision,
-    value:row.value,expiresAt:row.expires_at,removed:row.removed_at!==null||String(row.expires_at)<=at()}}};
+    value:storedValue,expiresAt:row.expires_at,removed:row.removed_at!==null||String(row.expires_at)<=at()}}};
 }
 export async function messageAdd(value:JsonValue,context:OperationContext) {
   const args=input(value), parent=await activeConversation(context,args.conversationId), revision=Number(args.revision);
@@ -277,14 +300,19 @@ async function captureWidgetContexts(context:OperationContext,conversationId:str
     for(const row of page.items){
       if(row.removed_at!==null||typeof row.expires_at!=='string'||row.expires_at<=at())continue;
       const source=await context.data.get('message',{key:childKey(context,conversationId,String(row.message_id))}) as Row|null;
-      const content=source?.content===null?null:context.widgets.projectSnapshot(source?.content);
+      const content=source?.content===null?null:context.widgets.projectHistory(source?.content);
+      const original=source?.content&&typeof source.content==='object'&&!Array.isArray(source.content)
+        &&Array.isArray((source.content as Record<string,unknown>).instances)
+        ?(source.content as {instances:readonly Record<string,unknown>[]}).instances.find(item=>item.instanceId===row.instance_id):null;
       const instance=content?.instances.find(item=>item.instanceId===row.instance_id
         &&item.moduleId===row.widget_module_id&&item.widgetId===row.widget_id
-        &&item.widgetVersion===row.widget_version);
+        &&original?.widgetVersion===row.widget_version);
       if(!instance)continue;
-      captured.push({moduleId:instance.moduleId,widgetId:instance.widgetId,widgetVersion:instance.widgetVersion,
+      const value=context.widgets.contextValue(instance,String(row.action_id),row.value);
+      if(value===null)continue;
+      captured.push({moduleId:instance.moduleId,widgetId:instance.widgetId,widgetVersion:row.widget_version,
         messageId:row.message_id,instanceId:instance.instanceId,revision:row.revision,
-        value:row.value,expiresAt:row.expires_at});
+        value,expiresAt:row.expires_at});
       if(captured.length>4||new TextEncoder().encode(JSON.stringify(captured)).length>4096)
         throw new OperationError('invalid_input');
     }

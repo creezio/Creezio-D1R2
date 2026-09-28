@@ -3,6 +3,11 @@ import {canonicalJson, contractIntegrity} from '../../sdk/contracts/validate.mjs
 import {validateCompiledWidgetCatalog, widgetKey} from '../../sdk/widgets/catalog.ts';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
+import standaloneCode from 'ajv/dist/standalone/index.js';
+import {buildSync} from 'esbuild';
+import {fileURLToPath} from 'node:url';
+
+const repository = fileURLToPath(new URL('../../', import.meta.url));
 
 export class WidgetCompilationError extends Error {
   constructor(code) { super(`Widget compilation failed (${code}).`); this.name = 'WidgetCompilationError'; this.code = code; }
@@ -12,6 +17,58 @@ const sha256 = bytes => `sha256-${createHash('sha256').update(bytes).digest('hex
 const key = (moduleId, id) => `${moduleId}:${id}`;
 const isActive = (disabled, moduleId, pointer) => !disabled.some(item => item.moduleId === moduleId
   && (item.path === pointer || pointer.startsWith(`${item.path}/`)));
+
+/** A stored context contains only target.fields, not the complete action input. */
+export function contextValueSchema(action,sourceId) {
+  if (action.mode !== 'context') fail('context-action');
+  const source = action.input.schema;
+  if (!source || typeof source !== 'object' || Array.isArray(source) || source.type !== 'object'
+    || !source.properties || typeof source.properties !== 'object' || Array.isArray(source.properties)) fail('context-schema');
+  if(typeof sourceId!=='string'||!sourceId.startsWith('urn:creezio:widget-context-source:'))fail('context-schema');
+  const properties = Object.create(null);
+  for (const field of action.target.fields) {
+    if (!Object.hasOwn(source.properties, field)) fail('context-schema');
+    const pointer = field.replaceAll('~','~0').replaceAll('/','~1');
+    properties[field] = {$ref:`${sourceId}#/properties/${pointer}`};
+  }
+  // Root conditions and required fields may depend on inputs that are not persisted.
+  // References inside a selected property resolve against the original schema root.
+  return {type:'object',properties,required:[...action.target.fields],additionalProperties:false};
+}
+
+/** Compile the host's context projections at composition time; AJV never runs in the Worker. */
+export function compileWidgetContextValidators(catalog) {
+  const ajv = addFormats(new Ajv2020({strict:true,strictRequired:true,ownProperties:true,
+    coerceTypes:false,useDefaults:false,removeAdditional:false,inlineRefs:false,
+    code:{source:true,esm:true,optimize:0}}));
+  const exports = Object.create(null), names = new Map();
+  try {
+    for (const [index, widget] of catalog.widgets.entries()) {
+      for (const [actionIndex, action] of widget.actions.entries()) {
+        if (action.mode !== 'context') continue;
+        const name = `context_${index}_${actionIndex}`;
+        const sourceId = `urn:creezio:widget-context-source:${index}:${actionIndex}`;
+        const schemaId = `urn:creezio:widget-context:${index}:${actionIndex}`;
+        ajv.addSchema({...action.input.schema,$id:sourceId},sourceId);
+        ajv.addSchema({...contextValueSchema(action,sourceId),$id:schemaId},schemaId);
+        exports[name] = schemaId;
+        names.set(`${index}:${action.id}`, name);
+      }
+    }
+    const raw = standaloneCode(ajv, exports);
+    const result = buildSync({absWorkingDir:repository,bundle:true,write:false,metafile:true,
+      platform:'browser',format:'esm',target:'es2022',legalComments:'none',sourcemap:false,
+      logLevel:'silent',stdin:{contents:raw,resolveDir:repository,sourcefile:'widget-context-validators.mjs',loader:'js'}});
+    const allowed = /^(?:node_modules\/ajv\/dist\/runtime\/[^/]+\.js|node_modules\/ajv-formats\/dist\/formats\.js|node_modules\/fast-deep-equal\/index\.js|widget-context-validators\.mjs)$/;
+    if (Object.keys(result.metafile.inputs).some(name => !allowed.test(name.replaceAll('\\','/')))
+      || Object.values(result.metafile.outputs).some(output => output.imports.length)
+      || Buffer.byteLength(result.outputFiles[0].text) > 8 * 1024 * 1024) fail('context-validator-bundle');
+    return {code:result.outputFiles[0].text,names};
+  } catch (error) {
+    if (error instanceof WidgetCompilationError) throw error;
+    fail('context-validator-bundle');
+  }
+}
 
 /** Preserve bundled JavaScript literally: replacement strings interpret $&, $` and $'. */
 export function embedWidgetRenderer(html, script) {
@@ -138,7 +195,7 @@ export function compileWidgetCatalog({composition, modules, operationCatalog, di
       if (previous && canonicalJson(previous) !== canonicalJson(metadata)) fail('profile-collision');
       profiles.set(cspProfileId, metadata);
       const entry = {
-        moduleId, widgetId: widget.id, version: widget.version, resourceUri: uri,
+        moduleId, widgetId: widget.id, version: widget.version, compatibility: widget.compatibility, resourceUri: uri,
         resourceMimeType: 'text/html;profile=mcp-app', resourceDigest, bundleDigest: resourceDigest,
         schemas: {input: schema(widget.input), state: schema(widget.state), result: schema(widget.result)},
         audiences, permissions: widget.permissions.map(ref => `${ref.moduleId}:${ref.id}`),
@@ -157,12 +214,20 @@ export function compileWidgetCatalog({composition, modules, operationCatalog, di
     coerceTypes: false, useDefaults: false, removeAdditional: false}));
   const validators = new Map();
   try {
-    for (const widget of widgets) {
+    for (const [widgetIndex, widget] of widgets.entries()) {
+      const contextValues = new Map();
+      for (const [actionIndex,action] of widget.actions.entries()) {
+        if (action.mode !== 'context') continue;
+        const sourceId = `urn:creezio:widget-context-source:${widgetIndex}:${actionIndex}`;
+        ajv.addSchema({...action.input.schema,$id:sourceId},sourceId);
+        contextValues.set(action.id,ajv.compile(contextValueSchema(action,sourceId)));
+      }
       validators.set(widgetKey(widget), {
         input: ajv.compile(widget.schemas.input.schema),
         state: ajv.compile(widget.schemas.state.schema),
         result: ajv.compile(widget.schemas.result.schema),
         actionInputs: new Map(widget.actions.map(action => [action.id, ajv.compile(action.input.schema)])),
+        contextValues,
       });
     }
     validateCompiledWidgetCatalog(catalog, {

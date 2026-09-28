@@ -44,6 +44,16 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
     item.digest === props.instance.resourceDigest && item.moduleId === props.instance.moduleId &&
     item.widgetId === props.instance.widgetId && item.version === props.instance.widgetVersion &&
     item.audiences.includes(host!.audience));
+  const approvalMatchesCurrent = (draft: WidgetApprovalDraft): boolean => {
+    const tool=entry?.serverTools.find(item=>item.toolName===draft.toolName
+      &&item.operationDigest===draft.operationDigest&&item.operationKind==='command');
+    const action=entry?.actions.find(item=>item.id===tool?.actionId);
+    return !!host&&!!tool&&action?.mode==='direct'&&action.target.kind==='operation'
+      &&action.target.operation.moduleId===draft.moduleId
+      &&action.target.operation.id===draft.operationId
+      &&host.resolveOperationBinding({moduleId:draft.moduleId,operationId:draft.operationId,
+        operationDigest:draft.operationDigest})===draft.bindingId;
+  };
   const session = host?.access.getSnapshot().session;
   const sessionId = session?.id;
   const journal = useMemo(() => {
@@ -83,6 +93,7 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
       approvalJournal?.clear(); approvalDraftRef.current = null; return;
     }
     if (!draft || !host || !host.approvalClient || !props.active) return;
+    if (!approvalMatchesCurrent(draft)) {setStatus('Ancienne confirmation conservée ; exécution indisponible.'); return;}
     let cancelled = false;
     const current = () => !cancelled && host.access.getSnapshot().session?.id === sessionId;
     void (async () => {
@@ -124,7 +135,7 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
       }
     })();
     return () => {cancelled = true;};
-  }, [approvalJournal, journal, host, sessionId, props.active]);
+  }, [approvalJournal, journal, host, entry, sessionId, props.active]);
   useEffect(() => {
     const node = iframe.current;
     if (!host || !node || !props.active || host.phase !== 'ready' || !config || !entry || !resource || !sessionId) {
@@ -234,21 +245,40 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
         const linked = entry.renderTools.some(tool => tool.operationModuleId === render.moduleId &&
           tool.operationId === render.operationId &&
           tool.operationDigest === render.operationDigest && tool.audiences.includes(host.audience));
-        if (!linked) {setStatus('Résultat du widget indisponible.'); return;}
-        const renderBinding = host.resolveOperationBinding({moduleId: render.moduleId,
-          operationId: render.operationId, operationDigest: render.operationDigest});
-        if (!renderBinding) {setStatus('Résultat du widget indisponible.'); return;}
-        const execution = await host.operationClient.status({bindingId: renderBinding,
-          contextId: host.contextId, executionId: render.executionId, isCurrent});
-        if (!isCurrent()) return;
-        if (execution.kind !== 'execution' || execution.execution.id !== render.executionId ||
-          execution.execution.state !== 'succeeded') {setStatus('Résultat du widget indisponible.'); return;}
+        const historical = !linked && entry.renderTools.some(tool => tool.operationModuleId === render.moduleId &&
+          tool.operationId === render.operationId && tool.audiences.includes(host.audience));
+        if (!linked && !historical) {setStatus('Résultat du widget indisponible.'); return;}
+        let output: unknown;
+        if (historical) {
+          // The server reads the native message and its exact historical execution. No old digest or output is client supplied.
+          const result = await host.operationClient.invoke({
+            bindingId: `creezio.conversations:${host.audience}.widget.render.read`,contextId:host.contextId,
+            input:{conversationId:props.conversationId,messageId:props.messageId,instanceId:props.instance.instanceId},isCurrent});
+          if (!isCurrent()) return;
+          const body = result.kind === 'execution' && result.execution.state === 'succeeded'
+            && result.execution.output && typeof result.execution.output === 'object'
+            && !Array.isArray(result.execution.output) ? result.execution.output as Record<string,unknown> : null;
+          if (!body || body.instanceId !== props.instance.instanceId || !Object.hasOwn(body,'output')) {
+            setStatus('Résultat du widget indisponible.'); return;
+          }
+          output=body.output;
+        } else {
+          const renderBinding = host.resolveOperationBinding({moduleId: render.moduleId,
+            operationId: render.operationId, operationDigest: render.operationDigest});
+          if (!renderBinding) {setStatus('Résultat du widget indisponible.'); return;}
+          const execution = await host.operationClient.status({bindingId: renderBinding,
+            contextId: host.contextId, executionId: render.executionId, isCurrent});
+          if (!isCurrent()) return;
+          if (execution.kind !== 'execution' || execution.execution.id !== render.executionId ||
+            execution.execution.state !== 'succeeded') {setStatus('Résultat du widget indisponible.'); return;}
+          output=execution.execution.output;
+        }
         try {
-          const outputBytes = new TextEncoder().encode(JSON.stringify(execution.execution.output)).byteLength;
+          const outputBytes = new TextEncoder().encode(JSON.stringify(output)).byteLength;
           if (outputBytes > entry.transport.maxPayloadBytes) throw new Error('render_output_too_large');
         } catch {setStatus('Résultat du widget indisponible.'); return;}
         initialResult = {content: [{type: 'text', text: 'Données du widget prêtes.'}],
-          structuredContent: {kind: 'creezio.widget.render.v1', input: execution.execution.output}};
+          structuredContent: {kind: 'creezio.widget.render.v1', input: output}};
       }
       try {
         const mounted = await createMcpAppsBridge({iframe: node,
@@ -322,6 +352,7 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
   const executeApproved = async (approved: PendingApproval) => {
     if (!host || host.access.getSnapshot().session?.id !== sessionId || !props.active ||
       pendingRef.current) return;
+    if (!approvalMatchesCurrent(approved)) {setStatus('Ancienne confirmation conservée ; exécution indisponible.'); return;}
     const approvedCommand = {bindingId: approved.bindingId, operationDigest: approved.operationDigest,
       toolName: approved.toolName, requestKey: approved.requestKey};
     if (!commitPending(approvedCommand)) {
@@ -355,6 +386,7 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
   const decideApproval = async (decision: 'approve' | 'reject') => {
     if (!host || !host.approvalClient || !approval || approvalBusy || !props.active ||
       host.access.getSnapshot().session?.id !== sessionId) return;
+    if (!approvalMatchesCurrent(approval)) {setStatus('Ancienne confirmation conservée ; exécution indisponible.'); return;}
     setApprovalBusy(true); setStatus('Décision en cours…');
     try {
       const decided = await host.approvalClient.decide(approval.preview, decision);

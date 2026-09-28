@@ -391,5 +391,165 @@
       "requiresApproval": true
     },
     "public": false
+  },
+  {
+    "id": "plan-outcomes",
+    "title": "Clôtures vérifiées des plans de modules",
+    "scope": "application",
+    "fields": [
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "plan_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "plan_digest",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 71,
+          "maxLength": 71
+        }
+      },
+      {
+        "id": "actor_principal_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "base_composition_digest",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 71,
+          "maxLength": 71
+        }
+      },
+      {
+        "id": "target_composition_digest",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 71,
+          "maxLength": 71
+        }
+      },
+      {
+        "id": "occurred_at_ms",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "target_lock_digest",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 71,
+          "maxLength": 71
+        }
+      },
+      {
+        "id": "observed_composition_digest",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 71,
+          "maxLength": 71
+        }
+      },
+      {
+        "id": "observed_lock_digest",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 71,
+          "maxLength": 71
+        }
+      },
+      {
+        "id": "event_kind",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 32,
+          "enum": [
+            "plan-effective",
+            "plan-cancelled"
+          ]
+        }
+      },
+      {
+        "id": "reason",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 512
+        }
+      }
+    ],
+    "primaryKey": [
+      "revision"
+    ],
+    "indexes": [],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.modules-settings",
+        "kind": "permission",
+        "id": "manage"
+      }
+    ],
+    "deletion": {
+      "mode": "hard",
+      "requiresApproval": true
+    },
+    "public": false
   }
 ]

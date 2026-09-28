@@ -8,6 +8,6 @@ test('list and module details have declared persistent identities and administra
   assert.ok(views.every(view=>view.permissions[0].moduleId===manifest.identity.id));
   const state=manifest.contracts.schemas.find(item=>item.id==='panel-state').schema;
   assert.equal(state.additionalProperties,false);
-  assert.deepEqual(Object.keys(state.properties),['pendingRequestKey','pendingOwner']);
+  assert.deepEqual(Object.keys(state.properties),['pendingRequestKey','pendingOwner','pendingOperation']);
   assert.equal(manifest.contracts.ui.front.mode,'absent');
 });

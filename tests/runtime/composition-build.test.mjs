@@ -81,7 +81,7 @@ function secondWitness(f) {
   return {module, save};
 }
 const generated = (root, name) => path.join(root, '.creezio/generated', name);
-const generatedNames = ['server.ts', 'client.tsx', 'widget-catalog.ts', 'composition.json', 'data-catalog.ts', 'file-catalog.ts', 'provider-catalog.ts', 'module-inventory.ts', 'operations.ts', 'operation-validators.mjs', 'operation-validators.d.mts'];
+const generatedNames = ['server.ts', 'client.tsx', 'widget-catalog.ts', 'composition.json', 'data-catalog.ts', 'file-catalog.ts', 'provider-catalog.ts', 'module-inventory.ts', 'operations.ts', 'operation-validators.mjs', 'operation-validators.d.mts', 'widget-context-validators.mjs', 'widget-context-validators.d.mts'];
 async function clientRegistry(root) {
   const source = readFileSync(generated(root, 'client.tsx'), 'utf8');
   // This unit qualifies the emitted audience flags; full component imports are
@@ -112,6 +112,7 @@ test('an explicitly empty composition builds no module, view, native access or w
   assert.deepEqual(result.nativeAccess, {admin:false,app:false});
   assert.deepEqual(read(generated(f.root,'composition.json')).nativeAccess, {admin:false,app:false});
   assert.deepEqual((await clientRegistry(f.root)).nativeAccess, {admin:false,app:false});
+  assert.match(readFileSync(generated(f.root,'widget-context-validators.d.mts'),'utf8'),/^export \{\};$/m);
   assert.doesNotMatch(readFileSync(generated(f.root, 'server.ts'), 'utf8'), /example\.witness|fixtures\/module-witness/);
   assert.doesNotMatch(readFileSync(generated(f.root, 'client.tsx'), 'utf8'), /fixtures\/module-witness/);
 });

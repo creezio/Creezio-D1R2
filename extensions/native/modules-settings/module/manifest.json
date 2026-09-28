@@ -827,18 +827,29 @@
             },
             "requiresPublication": {
               "type": "boolean"
+            },
+            "baselineChanged": {
+              "type": "boolean"
+            },
+            "baseLockDigest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 71,
+              "pattern": "^sha256-[a-f0-9]{64}$"
             }
           },
           "required": [
             "planDigest",
             "baseRevision",
             "baseCompositionDigest",
+            "baseLockDigest",
             "targetCompositionDigest",
             "targetLockDigest",
             "actions",
             "diagnostics",
             "disabledContributionCount",
-            "requiresPublication"
+            "requiresPublication",
+            "baselineChanged"
           ],
           "additionalProperties": false
         }
@@ -1009,6 +1020,9 @@
                 "actions"
               ],
               "additionalProperties": false
+            },
+            "acknowledgeBaselineChange": {
+              "type": "boolean"
             }
           },
           "required": [
@@ -1037,6 +1051,154 @@
             },
             "status": {
               "const": "accepted_pending_publication"
+            },
+            "planDigest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 71,
+              "pattern": "^sha256-[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "planId",
+            "revision",
+            "status",
+            "planDigest"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "plans-confirm-publication-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36,
+              "format": "uuid"
+            },
+            "expectedRevision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "planId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "expectedPlanDigest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 71,
+              "pattern": "^sha256-[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "requestKey",
+            "expectedRevision",
+            "planId",
+            "expectedPlanDigest"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "plans-confirm-publication-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "planId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 9007199254740991
+            },
+            "status": {
+              "const": "effective"
+            },
+            "planDigest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 71,
+              "pattern": "^sha256-[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "planId",
+            "revision",
+            "status",
+            "planDigest"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "plans-cancel-pending-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36,
+              "format": "uuid"
+            },
+            "expectedRevision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "planId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "expectedPlanDigest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 71,
+              "pattern": "^sha256-[a-f0-9]{64}$"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          "required": [
+            "requestKey",
+            "expectedRevision",
+            "planId",
+            "expectedPlanDigest",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "plans-cancel-pending-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "planId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 9007199254740991
+            },
+            "status": {
+              "const": "cancelled"
             },
             "planDigest": {
               "type": "string",
@@ -1266,7 +1428,29 @@
                     "maximum": 9007199254740991
                   },
                   "eventKind": {
-                    "const": "plan-accepted"
+                    "type": "string",
+                    "enum": [
+                      "plan-accepted",
+                      "plan-effective",
+                      "plan-cancelled"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "observedCompositionDigest": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 71,
+                    "pattern": "^sha256-[a-f0-9]{64}$"
+                  },
+                  "observedLockDigest": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 71,
+                    "pattern": "^sha256-[a-f0-9]{64}$"
                   }
                 },
                 "required": [
@@ -1287,14 +1471,19 @@
               "type": "string",
               "enum": [
                 "accepted_pending_publication",
-                "effective"
+                "effective",
+                "cancelled"
               ]
+            },
+            "matchesRuntimeTarget": {
+              "type": "boolean"
             }
           },
           "required": [
             "plan",
             "events",
-            "status"
+            "status",
+            "matchesRuntimeTarget"
           ],
           "additionalProperties": false
         }
@@ -1370,7 +1559,29 @@
                     "maximum": 9007199254740991
                   },
                   "eventKind": {
-                    "const": "plan-accepted"
+                    "type": "string",
+                    "enum": [
+                      "plan-accepted",
+                      "plan-effective",
+                      "plan-cancelled"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "observedCompositionDigest": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 71,
+                    "pattern": "^sha256-[a-f0-9]{64}$"
+                  },
+                  "observedLockDigest": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 71,
+                    "pattern": "^sha256-[a-f0-9]{64}$"
                   }
                 },
                 "required": [
@@ -1448,6 +1659,14 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 1024
+            },
+            "pendingOperation": {
+              "type": "string",
+              "enum": [
+                "plans.accept",
+                "plans.confirm-publication",
+                "plans.cancel-pending"
+              ]
             }
           },
           "required": [],
@@ -2148,6 +2367,166 @@
           "requiresApproval": true
         },
         "public": false
+      },
+      {
+        "id": "plan-outcomes",
+        "title": "Clôtures vérifiées des plans de modules",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "plan_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "plan_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "actor_principal_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "base_composition_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "target_composition_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "occurred_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "target_lock_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "observed_composition_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "observed_lock_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 71,
+              "maxLength": 71
+            }
+          },
+          {
+            "id": "event_kind",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 32,
+              "enum": [
+                "plan-effective",
+                "plan-cancelled"
+              ]
+            }
+          },
+          {
+            "id": "reason",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 512
+            }
+          }
+        ],
+        "primaryKey": [
+          "revision"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": true
+        },
+        "public": false
       }
     ],
     "files": [],
@@ -2185,6 +2564,11 @@
             "moduleId": "creezio.modules-settings",
             "kind": "model",
             "id": "journal"
+          },
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "model",
+            "id": "plan-outcomes"
           }
         ],
         "actions": [
@@ -2246,6 +2630,11 @@
               "moduleId": "creezio.modules-settings",
               "kind": "model",
               "id": "journal"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "plan-outcomes"
             }
           ],
           "writes": [],
@@ -2482,6 +2871,11 @@
               "moduleId": "creezio.modules-settings",
               "kind": "model",
               "id": "journal"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "plan-outcomes"
             }
           ],
           "writes": [],
@@ -2596,6 +2990,11 @@
               "moduleId": "creezio.modules-settings",
               "kind": "model",
               "id": "journal"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "plan-outcomes"
             }
           ],
           "writes": [
@@ -2685,6 +3084,263 @@
         "public": false
       },
       {
+        "id": "plans.confirm-publication",
+        "title": "Confirmer la publication du plan",
+        "kind": "command",
+        "input": {
+          "schemaId": "plans-confirm-publication-input"
+        },
+        "output": {
+          "schemaId": "plans-confirm-publication-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "application",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "plansConfirmPublication"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "head"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "plans"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "plan-outcomes"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "head"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "plan-outcomes"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 30000,
+          "maxItems": 1000,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "requestKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "plans.cancel-pending",
+        "title": "Annuler un plan en attente",
+        "kind": "command",
+        "input": {
+          "schemaId": "plans-cancel-pending-input"
+        },
+        "output": {
+          "schemaId": "plans-cancel-pending-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.modules-settings",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "application",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "plansCancelPending"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "head"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "plans"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "plan-outcomes"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "head"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "plan-outcomes"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 30000,
+          "maxItems": 1000,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "requestKey",
+            "reason"
+          ]
+        },
+        "public": false
+      },
+      {
         "id": "plans.read",
         "title": "Relire un plan accepté",
         "kind": "query",
@@ -2729,6 +3385,11 @@
               "moduleId": "creezio.modules-settings",
               "kind": "model",
               "id": "journal"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "plan-outcomes"
             }
           ],
           "writes": [],
@@ -2848,6 +3509,11 @@
               "moduleId": "creezio.modules-settings",
               "kind": "model",
               "id": "journal"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "model",
+              "id": "plan-outcomes"
             }
           ],
           "writes": [],
@@ -3253,6 +3919,72 @@
         }
       },
       {
+        "id": "plans.confirm-publication",
+        "method": "POST",
+        "path": "/api/admin/module-plans/{plan_id}/publication",
+        "operation": {
+          "moduleId": "creezio.modules-settings",
+          "kind": "operation",
+          "id": "plans.confirm-publication"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "plan_id",
+            "in": "path",
+            "inputField": "planId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "plans-confirm-publication-input"
+        },
+        "output": {
+          "schemaId": "plans-confirm-publication-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "plans.cancel-pending",
+        "method": "POST",
+        "path": "/api/admin/module-plans/{plan_id}/cancel",
+        "operation": {
+          "moduleId": "creezio.modules-settings",
+          "kind": "operation",
+          "id": "plans.cancel-pending"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "plan_id",
+            "in": "path",
+            "inputField": "planId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "plans-cancel-pending-input"
+        },
+        "output": {
+          "schemaId": "plans-cancel-pending-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
         "id": "plans.read",
         "method": "GET",
         "path": "/api/admin/module-plans/{plan_id}",
@@ -3535,6 +4267,62 @@
           "textFallback": true
         },
         {
+          "id": "plans.confirm-publication",
+          "name": "modules_plans_confirm_publication",
+          "operation": {
+            "moduleId": "creezio.modules-settings",
+            "kind": "operation",
+            "id": "plans.confirm-publication"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "plans-confirm-publication-input"
+          },
+          "output": {
+            "schemaId": "plans-confirm-publication-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "plans.cancel-pending",
+          "name": "modules_plans_cancel_pending",
+          "operation": {
+            "moduleId": "creezio.modules-settings",
+            "kind": "operation",
+            "id": "plans.cancel-pending"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "plans-cancel-pending-input"
+          },
+          "output": {
+            "schemaId": "plans-cancel-pending-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
           "id": "plans.read",
           "name": "modules_plans_read",
           "operation": {
@@ -3730,6 +4518,16 @@
             {
               "moduleId": "creezio.modules-settings",
               "kind": "operation",
+              "id": "plans.confirm-publication"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "plans.cancel-pending"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
               "id": "plans.read"
             },
             {
@@ -3799,6 +4597,16 @@
               "moduleId": "creezio.modules-settings",
               "kind": "operation",
               "id": "plans.accept"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "plans.confirm-publication"
+            },
+            {
+              "moduleId": "creezio.modules-settings",
+              "kind": "operation",
+              "id": "plans.cancel-pending"
             },
             {
               "moduleId": "creezio.modules-settings",

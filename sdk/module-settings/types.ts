@@ -64,17 +64,25 @@ export interface ModulePlanPreview {
   readonly planDigest: string;
   readonly baseRevision: number;
   readonly baseCompositionDigest: string;
+  readonly baseLockDigest: string;
   readonly targetCompositionDigest: string;
   readonly targetLockDigest: string;
   readonly actions: readonly ModulePlanAction[];
   readonly diagnostics: readonly ModuleDiagnostic[];
   readonly disabledContributionCount: number;
   readonly requiresPublication: boolean;
+  readonly baselineChanged: boolean;
 }
 export interface ModulePlanAcceptance {
   readonly planId: string;
   readonly revision: number;
   readonly status: 'accepted_pending_publication';
+  readonly planDigest: string;
+}
+export interface ModulePlanTransition {
+  readonly planId: string;
+  readonly revision: number;
+  readonly status: 'effective' | 'cancelled';
   readonly planDigest: string;
 }
 export interface ModuleAcceptedPlan {
@@ -99,12 +107,16 @@ export interface ModuleJournalEntry {
   readonly baseCompositionDigest: string;
   readonly targetCompositionDigest: string;
   readonly occurredAtMs: number;
-  readonly eventKind: 'plan-accepted';
+  readonly eventKind: 'plan-accepted' | 'plan-effective' | 'plan-cancelled';
+  readonly reason?: string;
+  readonly observedCompositionDigest?: string;
+  readonly observedLockDigest?: string;
 }
 export interface ModulePlanRead {
   readonly plan: ModuleAcceptedPlan;
   readonly events: readonly ModuleJournalEntry[];
-  readonly status: 'accepted_pending_publication' | 'effective';
+  readonly status: 'accepted_pending_publication' | 'effective' | 'cancelled';
+  readonly matchesRuntimeTarget: boolean;
 }
 export interface ModuleJournalPage {
   readonly items: readonly ModuleJournalEntry[];
@@ -132,14 +144,19 @@ export interface ModuleDocumentBlock {
 export type ModuleAcceptOutcome = Readonly<{kind: 'accepted'; value: ModulePlanAcceptance}>
   | Readonly<{kind: 'rejected'; code: string}>
   | Readonly<{kind: 'unknown'; code: string; requestKey: string}>;
+export type ModuleTransitionOutcome = Readonly<{kind: 'accepted'; value: ModulePlanTransition}>
+  | Readonly<{kind: 'rejected'; code: string}>
+  | Readonly<{kind: 'unknown'; code: string; requestKey: string}>;
+export type ModuleMutationKind = 'plans.accept' | 'plans.confirm-publication' | 'plans.cancel-pending';
 export interface ModuleSettingsPendingCommand {
   readonly requestKey: string;
   readonly owner: string;
   readonly code: string;
+  readonly operation: ModuleMutationKind | 'unsupported';
 }
 export interface ModuleSettingsPendingPersistence {
   read(): unknown;
-  save(value: Readonly<{requestKey: string; owner: string}> | null): boolean;
+  save(value: Readonly<{requestKey: string; owner: string; operation: ModuleMutationKind}> | null): boolean;
 }
 export interface ModuleSettingsSnapshot {
   readonly authorized: boolean;
@@ -153,12 +170,17 @@ export interface ModuleSettingsController {
   list(input: {limit: number; afterId?: string | null}): Promise<ModuleReadResult<ModuleCatalogPage>>;
   detail(moduleId: string): Promise<ModuleReadResult<ModuleDetail>>;
   preview(intent: ModuleIntent): Promise<ModuleReadResult<ModulePlanPreview>>;
-  accept(input: {expectedRevision: number; expectedPlanDigest: string; intent: ModuleIntent}): Promise<ModuleAcceptOutcome>;
+  accept(input: {expectedRevision: number; expectedPlanDigest: string; intent: ModuleIntent;
+    acknowledgeBaselineChange?: boolean}): Promise<ModuleAcceptOutcome>;
+  confirmPublication(input: {expectedRevision: number; planId: string;
+    expectedPlanDigest: string}): Promise<ModuleTransitionOutcome>;
+  cancelPending(input: {expectedRevision: number; planId: string;
+    expectedPlanDigest: string; reason: string}): Promise<ModuleTransitionOutcome>;
   read(planId: string): Promise<ModuleReadResult<ModulePlanRead>>;
   journal(input: {limit: number; afterRevision?: number | null}): Promise<ModuleReadResult<ModuleJournalPage>>;
   listDocuments(moduleId: string, isCurrent?: () => boolean): Promise<ModuleReadResult<ModuleDocumentList>>;
   loadDocument(metadata: InstalledModuleDocumentMetadata,
     isCurrent?: () => boolean): Promise<ModuleReadResult<InstalledModuleDocument>>;
-  reconcilePending(): Promise<ModuleAcceptOutcome | null>;
+  reconcilePending(): Promise<ModuleAcceptOutcome | ModuleTransitionOutcome | null>;
   dispose(): void;
 }

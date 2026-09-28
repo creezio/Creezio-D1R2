@@ -35,18 +35,34 @@ function host(context: OperationContext): ModuleSettingsHostInventory {
 function actualDigest(value: Readonly<Record<string, unknown>>): string {
   return modulePlanDigest(value) as string;
 }
-async function head(context: OperationContext): Promise<{revision: number; targetCompositionDigest: string | null;
-  targetLockDigest: string | null}> {
+type PlanOutcomeKind = 'plan-effective' | 'plan-cancelled';
+type HeadState = {revision: number; acceptedPlanId: string | null; acceptedPlanDigest: string | null;
+  targetCompositionDigest: string | null; targetLockDigest: string | null; outcome: PlanOutcomeKind | null};
+async function head(context: OperationContext): Promise<HeadState> {
   const record = await context.data.get('head', {key: {id: 'application'}});
-  if (!record) return {revision: 0, targetCompositionDigest: null, targetLockDigest: null};
+  if (!record) return {revision: 0, acceptedPlanId: null, acceptedPlanDigest: null,
+    targetCompositionDigest: null, targetLockDigest: null, outcome: null};
   if (!integer(record.revision) || record.revision < 1 || !digest(record.target_composition_digest)
-    || !digest(record.target_lock_digest)) throw new OperationError('unavailable');
-  return {revision: record.revision, targetCompositionDigest: record.target_composition_digest,
-    targetLockDigest: record.target_lock_digest};
+    || !digest(record.target_lock_digest) || !id(record.accepted_plan_id)
+    || !digest(record.accepted_plan_digest)) throw new OperationError('unavailable');
+  const event = await context.data.get('plan-outcomes', {key: {revision: record.revision}});
+  if (event) outcomeRecord(event);
+  if (event && (event.plan_id !== record.accepted_plan_id || event.plan_digest !== record.accepted_plan_digest
+    || event.target_composition_digest !== record.target_composition_digest
+    || event.target_lock_digest !== record.target_lock_digest
+    || !['plan-effective','plan-cancelled'].includes(String(event.event_kind))))
+    throw new OperationError('unavailable');
+  return {revision: record.revision, acceptedPlanId: record.accepted_plan_id,
+    acceptedPlanDigest: record.accepted_plan_digest,
+    targetCompositionDigest: record.target_composition_digest,
+    targetLockDigest: record.target_lock_digest, outcome: event?.event_kind as PlanOutcomeKind | undefined ?? null};
 }
-function settled(state: Awaited<ReturnType<typeof head>>, inventory: ModuleSettingsHostInventory): void {
-  if (state.revision && (state.targetCompositionDigest !== actualDigest(inventory.current.composition)
-    || state.targetLockDigest !== actualDigest(inventory.current.lock))) throw new OperationError('conflict');
+function settled(state: HeadState): void {
+  if (state.revision && !state.outcome) throw new OperationError('conflict');
+}
+function baselineChanged(state: HeadState, inventory: ModuleSettingsHostInventory): boolean {
+  return state.revision > 0 && (state.targetCompositionDigest !== actualDigest(inventory.current.composition)
+    || state.targetLockDigest !== actualDigest(inventory.current.lock));
 }
 function current(inventory: ModuleSettingsHostInventory, revision: number) {
   return {...inventory.current, revision};
@@ -240,23 +256,27 @@ function projection(plan: ModulePlanV1, inventory: ModuleSettingsHostInventory,
   const requiresPublication = !!plan.next && (plan.nextCompositionDigest !== plan.base.compositionDigest
     || plan.nextLockDigest !== plan.base.lockDigest);
   return {planDigest: planDigest(plan), baseRevision: plan.base.revision,
-    baseCompositionDigest: plan.base.compositionDigest,
+    baseCompositionDigest: plan.base.compositionDigest, baseLockDigest: plan.base.lockDigest,
     targetCompositionDigest: plan.nextCompositionDigest ?? plan.base.compositionDigest,
     targetLockDigest: plan.nextLockDigest ?? plan.base.lockDigest,
     actions: actions(plan, inventory, intent), diagnostics: diagnostics(plan),
-    disabledContributionCount: plan.summary.disabledContributionCount, requiresPublication};
+    disabledContributionCount: plan.summary.disabledContributionCount, requiresPublication,
+    baselineChanged: false};
 }
 export async function plansPreview(input: JsonValue, context: OperationContext): Promise<OperationHandlerResult> {
-  const inventory = host(context), state = await head(context); settled(state, inventory);
+  const inventory = host(context), state = await head(context); settled(state);
   const intent = intentOf(inputRow(input)), plan = evaluate(intent, inventory, state.revision);
-  return {output: projection(plan, inventory, intent)};
+  return {output: {...projection(plan, inventory, intent), baselineChanged: baselineChanged(state, inventory)}};
 }
 export async function plansAccept(input: JsonValue, context: OperationContext): Promise<OperationHandlerResult> {
   const request = inputRow(input), inventory = host(context), state = await head(context);
   if (!requestKey(request.requestKey) || !integer(request.expectedRevision) || !digest(request.expectedPlanDigest))
     throw new OperationError('invalid_input');
   if (request.expectedRevision !== state.revision) throw new OperationError('conflict');
-  settled(state, inventory);
+  settled(state);
+  const changed = baselineChanged(state, inventory);
+  if (changed && request.acknowledgeBaselineChange !== true
+    || !changed && request.acknowledgeBaselineChange === true) throw new OperationError('conflict');
   const intent = intentOf(request), preliminary = evaluate(intent, inventory, state.revision);
   if (!preliminary.next || !preliminary.choicesDigest || preliminary.summary.status !== 'ready')
     throw new OperationError('conflict');
@@ -291,8 +311,9 @@ export async function plansAccept(input: JsonValue, context: OperationContext): 
       values: {accepted_plan_id: planId, accepted_plan_digest: digestValue,
         target_composition_digest: plan.nextCompositionDigest, target_lock_digest: plan.nextLockDigest,
         accepted_at_ms: acceptedAtMs}, compare: {field: 'revision', expected: state.revision},
-      where: {target_composition_digest: plan.base.compositionDigest,
-        target_lock_digest: plan.base.lockDigest}});
+      where: {accepted_plan_id: state.acceptedPlanId!, accepted_plan_digest: state.acceptedPlanDigest!,
+        target_composition_digest: state.targetCompositionDigest!,
+        target_lock_digest: state.targetLockDigest!}});
   const output: ModulePlanAcceptance = {planId, revision, status: 'accepted_pending_publication',
     planDigest: digestValue};
   return {output, plans: [headPlan, context.data.planCreate('plans', {values: planValues}),
@@ -328,6 +349,79 @@ function acceptedPlan(record: DataRecord): ModuleAcceptedPlan {
       requiresPublication: record.requires_publication};
   } catch { throw new OperationError('unavailable'); }
 }
+function outcomeRecord(record: DataRecord): ModuleJournalEntry {
+  if (!integer(record.revision) || record.revision < 2 || !id(record.plan_id)
+    || !digest(record.plan_digest) || !id(record.actor_principal_id)
+    || !digest(record.base_composition_digest) || !digest(record.target_composition_digest)
+    || !digest(record.target_lock_digest) || !digest(record.observed_composition_digest)
+    || !digest(record.observed_lock_digest) || !integer(record.occurred_at_ms)
+    || !['plan-effective','plan-cancelled'].includes(String(record.event_kind))
+    || record.reason !== null && (typeof record.reason !== 'string' || bytes(record.reason) > 1024)
+    || record.event_kind === 'plan-effective' && (record.observed_composition_digest !== record.target_composition_digest
+      || record.observed_lock_digest !== record.target_lock_digest || record.reason !== null)
+    || record.event_kind === 'plan-cancelled' && (record.observed_composition_digest === record.target_composition_digest
+      && record.observed_lock_digest === record.target_lock_digest || !record.reason))
+    throw new OperationError('unavailable');
+  return {revision: record.revision, planId: record.plan_id, planDigest: record.plan_digest,
+    actorPrincipalId: record.actor_principal_id, baseCompositionDigest: record.base_composition_digest,
+    targetCompositionDigest: record.target_composition_digest, occurredAtMs: record.occurred_at_ms,
+    eventKind: record.event_kind as PlanOutcomeKind,
+    ...(record.reason ? {reason: record.reason} : {}),
+    observedCompositionDigest: record.observed_composition_digest,
+    observedLockDigest: record.observed_lock_digest};
+}
+async function pendingPlan(request: Row, context: OperationContext): Promise<{state: HeadState;
+  plan: ModuleAcceptedPlan; inventory: ModuleSettingsHostInventory}> {
+  if (!requestKey(request.requestKey) || !integer(request.expectedRevision)
+    || !id(request.planId) || !digest(request.expectedPlanDigest)) throw new OperationError('invalid_input');
+  const inventory = host(context), state = await head(context);
+  if (!state.revision || state.outcome || state.revision !== request.expectedRevision
+    || state.acceptedPlanId !== request.planId || state.acceptedPlanDigest !== request.expectedPlanDigest)
+    throw new OperationError('conflict');
+  const stored = await context.data.get('plans', {key: {id: request.planId}});
+  if (!stored) throw new OperationError('unavailable');
+  const plan = acceptedPlan(stored);
+  if (plan.revision !== state.revision || plan.planDigest !== state.acceptedPlanDigest
+    || plan.targetCompositionDigest !== state.targetCompositionDigest
+    || plan.targetLockDigest !== state.targetLockDigest
+    || state.revision >= Number.MAX_SAFE_INTEGER) throw new OperationError('unavailable');
+  return {state, plan, inventory};
+}
+function closePlan(context: OperationContext, state: HeadState, plan: ModuleAcceptedPlan,
+  inventory: ModuleSettingsHostInventory, kind: PlanOutcomeKind, reason: string | null): OperationHandlerResult {
+  const revision = state.revision + 1, occurredAtMs = Date.now();
+  const observedCompositionDigest = actualDigest(inventory.current.composition);
+  const observedLockDigest = actualDigest(inventory.current.lock);
+  const values: DataRecord = {revision, plan_id: plan.id, plan_digest: plan.planDigest,
+    actor_principal_id: context.actorPrincipalId, base_composition_digest: plan.baseCompositionDigest,
+    target_composition_digest: plan.targetCompositionDigest, target_lock_digest: plan.targetLockDigest,
+    observed_composition_digest: observedCompositionDigest, observed_lock_digest: observedLockDigest,
+    occurred_at_ms: occurredAtMs, event_kind: kind, reason};
+  const headPlan = context.data.planPatch('head', {key: {id: 'application'}, values: {accepted_at_ms: occurredAtMs},
+    compare: {field: 'revision', expected: state.revision},
+    where: {accepted_plan_id: plan.id, accepted_plan_digest: plan.planDigest,
+      target_composition_digest: plan.targetCompositionDigest, target_lock_digest: plan.targetLockDigest}});
+  return {output: {planId: plan.id, revision, status: kind === 'plan-effective' ? 'effective' : 'cancelled',
+    planDigest: plan.planDigest}, plans: [headPlan, context.data.planCreate('plan-outcomes', {values})]};
+}
+export async function plansConfirmPublication(input: JsonValue,
+  context: OperationContext): Promise<OperationHandlerResult> {
+  const {state, plan, inventory} = await pendingPlan(inputRow(input), context);
+  if (plan.targetCompositionDigest !== actualDigest(inventory.current.composition)
+    || plan.targetLockDigest !== actualDigest(inventory.current.lock)) throw new OperationError('conflict');
+  return closePlan(context, state, plan, inventory, 'plan-effective', null);
+}
+export async function plansCancelPending(input: JsonValue,
+  context: OperationContext): Promise<OperationHandlerResult> {
+  const request = inputRow(input);
+  if (typeof request.reason !== 'string' || !request.reason.trim()
+    || [...request.reason].length > 512 || bytes(request.reason) > 1024)
+    throw new OperationError('invalid_input');
+  const {state, plan, inventory} = await pendingPlan(request, context);
+  if (plan.targetCompositionDigest === actualDigest(inventory.current.composition)
+    && plan.targetLockDigest === actualDigest(inventory.current.lock)) throw new OperationError('conflict');
+  return closePlan(context, state, plan, inventory, 'plan-cancelled', request.reason.trim());
+}
 function journalEntry(record: DataRecord): ModuleJournalEntry {
   if (!integer(record.revision) || !id(record.plan_id) || !digest(record.plan_digest)
     || !id(record.actor_principal_id) || !digest(record.base_composition_digest)
@@ -348,18 +442,33 @@ export async function plansRead(input: JsonValue, context: OperationContext): Pr
   if (entry.plan_id !== plan.id || entry.plan_digest !== plan.planDigest
     || entry.target_composition_digest !== plan.targetCompositionDigest)
     throw new OperationError('unavailable');
+  const outcomeRow = await context.data.get('plan-outcomes', {key: {revision: plan.revision + 1}});
+  const outcome = outcomeRow ? outcomeRecord(outcomeRow) : null;
+  if (outcome && (outcome.planId !== plan.id || outcome.planDigest !== plan.planDigest
+    || outcome.targetCompositionDigest !== plan.targetCompositionDigest
+    || outcomeRow?.target_lock_digest !== plan.targetLockDigest
+    || outcomeRow?.base_composition_digest !== plan.baseCompositionDigest))
+    throw new OperationError('unavailable');
   const inventory = host(context);
-  const effective = plan.targetCompositionDigest === actualDigest(inventory.current.composition)
+  const matchesRuntimeTarget = plan.targetCompositionDigest === actualDigest(inventory.current.composition)
     && plan.targetLockDigest === actualDigest(inventory.current.lock);
-  const output: ModulePlanRead = {plan, events: [journalEntry(entry)],
-    status: effective ? 'effective' : 'accepted_pending_publication'};
+  const output: ModulePlanRead = {plan, events: outcome ? [journalEntry(entry), outcome] : [journalEntry(entry)],
+    status: outcome?.eventKind === 'plan-effective' ? 'effective'
+      : outcome?.eventKind === 'plan-cancelled' ? 'cancelled' : 'accepted_pending_publication',
+    matchesRuntimeTarget};
   return {output};
 }
 export async function journalList(input: JsonValue, context: OperationContext): Promise<OperationHandlerResult> {
   const options = boundedPage(inputRow(input), 'afterRevision');
-  const page = await context.data.list('journal', {limit: options.limit,
-    ...(options.after === undefined || options.after === null ? {} : {after: {revision: options.after as number}})});
-  const output: ModuleJournalPage = {items: page.items.map(journalEntry),
-    nextAfterRevision: page.nextAfter && integer(page.nextAfter.revision) ? page.nextAfter.revision : null};
+  const after = options.after === undefined || options.after === null ? {} : {after: {revision: options.after as number}};
+  const [accepted, outcomes] = await Promise.all([
+    context.data.list('journal', {limit: options.limit, ...after}),
+    context.data.list('plan-outcomes', {limit: options.limit, ...after})]);
+  const all = [...accepted.items.map(journalEntry), ...outcomes.items.map(outcomeRecord)]
+    .sort((left, right) => left.revision - right.revision);
+  const items = all.slice(0, options.limit);
+  const output: ModuleJournalPage = {items,
+    nextAfterRevision: (all.length > items.length || accepted.nextAfter || outcomes.nextAfter)
+      ? items.at(-1)?.revision ?? null : null};
   return {output};
 }

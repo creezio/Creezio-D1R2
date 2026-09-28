@@ -1,5 +1,9 @@
 # Changelog
 
+## En cours — conservation des widgets et cycle des plans (T40)
+
+La mise à jour réelle du module Lab 0.1.0 vers 0.1.2 conserve ses données mais rend ses anciens widgets indisponibles. Une correction de la projection compatible des messages est en développement. Le cycle des plans ajoute une confirmation fondée sur le runtime réel, une annulation motivée et un journal durable, sans réécrire les anciens plans. Les tests ciblés ne remplacent pas la qualification après publication. Voir [le suivi T40](docs/IMPLEMENTATION-T40.md).
+
 ## 28 septembre 2026 — checkpoints du chat administrateur intégrés (T-39)
 
 Les petits fragments du flux OpenAI sont regroupés avant écriture D1, avec flush aux événements de contrôle et à la fin du flux. L'annulation et la reprise gardent le curseur durable ; un accusé de checkpoint perdu n'entraîne pas de doublon. La correction répond à une coupure observée sur le Site A original. Core main `e51928f` a passé 1 163/1 163 tests CI ; sur le Site A publié depuis `cb716aa`, un tour post-correction a réussi en 14 161 ms avec un seul `turn.drive`, sans reprise manuelle, et une réponse persistée de 933 octets. Ce témoin ne qualifie pas la fluidité générale ni la recette complète. Voir la [note T39](docs/IMPLEMENTATION-T39.md).

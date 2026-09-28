@@ -94,7 +94,9 @@ function audienceLabel(audiences: readonly ('admin' | 'app')[]) {
   if (audiences.includes('admin') && audiences.includes('app')) return 'Administrateur et utilisateurs';
   return audiences.includes('admin') ? 'Administrateur' : 'Utilisateurs';
 }
-export function PlanPreviewCard({plan, onAccept, disabled}: {plan: ModulePlanPreview; onAccept: () => void; disabled: boolean}) {
+export function PlanPreviewCard({plan, onAccept, disabled, baselineAcknowledged, onAcknowledgeBaseline}:
+  {plan: ModulePlanPreview; onAccept: () => void; disabled: boolean; baselineAcknowledged: boolean;
+    onAcknowledgeBaseline: (value: boolean) => void}) {
   const blocked = plan.diagnostics.some(item => item.severity === 'error');
   return <Card><CardHeader><CardTitle className="flex items-center gap-2 text-base"><Puzzle aria-hidden="true" className="h-4 w-4" /> Plan de changement</CardTitle>
     <CardDescription>Révision {plan.baseRevision} · Plan {shortDigest(plan.planDigest)}</CardDescription></CardHeader>
@@ -112,13 +114,22 @@ export function PlanPreviewCard({plan, onAccept, disabled}: {plan: ModulePlanPre
       </p>}
       <p className="text-xs text-slate-500">Composition cible : <code>{shortDigest(plan.targetCompositionDigest)}</code><br />
         Verrou cible : <code>{shortDigest(plan.targetLockDigest)}</code></p>
+      {plan.baselineChanged && <label className="block rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+        <span>La livraison actuelle diffère de la dernière cible clôturée. Ce plan part de la composition
+          <code> {shortDigest(plan.baseCompositionDigest)}</code> et du verrou
+          <code> {shortDigest(plan.baseLockDigest)}</code>. Vérifiez cette nouvelle version de référence.</span>
+        <span className="mt-2 flex items-center gap-2"><input type="checkbox" checked={baselineAcknowledged}
+          onChange={event => onAcknowledgeBaseline(event.target.checked)} disabled={disabled} />
+          Accepter explicitement cette version de référence pour ce plan</span>
+      </label>}
       {plan.requiresPublication && <p role="status" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
         L’acceptation enregistrera la demande. Le module ne sera installé ou activé qu’après construction et publication vérifiées.
       </p>}
       {!plan.requiresPublication && !blocked && plan.actions.length > 0 && <p role="status" className="text-sm text-slate-600">
         Ce plan ne change ni la composition ni le verrou. Il n’y a rien à accepter.
       </p>}
-      <Button onClick={onAccept} disabled={disabled || blocked || !plan.requiresPublication || plan.actions.length === 0}>Accepter le plan</Button>
+      <Button onClick={onAccept} disabled={disabled || blocked || !plan.requiresPublication
+        || plan.actions.length === 0 || plan.baselineChanged && !baselineAcknowledged}>Accepter le plan</Button>
     </CardContent></Card>;
 }
 
@@ -126,7 +137,10 @@ export function JournalCard({items, onOpen}: {items: readonly ModuleJournalEntry
   return <Card><CardHeader><CardTitle className="flex items-center gap-2 text-base"><History aria-hidden="true" className="h-4 w-4" /> Journal des plans</CardTitle>
     <CardDescription>Demandes acceptées, distinctes des versions effectivement publiées.</CardDescription></CardHeader>
     <CardContent>{items.length ? <ol className="space-y-2">{items.map(item => <li key={`${item.revision}:${item.planId}`} className="rounded-md border border-slate-200 p-3 text-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2"><strong>Révision {item.revision}</strong><Badge variant="info">Plan accepté</Badge></div>
+      <div className="flex flex-wrap items-center justify-between gap-2"><strong>Révision {item.revision}</strong>
+        <Badge variant={item.eventKind === 'plan-effective' ? 'success' : 'info'}>
+          {item.eventKind === 'plan-effective' ? 'Publication vérifiée'
+            : item.eventKind === 'plan-cancelled' ? 'Plan annulé' : 'Plan accepté'}</Badge></div>
       <p className="font-mono text-xs text-slate-500">{item.planId}</p>
       <p className="text-xs text-slate-500">{date(item.occurredAtMs)}</p>
       {onOpen && <Button size="sm" variant="ghost" onClick={() => onOpen(item.planId)}>Voir le plan</Button>}

@@ -2,9 +2,9 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {manifest} from '../helpers.mjs';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
-test('HTTP and MCP bind the same eight operations with administrative native authentication',()=>{
+test('HTTP and MCP bind the same ten operations with administrative native authentication',()=>{
   const ids=manifest.contracts.operations.map(op=>op.id);
-  assert.equal(ids.length,8);
+  assert.equal(ids.length,10);
   assert.deepEqual(manifest.contracts.api.map(binding=>binding.operation.id),ids);
   assert.deepEqual(manifest.contracts.mcp.tools.map(tool=>tool.operation.id),ids);
   assert.ok(manifest.contracts.api.every(binding=>binding.audience==='admin'&&binding.auth.join(',')==='session,oauth'));
@@ -12,6 +12,16 @@ test('HTTP and MCP bind the same eight operations with administrative native aut
   const tool=manifest.contracts.mcp.tools.find(tool=>tool.id==='plans.accept');
   assert.equal(tool.annotations.readOnly,false);assert.equal(tool.annotations.idempotent,true);
   assert.equal(tool.annotations.openWorld,false);
+  for(const [id,path] of [['plans.confirm-publication','/api/admin/module-plans/{plan_id}/publication'],
+    ['plans.cancel-pending','/api/admin/module-plans/{plan_id}/cancel']]){
+    const operation=manifest.contracts.operations.find(item=>item.id===id);
+    const binding=manifest.contracts.api.find(item=>item.id===id);
+    const mcp=manifest.contracts.mcp.tools.find(item=>item.id===id);
+    assert.deepEqual(operation.permissions,[{moduleId:'creezio.modules-settings',kind:'permission',id:'manage'}]);
+    assert.equal(binding.method,'POST');assert.equal(binding.path,path);
+    assert.deepEqual(binding.parameters,[{name:'plan_id',in:'path',inputField:'planId',required:true}]);
+    assert.deepEqual(mcp.annotations,{readOnly:false,destructive:false,idempotent:true,openWorld:false});
+  }
 });
 
 test('installed documentation reads are bounded queries with pinned document identity and no arbitrary path',()=>{

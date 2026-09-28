@@ -2,6 +2,7 @@ import type {OperationClient, OperationClientResult} from '../operations/client.
 import type {ModuleIntent, ModuleReadResult, ModuleCatalogPage, ModuleCatalogItem, ModuleDetail,
   ModuleDiagnostic, ModuleDependency, ModulePlanAction, ModulePlanPreview, ModulePlanAcceptance,
   ModuleAcceptedPlan, ModuleJournalEntry, ModulePlanRead, ModuleJournalPage, ModuleAcceptOutcome,
+  ModulePlanTransition, ModuleTransitionOutcome, ModuleMutationKind,
   ModuleDocumentList, ModuleDocumentReadInput, ModuleDocumentBlock} from './types.ts';
 import type {InstalledModuleDocumentMetadata} from '../modules/documents.ts';
 
@@ -10,6 +11,8 @@ export const MODULE_SETTINGS_BINDINGS = Object.freeze({
   catalogDetail: 'creezio.modules-settings:catalog.detail',
   plansPreview: 'creezio.modules-settings:plans.preview',
   plansAccept: 'creezio.modules-settings:plans.accept',
+  plansConfirmPublication: 'creezio.modules-settings:plans.confirm-publication',
+  plansCancelPending: 'creezio.modules-settings:plans.cancel-pending',
   plansRead: 'creezio.modules-settings:plans.read',
   journalList: 'creezio.modules-settings:journal.list',
   docsList: 'creezio.modules-settings:docs.list',
@@ -72,15 +75,19 @@ function detail(value: unknown): value is ModuleDetail {
 }
 function preview(value: unknown): value is ModulePlanPreview {
   return row(value) && digest(value.planDigest) && integer(value.baseRevision)
-    && digest(value.baseCompositionDigest) && digest(value.targetCompositionDigest)
+    && digest(value.baseCompositionDigest) && digest(value.baseLockDigest) && digest(value.targetCompositionDigest)
     && digest(value.targetLockDigest) && array(value.actions, 256) && value.actions.every(planAction)
     && array(value.diagnostics, 128) && value.diagnostics.every(diagnostic)
     && integer(value.disabledContributionCount)
-    && typeof value.requiresPublication === 'boolean';
+    && typeof value.requiresPublication === 'boolean' && typeof value.baselineChanged === 'boolean';
 }
 function acceptance(value: unknown): value is ModulePlanAcceptance {
   return row(value) && id(value.planId) && integer(value.revision) && value.revision > 0
     && value.status === 'accepted_pending_publication' && digest(value.planDigest);
+}
+function transition(value: unknown): value is ModulePlanTransition {
+  return row(value) && id(value.planId) && integer(value.revision) && value.revision > 1
+    && ['effective','cancelled'].includes(String(value.status)) && digest(value.planDigest);
 }
 function summary(value: unknown): boolean {
   return row(value) && ['ready','blocked'].includes(String(value.status))
@@ -100,11 +107,15 @@ function journalEntry(value: unknown): value is ModuleJournalEntry {
   return row(value) && integer(value.revision) && value.revision > 0 && id(value.planId)
     && digest(value.planDigest) && id(value.actorPrincipalId)
     && digest(value.baseCompositionDigest) && digest(value.targetCompositionDigest)
-    && integer(value.occurredAtMs) && value.eventKind === 'plan-accepted';
+    && integer(value.occurredAtMs) && ['plan-accepted','plan-effective','plan-cancelled'].includes(String(value.eventKind))
+    && (value.reason === undefined || text(value.reason, 512))
+    && (value.observedCompositionDigest === undefined || digest(value.observedCompositionDigest))
+    && (value.observedLockDigest === undefined || digest(value.observedLockDigest));
 }
 function planRead(value: unknown): value is ModulePlanRead {
   return row(value) && acceptedPlan(value.plan) && array(value.events, 50)
-    && value.events.every(journalEntry) && ['accepted_pending_publication','effective'].includes(String(value.status));
+    && value.events.every(journalEntry) && ['accepted_pending_publication','effective','cancelled'].includes(String(value.status))
+    && typeof value.matchesRuntimeTarget === 'boolean';
 }
 function journalPage(value: unknown): value is ModuleJournalPage {
   return row(value) && array(value.items, 51) && value.items.every(journalEntry)
@@ -145,13 +156,15 @@ function readResult<T>(result: OperationClientResult, valid: (value: unknown) =>
   if (result.execution.state !== 'succeeded') return fail(result.execution.errorCode ?? 'unavailable');
   return valid(result.execution.output) ? ok(result.execution.output) : fail('invalid_response');
 }
-function commandResult(result: OperationClientResult, requestKey: string): ModuleAcceptOutcome {
+function commandResult<T>(result: OperationClientResult, requestKey: string,
+  valid: (value: unknown) => value is T): Readonly<{kind: 'accepted'; value: T}>
+    | Readonly<{kind: 'rejected'; code: string}> | Readonly<{kind: 'unknown'; code: string; requestKey: string}> {
   if (result.kind === 'unknown') return {kind: 'unknown', code: result.code, requestKey};
   if (result.kind === 'rejected') return {kind: 'rejected', code: result.code};
   if (result.execution.state === 'unknown' || result.execution.state === 'running'
     || result.execution.state === 'waiting') return {kind: 'unknown', code: result.execution.errorCode ?? 'outcome_unknown', requestKey};
   if (result.execution.state !== 'succeeded') return {kind: 'rejected', code: result.execution.errorCode ?? 'unavailable'};
-  return acceptance(result.execution.output) ? {kind: 'accepted', value: result.execution.output}
+  return valid(result.execution.output) ? {kind: 'accepted', value: result.execution.output}
     : {kind: 'unknown', code: 'invalid_response', requestKey};
 }
 
@@ -168,9 +181,18 @@ export function createModuleSettingsClient(operations: OperationClient) {
       readResult(await invoke(MODULE_SETTINGS_BINDINGS.catalogDetail, {moduleId}, isCurrent), detail),
     preview: async (intent: ModuleIntent, isCurrent?: () => boolean) =>
       readResult(await invoke(MODULE_SETTINGS_BINDINGS.plansPreview, {intent}, isCurrent), preview),
-    accept: async (input: {requestKey: string; expectedRevision: number; expectedPlanDigest: string; intent: ModuleIntent},
+    accept: async (input: {requestKey: string; expectedRevision: number; expectedPlanDigest: string; intent: ModuleIntent;
+      acknowledgeBaselineChange?: boolean},
       isCurrent?: () => boolean): Promise<ModuleAcceptOutcome> =>
-      commandResult(await invoke(MODULE_SETTINGS_BINDINGS.plansAccept, input, isCurrent), input.requestKey),
+      commandResult(await invoke(MODULE_SETTINGS_BINDINGS.plansAccept, input, isCurrent), input.requestKey, acceptance),
+    confirmPublication: async (input: {requestKey: string; expectedRevision: number; planId: string;
+      expectedPlanDigest: string}, isCurrent?: () => boolean): Promise<ModuleTransitionOutcome> =>
+      commandResult(await invoke(MODULE_SETTINGS_BINDINGS.plansConfirmPublication, input, isCurrent),
+        input.requestKey, transition),
+    cancelPending: async (input: {requestKey: string; expectedRevision: number; planId: string;
+      expectedPlanDigest: string; reason: string}, isCurrent?: () => boolean): Promise<ModuleTransitionOutcome> =>
+      commandResult(await invoke(MODULE_SETTINGS_BINDINGS.plansCancelPending, input, isCurrent),
+        input.requestKey, transition),
     read: async (planId: string, isCurrent?: () => boolean) =>
       readResult(await invoke(MODULE_SETTINGS_BINDINGS.plansRead, {planId}, isCurrent), planRead),
     journal: async (input: {limit: number; afterRevision?: number | null}, isCurrent?: () => boolean) =>
@@ -183,9 +205,15 @@ export function createModuleSettingsClient(operations: OperationClient) {
       readResult(await invoke(MODULE_SETTINGS_BINDINGS.docsRead,
         {moduleId: input.moduleId, kind: input.kind, digest: input.digest,
           runtimeIntegrity: input.runtimeIntegrity, blockIndex: input.blockIndex}, isCurrent), documentBlock),
-    lookupAccept: async (requestKey: string, isCurrent?: () => boolean): Promise<ModuleAcceptOutcome> =>
-      commandResult(await operations.status({bindingId: MODULE_SETTINGS_BINDINGS.plansAccept,
-        contextId: 'application', requestKey, isCurrent}), requestKey),
+    lookupCommand: async (operation: ModuleMutationKind, requestKey: string,
+      isCurrent?: () => boolean): Promise<ModuleAcceptOutcome | ModuleTransitionOutcome> => {
+      const result = await operations.status({bindingId: operation === 'plans.accept'
+        ? MODULE_SETTINGS_BINDINGS.plansAccept : operation === 'plans.confirm-publication'
+          ? MODULE_SETTINGS_BINDINGS.plansConfirmPublication : MODULE_SETTINGS_BINDINGS.plansCancelPending,
+        contextId: 'application', requestKey, isCurrent});
+      return operation === 'plans.accept' ? commandResult(result, requestKey, acceptance)
+        : commandResult(result, requestKey, transition);
+    },
   });
 }
 export type ModuleSettingsClient = ReturnType<typeof createModuleSettingsClient>;

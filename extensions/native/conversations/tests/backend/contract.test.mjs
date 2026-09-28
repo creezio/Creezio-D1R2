@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {manifest,read} from '../helpers.mjs';
 import {generateD1Schema} from '../../../../../scripts/data/d1-schema.mjs';
-import {attachmentList,conversationSearch,draftSave,messageList} from '../../module/service.ts';
+import {attachmentList,conversationSearch,draftSave,messageList,widgetRenderRead,
+  widgetContextReplace,widgetContextRead,turnStart} from '../../module/service.ts';
 
 test('conversation children retain context, owner and audience in their foreign keys',()=>{
   const models=JSON.parse(read('module/models.json'));
@@ -70,4 +71,79 @@ test('attachment list scopes rows and returns a reusable private file reference'
   assert.deepEqual(calls[0].order,{indexId:'by-conversation',direction:'asc'});
   assert.deepEqual(result.output.items[0].reference,{fileId:'file-one',intentId:'intent-one',
     generation:'generation-one',digest:'a'.repeat(64)});
+});
+
+test('historical render query obtains only a scoped native message and never trusts a client execution pointer',async()=>{
+  const stored={kind:'creezio.widget-message',schemaVersion:1,instances:[{instanceId:'instance_1'}]};
+  const reads=[],calls=[];
+  const context={principalId:'owner_1',audience:'app',contextId:'application',data:{
+    get:async(model,args)=>{
+      reads.push({model,args});
+      return model==='conversation'?{id:'conversation_1',revision:1,archived_at:null}
+        :{id:'message_1',role:'tool',content:stored};
+    }},widgets:{readHistory:async(content,instanceId)=>{calls.push({content,instanceId});return {output:{id:'request_1'}};}}};
+  const result=await widgetRenderRead({conversationId:'conversation_1',messageId:'message_1',
+    instanceId:'instance_1',executionId:'client_forged',operationDigest:'client_forged'},context);
+  assert.deepEqual(result,{output:{instanceId:'instance_1',output:{id:'request_1'}}});
+  assert.deepEqual(reads.map(item=>item.args.key),[
+    {owner_id:'owner_1',audience:'app',id:'conversation_1'},
+    {owner_id:'owner_1',audience:'app',conversation_id:'conversation_1',id:'message_1'}]);
+  assert.deepEqual(calls,[{content:stored,instanceId:'instance_1'}]);
+  context.widgets.readHistory=async()=>null;
+  await assert.rejects(widgetRenderRead({conversationId:'conversation_1',messageId:'message_1',instanceId:'instance_1'},context),
+    {code:'not_found'});
+  context.data.get=async model=>model==='conversation'?{id:'conversation_1'}:null;
+  await assert.rejects(widgetRenderRead({conversationId:'conversation_1',messageId:'other',instanceId:'instance_1'},context),
+    {code:'not_found'});
+});
+
+test('compatible historical context keeps the stored widget version across selection and the next turn',async()=>{
+  for(const rendered of [true,false]){
+    const instance={instanceId:'instance_1',instanceRevision:1,moduleId:'example.purchase',widgetId:'card',
+      widgetVersion:'1.1.0',resourceUri:'ui://current',resourceDigest:'sha256-'+ 'b'.repeat(64),state:{},
+      ...(rendered?{renderExecution:{moduleId:'example.purchase',operationId:'request.get',
+        operationDigest:'sha256-'+'a'.repeat(64),executionId:'execution_1'}}:{})};
+    const original={...instance,widgetVersion:'1.0.0',resourceUri:'ui://old'};
+    const content={kind:'creezio.widget-message',schemaVersion:1,instances:[original]};
+    const planned=[];
+    let historyReads=0;
+    const context={principalId:'owner_1',actorPrincipalId:'owner_1',audience:'app',contextId:'application',
+      data:{get:async model=>model==='conversation'?{id:'conversation_1',archived_at:null}
+        :model==='message'?{id:'message_1',role:'tool',content}:null,
+      planGet:(model,args)=>{planned.push({model,args});return {kind:'guard'};},
+      planCreate:(model,args)=>{planned.push({model,args});return {kind:'create'};}},
+      widgets:{projectSnapshot:()=>null,projectHistory:()=>({kind:'creezio.widget-message',schemaVersion:1,instances:[instance]}),
+        readHistory:async()=>{historyReads++;return {output:{id:'request_1'}};},
+        contextValue:(_instance,_actionId,value)=>value,
+        contextAction:()=>({namespace:'module-instance',expiresAfterSeconds:300,value:{selectedId:'request_1'}})}};
+    await widgetContextReplace({conversationId:'conversation_1',messageId:'message_1',instanceId:'instance_1',
+      instanceRevision:1,actionId:'select',expectedRevision:0,input:{selectedId:'request_1'}},context);
+    assert.equal(planned.find(item=>item.model==='widget_context').args.values.widget_version,'1.0.0');
+    assert.equal(historyReads,rendered?1:0);
+    context.data.get=async model=>model==='conversation'?{id:'conversation_1'}
+      :model==='message'?{id:'message_1',role:'tool',content}
+      :{action_id:'select',message_id:'message_1',instance_id:'instance_1',revision:1,
+        value:{selectedId:'request_1'},expires_at:'2026-09-28T23:00:00Z',removed_at:null};
+    const read=await widgetContextRead({conversationId:'conversation_1',messageId:'message_1',
+      instanceId:'instance_1',instanceRevision:1,actionId:'select'},context);
+    assert.equal(read.output.context.instanceId,'instance_1');
+    assert.equal(historyReads,rendered?2:0);
+    context.providerAvailability={providerId:'openai.responses.v1',state:'ready',modelIds:['model_1']};
+    context.data.get=async model=>model==='conversation'?{id:'conversation_1',revision:1,
+      active_turn_id:null,archived_at:null}:model==='message'?{id:'message_1',role:'tool',content}:null;
+    context.data.list=async()=>({items:[{instance_id:'instance_1',widget_module_id:'example.purchase',
+      widget_id:'card',widget_version:'1.0.0',message_id:'message_1',action_id:'select',revision:1,
+      value:{selectedId:'request_1'},expires_at:'2099-09-28T23:00:00Z',removed_at:null}],nextAfter:null});
+    context.data.planPatch=(model,args)=>{planned.push({model,args});return {kind:'patch'};};
+    await turnStart({conversationId:'conversation_1',messageId:'user_message_1',modelId:'model_1',
+      body:'Continue',revision:1,draftRevision:0},context);
+    assert.equal(planned.find(item=>item.model==='turn').args.values.widget_context_snapshot[0].widgetVersion,'1.0.0');
+    // A renderer update can retire the action or narrow its retained fields. The
+    // persisted row stays intact, but a fresh turn must not inject its stale value.
+    planned.length=0;
+    context.widgets.contextValue=()=>null;
+    await turnStart({conversationId:'conversation_1',messageId:'user_message_2',modelId:'model_1',
+      body:'Continue',revision:1,draftRevision:0},context);
+    assert.deepEqual(planned.find(item=>item.model==='turn').args.values.widget_context_snapshot,[]);
+  }
 });

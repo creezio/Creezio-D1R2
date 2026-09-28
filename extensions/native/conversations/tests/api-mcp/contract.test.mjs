@@ -7,7 +7,7 @@ test('every protected operation has separate admin and app bindings',()=>{
   assert.deepEqual(operations.map(op=>op.id),[
     'conversation.list','conversation.search','conversation.create','conversation.read',
     'conversation.rename','conversation.archive','conversation.restore','message.list','message.add',
-    'widget.message.create','widget.context.replace','widget.context.remove','widget.context.read',
+    'widget.message.create','widget.context.replace','widget.context.remove','widget.context.read','widget.render.read',
     'draft.read','draft.save','turn.read','turn.start','event.list','turn.cancel',
     'attachment.link','attachment.list',
   ]);
