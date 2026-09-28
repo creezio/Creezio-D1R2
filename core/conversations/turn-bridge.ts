@@ -79,10 +79,9 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
     const retained=terminal?null:pendingTool(delivery);
     const checkpoint={providerReference:String((delivery.receipt as Row)?.providerReference),cursor:event.cursor,
       ...(retained?{pendingTool:retained}:{})};
-    if(terminal)await store.settleDelivery(lease,claim,{state:changes.state==='failed'?'failed':'succeeded',
+    if(terminal)return store.settleDelivery(lease,claim,{state:changes.state==='failed'?'failed':'succeeded',
       receipt:checkpoint},plans);
-    else await store.checkpointDelivery(lease,claim,checkpoint,plans);
-    return await readTurn(lease,request);
+    return store.checkpointDelivery(lease,claim,checkpoint,plans);
   }
   const eventBody=async(lease:DataLease,request:Request)=>{
     let after:DataRecord|null=null;
@@ -481,11 +480,27 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
             events=stream.events;
           }
           let pendingCall:Extract<ProviderEvent,{kind:'function_call'}>|null=null;
+          let bufferedText='',bufferedCursor=receipt(current)?.cursor??0;
+          let savedBody=await eventBody(lease,request),lastTextCheckpointAt=Date.now();
+          let checkpointFailed=false;
+          const flushText=async()=>{
+            if(!bufferedText)return;
+            const body=savedBody+bufferedText;
+            try{current=await change(lease,request,current,acquired.claim,{cursor:bufferedCursor,
+              kind:'text_delta',payload:{text:bufferedText,body}},
+              {state:'running'});}
+            catch(error){checkpointFailed=true;throw error;}
+            savedBody=body;bufferedText='';lastTextCheckpointAt=Date.now();
+          };
           try{for await(const event of events){
             if(request.signal.aborted)break;
             const handle=receipt(current);
-            if(!handle||event.cursor<=handle.cursor)continue;
-            const live=await readTurn(lease,request);
+            if(!handle||event.cursor<=Math.max(handle.cursor,bufferedCursor))continue;
+            // Observe cancellation at checkpoints and control events, not per token.
+            // change() checks fresh state and revision before committing text.
+            const checkNow=event.kind!=='text_delta'||bufferedText.length+event.text.length>=512
+              ||Date.now()-lastTextCheckpointAt>=4_000;
+            const live=checkNow?await readTurn(lease,request):null;
             if(live?.state==='cancel_requested'){
               let snapshot;
               try{snapshot=await transport.cancel(handle.providerReference,request.signal);}
@@ -497,6 +512,7 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
               continue;
             }
             if(event.kind==='function_call'){
+              await flushText();
               if(step>=4||pendingCall){
                 await change(lease,request,current,acquired.claim,{cursor:event.cursor,kind:'failed',payload:{code:'tool_limit'}},
                   {state:'failed',error_code:'tool_limit'},undefined,true);
@@ -510,11 +526,15 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
             }
             if(event.kind==='text_delta'){
               if(pendingCall)continue;
-              const body=(await eventBody(lease,request))+event.text;
-              if(new TextEncoder().encode(body).length>16_000)throw new OperationError('invalid_output');
-              await change(lease,request,current,acquired.claim,{cursor:event.cursor,kind:'text_delta',payload:{text:event.text,body}},
-                {state:'running'});
+              bufferedText+=event.text;bufferedCursor=event.cursor;
+              if(new TextEncoder().encode(savedBody+bufferedText).length>16_000)
+                throw new OperationError('invalid_output');
+              // A lost request replays only the bounded, uncheckpointed suffix.
+              if(bufferedText.length>=512||Date.now()-lastTextCheckpointAt>=4_000)
+                await flushText();
+              continue;
             }else if(event.kind==='terminal'){
+              await flushText();
               const state=event.state==='succeeded'?'succeeded':event.state==='cancelled'?'cancelled':'failed';
               if(state==='succeeded'&&pendingCall){
                 const tool=await prepareTool(request,pendingCall,observedUsage);
@@ -536,8 +556,21 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
               return true;
             }
             current=(await store.readDelivery(lease,{executionId:delivery.executionId,outboxId:delivery.id}))!;
-          }}catch(streamError){
+          }
+            if(!request.signal.aborted){
+              // EOF can arrive before a text checkpoint after cancellation.
+              if((await readTurn(lease,request))?.state==='cancel_requested')
+                throw new OperationError('conflict');
+              await flushText();
+            }
+          }catch(streamError){
             if(request.signal.aborted)throw streamError;
+            if(checkpointFailed){
+              // The D1 commit may have succeeded even if its acknowledgement was lost.
+              const observed=await store.readDelivery(lease,{executionId:delivery.executionId,outboxId:delivery.id});
+              if(!observed)throw streamError;
+              current=observed;
+            }else if(!(streamError instanceof OperationError))await flushText();
             const handle=receipt(current);
             if(!handle)throw streamError;
             const cancelled=(await readTurn(lease,request))?.state==='cancel_requested';

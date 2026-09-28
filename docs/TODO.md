@@ -83,7 +83,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-36](#T-36) | P7 | Version initiale de l’original, puis compléments | Jalon initial : [T-08](#T-08), [T-09](#T-09), [T-10](#T-10), [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-14](#T-14), [T-15](#T-15), [T-16](#T-16), tranche témoin [T-30](#T-30), [T-31](#T-31), [T-32](#T-32) | En cours — jalon `app/v0.0.0` public et Site A qualifié, recette complète ouverte |
 | [T-37](#T-37) | P7 | Vrai fork Creezio Lab et Site B | Version initiale publiée de [T-36](#T-36) | En cours — fork et Site B créés, publication et recette attendues |
 | [T-38](#T-38) | P8 | Adoption des mises à jour et contributions | Fork initial de [T-37](#T-37) | En cours — paquet 0.1.1 public et raccord d'inventaire en revue, recette d'adoption attendue |
-| [T-39](#T-39) | P9 | Recette ciblée puis exhaustive | Preuves initiales de [T-38](#T-38) | À faire — recette ciblée prioritaire |
+| [T-39](#T-39) | P9 | Recette ciblée puis exhaustive | Preuves initiales de [T-38](#T-38) | En cours — observation Site A et correction du flux, recette ciblée ouverte |
 | [T-17](#T-17) | P5 | Tâches humaines et travail | [T-11](#T-11), [T-14](#T-14) | À faire — après première app |
 | [T-18](#T-18) | P5 | Messagerie native | [T-11](#T-11), [T-14](#T-14) | À faire — après première app |
 | [T-19](#T-19) | P5 | Support | [T-11](#T-11), [T-17](#T-17), [T-18](#T-18) | À faire — après première app |
@@ -496,12 +496,12 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-39"></a>
 ## T-39 — Recette finale et validation utilisateur
 
-- Lot : **P9** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P9** ; état : **en cours** ; responsable : équipe Creezio pour cette correction, recette produit encore à coordonner.
 - Dépendances : preuves initiales d'installation et de mise à jour de [T-38](#T-38).
 - Travail/livrables : **Recette ciblée de la première app** : deux Sites publics, chat OpenAI, widget/outil autorisé et refusé, module témoin issu du paquet, mise à jour original→fork, publication Cloudflare et retour utilisateur, avec versions/SHA/profils et limites. La **recette exhaustive** de tous les modules, fournisseurs et profils suit les lots différés ; le jalon ciblé ne vaut pas clôture de T-39.
 - Besoin : [US-39](USER-STORIES.md#US-39). Acceptation : [REQ-3901](EXIGENCES.md#REQ-3901).
 - Validation : implémenter puis exécuter les recettes liées, sur **deux Sites, Cloudflare et clients GPT/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : un tour OpenAI administrateur du Site A original a fini `succeeded` après deux reprises explicites du même tour et sans second message assistant ; cela ne valide pas la fluidité ni la recette ciblée. Voir la [note des checkpoints](IMPLEMENTATION-T39.md) et ses preuves natives expurgées conservées hors dépôt. Les deux Sites, le fork, la mise à jour et le retour utilisateur restent à qualifier avec versions, SHA, profils et limites.
 
 ## Sous-tâches initiales obligatoires du lot des connecteurs
 

@@ -100,6 +100,44 @@ test('client drive persists one confirmed assistant and never recreates an unkno
     assert.equal((await bridge.drive(driveRequest)).turn.state,'succeeded');
     assert.equal(creates,1);
 
+    const batched=await invoke('conversation.create',{requestKey:'create-batched',mode:'chat',title:'Batch'});
+    const batchedConversationId=batched.execution.output.conversation.id;
+    const batchedStart=await invoke('turn.start',{requestKey:'start-batched',
+      conversationId:batchedConversationId,messageId:'user-batched',body:'Stream',
+      modelId:'model-a',revision:1,draftRevision:0});
+    const batchedTurnId=batchedStart.execution.output.turn.id;
+    const batchedProvider={withTransport:async(_request,callback)=>callback({
+      async create(){return {receipt:{responseId:'resp_batched',cursor:0},
+        events:(async function*(){for(let cursor=1;cursor<=40;cursor++)
+          yield {cursor,kind:'text_delta',text:'x'};
+          yield {cursor:41,kind:'terminal',state:'succeeded'};})()};},
+      async *resume(){throw new Error('Unexpected resume');},
+      async status(){throw new Error('Unexpected status');},
+      async cancel(){throw new Error('Unexpected cancel');}
+    },'model-a')};
+    let batchedTurnReads=0,batchedDeliveryReads=0;
+    const batchedDb=new Proxy(db,{get(target,key){
+      if(key==='prepare')return sql=>{
+        if(/\bSELECT\b/i.test(sql)&&sql.includes(`"${schema.tables.turn}"`))batchedTurnReads++;
+        if(/\bSELECT\b/i.test(sql)&&sql.includes(`"${OPERATION_TABLES.outbox}"`))batchedDeliveryReads++;
+        return target.prepare(sql);
+      };
+      const value=target[key];return typeof value==='function'?value.bind(target):value;
+    }});
+    const batchedBridge=createTurnBridge({engine,db:batchedDb,catalog,permissions,
+      provider:batchedProvider,registry:reg,toolCatalog:[]});
+    const batchedRequest={...driveRequest,conversationId:batchedConversationId,turnId:batchedTurnId};
+    assert.equal((await batchedBridge.drive(batchedRequest)).turn.state,'succeeded');
+    const batchedMessages=await invoke('message.list',{conversationId:batchedConversationId,limit:1});
+    assert.equal(batchedMessages.execution.output.items[0].body,'x'.repeat(40));
+    const batchedEvents=await invoke('event.list',{conversationId:batchedConversationId,
+      turnId:batchedTurnId,limit:50,afterSequence:0});
+    const textEvents=batchedEvents.execution.output.items.filter(item=>item.kind==='text_delta');
+    assert.equal(textEvents.length,1);
+    assert.equal(textEvents[0].payload.text,'x'.repeat(40));
+    assert.ok(batchedTurnReads<40,`Per-token turn reads: ${batchedTurnReads}`);
+    assert.ok(batchedDeliveryReads<20,`Per-token delivery reads: ${batchedDeliveryReads}`);
+
     const second=await invoke('conversation.create',{requestKey:'create-two',mode:'chat',title:'Two'});
     const secondId=second.execution.output.conversation.id;
     const queued=await invoke('turn.start',{requestKey:'start-two',conversationId:secondId,messageId:'user-two',
@@ -129,10 +167,11 @@ test('client drive persists one confirmed assistant and never recreates an unkno
           const name=allowed?input.tools.find(item=>item.bindingId===`${id}:draft.read`)?.name:'t_denied';
           assert.ok(name);
           return {receipt:{responseId:`resp_${label}_1`,cursor:0},events:(async function*(){
-            yield {cursor:1,kind:'function_call',callId:`call_${label}`,name,
+            yield {cursor:1,kind:'text_delta',text:'Before tool '};
+            yield {cursor:2,kind:'function_call',callId:`call_${label}`,name,
               arguments:{conversationId:toolConversationId}};
-            if(allowed)yield {cursor:2,kind:'usage',inputTokens:7,outputTokens:8};
-            yield {cursor:2,kind:'terminal',state:'succeeded'};
+            if(allowed)yield {cursor:3,kind:'usage',inputTokens:7,outputTokens:8};
+            yield {cursor:3,kind:'terminal',state:'succeeded'};
           })()};
         }
         continued=input.inputItems;
@@ -157,8 +196,14 @@ test('client drive persists one confirmed assistant and never recreates an unkno
       else assert.equal(parsed.error,'forbidden');
       const finalMessages=await invoke('message.list',{conversationId:toolConversationId,limit:50});
       assert.equal(finalMessages.execution.output.items.filter(item=>item.role==='assistant').length,1);
+      assert.equal(finalMessages.execution.output.items.find(item=>item.role==='assistant').body,
+        'Before tool Read complete');
       const toolEvents=await invoke('event.list',{conversationId:toolConversationId,
         turnId:toolTurnId,limit:50,afterSequence:0});
+      assert.equal(toolEvents.execution.output.items.find(item=>item.kind==='text_delta').payload.text,
+        'Before tool ');
+      assert.ok(toolEvents.execution.output.items.findIndex(item=>item.kind==='text_delta')<
+        toolEvents.execution.output.items.findIndex(item=>item.kind==='tool_result'));
       const firstUsage=toolEvents.execution.output.items.find(item=>item.kind==='tool_result').payload.usage;
       if(allowed)assert.deepEqual({...firstUsage},{inputTokens:7,outputTokens:8});
       else assert.equal(firstUsage,undefined);
@@ -412,8 +457,79 @@ test('client drive persists one confirmed assistant and never recreates an unkno
     assert.equal(eofMessages.execution.output.items.find(item=>item.role==='assistant').body,'Final answer');
     const eofEvents=await invoke('event.list',{conversationId:eofRequest.conversationId,
       turnId:eofRequest.turnId,limit:50,afterSequence:0});
+    assert.deepEqual(eofEvents.execution.output.items.filter(item=>item.kind==='text_delta')
+      .map(item=>item.payload.text),['Final',' answer']);
     assert.deepEqual({...eofEvents.execution.output.items.find(item=>item.kind==='completed').payload.usage},
       {inputTokens:9,outputTokens:5});
+
+    const ackRequest=await newTurn('checkpoint-ack-lost');
+    const ackPrepared=new WeakMap();
+    let injectAckLoss=true,ackCreates=0,ackResumes=0;
+    const ackDb=new Proxy(db,{get(target,key){
+      if(key==='prepare')return sql=>new Proxy(target.prepare(sql),{get(statement,method){
+        if(method==='bind')return (...values)=>{const bound=statement.bind(...values);
+          ackPrepared.set(bound,{values});return bound;};
+        const value=statement[method];return typeof value==='function'?value.bind(statement):value;
+      }});
+      if(key==='batch')return async statements=>{
+        const textCheckpoint=injectAckLoss&&statements.some(statement=>
+          ackPrepared.get(statement)?.values.some(value=>value==='text_delta'));
+        const result=await target.batch(statements);
+        if(textCheckpoint){injectAckLoss=false;throw new Error('checkpoint acknowledgement lost');}
+        return result;
+      };
+      const value=target[key];return typeof value==='function'?value.bind(target):value;
+    }});
+    const ackBridge=createTurnBridge({engine,db:ackDb,catalog,permissions,registry:reg,toolCatalog:[],
+      provider:{withTransport:async(_request,callback)=>callback({
+        async create(){ackCreates++;return {receipt:{responseId:'resp_ack',cursor:0},
+          events:(async function*(){yield {cursor:1,kind:'text_delta',text:'A'.repeat(512)};
+            yield {cursor:2,kind:'terminal',state:'succeeded'};})()};},
+        async *resume(responseId,afterCursor){ackResumes++;
+          assert.equal(responseId,'resp_ack');assert.equal(afterCursor,1);
+          yield {cursor:2,kind:'text_delta',text:'B'};
+          yield {cursor:3,kind:'terminal',state:'succeeded'};},
+        async status(){return {responseId:'resp_ack',state:'running',cursor:null,events:[]};},
+        async cancel(){throw new Error('Unexpected cancel');}
+      },'model-a')}});
+    assert.equal((await ackBridge.drive(ackRequest)).turn.state,'unknown');
+    assert.equal(injectAckLoss,false);
+    assert.equal((await ackBridge.drive(ackRequest)).turn.state,'succeeded');
+    assert.equal(ackCreates,1);assert.equal(ackResumes,1);
+    const ackMessages=await invoke('message.list',{conversationId:ackRequest.conversationId,limit:1});
+    assert.equal(ackMessages.execution.output.items[0].body,'A'.repeat(512)+'B');
+    const ackEvents=await invoke('event.list',{conversationId:ackRequest.conversationId,
+      turnId:ackRequest.turnId,limit:50,afterSequence:0});
+    assert.deepEqual(ackEvents.execution.output.items.filter(item=>item.kind==='text_delta')
+      .map(item=>item.payload.text),['A'.repeat(512),'B']);
+
+    const betweenRequest=await newTurn('cancel-between-flushes');
+    let betweenCancels=0;
+    const betweenBridge=createTurnBridge({engine,db,catalog,permissions,registry:reg,toolCatalog:[],
+      provider:{withTransport:async(_request,callback)=>callback({
+        async create(){return {receipt:{responseId:'resp_between',cursor:0},events:(async function*(){
+          yield {cursor:1,kind:'text_delta',text:'Uncommitted '};
+          const read=await invoke('turn.read',{conversationId:betweenRequest.conversationId,
+            turnId:betweenRequest.turnId});
+          assert.equal(read.execution.state,'succeeded');
+          const requested=await invoke('turn.cancel',{requestKey:'cancel-between-flushes',
+            conversationId:betweenRequest.conversationId,turnId:betweenRequest.turnId,
+            revision:read.execution.output.turn.revision});
+          assert.equal(requested.execution.state,'succeeded');
+          yield {cursor:2,kind:'text_delta',text:'discarded'};
+          yield {cursor:3,kind:'terminal',state:'succeeded'};
+        })()};},
+        async cancel(){betweenCancels++;return {responseId:'resp_between',state:'cancelled',
+          cursor:null,events:[{cursor:0,kind:'terminal',state:'cancelled'}]};},
+        async status(){throw new Error('Unexpected status');}
+      },'model-a')}});
+    assert.equal((await betweenBridge.drive(betweenRequest)).turn.state,'cancelled');
+    assert.equal(betweenCancels,1);
+    const betweenEvents=await invoke('event.list',{conversationId:betweenRequest.conversationId,
+      turnId:betweenRequest.turnId,limit:50,afterSequence:0});
+    assert.equal(betweenEvents.execution.output.items.some(item=>item.kind==='text_delta'),false);
+    const betweenMessages=await invoke('message.list',{conversationId:betweenRequest.conversationId,limit:50});
+    assert.equal(betweenMessages.execution.output.items.some(item=>item.role==='assistant'),false);
 
     const cancelRequest=await newTurn('cancel');
     let cancelCalls=0;

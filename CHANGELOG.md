@@ -1,5 +1,9 @@
 # Changelog
 
+## En cours — checkpoints du chat administrateur (T-39)
+
+Les petits fragments du flux OpenAI sont regroupés avant écriture D1, avec flush aux événements de contrôle et à la fin du flux. L'annulation et la reprise gardent le curseur durable ; un accusé de checkpoint perdu n'entraîne pas de doublon. La correction répond à une coupure observée sur le Site A original, sans encore qualifier le débit de la version publiée. Voir la [note T39](docs/IMPLEMENTATION-T39.md).
+
 ## En cours — confiance TLS du Docker local (T-38)
 
 L'image Docker installe les certificats CA du système avant de lancer workerd. Le Lab a montré l'échec TLS sans ce bundle, puis une réponse HTTP 401 JSON à un GET `/v1/models` sans clé depuis un Worker éphémère après reconstruction. Le premier tour resté `unknown` sans reçu n'a pas été rejoué. Cette contribution ne qualifie ni l'adoption du module dans le Lab ni son Site B ; voir la [note T38](docs/IMPLEMENTATION-T38.md).
