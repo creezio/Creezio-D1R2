@@ -6,6 +6,8 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import {build} from 'esbuild';
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
+import {createCommandJournal} from '@creezio/sdk/operations/command-journal';
+import {manifest} from '../helpers.mjs';
 
 async function compiled(relative){
   const source=fileURLToPath(new URL(relative,import.meta.url));
@@ -17,6 +19,18 @@ async function compiled(relative){
 }
 const view=await compiled('../../ui/presentation.tsx');
 const contracts=await compiled('../../ui/contracts.ts');
+const workspace=await compiled('../../ui/index.tsx');
+
+test('the first authenticated render hides panel data until its session scope is hydrated',()=>{
+  const snapshot={phase:'authenticated',pending:false,session:{id:'session-new',principalId:'owner'}};
+  const access={subscribe:()=>()=>{},getSnapshot:()=>snapshot};
+  const props={active:true,authorized:true,audience:'admin',contextId:'application',panelId:'messaging',
+    access,client:{audience:'admin'},navigation:{readPanelState:()=>({activeSubview:'drafts',
+      data:{sessionId:'session-old',audience:'admin',contextId:'application',boxId:'box-old'}})}};
+  const html=renderToStaticMarkup(React.createElement(workspace.MessagingView,props));
+  assert.match(html,/Chargement de la messagerie/);
+  assert.doesNotMatch(html,/Boîte de réception|Brouillons|box-old/);
+});
 
 test('original folder structure and explicit unavailable transport remain visible',()=>{
   const html=renderToStaticMarkup(React.createElement(view.FoldersPanel,{boxes:[],boxId:'',folder:'inbox',
@@ -73,7 +87,100 @@ test('panel restore survives first mount, while a real identity or context chang
   assert.equal(contracts.scopeChanged(initial,{...initial,sessionId:'s2'}),true);
   assert.equal(contracts.scopeChanged(initial,{...initial,contextId:'c2'}),true);
   assert.equal(contracts.scopeChanged(initial,{...initial,audience:'app'}),true);
-  assert.equal(contracts.scopeChanged(initial,{...initial,client:{}}),true);
+  assert.equal(contracts.scopeChanged(initial,{...initial,client:{}}),false);
+  assert.equal(contracts.scopeChanged(initial,{...initial,sessionId:'',phase:'loading'}),false,
+    'a transient access refresh does not purge the current command');
+  assert.equal(contracts.scopeChanged(initial,{...initial,sessionId:'',phase:'anonymous'}),true,
+    'a completed logout does purge the command');
+  assert.equal(contracts.scopeChanged({...initial,sessionId:''},initial),false,
+    'hydrating the initial anonymous mount must preserve the saved panel');
+  const owned={sessionId:'s1',audience:'admin',contextId:'c1'};
+  const saved=contracts.messagingPanelData(owned,'box-a','draft-a',null);
+  assert.equal(contracts.panelMatchesScope(saved,owned),true);
+  assert.equal(contracts.panelMatchesScope(saved,{...owned,sessionId:'s2'}),false);
+  assert.equal(contracts.panelMatchesScope(saved,{...owned,audience:'app'}),false);
+  assert.equal(contracts.panelMatchesScope(undefined,owned),false);
+});
+
+test('panel schema stores scoped selection and bounded journal metadata',()=>{
+  assert.equal(manifest.compatibility.sdk,'^1.2.0');
+  const view=manifest.contracts.ui.views.find(item=>item.id==='admin');
+  const schema=manifest.contracts.schemas.find(item=>item.id===view.panel.stateSchema.schemaId).schema;
+  assert.deepEqual(schema.required,['sessionId','audience','contextId']);
+  assert.deepEqual(schema.properties.pending.required,
+    ['sessionId','audience','contextId','bindingId','requestKey']);
+  assert.equal(schema.properties.pending.additionalProperties,false);
+});
+
+test('a draft mutation persists metadata before invoke and survives unknown status without replay',async()=>{
+  const scope={sessionId:'s1',audience:'app',contextId:'c1'};
+  const command={...scope,bindingId:'creezio.messaging:app.draft.save',requestKey:'key-1',
+    intent:'draft.save',targetId:'draft-a'};
+  let panel=contracts.messagingPanelData(scope,'box-a','draft-a',null),saveAllowed=false,invocations=0,
+    selectedBox='box-a',selectedDraft='draft-a';
+  const persist=value=>{if(!saveAllowed)return false;
+    panel=contracts.messagingPanelData(scope,selectedBox,selectedDraft,value);return true;};
+  const client={audience:'app',async invoke(){invocations++;return {kind:'unknown',code:'outcome_unknown'};},
+    async status(){return {kind:'rejected',code:'forbidden',status:403};}};
+  let journal=createCommandJournal(scope);
+  const refused=await journal.execute(client,command,{boxId:'box-a',draftId:'draft-a',subject:'Secret'},()=>true,persist);
+  assert.equal(refused.result.code,'client_state_unavailable');assert.equal(invocations,0);
+  saveAllowed=true;
+  const unknown=await journal.execute(client,command,{boxId:'box-a',draftId:'draft-a',subject:'Secret'},()=>true,persist);
+  assert.equal(unknown.result.kind,'unknown');assert.equal(invocations,1);
+  assert.equal(panel.boxId,'box-a');assert.equal(panel.draftId,'draft-a');
+  assert.equal(JSON.stringify(panel).includes('Secret'),false);
+  selectedBox='box-b';selectedDraft=null;panel=contracts.messagingPanelData(scope,selectedBox,null,panel.pending);
+  assert.equal(panel.boxId,'box-b');assert.equal(panel.pending.requestKey,'key-1',
+    'switching mailboxes keeps the pending command');
+  journal=createCommandJournal(scope,panel.pending);
+  const blocked=await journal.execute(client,{...command,requestKey:'key-2'},{},()=>true,persist);
+  assert.equal(blocked.result.code,'in_progress');assert.equal(invocations,1);
+  const refusedStatus=await journal.inspect(client,()=>true,persist);
+  assert.equal(refusedStatus.result.code,'forbidden');assert.equal(journal.pending.requestKey,'key-1');
+  client.status=async()=>({kind:'unknown',code:'execution_not_observed'});
+  const missingStatus=await journal.inspect(client,()=>true,persist);
+  assert.equal(missingStatus.result.code,'execution_not_observed');
+  assert.equal(journal.pending.requestKey,'key-1','lookup 404 does not prove absence of an effect');
+  client.status=async()=>({kind:'execution',execution:{state:'succeeded',output:{draft:{id:'draft-a'}}}});
+  saveAllowed=false;
+  const confirmedButUncleared=await journal.inspect(client,()=>true,persist);
+  assert.equal(confirmedButUncleared.result.execution.state,'succeeded');
+  assert.equal(journal.pending.requestKey,'key-1');
+  saveAllowed=true;await journal.inspect(client,()=>true,persist);
+  assert.equal(journal.pending,null);assert.equal(panel.pending,undefined);
+});
+
+test('later list and selection reads win when equal-parameter responses arrive in reverse order',async()=>{
+  for(const kind of ['list','selection']){
+    const latest=contracts.createLatestRequest();
+    let finishOld,finishNew,published='';
+    const oldToken=latest.begin();
+    const old=new Promise(resolve=>{finishOld=resolve;}).then(value=>{
+      if(latest.accepts(oldToken))published=value;
+    });
+    const newToken=latest.begin();
+    const newer=new Promise(resolve=>{finishNew=resolve;}).then(value=>{
+      if(latest.accepts(newToken))published=value;
+    });
+    finishNew(`${kind}-new`);await newer;
+    finishOld(`${kind}-old`);await old;
+    assert.equal(published,`${kind}-new`);
+    latest.invalidate();
+    assert.equal(latest.accepts(newToken),false,
+      'a mutation or navigation also invalidates an in-flight read');
+  }
+});
+
+test('a stale busy completion cannot unlock a newer operation, while navigation can finish its own lease',()=>{
+  const busy=contracts.createLatestRequest();
+  const original=busy.begin();
+  assert.equal(busy.accepts(original),true,
+    'changing a mailbox does not prevent the current operation from releasing busy');
+  busy.invalidate();
+  const next=busy.begin();
+  assert.equal(busy.accepts(original),false);
+  assert.equal(busy.accepts(next),true);
 });
 
 test('operation bridge addresses the shared messaging binding without raw transport',async()=>{

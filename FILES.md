@@ -1,5 +1,7 @@
 # Repères du dépôt
 
+Le journal public des mutations de panneau réside dans `sdk/operations/command-journal.ts`, avec ses contrôles dans `tests/operations/command-journal.test.mjs` et `command-journal-package.test.mjs`. Il partage le client d'opérations existant ; son export et ses déclarations appartiennent à la source SDK 1.2 candidate, sans nouvelle release publique implicite.
+
 Le [CRM natif](extensions/native/crm/README.md) porte les modèles, opérations et vues dans `extensions/native/crm/`. Son SQL central est `data/schema/crm.sql` ; les tests D1 et HTTP/MCP résident dans `tests/crm/integration.test.mjs` et `tests/modules/crm-transports.test.mjs`. Le [suivi T20](docs/IMPLEMENTATION-T20.md) distingue interfaces originales, contrats et recettes restantes.
 
 Le module de [messagerie native](extensions/native/messaging/README.md) est adapté dans `extensions/native/messaging/` : données et opérations dans `module/`, webmail dans `ui/`, projection MCP dans `plugin/`, six suites dans `ci/` et `tests/`. Son intégration au moteur D1/R2 est exercée par `tests/modules/messaging-integration.test.mjs`, et son schéma est généré centralement dans `data/schema/messaging.sql`. Le [suivi T18](docs/IMPLEMENTATION-T18.md) distingue source, qualification et livraison.

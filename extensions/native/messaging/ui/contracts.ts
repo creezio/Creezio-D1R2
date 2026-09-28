@@ -1,4 +1,5 @@
 import type {WorkspaceViewProps} from '../../../../sdk/workspace/types.ts';
+import type {PendingCommand} from '@creezio/sdk/operations/command-journal';
 
 export type Folder = 'inbox'|'sent'|'drafts'|'outbox'|'archive'|'trash';
 export const folders: readonly {id:Folder;label:string}[] = [
@@ -17,10 +18,26 @@ export type Attachment = {fileId:string;filename:string;contentType:string;byteS
 export type Page<T> = {items:T[];nextCursor:string|null};
 export type Outcome<T> = {kind:'ok';value:T}|{kind:'rejected'|'unknown';code:string};
 export type MessagingScope = Pick<WorkspaceViewProps,'client'|'access'|'audience'|'contextId'>;
-export type UiIdentity = MessagingScope & {sessionId:string};
+export type UiIdentity = MessagingScope & {sessionId:string;phase?:'loading'|'anonymous'|'authenticated'|'unavailable'};
+/** Only the newest read of a list or selection may publish its result. */
+export function createLatestRequest(){
+  let serial=0;
+  return {begin:()=>++serial,invalidate:()=>{serial++;},accepts:(candidate:number)=>candidate===serial};
+}
 export function scopeChanged(previous:UiIdentity|null,current:UiIdentity):boolean {
-  return previous!==null&&(previous.sessionId!==current.sessionId||previous.contextId!==current.contextId||
-    previous.audience!==current.audience||previous.client!==current.client||previous.access!==current.access);
+  return previous!==null&&(previous.contextId!==current.contextId||previous.audience!==current.audience||
+    !!previous.sessionId&&(current.sessionId?previous.sessionId!==current.sessionId:
+      current.phase==='anonymous'));
+}
+export function messagingPanelData(scope:{sessionId:string;audience:string;contextId:string},
+  boxId:string,draftId:string|null,pending:PendingCommand|null):Record<string,unknown>{
+  return {sessionId:scope.sessionId,audience:scope.audience,contextId:scope.contextId,
+    ...(boxId?{boxId}:{}),...(draftId?{draftId}:{}),...(pending?{pending}:{})};
+}
+export function panelMatchesScope(data:Readonly<Record<string,unknown>>|undefined,
+  scope:{sessionId:string;audience:string;contextId:string}):boolean{
+  return !!data&&!!scope.sessionId&&data.sessionId===scope.sessionId&&
+    data.audience===scope.audience&&data.contextId===scope.contextId;
 }
 
 export async function call<T>(scope:MessagingScope, operation:string,
@@ -36,6 +53,8 @@ export function readableError(code:string):string {
   if(code==='stale'||code==='conflict')return 'Cet élément a changé. Actualisez-le avant de poursuivre.';
   if(code==='unavailable'||code==='capability_unavailable')return 'Envoi et réception indisponibles sans transport de messagerie.';
   if(code==='outcome_unknown'||code==='unknown')return 'Résultat incertain. Vérifiez l’état avant une nouvelle action.';
+  if(code==='in_progress')return 'Résultat incertain. Vérifiez la dernière modification ; aucune nouvelle commande n’a été envoyée.';
+  if(code==='client_state_unavailable')return 'État du panneau indisponible. Aucune modification envoyée.';
   return 'Cette opération a échoué. Actualisez avant de réessayer.';
 }
 export function dateLabel(value:string|null|undefined):string {

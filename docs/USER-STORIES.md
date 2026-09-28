@@ -193,6 +193,8 @@ Profil : **workspace, API et MCP**. Réalisation : [T-17](TODO.md#T-17) ; dépen
 
 En tant que **collaborateur**, je veux **préparer et conserver mes échanges dans l’app**, afin de **ne pas dépendre du transport pour mon travail de rédaction**.
 
+Lorsque je suis autorisé dans le workspace et le front, je retrouve les mêmes boîtes, brouillons et pièces jointes dans le même contexte. Retirer mon droit dans une interface ne duplique pas mes données et ne m’accorde aucun droit dans l’autre.
+
 Étant donné une installation ou un dépôt de test avec les prérequis déclarés, lorsque ce parcours est exécuté avec un acteur autorisé, alors les résultats définis dans [REQ-1801](EXIGENCES.md#REQ-1801) sont observables. Avec des droits, une configuration ou un artefact invalides, les refus et conservations prévus par ces mêmes critères sont vérifiés.
 
 Livrable observable : Module messaging : boîtes/messages/brouillons/pièces jointes et port de transport.

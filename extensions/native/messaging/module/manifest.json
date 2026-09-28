@@ -8,8 +8,8 @@
     "version": "0.0.0",
     "source": {
       "kind": "snapshot",
-      "revision": "t18-messaging-v1",
-      "integrity": "sha256-0aae2b1b2d16c82957f1e269ef7b8347661815d00a78497134dd23dcf17ac735"
+      "revision": "t18-messaging-v2",
+      "integrity": "sha256-bec7fb4c478ba17aa0f2296488d4190fd2700aa554ef904aa316cedcaef6b24f"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -18,7 +18,7 @@
   },
   "compatibility": {
     "core": "^0.0.0",
-    "sdk": "^1.0.0",
+    "sdk": "^1.2.0",
     "requiredCapabilities": [
       "runtime.worker",
       "data.d1.shared",
@@ -1820,6 +1820,23 @@
         "schema": {
           "type": "object",
           "properties": {
+            "sessionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "audience": {
+              "type": "string",
+              "enum": [
+                "admin",
+                "app"
+              ]
+            },
+            "contextId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
             "boxId": {
               "type": "string",
               "minLength": 1,
@@ -1829,9 +1846,63 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 128
+            },
+            "pending": {
+              "type": "object",
+              "properties": {
+                "sessionId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "audience": {
+                  "type": "string",
+                  "enum": [
+                    "admin",
+                    "app"
+                  ]
+                },
+                "contextId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "bindingId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 257
+                },
+                "requestKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                "intent": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "targetId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "required": [
+                "sessionId",
+                "audience",
+                "contextId",
+                "bindingId",
+                "requestKey"
+              ],
+              "additionalProperties": false
             }
           },
-          "required": [],
+          "required": [
+            "sessionId",
+            "audience",
+            "contextId"
+          ],
           "additionalProperties": false
         }
       }
@@ -1863,19 +1934,6 @@
             "constraints": {
               "minLength": 1,
               "maxLength": 128
-            }
-          },
-          {
-            "id": "audience",
-            "type": "string",
-            "nullable": false,
-            "protected": false,
-            "computed": false,
-            "constraints": {
-              "enum": [
-                "admin",
-                "app"
-              ]
             }
           },
           {
@@ -1952,7 +2010,6 @@
         "primaryKey": [
           "context_id",
           "owner_id",
-          "audience",
           "id"
         ],
         "indexes": [
@@ -1961,7 +2018,6 @@
             "fields": [
               "context_id",
               "owner_id",
-              "audience",
               "updated_at",
               "id"
             ],
@@ -2008,19 +2064,6 @@
             "constraints": {
               "minLength": 1,
               "maxLength": 128
-            }
-          },
-          {
-            "id": "audience",
-            "type": "string",
-            "nullable": false,
-            "protected": false,
-            "computed": false,
-            "constraints": {
-              "enum": [
-                "admin",
-                "app"
-              ]
             }
           },
           {
@@ -2246,7 +2289,6 @@
         "primaryKey": [
           "context_id",
           "owner_id",
-          "audience",
           "box_id",
           "id"
         ],
@@ -2256,7 +2298,6 @@
             "fields": [
               "context_id",
               "owner_id",
-              "audience",
               "box_id",
               "created_at",
               "id"
@@ -2270,7 +2311,6 @@
             "fields": [
               "context_id",
               "owner_id",
-              "audience",
               "box_id"
             ],
             "target": {
@@ -2281,7 +2321,6 @@
             "targetFields": [
               "context_id",
               "owner_id",
-              "audience",
               "id"
             ],
             "onDelete": "restrict"
@@ -2326,19 +2365,6 @@
             "constraints": {
               "minLength": 1,
               "maxLength": 128
-            }
-          },
-          {
-            "id": "audience",
-            "type": "string",
-            "nullable": false,
-            "protected": false,
-            "computed": false,
-            "constraints": {
-              "enum": [
-                "admin",
-                "app"
-              ]
             }
           },
           {
@@ -2458,7 +2484,6 @@
         "primaryKey": [
           "context_id",
           "owner_id",
-          "audience",
           "box_id",
           "id"
         ],
@@ -2468,7 +2493,6 @@
             "fields": [
               "context_id",
               "owner_id",
-              "audience",
               "box_id",
               "updated_at",
               "id"
@@ -2482,7 +2506,6 @@
             "fields": [
               "context_id",
               "owner_id",
-              "audience",
               "box_id"
             ],
             "target": {
@@ -2493,7 +2516,6 @@
             "targetFields": [
               "context_id",
               "owner_id",
-              "audience",
               "id"
             ],
             "onDelete": "restrict"
@@ -2722,19 +2744,6 @@
             }
           },
           {
-            "id": "audience",
-            "type": "string",
-            "nullable": false,
-            "protected": false,
-            "computed": false,
-            "constraints": {
-              "enum": [
-                "admin",
-                "app"
-              ]
-            }
-          },
-          {
             "id": "box_id",
             "type": "string",
             "nullable": false,
@@ -2844,7 +2853,6 @@
         "primaryKey": [
           "context_id",
           "owner_id",
-          "audience",
           "box_id",
           "draft_id",
           "file_id"
@@ -2855,7 +2863,6 @@
             "fields": [
               "context_id",
               "owner_id",
-              "audience",
               "box_id",
               "draft_id",
               "created_at",
@@ -2870,7 +2877,6 @@
             "fields": [
               "context_id",
               "owner_id",
-              "audience",
               "box_id"
             ],
             "target": {
@@ -2881,7 +2887,6 @@
             "targetFields": [
               "context_id",
               "owner_id",
-              "audience",
               "id"
             ],
             "onDelete": "restrict"
@@ -2891,7 +2896,6 @@
             "fields": [
               "context_id",
               "owner_id",
-              "audience",
               "box_id",
               "draft_id"
             ],
@@ -2903,7 +2907,6 @@
             "targetFields": [
               "context_id",
               "owner_id",
-              "audience",
               "box_id",
               "id"
             ],
@@ -2934,6 +2937,7 @@
         },
         "contextField": "context_id",
         "ownerField": "file_owner",
+        "ownerScope": "principal",
         "storageFields": {
           "id": "file_id",
           "objectKey": "object_key",
@@ -6848,7 +6852,7 @@
     },
     "versionBinding": {
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t18-messaging-v1"
+      "sourceRevision": "t18-messaging-v2"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -6975,7 +6979,7 @@
     "validationBinding": {
       "moduleId": "creezio.messaging",
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t18-messaging-v1"
+      "sourceRevision": "t18-messaging-v2"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",

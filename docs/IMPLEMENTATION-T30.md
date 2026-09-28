@@ -20,6 +20,10 @@ L'installation locale utilise désormais le même plan de schéma composé que l
 
 Contrôles acquis : types stricts du SDK et d'un consommateur externe, identité des contextes, reçu réel du starter et cas négatifs, installation composée Miniflare D1 et CLI. Le candidat final Core et son main ont une CI 1 039/1 039. La démo télécharge une révision publique précise du socle et installe les archives vérifiées ; elle n'utilise pas de lien vers les sources privées de l'orchestrateur.
 
+## Ajout candidat du 28 septembre : journal public SDK 1.2
+
+La source SDK 1.2 ajoute `operations/command-journal` pour les vues de modules. Une mutation garde ses métadonnées de scope et sa clé avant l'envoi ; une issue inconnue se relit sans rejouer la commande. Les huit tests ciblés vérifient restauration, persistance refusée, scope, refus de statut, résultat confirmé avec effacement local en échec, export et déclarations publiques sans dépendance runtime au cœur. La messagerie est le premier consommateur natif de cette candidate. Les compositions annoncent le SDK candidat ; les archives 1.0 et 1.1 publiées restent inchangées. Publication 1.2 et adoption par un consommateur externe restent à qualifier après intégration.
+
 ## Distribution et recette locale du 27 septembre 2026
 
 Le [SDK `sdk-v1.0.0`](https://github.com/creezio/Creezio-D1R2/releases/tag/sdk-v1.0.0) est public. Son archive `creezio-sdk-1.0.0.tgz` a le SHA-256 `12671aa9bd8ddd480c6cb8e04975843ee10616f1ec3ecfe77d3beebbc52350c1`. La [release starter `module-v0.1.0`](https://github.com/creezio/Creezio-Extension-Starter/releases/tag/module-v0.1.0) publie runtime, validation et manifeste. Sa provenance et ses téléchargements vérifiés sont consignés dans `outputs/CREEZIO-T30-STARTER-PUBLIC-RELEASE-2026-09-27.json` du workspace de travail.

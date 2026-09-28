@@ -4,7 +4,7 @@ import {useCallback,useEffect,useRef,useState,useSyncExternalStore} from 'react'
 import type {WorkspaceViewProps} from '../../../../sdk/workspace/types.ts';
 import {useWorkspaceActivity} from '@creezio/sdk/workspace/components';
 import {ProspectKanban,stages,type Prospect} from './kanban.tsx';
-import {emptySubviewDraft,formFrom,saveSubviewDraft,updateFromForm,type CrmEntity as Entity,type CrmItem as Item,
+import {crmScopeTransition,emptySubviewDraft,formFrom,saveSubviewDraft,updateFromForm,type CrmEntity as Entity,type CrmItem as Item,
   type CrmEditForm as Form,type CrmEditField,type CrmSubviewDrafts} from './editing.ts';
 import {createCommandJournal,readPendingCommand,type PendingCrmCommand} from './commands.ts';
 
@@ -120,20 +120,21 @@ export function CrmWorkspaceView(props:WorkspaceViewProps){
   useEffect(()=>{
     const token=generation.current;listSerial.current++;
     const prior=panelIdentity.current;
-    const scopeChanged=prior.session!==session||prior.audience!==props.audience||
-      prior.contextId!==props.contextId;
+    const phase=access.pending?'loading':access.phase;
+    const {transient,scopeChanged,purge}=crmScopeTransition(prior,
+      {session,audience:props.audience,contextId:props.contextId},phase);
     const changed=scopeChanged||prior.client!==props.client||prior.access!==props.access||
       prior.entity!==entity||prior.archived!==archived;
-    panelIdentity.current={session,entity,archived,client:props.client,access:props.access,
+    if(!transient||scopeChanged)panelIdentity.current={session,entity,archived,client:props.client,access:props.access,
       audience:props.audience,contextId:props.contextId};
-    if(scopeChanged||!session){subviewDrafts.current={};setName('');setCity('');setQuery('');setAppliedQuery('');setArchived(false);
+    if(purge){subviewDrafts.current={};setName('');setCity('');setQuery('');setAppliedQuery('');setArchived(false);
       journal.current=createCommandJournal();busyRef.current=false;setBusy(false);setChecking(false);}
-    if(changed||!session){setItems([]);setNextCursor(null);setError('');}
-    if(scopeChanged||!session){setSelected(null);setSelectedSnapshot(null);setForm(null);}
+    if(changed||purge){setItems([]);setNextCursor(null);setError('');}
+    if(purge){setSelected(null);setSelectedSnapshot(null);setForm(null);}
     if(!active||!session){setLoading(false);setChecking(false);return;}
     busyRef.current=!!journal.current.pending;setBusy(busyRef.current);
     void refresh(token,entity,scopeChanged?'':appliedQueryRef.current,scopeChanged?false:archived);
-  },[active,session,entity,archived,refresh,props.client,props.access,props.audience,props.contextId]);
+  },[active,session,access.phase,access.pending,entity,archived,refresh,props.client,props.access,props.audience,props.contextId]);
   const selectedItem=items.find(item=>item.id===selected)??(selectedSnapshot?.id===selected?selectedSnapshot:null);
   const choose=(id:string)=>{const item=items.find(value=>value.id===id);if(!item)return;
     setSelected(id);setSelectedSnapshot(item);setForm(formFrom(item));};
@@ -220,7 +221,9 @@ export function CrmWorkspaceView(props:WorkspaceViewProps){
     const output=await command(archived?'restore':'archive',{id:selectedItem.id,revision:form.revision});
     if(output&&selectedRef.current===selectedItem.id){setSelected(null);setForm(null);}
   };
-  if(!active||!session)return <div className="p-6 text-sm">CRM indisponible pour cette session.</div>;
+  const ownScope=panelIdentity.current.session===session&&panelIdentity.current.audience===props.audience&&
+    panelIdentity.current.contextId===props.contextId;
+  if(!active||!session||!ownScope)return <div className="p-6 text-sm">CRM indisponible pour cette session.</div>;
   return <div className="flex w-full flex-col gap-4 p-6">
     <nav className="flex gap-2" aria-label="Sections CRM">{(['prospect','contact','company'] as Entity[]).map(value=>
       <button key={value} type="button" disabled={busy} className={buttonStyle} aria-current={entity===value?'page':undefined}

@@ -66,7 +66,7 @@ test('native messaging persists drafts and private files through the real D1 ope
   const runtime = new Miniflare({host: '127.0.0.1', port: 0, cf: false, modules: true,
     compatibilityDate: '2026-05-15', script: 'export default {fetch(){return new Response(null,{status:404})}}',
     d1Databases: {DB: 'creezio-messaging-integration'}, r2Buckets: ['BUCKET'], d1Persist: false, r2Persist: false});
-  let data, lease;
+  let data, lease, appLease;
   try {
     const db = await runtime.getD1Database('DB'), bucket = await runtime.getR2Bucket('BUCKET');
     await db.batch([...access.statements, ...technical.statements, ...generated.statements].map(sql => db.prepare(sql)));
@@ -106,8 +106,16 @@ test('native messaging persists drafts and private files through the real D1 ope
     const box = success(await invoke('box.create', boxInput)).box;
     assert.equal(success(await invoke('box.create', boxInput)).box.id, box.id, 'replay keeps the same mailbox');
     assert.equal(success(await invoke('box.list', {limit: 10})).items.length, 1);
+    const appScope = {token: ownerApp.token, audience: 'app'};
+    assert.equal(success(await invoke('box.list', {limit: 10}, appScope)).items[0].id, box.id,
+      'the same owner sees an admin-created box in app');
+    const appBox = success(await invoke('box.create', {requestKey: 'app-mail-box',
+      name: 'Boîte créée dans l’app', address: ''}, appScope)).box;
+    assert.ok(success(await invoke('box.list', {limit: 10})).items.some(item=>item.id===appBox.id),
+      'admin sees a box created in app');
     const draft = success(await invoke('draft.create', {requestKey: 'mail-draft', boxId: box.id})).draft;
     const privateRead = {boxId: box.id, draftId: draft.id};
+    assert.equal(success(await invoke('draft.read', privateRead, appScope)).draft.id,draft.id);
     const saved = success(await invoke('draft.save', {...privateRead, requestKey: 'mail-save', revision: draft.revision,
       to: 'recipient@example.invalid', cc: '', bcc: '', subject: 'Brouillon conservé',
       text: 'Contenu privé', html: '<p>Contenu <strong>privé</strong></p><img src=x onerror=alert(1)>'})).draft;
@@ -116,16 +124,37 @@ test('native messaging persists drafts and private files through the real D1 ope
     assert.equal(success(await invoke('draft.read', privateRead)).draft.text, 'Contenu privé');
     await rejected(invoke('draft.save', {...privateRead, requestKey: 'mail-stale', revision: 1,
       to: '', cc: '', bcc: '', subject: 'Lost update', text: '', html: ''}), 'conflict');
-    for (const scope of [{token: otherAdmin.token}, {token: ownerApp.token, audience: 'app'}, {contextId: 'other'}]) {
+    const appDraft = success(await invoke('draft.create', {requestKey: 'app-mail-draft',boxId:box.id},appScope)).draft;
+    const appRead = {boxId:box.id,draftId:appDraft.id};
+    assert.equal(success(await invoke('draft.read',appRead)).draft.id,appDraft.id,
+      'admin sees an app-created draft');
+    const crossInput={...appRead,to:'recipient@example.invalid',cc:'',bcc:'',subject:'Partagé',
+      text:'Modification croisée',html:'<p>Partagé</p>'};
+    const adminSaved=success(await invoke('draft.save',{...crossInput,requestKey:'admin-cross-save',
+      revision:appDraft.revision})).draft;
+    await rejected(invoke('draft.save',{...crossInput,requestKey:'app-cross-stale',
+      revision:appDraft.revision},appScope),'conflict');
+    const appSaved=success(await invoke('draft.save',{...crossInput,requestKey:'app-cross-save',
+      revision:adminSaved.revision},appScope)).draft;
+    assert.equal(success(await invoke('draft.read',appRead)).draft.revision,appSaved.revision);
+    await rejected(invoke('draft.save',{...crossInput,requestKey:'admin-cross-stale',
+      revision:adminSaved.revision}),'conflict');
+    for (const scope of [{token: otherAdmin.token}, {contextId: 'other'}]) {
       await rejected(invoke('draft.read', privateRead, scope), 'not_found');
       assert.deepEqual(success(await invoke('box.list', {limit: 10}, scope)).items, []);
     }
+    const seenDrafts=new Set();let draftCursor;
+    do {const page=success(await invoke('draft.list',{boxId:box.id,limit:10,
+      ...(draftCursor?{cursor:draftCursor}:{})},appScope));
+      for(const item of page.items)seenDrafts.add(item.id);draftCursor=page.nextCursor;
+    }while(draftCursor&&seenDrafts.size<2);
+    assert.deepEqual(seenDrafts,new Set([draft.id,appDraft.id]));
     assert.deepEqual({...success(await invoke('transport.status', {}))}, {state: 'unavailable', send: false, receive: false});
     await rejected(invoke('message.send', {...privateRead, requestKey: 'mail-send', revision: saved.revision}), 'unavailable');
     assert.equal(success(await invoke('draft.read', privateRead)).draft.revision, saved.revision);
     assert.deepEqual(success(await invoke('message.list', {boxId: box.id, limit: 10})).items, []);
 
-    const received = {context_id: 'application', owner_id: owner.principalId, audience: 'admin', box_id: box.id,
+    const received = {context_id: 'application', owner_id: owner.principalId, box_id: box.id,
       id: 'received-message', direction: 'inbound', from_addr: 'sender@example.invalid', to_addr: 'owner@example.invalid',
       cc_addr: '', subject: 'Facture reçue', text_body: 'Contenu fournisseur', html_body: '<p>Contenu fournisseur</p>',
       state: 'received', folder: 'inbox', read_at: null, thread_id: 'thread-1', reply_to: null, in_reply_to: null,
@@ -143,6 +172,7 @@ test('native messaging persists drafts and private files through the real D1 ope
     }));
     const found = success(await invoke('message.list', {boxId: box.id, limit: 10, folder: 'inbox', unread: true, query: 'fournisseur'}));
     assert.equal(found.items[0].id, received.id);
+    assert.equal(success(await invoke('message.read',{boxId:box.id,messageId:received.id},appScope)).message.id,received.id);
     assert.equal(success(await invoke('message.list', {boxId: box.id, limit: 10, threadId: 'thread-1'})).items[0].id, received.id);
     assert.equal(success(await invoke('message.list', {boxId: box.id, limit: 10, unread: true})).items[0].id, received.id);
     const classified = success(await invoke('message.update', {requestKey: 'mail-classify', boxId: box.id,
@@ -153,6 +183,9 @@ test('native messaging persists drafts and private files through the real D1 ope
     assert.deepEqual(success(await invoke('message.list', {boxId: box.id, limit: 10, folder: 'inbox'})).items, []);
     await rejected(invoke('message.update', {requestKey: 'mail-classify-stale', boxId: box.id,
       messageId: received.id, revision: 1, folder: 'trash'}), 'conflict');
+    await rejected(invoke('message.update', {requestKey: 'app-classify-stale', boxId: box.id,
+      messageId: received.id, revision: 1, folder: 'trash'},appScope), 'conflict');
+    assert.equal(success(await invoke('message.read',{boxId:box.id,messageId:received.id},appScope)).message.folder,'archive');
     await rejected(invoke('message.read', {boxId: box.id, messageId: received.id}, {token: otherAdmin.token}), 'not_found');
 
     const registered = operationRegistry();
@@ -205,45 +238,81 @@ test('native messaging persists drafts and private files through the real D1 ope
     lease = await data.authorize({kind: 'session', token: ownerAdmin.token},
       {contextId: 'application', audience: 'admin', actors: ['user'], requiredPermissionIds: [`${moduleId}:use`], purpose: 'operation'}, {moduleId});
     const category = manifest.contracts.files.find(item => item.id === 'attachments');
+    assert.equal(category.ownerScope,'principal');
     const ownerId = await fileOwnerId(owner.principalId, 'admin', category.ownerScope);
+    assert.equal(ownerId,await fileOwnerId(owner.principalId,'app',category.ownerScope));
     const files = createFileService({data, catalog, moduleId, category, bucket, ownerId});
+    const adminBytes = new TextEncoder().encode('private attachment · é');
     const staged = await files.stage(lease, {ownerId, intentId: 'mail-file', generation: '1', filename: 'note.txt',
-      contentType: 'text/plain', bytes: new TextEncoder().encode('private attachment')});
+      contentType: 'text/plain', bytes: adminBytes});
     const linked = success(await invoke('attachment.link', {...privateRead, requestKey: 'mail-link',
       revision: saved.revision, staged}));
     assert.equal(linked.attachment.fileId, staged.fileId);
     assert.equal(linked.draft.revision, saved.revision + 1);
     assert.equal(success(await invoke('attachment.list', {...privateRead, limit: 50})).items[0].reference.digest, staged.digest,
       'the maximum UI page includes the mailbox and draft authorization reads in its work budget');
-    const readFile = (audience, token) => dispatchFileHttp(new Request(
-      `http://127.0.0.1:8787/api/files/${audience}/${moduleId}/attachments?${new URLSearchParams(staged)}`,
-      {headers: {cookie: `creezio-local-${audience}=${token}`, 'x-creezio-context': 'application'}}),
+    const readFile = (audience, token, reference=staged, contextId='application') => dispatchFileHttp(new Request(
+      `http://127.0.0.1:8787/api/files/${audience}/${moduleId}/attachments?${new URLSearchParams(reference)}`,
+      {headers: {cookie: `creezio-local-${audience}=${token}`, 'x-creezio-context': contextId}}),
       {profile: 'local', bindings: {DB: db, BUCKET: bucket}}, {CREEZIO_APP_ORIGIN: 'http://127.0.0.1:8787'},
       'messaging-private-file', {catalog, files: fileCatalog, permissions});
     const ownFile = await readFile('admin', ownerAdmin.token);
     assert.equal(ownFile.status, 200);
-    assert.equal(await ownFile.text(), 'private attachment');
+    assert.deepEqual(new Uint8Array(await ownFile.arrayBuffer()),adminBytes);
+    const sharedFile = await readFile('app', ownerApp.token);
+    assert.equal(sharedFile.status,200);
+    assert.deepEqual(new Uint8Array(await sharedFile.arrayBuffer()),adminBytes,
+      'the same principal reads byte-identical admin bytes through app');
     assert.equal((await readFile('admin', otherAdmin.token)).status, 404);
-    assert.equal((await readFile('app', ownerApp.token)).status, 404);
-    await rejected(invoke('draft.delete', {...privateRead, requestKey: 'mail-delete-linked', revision: linked.draft.revision}), 'conflict');
+    assert.equal((await readFile('admin', ownerAdmin.token,staged,'other')).status,404);
+    appLease = await data.authorize({kind:'session',token:ownerApp.token},
+      {contextId:'application',audience:'app',actors:['user'],requiredPermissionIds:[`${moduleId}:use`],
+        purpose:'operation'},{moduleId});
+    const appFiles=createFileService({data,catalog,moduleId,category,bucket,ownerId});
+    const appBytes=new Uint8Array([0,1,2,42,127,128,254,255]);
+    const appStaged=await appFiles.stage(appLease,{ownerId,intentId:'app-mail-file',generation:'1',
+      filename:'app-note.txt',contentType:'text/plain',bytes:appBytes});
+    const appLinked=success(await invoke('attachment.link',{...privateRead,requestKey:'app-mail-link',
+      revision:linked.draft.revision,staged:appStaged},appScope));
+    assert.equal(appLinked.draft.revision,linked.draft.revision+1);
+    assert.deepEqual(new Set(success(await invoke('attachment.list',{...privateRead,limit:50})).items.map(item=>item.fileId)),
+      new Set([staged.fileId,appStaged.fileId]));
+    const appUploadRead=await readFile('admin',ownerAdmin.token,appStaged);
+    assert.equal(appUploadRead.status,200);
+    assert.deepEqual(new Uint8Array(await appUploadRead.arrayBuffer()),appBytes,
+      'admin reads byte-identical app bytes');
+    assert.equal((await readFile('admin',otherAdmin.token,appStaged)).status,404);
+    await rejected(invoke('draft.delete', {...privateRead, requestKey: 'mail-delete-linked', revision: appLinked.draft.revision}), 'conflict');
 
     engine = makeEngine();
     assert.equal(success(await invoke('draft.read', privateRead)).draft.subject, 'Brouillon conservé');
-    assert.equal(success(await invoke('draft.read', privateRead)).draft.revision, linked.draft.revision);
-    assert.equal(success(await invoke('attachment.list', {...privateRead, limit: 10})).items[0].fileId, staged.fileId);
+    assert.equal(success(await invoke('draft.read', privateRead)).draft.revision, appLinked.draft.revision);
+    const appUnlinked=success(await invoke('attachment.unlink',{...privateRead,requestKey:'app-mail-unlink',
+      fileId:appStaged.fileId,revision:appLinked.draft.revision},appScope));
     const unlinked = success(await invoke('attachment.unlink', {...privateRead, requestKey: 'mail-unlink',
-      fileId: staged.fileId, revision: linked.draft.revision}));
-    assert.equal(unlinked.removed, true);
+      fileId: staged.fileId, revision: appUnlinked.draft.revision}));
+    assert.equal(appUnlinked.removed,true);assert.equal(unlinked.removed, true);
     assert.deepEqual(success(await invoke('attachment.list', {...privateRead, limit: 10})).items, []);
-    assert.equal(await (await readFile('admin', ownerAdmin.token)).text(), 'private attachment', 'unlink retains private bytes');
+    assert.deepEqual(new Uint8Array(await (await readFile('app',ownerApp.token)).arrayBuffer()),adminBytes,
+      'unlink retains private bytes');
     assert.equal(success(await invoke('draft.delete', {...privateRead, requestKey: 'mail-delete', revision: unlinked.draft.revision})).deleted, true);
     await rejected(invoke('draft.read', privateRead), 'not_found');
     const latest = good(await acl.readPolicy(ownerAdmin.token)), revoked = structuredClone(latest.policy);
-    revoked.assignments = revoked.assignments.filter(row => row.roleId !== 'messaging-user');
+    revoked.assignments = revoked.assignments.filter(row => !(row.principalId===owner.principalId
+      &&row.audience==='admin'&&row.contextId==='application'&&row.roleId==='messaging-user'));
     good(await acl.replacePolicy(ownerAdmin.token, {expectedEpoch: latest.epoch, policy: revoked}));
     await rejected(invoke('box.list', {limit: 10}), 'forbidden');
+    assert.equal((await readFile('admin',ownerAdmin.token,appStaged)).status,403,
+      'the shared owner hash never bypasses the revoked admin grant');
+    assert.ok(success(await invoke('box.list',{limit:10},appScope)).items.some(item=>item.id===box.id),
+      'revoking admin leaves the independent app grant active');
+    assert.equal(success(await invoke('draft.read',appRead,appScope)).draft.revision,appSaved.revision);
+    const afterRevocation=await readFile('app',ownerApp.token,appStaged);
+    assert.equal(afterRevocation.status,200);
+    assert.deepEqual(new Uint8Array(await afterRevocation.arrayBuffer()),appBytes);
   } finally {
     if (data && lease) data.dispose(lease);
+    if (data && appLease) data.dispose(appLease);
     await runtime.dispose();
   }
 });

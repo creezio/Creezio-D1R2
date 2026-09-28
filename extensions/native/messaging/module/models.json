@@ -28,19 +28,6 @@
         }
       },
       {
-        "id": "audience",
-        "type": "string",
-        "nullable": false,
-        "protected": false,
-        "computed": false,
-        "constraints": {
-          "enum": [
-            "admin",
-            "app"
-          ]
-        }
-      },
-      {
         "id": "id",
         "type": "string",
         "nullable": false,
@@ -114,7 +101,6 @@
     "primaryKey": [
       "context_id",
       "owner_id",
-      "audience",
       "id"
     ],
     "indexes": [
@@ -123,7 +109,6 @@
         "fields": [
           "context_id",
           "owner_id",
-          "audience",
           "updated_at",
           "id"
         ],
@@ -170,19 +155,6 @@
         "constraints": {
           "minLength": 1,
           "maxLength": 128
-        }
-      },
-      {
-        "id": "audience",
-        "type": "string",
-        "nullable": false,
-        "protected": false,
-        "computed": false,
-        "constraints": {
-          "enum": [
-            "admin",
-            "app"
-          ]
         }
       },
       {
@@ -408,7 +380,6 @@
     "primaryKey": [
       "context_id",
       "owner_id",
-      "audience",
       "box_id",
       "id"
     ],
@@ -418,7 +389,6 @@
         "fields": [
           "context_id",
           "owner_id",
-          "audience",
           "box_id",
           "created_at",
           "id"
@@ -432,7 +402,6 @@
         "fields": [
           "context_id",
           "owner_id",
-          "audience",
           "box_id"
         ],
         "target": {
@@ -443,7 +412,6 @@
         "targetFields": [
           "context_id",
           "owner_id",
-          "audience",
           "id"
         ],
         "onDelete": "restrict"
@@ -488,19 +456,6 @@
         "constraints": {
           "minLength": 1,
           "maxLength": 128
-        }
-      },
-      {
-        "id": "audience",
-        "type": "string",
-        "nullable": false,
-        "protected": false,
-        "computed": false,
-        "constraints": {
-          "enum": [
-            "admin",
-            "app"
-          ]
         }
       },
       {
@@ -620,7 +575,6 @@
     "primaryKey": [
       "context_id",
       "owner_id",
-      "audience",
       "box_id",
       "id"
     ],
@@ -630,7 +584,6 @@
         "fields": [
           "context_id",
           "owner_id",
-          "audience",
           "box_id",
           "updated_at",
           "id"
@@ -644,7 +597,6 @@
         "fields": [
           "context_id",
           "owner_id",
-          "audience",
           "box_id"
         ],
         "target": {
@@ -655,7 +607,6 @@
         "targetFields": [
           "context_id",
           "owner_id",
-          "audience",
           "id"
         ],
         "onDelete": "restrict"
@@ -884,19 +835,6 @@
         }
       },
       {
-        "id": "audience",
-        "type": "string",
-        "nullable": false,
-        "protected": false,
-        "computed": false,
-        "constraints": {
-          "enum": [
-            "admin",
-            "app"
-          ]
-        }
-      },
-      {
         "id": "box_id",
         "type": "string",
         "nullable": false,
@@ -1006,7 +944,6 @@
     "primaryKey": [
       "context_id",
       "owner_id",
-      "audience",
       "box_id",
       "draft_id",
       "file_id"
@@ -1017,7 +954,6 @@
         "fields": [
           "context_id",
           "owner_id",
-          "audience",
           "box_id",
           "draft_id",
           "created_at",
@@ -1032,7 +968,6 @@
         "fields": [
           "context_id",
           "owner_id",
-          "audience",
           "box_id"
         ],
         "target": {
@@ -1043,7 +978,6 @@
         "targetFields": [
           "context_id",
           "owner_id",
-          "audience",
           "id"
         ],
         "onDelete": "restrict"
@@ -1053,7 +987,6 @@
         "fields": [
           "context_id",
           "owner_id",
-          "audience",
           "box_id",
           "draft_id"
         ],
@@ -1065,7 +998,6 @@
         "targetFields": [
           "context_id",
           "owner_id",
-          "audience",
           "box_id",
           "id"
         ],

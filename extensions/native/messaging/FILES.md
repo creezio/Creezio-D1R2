@@ -1,8 +1,8 @@
 # Inventaire des fichiers
 
 - `module/` : manifeste, modèles D1, catégorie R2, opérations communes et service métier borné.
-- `ui/contracts.ts` : contrats de présentation et pont `client.invoke` vers les opérations du module.
-- `ui/index.tsx` : orchestration du workspace, navigation, identité, recherche, brouillon, fichiers et commandes.
+- `ui/contracts.ts` : contrats de présentation, identité du panneau et pont de lecture `client.invoke` vers les opérations du module.
+- `ui/index.tsx` : orchestration du workspace, navigation, identité, recherche, brouillon, fichiers et commandes journalisées par le SDK public.
 - `ui/presentation.tsx` : dossiers, liste, lecteur en trois panneaux et destinataires issus du webmail original.
 - `ui/rich-editor.tsx` : éditeur visuel natif, vocabulaire HTML étroit et barre de mise en forme.
 - `plugin/` : projection MCP et skill de rédaction ; pas de second backend ni de widget V1 inventé.

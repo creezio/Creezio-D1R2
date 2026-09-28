@@ -4,7 +4,6 @@
 
 CREATE TABLE "cz_637265657a696f2e6d6573736167696e67_626f78" (
   "address" TEXT NOT NULL CHECK ("address" IS NOT NULL AND (typeof("address") = 'text' AND instr("address", char(0)) = 0 AND length("address") >= 0 AND length("address") <= 320)),
-  "audience" TEXT NOT NULL CHECK ("audience" IS NOT NULL AND (typeof("audience") = 'text' AND instr("audience", char(0)) = 0 AND "audience" IN ('admin', 'app'))),
   "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
   "created_at" TEXT NOT NULL CHECK ("created_at" IS NOT NULL AND (typeof("created_at") = 'text' AND length("created_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "created_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "created_at") = "created_at")),
   "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
@@ -13,11 +12,10 @@ CREATE TABLE "cz_637265657a696f2e6d6573736167696e67_626f78" (
   "owner_id" TEXT NOT NULL CHECK ("owner_id" IS NOT NULL AND (typeof("owner_id") = 'text' AND instr("owner_id", char(0)) = 0 AND length("owner_id") >= 1 AND length("owner_id") <= 128)),
   "revision" INTEGER NOT NULL CHECK ("revision" IS NOT NULL AND (typeof("revision") = 'integer' AND "revision" BETWEEN -9007199254740991 AND 9007199254740991 AND "revision" >= 1 AND "revision" <= 9007199254740991)),
   "updated_at" TEXT NOT NULL CHECK ("updated_at" IS NOT NULL AND (typeof("updated_at") = 'text' AND length("updated_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "updated_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "updated_at") = "updated_at")),
-  PRIMARY KEY ("context_id", "owner_id", "audience", "id")
+  PRIMARY KEY ("context_id", "owner_id", "id")
 ) WITHOUT ROWID;
 
 CREATE TABLE "cz_637265657a696f2e6d6573736167696e67_6472616674" (
-  "audience" TEXT NOT NULL CHECK ("audience" IS NOT NULL AND (typeof("audience") = 'text' AND instr("audience", char(0)) = 0 AND "audience" IN ('admin', 'app'))),
   "bcc_addr" TEXT NOT NULL CHECK ("bcc_addr" IS NOT NULL AND (typeof("bcc_addr") = 'text' AND instr("bcc_addr", char(0)) = 0 AND length("bcc_addr") >= 0 AND length("bcc_addr") <= 2048)),
   "box_id" TEXT NOT NULL CHECK ("box_id" IS NOT NULL AND (typeof("box_id") = 'text' AND instr("box_id", char(0)) = 0 AND length("box_id") >= 1 AND length("box_id") <= 128)),
   "cc_addr" TEXT NOT NULL CHECK ("cc_addr" IS NOT NULL AND (typeof("cc_addr") = 'text' AND instr("cc_addr", char(0)) = 0 AND length("cc_addr") >= 0 AND length("cc_addr") <= 2048)),
@@ -31,12 +29,11 @@ CREATE TABLE "cz_637265657a696f2e6d6573736167696e67_6472616674" (
   "text_body" TEXT NOT NULL CHECK ("text_body" IS NOT NULL AND (typeof("text_body") = 'text' AND instr("text_body", char(0)) = 0 AND length("text_body") >= 0 AND length("text_body") <= 16000)),
   "to_addr" TEXT NOT NULL CHECK ("to_addr" IS NOT NULL AND (typeof("to_addr") = 'text' AND instr("to_addr", char(0)) = 0 AND length("to_addr") >= 0 AND length("to_addr") <= 2048)),
   "updated_at" TEXT NOT NULL CHECK ("updated_at" IS NOT NULL AND (typeof("updated_at") = 'text' AND length("updated_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "updated_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "updated_at") = "updated_at")),
-  PRIMARY KEY ("context_id", "owner_id", "audience", "box_id", "id"),
-  FOREIGN KEY ("context_id", "owner_id", "audience", "box_id") REFERENCES "cz_637265657a696f2e6d6573736167696e67_626f78" ("context_id", "owner_id", "audience", "id") ON DELETE RESTRICT
+  PRIMARY KEY ("context_id", "owner_id", "box_id", "id"),
+  FOREIGN KEY ("context_id", "owner_id", "box_id") REFERENCES "cz_637265657a696f2e6d6573736167696e67_626f78" ("context_id", "owner_id", "id") ON DELETE RESTRICT
 ) WITHOUT ROWID;
 
 CREATE TABLE "cz_637265657a696f2e6d6573736167696e67_64726166745f6174746163686d656e74" (
-  "audience" TEXT NOT NULL CHECK ("audience" IS NOT NULL AND (typeof("audience") = 'text' AND instr("audience", char(0)) = 0 AND "audience" IN ('admin', 'app'))),
   "box_id" TEXT NOT NULL CHECK ("box_id" IS NOT NULL AND (typeof("box_id") = 'text' AND instr("box_id", char(0)) = 0 AND length("box_id") >= 1 AND length("box_id") <= 128)),
   "byte_size" INTEGER NOT NULL CHECK ("byte_size" IS NOT NULL AND (typeof("byte_size") = 'integer' AND "byte_size" BETWEEN -9007199254740991 AND 9007199254740991 AND "byte_size" >= 0 AND "byte_size" <= 9007199254740991)),
   "content_type" TEXT NOT NULL CHECK ("content_type" IS NOT NULL AND (typeof("content_type") = 'text' AND instr("content_type", char(0)) = 0 AND length("content_type") >= 1 AND length("content_type") <= 128)),
@@ -49,9 +46,9 @@ CREATE TABLE "cz_637265657a696f2e6d6573736167696e67_64726166745f6174746163686d65
   "generation" TEXT NOT NULL CHECK ("generation" IS NOT NULL AND (typeof("generation") = 'text' AND instr("generation", char(0)) = 0 AND length("generation") >= 1 AND length("generation") <= 128)),
   "intent_id" TEXT NOT NULL CHECK ("intent_id" IS NOT NULL AND (typeof("intent_id") = 'text' AND instr("intent_id", char(0)) = 0 AND length("intent_id") >= 1 AND length("intent_id") <= 128)),
   "owner_id" TEXT NOT NULL CHECK ("owner_id" IS NOT NULL AND (typeof("owner_id") = 'text' AND instr("owner_id", char(0)) = 0 AND length("owner_id") >= 1 AND length("owner_id") <= 128)),
-  PRIMARY KEY ("context_id", "owner_id", "audience", "box_id", "draft_id", "file_id"),
-  FOREIGN KEY ("context_id", "owner_id", "audience", "box_id") REFERENCES "cz_637265657a696f2e6d6573736167696e67_626f78" ("context_id", "owner_id", "audience", "id") ON DELETE RESTRICT,
-  FOREIGN KEY ("context_id", "owner_id", "audience", "box_id", "draft_id") REFERENCES "cz_637265657a696f2e6d6573736167696e67_6472616674" ("context_id", "owner_id", "audience", "box_id", "id") ON DELETE RESTRICT
+  PRIMARY KEY ("context_id", "owner_id", "box_id", "draft_id", "file_id"),
+  FOREIGN KEY ("context_id", "owner_id", "box_id") REFERENCES "cz_637265657a696f2e6d6573736167696e67_626f78" ("context_id", "owner_id", "id") ON DELETE RESTRICT,
+  FOREIGN KEY ("context_id", "owner_id", "box_id", "draft_id") REFERENCES "cz_637265657a696f2e6d6573736167696e67_6472616674" ("context_id", "owner_id", "box_id", "id") ON DELETE RESTRICT
 ) WITHOUT ROWID;
 
 CREATE TABLE "cz_637265657a696f2e6d6573736167696e67_66696c655f6d65746164617461" (
@@ -71,7 +68,6 @@ CREATE TABLE "cz_637265657a696f2e6d6573736167696e67_66696c655f6d65746164617461" 
 ) WITHOUT ROWID;
 
 CREATE TABLE "cz_637265657a696f2e6d6573736167696e67_6d657373616765" (
-  "audience" TEXT NOT NULL CHECK ("audience" IS NOT NULL AND (typeof("audience") = 'text' AND instr("audience", char(0)) = 0 AND "audience" IN ('admin', 'app'))),
   "box_id" TEXT NOT NULL CHECK ("box_id" IS NOT NULL AND (typeof("box_id") = 'text' AND instr("box_id", char(0)) = 0 AND length("box_id") >= 1 AND length("box_id") <= 128)),
   "cc_addr" TEXT NOT NULL CHECK ("cc_addr" IS NOT NULL AND (typeof("cc_addr") = 'text' AND instr("cc_addr", char(0)) = 0 AND length("cc_addr") >= 0 AND length("cc_addr") <= 2048)),
   "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
@@ -94,18 +90,18 @@ CREATE TABLE "cz_637265657a696f2e6d6573736167696e67_6d657373616765" (
   "text_body" TEXT NOT NULL CHECK ("text_body" IS NOT NULL AND (typeof("text_body") = 'text' AND instr("text_body", char(0)) = 0 AND length("text_body") >= 0 AND length("text_body") <= 16000)),
   "thread_id" TEXT CHECK ("thread_id" IS NULL OR (typeof("thread_id") = 'text' AND instr("thread_id", char(0)) = 0 AND length("thread_id") >= 1 AND length("thread_id") <= 128)),
   "to_addr" TEXT NOT NULL CHECK ("to_addr" IS NOT NULL AND (typeof("to_addr") = 'text' AND instr("to_addr", char(0)) = 0 AND length("to_addr") >= 0 AND length("to_addr") <= 2048)),
-  PRIMARY KEY ("context_id", "owner_id", "audience", "box_id", "id"),
-  FOREIGN KEY ("context_id", "owner_id", "audience", "box_id") REFERENCES "cz_637265657a696f2e6d6573736167696e67_626f78" ("context_id", "owner_id", "audience", "id") ON DELETE RESTRICT
+  PRIMARY KEY ("context_id", "owner_id", "box_id", "id"),
+  FOREIGN KEY ("context_id", "owner_id", "box_id") REFERENCES "cz_637265657a696f2e6d6573736167696e67_626f78" ("context_id", "owner_id", "id") ON DELETE RESTRICT
 ) WITHOUT ROWID;
 
-CREATE INDEX "cz_637265657a696f2e6d6573736167696e67_626f78_idx_726563656e742d626f786573" ON "cz_637265657a696f2e6d6573736167696e67_626f78" ("context_id", "owner_id", "audience", "updated_at", "id");
+CREATE INDEX "cz_637265657a696f2e6d6573736167696e67_626f78_idx_726563656e742d626f786573" ON "cz_637265657a696f2e6d6573736167696e67_626f78" ("context_id", "owner_id", "updated_at", "id");
 
-CREATE INDEX "cz_637265657a696f2e6d6573736167696e67_6472616674_idx_726563656e742d647261667473" ON "cz_637265657a696f2e6d6573736167696e67_6472616674" ("context_id", "owner_id", "audience", "box_id", "updated_at", "id");
+CREATE INDEX "cz_637265657a696f2e6d6573736167696e67_6472616674_idx_726563656e742d647261667473" ON "cz_637265657a696f2e6d6573736167696e67_6472616674" ("context_id", "owner_id", "box_id", "updated_at", "id");
 
-CREATE INDEX "cz_637265657a696f2e6d6573736167696e67_64726166745f6174746163686d656e74_idx_62792d6472616674" ON "cz_637265657a696f2e6d6573736167696e67_64726166745f6174746163686d656e74" ("context_id", "owner_id", "audience", "box_id", "draft_id", "created_at", "file_id");
+CREATE INDEX "cz_637265657a696f2e6d6573736167696e67_64726166745f6174746163686d656e74_idx_62792d6472616674" ON "cz_637265657a696f2e6d6573736167696e67_64726166745f6174746163686d656e74" ("context_id", "owner_id", "box_id", "draft_id", "created_at", "file_id");
 
 CREATE UNIQUE INDEX "cz_637265657a696f2e6d6573736167696e67_66696c655f6d65746164617461_idx_696e74656e74" ON "cz_637265657a696f2e6d6573736167696e67_66696c655f6d65746164617461" ("context_id", "intent_id", "generation");
 
 CREATE UNIQUE INDEX "cz_637265657a696f2e6d6573736167696e67_66696c655f6d65746164617461_idx_6f626a6563742d6b6579" ON "cz_637265657a696f2e6d6573736167696e67_66696c655f6d65746164617461" ("context_id", "object_key");
 
-CREATE INDEX "cz_637265657a696f2e6d6573736167696e67_6d657373616765_idx_726563656e742d6d65737361676573" ON "cz_637265657a696f2e6d6573736167696e67_6d657373616765" ("context_id", "owner_id", "audience", "box_id", "created_at", "id");
+CREATE INDEX "cz_637265657a696f2e6d6573736167696e67_6d657373616765_idx_726563656e742d6d65737361676573" ON "cz_637265657a696f2e6d6573736167696e67_6d657373616765" ("context_id", "owner_id", "box_id", "created_at", "id");

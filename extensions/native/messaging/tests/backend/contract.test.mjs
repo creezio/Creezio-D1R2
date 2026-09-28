@@ -20,17 +20,19 @@ function harness(rows={}){
   return {context,calls};
 }
 
-test('models keep owner, audience and box/draft relation keys',()=>{
+test('business models use owner and context keys across authorized audiences',()=>{
   const models=JSON.parse(read('module/models.json'));
   assert.deepEqual(manifest.contracts.models,models);
   const parent=models.find(x=>x.id==='box');
-  assert.deepEqual(parent.primaryKey,['context_id','owner_id','audience','id']);
+  assert.deepEqual(parent.primaryKey,['context_id','owner_id','id']);
   const child=models.find(x=>x.id==='draft');
-  assert.deepEqual(child.relations[0].fields,['context_id','owner_id','audience','box_id']);
+  assert.deepEqual(child.relations[0].fields,['context_id','owner_id','box_id']);
   assert.deepEqual(child.relations[0].targetFields,parent.primaryKey);
   const attachment=models.find(x=>x.id==='draft_attachment');
   assert.deepEqual(attachment.relations.find(x=>x.id==='draft').fields,
-    ['context_id','owner_id','audience','box_id','draft_id']);
+    ['context_id','owner_id','box_id','draft_id']);
+  assert.ok(models.every(model=>!model.fields.some(field=>field.id==='audience')));
+  assert.equal(manifest.contracts.files[0].ownerScope,'principal');
   assert.match(generateD1Schema(manifest.identity.id,models).sql,/FOREIGN KEY/);
 });
 
@@ -53,7 +55,7 @@ test('box and draft create only plan own scoped rows with a live parent guard',a
   const two=harness({box});
   await draftCreate({requestKey:'draft-one',boxId:'box-one'},two.context);
   assert.deepEqual(two.calls.find(x=>x.kind==='planGet').args.key,
-    {owner_id:'alice',audience:'app',id:'box-one'});
+    {owner_id:'alice',id:'box-one'});
   assert.equal(two.calls.find(x=>x.kind==='planCreate').args.values.box_id,'box-one');
 });
 
@@ -81,7 +83,7 @@ test('draft with attachments cannot be deleted; unlink CAS removes link but keep
     revision:1,fileId:'file-one'},h.context);
   assert.equal(unlinked.output.removed,true);
   assert.deepEqual(h.calls.find(x=>x.kind==='planDelete').args.key,
-    {owner_id:'alice',audience:'app',box_id:'box-one',draft_id:'draft-one',file_id:'file-one'});
+    {owner_id:'alice',box_id:'box-one',draft_id:'draft-one',file_id:'file-one'});
   assert.equal(h.calls.some(x=>x.model==='file_metadata'&&x.kind==='planDelete'),false);
 });
 

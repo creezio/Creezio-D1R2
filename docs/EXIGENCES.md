@@ -183,7 +183,7 @@ Responsable de réalisation : équipe du lot P5, revue indépendante. Profil de 
 
 | ID | Exigence et critères positifs/négatifs | Traçabilité et recette |
 |---|---|---|
-| <a id="REQ-1801"></a>**REQ-1801** | **Composition et suivi.** Brouillons, destinataires, boîtes, lecture, pièces jointes privées, HTML sûr et états d’envoi/réception fonctionnent. Avec transport, vérifier réception, accusés, réconciliation et reprise ; sans transport, rédaction disponible et envoi/réception explicitement indisponibles. Rejeu ne crée pas un second envoi confirmé. | [US-18](USER-STORIES.md#US-18) · [T-18](TODO.md#T-18) · recette `V-1801` |
+| <a id="REQ-1801"></a>**REQ-1801** | **Composition et suivi.** Brouillons, destinataires, boîtes, lecture, pièces jointes privées, HTML sûr et états d’envoi/réception fonctionnent. Un même utilisateur autorisé retrouve les mêmes boîtes, brouillons et fichiers dans le workspace et le front, dans le même contexte ; les permissions restent distinctes par audience et les autres utilisateurs/contextes restent isolés. Avec transport, vérifier réception, accusés, réconciliation et reprise ; sans transport, rédaction disponible et envoi/réception explicitement indisponibles. Rejeu ne crée pas un second envoi confirmé. | [US-18](USER-STORIES.md#US-18) · [T-18](TODO.md#T-18) · recette `V-1801` |
 
 ## Support
 

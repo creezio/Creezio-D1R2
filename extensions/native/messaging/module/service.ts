@@ -10,7 +10,7 @@ const validText=(v:unknown,max:number):v is string=>typeof v==='string'&&v.lengt
   &&!/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/u.test(v);
 const fail=(code:'invalid_input'|'not_found'|'conflict'|'unavailable'):never=>{throw new OperationError(code);};
 const now=()=>new Date().toISOString();
-const scope=(c:OperationContext)=>({owner_id:c.principalId,audience:c.audience});
+const scope=(c:OperationContext)=>({owner_id:c.principalId});
 const boxKey=(c:OperationContext,id:string)=>({...scope(c),id});
 const draftKey=(c:OperationContext,boxId:string,id:string)=>({...scope(c),box_id:boxId,id});
 const messageKey=(c:OperationContext,boxId:string,id:string)=>({...scope(c),box_id:boxId,id});

@@ -8,9 +8,8 @@ const S=(max=128,min=1)=>({minLength:min,maxLength:max});
 const I=(min=0)=>({minimum:min,maximum:Number.MAX_SAFE_INTEGER});
 const field=(name,type,options={})=>({id:name,type,nullable:options.nullable??false,
   protected:options.protected??false,computed:false,...(options.constraints?{constraints:options.constraints}:{})});
-const scope=[field('context_id','string',{protected:true,constraints:S()}),field('owner_id','string',{constraints:S()}),
-  field('audience','string',{constraints:{enum:['admin','app']}})];
-const common=['context_id','owner_id','audience'];
+const scope=[field('context_id','string',{protected:true,constraints:S()}),field('owner_id','string',{constraints:S()})];
+const common=['context_id','owner_id'];
 const model=(name,title,fields,primaryKey,indexes=[],relations=[])=>({id:name,title,scope:'context',
   contextField:'context_id',fields:[...scope,...fields],primaryKey,indexes,relations,
   permissions:[ref('permission','use')],deletion:{mode:'soft',requiresApproval:false},public:false});
@@ -71,7 +70,7 @@ const models=[
 ];
 for(const name of ['draft','draft_attachment'])models.find(x=>x.id===name).deletion.mode='hard';
 models.find(x=>x.id==='file_metadata').fields=models.find(x=>x.id==='file_metadata').fields
-  .filter(x=>!['owner_id','audience'].includes(x.id));
+  .filter(x=>x.id!=='owner_id');
 
 const obj=(properties,required=Object.keys(properties))=>({type:'object',properties,required,additionalProperties:false});
 const str=(max=128,min=1)=>({type:'string',minLength:min,maxLength:max});
@@ -127,7 +126,12 @@ const transportOutput=schema('transport-output',obj({state:{const:'unavailable'}
 const sendInput=schema('message-send-input',obj({requestKey:str(),boxId:str(),draftId:str(),revision:num(1)}));
 const sendOutput=schema('message-send-output',obj({message}));
 const viewInput=schema('messaging-view-input',obj({boxId:str()},[]));
-const panelState=schema('messaging-panel-state',obj({boxId:str(),draftId:str()},[]));
+const pendingState=obj({sessionId:str(),audience:{type:'string',enum:['admin','app']},contextId:str(),
+  bindingId:str(257),requestKey:str(512),intent:str(64),targetId:str()},
+  ['sessionId','audience','contextId','bindingId','requestKey']);
+const panelState=schema('messaging-panel-state',obj({sessionId:str(),audience:{type:'string',enum:['admin','app']},
+  contextId:str(),boxId:str(),draftId:str(),pending:pendingState},
+  ['sessionId','audience','contextId']));
 
 const permission={id:'use',title:'Utiliser sa messagerie',audiences:['admin','app'],
   actors:['user','delegated-user','machine'],scopes:['messaging.use'],context:'required',default:'deny',
@@ -174,6 +178,7 @@ operation('transport.status','Lire le statut du transport','query',empty,transpo
 operation('message.send','Envoyer un brouillon','command',sendInput,sendOutput,['box','draft','draft_attachment'],[],
   {exportName:'messageSend',concurrency:{mode:'object-version',versionField:'revision'}});
 const category={id:'attachments',metadataModel:ref('model','file_metadata'),contextField:'context_id',ownerField:'file_owner',
+  ownerScope:'principal',
   storageFields:{id:'file_id',objectKey:'object_key',digest:'digest',byteSize:'byte_size',contentType:'content_type',
     filename:'filename',version:'version',state:'state',intentId:'intent_id',generation:'generation'},
   mimeTypes:['text/plain','application/pdf','image/png','image/jpeg'],maxBytes:10*1024*1024,public:false,
@@ -192,10 +197,10 @@ const m=structuredClone(template);
 const skillPath='plugin/skills/compose-message.md';
 const skillIntegrity=`sha256-${createHash('sha256').update(readFileSync(new URL(skillPath,root))).digest('hex')}`;
 m.identity={id,title:'Messagerie native',publisher:'creezio',origin:'https://github.com/creezio/Creezio-D1R2',
-  version:'0.0.0',source:{kind:'snapshot',revision:'t18-messaging-v1',
-    integrity:`sha256-${createHash('sha256').update('t18-messaging-v1').digest('hex')}`},
+  version:'0.0.0',source:{kind:'snapshot',revision:'t18-messaging-v2',
+    integrity:`sha256-${createHash('sha256').update('t18-messaging-v2').digest('hex')}`},
   license:{expression:'NOASSERTION',file:'LICENSE'}};
-m.compatibility={core:'^0.0.0',sdk:'^1.0.0',requiredCapabilities:['runtime.worker','data.d1.shared','files.r2.shared'],
+m.compatibility={core:'^0.0.0',sdk:'^1.2.0',requiredCapabilities:['runtime.worker','data.d1.shared','files.r2.shared'],
   optionalCapabilities:[]};
 m.entrypoints={server:{path:'module/entry.server.ts',export:'messaging'},
   ui:{path:'ui/index.tsx',export:'MessagingView'},plugin:{manifest:'plugin/plugin.json',mcp:'plugin/mcp.json',
@@ -220,7 +225,7 @@ m.contracts={schemas,models,files:[category],events:[],settings:[],search:[],per
     navigation:[{id:'messaging-admin',title:'Messagerie',view:ref('view','admin'),permissions:[ref('permission','use')],surfaces:['workspace'],order:30},
       {id:'messaging-front',title:'Messagerie',view:ref('view','front'),permissions:[ref('permission','use')],surfaces:['front'],order:30}],
     slots:[],front:{mode:'provided'},themes:[],styles:[]},widgets:[],publicContracts:[]};
-m.documentation.versionBinding={moduleVersion:'0.0.0',sourceRevision:'t18-messaging-v1'};
+m.documentation.versionBinding={moduleVersion:'0.0.0',sourceRevision:'t18-messaging-v2'};
 for(const suite of ['backend','ui','api-mcp','package','docs'])m.validation.suites[suite].tests=[`tests/${suite}/contract.test.mjs`];
 m.validation.suites.widgets.mode='not-applicable';m.validation.suites.widgets.tests=['tests/widgets/contract.test.mjs'];
 m.validation.suites.widgets.justification={reason:'Native messaging exposes text MCP tools but no widget renderer.',
@@ -232,7 +237,7 @@ m.packaging.runtime.files=['module/manifest.json','module/models.json','module/e
 m.packaging.validation.files=['AGENTS.md','FILES.md','interview.md','TODO.md','gate.mjs','module/generate-manifest.mjs',
   'ci/run-suite.mjs','tests/helpers.mjs',...['backend','ui','api-mcp','widgets','package','docs']
     .flatMap(name=>[`ci/${name}.mjs`,`tests/${name}/contract.test.mjs`])];
-m.packaging.validationBinding={moduleId:id,moduleVersion:'0.0.0',sourceRevision:'t18-messaging-v1'};
+m.packaging.validationBinding={moduleId:id,moduleVersion:'0.0.0',sourceRevision:'t18-messaging-v2'};
 m.lifecycle.absent={widgets:{reason:'Text-only MCP tools do not require a widget renderer.',policyRule:'messaging.text-tools-only'}};
 m.lifecycle.configuration='explicit-state';
 writeFileSync(new URL('module/models.json',root),JSON.stringify(models,null,2)+'\n');

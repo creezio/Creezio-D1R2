@@ -1,6 +1,6 @@
 {
   "name": "@creezio/sdk",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": false,
   "type": "module",
   "description": "Creezio module authoring SDK",
@@ -16,6 +16,7 @@
     "dist/types/sdk/files",
     "dist/types/sdk/front",
     "dist/types/sdk/operations/client.d.ts",
+    "dist/types/sdk/operations/command-journal.d.ts",
     "dist/types/sdk/operations/error.d.ts",
     "dist/types/sdk/operations/handler.d.ts",
     "dist/types/sdk/ui",
@@ -37,6 +38,10 @@
     "./operations/client": {
       "types": "./dist/types/sdk/operations/client.d.ts",
       "import": "./dist/esm/operations/client.js"
+    },
+    "./operations/command-journal": {
+      "types": "./dist/types/sdk/operations/command-journal.d.ts",
+      "import": "./dist/esm/operations/command-journal.js"
     },
     "./delivery/context": {
       "types": "./dist/types/sdk/delivery/context.d.ts",

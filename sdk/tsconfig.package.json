@@ -19,6 +19,7 @@
     "operations/error.ts",
     "operations/handler.ts",
     "operations/client.ts",
+    "operations/command-journal.ts",
     "delivery/context.tsx",
     "delivery/transport.ts",
     "files/types.ts",

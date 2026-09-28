@@ -1,12 +1,14 @@
 # T18 — Messagerie native
 
-Réalisation de [REQ-1801](EXIGENCES.md#REQ-1801) et [US-18](USER-STORIES.md#US-18), suivie dans le [backlog](TODO.md#T-18). Branche de travail : `core/t18-native-messaging`.
+Réalisation de [REQ-1801](EXIGENCES.md#REQ-1801) et [US-18](USER-STORIES.md#US-18), suivie dans le [backlog](TODO.md#T-18). La tranche initiale est intégrée par PR #42 ; la décision de partage entre interfaces et le journal SDK sont suivis sur `core/t18-shared-messaging-sdk`.
 
 ## Périmètre en cours
 
 Le module `creezio.messaging` réunit les boîtes, messages, brouillons, destinataires, pièces jointes privées et l'état du transport. Les interfaces workspace réemploient le webmail du kit Creezio original : dossiers, liste et lecture sur trois panneaux, rédaction et gestion des pièces jointes. L'adaptation porte sur les ports publics du SDK, les opérations communes et D1/R2 ; le shell et le chat d'administration ne sont pas remplacés.
 
 Les lectures et mutations passent par le même moteur pour le workspace, l'API et le MCP. Les modèles actuels alimentent le générateur central de schéma ; le module ne fournit aucun script de transformation de bases ni initialisation implicite au démarrage. Une mise à jour doit conserver les données existantes.
+
+Décision utilisateur du 28 septembre : les boîtes, messages, brouillons et pièces jointes appartiennent au principal dans son contexte, indépendamment de l'interface. Le même utilisateur autorisé les retrouve dans le workspace et le front. Les credentials, permissions et curseurs restent liés à leur audience ; révoquer l'accès admin ne révoque pas automatiquement le droit applicatif. Les fichiers privés utilisent le propriétaire `principal`, avec garde de contexte et d'audience à chaque opération.
 
 Sans fournisseur configuré, la rédaction reste disponible et l'envoi/réception est explicitement indisponible. Le socle n'héberge aucun serveur SMTP/IMAP et ne lance aucun ordonnanceur. Un résultat inconnu chez un fournisseur ne doit jamais être transformé en envoi confirmé ou rejoué automatiquement.
 
@@ -32,4 +34,10 @@ PR #42 fusionnée sur main `92b0958b9f5d8ae3885a708b06333449b4e9714d`, arbre ide
 
 La CI de main a également réussi 1 186/1 186 tests sans omission lors de la deuxième tentative du run `36467159947`. La première tentative avait atteint le délai externe du job et n’est pas comptée comme réussite.
 
-La recette navigateur locale a confirmé deux boîtes, trois sauvegardes du même brouillon avec lecteur à jour, retour après rechargement et changement d’onglet, puis affichage et téléchargement d’une pièce jointe de contenu identique. L’upload est passé par l’API native car le navigateur automatisé ne permettait pas son sélecteur sans élargir une permission ; aucune permission navigateur n’a été changée. La déconnexion finale est confirmée. La politique de partage de boîte entre audiences reste à préciser. Ces preuves locales ne qualifient ni fournisseur de courrier ni déploiement hébergé.
+La recette navigateur locale a confirmé deux boîtes, trois sauvegardes du même brouillon avec lecteur à jour, retour après rechargement et changement d’onglet, puis affichage et téléchargement d’une pièce jointe de contenu identique. L’upload est passé par l’API native car le navigateur automatisé ne permettait pas son sélecteur sans élargir une permission ; aucune permission navigateur n’a été changée. La déconnexion finale est confirmée. Cette recette précède la décision de partage ; elle ne qualifie ni le nouveau parcours entre interfaces, ni fournisseur de courrier, ni déploiement hébergé.
+
+## Partage et reprise des commandes — candidate SDK 1.2
+
+Le test réel D1/R2 de la nouvelle candidate vérifie le partage ADMIN vers APP et APP vers ADMIN, les révisions communes des brouillons, les octets des pièces jointes dans les deux interfaces et les refus entre principals et contextes. Une révocation admin laisse la lecture applicative autorisée disponible. Les témoins locaux antérieurs sont conservés ; aucun schéma incompatible n'est appliqué implicitement.
+
+Le journal public `@creezio/sdk/operations/command-journal` centralise le suivi des mutations d'interface. La vue conserve les identifiants avant émission, restaure uniquement le scope de session vérifié, bloque un second envoi si l'issue est inconnue et inspecte le statut sans rejouer l'action. Le schéma de panneau déclare les métadonnées persistées. Les champs métier restent dans les modèles et formulaires du module. Le SDK 1.2 est candidat, sans nouvelle release publique à ce stade ; la recette navigateur et hébergée de cette candidate reste à réaliser.

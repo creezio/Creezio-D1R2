@@ -1,5 +1,9 @@
 # Changelog
 
+## En cours — messagerie partagée et journal SDK (T18/T30)
+
+Un utilisateur autorisé retrouve les mêmes boîtes, brouillons et pièces jointes dans le workspace et le front. Les modèles sont rattachés au principal et au contexte ; les permissions restent distinctes par audience. Le SDK candidat 1.2 expose un journal de mutation qui conserve la clé avant émission, bloque le nouvel envoi après une issue incertaine et vérifie le statut sans replay. Les archives SDK déjà publiées restent inchangées. Voir [T18](docs/IMPLEMENTATION-T18.md) et [le contrat SDK](sdk/operations/README.md).
+
 ## En cours — CRM natif (T20)
 
 Entreprises, contacts et prospects rejoignent les modèles D1 et les opérations API/MCP communes. La prospection reprend le kanban original ; workspace et thèmes front disposent des vues déclarées. Les fiches sont communes aux audiences autorisées dans le même contexte, avec relations protégées, archivage, recherche paginée et révisions d’édition. Voir [T20](docs/IMPLEMENTATION-T20.md) pour les contrôles et les qualifications restantes.

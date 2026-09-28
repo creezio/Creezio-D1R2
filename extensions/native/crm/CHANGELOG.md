@@ -1,5 +1,7 @@
 # Changelog
 
+Le retour dans un onglet conserve maintenant les brouillons pendant la vérification native de session (`loading` ou `unavailable`). L'interface reste masquée jusqu'à vérification ; une déconnexion confirmée ou une nouvelle session, audience ou contexte purge les états. Les modèles et opérations CRM ne changent pas.
+
 ## 0.0.0 — candidat source T20
 
 Contrats et opérations CRM natifs pour trois entités, relations internes, recherche bornée, conflits de révision, API/MCP et vue de prospection. Aucune release ni installation déclarée.
