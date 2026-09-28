@@ -87,6 +87,18 @@
       "enabled": true,
       "configuration": [],
       "integrations": []
+    },
+    {
+      "moduleId": "creezio.messaging",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/native/messaging"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
     }
   ],
   "front": {
@@ -100,7 +112,8 @@
         "creezio.access",
         "example.workspace-witness",
         "creezio.conversations",
-        "creezio.openai"
+        "creezio.openai",
+        "creezio.messaging"
       ]
     },
     "app": {
@@ -109,7 +122,8 @@
         "example.workspace-witness",
         "creezio.theme-standard",
         "creezio.conversations",
-        "creezio.openai"
+        "creezio.openai",
+        "creezio.messaging"
       ]
     }
   }

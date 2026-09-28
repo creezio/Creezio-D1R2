@@ -1,0 +1,6 @@
+{
+  "name": "creezio-messaging",
+  "version": "0.0.0",
+  "description": "Composition et lecture de la messagerie native Creezio, sous les droits applicatifs.",
+  "mcpServers": {}
+}

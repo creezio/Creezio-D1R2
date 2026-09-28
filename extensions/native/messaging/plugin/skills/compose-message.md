@@ -1,0 +1,3 @@
+# Préparer un message Creezio
+
+Lire `transport.status` avant toute proposition d'envoi. Utiliser `box.list`, puis `box.create` si aucune boîte locale n'existe. Créer et sauvegarder le brouillon avec `draft.create` et `draft.save`, en conservant sa révision. Pour une pièce jointe, passer par le service privé de fichiers puis `attachment.link` ; ne jamais inventer une référence de fichier. Si le transport est indisponible, indiquer que le brouillon est conservé et que le message n'a pas été envoyé. Aucun résultat d'outil ne justifie une confirmation de réception ou de livraison sans état réellement vérifié.

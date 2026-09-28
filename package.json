@@ -19,7 +19,7 @@
     "compose": "node scripts/build/compose-runtime.mjs",
     "data:access": "node scripts/data/prepare-access.mjs --write",
     "data:runtime": "node scripts/data/prepare-runtime.mjs --write",
-    "check:data": "node scripts/data/prepare-access.mjs && node scripts/data/prepare-runtime.mjs && node scripts/data/prepare-modules-settings.mjs && node scripts/data/prepare-native-module.mjs conversations && node scripts/data/prepare-native-module.mjs openai",
+    "check:data": "node scripts/data/prepare-access.mjs && node scripts/data/prepare-runtime.mjs && node scripts/data/prepare-modules-settings.mjs && node scripts/data/prepare-native-module.mjs conversations && node scripts/data/prepare-native-module.mjs openai && node scripts/data/prepare-native-module.mjs messaging",
     "dev": "node scripts/local/serve.mjs dev",
     "build": "node scripts/run-framework.mjs build",
     "build:sites": "node scripts/sites/build.mjs",
@@ -49,6 +49,8 @@
     "data:conversations": "node scripts/data/prepare-native-module.mjs conversations --write",
     "test:conversations": "node --test --test-concurrency=1 tests/conversations/*.test.mjs",
     "data:openai": "node scripts/data/prepare-native-module.mjs openai --write",
+    "data:messaging": "node scripts/data/prepare-native-module.mjs messaging --write",
+    "test:messaging": "node extensions/native/messaging/gate.mjs && node --test tests/modules/messaging-integration.test.mjs",
     "test:widgets": "node --test --test-concurrency=1 tests/widgets/*.test.mjs",
     "test:cloudflare": "node --test --test-concurrency=1 tests/cloudflare/*.test.mjs"
   },

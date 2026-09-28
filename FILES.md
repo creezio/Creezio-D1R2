@@ -1,5 +1,7 @@
 # Repères du dépôt
 
+Le module de [messagerie native](extensions/native/messaging/README.md) est adapté dans `extensions/native/messaging/` : données et opérations dans `module/`, webmail dans `ui/`, projection MCP dans `plugin/`, six suites dans `ci/` et `tests/`. Son intégration au moteur D1/R2 est exercée par `tests/modules/messaging-integration.test.mjs`, et son schéma est généré centralement dans `data/schema/messaging.sql`. Le [suivi T18](docs/IMPLEMENTATION-T18.md) distingue source, qualification et livraison.
+
 État : Core PR #39/main `0078fc7` et Lab PR #6/main `949f028` intégrées avec CI qualifiées. Les deux Sites version 5 et Lab Linux sont qualifiés sur les anciens widgets, brouillons et données ; la frontière d'audience du widget historique APP/ADMIN est vérifiée sur B. La première capture Cloudflare Lab a refusé un historique incertain. Le transfert distinct de source `949f028` est publié et `delivered` avec registre synchronisé ; l'opérateur corrigé vient de Core main `22a0d3f` et Lab main `6e06182`, CI main 1 185/1 185 et 1 188/1 188. Après arrêt Docker, conservation D1/R2, ancien tour incertain et nouvelle réponse OpenAI sont vérifiés ; le navigateur a retrouvé trois widgets historiques après rechargement ; un ancien texte IA surestime un montant par cent, limite de prose ouverte. Le [TODO](docs/TODO.md) porte l’état courant et les preuves détaillées.
 
 | Emplacement | Responsabilité |

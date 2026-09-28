@@ -34,6 +34,8 @@ execute('conversations-models', ['scripts/data/prepare-native-module.mjs', 'conv
 execute('conversations-suites', ['extensions/native/conversations/gate.mjs']);
 execute('openai-models', ['scripts/data/prepare-native-module.mjs', 'openai']);
 execute('openai-suites', ['extensions/native/openai/gate.mjs']);
+execute('messaging-models', ['scripts/data/prepare-native-module.mjs', 'messaging']);
+execute('messaging-suites', ['extensions/native/messaging/gate.mjs']);
 execute('delivery-suites', ['extensions/native/delivery/gate.mjs']);
 execute('widgets-witness-suites', ['extensions/widgets-witness/gate.mjs']);
 execute('theme-standard-suites', ['themes/standard/gate.mjs']);

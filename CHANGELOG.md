@@ -1,5 +1,9 @@
 # Changelog
 
+## En cours — messagerie native (T18)
+
+Le webmail du kit original est adapté aux opérations communes et aux données D1/R2 : boîtes personnelles, brouillons, destinataires, pièces jointes privées et classement des messages. API, MCP et interface partagent les droits et les contrôles de concurrence. La composition inclut le module `creezio.messaging` ; son schéma et ses six suites rejoignent la chaîne centrale. L'absence de transport externe est affichée et ne produit aucun envoi simulé. Voir [T18](docs/IMPLEMENTATION-T18.md) pour les résultats et limites de qualification ; ce changement n'est pas encore publié.
+
 ## 28 septembre 2026 — vérification des modules Cloudflare volumineux (T32)
 
 La confirmation d'une publication vérifie le base64 des modules sans expression régulière récursive : un module de plusieurs mégaoctets ne provoque plus de dépassement de pile. L'alphabet, le padding, les bits terminaux, les limites de taille et la comparaison exacte des fichiers restent exigés. Cette correction de l'opérateur ne relance ni l'upload ni les opérations applicatives ; la publication Lab a ensuite été vérifiée séparément sur le même artefact et le même transfert.
