@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {manifest} from '../helpers.mjs';
-import {formFrom,updateFromForm} from '../../ui/editing.ts';
+import {emptySubviewDraft,formFrom,saveSubviewDraft,updateFromForm} from '../../ui/editing.ts';
 import {createCommandJournal,readPendingCommand} from '../../ui/commands.ts';
 
 test('an uncertain command stays locked through suspension and reload until its native status is read',async()=>{
@@ -51,6 +51,28 @@ test('refreshing the list cannot adopt a newer revision for an already open edit
   assert.equal(update.name,'Initial');
   assert.equal(update.notes,'My pending edit');
   assert.equal(updateFromForm('company',formFrom(refreshed)).revision,2,'explicitly reopening adopts the new snapshot');
+});
+
+test('three CRM subviews keep separate drafts and their opening revisions',()=>{
+  const company={id:'company-1',name:'Acme',city:'Lyon',notes:'Original',revision:3,archivedAt:null};
+  const contact={id:'contact-1',name:'Alice',city:null,notes:null,revision:7,archivedAt:null};
+  const companyForm={...formFrom(company),notes:'Notes not saved'};
+  const contactForm={...formFrom(contact),name:'Alice revised'};
+  let drafts=saveSubviewDraft({},'company',{...emptySubviewDraft(),query:'Ac',appliedQuery:'A',
+    selected:company.id,selectedSnapshot:company,form:companyForm});
+  drafts=saveSubviewDraft(drafts,'contact',{...emptySubviewDraft(),name:'New contact',
+    selected:contact.id,selectedSnapshot:contact,form:contactForm});
+  drafts=saveSubviewDraft(drafts,'prospect',{...emptySubviewDraft(),archived:true,query:'Lead'});
+  companyForm.notes='Later local change';
+  assert.equal(drafts.company.form.notes,'Notes not saved','the saved view owns its form snapshot');
+  assert.equal(drafts.company.form.revision,3);
+  assert.equal(drafts.contact.form.revision,7);
+  assert.equal(drafts.contact.name,'New contact');
+  assert.equal(drafts.prospect.archived,true);
+  assert.equal(drafts.prospect.query,'Lead');
+  assert.equal(updateFromForm('company',drafts.company.form).revision,3);
+  drafts={};
+  assert.equal(drafts.company,undefined,'a changed session, audience or context drops every local draft');
 });
 
 test('workspace declares CRM navigation, inactive suspension and all business operations',()=>{

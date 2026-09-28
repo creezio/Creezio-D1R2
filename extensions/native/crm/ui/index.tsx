@@ -4,8 +4,8 @@ import {useCallback,useEffect,useRef,useState,useSyncExternalStore} from 'react'
 import type {WorkspaceViewProps} from '../../../../sdk/workspace/types.ts';
 import {useWorkspaceActivity} from '@creezio/sdk/workspace/components';
 import {ProspectKanban,stages,type Prospect} from './kanban.tsx';
-import {formFrom,updateFromForm,type CrmEntity as Entity,type CrmItem as Item,
-  type CrmEditForm as Form,type CrmEditField} from './editing.ts';
+import {emptySubviewDraft,formFrom,saveSubviewDraft,updateFromForm,type CrmEntity as Entity,type CrmItem as Item,
+  type CrmEditForm as Form,type CrmEditField,type CrmSubviewDrafts} from './editing.ts';
 import {createCommandJournal,readPendingCommand,type PendingCrmCommand} from './commands.ts';
 
 const labels:Record<Entity,string>={company:'Entreprises',contact:'Contacts',prospect:'Prospection'};
@@ -62,6 +62,7 @@ export function CrmWorkspaceView(props:WorkspaceViewProps){
   const [selectedSnapshot,setSelectedSnapshot]=useState<Item|null>(null);
   const selectedRef=useRef(selected);selectedRef.current=selected;
   const [form,setForm]=useState<Form|null>(null);
+  const subviewDrafts=useRef<CrmSubviewDrafts>({});
   const generation=useRef(0),listSerial=useRef(0),busyRef=useRef(!!journal.current.pending);
   const panelIdentity=useRef({session,entity,archived,client:props.client,access:props.access,
     audience:props.audience,contextId:props.contextId});
@@ -119,15 +120,16 @@ export function CrmWorkspaceView(props:WorkspaceViewProps){
   useEffect(()=>{
     const token=generation.current;listSerial.current++;
     const prior=panelIdentity.current;
-    const scopeChanged=prior.session!==session||
-      prior.client!==props.client||prior.access!==props.access||prior.audience!==props.audience||
+    const scopeChanged=prior.session!==session||prior.audience!==props.audience||
       prior.contextId!==props.contextId;
-    const changed=scopeChanged||prior.entity!==entity||prior.archived!==archived;
+    const changed=scopeChanged||prior.client!==props.client||prior.access!==props.access||
+      prior.entity!==entity||prior.archived!==archived;
     panelIdentity.current={session,entity,archived,client:props.client,access:props.access,
       audience:props.audience,contextId:props.contextId};
-    if(scopeChanged||!session){setName('');setCity('');setQuery('');setAppliedQuery('');setArchived(false);
+    if(scopeChanged||!session){subviewDrafts.current={};setName('');setCity('');setQuery('');setAppliedQuery('');setArchived(false);
       journal.current=createCommandJournal();busyRef.current=false;setBusy(false);setChecking(false);}
-    if(changed||!session){setItems([]);setSelected(null);setSelectedSnapshot(null);setForm(null);setNextCursor(null);setError('');}
+    if(changed||!session){setItems([]);setNextCursor(null);setError('');}
+    if(scopeChanged||!session){setSelected(null);setSelectedSnapshot(null);setForm(null);}
     if(!active||!session){setLoading(false);setChecking(false);return;}
     busyRef.current=!!journal.current.pending;setBusy(busyRef.current);
     void refresh(token,entity,scopeChanged?'':appliedQueryRef.current,scopeChanged?false:archived);
@@ -135,8 +137,14 @@ export function CrmWorkspaceView(props:WorkspaceViewProps){
   const selectedItem=items.find(item=>item.id===selected)??(selectedSnapshot?.id===selected?selectedSnapshot:null);
   const choose=(id:string)=>{const item=items.find(value=>value.id===id);if(!item)return;
     setSelected(id);setSelectedSnapshot(item);setForm(formFrom(item));};
-  const changeEntity=(next:Entity)=>{if(next===entity||busyRef.current)return;setEntity(next);setName('');setCity('');setQuery('');setAppliedQuery('');
-    setArchived(false);persist(next,'',false);};
+  const changeEntity=(next:Entity)=>{if(next===entity||busyRef.current)return;
+    subviewDrafts.current=saveSubviewDraft(subviewDrafts.current,entity,{name,city,query,appliedQuery,archived,
+      selected,selectedSnapshot,form});
+    const draft=subviewDrafts.current[next]??emptySubviewDraft();
+    setEntity(next);setName(draft.name);setCity(draft.city);setQuery(draft.query);
+    setAppliedQuery(draft.appliedQuery);setArchived(draft.archived);
+    setSelected(draft.selected);setSelectedSnapshot(draft.selectedSnapshot);setForm(draft.form);
+    setItems([]);setNextCursor(null);persist(next,draft.appliedQuery,draft.archived);};
   const changeArchived=(next:boolean)=>{if(busyRef.current)return;setArchived(next);setSelected(null);setSelectedSnapshot(null);setForm(null);
     persist(entity,appliedQuery,next);};
   const command=async(action:PendingCrmCommand['action'],input:Record<string,unknown>,syncForm=false)=>{

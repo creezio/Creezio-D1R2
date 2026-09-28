@@ -5,14 +5,14 @@ import { gzipSync } from 'node:zlib';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 
-// Local ceilings cover the T16 recipe: native modules, optional OpenAI, a theme
-// and three widget renderers, with SSR and the official MCP Apps SDK. After
-// removing duplicated resource HTML, it measured 6,386,691 raw / 1,247,303 gzip
-// bytes (previously 9,559,432 / 1,904,532). Keep about 3% margin for this selected
-// composition; graph and timing ceilings are unchanged. New compositions must
+// The selected local composition now includes Messaging and CRM with their
+// handlers, static validators and SSR views. The T20 build measured 6,692,500
+// raw / 1,116,939 gzip bytes; its CI predecessor measured 6,691,939 raw bytes.
+// Keep about 3% raw-size margin. The existing gzip, graph and timing ceilings
+// remain unchanged. New compositions must
 // still be measured explicitly rather than treated as arbitrarily extensible.
 // They are neither provider quotas nor production latency guarantees.
-export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 6_600_000, workerGzipBytes: 1_290_000,
+export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 6_900_000, workerGzipBytes: 1_290_000,
   selectedGraphInputs: 32, startupMs: 15_000, routeMs: 3_000 });
 
 export function assertRuntimeBudgets(report) {

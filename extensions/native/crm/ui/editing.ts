@@ -6,6 +6,15 @@ export type CrmItem={id:string;name:string;city:string|null;notes:string|null;re
 export type CrmEditForm={id:string;revision:number;name:string;city:string;notes:string;website:string;email:string;
   phone:string;contactName:string;companyId:string;contactId:string;stage:string;position:string};
 export type CrmEditField=keyof Omit<CrmEditForm,'id'|'revision'>;
+export type CrmSubviewDraft={name:string;city:string;query:string;appliedQuery:string;archived:boolean;
+  selected:string|null;selectedSnapshot:CrmItem|null;form:CrmEditForm|null};
+export type CrmSubviewDrafts=Partial<Record<CrmEntity,CrmSubviewDraft>>;
+export const emptySubviewDraft=():CrmSubviewDraft=>({name:'',city:'',query:'',appliedQuery:'',archived:false,
+  selected:null,selectedSnapshot:null,form:null});
+export function saveSubviewDraft(drafts:CrmSubviewDrafts,entity:CrmEntity,draft:CrmSubviewDraft):CrmSubviewDrafts{
+  return {...drafts,[entity]:{...draft,selectedSnapshot:draft.selectedSnapshot?{...draft.selectedSnapshot}:null,
+    form:draft.form?{...draft.form}:null}};
+}
 export const formFrom=(item:CrmItem):CrmEditForm=>({id:item.id,revision:item.revision,name:item.name,
   city:item.city??'',notes:item.notes??'',website:item.website??'',email:item.email??'',phone:item.phone??'',
   contactName:item.contactName??'',companyId:item.companyId??'',contactId:item.contactId??'',

@@ -70,7 +70,12 @@ const report = { schemaVersion: 1, profile, started, finished: new Date().toISOS
     'This aggregate does not certify all native modules, hosted CMS parity, provider onboarding or remote CI provenance'] };
 write(report);
 console.log(JSON.stringify({ success, mergeReady: false, source: source.sha256, docs: docs.metrics,
-  tests: tap, runtimeEvidenceCurrent: runtimeCurrent, sourceUnchanged: unchanged, evidence: '.quality/latest.json' }, null, 2));
+  tests: tap, testDurationMs,
+  commands: commands.map(({label, exitCode, durationMs}) => ({label, exitCode, durationMs})),
+  runtime: runtime ? {status: runtime.status, artifact: runtime.artifact ? {
+    digest: runtime.artifact.digest, worker: runtime.artifact.worker, assets: runtime.artifact.assets
+  } : null, durationsMs: runtime.durationsMs} : null,
+  runtimeEvidenceCurrent: runtimeCurrent, sourceUnchanged: unchanged, evidence: '.quality/latest.json' }, null, 2));
 if (!success) {
   for (const error of docs.errors) console.error(JSON.stringify(error));
   if (!runtimeCurrent) console.error('Missing, failed, stale or changed runtime artifact evidence.');
