@@ -213,7 +213,8 @@ test('native messaging persists drafts and private files through the real D1 ope
       revision: saved.revision, staged}));
     assert.equal(linked.attachment.fileId, staged.fileId);
     assert.equal(linked.draft.revision, saved.revision + 1);
-    assert.equal(success(await invoke('attachment.list', {...privateRead, limit: 10})).items[0].reference.digest, staged.digest);
+    assert.equal(success(await invoke('attachment.list', {...privateRead, limit: 50})).items[0].reference.digest, staged.digest,
+      'the maximum UI page includes the mailbox and draft authorization reads in its work budget');
     const readFile = (audience, token) => dispatchFileHttp(new Request(
       `http://127.0.0.1:8787/api/files/${audience}/${moduleId}/attachments?${new URLSearchParams(staged)}`,
       {headers: {cookie: `creezio-local-${audience}=${token}`, 'x-creezio-context': 'application'}}),

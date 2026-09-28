@@ -163,7 +163,7 @@ operation('draft.save','Enregistrer un brouillon','command',draftSaveInput,draft
 operation('draft.delete','Supprimer un brouillon vide de pièces jointes','command',draftDeleteInput,deletedOutput,
   ['box','draft','draft_attachment'],['draft'],{exportName:'draftDelete',concurrency:{mode:'object-version',versionField:'revision'}});
 operation('attachment.list','Lister les pièces jointes','query',attachmentListInput,attachmentPage,
-  ['box','draft','draft_attachment'],[],{exportName:'attachmentList',pagination,maxItems:50});
+  ['box','draft','draft_attachment'],[],{exportName:'attachmentList',pagination,maxItems:52});
 operation('attachment.link','Lier une pièce jointe privée','command',attachmentLinkInput,attachmentOutput,
   ['box','draft'],['draft','draft_attachment'],{exportName:'attachmentLink',concurrency:{mode:'object-version',versionField:'revision'}});
 operations.at(-1).effects.writes.push(ref('file','attachments'));
