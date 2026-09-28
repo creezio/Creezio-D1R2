@@ -33,6 +33,10 @@ test('GitHub callback handles provider responses in the Worker runtime without f
     const db = await runtime.getD1Database('DB');
     await db.batch(schema.split(';').map(statement => statement.trim()).filter(Boolean)
       .map(statement => db.prepare(statement)));
+    const page = await runtime.dispatchFetch(`${origin}/`);
+    assert.equal(page.status, 200);
+    assert.match(page.headers.get('content-security-policy'), /script-src 'self'/);
+    assert.equal((await runtime.dispatchFetch(`${origin}/registry.js`)).status, 200);
     const start = await runtime.dispatchFetch(`${origin}/v1/owners/github/start`, {redirect: 'manual'});
     assert.equal(start.status, 302);
     const state = new URL(start.headers.get('location')).searchParams.get('state');
@@ -69,5 +73,14 @@ test('GitHub callback handles provider responses in the Worker runtime without f
     const replay = await runtime.dispatchFetch(secondUrl, {headers: {cookie: secondCookie}});
     assert.equal(replay.status, 403);
     assert.equal(outbound.length, 3);
+    const browserStart = await runtime.dispatchFetch(`${origin}/v1/owners/github/start`, {redirect: 'manual'});
+    const browserState = new URL(browserStart.headers.get('location')).searchParams.get('state');
+    const browserCookie = browserStart.headers.get('set-cookie').split(';')[0];
+    const browserDone = await runtime.dispatchFetch(
+      `${origin}/v1/owners/github/callback?state=${encodeURIComponent(browserState)}&code=browser-code`,
+      {redirect: 'manual', headers: {cookie: browserCookie, accept: 'text/html'}});
+    assert.equal(browserDone.status, 303);
+    assert.equal(browserDone.headers.get('location'), `${origin}/`);
+    assert.ok(browserDone.headers.get('set-cookie').includes('__Host-creezio-registry-owner='));
   } finally {await runtime.dispose();}
 });

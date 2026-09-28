@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url';
 import {Miniflare} from 'miniflare';
 import {bootstrapRegistry} from '../../services/registry/bootstrap.ts';
 import {createRegistryService} from '../../services/registry/service.ts';
+import {issueCredential} from '../../services/registry/credentials.ts';
 import {createRegistryClient} from '../../core/registry/client.ts';
 
 const origin = 'https://registry.example.invalid';
@@ -47,6 +48,21 @@ function interceptRun(db, fragment, beforeRun) {
     return wrap(db.prepare(sql));
   }, batch: statements => db.batch(statements)};
 }
+function interceptAll(db, fragment, beforeAll) {
+  let pending = true;
+  return {prepare(sql) {
+    const wrap = statement => ({
+      bind(...args) {return wrap(statement.bind(...args));},
+      first(...args) {return statement.first(...args);},
+      async all() {
+        if (pending && sql.includes(fragment)) {pending = false; await beforeAll();}
+        return statement.all();
+      },
+      run(...args) {return statement.run(...args);},
+    });
+    return wrap(db.prepare(sql));
+  }, batch: statements => db.batch(statements)};
+}
 
 test('bootstrap is explicit and once-only; token is purpose separated and stored only as digest', async () => {
   const f = await fixture();
@@ -62,6 +78,100 @@ test('bootstrap is explicit and once-only; token is purpose separated and stored
     assert.equal(owner.method, 'bootstrap', 'operator bootstrap is not mislabeled as email verification');
     assert.equal(owner.subject, 'registry-primary');
     assert.equal(owner.email, 'owner@example.invalid');
+  } finally {await f.close();}
+});
+
+test('owner browser reads are scoped, bounded and never return installation credentials', async () => {
+  const f = await fixture();
+  try {
+    const page = await f.service.fetch(new Request(`${origin}/`));
+    assert.equal(page.status, 200);
+    assert.match(page.headers.get('content-type'), /^text\/html/);
+    assert.match(page.headers.get('content-security-policy'), /script-src 'self'/);
+    assert.equal(page.headers.get('cache-control'), 'no-store');
+    const script = await f.service.fetch(new Request(`${origin}/registry.js`));
+    assert.equal(script.status, 200);
+    assert.match(script.headers.get('content-type'), /^application\/javascript/);
+    assert.equal((await f.send('/v1/owners/me')).response.status, 401);
+    assert.equal((await f.send('/v1/projects')).response.status, 401);
+    const first = await bootstrapRegistry(f.db, {maintainerEmail: 'owner@example.invalid', serviceId: 'registry-primary'});
+    const auth = f.ownerHeaders(first.ownerToken);
+    const project = await f.send('/v1/projects', 'POST',
+      {name: 'First application', origin: 'https://github.com/example/first'}, auth);
+    assert.equal(project.response.status, 201);
+    const sites = await f.send('/v1/installations', 'POST',
+      {projectId: project.body.projectId, target: 'sites'}, auth);
+    const cloudflare = await f.send('/v1/installations', 'POST',
+      {projectId: project.body.projectId, target: 'cloudflare'}, auth);
+    assert.equal(sites.response.status, 201);
+    assert.equal(cloudflare.response.status, 201);
+    assert.deepEqual((await f.send('/v1/owners/me', 'GET', undefined, auth)).body, {
+      ownerId: first.ownerId,
+    });
+    const listed = await f.send('/v1/projects', 'GET', undefined, auth);
+    assert.equal(listed.response.status, 200);
+    assert.equal(listed.body.complete, true);
+    assert.deepEqual(listed.body.projects.map(item => item.projectId), [project.body.projectId]);
+    const installations = await f.send(`/v1/projects/${project.body.projectId}/installations`,
+      'GET', undefined, auth);
+    assert.equal(installations.response.status, 200);
+    assert.equal(installations.body.complete, true);
+    assert.deepEqual(new Set(installations.body.installations.map(item => item.target)),
+      new Set(['sites', 'cloudflare']));
+    assert.equal(JSON.stringify({listed: listed.body, installations: installations.body})
+      .includes(sites.body.token), false);
+    assert.equal(JSON.stringify(installations.body).includes('tokenDigest'), false);
+    const second = await issueCredential('owner');
+    const secondId = crypto.randomUUID();
+    await f.db.batch([
+      f.db.prepare(`INSERT INTO registry_owners(id,method,subject,email,verified_at_ms)
+        VALUES(?,'github',?,NULL,?)`).bind(secondId, 'second-owner', Date.now()),
+      f.db.prepare(`INSERT INTO registry_owner_sessions(digest,owner_id,expires_at_ms,revoked_at_ms)
+        VALUES(?,?,?,NULL)`).bind(second.digest, secondId, Date.now() + 60_000),
+    ]);
+    const other = f.ownerHeaders(second.token);
+    assert.deepEqual((await f.send('/v1/projects', 'GET', undefined, other)).body.projects, []);
+    assert.equal((await f.send(`/v1/projects/${project.body.projectId}/installations`,
+      'GET', undefined, other)).response.status, 404);
+    assert.equal((await f.send('/v1/projects', 'POST',
+      {name: 'Denied', origin: 'https://github.com/example/denied'},
+      {cookie: auth.cookie})).response.status, 403, 'the browser POST still requires exact CSRF headers');
+    await f.db.batch(Array.from({length: 100}, (_, index) =>
+      f.db.prepare('INSERT INTO registry_projects(id,owner_id,name,origin,created_at_ms) VALUES(?,?,?,?,?)')
+        .bind(crypto.randomUUID(), first.ownerId, `Extra ${index}`,
+          `https://github.com/example/extra-${index}`, Date.now() + index)));
+    const bounded = await f.send('/v1/projects', 'GET', undefined, auth);
+    assert.equal(bounded.body.projects.length, 100);
+    assert.equal(bounded.body.complete, false, 'a bounded response never claims a complete inventory');
+  } finally {await f.close();}
+});
+
+test('browser reads recheck session and project owner inside the final query', async () => {
+  const f = await fixture();
+  try {
+    const actor = await bootstrapRegistry(f.db, {maintainerEmail: 'owner@example.invalid', serviceId: 'registry-primary'});
+    const auth = f.ownerHeaders(actor.ownerToken);
+    const project = await f.send('/v1/projects', 'POST',
+      {name: 'Race read', origin: 'https://source.example.invalid/'}, auth);
+    const install = await f.send('/v1/installations', 'POST',
+      {projectId: project.body.projectId, target: 'sites'}, auth);
+    assert.equal(install.response.status, 201);
+    const nextOwner = crypto.randomUUID();
+    await f.db.prepare("INSERT INTO registry_owners(id,method,subject,email,verified_at_ms) VALUES(?,'email',?,?,?)")
+      .bind(nextOwner, 'next@example.invalid', 'next@example.invalid', Date.now()).run();
+    const transferred = createRegistryService({...f.environment, DB: interceptAll(f.db,
+      'LEFT JOIN registry_installations i', () => f.db.prepare('UPDATE registry_projects SET owner_id=? WHERE id=?')
+        .bind(nextOwner, project.body.projectId).run())});
+    const afterTransfer = await transferred.fetch(new Request(`${origin}/v1/projects/${project.body.projectId}/installations`,
+      {headers: auth}));
+    assert.equal(afterTransfer.status, 404);
+    const revoked = createRegistryService({...f.environment, DB: interceptAll(f.db,
+      'SELECT p.id,p.name,p.origin,p.created_at_ms', () => f.db.prepare(
+        'UPDATE registry_owner_sessions SET revoked_at_ms=? WHERE owner_id=?')
+        .bind(Date.now(), actor.ownerId).run())});
+    const afterRevocation = await revoked.fetch(new Request(`${origin}/v1/projects`, {headers: auth}));
+    assert.equal(afterRevocation.status, 200);
+    assert.deepEqual((await afterRevocation.json()).projects, []);
   } finally {await f.close();}
 });
 
@@ -370,6 +480,16 @@ test('GitHub web flow binds state and PKCE, rechecks user identity, and refuses 
     assert.equal(calls[1][1].redirect, 'manual');
     assert.equal(calls[1][1].headers.authorization, 'Bearer gho_test');
     assert.equal((await service.fetch(new Request(url, {headers: {cookie: stateCookie}}))).status, 403);
+    const browserStart = await service.fetch(new Request(`${origin}/v1/owners/github/start`));
+    const browserState = new URL(browserStart.headers.get('location')).searchParams.get('state');
+    const browserCookie = browserStart.headers.get('set-cookie').split(';')[0];
+    const browserDone = await service.fetch(new Request(
+      `${origin}/v1/owners/github/callback?state=${encodeURIComponent(browserState)}&code=browser-code`,
+      {headers: {cookie: browserCookie, accept: 'text/html,application/xhtml+xml'}}));
+    assert.equal(browserDone.status, 303, 'browser callback lands on the same-origin registry page');
+    assert.equal(browserDone.headers.get('location'), `${origin}/`);
+    assert.ok(browserDone.headers.get('set-cookie').includes('__Host-creezio-registry-owner='));
+    assert.equal(await browserDone.text(), '');
     const oversized = createRegistryService(f.environment, {fetch: async () => new Response('x'.repeat(16_385),
       {status: 200, headers: {'content-type': 'application/json'}})});
     const retry = await oversized.fetch(new Request(`${origin}/v1/owners/github/start`));

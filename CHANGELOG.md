@@ -1,5 +1,9 @@
 # Changelog
 
+## En cours — inscription navigateur du registre (T-08)
+
+Le registre central propose une page propriétaire générique sur sa propre origine HTTPS. Les lectures de projets et d'installations sont bornées et cloisonnées, sans jeton ; les créations conservent leurs POST et leur CSRF existants. Le navigateur propose le jeton une seule fois au téléchargement et rapproche une réponse perdue par lecture, sans rejouer la création ni tourner le jeton automatiquement. Le callback GitHub redirige les navigations HTML vers cette page et conserve son JSON pour les clients API. Cette tranche reste candidate jusqu'aux contrôles CI et à la recette du service publié.
+
 ## 0.0.1 — en préparation, mise à jour individuelle d'un paquet externe (T38)
 
 Le build peut ajouter au catalogue les métadonnées d'une version externe après vérification de ses trois archives épinglées et de ses exports requis, sans charger son code ni remplacer la version installée. Le gestionnaire existant utilise cette candidate pour son plan de mise à jour. L'adoption explicite peut placer la validation détachée dans un cache adressé par empreinte ; les verrous existants restent lisibles. La version de distribution et d'application passe à `0.0.1` ; la version du contrat Core et des modules natifs reste `0.0.0`, le SDK public reste `1.1.0`. Le starter `module-v0.1.1` est public, tandis que la recette d'adoption et de conservation dans le Lab reste à effectuer. Voir [dépendances et verrous](docs/DEPENDANCES-MODULES.md).

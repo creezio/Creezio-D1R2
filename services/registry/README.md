@@ -14,7 +14,11 @@ Créer un D1 dédié et définir `CLOUDFLARE_ACCOUNT_ID`, `CREEZIO_REGISTRY_DATA
 
 L'opérateur authentifié peut créer le projet puis son installation avec le cookie propriétaire, l'origine exacte et `X-Creezio-Request: 1`. Le token d'installation retourné une fois est distinct de la session propriétaire. Rotation et révocation sont limitées aux projets du propriétaire.
 
+Le parcours navigateur du registre est servi par ce Worker à `/`, sur la même origine HTTPS que l'API. Le propriétaire vérifié y retrouve ses projets, puis les installations d'un projet ; une liste est bornée à 100 entrées et signale explicitement si l'inventaire est incomplet. Le navigateur conserve le cookie `HttpOnly` sans l'exposer au script. Les POST de création réutilisent l'origine exacte et l'en-tête CSRF ; le jeton rendu une fois par création ou rotation est proposé au téléchargement en mémoire, sans stockage navigateur ni affichage. Après une réponse perdue, l'écran relit les identifiants avant/après et bloque les cas absents ou ambigus : il ne rejoue jamais un POST et ne fait pas de rotation automatique. Une rotation volontaire invalide l'ancien jeton. La page ne remplace pas le contrôle de publication de l'application.
+
 Pour l'inscription publique, configurer `GITHUB_CLIENT_ID` et le secret Worker `GITHUB_CLIENT_SECRET`, avec le callback `${REGISTRY_ORIGIN}/v1/owners/github/callback`, ou un binding `EMAIL_DELIVERY` vers un transport explicitement configuré. Sans fournisseur, le parcours correspondant répond `configuration_unavailable` ; aucun propriétaire n'est vérifié artificiellement. Ces paramètres ne donnent aucun accès d'assistance au code des apps.
+
+Le callback GitHub renvoie toujours le JSON existant aux clients API. Pour une navigation de navigateur avec `Accept: text/html`, il pose le même cookie et redirige vers `/` sans placer de secret dans l'URL. L'URL source d'un projet est une URL HTTPS canonique, par exemple celle de son dépôt ; le registre ne stocke pas de données métier ni de clé fournisseur.
 
 ## Publication des applications
 

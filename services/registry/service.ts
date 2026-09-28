@@ -2,6 +2,7 @@ import {digest, digestCredential, issueCredential} from './credentials.ts';
 import {declaration, email, exact, id, installation, preflight, project} from './validation.ts';
 import type {RegistryDeclarationRequest, RegistryPreflightRequest} from './types.ts';
 import {AccessHttpError, readAccessJson} from '../../core/identity/http-policy.ts';
+import {registryPage, registryScript} from './web-ui.ts';
 
 export interface RegistryEnvironment {
   readonly DB: D1Database;
@@ -26,6 +27,14 @@ const json = (body: unknown, status = 200, headers?: HeadersInit) => {
   output.set('x-content-type-options', 'nosniff');
   return new Response(JSON.stringify(body), {status, headers: output});
 };
+function web(content: string, type: string, page = false): Response {
+  const headers = new Headers({'content-type': type, 'cache-control': 'no-store',
+    'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer',
+    'x-frame-options': 'DENY'});
+  if (page) headers.set('content-security-policy', "default-src 'none'; script-src 'self'; connect-src 'self'; "
+    + "base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'");
+  return new Response(content, {headers});
+}
 const cookie = (name: string, value: string, maxAge: number) =>
   `${name}=${value}; Path=/; Max-Age=${maxAge}; Secure; HttpOnly; SameSite=Lax`;
 const ownerCookie = '__Host-creezio-registry-owner';
@@ -171,6 +180,52 @@ export function createRegistryService(env: RegistryEnvironment, options: {now?: 
       if (request.url.length > 8192 || url.search && !url.pathname.endsWith('/callback')) refuse('invalid_input', 400);
       const now = current(), path = url.pathname;
       if (request.method === 'GET' && path === '/v1/health') return json({status: 'ok'});
+      if (request.method === 'GET' && path === '/') return web(registryPage, 'text/html; charset=utf-8', true);
+      if (request.method === 'GET' && path === '/registry.js')
+        return web(registryScript, 'application/javascript; charset=utf-8');
+      if (request.method === 'GET' && path === '/v1/owners/me') {
+        const actor = await owner(db, request, now);
+        if (!actor) refuse('authentication_required', 401);
+        return json({ownerId: actor.id});
+      }
+      if (request.method === 'GET' && path === '/v1/projects') {
+        const actor = await owner(db, request, now);
+        if (!actor) refuse('authentication_required', 401);
+        const rows = await db.prepare(`SELECT p.id,p.name,p.origin,p.created_at_ms FROM registry_projects p
+          JOIN registry_owner_sessions s ON s.owner_id=p.owner_id
+          JOIN registry_owners o ON o.id=p.owner_id
+          WHERE p.owner_id=? AND s.digest=? AND s.expires_at_ms>? AND s.revoked_at_ms IS NULL
+            AND o.verified_at_ms>0 ORDER BY p.created_at_ms DESC,p.id DESC LIMIT 101`)
+          .bind(actor.id, actor.digest, now)
+          .all<{id: string; name: string; origin: string; created_at_ms: number}>();
+        return json({projects: rows.results.slice(0, 100).map(row => ({
+          projectId: row.id, name: row.name, origin: row.origin, createdAt: iso(row.created_at_ms),
+        })), complete: rows.results.length <= 100, limit: 100});
+      }
+      const installationsRead = /^\/v1\/projects\/([A-Za-z0-9._:-]+)\/installations$/.exec(path);
+      if (request.method === 'GET' && installationsRead) {
+        const actor = await owner(db, request, now);
+        if (!actor) refuse('authentication_required', 401);
+        if (!id(installationsRead[1])) refuse('invalid_input', 400);
+        const rows = await db.prepare(`SELECT p.id AS project_id,i.id,i.target,i.token_version,
+            i.revoked_at_ms,i.created_at_ms,i.rotated_at_ms FROM registry_projects p
+          JOIN registry_owner_sessions s ON s.owner_id=p.owner_id
+          JOIN registry_owners o ON o.id=p.owner_id
+          LEFT JOIN registry_installations i ON i.project_id=p.id
+          WHERE p.id=? AND p.owner_id=? AND s.digest=? AND s.expires_at_ms>?
+            AND s.revoked_at_ms IS NULL AND o.verified_at_ms>0
+          ORDER BY i.created_at_ms DESC,i.id DESC LIMIT 101`)
+          .bind(installationsRead[1], actor.id, actor.digest, now)
+          .all<{project_id: string; id: string | null; target: 'sites' | 'cloudflare' | null; token_version: number | null;
+            revoked_at_ms: number | null; created_at_ms: number; rotated_at_ms: number | null}>();
+        if (!rows.results.length) refuse('not_found', 404);
+        const found = rows.results.filter(row => row.id !== null);
+        return json({projectId: installationsRead[1], installations: found.slice(0, 100).map(row => ({
+          installationId: row.id, target: row.target, tokenVersion: row.token_version,
+          createdAt: iso(row.created_at_ms), rotatedAt: row.rotated_at_ms === null ? null : iso(row.rotated_at_ms),
+          revokedAt: row.revoked_at_ms === null ? null : iso(row.revoked_at_ms),
+        })), complete: found.length <= 100, limit: 100});
+      }
       if (request.method === 'POST' && path === '/v1/owners/email/start') {
         csrf(request, origin);
         if (!env.EMAIL_DELIVERY) refuse('configuration_unavailable', 503);
@@ -268,6 +323,11 @@ export function createRegistryService(env: RegistryEnvironment, options: {now?: 
         const token = await ownerSession(db, ownerId, now);
         const headers = new Headers({'set-cookie': cookie(ownerCookie, token, 8 * 60 * 60), 'cache-control': 'no-store'});
         headers.append('set-cookie', cookie(oauthCookie, '', 0));
+        if ((request.headers.get('accept') ?? '').toLowerCase().includes('text/html')) {
+          headers.set('location', `${origin}/`);
+          headers.set('referrer-policy', 'no-referrer');
+          return new Response(null, {status: 303, headers});
+        }
         return json({ownerId, verifiedAt: iso(now)}, 200, headers);
       }
       if (request.method === 'POST' && path === '/v1/projects') {

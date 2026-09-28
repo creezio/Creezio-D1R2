@@ -20,7 +20,7 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-05 — Données | Compilation SQL centrale, accès D1 protégé, fichiers R2 et coffre | Explorateur, recherche, export/restauration, évolutions de modèles restantes et recettes hébergées | Fondations acquises ; autres fonctions à construire |
 | T-06 — Opérations | Registre/exécuteur intégrés PR #15 ; bindings HTTP et suivi par clé PR #16 | Événements, approbations, interopérations et autres transports | Fondations disponibles ; compléments au backlog |
 | T-07 — Workspace | Composants originaux adaptés, panneaux/états/titres et recette navigateur intégrés PR #16 | Qualification Sites et raccordement des modules produit | Livrable local disponible |
-| T-08 — Registre central | PR #17 intégrée ; Worker Cloudflare, service/client/journal et reprise réelle ; callback OAuth GitHub réel vérifié après correction du transport Worker | Raccords des publishers et onboarding produit ; email non configuré | Identité GitHub réelle acquise ; autres parcours ouverts |
+| T-08 — Registre central | PR #17 intégrée ; Worker Cloudflare, service/client/journal et reprise réelle ; callback OAuth GitHub réel vérifié après correction du transport Worker | Raccords des publishers ; page propriétaire de registre candidate à tester puis publier ; email non configuré | Identité GitHub réelle acquise ; onboarding navigateur non encore qualifié |
 | T-09 — Sites | Worker commun publié ; compte natif, chat admin/front et données D1/R2 conservés après publication T15 ; nouvelle cible et widget Modules vérifiés T16 | Module métier et application dérivée | Première tranche hébergée qualifiée |
 | T-10 — MCP/OAuth | Deux catalogues et OAuth natif intégrés ; connexion réelle ChatGPT au MCP admin, consentement limité et widget Modules vérifiés sur le nouveau Site | Recette ChatGPT du MCP applicatif et autres interactions | Première connexion hébergée qualifiée |
 | T-11 — Modules | PR #20 : catalogue, dépendances, plans D1 et UI originale ; recettes locales et CI, 908 tests | Raccords publication et hébergements ; distribution complète T-30 | Livrable local disponible |
@@ -180,12 +180,12 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-08"></a>
 ## T-08 — Registre minimal et identité de publication
 
-- Lot : **P1** ; état : **en cours** ; responsables : Codex et agents Sol sur `core/t08-publication-foundations`.
+- Lot : **P1** ; état : **en cours** ; parcours web propriétaire candidat sur `core/t08-registry-onboarding`, sans publication acquise.
 - Dépendances : [T-04](#T-04), [T-05](#T-05), [T-06](#T-06).
 - Travail/livrables : Service central séparé, vérification GitHub/email, token d’installation et contrôle de publication ; bootstrap documenté.
 - Besoin : [US-08](USER-STORIES.md#US-08). Acceptation : [REQ-0801](EXIGENCES.md#REQ-0801), [REQ-0802](EXIGENCES.md#REQ-0802), [REQ-0803](EXIGENCES.md#REQ-0803).
 - Validation : implémenter puis exécuter les recettes liées, sur **service central et app cliente** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Preuves : service et callback GitHub réel qualifiés dans leur périmètre ; les lectures propriétaires et l'écran d'inscription restent à vérifier par CI et navigateur sur le registre publié. Renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
 
 <a id="T-09"></a>
 ## T-09 — Première tranche sur Sites

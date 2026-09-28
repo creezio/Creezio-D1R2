@@ -113,7 +113,7 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 ## Registre séparé et Docker local
 
 - [sdk/registry](sdk/registry/) : protocole public partagé, sans serveur embarqué.
-- [services/registry](services/registry/) : service central à déployer séparément ; [état T-08](docs/IMPLEMENTATION-T08.md).
+- [services/registry](services/registry/) : service central à déployer séparément, page propriétaire et lectures bornées du candidat web ; [état T-08](docs/IMPLEMENTATION-T08.md).
 - [core/registry](core/registry/) : client serveur et contrôle de publication, distincts du runtime métier.
 - [scripts/registry](scripts/registry/) : build indépendant, configuration sans secret et opérateur explicite du D1 dédié.
 - [tests/registry](tests/registry/) et [tests/local](tests/local/) : protocoles et refus du registre, callback GitHub dans le Worker compilé, journal de reprise et adaptateur Docker ; suites obligatoires dans le contrôle global.
