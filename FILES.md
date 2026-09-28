@@ -7,6 +7,7 @@
 | [README.md](README.md) | Présentation et parcours de lecture. |
 | [AGENTS.md](AGENTS.md) | Instructions applicables et invariants. |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Point d'entrée des contributions. |
+| [scripts/local/schema.mjs](scripts/local/schema.mjs) | Inspection et application explicite du plan central sur la D1 locale déjà gérée. |
 | [LICENSE](LICENSE) | Licence du contenu déjà publié ; ne préjuge pas des conditions du futur produit. |
 | [.gitignore](.gitignore) | Exclusion des secrets, données locales et sorties régénérables. |
 | [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md) | Contenu demandé pour les PR ; ne remplace pas une protection distante. |

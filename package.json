@@ -27,6 +27,8 @@
     "start": "node scripts/local/serve.mjs start",
     "access:inspect": "node scripts/local/install.mjs inspect",
     "access:install": "node scripts/local/install.mjs install",
+    "schema:inspect": "node scripts/local/schema.mjs inspect",
+    "schema:apply": "node scripts/local/schema.mjs apply",
     "typecheck": "node scripts/build/compose-runtime.mjs && tsc --noEmit",
     "test:runtime": "node --test --test-concurrency=1 tests/runtime/*.test.mjs",
     "test:identity": "node --test --test-concurrency=1 tests/identity/*.test.mjs",

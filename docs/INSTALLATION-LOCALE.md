@@ -31,6 +31,16 @@ La création du schéma composé courant et celle du compte sont deux étapes di
 
 La création du premier administrateur réutilise les services natifs, sous garde du schéma et du reçu central dans chaque lot D1. Ils n'attribuent que le droit initial explicite de gestion des accès, sans wildcard ou droit d'impersonation. Une capacité de création encore vivante ne peut pas être remplacée ; si le processus l'a perdue, attendre son expiration puis relancer explicitement. Le marqueur consommé ferme définitivement l'installation, même si les droits du compte ont ensuite été modifiés. Une relance ne remplace ni compte ni mot de passe.
 
+## Évolution additive d'une base installée
+
+Après avoir arrêté le serveur local et sélectionné la nouvelle composition et son verrou, exécuter `npm run schema:inspect`. La commande relit le plan central, le reçu D1 et les objets existants ; elle affiche la destination, les empreintes et les seuls noms des tables/index à ajouter. Une base sans reçu géré, partielle, étrangère ou incompatible est refusée. L'inspection ne modifie ni schéma ni données applicatives.
+
+Si l'état est `additive`, exécuter `npm run schema:apply` dans un terminal interactif. Relire la destination et les ajouts, puis saisir exactement l'empreinte complète `planDigest` affichée. L'outil recharge la source et vérifie les empreintes avant d'appeler le moteur central : créations et nouveau reçu sont dans le même batch D1. Il ne demande ni ne recrée de compte, ne prend aucun SQL en entrée et ne transforme pas les anciennes tables. L'état `ready` n'écrit rien ; `access:install` reste réservé au premier compte et refuse une base déjà initialisée.
+
+Une composition ou un verrou changé peut demander un nouveau reçu même si la liste d'objets à ajouter est vide ; l'inspection affiche alors zéro ajout. Vérifier le nouveau plan avant de confirmer ce reçu.
+
+Si le résultat de l'application ou de la fermeture du stockage est incertain, conserver la base et relancer uniquement `schema:inspect` pour vérifier le reçu et les ajouts. Ne pas répéter `schema:apply` sans cette inspection. Le même verrou local exclut `dev`, `start`, l'installation et l'export pendant l'évolution ; un verrou inconnu n'est jamais supprimé automatiquement.
+
 Une erreur de réponse ne prouve pas qu'aucune écriture n'a eu lieu. L'outil distingue son résultat de l'état observé et ne réessaie pas automatiquement une mutation. Si l'état ne peut pas être établi, conserver la base et refaire une inspection ; aucune suppression compensatoire.
 
 ## Portée

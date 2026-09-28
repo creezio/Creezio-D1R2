@@ -280,7 +280,9 @@ test('Conversations operations use real D1 authority, CAS, cursors and atomic fi
         target:{namespace:'module-instance',fields:['selected'],expiresAfterSeconds:3600}}]};
     const widgets={catalog:{widgets:[widget],resources:[]},validators:new Map([
       [`${widget.moduleId}\0${widget.widgetId}\0${widget.version}`,{state:value=>value&&typeof value==='object',
-        actionInputs:new Map([['pin',value=>value&&typeof value==='object'&&typeof value.selected==='string']])}],
+        actionInputs:new Map([['pin',value=>value&&typeof value==='object'&&typeof value.selected==='string']]),
+        contextValues:new Map([['pin',value=>value&&typeof value==='object'&&typeof value.selected==='string'
+          &&Object.keys(value).length===1]])}],
     ])};
     const widgetEngine=createOperationEngine({db,catalog,registry:registry(),permissions,widgets,
       providerAvailability:async(_request,providerId)=>({providerId,state:'ready',modelIds:['model-a']})});

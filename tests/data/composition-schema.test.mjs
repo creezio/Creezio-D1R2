@@ -33,7 +33,9 @@ function relock(input) {
 test('composed compiler includes all five native modules and freezes the runtime projection', async () => {
   const input = inputs(), plan = compileCompositionSchema(input);
   assert.deepEqual(plan.runtimeCatalog.modules.map(module => [module.moduleId, module.models.length]),
-    [['creezio.access', 28], ['creezio.conversations', 8], ['creezio.delivery', 0], ['creezio.modules-settings', 3], ['creezio.openai', 2]]);
+    [['creezio.access', 28], ['creezio.conversations', 8], ['creezio.delivery', 0], ['creezio.modules-settings', 4], ['creezio.openai', 2]]);
+  assert.deepEqual(plan.runtimeCatalog.modules.find(module => module.moduleId === 'creezio.modules-settings')
+    .models.map(model => model.modelId), ['head', 'journal', 'plan-outcomes', 'plans']);
   const conversations = input.modules[2].contracts.models;
   assert.deepEqual(conversations.map(model => model.id),
     ['conversation', 'message', 'draft', 'widget_context', 'turn', 'event', 'file_metadata', 'conversation_attachment']);
@@ -41,7 +43,7 @@ test('composed compiler includes all five native modules and freezes the runtime
   assert.deepEqual(conversations.find(model => model.id === 'turn').fields
     .filter(field => field.id === 'widget_context_snapshot').map(field => [field.type, field.nullable]), [['json', true]]);
   assert.equal(describeD1Schema('creezio.conversations',conversations).objects.length,17);
-  assert.equal(plan.objects.length, 74 + 3 + 17 + 2 + hostObjects);
+  assert.equal(plan.objects.length, 74 + 4 + 17 + 2 + hostObjects);
   assert.equal(plan.host.moduleId, OPERATION_STORAGE_MODULE_ID);
   assert.deepEqual(plan.host.models.map(entry => entry.modelId), ['approvals', 'attempts', 'audit', 'executions', 'outbox']);
   assert.equal(plan.runtimeCatalog.modules.some(module => module.moduleId === OPERATION_STORAGE_MODULE_ID), false);

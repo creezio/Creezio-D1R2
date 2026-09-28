@@ -32,4 +32,8 @@ Les contextes conservent la version d’origine du widget. Leurs valeurs sont re
 - Qualifier le cycle durable sur un prochain changement réel ; les deux cycles D1 restent une preuve locale distincte.
 - Publier Lab dans ses propres ressources Cloudflare et conserver les limites documentées de la recette ChatGPT.
 
+L’évolution de la D1 locale initialisée utilise le même moteur central que les autres publications. Le raccord opérateur `schema:inspect` / `schema:apply` est testé : inspection sous verrou, confirmation du digest exact puis application additive, sans réinstallation du compte et sans script SQL dans les modules. Six contrôles ciblés passent, dont une D1 initialisée conservant son compte et sa ligne témoin pendant l’ajout de `plan-outcomes`. L’application réelle sur Docker Lab reste à faire.
+
+La première CI de cette correction a exécuté 1 172 tests, dont trois échecs : deux inventaires attendus restés aux anciens nombres de tables/outils, et une fixture D1 dépourvue du nouveau validateur de contexte. Les attentes et la fixture sont corrigées sans assouplir la production ; les contrôles schéma et D1 concernés passent. La CI du candidat final reste requise.
+
 Preuves de recette conservées hors dépôt : `CREEZIO-T40-SITES-LAB-POST-012-NATIVE-READONLY`, `CREEZIO-T40-SITES-LAB-012-WIDGET-DIAGNOSTIC`, `CREEZIO-T40-LAB-012-LINUX-ADOPTION` et `CREEZIO-T40-MODULE-PLAN-CYCLE-SOL-LOCAL`, datées du 28 septembre 2026. Aucune de ces preuves n’annonce déjà le déploiement des corrections T40.

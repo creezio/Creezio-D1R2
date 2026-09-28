@@ -22,7 +22,7 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-07 — Workspace | Composants originaux adaptés, panneaux/états/titres et recette navigateur intégrés PR #16 | Qualification Sites et raccordement des modules produit | Livrable local disponible |
 | T-08 — Registre central | Registre publié ; propriétaire vérifié, projet Lab et installations Sites/Cloudflare créés ; jetons chiffrés ; publication Sites Lab synchronisée | Première déclaration de Lab Cloudflare et parcours email | Sites Lab raccordé ; Cloudflare prêt à qualifier |
 | T-09 — Sites | Original A et Lab B publiés sur le compte courant ; Lab 0.1.2 version 4, même Site, D1/R2 et témoins conservés | Corriger et requalifier les widgets historiques après update ; recettes complémentaires | Deux Sites publiés ; update partiellement qualifiée |
-| T-10 — MCP/OAuth | Catalogues admin/app distincts ; admin ChatGPT qualifié historiquement ; MCP app Lab 0.1.2 connecté avec la seule portée métier, carte et liste affichées dans ChatGPT | Autres interactions et parcours de refus hébergés | Lecture et rendu MCP app réels vérifiés |
+| T-10 — MCP/OAuth | Catalogues admin/app distincts ; admin ChatGPT qualifié historiquement ; MCP app Lab 0.1.2 connecté, carte/liste et modes direct/contexte/message exercés | Approbations et parcours de refus hébergés ; limite du picker documentée en T40 | Recette MCP app réalisée dans ce périmètre |
 | T-11 — Modules | Catalogue, dépendances, plans D1 et UI originale ; adoption réelle 0.1.2 sur Lab Sites et Docker | Confirmation durable, annulation des anciens plans et nouveau cycle | Correctif en développement et revue |
 | T-12 — Documentation | PR #21 : README/PRD/changelog exacts, UI/API/MCP et recettes locales/CI, 923 tests | Recettes hébergées transversales ; édition des PRD de travail en T-23 | Documents installés vérifiés localement |
 | T-13 — Fronts et thèmes | PR #22 : deux thèmes, projection native app, headless, recettes navigateur et CI ; 953 tests | Recette Sites | Livrable local disponible |
@@ -30,7 +30,7 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-15 — OpenAI | PR #24 intégrée ; réponses réelles locales/Sites, front/workspace ; reprise et arrêt locaux ; CI 993 tests | Outils widgets T16, compléments fournisseur/voix | Première tranche locale et Sites qualifiée |
 | T-16 — Widgets | Hôte MCP Apps ; trois modes exercés en Linux Lab ; deux rendus app réels dans ChatGPT | Correction des anciens widgets après changement du paquet ; interactions restantes et approbations | Régression historique reproduite et correction en cours |
 | T-30 — SDK/starter | SDK `sdk-v1.1.0` et starter `module-v0.1.2` publics ; démo locale initiale et actions internes des widgets Lab Linux exercées par Tab/Return | Publication Cloudflare de la démo et critères du lot au-delà du témoin ; clic pointeur iframe non observé | Distribution acquise dans ce périmètre, lot incomplet |
-| T-31 — Docker local | PR #17 intégrée ; compte/D1/R2, redémarrage/recréation/restauration vérifiés en Docker | Recettes des futurs modules et routes de fichiers | Livrable local disponible |
+| T-31 — Docker local | PR #17 intégrée ; compte/D1/R2, redémarrage/recréation/restauration vérifiés en Docker | Raccord opérateur d'évolution du schéma local puis recette Lab ; futurs modules | Raccord du moteur central en cours |
 | T-32 — Cloudflare direct | Original publié et mis à jour sur Cloudflare avec D1/R2 conservés ; Core main `f1c1943`, CI 1 162/1 162 | Démo Cloudflare, installations Lab propres et autres reprises | Original qualifié dans ce profil, lot incomplet |
 | Autres lots T-17 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, publications et recette finale | À réaliser selon le jalon prioritaire |
 
@@ -81,8 +81,8 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-31](#T-31) | P1 | Docker local persistant | [T-03](#T-03), [T-05](#T-05), [T-07](#T-07) | En cours |
 | [T-32](#T-32) | P6 | Publication complète Cloudflare | [T-08](#T-08), [T-30](#T-30), [T-31](#T-31) | En cours — original publié et mis à jour, SDK 1.1.0 public, démo ouverte |
 | [T-36](#T-36) | P7 | Version initiale de l’original, puis compléments | Jalon initial : [T-08](#T-08), [T-09](#T-09), [T-10](#T-10), [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-14](#T-14), [T-15](#T-15), [T-16](#T-16), tranche témoin [T-30](#T-30), [T-31](#T-31), [T-32](#T-32) | En cours — jalon `app/v0.0.0` public et Site A qualifié, recette complète ouverte |
-| [T-37](#T-37) | P7 | Vrai fork Creezio Lab et Site B | Version initiale publiée de [T-36](#T-36) | En cours — fork et Site B créés, publication et recette attendues |
-| [T-38](#T-38) | P8 | Adoption des mises à jour et contributions | Fork initial de [T-37](#T-37) | En cours — paquet 0.1.1 public et raccord d'inventaire en revue, recette d'adoption attendue |
+| [T-37](#T-37) | P7 | Vrai fork Creezio Lab et Site B | Version initiale publiée de [T-36](#T-36) | En cours — fork, Sites et Docker publiés ; Cloudflare Lab reste à qualifier |
+| [T-38](#T-38) | P8 | Adoption des mises à jour et contributions | Fork initial de [T-37](#T-37) | En cours — module 0.1.2 adopté ; conservation des anciens widgets et cycle durable en correction |
 | [T-39](#T-39) | P9 | Recette ciblée puis exhaustive | Preuves initiales de [T-38](#T-38) | En cours — observation Site A et correction du flux, recette ciblée ouverte |
 | [T-17](#T-17) | P5 | Tâches humaines et travail | [T-11](#T-11), [T-14](#T-14) | À faire — après première app |
 | [T-18](#T-18) | P5 | Messagerie native | [T-11](#T-11), [T-14](#T-14) | À faire — après première app |

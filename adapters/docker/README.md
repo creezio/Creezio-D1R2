@@ -15,6 +15,17 @@ docker compose -f adapters/docker/compose.yaml up -d --no-build
 
 Ouvrir `http://127.0.0.1:5173/access/admin`. L'installation interactive demande le premier compte et une confirmation explicite. Aucun mot de passe n'est fourni par image, variable ou argument. Le proxy TCP sur le port interne 5174 transmet HTTP et WebSocket au serveur local qui conserve son origine canonique `127.0.0.1:5173`. Le port publié reste limité au loopback de l'hôte.
 
+Pour ajouter les tables ou index déclarés par une nouvelle image à une base déjà installée, conserver le volume, arrêter `app`, puis inspecter et appliquer le plan central depuis cette image :
+
+```sh
+docker compose -f adapters/docker/compose.yaml stop app
+docker compose -f adapters/docker/compose.yaml run --rm --no-deps --entrypoint node app scripts/local/schema.mjs inspect
+docker compose -f adapters/docker/compose.yaml run --rm --no-deps --interactive --tty --entrypoint node app scripts/local/schema.mjs apply
+docker compose -f adapters/docker/compose.yaml up -d --no-build
+```
+
+`apply` exige un reçu de schéma existant, un état `additive` et la saisie exacte de l'empreinte du plan affichée ; il n'installe aucun compte. Vérifier la cible et les objets annoncés avant cette saisie. Si l'effet est incertain, relancer seulement `inspect` pour établir l'état du reçu avant toute autre décision. Un objet étranger ou une évolution incompatible bloque l'application sans réparation implicite. La procédure complète figure dans [l'installation locale](../../docs/INSTALLATION-LOCALE.md#évolution-additive-dune-base-installée).
+
 Le lanceur de build exige un checkout Git propre, exporte dans `.creezio/docker-source.json` l'identité du commit, de l'arbre et l'inventaire des octets source, puis construit l'image sans y copier `.git`. Le manifeste du workspace SDK est présent avant `npm ci` ; le SDK est compilé dans l'image avant l'installation ou le démarrage applicatif. L'image vérifie le manifeste source avant de démarrer ; les lectures de provenance dans le conteneur revérifient les fichiers. Un `docker compose build` direct avec un manifeste absent ou périmé échoue. Le dossier `.creezio` entier ne passe pas dans l'image : seul ce manifeste est inclus.
 
 `docker compose stop app` envoie `SIGUSR2` au lanceur Node : celui-ci ferme le Worker, le relais et le verrou du volume avant de sortir. Le `SIGTERM` ordinaire est réservé à Miniflare, dont le gestionnaire termine immédiatement le processus sans attendre cette libération. Conserver `stop_signal: SIGUSR2` et la période de grâce de 45 secondes lors d'une adaptation de ce profil.
