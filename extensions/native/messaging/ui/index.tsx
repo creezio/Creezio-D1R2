@@ -179,6 +179,7 @@ export function MessagingView(props:RuntimeViewProps) {
 
   const loadSelection=useCallback(async(id:string)=>{
     if(!scoped()||!boxId||!validId(id))return;
+    selectionIdentity.current.begin();
     const serial=selectionSerial.current.begin();
     const selectionCurrent=()=>scoped(boxId)&&live.current.folder===folder&&
       live.current.selectedId===id&&selectionSerial.current.accepts(serial);

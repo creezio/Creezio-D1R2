@@ -209,6 +209,30 @@ test('A to B to A navigation makes an old automatic read mark stale without losi
   assert.equal(saved.requestKey,'read-key','the result must be inspected after the navigation');
 });
 
+test('a newer read of the same message wins over an older automatic read mark',async()=>{
+  const identity=contracts.createLatestRequest();
+  const token=identity.begin();let finish,invocations=0,publishedRevision=1;
+  const scope={sessionId:'session-a',audience:'app',contextId:'application'};
+  const issued={...scope,bindingId:'creezio.messaging:app.message.update',requestKey:'read-key',
+    intent:'message.update',targetId:'message-a'};
+  const client={audience:'app',invoke:()=>{invocations++;return new Promise(resolve=>{finish=resolve;});},
+    status:async()=>({kind:'execution',execution:{state:'succeeded',output:{message:{id:'message-a',revision:3}}}})};
+  const journal=createCommandJournal(scope);
+  const current=()=>identity.accepts(token);
+  const running=journal.execute(client,issued,{messageId:'message-a',read:true},current,()=>true);
+  assert.equal(journal.pending.requestKey,'read-key');
+  identity.begin(); // loadSelection starts again for the same message after status reconciliation.
+  const inspected=await journal.inspect(client,()=>true,()=>true);
+  assert.equal(inspected.result.execution.state,'succeeded');
+  publishedRevision=3;
+  finish({kind:'execution',execution:{state:'succeeded',output:{message:{id:'message-a',revision:2}}}});
+  const old=await running;
+  if(current()&&old.result.kind==='execution')publishedRevision=old.result.execution.output.message.revision;
+  assert.equal(old.result.code,'stale');
+  assert.equal(publishedRevision,3);
+  assert.equal(invocations,1,'the status read must not replay the mutation');
+});
+
 test('operation bridge addresses the shared messaging binding without raw transport',async()=>{
   const calls=[];const scope={audience:'app',contextId:'workspace',client:{invoke:async request=>{
     calls.push(request);return {kind:'execution',execution:{state:'succeeded',output:{state:'unavailable',send:false,receive:false}}};}}};
