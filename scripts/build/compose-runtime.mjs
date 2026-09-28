@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync, mkdirSync, existsSync, lstatSync, realpathSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, lstatSync, realpathSync, statSync } from 'node:fs';
 import { compileCompositionSchema } from '../data/composition-schema.mjs';
 import { compileOperationSchemas } from '../operations/schemas.mjs';
 import { compileHttpBindings } from '../operations/http-bindings.mjs';
@@ -8,6 +8,7 @@ import { compileWidgetCatalog, projectWidgetProviderTools } from '../widgets/com
 import { serializeMcpCatalogWithWidgetResources } from '../widgets/serialize.mjs';
 import { createOperationRegistry } from '../../core/operations/registry.ts';
 import { compileModuleInventoryWithDocuments } from '../../sdk/modules/inventory.mjs';
+import { packageExports, verifyCandidatePackageReceipt } from '../modules/package-receipt.mjs';
 import { captureHostInventory } from '../../core/operations/host-inventory.ts';
 import {captureFileCategory} from '../../core/files/mapping.ts';
 import path from 'node:path';
@@ -27,6 +28,47 @@ export class CompositionBuildError extends Error {
 const fail = (code, message) => { throw new CompositionBuildError(code, message); };
 const slash = value => value.split(path.sep).join('/');
 const contained = (root, target) => { const rel = path.relative(root, target); return rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel); };
+const exactKeys=(value,keys)=>value&&typeof value==='object'&&!Array.isArray(value)
+  &&Object.keys(value).length===keys.length&&keys.every(key=>Object.hasOwn(value,key));
+
+export function externalPackageCandidate(root,item,composition,lock,allowedOrigins) {
+  if(!exactKeys(item,['moduleId','packageName','version','runtime','validation','receipt'])
+    || ![item.runtime,item.validation,item.receipt].every(value=>exactKeys(value,['path','integrity'])))
+    fail('inventory.external-package','External package declaration is malformed.');
+  const selection=composition.modules.find(value=>value.moduleId===item.moduleId);
+  const currentNode=lock.modules.find(value=>value.moduleId===item.moduleId);
+  if(!selection||selection.source?.kind!=='package'||selection.source.name!==item.packageName||!currentNode)
+    fail('inventory.external-package','External package must update one selected package.');
+  const paths=[item.runtime.path,item.validation.path,item.receipt.path];
+  if(new Set(paths).size!==3||paths.some(value=>!safePackagePath(value)
+    ||!value.startsWith('.creezio/packages/')))
+    fail('inventory.external-package','External archive paths must be distinct local package files.');
+  const bytes=paths.map((value,index)=>{
+    const file=confined(root,value),limit=index===2?64*1024:64*1024*1024;
+    if(statSync(file).size>limit)fail('inventory.external-package','External package exceeds its byte bound.');
+    return readFileSync(file);
+  });
+  return verifyCandidatePackageReceipt({currentNode,packageName:item.packageName,version:item.version,
+    allowedOrigins,runtimeBytes:bytes[0],validationBytes:bytes[1],receiptBytes:bytes[2],
+    expected:{runtime:item.runtime.integrity,validation:item.validation.integrity,
+      receipt:item.receipt.integrity}});
+}
+
+export function mergeExternalPackageCandidates({root,composition,lock,installedInventory,
+  externalPackages=[],allowedOrigins}) {
+  if(!Array.isArray(externalPackages)||externalPackages.length>16)
+    fail('inventory.external-package','External package count exceeds its bound.');
+  const external=externalPackages.map(item=>externalPackageCandidate(root,item,composition,
+    lock,allowedOrigins));
+  const combined=[...installedInventory.candidates,...external];
+  if(combined.length>1000||new Set(combined.map(item=>item.candidateKey)).size!==combined.length
+    ||new Set(combined.map(item=>`${item.moduleId}:${item.version}:${item.origin}`)).size!==combined.length)
+    fail('inventory.external-package','External package duplicates an installed or declared candidate.');
+  combined.sort((left,right)=>left.moduleId.localeCompare(right.moduleId)
+    ||left.version.localeCompare(right.version)||left.candidateKey.localeCompare(right.candidateKey));
+  const base={schemaVersion:1,candidates:combined};
+  return {...base,digest:contractIntegrity(base)};
+}
 
 /** Every existing ancestor is inspected before any read/write. A junction is never a package shortcut. */
 function confined(root, target, { directory = false, missing = false } = {}) {
@@ -43,16 +85,6 @@ function confined(root, target, { directory = false, missing = false } = {}) {
   if (directory ? !stat.isDirectory() : !stat.isFile()) fail('source.type', 'The selected path has an unexpected filesystem type.');
   if (!contained(realpathSync(root), realpathSync(absolute))) fail('source.escape', 'A resolved source path escapes its repository root.');
   return absolute;
-}
-
-function packageExports(exportsValue) {
-  const paths = new Set();
-  function visit(value) {
-    if (typeof value === 'string') { if (value.startsWith('./') && !value.includes('*')) paths.add(value.slice(2)); }
-    else if (Array.isArray(value)) value.forEach(visit);
-    else if (value && typeof value === 'object') Object.values(value).forEach(visit);
-  }
-  visit(exportsValue); return paths;
 }
 
 function locateModule(root, selection) {
@@ -286,7 +318,9 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   if (composition.modules.some(selection => selection.moduleId === 'creezio.modules-settings' && selection.enabled)) {
     const config = loadJson(confined(root, inventoryPath), {root});
     if (config.schemaVersion !== 1 || !Array.isArray(config.allowedOrigins) || !Array.isArray(config.available)
-      || Object.keys(config).some(key => !['schemaVersion', 'allowedOrigins', 'available','validationReceipts'].includes(key))
+      || Object.keys(config).some(key => !['schemaVersion', 'allowedOrigins', 'available','validationReceipts','externalPackages'].includes(key))
+      || (config.externalPackages!==undefined&&(!Array.isArray(config.externalPackages)
+        ||config.externalPackages.length>16))
       || (config.validationReceipts!==undefined&&(!config.validationReceipts
         || Array.isArray(config.validationReceipts)||typeof config.validationReceipts!=='object'
         || Object.entries(config.validationReceipts).some(([moduleId,receipt])=>
@@ -297,8 +331,10 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
       lockNode: lock.modules.find(node => node.moduleId === selection.moduleId),
       ...(config.validationReceipts?.[selection.moduleId]
         ?{validationReceipt:config.validationReceipts[selection.moduleId]}:{})})).concat(config.available);
-    const {inventory,currentInstalledDocuments}=compileModuleInventoryWithDocuments({root, candidates,
+    const {inventory:installedInventory,currentInstalledDocuments}=compileModuleInventoryWithDocuments({root, candidates,
       selectedCount:composition.modules.length,allowedOrigins: config.allowedOrigins});
+    const inventory=mergeExternalPackageCandidates({root,composition,lock,installedInventory,
+      externalPackages:config.externalPackages??[],allowedOrigins:config.allowedOrigins});
     currentModuleCandidateKeys(composition,lock,inventory);
     runtimeInventory = captureHostInventory({current: {composition, lock, descriptors: located.map(item => item.descriptor)},
       inventory,currentInstalledDocuments}, compositionDigest);

@@ -7,7 +7,9 @@ import {tmpdir} from 'node:os';
 import {compositionCase,fixture} from '../contracts/helpers.mjs';
 import {contractIntegrity} from '../../sdk/contracts/validate.mjs';
 import {deterministicModuleArchive} from '../../scripts/modules/archives.mjs';
+import {externalPackageCandidate,mergeExternalPackageCandidates} from '../../scripts/build/compose-runtime.mjs';
 import {solveModulePlan} from '../../sdk/modules/solver.mjs';
+import {temporaryDirectory} from '../quality/temporary.mjs';
 import {verifyCandidatePackageReceipt,verifyPackageReceipt,PackageReceiptError}
   from '../../scripts/modules/package-receipt.mjs';
 
@@ -63,7 +65,7 @@ test('a detached receipt binds real package bytes and rejects archive or install
   assert.throws(verify,error=>error instanceof PackageReceiptError&&error.code==='archive_inventory');
 });
 
-test('an external candidate is previewed beside the unchanged selected version',()=>{
+test('an external candidate is previewed beside the unchanged selected version',t=>{
   const installed=fixture(),updated=structuredClone(installed);
   updated.identity.version='1.0.1';
   updated.identity.source.revision='fixture-v2';
@@ -73,11 +75,16 @@ test('an external candidate is previewed beside the unchanged selected version',
   updated.packaging.validationBinding.sourceRevision='fixture-v2';
   updated.packaging.runtime.files.push('package.json');
   const packageName='@creezio/tasks';
-  const runtime=deterministicModuleArchive(updated.packaging.runtime.files.map(name=>({
+  const packageJson={name:packageName,version:'1.0.1',
+    exports:Object.fromEntries(updated.packaging.runtime.files.map(name=>[`./${name}`,`./${name}`]))};
+  const runtimeFor=pkg=>deterministicModuleArchive(updated.packaging.runtime.files.map(name=>({
     path:`package/${name}`,bytes:Buffer.from(name==='package.json'
-      ?JSON.stringify({name:packageName,version:'1.0.1'})
-      :name==='module/manifest.json'?JSON.stringify(updated):`runtime ${name}\n`),
+      ?JSON.stringify(pkg)
+      :name==='module/manifest.json'?JSON.stringify(updated)
+      :name.includes('entry.server')?'throw new Error("candidate code was evaluated");\n'
+      :`runtime ${name}\n`),
   })));
+  const runtime=runtimeFor(packageJson);
   const validation=deterministicModuleArchive(updated.packaging.validation.files.map(name=>({
     path:name,bytes:Buffer.from(`validation ${name}\n`),
   })));
@@ -98,6 +105,41 @@ test('an external candidate is previewed beside the unchanged selected version',
     allowedOrigins:[updated.identity.origin],runtimeBytes:runtime,validationBytes:validation,
     receiptBytes,expected:{runtime:sha(runtime),validation:sha(validation),receipt:sha(receiptBytes)}};
   const candidate=verifyCandidatePackageReceipt(input);
+  for(const badPackage of [
+    {name:packageName,version:'1.0.1'},
+    {...packageJson,exports:Object.fromEntries(Object.entries(packageJson.exports)
+      .filter(([name])=>name!=='./ui/workspace/tasks.ts'))},
+  ]){
+    const badRuntime=runtimeFor(badPackage);
+    const badReceipt={...receipt,runtime:{...receipt.runtime,integrity:sha(badRuntime)}};
+    const badReceiptBytes=Buffer.from(`${JSON.stringify(badReceipt)}\n`);
+    assert.throws(()=>verifyCandidatePackageReceipt({...input,runtimeBytes:badRuntime,
+      receiptBytes:badReceiptBytes,expected:{runtime:sha(badRuntime),validation:sha(validation),
+        receipt:sha(badReceiptBytes)}}),
+    error=>error instanceof PackageReceiptError&&error.code==='candidate_exports');
+  }
+  const externalRoot=temporaryDirectory(t,'creezio-candidate-');
+  const externalDirectory=path.join(externalRoot,'.creezio','packages');
+  mkdirSync(externalDirectory,{recursive:true});
+  const files=[['runtime.tgz',runtime],['validation.tgz',validation],['receipt.json',receiptBytes]];
+  for(const [name,bytes] of files)writeFileSync(path.join(externalDirectory,name),bytes);
+  const external={moduleId:updated.identity.id,packageName,version:'1.0.1',
+    runtime:{path:'.creezio/packages/runtime.tgz',integrity:sha(runtime)},
+    validation:{path:'.creezio/packages/validation.tgz',integrity:sha(validation)},
+    receipt:{path:'.creezio/packages/receipt.json',integrity:sha(receiptBytes)}};
+  assert.deepEqual(externalPackageCandidate(externalRoot,external,base.composition,base.lock,
+    [updated.identity.origin]),candidate);
+  assert.throws(()=>externalPackageCandidate(externalRoot,{...external,
+    receipt:{...external.receipt,path:external.runtime.path}},base.composition,base.lock,
+  [updated.identity.origin]),{code:'inventory.external-package'});
+  assert.throws(()=>externalPackageCandidate(externalRoot,{...external,version:'1.0.0'},
+    base.composition,base.lock,[updated.identity.origin]),
+    error=>error instanceof PackageReceiptError&&error.code==='candidate_input');
+  writeFileSync(path.join(externalDirectory,'runtime.tgz'),Buffer.concat([runtime,Buffer.from('x')]));
+  assert.throws(()=>externalPackageCandidate(externalRoot,external,base.composition,base.lock,
+    [updated.identity.origin]),
+    error=>error instanceof PackageReceiptError&&error.code==='candidate_digest');
+  writeFileSync(path.join(externalDirectory,'runtime.tgz'),runtime);
   assert.equal(candidate.version,'1.0.1');
   assert.equal(candidate.source.kind,'package');
   assert.equal(candidate.lockNode.runtime.location.path,
@@ -115,8 +157,22 @@ test('an external candidate is previewed beside the unchanged selected version',
     expected:{...input.expected,receipt:sha(aliasedReceiptBytes)}});
   assert.equal(aliased.lockNode.runtime.location.path,candidate.lockNode.runtime.location.path);
   assert.notEqual(aliased.lockNode.runtime.location.path,current.lock.modules[0].runtime.location.path);
-  const inventory={schemaVersion:1,candidates:[candidate],digest:contractIntegrity({
-    schemaVersion:1,candidates:[candidate]})};
+  const selectedCore={moduleId:installed.identity.id,origin:installed.identity.origin,
+    version:installed.identity.version,source:base.composition.modules[0].source,
+    descriptor:installed,lockNode:base.lock.modules[0]};
+  const selected={candidateKey:contractIntegrity({moduleId:selectedCore.moduleId,
+    origin:selectedCore.origin,version:selectedCore.version,source:selectedCore.source,
+    contractIntegrity:selectedCore.lockNode.contractIntegrity,
+    runtime:selectedCore.lockNode.runtime.integrity,
+    validation:selectedCore.lockNode.validation.integrity}),...selectedCore};
+  const inventory=mergeExternalPackageCandidates({root:externalRoot,composition:base.composition,
+    lock:base.lock,installedInventory:{candidates:[selected]},externalPackages:[external],
+    allowedOrigins:[updated.identity.origin]});
+  assert.equal(inventory.candidates.length,2);
+  assert.equal(inventory.digest,contractIntegrity({schemaVersion:1,candidates:inventory.candidates}));
+  assert.throws(()=>mergeExternalPackageCandidates({root:externalRoot,composition:base.composition,
+    lock:base.lock,installedInventory:{candidates:[selected]},externalPackages:[external,external],
+    allowedOrigins:[updated.identity.origin]}),{code:'inventory.external-package'});
   const choices={schemaVersion:1,base:{revision:3,
     compositionDigest:contractIntegrity(current.composition),lockDigest:contractIntegrity(current.lock),
     inventoryDigest:inventory.digest},actions:[{kind:'update',moduleId:installed.identity.id,

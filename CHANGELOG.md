@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.1 — en préparation, mise à jour individuelle d'un paquet externe (T38)
+
+Le build peut ajouter au catalogue les métadonnées d'une version externe après vérification de ses trois archives épinglées et de ses exports requis, sans charger son code ni remplacer la version installée. Le gestionnaire existant utilise cette candidate pour son plan de mise à jour. L'adoption explicite peut placer la validation détachée dans un cache adressé par empreinte ; les verrous existants restent lisibles. La version de distribution et d'application passe à `0.0.1` ; la version du contrat Core et des modules natifs reste `0.0.0`, le SDK public reste `1.1.0`. Le starter `module-v0.1.1` est public, tandis que la recette d'adoption et de conservation dans le Lab reste à effectuer. Voir [dépendances et verrous](docs/DEPENDANCES-MODULES.md).
+
 ## 28 septembre 2026 — release source initiale `app/v0.0.0` (T36)
 
 Le main `eb97109493b3a945eaa882c216591bc468764014` a passé 1 152/1 152 tests CI. La release source publique [`app/v0.0.0`](https://github.com/creezio/Creezio-D1R2/releases/tag/app/v0.0.0) conserve la version de contrat Core et les modules natifs à `0.0.0`, avec SDK de composition `1.1.0`. Son archive fait 1 532 513 octets, SHA-256 `097a7eb02e5c955a048d014cd120f95672fac5e501c1e960998f13da18a717fb`. Le Site A public a été qualifié sur ce main : API, réponse OpenAI et deux widgets ; la recette complète T36 reste ouverte. Le vrai fork Lab T37 est en cours, et T38 prépare la lecture sans effet d'un paquet module 0.1.1 distinct de la 0.1.0 active. Voir [réalisation et limites T36](docs/IMPLEMENTATION-T36.md).

@@ -82,7 +82,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-32](#T-32) | P6 | Publication complète Cloudflare | [T-08](#T-08), [T-30](#T-30), [T-31](#T-31) | En cours — original publié et mis à jour, SDK 1.1.0 public, démo ouverte |
 | [T-36](#T-36) | P7 | Version initiale de l’original, puis compléments | Jalon initial : [T-08](#T-08), [T-09](#T-09), [T-10](#T-10), [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-14](#T-14), [T-15](#T-15), [T-16](#T-16), tranche témoin [T-30](#T-30), [T-31](#T-31), [T-32](#T-32) | En cours — jalon `app/v0.0.0` public et Site A qualifié, recette complète ouverte |
 | [T-37](#T-37) | P7 | Vrai fork Creezio Lab et Site B | Version initiale publiée de [T-36](#T-36) | En cours — fork et Site B créés, publication et recette attendues |
-| [T-38](#T-38) | P8 | Adoption des mises à jour et contributions | Fork initial de [T-37](#T-37) | À faire — preuve installation/update prioritaire |
+| [T-38](#T-38) | P8 | Adoption des mises à jour et contributions | Fork initial de [T-37](#T-37) | En cours — paquet 0.1.1 public et raccord d'inventaire en revue, recette d'adoption attendue |
 | [T-39](#T-39) | P9 | Recette ciblée puis exhaustive | Preuves initiales de [T-38](#T-38) | À faire — recette ciblée prioritaire |
 | [T-17](#T-17) | P5 | Tâches humaines et travail | [T-11](#T-11), [T-14](#T-14) | À faire — après première app |
 | [T-18](#T-18) | P5 | Messagerie native | [T-11](#T-11), [T-14](#T-14) | À faire — après première app |
@@ -486,12 +486,12 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-38"></a>
 ## T-38 — Adoption des mises à jour et contributions
 
-- Lot : **P8** ; état : **préparation parallèle, recette non commencée** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P8** ; état : **en revue pour le raccord d'inventaire, recette non commencée** ; responsable : Codex et agents de revue ; branche `core/t38-package-updates`, PR #30.
 - Dépendances : fork initial utilisable de [T-37](#T-37).
 - Travail/livrables : Pour la première app, installation du vrai paquet témoin puis adoption, par le fork B, d'une nouvelle version issue de l'original A et mise à jour du module/thème sans perte des données ni du front, avec refus d'une mise à jour incompatible ; publication Cloudflare du fork via le parcours T-32. Les contributions amont et intégrations facultatives restantes gardent leurs preuves propres dans T-38.
 - Besoin : [US-38](USER-STORIES.md#US-38). Acceptation : [REQ-3801](EXIGENCES.md#REQ-3801), [REQ-3802](EXIGENCES.md#REQ-3802), [REQ-3803](EXIGENCES.md#REQ-3803).
 - Validation : implémenter puis exécuter les recettes liées, sur **A/B, Cloudflare, tarballs et GitHub** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : le Starter prépare une candidate 0.1.1 distincte de la release 0.1.0 ; le préflight des trois octets externes et le plan sans effet sont en cours. Aucun remplacement installé, aucune mise à jour du fork ni conservation après cette mise à jour ne sont encore revendiqués.
+- Preuves : le Starter `module-v0.1.1` est public depuis son main `3eed4a18a47a2d993bd66304c93dcf9c5e9c2dcb`, avec les archives retéléchargées et vérifiées. Le préflight vérifie leurs trois empreintes ; le build expose uniquement les métadonnées candidates au gestionnaire existant. La mise en cache de la validation détachée pour l'adoption est explicite et préserve les verrous antérieurs. Les contrôles ciblés sont acquis ; revue et contrôle global du raccord final restent requis. Aucun remplacement installé, aucune mise à jour du fork ni conservation après cette mise à jour ne sont encore revendiqués.
 
 <a id="T-39"></a>
 ## T-39 — Recette finale et validation utilisateur

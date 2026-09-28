@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "application": {
     "id": "creezio.app",
-    "version": "0.0.0",
+    "version": "0.0.1",
     "provenance": {
       "kind": "git",
       "revision": "72c7f3faca3df68beea64b50c2ddc51fd103a433",

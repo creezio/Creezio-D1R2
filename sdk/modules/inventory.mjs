@@ -78,13 +78,18 @@ function compile({root,candidates,allowedOrigins,cacheDir='.creezio/module-artif
     if(item.validationReceipt && item.source.kind!=='package')fail('receipt_source',moduleId);
     const detachedValidation=item.validationReceipt?verifyPackageReceipt({root:absoluteRoot,
       receiptPath:item.validationReceipt,moduleDirectory:directory,descriptor}).validation:null;
+    const cachedValidation=detachedValidation
+      ?`${cacheDir}/${moduleId}/validation-${detachedValidation.integrity.slice(7)}.tgz`:null;
+    const cacheDetachedValidation=!!detachedValidation
+      &&node.validation?.location?.path===cachedValidation;
     if(detachedValidation&&(node.validation?.location?.kind!=='local'
-      ||node.validation.location.path!==detachedValidation.path))fail('lock_location',moduleId);
+      ||node.validation.location.path!==detachedValidation.path&&!cacheDetachedValidation))
+      fail('lock_location',moduleId);
     if(item.source.kind==='package'&&node.validation?.location?.kind==='local'
       &&node.validation.location.path.startsWith('.creezio/packages/')&&!detachedValidation)fail('receipt_missing',moduleId);
     const artifact=packModuleArtifacts({root:absoluteRoot,moduleDirectory:directory,moduleId,descriptor,cacheDir,
       expected:{runtime:node.runtime?.integrity,validation:node.validation?.integrity},
-      detachedValidation,
+      detachedValidation,cacheDetachedValidation,
       captureRuntimeFiles:index<selectedCount?kinds.map(kind=>installed[kind].path):[]});
     if (node.runtime?.integrity!==artifact.runtime.integrity
       || node.validation?.integrity!==artifact.validation.integrity) fail('lock_artifact',moduleId);

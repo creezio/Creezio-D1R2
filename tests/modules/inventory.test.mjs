@@ -203,3 +203,62 @@ test('local lock command writes verified bytes once and check mode refuses stale
   assert.equal(runModuleLockCli(args,io),1);
   assert.equal(readFileSync(path.join(f.root,'composition.lock.json'),'utf8'),locked);
 });
+
+test('a selected package keeps its legacy receipt lock until canonical validation is explicitly chosen',t=>{
+  const f=localModule(t),moduleId=f.descriptor.identity.id,packageName='@creezio/tasks';
+  const packageDirectory=path.join(f.root,'node_modules','@creezio','tasks');
+  f.write(path.join(packageDirectory,'package.json'),JSON.stringify({name:packageName,
+    version:f.descriptor.identity.version}));
+  for(const name of f.descriptor.packaging.runtime.files)
+    f.write(path.join(packageDirectory,...name.split('/')),name==='module/manifest.json'
+      ?`${JSON.stringify(f.descriptor)}\n`:`Installed ${name}\n`);
+  const runtime=deterministicModuleArchive(f.descriptor.packaging.runtime.files.map(name=>({
+    path:`package/${name}`,bytes:readFileSync(path.join(packageDirectory,...name.split('/')))})));
+  const validation=deterministicModuleArchive(f.descriptor.packaging.validation.files.map(name=>({
+    path:name,bytes:Buffer.from(`Validation ${name}\n`)})));
+  const sha=bytes=>`sha256-${createHash('sha256').update(bytes).digest('hex')}`;
+  const receiptPath='.creezio/packages/receipt.json';
+  const receipt={schemaVersion:'1.0.0',module:{id:moduleId,origin:f.descriptor.identity.origin,
+    version:f.descriptor.identity.version,source:f.descriptor.identity.source},
+    contractIntegrity:contractIntegrity(f.descriptor),
+    runtime:{integrity:sha(runtime),location:{kind:'local',path:'.creezio/packages/runtime.tgz'}},
+    validation:{integrity:sha(validation),location:{kind:'local',path:'.creezio/packages/validation.tgz'}},
+    policy:f.descriptor.validation.policy};
+  f.write(path.join(f.root,'.creezio','packages','runtime.tgz'),runtime);
+  f.write(path.join(f.root,'.creezio','packages','validation.tgz'),validation);
+  f.write(path.join(f.root,...receiptPath.split('/')),`${JSON.stringify(receipt)}\n`);
+  const composition=fixture('valid-composition');
+  composition.modules[0].source={kind:'package',name:packageName};
+  f.write(path.join(f.root,'composition.json'),`${JSON.stringify(composition)}\n`);
+  f.write(path.join(f.root,'module-inventory.json'),JSON.stringify({schemaVersion:1,
+    allowedOrigins:[f.descriptor.identity.origin],available:[]}));
+  const lockPath=path.join(f.root,'composition.lock.json');
+  f.write(lockPath,JSON.stringify({...fixture('valid-composition-lock'),modules:[]}));
+  const args=['--root',f.root,'--composition','composition.json','--lock','composition.lock.json',
+    '--inventory','module-inventory.json','--validation-receipt',`${moduleId}=${receiptPath}`];
+  let errors='';const io={stdout:{write:()=>{}},stderr:{write:value=>{errors+=value;}}};
+  assert.equal(runModuleLockCli([...args,'--write'],io),0,errors);
+  const legacy=JSON.parse(readFileSync(lockPath,'utf8'));
+  const oldValidation=readFileSync(path.join(f.root,'.creezio','packages','validation.tgz'));
+  assert.equal(legacy.modules[0].validation.location.path,receipt.validation.location.path);
+  assert.equal(compileModuleInventory({root:f.root,allowedOrigins:[f.descriptor.identity.origin],
+    candidates:[{source:composition.modules[0].source,lockNode:legacy.modules[0],
+      validationReceipt:receiptPath}]}).candidates.length,1);
+  assert.equal(runModuleLockCli([...args,'--cache-validation',moduleId,'--write'],io),0,errors);
+  const updated=JSON.parse(readFileSync(lockPath,'utf8'));
+  const canonical=`.creezio/module-artifacts/${moduleId}/validation-${sha(validation).slice(7)}.tgz`;
+  assert.equal(updated.modules[0].validation.location.path,canonical);
+  assert.deepEqual(readFileSync(path.join(f.root,'.creezio','packages','validation.tgz')),oldValidation);
+  assert.deepEqual(readFileSync(path.join(f.root,...canonical.split('/'))),oldValidation);
+  assert.equal(runModuleLockCli(args,io),0,errors,'check mode preserves an existing canonical lock');
+  assert.equal(compileModuleInventory({root:f.root,allowedOrigins:[f.descriptor.identity.origin],
+    candidates:[{source:composition.modules[0].source,lockNode:updated.modules[0],
+      validationReceipt:receiptPath}]}).candidates.length,1);
+  writeFileSync(path.join(f.root,...canonical.split('/')),'changed cache bytes');
+  assert.throws(()=>compileModuleInventory({root:f.root,allowedOrigins:[f.descriptor.identity.origin],
+    candidates:[{source:composition.modules[0].source,lockNode:updated.modules[0],
+      validationReceipt:receiptPath}]}),{code:'cache_corrupt'});
+  assert.deepEqual(readFileSync(path.join(f.root,'.creezio','packages','validation.tgz')),oldValidation);
+  f.files.add(path.join(f.root,...updated.modules[0].runtime.location.path.split('/')));
+  f.files.add(path.join(f.root,...canonical.split('/')));
+});

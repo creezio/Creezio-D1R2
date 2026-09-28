@@ -8,7 +8,7 @@ import {safePackagePath} from '../../sdk/contracts/references.mjs';
 import {packModuleArtifacts} from './archives.mjs';
 import {verifyPackageReceipt} from './package-receipt.mjs';
 
-const usage='Usage: node scripts/modules/lock.mjs [--root DIRECTORY] [--composition configuration/composition.json] [--lock configuration/composition.lock.json] [--inventory configuration/module-inventory.json] [--validation-receipt moduleId=RELATIVE_PATH]... [--write]\n';
+const usage='Usage: node scripts/modules/lock.mjs [--root DIRECTORY] [--composition configuration/composition.json] [--lock configuration/composition.lock.json] [--inventory configuration/module-inventory.json] [--validation-receipt moduleId=RELATIVE_PATH]... [--cache-validation moduleId]... [--write]\n';
 const within=(root,target)=>target===root||target.startsWith(`${root}${path.sep}`);
 function localPath(root,relative,{missing=false}={}) {
   if (!safePackagePath(relative)) throw new Error(`Unsafe local path: ${relative}`);
@@ -33,7 +33,7 @@ function json(root,relative,maxBytes) {
 }
 function flags(argv) {
   if (argv.length===1&&argv[0]==='--help') return null;
-  const out={write:false,receipts:new Map()};
+  const out={write:false,receipts:new Map(),cacheValidation:new Set()};
   for (let index=0;index<argv.length;index++) {
     const key=argv[index];
     if (key==='--write') {if(out.write)throw new Error(usage.trim());out.write=true;continue;}
@@ -42,6 +42,12 @@ function flags(argv) {
       if(separator<1||! /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(moduleId)
         ||!safePackagePath(receipt)||out.receipts.has(moduleId))throw new Error(usage.trim());
       out.receipts.set(moduleId,receipt);continue;
+    }
+    if(key==='--cache-validation'){
+      const moduleId=argv[++index]??'';
+      if(!/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(moduleId)||out.cacheValidation.has(moduleId))
+        throw new Error(usage.trim());
+      out.cacheValidation.add(moduleId);continue;
     }
     if (!['--root','--composition','--lock','--inventory'].includes(key)||!argv[index+1]
       || argv[index+1].startsWith('--')||Object.hasOwn(out,key)) throw new Error(usage.trim());
@@ -76,7 +82,7 @@ function descriptorAt(root,source) {
   }
   return {directory,descriptor};
 }
-function buildLock(root,composition,allowedOrigins,writeCache,receipts=new Map()) {
+function buildLock(root,composition,allowedOrigins,writeCache,receipts=new Map(),cacheValidation=new Set(),existingLock=null) {
   if (!Array.isArray(composition?.modules)||composition.modules.length>1000
     || !Array.isArray(allowedOrigins)||allowedOrigins.length===0
     || allowedOrigins.some(origin=>typeof origin!=='string'||!origin.startsWith('https://')))
@@ -90,9 +96,16 @@ function buildLock(root,composition,allowedOrigins,writeCache,receipts=new Map()
       || !allowedOrigins.includes(selection.origin)) throw new Error(`Module identity or origin refused: ${selection.moduleId}`);
     const receiptPath=receipts.get(selection.moduleId);
     if(receiptPath&&selection.source.kind!=='package')throw new Error(`Detached validation needs a package source: ${selection.moduleId}`);
+    if(cacheValidation.has(selection.moduleId)&&!receiptPath)
+      throw new Error(`Cached validation needs a detached receipt: ${selection.moduleId}`);
     const detachedValidation=receiptPath?verifyPackageReceipt({root,receiptPath,moduleDirectory:directory,descriptor}).validation:null;
+    const canonicalValidation=detachedValidation
+      ?`.creezio/module-artifacts/${selection.moduleId}/validation-${detachedValidation.integrity.slice(7)}.tgz`:null;
+    const previous=existingLock?.modules?.find(node=>node.moduleId===selection.moduleId);
+    const cacheDetachedValidation=cacheValidation.has(selection.moduleId)
+      ||!!canonicalValidation&&previous?.validation?.location?.path===canonicalValidation;
     const artifacts=packModuleArtifacts({root,moduleDirectory:directory,moduleId:selection.moduleId,
-      descriptor,writeCache,detachedValidation});
+      descriptor,writeCache,detachedValidation,cacheDetachedValidation});
     descriptors.push(descriptor);
     modules.push({moduleId:descriptor.identity.id,origin:descriptor.identity.origin,
       version:descriptor.identity.version,source:structuredClone(descriptor.identity.source),
@@ -103,6 +116,8 @@ function buildLock(root,composition,allowedOrigins,writeCache,receipts=new Map()
   }
   for(const moduleId of receipts.keys())if(!ids.has(moduleId))
     throw new Error(`Validation receipt names an unselected module: ${moduleId}`);
+  for(const moduleId of cacheValidation)if(!ids.has(moduleId))
+    throw new Error(`Cached validation names an unselected module: ${moduleId}`);
   const versions=new Map(modules.map(module=>[module.moduleId,module.version]));
   for (let index=0;index<modules.length;index++) modules[index].dependencies=
     descriptors[index].dependencies.filter(dep=>versions.has(dep.moduleId))
@@ -134,9 +149,10 @@ export function runModuleLockCli(argv,{cwd=process.cwd(),stdout=process.stdout,s
     const inventory=json(root,inventoryPath,64*1024);
     if (inventory?.schemaVersion!==1||!Array.isArray(inventory.allowedOrigins))
       throw new Error('Invalid module inventory configuration.');
-    const expected=buildLock(root,composition,inventory.allowedOrigins,args.write,args.receipts);
     const existing=existsSync(localPath(root,lockPath,{missing:true}))
       ?json(root,lockPath,2*1024*1024):null;
+    const expected=buildLock(root,composition,inventory.allowedOrigins,args.write,args.receipts,
+      args.cacheValidation,existing);
     if (!args.write && (!existing||canonicalJson(existing)!==canonicalJson(expected)))
       throw new Error('Composition lock is missing or obsolete. Run with --write after reviewing the selected sources.');
     if (args.write && (!existing||canonicalJson(existing)!==canonicalJson(expected))) saveLock(root,lockPath,expected);

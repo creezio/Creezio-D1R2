@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {existsSync,lstatSync,mkdirSync,readFileSync,realpathSync,renameSync,writeFileSync,unlinkSync} from 'node:fs';
+import {existsSync,lstatSync,mkdirSync,readFileSync,realpathSync,renameSync,statSync,writeFileSync,unlinkSync} from 'node:fs';
 import path from 'node:path';
 import {gzipSync} from 'node:zlib';
 import {safePackagePath} from '../../sdk/contracts/references.mjs';
@@ -109,7 +109,8 @@ function cacheArchive(root,moduleId,kind,bytes,cacheRoot,writeCache) {
 }
 /** Node-only source packer. It never transforms line endings or executes module code. */
 export function packModuleArtifacts({root,moduleDirectory,moduleId,descriptor,
-  cacheDir='.creezio/module-artifacts',expected=null,writeCache=true,captureRuntimeFiles=[],detachedValidation=null}) {
+  cacheDir='.creezio/module-artifacts',expected=null,writeCache=true,captureRuntimeFiles=[],
+  detachedValidation=null,cacheDetachedValidation=false}) {
   const absoluteRoot=path.resolve(root),directory=confined(absoluteRoot,moduleDirectory,{directory:true});
   if (typeof moduleId!=='string'||!/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(moduleId)
     || descriptor?.identity?.id!==moduleId||!safePackagePath(cacheDir)) fail('descriptor');
@@ -123,11 +124,20 @@ export function packModuleArtifacts({root,moduleDirectory,moduleId,descriptor,
   const runtime=deterministicModuleArchive(runtimeFiles);
   if(detachedValidation && (!/^sha256-[a-f0-9]{64}$/.test(detachedValidation.integrity??'')
     || !safePackagePath(detachedValidation.path))) fail('validation_artifact');
+  if(cacheDetachedValidation&&!detachedValidation)fail('validation_artifact');
   const validation=detachedValidation?null:deterministicModuleArchive(
     readDeclared(directory,descriptor.packaging?.validation?.files,absoluteRoot));
   const validationIntegrity=detachedValidation?.integrity??sha(validation);
   if (expected && (expected.runtime!==sha(runtime)||expected.validation!==validationIntegrity)) fail('lock_artifact');
+  let detachedArtifact=detachedValidation;
+  if(cacheDetachedValidation){
+    const source=confined(absoluteRoot,path.join(absoluteRoot,...detachedValidation.path.split('/')));
+    if(statSync(source).size>64*1024*1024)fail('validation_artifact');
+    const bytes=readFileSync(source);
+    if(sha(bytes)!==detachedValidation.integrity)fail('validation_artifact');
+    detachedArtifact=cacheArchive(absoluteRoot,moduleId,'validation',bytes,cacheRoot,writeCache);
+  }
   return Object.freeze({runtime:cacheArchive(absoluteRoot,moduleId,'runtime',runtime,cacheRoot,writeCache),
-    validation:detachedValidation??cacheArchive(absoluteRoot,moduleId,'validation',validation,cacheRoot,writeCache),
+    validation:detachedArtifact??cacheArchive(absoluteRoot,moduleId,'validation',validation,cacheRoot,writeCache),
     capturedRuntimeFiles:Object.freeze(capturedRuntimeFiles)});
 }

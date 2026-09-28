@@ -69,6 +69,42 @@ function exact(entries,names){
   if(entries.some(entry=>!declared.has(entry.path)))fail('archive_inventory');
 }
 
+/** Match the build loader's static package export check without loading candidate code. */
+export function packageExports(exportsValue) {
+  const paths=new Set();
+  function visit(value) {
+    if(typeof value==='string') {if(value.startsWith('./')&&!value.includes('*'))paths.add(value.slice(2));}
+    else if(Array.isArray(value))value.forEach(visit);
+    else if(value&&typeof value==='object')Object.values(value).forEach(visit);
+  }
+  visit(exportsValue);return paths;
+}
+
+function requiredBuildExports(descriptor) {
+  const paths=new Set(['module/manifest.json']);
+  const add=reference=>{if(reference?.path)paths.add(reference.path);};
+  add(descriptor.entrypoints.server);add(descriptor.entrypoints.ui);
+  for(const operation of descriptor.contracts.operations)add(operation.handler);
+  for(const view of descriptor.contracts.ui.views)add(view.component);
+  for(const theme of descriptor.contracts.ui.themes??[])add(theme.component);
+  for(const stylesheet of descriptor.contracts.ui.styles)paths.add(stylesheet);
+  for(const resource of descriptor.contracts.mcp.resources){
+    if(resource.source.kind==='asset')paths.add(resource.source.path);
+  }
+  for(const widget of descriptor.contracts.widgets){
+    add(widget.renderer);
+    for(const asset of widget.assets)paths.add(asset);
+    for(const action of widget.actions){
+      add(action.target?.handler);
+      if(action.target?.template)paths.add(action.target.template);
+    }
+  }
+  if(descriptor.identity.id==='creezio.openai'){
+    paths.add('module/storage.ts');paths.add('module/transport.ts');
+  }
+  return paths;
+}
+
 /** Read a future package from supplied bytes while the current version stays installed. No writes. */
 export function verifyCandidatePackageReceipt({currentNode,packageName,version,allowedOrigins,
   runtimeBytes,validationBytes,receiptBytes,expected}) {
@@ -113,6 +149,8 @@ export function verifyCandidatePackageReceipt({currentNode,packageName,version,a
     fail('candidate_receipt');
   exact(entries,descriptor.packaging.runtime.files.map(name=>`package/${name}`));
   exact(validationEntries,descriptor.packaging.validation.files);
+  const exports=packageExports(pkg.exports);
+  if([...requiredBuildExports(descriptor)].some(name=>!exports.has(name)))fail('candidate_exports');
   const central=deterministicModuleArchive(entries.map(entry=>({
     path:entry.path.slice('package/'.length),bytes:entry.bytes})));
   const centralIntegrity=sha(central);

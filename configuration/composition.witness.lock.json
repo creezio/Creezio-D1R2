@@ -8,7 +8,7 @@
     "version": "1.0.0",
     "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
   },
-  "compositionIntegrity": "sha256-44e8a170a24f993fe296141a433c9609bd48580e05091dc1aae6ba361dc7e360",
+  "compositionIntegrity": "sha256-249cd425d2e38004447c99dbd434ef4125f75ce4d5a0b5e1ea23955ac3a9c596",
   "modules": [
     {
       "moduleId": "example.witness",

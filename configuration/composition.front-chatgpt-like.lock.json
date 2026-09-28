@@ -8,7 +8,7 @@
     "version": "1.0.0",
     "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
   },
-  "compositionIntegrity": "sha256-0b25a7e1f19032fd83e1134a0a1c5a9b4c50e50189a612e17da2b8669c7a4542",
+  "compositionIntegrity": "sha256-e8af4e9053521eeebe89221583df4fd6e4eeed726e95a93142f80cde58696128",
   "modules": [
     {
       "moduleId": "creezio.access",
