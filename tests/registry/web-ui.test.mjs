@@ -4,7 +4,7 @@ import {runInNewContext} from 'node:vm';
 import {registryScript} from '../../services/registry/web-ui.ts';
 
 function browser({lostProject = false, lostInstallation = false, commitProject = true,
-  holdInstallation = false} = {}) {
+  holdInstallation = false, holdProjectBRead = false} = {}) {
   const names = ['status','sign-in','owner-panel','project-select','refresh-projects','project-form',
     'project-name','project-origin','create-project','installation-panel','installation-select',
     'refresh-installations','create-sites','create-cloudflare','rotate','download'];
@@ -27,6 +27,8 @@ function browser({lostProject = false, lostInstallation = false, commitProject =
   const projects = [], installations = [], calls = [];
   let releaseInstallation;
   const installationGate = holdInstallation ? new Promise(resolve => {releaseInstallation = resolve;}) : null;
+  let releaseProjectBRead;
+  const projectBGate = holdProjectBRead ? new Promise(resolve => {releaseProjectBRead = resolve;}) : null;
   let downloaded;
   class BrowserURL extends URL {
     static createObjectURL(blob) {downloaded = blob; return 'blob:registry-test';}
@@ -45,6 +47,10 @@ function browser({lostProject = false, lostInstallation = false, commitProject =
     }
     if (path === '/v1/projects/project-a/installations' && options.method === 'GET')
       return Response.json({projectId: 'project-a', installations, complete: true, limit: 100});
+    if (path === '/v1/projects/project-b/installations' && options.method === 'GET') {
+      if (projectBGate) await projectBGate;
+      return Response.json({projectId: 'project-b', installations: [], complete: true, limit: 100});
+    }
     if (path === '/v1/installations' && options.method === 'POST') {
       if (installationGate) await installationGate;
       const input = JSON.parse(options.body);
@@ -61,7 +67,8 @@ function browser({lostProject = false, lostInstallation = false, commitProject =
     Option: class {constructor(text, value) {this.text = text; this.value = value;}},
     setTimeout: callback => {callback(); return 0;}, window: {confirm: () => true}};
   runInNewContext(registryScript, context);
-  return {elements, calls, projects, installations, releaseInstallation, downloaded: () => downloaded};
+  return {elements, calls, projects, installations, releaseInstallation, releaseProjectBRead,
+    downloaded: () => downloaded};
 }
 
 const ready = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -135,4 +142,46 @@ test('an in-flight creation keeps the project scope fixed and disables competing
   assert.equal(page.downloaded(), undefined);
   await page.elements.get('download').children[0].fire('click');
   assert.equal(JSON.parse(await page.downloaded().text()).projectId, 'project-a');
+});
+
+test('switching projects clears stale installations before the new read and forbids rotation', async () => {
+  const page = browser({lostInstallation: true, holdProjectBRead: true});
+  await prepare(page);
+  await page.elements.get('project-form').fire('submit');
+  await page.elements.get('create-sites').fire('click');
+  await ready();
+  assert.equal(page.elements.get('installation-select').value, 'installation-a');
+  assert.equal(page.elements.get('rotate').disabled, false);
+  page.projects.push({projectId: 'project-b', name: 'Second', origin: 'https://example.invalid/b'});
+  await page.elements.get('refresh-projects').fire('click');
+  const selecting = page.elements.get('project-select').fire('change', {value: 'project-b'});
+  await ready();
+  assert.equal(page.elements.get('project-select').value, 'project-b');
+  assert.equal(page.elements.get('installation-select').value, '');
+  assert.equal(page.elements.get('installation-select').children.length, 1);
+  assert.equal(page.elements.get('installation-select').disabled, true);
+  assert.equal(page.elements.get('rotate').disabled, true);
+  await page.elements.get('installation-select').fire('change', {value: 'installation-a'});
+  await page.elements.get('rotate').fire('click');
+  assert.equal(page.calls.filter(call => call.path.endsWith('/rotate') && call.method === 'POST').length, 0);
+  page.releaseProjectBRead();
+  await selecting;
+  assert.equal(page.elements.get('installation-select').value, '');
+  assert.equal(page.elements.get('rotate').disabled, true);
+});
+
+test('refresh clears installations when the selected project disappears', async () => {
+  const page = browser({lostInstallation: true});
+  await prepare(page);
+  await page.elements.get('project-form').fire('submit');
+  await page.elements.get('create-sites').fire('click');
+  await ready();
+  assert.equal(page.elements.get('installation-select').value, 'installation-a');
+  page.projects.splice(0, 1);
+  await page.elements.get('refresh-projects').fire('click');
+  assert.equal(page.elements.get('project-select').value, '');
+  assert.equal(page.elements.get('installation-select').value, '');
+  assert.equal(page.elements.get('rotate').disabled, true);
+  await page.elements.get('rotate').fire('click');
+  assert.equal(page.calls.filter(call => call.path.endsWith('/rotate') && call.method === 'POST').length, 0);
 });

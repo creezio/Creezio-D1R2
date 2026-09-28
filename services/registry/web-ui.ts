@@ -47,13 +47,13 @@ const status = message => { byId('status').textContent = message; };
 const setBusy = value => {
   busy = value;
   byId('project-select').disabled = value;
-  byId('installation-select').disabled = value;
+  byId('installation-select').disabled = value || !installationsComplete;
   byId('refresh-projects').disabled = value;
   byId('refresh-installations').disabled = value;
   byId('create-project').disabled = value || !!pendingToken || unresolvedProject || !projectsComplete;
   byId('create-sites').disabled = value || !!pendingToken || unresolvedInstallation || !installationsComplete;
   byId('create-cloudflare').disabled = value || !!pendingToken || unresolvedInstallation || !installationsComplete;
-  byId('rotate').disabled = value || !!pendingToken || !installationId;
+  byId('rotate').disabled = value || !!pendingToken || !installationsComplete || !installationId;
 };
 async function api(path, method, value) {
   const headers = {'accept': 'application/json'};
@@ -75,7 +75,7 @@ function renderProjects() {
   select.replaceChildren(new Option('Choisir un projet', ''));
   for (const item of projects) select.add(new Option(item.name + ' — ' + item.origin, item.projectId));
   select.value = projects.some(item => item.projectId === projectId) ? projectId : '';
-  if (!select.value) projectId = '';
+  if (!select.value) { projectId = ''; clearInstallations(); }
   byId('installation-panel').hidden = !projectId;
   setBusy(busy);
 }
@@ -88,6 +88,12 @@ function renderInstallations() {
   if (!select.value) installationId = '';
   setBusy(busy);
 }
+function clearInstallations() {
+  installations = [];
+  installationsComplete = false;
+  installationId = '';
+  renderInstallations();
+}
 async function loadProjects() {
   const response = (await api('/v1/projects', 'GET')).data;
   projects = response.projects;
@@ -97,7 +103,9 @@ async function loadProjects() {
   return response;
 }
 async function loadInstallations(scopeId = projectId) {
-  if (!scopeId) { installations = []; installationsComplete = false; renderInstallations(); return; }
+  if (!scopeId) { clearInstallations(); return; }
+  installationsComplete = false;
+  setBusy(busy);
   const response = (await api('/v1/projects/' + encodeURIComponent(scopeId) + '/installations', 'GET')).data;
   if (projectId !== scopeId) throw new Error('Projet modifié pendant la lecture.');
   installations = response.installations;
@@ -137,7 +145,7 @@ function offerToken(value) {
 }
 async function chooseProject(id) {
   projectId = id;
-  installationId = '';
+  clearInstallations();
   renderProjects();
   if (projectId) await loadInstallations();
 }
@@ -231,7 +239,7 @@ async function createInstallation(target) {
   finally { setBusy(false); }
 }
 async function rotateToken() {
-  if (busy || pendingToken || !installationId) return;
+  if (busy || pendingToken || !installationsComplete || !installationId) return;
   const scopeId = projectId, scopeInstallationId = installationId;
   const selected = installations.find(item => item.installationId === installationId);
   if (!selected || selected.revokedAt) return;
@@ -258,7 +266,7 @@ byId('project-select').addEventListener('change', async event => {
   try { await chooseProject(event.target.value); } catch { status('Installations indisponibles.'); }
 });
 byId('installation-select').addEventListener('change', event => {
-  if (busy) return;
+  if (busy || !installationsComplete) return;
   installationId = event.target.value; setBusy(busy);
 });
 byId('refresh-projects').addEventListener('click', async () => {
