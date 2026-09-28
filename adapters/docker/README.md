@@ -2,6 +2,8 @@
 
 Cet adaptateur exécute les commandes locales existantes dans un conteneur Node 24. Miniflare/workerd conserve D1 et R2 dans le volume nommé `creezio-local_local-state`, monté sur `/app/.wrangler` ; l'état reste sous `/app/.wrangler/state`. Le montage partage aussi `creezio-local.lock` entre le serveur et l'outil d'installation exécutés dans des conteneurs distincts. L'identité des bindings `DB` et `BUCKET`, leur origine et le verrou de stockage viennent de `scripts/local/config.mjs`. Aucun compte Cloudflare n'est nécessaire.
 
+Le Dockerfile installe `ca-certificates` avant de passer à l'utilisateur `node` : workerd utilise le magasin de confiance système pour les appels HTTPS aux fournisseurs. Après une mise à jour de cette image, reconstruire l'image et recréer le conteneur en conservant le volume `.wrangler`. Pour qualifier la confiance TLS sans clé, un GET `/v1/models` non authentifié depuis un Worker éphémère doit recevoir HTTP 401 JSON ; une erreur de certificat avant HTTP signale un problème de l'image. Cette sonde ne lance aucune génération.
+
 Depuis la racine du dépôt :
 
 ```sh

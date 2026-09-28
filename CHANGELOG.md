@@ -1,5 +1,9 @@
 # Changelog
 
+## En cours — confiance TLS du Docker local (T-38)
+
+L'image Docker installe les certificats CA du système avant de lancer workerd. Le Lab a montré l'échec TLS sans ce bundle, puis une réponse HTTP 401 JSON à un GET `/v1/models` sans clé depuis un Worker éphémère après reconstruction. Le premier tour resté `unknown` sans reçu n'a pas été rejoué. Cette contribution ne qualifie ni l'adoption du module dans le Lab ni son Site B ; voir la [note T38](docs/IMPLEMENTATION-T38.md).
+
 ## En cours — inscription navigateur du registre (T-08)
 
 Le registre central propose une page propriétaire générique sur sa propre origine HTTPS. Les lectures de projets et d'installations sont bornées et cloisonnées, sans jeton ; les créations conservent leurs POST et leur CSRF existants. Le navigateur propose le jeton une seule fois au téléchargement et rapproche une réponse perdue par lecture, sans rejouer la création ni tourner le jeton automatiquement. Le callback GitHub redirige les navigations HTML vers cette page et conserve son JSON pour les clients API. Cette tranche reste candidate jusqu'aux contrôles CI et à la recette du service publié.
