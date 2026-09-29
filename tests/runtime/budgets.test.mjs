@@ -23,3 +23,15 @@ test('runtime ceilings reject size, import graph and latency regressions rather 
     assert.throws(() => assertRuntimeBudgets(slow), new RegExp(key));
   }
 });
+
+test('Support widget Worker measurement fits both size ceilings with under three percent headroom', () => {
+  const observed = {workerBytes: 14_727_931, workerGzipBytes: 2_624_783};
+  const report = valid();
+  report.artifact.worker.bytes = observed.workerBytes;
+  report.artifact.worker.gzipBytes = observed.workerGzipBytes;
+  assert.deepEqual(assertRuntimeBudgets(report), RUNTIME_BUDGETS);
+  for (const name of Object.keys(observed)) {
+    assert(RUNTIME_BUDGETS[name] > observed[name]);
+    assert(RUNTIME_BUDGETS[name] < observed[name] * 1.03);
+  }
+});
