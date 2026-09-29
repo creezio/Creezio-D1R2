@@ -1,5 +1,11 @@
 # T25 — Catalogue métier commun
 
+## Correction du sandbox pour les images privées
+
+Sur Linux `8805c1a`, la recherche et la fiche ont produit leurs deux widgets avec les bonnes données. Les actions directes ont obtenu le média et le fichier lié en HTTP 200, puis le navigateur a refusé leur URL Blob à cause de la CSP du sandbox. La politique commune autorise désormais `blob:` uniquement dans `img-src` ; scripts, connexions, cadres et autres directives gardent leurs restrictions. Aucun domaine réseau, droit, modèle ou API métier n'est ajouté. Les contrôles du sandbox couvrent cette séparation ; la nouvelle recette visuelle après déploiement reste nécessaire avant de qualifier les images.
+
+Un premier tour avait appelé `product.get` avec un SKU à la place de l'identifiant interne et reçu le refus attendu `not_found`. Le tour guidé suivant a distingué recherche par SKU et lecture par ID. Ce constat reste une limite d'explicitation des outils au modèle, distincte du défaut CSP ; il ne justifie pas d'accepter un SKU dans l'API de lecture par identifiant.
+
 ## Images privées des widgets intégrées à la source
 
 La PR #68 intègre la tranche T16/T25 dans la source Core et conserve la grille et la fiche existantes. Les widgets du front chargent leurs médias via l'opération `media.list`, puis leurs images via le pont générique de fichiers liés ; l'administration reste textuelle, car cette lecture liée est déclarée pour l'audience app. Le module Catalogue 0.1.2 exige SDK 1.5.0. Les versions publiques antérieures et le port métier `catalog.products@1.0.0` restent inchangés ; aucun modèle ni SQL n'est ajouté.
