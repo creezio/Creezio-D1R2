@@ -1,5 +1,9 @@
 # Changelog
 
+## En préparation — documentation du repli Sites depuis la source
+
+Le guide Sites distingue l'archive locale du build distant officiel depuis un commit source poussé. Il décrit la preuve d'inventaire source du mode opératoire `remote-source`, le préflight avant déploiement, la vérification du reçu fournisseur et la déclaration sous une même clé, sans assimiler ce digest au Worker compilé. Le suivi T-09 distingue la version sauvée sans archive, le déploiement fournisseur réussi et le registre synchronisé de la recette applicative encore ouverte. Il sépare les anciennes cibles des Sites du compte actuel. T-38 note la mise à jour Cloudflare Lab et une réponse réelle correcte sur 123,45 EUR. Aucun nouveau contrôle produit ni déploiement n'est apporté par cette édition documentaire.
+
 ## Unreleased — finalisation des candidates de module
 
 Les guides de développement demandent de contrôler, après la dernière édition d'un fichier déclaré, tous les profils qui sélectionnent le module et leurs archives runtime et validation avant push. Ils renvoient au contrôleur `modules:lock` existant, avec reçu pour les paquets externes. Les indications historiques « avant GO/P0 à construire » sont retirées des guides courants ; aucune règle de fusion ni capacité runtime ne change.
