@@ -39,11 +39,12 @@ function fixture(t){
     {type:'plain_text',name:'CREEZIO_WIDGET_SANDBOX_ORIGIN',text:target.widgetSandboxOrigin},
     {type:'secret_text',name:'CREEZIO_VAULT_KEYRING'}]};
   const flags={wrongModule:false,missingDependency:false,extraModule:false,foreignModule:false,
-    indexBase64:null,
+    indexBase64:null,versionResponse:null,
     wrongAsset:false,wrongVersion:false,sessionReply:()=>Response.json(
       {error:{code:'authentication_required'},requestId:'anonymous-probe'},{status:401})};
   const seen=[];
   function version(){
+    if(flags.versionResponse)return flags.versionResponse();
     const modules=[{name:'index.js',content_type:'application/javascript+module',
       content_base64:flags.indexBase64??Buffer.from(flags.wrongModule?'other':
         readFileSync(path.join(artifactRoot,'dist/server/index.js'))).toString('base64')}];
@@ -95,6 +96,45 @@ test('reconciliation verifies a multi-megabyte module without overflowing base64
   assert.equal(receipt.remoteVerified.modules,2);
   assert.equal(receipt.remoteVerified.moduleBytes,module.length+
     readFileSync(path.join(input.artifactRoot,'dist/server/dep.js')).length);
+});
+
+test('version readback accepts a bounded aggregate above 16 MiB without changing file limits',async t=>{
+  const input=fixture(t);
+  const index=path.join(input.artifactRoot,'dist/server/index.js');
+  const dep=path.join(input.artifactRoot,'dist/server/dep.js');
+  const moduleBytes=7*1024*1024;
+  writeFileSync(index,Buffer.concat([
+    Buffer.from('import {value} from "./dep.js"; export default {value};\n'),
+    Buffer.alloc(moduleBytes,32)]));
+  writeFileSync(dep,Buffer.concat([Buffer.from('export const value = 1;\n'),
+    Buffer.alloc(moduleBytes,32)]));
+  input.artifact.artifactDigest=measureRuntimeArtifacts(input.artifactRoot).digest;
+  input.settings.annotations['workers/message']=
+    `Creezio ${input.artifact.artifactDigest} ${input.artifact.sourceSha}`;
+  const encodedMinimum=4*Math.ceil((moduleBytes*2)/3);
+  assert.ok(encodedMinimum>16*1024*1024);
+  const receipt=await inspectCloudflareDelivery(input);
+  assert.equal(receipt.remoteVerified.modules,2);
+  assert.ok(receipt.remoteVerified.moduleBytes>14*1024*1024);
+});
+
+test('version readback refuses an unbounded aggregate even without Content-Length',async t=>{
+  const input=fixture(t),chunk=Buffer.alloc(2*1024*1024,32);
+  input.flags.versionResponse=()=>{
+    let sent=0;
+    return new Response(new ReadableStream({pull(controller){
+      controller.enqueue(chunk);if(++sent===17)controller.close();
+    }}),{headers:{'content-type':'application/json'}});
+  };
+  await assert.rejects(inspectCloudflareDelivery(input),{code:'content_limit'});
+});
+
+test('a canonical single module above 16 MiB remains forbidden inside the larger envelope',async t=>{
+  const input=fixture(t),module=Buffer.alloc(16*1024*1024+1,32);
+  input.flags.indexBase64=module.toString('base64');
+  assert.equal(Buffer.from(input.flags.indexBase64,'base64').length,module.length);
+  assert.ok(input.flags.indexBase64.length<32*1024*1024);
+  await assert.rejects(inspectCloudflareDelivery(input),{code:'content_format'});
 });
 
 test('remote module base64 must use the exact canonical alphabet, padding and tail bits',async t=>{

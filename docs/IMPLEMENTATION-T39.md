@@ -1,6 +1,6 @@
 # T-39 — checkpoints du flux conversationnel
 
-Cette correction prépare la recette ciblée de la première application. Les deux Sites publics version 5, le fork, le paquet 0.1.2, ses widgets historiques et sa mise à jour ont ensuite été qualifiés dans leur périmètre. La publication et la lecture navigateur ciblée de Lab Cloudflare sont maintenant vérifiées ; l'exactitude de toute la prose IA, le retour utilisateur et [T-39](TODO.md#T-39) exhaustive restent ouverts.
+Cette correction prépare la recette ciblée de la première application. Les deux Sites publics version 5, le fork, le paquet 0.1.2, ses widgets historiques et sa mise à jour ont ensuite été qualifiés dans leur périmètre. La publication et la lecture navigateur ciblée de Lab Cloudflare sont vérifiées sur la provenance `949f028` (SDK 1.1, module 0.1.2) ; le checkout Lab plus récent SDK 1.2/module 0.1.3 ne met pas ce Worker à jour ; l'exactitude de toute la prose IA, le retour utilisateur et [T-39](TODO.md#T-39) exhaustive restent ouverts.
 
 ## Témoins ciblés A/B avant Cloudflare Lab
 

@@ -12,6 +12,9 @@ const ID=/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,55}$/;
 const VERSION=/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 const UPDATE_ID=ID;
 const MAX_CONTENT=16*1024*1024;
+// The version API returns all modules as base64 in one JSON document. Keep the
+// existing 16 MiB per-file limit; bound this aggregate response separately.
+const MAX_VERSION_ENVELOPE=32*1024*1024;
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 export class CloudflarePublicationError extends Error {
   constructor(code){super(`Cloudflare publication ${code}.`);this.code=code;}
@@ -138,7 +141,9 @@ async function verifyRemoteModules({artifactRoot,target,versionId,token,fetcher,
     {redirect:'error',signal:AbortSignal.timeout(20000),headers:{Authorization:`Bearer ${token}`}});}
   catch{fail('content_unavailable');}
   if(!response?.ok||response.redirected)fail('content_unavailable');
-  let data;try{data=JSON.parse((await bounded(response,MAX_CONTENT)).toString('utf8'));}
+  let body;try{body=await bounded(response,MAX_VERSION_ENVELOPE);}
+  catch(error){if(error instanceof CloudflarePublicationError)throw error;fail('content_format');}
+  let data;try{data=JSON.parse(body.toString('utf8'));}
   catch{fail('content_format');}
   const version=data?.result;
   if(data?.success!==true||version?.id!==versionId||!Array.isArray(version.modules)

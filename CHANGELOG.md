@@ -1,5 +1,9 @@
 # Changelog
 
+## 29 septembre 2026 — mise à jour Core Cloudflare en confirmation (T32)
+
+La source `512a7ff1` est active sur la cible Core existante, avec 30 tables et 30 index ajoutés par le plan additif. La relecture opérateur de l'artefact volumineux échoue encore en `content_format` : update `e11287c4` en `delivery-unknown`, journal de publication `prepared`. Ni livraison attestée ni registre synchronisé ni conservation après update ne sont encore revendiqués. Voir [T32](docs/IMPLEMENTATION-T32.md).
+
 ## En qualification — widgets de lecture du CRM (T20)
 
 Les listes et fiches des entreprises, contacts et prospects disposent de six widgets MCP Apps typés, avec recherche, lecture et pagination à la demande. Ils utilisent les opérations CRM existantes et leurs droits dans le chat interne comme dans un client MCP compatible. Aucun modèle D1, écran d'administration ou traitement métier n'est remplacé. Les résultats textuels restent disponibles ; la limite actuelle des sorties d'outils du chat interne reste applicable. Voir [T20](docs/IMPLEMENTATION-T20.md) pour les preuves et limites de qualification.
