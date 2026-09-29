@@ -5,14 +5,16 @@ import { gzipSync } from 'node:zlib';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 
-// The selected composition includes six CRM and four Support self-contained widget renderers.
-// PR57 CI measured 14,727,931 raw / 2,624,783 gzip bytes (83 Worker files).
-// The four Support IIFEs account for about 2,442,932 raw / 534,372 gzip bytes.
+// The selected composition includes six CRM, four Support and three Messaging renderers.
+// The d01b642 build measured 16,940,560 raw / 3,044,192 gzip bytes (84 Worker files).
+// Its three Messaging IIFEs measure 1,815,402 raw / 395,836 gzip bytes. The total
+// increase over PR57 is 2,212,629 raw / 419,409 gzip; the remaining delta includes
+// composition output, but has not been attributed to individual generated files.
 // Keep less than 3% margin for both sizes; graph and timing ceilings are unchanged.
 // Each widget remains independently consumable by MCP Apps hosts. New compositions
 // must still be measured explicitly rather than treated as arbitrarily extensible.
 // They are neither provider quotas nor production latency guarantees.
-export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 15_100_000, workerGzipBytes: 2_695_000,
+export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 17_400_000, workerGzipBytes: 3_125_000,
   selectedGraphInputs: 32, startupMs: 15_000, routeMs: 3_000 });
 
 export function assertRuntimeBudgets(report) {
