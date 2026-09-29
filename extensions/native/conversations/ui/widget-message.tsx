@@ -11,6 +11,12 @@ import {widgetActionJournal, widgetApprovalJournal, widgetOperationInput, record
   type WidgetApprovalDraft, type WidgetPendingCommand} from '../../../../sdk/widgets/action-journal.ts';
 
 type PendingApproval = WidgetApprovalDraft & {approvalId: string; preview: WidgetApprovalPreview};
+type ContextActionResult = Awaited<ReturnType<NonNullable<ConversationsController['changeWidgetContext']>>>;
+export function widgetContextActionStatus(result: ContextActionResult): string {
+  if (result.kind === 'ok') return result.value?.removed === true
+    ? 'Contexte retiré pour les prochains tours.' : 'Contexte prêt pour le prochain tour.';
+  return result.kind === 'unknown' ? 'Résultat du contexte incertain.' : 'Contexte refusé.';
+}
 const toolResult = (kind: string, code: string, requestId?: string, output?: unknown): CallToolResult => ({
   isError: kind !== 'succeeded',
   content: [{type: 'text', text: code}],
@@ -312,8 +318,7 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
             const result = await contextRef.current!({instance: instanceRef, actionId: request.actionId,
               input: request.input, remove: 'remove' in request && request.remove === true});
             if (!isCurrent()) return false;
-            setStatus(result.kind === 'ok' ? 'Contexte prêt pour le prochain tour.' :
-              result.kind === 'unknown' ? 'Résultat du contexte incertain.' : 'Contexte refusé.');
+            setStatus(widgetContextActionStatus(result));
             return result.kind === 'ok';
           }} : {}),
         });

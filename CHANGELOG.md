@@ -1,5 +1,9 @@
 # Changelog
 
+## En qualification — statut du contexte de widget retiré (T16)
+
+Après un retrait confirmé, l'hôte Conversations affiche que le contexte est retiré pour les prochains tours. Le service conserve son retrait durable ; un test D1 vérifie qu'un tour démarré après ce retrait capture un snapshot vide. Le parcours Lab Sites version 3 a exercé lecture directe, sélection et contexte, puis préparation sans envoi d'un message ; aucun tour suivant réel n'y a été lancé. Ce correctif source n'est pas encore publié.
+
 ## En préparation — documentation du repli Sites depuis la source
 
 Le guide Sites distingue l'archive locale du build distant officiel depuis un commit source poussé. Il décrit la preuve d'inventaire source du mode opératoire `remote-source`, le préflight avant déploiement, la vérification du reçu fournisseur et la déclaration sous une même clé, sans assimiler ce digest au Worker compilé. Le suivi T-09 distingue la version sauvée sans archive, le déploiement fournisseur réussi et le registre synchronisé de la recette applicative encore ouverte. Il sépare les anciennes cibles des Sites du compte actuel. T-38 note la mise à jour Cloudflare Lab et une réponse réelle correcte sur 123,45 EUR. Aucun nouveau contrôle produit ni déploiement n'est apporté par cette édition documentaire.

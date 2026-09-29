@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.0 — T16, statut après retrait du contexte
+
+- L'hôte affiche « Contexte retiré pour les prochains tours » quand le contrôleur confirme le retrait. Il conserve les états de remplacement, refus et résultat incertain. Le service et le contrat de contexte ne changent pas.
+
 ## 0.0.0 — T15/T16, diagnostic du catalogue d'outils
 
 - Le panneau distingue les outils omis par nombre ou taille et la borne d'inspection du catalogue, sans révéler les noms d'opérations refusées.
