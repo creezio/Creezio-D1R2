@@ -98,6 +98,16 @@ test('linked file GET reads only a published exact link for a different authoriz
       const good=await dispatch(request('published-one'));
       assert.equal(good.status,200);assert.deepEqual(new Uint8Array(await good.arrayBuffer()),bytes);
       assert.equal(good.headers.get('content-type'),'application/octet-stream');
+      assert.equal(good.headers.get('x-creezio-file-content-type'),null,
+        'ordinary linked reads do not promote a MIME');
+      const imageFiles={...fileCatalog,categories:[{moduleId,category:{...category,
+        linkedRead:{...policy,mcpImage:{toolName:'catalog_linked_image_read',widgetIds:['product-list']}}},
+        audiences:['admin','app']}]};
+      const imageGet=await dispatchFileHttp(request('published-one'),
+        {profile:'local',bindings:{DB:db,BUCKET:bucket}}, {CREEZIO_APP_ORIGIN:origin},
+        'linked-image-test',{catalog,files:imageFiles,permissions});
+      assert.equal(imageGet.status,200);
+      assert.equal(imageGet.headers.get('x-creezio-file-content-type'),'image/png');
       assert.equal(good.headers.get('cache-control'),'private, no-store');
       assert.match(good.headers.get('content-disposition'),/^attachment;/);
       const protectedCatalog=structuredClone(catalog);

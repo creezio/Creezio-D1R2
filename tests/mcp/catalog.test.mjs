@@ -54,6 +54,28 @@ test('MCP projection refuses colliding names and nondelegated Access style decla
   assert.throws(() => createMcpCatalog(forged, registry), TypeError);
 });
 
+test('widgetCalls permits an app call without rendering while linked images stay app-only', () => {
+  const module=structuredClone(descriptor);
+  module.contracts.mcp.tools[0].widgetCalls=[{moduleId:'example.one',kind:'widget',id:'grid'},
+    {moduleId:'example.one',kind:'widget',id:'detail'}];
+  module.contracts.files=[{id:'images',public:false,maxBytes:2*1024*1024,mimeTypes:['image/png'],
+    linkedRead:{audiences:['app'],permission:{moduleId:'example.one',kind:'permission',id:'read'},
+      mcpImage:{toolName:'example_image',widgetIds:['grid','detail']}}}];
+  const widgetCatalog={widgets:['grid','detail'].map(widgetId=>({moduleId:'example.one',widgetId,
+    audiences:['app'],permissions:['example.one:read'],actions:[{mode:'direct',target:{kind:'operation',
+      operation:{moduleId:'example.one',id:'read'}}}]})),resources:[]};
+  const compiled=compileMcpBindings({composition,modules:[module],operationCatalog,widgetCatalog});
+  assert.equal(compiled.tools.find(item=>item.name==='example_read'&&item.audience==='app').ui,undefined);
+  assert.equal(compiled.tools.find(item=>item.name==='example_image').kind,'linked-image');
+  assert.equal(compiled.tools.filter(item=>item.name==='example_image').length,1);
+  assert.equal(createMcpCatalog(compiled,registry).tool('admin','example_image'),undefined);
+  assert.equal(createMcpCatalog(compiled,registry).tool('app','example_image')?.permissions[0],'example.one:read');
+  const missingAction=structuredClone(widgetCatalog);
+  missingAction.widgets[1].actions=[];
+  assert.throws(()=>compileMcpBindings({composition,modules:[module],operationCatalog,
+    widgetCatalog:missingAction}),error=>error instanceof McpBindingError&&error.code==='widget-call');
+});
+
 test('MCP widget accepts only exact top-level output branches for a multi-result card',()=>{
   const module=structuredClone(descriptor),catalog=structuredClone(operationCatalog);
   const second={type:'object',properties:{message:{type:'string'}},additionalProperties:false};

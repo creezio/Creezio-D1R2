@@ -5,7 +5,7 @@ import type {RuntimeEnvironment} from '../runtime/environment.ts';
 import {AccessHttpError, HTTP_POLICY, readAccessCookie, resolveAccessHttpConfiguration} from '../identity/http-policy.ts';
 import {oauthResource} from '../oauth/protocol.ts';
 import {createD1IdentityStore} from '../identity/d1-store.ts';
-import {identityAdmissionKey} from '../identity/input.ts';
+import {admitFileRequest} from './admission.ts';
 import {FileError, FILE_POLICY} from './mapping.ts';
 import {fileOwnerId, resolveFileCategory, type RuntimeFileCatalog} from './catalog.ts';
 import {createFileService, type FileBucket, type StagedFile} from './service.ts';
@@ -98,11 +98,10 @@ export async function dispatchFileHttp(request: Request, environment: RuntimeEnv
     }
     const contextId=value(request.headers.get('x-creezio-context'));
     if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(contextId)) fail('invalid_context',400);
-    const store=createD1IdentityStore(environment.bindings.DB), domain=`${moduleId}:${categoryId}:${audience}`;
-    for (const [kind,key,limit] of [['global',domain,120],['credential',`${domain}:${credential.token}`,30]] as const) {
-      const admitted=await store.consumeThrottle({key:await identityAdmissionKey(`files-${kind}`,key),limit,windowMs:60000});
-      if (!admitted.allowed) fail('rate_limited',429);
-    }
+    const credentialToken=credential.token as string;
+    if(typeof credentialToken!=='string')fail('authentication_required',401);
+    const store=createD1IdentityStore(environment.bindings.DB);
+    if(!await admitFileRequest(store,moduleId,categoryId,audience,credentialToken))fail('rate_limited',429);
     data=createDataAccess(environment.bindings.DB,{catalog:options.catalog,permissions:options.permissions});
     const actors: AuthorizationActor[] = ['user','machine','delegated-user'];
     lease=await data.authorize(credential,{contextId,audience,actors,requiredPermissionIds:linked
@@ -132,7 +131,9 @@ export async function dispatchFileHttp(request: Request, environment: RuntimeEnv
       const ref=reference(url,linked);
       if (request.method==='DELETE') {mutating=true;return json(await files.abandon(currentLease,ref),200,requestId);}
       const result=linked?await files.readLinked(currentLease,ref,recordId!):await files.readPrivate(currentLease,ref);
-      return new Response(new Uint8Array(result.bytes),{status:200,headers:{...result.headers,'x-creezio-request-id':requestId}});
+      return new Response(new Uint8Array(result.bytes),{status:200,headers:{...result.headers,
+        ...(linked&&category.linkedRead?.mcpImage?{'x-creezio-file-content-type':result.contentType}:{}),
+        'x-creezio-request-id':requestId}});
     };
     const deadline=new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new AccessHttpError(mutating?'unknown':'operation_timeout',mutating?202:504)),25000);});
     return await Promise.race([execute(),deadline]);

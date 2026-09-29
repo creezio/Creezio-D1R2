@@ -47,6 +47,7 @@ function linkedFixture(){
   const own=module.identity.id, ref=(kind,id)=>({moduleId:own,kind,id});
   module.compatibility.sdk='^1.3.0';
   const file=module.contracts.files.find(item=>item.id==='images');
+  for(const tool of module.contracts.mcp.tools)delete tool.widgetCalls;
   file.linkedRead={audiences:['app'],permission:ref('permission','view'),linkModel:ref('model','product_media'),
     parentRelation:'product',referenceFields:{fileId:'file_id',intentId:'intent_id',generation:'generation',digest:'digest'},
     when:{field:'status',equals:'published'}};
@@ -79,4 +80,14 @@ test('linked reads bind private files to a same-module scoped parent under an ex
     const module=linkedFixture();mutate(module,module.contracts.files[0].linkedRead);
     try{refused(validateModule(module),expected);}catch(error){error.message=`${name}: ${error.message}`;throw error;}
   }
+});
+
+test('widgetCalls alone requires SDK 1.5 while generic linked reads remain available in 1.3',()=>{
+  const module=linkedFixture();
+  accepted(validateModule(module));
+  const media=module.contracts.mcp.tools.find(item=>item.operation.id==='media.list');
+  media.widgetCalls=[{moduleId:module.identity.id,kind:'widget',id:'product-list'}];
+  refused(validateModule(module),'mcp.widget-calls-sdk');
+  module.compatibility.sdk='^1.5.0';
+  accepted(validateModule(module));
 });

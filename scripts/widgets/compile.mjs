@@ -156,8 +156,8 @@ export function compileWidgetCatalog({composition, modules, operationCatalog, di
       if (!actions.length) continue;
       const serverTools = actions.filter(action => action.mode === 'direct' && action.target.kind === 'operation')
         .map(action => {
-          const tool = module.contracts.mcp.tools.find(candidate => candidate.widget?.moduleId === moduleId
-            && candidate.widget.id === widget.id
+          const tool = module.contracts.mcp.tools.find(candidate => (candidate.widget?.moduleId === moduleId
+            && candidate.widget.id === widget.id || candidate.widgetCalls?.some(ref=>ref.moduleId===moduleId&&ref.id===widget.id))
             && candidate.operation.moduleId === action.target.operation.moduleId
             && candidate.operation.id === action.target.operation.id && candidate.audiences.some(audience => audiences.includes(audience))
             && isActive(disabledContributions, moduleId, `/contracts/mcp/tools/${module.contracts.mcp.tools.indexOf(candidate)}`));
@@ -168,6 +168,13 @@ export function compileWidgetCatalog({composition, modules, operationCatalog, di
             idempotencyKeyField: action.target.idempotencyKeyField ?? null,
             visibility: ['model', 'app']};
         });
+      for (const category of module.contracts.files ?? []) {
+        const image=category.linkedRead?.mcpImage;
+        if (!image?.widgetIds.includes(widget.id) || !audiences.includes('app')) continue;
+        if (!widget.permissions.some(ref=>ref.moduleId===moduleId&&ref.kind==='permission'
+          &&ref.id===category.linkedRead.permission.id)) fail('linked-image-permission');
+        serverTools.push({kind:'linked-image',toolName:image.toolName,categoryId:category.id,visibility:['app']});
+      }
       const renderTools = module.contracts.mcp.tools.flatMap((tool, toolIndex) => {
         if (tool.widget?.moduleId !== moduleId || tool.widget.id !== widget.id
           || !isActive(disabledContributions, moduleId, `/contracts/mcp/tools/${toolIndex}`)) return [];
@@ -247,7 +254,7 @@ export function compileWidgetCatalog({composition, modules, operationCatalog, di
 export function projectWidgetProviderTools(mcpCatalog, operationTools) {
   const index = new Map();
   for (const binding of mcpCatalog.tools) {
-    if (!binding.ui || !binding.annotations.readOnly) continue;
+    if (binding.kind === 'linked-image' || !binding.ui || !binding.annotations.readOnly) continue;
     const canonical = operationTools.find(item => item.moduleId === binding.moduleId
       && item.operationId === binding.operationId);
     if (!canonical) fail('provider-tool');

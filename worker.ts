@@ -5,6 +5,7 @@ import { operationCatalog, operationValidators, operationHandlers } from './.cre
 import { dataCatalog } from './.creezio/generated/data-catalog';
 import {fileCatalog} from './.creezio/generated/file-catalog';
 import type {FileBucket} from './core/files/service';
+import {readMcpLinkedImage} from './core/files/mcp';
 import { runtimeInventory } from './.creezio/generated/module-inventory';
 import {openAiProvider, toolCatalog, connectors} from './.creezio/generated/provider-catalog';
 import {createOpenAiProviderHost, readProviderKeyring} from './core/providers/host';
@@ -50,6 +51,9 @@ const mcpHttp = {async dispatch(request: Request, resolved: Parameters<typeof di
     resourceMetadataUrl: selected => oauthResourceMetadataUrl(configuration.origin, selected),
     authenticate: authentication.authenticate,
     canDiscover: authentication.canDiscover,
+    readLinkedImage:(binding,identity,recordId,reference)=>readMcpLinkedImage({db:resolved.bindings.DB,
+      catalog:dataCatalog,files:fileCatalog,permissions,bucket:resolved.bindings.BUCKET as unknown as FileBucket},
+    binding,identity,recordId,reference),
     approvals,
   }).dispatch(request, audience, requestId);
 }};

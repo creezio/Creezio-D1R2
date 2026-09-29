@@ -4,8 +4,10 @@ import type {OperationRegistry} from '../operations/registry.ts';
 import type {createOperationEngine} from '../operations/service.ts';
 import {OperationError} from '../operations/types.ts';
 import type {WidgetApprovalService} from '../widgets/approval.ts';
+import {linkedImageToolResult} from '../../sdk/widgets/private-image.ts';
+import type {StagedFile, PrivateFile} from '../files/service.ts';
 import {createMcpCatalog} from './catalog.ts';
-import type {McpCatalog, McpCredential, McpResourceBinding, McpToolBinding} from './types.ts';
+import type {McpCatalog, McpCredential, McpResourceBinding, McpToolBinding, McpLinkedImageToolBinding, McpOperationToolBinding} from './types.ts';
 
 type Engine = ReturnType<typeof createOperationEngine>;
 export interface McpAuthenticatedRequest {
@@ -28,6 +30,9 @@ export interface McpHttpOptions {
   readonly canDiscover: (identity: McpAuthenticatedRequest, target: McpDiscoveryTarget) => Promise<boolean>;
   /** Returns only contents read through the host's permission and operation guards. */
   readonly loadResource?: (resource: McpResourceBinding, identity: McpAuthenticatedRequest) => Promise<{text: string} | {blob: string}>;
+  /** Uses the host's linked file service and a fresh data lease; never returns a public URL. */
+  readonly readLinkedImage?: (binding: McpLinkedImageToolBinding, identity: McpAuthenticatedRequest,
+    recordId: string, reference: StagedFile) => Promise<PrivateFile>;
   /** Existing host approval service; OAuth commands may request a native human decision. */
   readonly approvals?: Pick<WidgetApprovalService, 'request' | 'resolveApproved'>;
 }
@@ -54,6 +59,12 @@ function admittedHeaders(request: Request): boolean {
 function presentTool(binding: McpToolBinding): Tool {
   const securitySchemes = binding.auth.includes('oauth')
     ? [{type: 'oauth2', scopes: [...binding.permissions]}] : [];
+  if (binding.kind === 'linked-image') return {
+    name:binding.name,description:'Read a private linked image for the app component.',
+    inputSchema:binding.inputSchema as Tool['inputSchema'],
+    annotations:{readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:false},
+    securitySchemes,_meta:{securitySchemes,ui:{visibility:['app']}},
+  } as unknown as Tool;
   return {
     name: binding.name,
     description: `${binding.moduleId}:${binding.operationId}`,
@@ -89,7 +100,7 @@ function toolFailure(code: string, challenge?: string): CallToolResult {
     ...(code === 'unauthorized' && challenge ? {_meta: {'mcp/www_authenticate': [challenge]}} : {})};
 }
 function executionResult(execution: Awaited<ReturnType<Engine['status']>>, replayed: boolean,
-  reauthChallenge?: string, binding?: McpToolBinding, audience?: AuthorizationAudience): CallToolResult {
+  reauthChallenge?: string, binding?: McpOperationToolBinding, audience?: AuthorizationAudience): CallToolResult {
   if (!execution) return {content: [{type: 'text', text: 'Execution not found.'}], isError: true};
   const envelope = {executionId: execution.id, state: execution.state, output: execution.output,
     errorCode: execution.errorCode, replayed};
@@ -107,6 +118,21 @@ function executionResult(execution: Awaited<ReturnType<Engine['status']>>, repla
       ? execution.output as Record<string, unknown> : undefined;
   return {content: [{type: 'text', text: JSON.stringify(envelope)}], ...(structuredContent ? {structuredContent} : {})};
 }
+function linkedImageInput(value: unknown): {recordId:string;reference:StagedFile} | null {
+  if (!value || typeof value!=='object' || Array.isArray(value)) return null;
+  const item=value as Record<string,unknown>, ref=item.reference;
+  if (Object.keys(item).sort().join(',')!=='recordId,reference'
+    || typeof item.recordId!=='string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(item.recordId)
+    || !ref || typeof ref!=='object' || Array.isArray(ref)) return null;
+  const r=ref as Record<string,unknown>;
+  if (Object.keys(r).sort().join(',')!=='digest,fileId,generation,intentId'
+    || typeof r.fileId!=='string' || !/^f1_[a-f0-9]{64}$/.test(r.fileId)
+    || typeof r.digest!=='string' || !/^[a-f0-9]{64}$/.test(r.digest)
+    || typeof r.intentId!=='string' || !r.intentId || r.intentId.length>128
+    || typeof r.generation!=='string' || !r.generation || r.generation.length>128) return null;
+  return {recordId:item.recordId,reference:r as unknown as StagedFile};
+}
+const MAX_LINKED_IMAGE_RESULT_BYTES=3*1024*1024;
 
 /** Validate the static catalog once; each transport still binds its own engine and live request options. */
 export function createMcpHttpTransportFactory(catalog: McpCatalog, registry: OperationRegistry) {
@@ -148,6 +174,7 @@ function createTransportWithIndex(index: ReturnType<typeof createMcpCatalog>, en
         || typeof identity.contextId !== 'string' || !identity.contextId)
         return reply(401, 'authentication_required', requestId, {'www-authenticate': challenge});
       const principal = identity;
+      let linkedImageCall=false;
       const hasWidgetUi = index.resources(audience).some(binding => binding.source.kind === 'compiled-widget');
       const server = new Server({name: `creezio-${audience}`, version: '1.0.0'},
         {capabilities: {tools: {listChanged: false}, resources: {listChanged: false},
@@ -156,15 +183,26 @@ function createTransportWithIndex(index: ReturnType<typeof createMcpCatalog>, en
       server.setRequestHandler('tools/list', async () => {
         const visible = [];
         for (const binding of index.tools(audience)) {
-          if (!binding.auth.includes(principal.credential.kind) || !await permitted(principal, audience, binding)) continue;
+          if (!binding.auth.some(auth=>auth===principal.credential.kind) || !await permitted(principal, audience, binding)) continue;
           visible.push(presentTool(binding));
         }
         return {tools: visible};
       });
       server.setRequestHandler('tools/call', async message => {
         const binding = index.tool(audience, message.params.name);
-        if (!binding || !binding.auth.includes(principal.credential.kind)
+        if (!binding || !binding.auth.some(auth=>auth===principal.credential.kind)
           || !await permitted(principal, audience, binding)) throw new ProtocolError(METHOD_NOT_FOUND, 'Tool not found.');
+        if (binding.kind === 'linked-image') {
+          linkedImageCall=true;
+          const input=linkedImageInput(message.params.arguments);
+          if (!input || !options.readLinkedImage) return toolFailure('invalid_input');
+          try {
+            const file=await options.readLinkedImage(binding,principal,input.recordId,input.reference);
+            if (file.byteSize!==file.bytes.byteLength) return toolFailure('unavailable');
+            const result=await linkedImageToolResult(new Blob([new Uint8Array(file.bytes)],{type:file.contentType}));
+            return result??toolFailure('unavailable');
+          } catch { return toolFailure('unavailable'); }
+        }
         const rawApproval = (message.params as { _meta?: Record<string, unknown> })._meta?.['creezio/approvalId'];
         if (rawApproval !== undefined && (typeof rawApproval !== 'string'
           || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(rawApproval))) return toolFailure('invalid_input');
@@ -226,11 +264,15 @@ function createTransportWithIndex(index: ReturnType<typeof createMcpCatalog>, en
       });
       const handler = createMcpHandler(() => server, {maxRequestBodySize: MAX_BODY});
       const response = await handler.fetch(request);
+      // Count the complete serialized JSON-RPC/SSE response, including its protocol envelope.
+      const boundedBody=linkedImageCall?await response.arrayBuffer():null;
+      if (boundedBody && boundedBody.byteLength>MAX_LINKED_IMAGE_RESULT_BYTES)
+        return reply(503,'unavailable',requestId);
       const headers = new Headers(response.headers);
       headers.set('cache-control', 'no-store');
       headers.set('x-content-type-options', 'nosniff');
       headers.set('x-creezio-request-id', requestId);
-      return new Response(response.body, {status: response.status, statusText: response.statusText, headers});
+      return new Response(boundedBody??response.body, {status: response.status, statusText: response.statusText, headers});
     },
   });
 }

@@ -68,6 +68,15 @@ export function compileMcpBindings({composition, modules, operationCatalog, disa
       if (!inputSchema || inputSchema.type !== 'object' || !outputSchema || outputSchema.type !== 'object') fail('schema');
       const widget = tool.widget ? widgetFor(tool.widget) : undefined;
       if (tool.widget && !widgetInputAccepts(widget,outputSchema,descriptor)) fail('widget');
+      if (tool.widgetCalls && (!Array.isArray(tool.widgetCalls) || !tool.widgetCalls.length
+        || tool.widgetCalls.length>16 || new Set(tool.widgetCalls.map(ref=>`${ref.moduleId}:${ref.id}`)).size!==tool.widgetCalls.length
+        || tool.widgetCalls.some(ref=>{
+          const called=widgetFor(ref);
+          return ref.moduleId!==selection.moduleId || ref.kind!=='widget' || !called
+            || !called.audiences.some(audience=>tool.audiences.includes(audience))
+            || !called.actions?.some(action=>action.mode==='direct'&&action.target.kind==='operation'
+              &&action.target.operation.moduleId===owner&&action.target.operation.id===op.id);
+        }))) fail('widget-call');
       for (const audience of tool.audiences) {
         if (!['admin', 'app'].includes(audience) || !op.audiences.includes(audience)) fail('audience');
         if (!exposed(selection.moduleId, audience)) continue;
@@ -86,6 +95,30 @@ export function compileMcpBindings({composition, modules, operationCatalog, disa
             widget: {moduleId: widget.moduleId, widgetId: widget.widgetId, version: widget.version,
               resourceDigest: widget.resourceDigest}}} : {})}));
       }
+    }
+    for (const category of descriptor.contracts.files ?? []) {
+      const image=category.linkedRead?.mcpImage;
+      if (!image || !exposed(selection.moduleId,'app')) continue;
+      if (!toolName(image.toolName) || category.public || category.maxBytes>2*1024*1024
+        || !category.linkedRead.audiences.includes('app')
+        || category.mimeTypes.some(type=>!['image/png','image/jpeg','image/webp'].includes(type))
+        || !image.widgetIds.every(widgetId=>{
+          const widget=widgetCatalog.widgets.find(item=>item.moduleId===selection.moduleId&&item.widgetId===widgetId);
+          return widget?.audiences.includes('app')&&widget.permissions.includes(`${selection.moduleId}:${category.linkedRead.permission.id}`);
+        })) fail('linked-image');
+      const key=`app:${image.toolName}`;
+      if (seenTools.has(key)) fail('collision');
+      seenTools.add(key);
+      tools.push(Object.freeze({kind:'linked-image',name:image.toolName,contributorModuleId:selection.moduleId,
+        moduleId:selection.moduleId,categoryId:category.id,audience:'app',auth:['oauth'],actors:['delegated-user'],
+        inputSchema:{type:'object',additionalProperties:false,properties:{
+          recordId:{type:'string',pattern:'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'},
+          reference:{type:'object',additionalProperties:false,properties:{
+            fileId:{type:'string',pattern:'^f1_[a-f0-9]{64}$'},intentId:{type:'string',minLength:1,maxLength:128},
+            generation:{type:'string',minLength:1,maxLength:128},digest:{type:'string',pattern:'^[a-f0-9]{64}$'}},
+            required:['fileId','intentId','generation','digest']}},required:['recordId','reference']},
+        annotations:{readOnly:true,destructive:false,idempotent:true,openWorld:false},context:'required',
+        permissions:[`${selection.moduleId}:${category.linkedRead.permission.id}`]}));
     }
     for (const [index, resource] of descriptor.contracts.mcp.resources.entries()) {
       if (!active(selection.moduleId, `/contracts/mcp/resources/${index}`)) continue;

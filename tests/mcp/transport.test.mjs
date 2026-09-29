@@ -95,6 +95,63 @@ for (const modern of [true, false]) test(`MCP ${modern ? '2026' : '2025'} SDK cl
   } finally { await client.close(); }
 });
 
+test('app-only linked image returns bytes only in result metadata', async () => {
+  const imageTool={kind:'linked-image',name:'example_image',contributorModuleId:'example.one',
+    moduleId:'example.one',categoryId:'images',audience:'app',auth:['oauth'],actors:['delegated-user'],
+    context:'required',permissions:['example.one:read'],annotations:{readOnly:true,destructive:false,
+      idempotent:true,openWorld:false},inputSchema:{type:'object',properties:{recordId:{type:'string'},
+      reference:{type:'object'}},required:['recordId','reference'],additionalProperties:false}};
+  const png=Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9n8WcAAAAASUVORK5CYII=','base64'));
+  let bytes=png,contentType='image/png';
+  const reference={fileId:`f1_${'a'.repeat(64)}`,intentId:'intent',generation:'1',digest:'b'.repeat(64)};
+  const reads=[];
+  const transport=createMcpHttpTransport({tools:[imageTool],resources:[]},registry,
+    {async invoke(){throw new Error('image must not invoke an operation');}},
+    {origin,resourceMetadataUrl:audience=>`${origin}/.well-known/oauth-protected-resource/mcp/${audience}`,
+      async authenticate(_request,_audience,resource){return {credential:{kind:'oauth',token:'valid',resource},contextId:'tenant-a'};},
+      async canDiscover(_identity,target){return target.audience==='app'&&target.permissionIds[0]==='example.one:read';},
+      async readLinkedImage(binding,identity,recordId,received){
+        reads.push({binding,identity,recordId,received});
+        return {fileId:reference.fileId,filename:'image.png',contentType,byteSize:bytes.length,
+          bytes,headers:{}};
+      }});
+  const fetch=(url,init)=>transport.dispatch(new Request(url,init),'app','image-request');
+  const {client,wire}=makeClient({fetch},'app',true);
+  try {
+    await client.connect(wire);
+    const listed=await client.listTools();
+    assert.deepEqual(listed.tools.map(item=>item.name),['example_image']);
+    assert.deepEqual(listed.tools[0]._meta?.ui?.visibility,['app']);
+    const result=await client.callTool({name:'example_image',arguments:{recordId:'product-1',reference}});
+    assert.equal(result.isError,undefined);
+    assert.equal(result.structuredContent,undefined);
+    assert.equal(result.content[0].text,'Image privée remise au composant.');
+    assert.equal(result._meta?.['creezio/linkedImage']?.data,Buffer.from(bytes).toString('base64'));
+    assert.equal(JSON.stringify(result.content).includes(result._meta['creezio/linkedImage'].data),false);
+    assert.equal(reads.length,1);
+    assert.equal(reads[0].recordId,'product-1');
+    assert.deepEqual(reads[0].received,reference);
+    contentType='image/jpeg';
+    const mismatch=await client.callTool({name:'example_image',arguments:{recordId:'product-1',reference}});
+    assert.equal(mismatch.isError,true,'declared JPEG cannot carry PNG bytes');
+    assert.equal(mismatch._meta?.['creezio/linkedImage'],undefined);
+    contentType='image/png';bytes=new Uint8Array([1,2,3,4,5,6,7,8]);
+    const invalid=await client.callTool({name:'example_image',arguments:{recordId:'product-1',reference}});
+    assert.equal(invalid.isError,true,'declared PNG needs a PNG signature');
+    assert.equal(invalid._meta?.['creezio/linkedImage'],undefined);
+    bytes=new Uint8Array(2*1024*1024);
+    bytes.set(png);
+    const atLimit=await client.callTool({name:'example_image',arguments:{recordId:'product-1',reference}});
+    assert.equal(atLimit.isError,undefined,'a full 2 MiB image fits the 3 MiB wire envelope');
+    assert.equal(atLimit._meta['creezio/linkedImage'].data.length,4*Math.ceil(bytes.length/3));
+    bytes=new Uint8Array(2*1024*1024+1);
+    bytes.set(png);
+    const oversized=await client.callTool({name:'example_image',arguments:{recordId:'product-1',reference}});
+    assert.equal(oversized.isError,true);
+    assert.equal(oversized._meta?.['creezio/linkedImage'],undefined);
+  } finally {await client.close();}
+});
+
 test('MCP requires bearer, denies foreign Origin and filters live permission before list and call', async () => {
   const f = fixture();
   const unauth = await f.transport.dispatch(new Request(`${origin}/mcp/app`, {method: 'POST'}), 'app', 'r1');

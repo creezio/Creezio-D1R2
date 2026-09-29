@@ -110,7 +110,12 @@ export async function createMcpAppsBridge(options: McpAppsBridgeOptions): Promis
   };
   bridge.oncalltool = async params => {
     if (!active() || !initialized || !allowedTools.has(params.name)) return missingTool('widget_tool_unavailable');
-    try { return await options.callTool(params); } catch { return missingTool('outcome_unknown'); }
+    try {
+      const result = await options.callTool(params);
+      // A linked image can arrive after the frame, session, or context was replaced.
+      // Never deliver that result to a stale widget instance.
+      return active() ? result : missingTool('widget_tool_unavailable');
+    } catch { return missingTool('outcome_unknown'); }
   };
   bridge.onmessage = async params => {
     if (!active() || !initialized || !options.proposeMessage || params.role !== 'user' ||
@@ -127,10 +132,10 @@ export async function createMcpAppsBridge(options: McpAppsBridgeOptions): Promis
   };
   const dispose = async () => {
     if (disposed) return;
+    disposed = true;
     if (initialized && ownsFrame()) {
       try { await bridge.teardownResource({}, {timeout: 1500}); } catch { /* renderer may already be gone */ }
     }
-    disposed = true;
     clearTimeout(timer);
     window.removeEventListener('message', guard, {capture: true});
     await transport.close();

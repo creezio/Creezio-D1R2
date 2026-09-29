@@ -20,11 +20,45 @@
   const parent = window.parent;
   const encode = new TextEncoder();
   const maxBytes = 1_048_576;
-  const validMessage = value => {
+  const maxPrivateImageBytes = 3_145_728;
+  const maxImageSourceBytes = 2_097_152;
+  const imageMimeTypes = new Set(['image/png', 'image/jpeg', 'image/webp']);
+  const plain = value => value && typeof value === 'object' && !Array.isArray(value) &&
+    [Object.prototype, null].includes(Object.getPrototypeOf(value));
+  const exactKeys = (value, keys) => plain(value) &&
+    Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
+  const privateImageResponse = value => {
+    if (!plain(value) || Object.hasOwn(value, 'method') || !Object.hasOwn(value, 'id') ||
+      !plain(value.result) || Object.hasOwn(value.result, 'structuredContent') ||
+      !Object.keys(value.result).every(key => ['content', '_meta', 'isError'].includes(key)) ||
+      value.result.isError !== undefined && value.result.isError !== false ||
+      !Array.isArray(value.result.content) || value.result.content.length !== 1 ||
+      !exactKeys(value.result.content[0], ['type', 'text']) ||
+      value.result.content[0].type !== 'text' ||
+      value.result.content[0].text !== 'Image privée remise au composant.' ||
+      !exactKeys(value.result._meta, ['creezio/linkedImage'])) return false;
+    const image = value.result._meta['creezio/linkedImage'];
+    if (!exactKeys(image, ['schemaVersion', 'type', 'mimeType', 'data']) ||
+      image.schemaVersion !== 1 || image.type !== 'image' ||
+      !imageMimeTypes.has(image.mimeType) || typeof image.data !== 'string' ||
+      !image.data.length || image.data.length > 2_796_204 ||
+      image.data.length % 4 !== 0 ||
+      !/^[A-Za-z0-9+/]*={0,2}$/.test(image.data))
+      return false;
+    const padding = image.data.endsWith('==') ? 2 : image.data.endsWith('=') ? 1 : 0;
+    return image.data.length / 4 * 3 - padding <= maxImageSourceBytes;
+  };
+  const validMessage = (value, fromHost = false) => {
     if (!value || typeof value !== 'object' || Array.isArray(value) || value.jsonrpc !== '2.0') return false;
     if (typeof value.method !== 'string' && !Object.hasOwn(value, 'id')) return false;
     if (typeof value.method === 'string' && value.method.startsWith('ui/notifications/sandbox-')) return false;
-    try { return encode.encode(JSON.stringify(value)).byteLength <= maxBytes; } catch { return false; }
+    try {
+      const size = encode.encode(JSON.stringify(value)).byteLength;
+      const hasPrivateImage = fromHost && plain(value.result?._meta) &&
+        Object.hasOwn(value.result._meta, 'creezio/linkedImage');
+      return hasPrivateImage ? size <= maxPrivateImageBytes && privateImageResponse(value) :
+        size <= maxBytes;
+    } catch { return false; }
   };
   const canonical = value => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -68,7 +102,7 @@
         iframe.srcdoc = message.params.html;
         return;
       }
-      if (inner?.contentWindow && validMessage(message)) inner.contentWindow.postMessage(message, location.origin);
+      if (inner?.contentWindow && validMessage(message, true)) inner.contentWindow.postMessage(message, location.origin);
       return;
     }
     if (inner && event.source === inner.contentWindow && readyHostOrigin && validMessage(event.data)) {

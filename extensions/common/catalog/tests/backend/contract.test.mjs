@@ -36,7 +36,8 @@ test('D1 models and public port preserve context and integer prices',()=>{
     permission:{moduleId:'creezio.catalog',kind:'permission',id:'view'},
     linkModel:{moduleId:'creezio.catalog',kind:'model',id:'product_media'},
     parentRelation:'product',referenceFields:{fileId:'file_id',intentId:'intent_id',
-      generation:'generation',digest:'digest'},when:{field:'status',equals:'published'}});
+      generation:'generation',digest:'digest'},when:{field:'status',equals:'published'},
+    mcpImage:{toolName:'catalog_linked_image_read',widgetIds:['product-list','product-detail']}});
 });
 test('published search pages through 520 escaped rows without loss or oversized output',async()=>{
   const rows=Array.from({length:520},(_,i)=>product(i));
