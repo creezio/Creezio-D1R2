@@ -195,6 +195,18 @@
       "enabled": true,
       "configuration": [],
       "integrations": []
+    },
+    {
+      "moduleId": "creezio.meili",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.1.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/connectors/meili"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
     }
   ],
   "front": {
@@ -217,7 +229,8 @@
         "creezio.analytics",
         "creezio.catalog",
         "creezio.n8n",
-        "creezio.stripe"
+        "creezio.stripe",
+        "creezio.meili"
       ]
     },
     "app": {

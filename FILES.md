@@ -8,6 +8,8 @@ Les connecteurs optionnels déclarent `contracts.connectors`, validé par `sdk/c
 
 Le raccord Stripe en cours ajoute les options de protocole du SDK 1.4 candidat et la projection de lectures externes par le moteur d'opérations. `tests/connectors/command-commit.test.mjs` vérifie les preuves de configuration et de clé dans le commit D1 ; `tests/contracts/connectors.test.mjs` couvre les déclarations refusées. La [note T27](docs/IMPLEMENTATION-T27.md) sépare cette première tranche des paiements et webhooks restant à réaliser.
 
+`extensions/connectors/meili/` contient le module optionnel de connexion à une instance Meili externe ; `data/schema/meili.sql` est son artefact de création central, et `tests/meili/` vérifie ses contrats et transports. Le profil `configuration/composition.connectors.json` le sélectionne pour la qualification administrative. La [note T28](docs/IMPLEMENTATION-T28.md) garde indexation, recherche et T05 ouverts.
+
 Le journal public des mutations de panneau réside dans `sdk/operations/command-journal.ts`, avec ses contrôles dans `tests/operations/command-journal.test.mjs` et `command-journal-package.test.mjs`. Il partage le client d'opérations existant ; son export et ses déclarations appartiennent au SDK 1.2, dont le [README](sdk/README.md) décrit la distribution et les limites. Aucun nouveau runtime ou stockage n'est ajouté par la préparation de release.
 
 Le [CRM natif](extensions/native/crm/README.md) porte les modèles, opérations et vues dans `extensions/native/crm/`. Son SQL central est `data/schema/crm.sql` ; les tests D1 et HTTP/MCP résident dans `tests/crm/integration.test.mjs` et `tests/modules/crm-transports.test.mjs`. Le [suivi T20](docs/IMPLEMENTATION-T20.md) distingue interfaces originales, contrats et recettes restantes.

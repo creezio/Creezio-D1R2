@@ -8,7 +8,7 @@
     "version": "1.0.0",
     "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
   },
-  "compositionIntegrity": "sha256-fda34ef57f8526f19f2c9c6302dceb320abf124af6d8327ece6b13d795a7fb14",
+  "compositionIntegrity": "sha256-00aeb129c96ae1384e9698634d819c0c27fd55a4187b64178d62d181f267d059",
   "modules": [
     {
       "moduleId": "creezio.access",
@@ -420,6 +420,37 @@
         "location": {
           "kind": "local",
           "path": ".creezio/module-artifacts/creezio.stripe/validation-e464261fdafb3a175eb0cce27b47c2a264840234754a4f3583165951623556b0.tgz"
+        }
+      },
+      "dependencies": [
+        {
+          "moduleId": "creezio.access",
+          "version": "0.0.0"
+        }
+      ]
+    },
+    {
+      "moduleId": "creezio.meili",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "version": "0.1.0",
+      "source": {
+        "kind": "snapshot",
+        "revision": "t28-meili-connection-v1",
+        "integrity": "sha256-fc708f31a711e64e823fb685b7b76fa4fe783cd5c0bfcd4d4f107deb31c35434"
+      },
+      "contractIntegrity": "sha256-e841e2c2551e93e47763ba2f535bc1b4869b2728a10def6dbb3126055151fe99",
+      "runtime": {
+        "integrity": "sha256-96605f31ede658c5bbbe13d2e72f55f6de341711f334875f20d9644113cb7f67",
+        "location": {
+          "kind": "local",
+          "path": ".creezio/module-artifacts/creezio.meili/runtime-96605f31ede658c5bbbe13d2e72f55f6de341711f334875f20d9644113cb7f67.tgz"
+        }
+      },
+      "validation": {
+        "integrity": "sha256-2332e72c6fbe1026fbea72b5ab3c1beb6436cea74f637a21c58044779562fa33",
+        "location": {
+          "kind": "local",
+          "path": ".creezio/module-artifacts/creezio.meili/validation-2332e72c6fbe1026fbea72b5ab3c1beb6436cea74f637a21c58044779562fa33.tgz"
         }
       },
       "dependencies": [

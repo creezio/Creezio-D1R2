@@ -95,7 +95,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-25](#T-25) | P5 | Catalogue métier réutilisable complet | [T-11](#T-11), [T-13](#T-13), [T-16](#T-16) | En cours — images du front qualifiées localement ; SDK 1.3 public |
 | [T-26](#T-26) | P5 | Connecteur n8n | [T-10](#T-10), [T-11](#T-11), [T-16](#T-16), [T-24](#T-24) | En cours — port externe et module |
 | [T-27](#T-27) | P5 | Connecteur Stripe | [T-11](#T-11), [T-16](#T-16) | À faire — après première app |
-| [T-28](#T-28) | P5 | Connecteur Meili | [T-05](#T-05), [T-11](#T-11) | À faire — après première app |
+| [T-28](#T-28) | P5 | Connecteur Meili | [T-05](#T-05), [T-11](#T-11) | En cours — première tranche de connexion externe, indexation/recherche ouvertes |
 | [T-29](#T-29) | P5 | Autres connecteurs et frontières externes | [T-11](#T-11), [T-16](#T-16), [T-18](#T-18), [T-23](#T-23) | À faire — après première app |
 | [T-33](#T-33) | P6 | Stockages distincts hors Sites | [T-32](#T-32) | À faire — après première app |
 | [T-34](#T-34) | P6 | Éditions, politiques et activation | [T-08](#T-08), [T-11](#T-11), [T-27](#T-27) | À faire — accord explicite futur préalable |
@@ -397,12 +397,13 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 <a id="T-28"></a>
 ## T-28 — Connecteur Meili
 
-- Lot : **P5** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P5** ; état : **en cours — connexion externe uniquement** ; responsable : root avec les agents Sol.
 - Dépendances : [T-05](#T-05), [T-11](#T-11).
 - Travail/livrables : Module Meili, projections, indexation incrémentale et reconstruction reprenable.
 - Besoin : [US-28](USER-STORIES.md#US-28). Acceptation : [REQ-2801](EXIGENCES.md#REQ-2801).
 - Validation : implémenter puis exécuter les recettes liées, sur **Meili réel et recherche native** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
+- Première tranche : module optionnel de configuration par contexte, clé scellée et contrôle borné GET `/indexes?limit=1`, avec écran de réglages original adapté. Un GET direct autorisé vers Meili a répondu 200 sur une enveloppe conforme ; il ne qualifie pas encore le module ni une recherche. Les suites D1/coffre/API/MCP, l'interface et l'archive fermée sont à lier à leur source et leurs résultats exacts avant qualification. Aucun index, document, tâche ou recherche Meili n'est créé par cette tranche ; voir [T28](IMPLEMENTATION-T28.md).
+- Restent ouverts : indexation incrémentale et suppressions, tâches distantes et reconstruction reprenable, droits avant facettes/compteurs, recette Meili réel et recherche native. T05 global est reporté et exige son propre accord ; ne pas le déduire de cette connexion.
 
 <a id="T-29"></a>
 ## T-29 — Autres connecteurs et frontières externes
