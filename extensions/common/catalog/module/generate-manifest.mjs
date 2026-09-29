@@ -73,7 +73,8 @@ const categoryView=obj({id:str(36),...categoryFields,parentId:nullable(str(36)),
 const fullProduct=obj({id:str(36),...productFields,status,revision:num(1),
   createdAt:str(35),updatedAt:str(35)});
 const publishedProduct=obj({...fullProduct.properties,status:{const:'published'}});
-const summary=obj({id:str(36),sku:str(80),name:str(160),categoryId:nullable(str(36)),
+const summary=obj({id:{...str(36),description:'Internal product ID, not SKU; pass it to product.get for a published product.'},
+  sku:str(80),name:str(160),categoryId:nullable(str(36)),
   priceMinor:num(0,1_000_000_000_000),currency:str(3,3),status,
   revision:num(1),updatedAt:str(35)});
 const publishedSummary=obj({...summary.properties,status:{const:'published'}});
@@ -93,13 +94,15 @@ const categoryListOutput=schema('category-list-output',obj({items:{type:'array',
   nextCursor:nullable(str(2048)),complete:{type:'boolean'},scanned:num(0,500)}));
 const productCreateInput=schema('product-create-input',obj({requestKey,...productFields}));
 const productUpdateInput=schema('product-update-input',obj({requestKey,id:identity,revision:revField,...productFields}));
-const productInput=schema('product-id-input',obj({id:identity}));
+const productInput=schema('product-id-input',obj({id:{...identity,
+  description:'Internal product ID, never SKU. For a published product, use items[].id from product.search.'}}));
 const productOutput=schema('product-output',obj({product:fullProduct}));
 const publishedOutput=schema('published-product-output',obj({product:publishedProduct}));
 const productListInput=schema('product-list-input',obj({limit:num(1,25),cursor:str(2048),
   query:str(120,0),categoryId:str(36),status},['limit']));
 const productSearchInput=schema('product-search-input',obj({limit:num(1,25),cursor:str(2048),
-  query:str(120,0),categoryId:str(36)},['limit']));
+  query:{...str(120,0),description:'Search text, such as a product name or SKU; use the returned items[].id for product.get.'},
+  categoryId:str(36)},['limit']));
 const productListOutput=schema('product-list-output',obj({items:{type:'array',items:summary,maxItems:25},
   nextCursor:nullable(str(2048)),complete:{type:'boolean'},scanned:num(0,500)}));
 const productSearchOutput=schema('product-search-output',obj({items:{type:'array',items:publishedSummary,maxItems:25},
