@@ -14,6 +14,8 @@ Lire les [règles communes et la phase autorisée](../../README.md), le [standar
 5. Prévoir conflits de version, idempotence et effets externes incertains. Une nouvelle tentative ne doit pas répéter un effet déjà produit ; la reprise vient d'une requête autorisée ou d'un service externe, sans ordonnanceur caché.
 6. Décrire le modèle actuel et l'évolution compatible. La chaîne centrale génère et inspecte le SQL ; aucun script de conversion n'est ajouté au module. Bloquer une évolution destructive non résolue et conserver les données lors d'une mise à jour.
 
+Pour un fichier lisible par un autre utilisateur grâce à une entité publiée, déclarer la politique `linkedRead` de catégorie et utiliser `downloadLinked` (SDK 1.3 candidat). Garder les métadonnées protégées et la restriction propriétaire des écritures ; tester lien retiré, parent archivé, contexte croisé et révocation pendant la lecture. Ne pas remplacer cette preuve par `public:true`, une référence R2 ou un droit global de gestion. Une image déjà livrée ne peut pas être retirée de la mémoire du destinataire ; les nouvelles lectures et réponses encore en cours sont contrôlées.
+
 Dans les lots applicatifs autorisés après P0, une fois l'outillage requis livré et qualifié, éprouver cas autorisés/interdits, changements de session, accès croisés, références supprimées, réponses périmées et conflits par les canaux affectés. Maintenir PRD/décisions, fiche d'impact et suites concernées ; distinguer tests locaux et intégration réellement exercée. Voir [stockage et hébergement](../../../docs/STOCKAGE-ET-HEBERGEMENT.md) pour les garanties propres à chaque cible.
 
 ## Impersonation

@@ -22,6 +22,10 @@ Contrôles acquis : types stricts du SDK et d'un consommateur externe, identité
 
 ## SDK 1.2 — journal public et contrats de connecteurs
 
+Le Starter public `module-v0.1.3` adopte ce SDK : journal commun du workspace/front, conservation des anciennes actions incertaines sans renvoi, et préparation de démo liée à la version exacte du module. La release est construite depuis main `25144f306d59a81077daf8ab4f07a4a1ddc0951d` après PR #5/#6 et CI main (41 tests). Runtime SHA-256 `3cc1600d2fa5555be7013105521af2fbd4a0fb92408135465601d22cdd05ea4a`, validation `fda2bab507a5d7ec7ac58d6360bd720d5b95039872be4f822bd738d8fe21383f` ; les quatre assets publics ont été téléchargés et vérifiés. Son adoption par Lab et sa recette restent distinctes de cette distribution.
+
+Le complément T25 prépare le SDK 1.3 (`linkedRead` et `downloadLinked`), encore candidat et non distribué. Il ne remplace pas les versions publiques 1.2/0.1.3 en cours d'adoption par Lab.
+
 Le SDK 1.2 ajoute `operations/command-journal` pour les vues de modules. Une mutation garde ses métadonnées de scope et sa clé avant l'envoi ; une issue inconnue se relit sans rejouer la commande. Les huit tests ciblés vérifient restauration, persistance refusée, scope, refus de statut, résultat confirmé avec effacement local en échec, export et déclarations publiques sans dépendance runtime au cœur. La messagerie et les nouveaux modules natifs consomment ce journal commun. Le paquet ajoute aussi `connectors/types`, le schéma optionnel `contracts.connectors` et le type limité `ProviderSecretsPort` exporté par `operations/handler`. Les commandes distantes mutatrices ne font pas partie de cette version.
 
 Les changements fonctionnels sont intégrés par PR #44/#45 sur main `0fe9e2fd36ea2e72a69a0cd1984c2ca785f8006b`. Les CI du candidat final et de main passent 1 218/1 218 contrôles, sans omission ; les suites des cinq modules Support, Pages, Analytics, Catalogue et n8n s'exécutent aussi depuis leurs véritables archives avec le paquet SDK compilé. La recette Linux des interfaces figure dans leurs documents respectifs et ne remplace pas le contrôle de l'archive finale de release.

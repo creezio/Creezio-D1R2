@@ -101,6 +101,40 @@ export function checkModule(module, report) {
       for(const names of [[file.contextField,mapping.intentId,mapping.generation],[file.contextField,mapping.objectKey]])if(!model.indexes.some(index=>index.unique&&same(index.fields,names)))report('file.index',p,'File intent generations and object keys need explicit unique context indexes.');
       if(!file.permissions.length)report('file.permissions',p,'A file category requires explicit permissions.');
     }
+    if(file.linkedRead){
+      const policy=file.linkedRead, q=`${p}/linkedRead`;
+      if(!semver.validRange(module.compatibility.sdk)||!semver.subset(module.compatibility.sdk,'>=1.3.0'))
+        report('file.linked-sdk',q,'Linked file reads require SDK 1.3 or later.');
+      needKind(policy.linkModel,['model'],`${q}/linkModel`);
+      needKind(policy.permission,['permission'],`${q}/permission`);
+      const link=get(policy.linkModel,'model'), permission=get(policy.permission,'permission');
+      if(file.public||policy.linkModel.moduleId!==ownId||policy.permission.moduleId!==ownId
+        ||!link||!permission){report('file.linked-owner',q,'Linked reads require a private category and own module models and permission.');return;}
+      const relation=link.relations.find(item=>item.id===policy.parentRelation), parent=get(relation?.target,'model');
+      if(!relation||!parent||relation.target.moduleId!==ownId||relation.target.kind!=='model'
+        ||link.public||parent.public||link.scope!=='context'||parent.scope!=='context'
+        ||relation.fields.length!==2||relation.targetFields.length!==2
+        ||relation.fields[0]!==link.contextField||relation.targetFields[0]!==parent.contextField
+        ||!same(parent.primaryKey,relation.targetFields)
+        ||!same(link.primaryKey,[link.contextField,relation.fields[1],policy.referenceFields.fileId])){
+        report('file.linked-relation',q,'Linked reads require an exact private context-scoped parent relation and composite link key.');return;
+      }
+      const names=[link.contextField,relation.fields[1],...Object.values(policy.referenceFields)];
+      const fields=new Map(link.fields.map(field=>[field.id,field]));
+      const stringField=field=>field&&field.type==='string'&&!field.nullable&&!field.computed;
+      if(new Set(names).size!==names.length||names.some(name=>!stringField(fields.get(name)))
+        ||!stringField(parent.fields.find(field=>field.id===relation.targetFields[1]))
+        ||!model?.fields.every(field=>field.protected))
+        report('file.linked-fields',q,'Linked identity and reference columns must be distinct required persisted strings.');
+      const state=parent.fields.find(field=>field.id===policy.when.field);
+      if(!stringField(state)||!state.constraints?.enum?.includes(policy.when.equals))
+        report('file.linked-state',q,'The required parent state must be a declared string enum value.');
+      const refs=[file.metadataModel,policy.linkModel,relation.target,{moduleId:ownId,kind:'file',id:file.id}];
+      if(!permission.actions.includes('read')||!subset(policy.audiences,permission.audiences)
+        ||permission.public||!refs.every(ref=>permission.resources.some(item=>refKey(item)===refKey(ref)))
+        ||![model,link,parent].every(item=>item?.permissions.some(ref=>refKey(ref)===refKey(policy.permission))))
+        report('file.linked-permission',q,'Linked readers require explicit read permission for the file, metadata, link and parent in every declared audience.');
+    }
   });
   (c.connectors??[]).forEach((connector,i)=>{
     const p=`/contracts/connectors/${i}`;

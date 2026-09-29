@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 
 const root=new URL('../',import.meta.url);
 const template=JSON.parse(readFileSync(new URL('module/manifest.json',root),'utf8'));
-const id='creezio.catalog',version='0.1.0',revision='t25-catalog-v1';
+const id='creezio.catalog',version='0.1.1',revision='t25-catalog-v2';
 const ref=(kind,name)=>({moduleId:id,kind,id:name});
 const length=(max,min=1)=>({minLength:min,maxLength:max});
 const int=(min=0,max=Number.MAX_SAFE_INTEGER)=>({minimum:min,maximum:max});
@@ -47,7 +47,7 @@ const metadata=model('file_metadata','Métadonnée privée des images',[field('f
   field('intent_id','string',{protected:true,constraints:length(128)}),
   field('generation','string',{protected:true,constraints:length(128)})],
   ['context_id','file_id'],[{id:'by-intent',fields:['context_id','intent_id','generation'],unique:true},
-    {id:'by-object',fields:['context_id','object_key'],unique:true}],[],['manage']);
+    {id:'by-object',fields:['context_id','object_key'],unique:true}],[],['manage','view']);
 const media=model('product_media','Image liée à un produit',[
   field('product_id','string',{constraints:length(36)}),field('file_id','string',{constraints:length(67)}),
   field('filename','string',{constraints:length(255)}),field('content_type','string',{constraints:length(128)}),
@@ -126,7 +126,8 @@ const permissions=[{id:'manage',title:'Gérer le catalogue',audiences:['admin'],
   actions:['read','create','update','delete','execute'],enforcement:{request:true,commit:true},public:false},
   {id:'view',title:'Consulter le catalogue publié',audiences:['admin','app'],
     actors:['user','delegated-user','machine'],scopes:['catalog.view'],context:'required',default:'deny',
-    resources:[ref('model','category'),ref('model','product'),ref('model','product_media')],
+    resources:[ref('model','category'),ref('model','product'),ref('model','product_media'),
+      ref('model','file_metadata'),ref('file','images')],
     actions:['read','execute'],enforcement:{request:true,commit:true},public:false}];
 const errors=['invalid_input','unauthorized','forbidden','not_found','conflict','rate_limited','unavailable','unknown']
   .map(code=>({code,retryable:['rate_limited','unavailable','unknown'].includes(code),
@@ -184,7 +185,10 @@ const file={id:'images',metadataModel:ref('model','file_metadata'),contextField:
     state:'state',intentId:'intent_id',generation:'generation'},
   mimeTypes:['image/png','image/jpeg','image/webp'],maxBytes:2*1024*1024,public:false,
   permissions:[ref('permission','manage')],attachment:{models:[ref('model','product')],multiple:true},
-  deletion:'restrict'};
+  deletion:'restrict',linkedRead:{audiences:['app'],permission:ref('permission','view'),
+    linkModel:ref('model','product_media'),parentRelation:'product',
+    referenceFields:{fileId:'file_id',intentId:'intent_id',generation:'generation',digest:'digest'},
+    when:{field:'status',equals:'published'}}};
 const api=[];
 for(const op of operations)for(const audience of op.audiences){
   const spec=schemas.find(item=>item.id===op.input.schemaId).schema;
@@ -217,7 +221,7 @@ m.identity={id,title:'Catalogue métier',publisher:'creezio',origin:'https://git
   version,source:{kind:'snapshot',revision,
     integrity:`sha256-${createHash('sha256').update(revision).digest('hex')}`},
   license:{expression:'NOASSERTION',file:'LICENSE'}};
-m.compatibility={core:'^0.0.0',sdk:'^1.2.0',
+m.compatibility={core:'^0.0.0',sdk:'^1.3.0',
   requiredCapabilities:['runtime.worker','data.d1.shared','files.r2.shared'],optionalCapabilities:[]};
 m.entrypoints={server:{path:'module/entry.server.ts',export:'catalog'},
   ui:{path:'ui/index.tsx',export:'CatalogAdminView'},
@@ -263,6 +267,7 @@ m.validation.suites.widgets.mode='required';delete m.validation.suites.widgets.j
 m.packaging.runtime.files=['module/manifest.json','module/models.json','module/entry.server.ts',
   'module/operations.ts','module/service.ts','module/public-contract.ts',
   'ui/index.tsx','ui/front.tsx','ui/contracts.ts','ui/money.ts','ui/panel-state.ts','ui/session.ts',
+  'ui/image-gate.ts',
   'ui/widgets/runtime.ts','ui/widgets/product-list.ts','ui/widgets/product-detail.ts',
   'ui/widgets/product-list.html','ui/widgets/product-detail.html',
   'README.md','prd.md','CHANGELOG.md','LICENSE','plugin/plugin.json','plugin/mcp.json',

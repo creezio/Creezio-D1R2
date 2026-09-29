@@ -8,6 +8,8 @@ test('catalog documentation names limits and six-suite validation',()=>{
   const readme=read('README.md');
   assert.match(readme,/catalog\.products@1\.0\.0/u);
   assert.match(readme,/R2/u);
+  assert.match(readme,/SDK `\^1\.3\.0`/u);
+  assert.match(readme,/lecture liée/u);
   assert.match(readme,/widgets/u);
   assert.match(read('TODO.md'),/image/u);
   for(const suite of ['backend','ui','api-mcp','widgets','package','docs'])

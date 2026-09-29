@@ -21,6 +21,36 @@
         "type": "string",
         "enum": ["principal", "principal-audience"]
       },
+      "linkedRead": {
+        "description": "Authenticated read of a file linked to a same-module record in a declared state. Does not authorize upload, deletion or ordinary owner reads.",
+        "type": "object",
+        "properties": {
+          "audiences": {"type":"array","items":{"enum":["admin","app"]},"minItems":1,"maxItems":2,"uniqueItems":true},
+          "permission": {"$ref":"urn:creezio:contracts:v1:common#/$defs/contractRef"},
+          "linkModel": {"$ref":"urn:creezio:contracts:v1:common#/$defs/contractRef"},
+          "parentRelation": {"$ref":"urn:creezio:contracts:v1:common#/$defs/id"},
+          "referenceFields": {
+            "type":"object",
+            "properties": {
+              "fileId":{"$ref":"urn:creezio:contracts:v1:common#/$defs/id"},
+              "intentId":{"$ref":"urn:creezio:contracts:v1:common#/$defs/id"},
+              "generation":{"$ref":"urn:creezio:contracts:v1:common#/$defs/id"},
+              "digest":{"$ref":"urn:creezio:contracts:v1:common#/$defs/id"}
+            },
+            "required":["fileId","intentId","generation","digest"],"additionalProperties":false
+          },
+          "when": {
+            "type":"object",
+            "properties": {
+              "field":{"$ref":"urn:creezio:contracts:v1:common#/$defs/id"},
+              "equals":{"type":"string","minLength":1,"maxLength":128}
+            },
+            "required":["field","equals"],"additionalProperties":false
+          }
+        },
+        "required":["audiences","permission","linkModel","parentRelation","referenceFields","when"],
+        "additionalProperties":false
+      },
       "contextField": {
         "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
       },

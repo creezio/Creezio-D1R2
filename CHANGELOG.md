@@ -1,5 +1,9 @@
 # Changelog
 
+## En cours — images du catalogue dans le front authentifié (T25)
+
+Le contrat de fichiers reçoit une lecture liée à un enregistrement publié et à ses droits courants. Le SDK 1.3 candidat ajoute `downloadLinked` sur le transport natif existant ; les lectures privées du propriétaire, uploads et abandons conservent leurs règles. Ce complément est en développement et ne constitue pas une publication de paquet ou d'application.
+
 ## En qualification — outils du chat des modules (T15/T16)
 
 Le chat peut proposer les lectures autorisées au-delà des seize premières, dans les bornes de 128 outils et 64 Kio de définitions. Son diagnostic distingue les omissions par nombre ou taille. Les descriptions de champs déjà présentes dans les schémas de sortie enrichissent le contrat transmis au modèle, sans changer les titres des interfaces ni les données. Droits et opérations restent communs aux API, MCP et widgets ; voir [T15](docs/IMPLEMENTATION-T15.md).

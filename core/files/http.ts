@@ -20,8 +20,8 @@ function value(raw: string | null, maximum = 128): string {
 function json(data: unknown, status: number, requestId: string): Response {
   return Response.json(data,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff','x-creezio-request-id':requestId}});
 }
-function reference(url: URL): StagedFile {
-  const names = ['fileId','intentId','generation','digest'];
+function reference(url: URL, linked: boolean): StagedFile {
+  const names = ['fileId','intentId','generation','digest',...(linked?['recordId']:[])];
   if ([...url.searchParams.keys()].some(name => !names.includes(name)) || names.some(name => url.searchParams.getAll(name).length !== 1)) fail('invalid_input',400);
   return {fileId:value(url.searchParams.get('fileId')),intentId:value(url.searchParams.get('intentId')),
     generation:value(url.searchParams.get('generation')),digest:value(url.searchParams.get('digest'))};
@@ -82,6 +82,10 @@ export async function dispatchFileHttp(request: Request, environment: RuntimeEnv
   try {
     checks(request,configuration.origin);
     const category = resolveFileCategory(options.catalog,options.files,moduleId,categoryId,audience);
+    const linked=url.searchParams.has('recordId');
+    if (linked && (request.method!=='GET'||!category.linkedRead?.audiences.includes(audience))) fail('not_found',404);
+    const recordId=linked?value(url.searchParams.get('recordId')):null;
+    if (recordId && !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(recordId)) fail('invalid_input',400);
     let credential: DataCredential;
     if (request.headers.has('authorization')) {
       const token = /^Bearer (cz1([ao])_[A-Za-z0-9_-]{43})$/.exec(request.headers.get('authorization')!);
@@ -101,9 +105,11 @@ export async function dispatchFileHttp(request: Request, environment: RuntimeEnv
     }
     data=createDataAccess(environment.bindings.DB,{catalog:options.catalog,permissions:options.permissions});
     const actors: AuthorizationActor[] = ['user','machine','delegated-user'];
-    lease=await data.authorize(credential,{contextId,audience,actors,requiredPermissionIds:category.permissions.map(p=>`${moduleId}:${p.id}`),purpose:'operation'},{moduleId});
+    lease=await data.authorize(credential,{contextId,audience,actors,requiredPermissionIds:linked
+      ?[`${moduleId}:${category.linkedRead!.permission.id}`]:category.permissions.map(p=>`${moduleId}:${p.id}`),purpose:'operation'},{moduleId});
     const ownerId=await fileOwnerId(data.describeLease(lease).principalId,audience,category.ownerScope);
-    const files=createFileService({data,catalog:options.catalog,moduleId,category,bucket:environment.bindings.BUCKET as unknown as FileBucket,ownerId});
+    const files=createFileService({data,catalog:options.catalog,moduleId,category,bucket:environment.bindings.BUCKET as unknown as FileBucket,
+      ...(!linked?{ownerId}:{})});
     const currentLease=lease;
     const execute=async (): Promise<Response> => {
       if (request.method==='PUT') {
@@ -123,9 +129,9 @@ export async function dispatchFileHttp(request: Request, environment: RuntimeEnv
         const ref=await files.stage(currentLease,{ownerId,intentId,generation,filename,contentType,bytes});
         return json({reference:ref,filename:filename.replace(/[\\/]/g,'_'),contentType,byteSize:bytes.length},201,requestId);
       }
-      const ref=reference(url);
+      const ref=reference(url,linked);
       if (request.method==='DELETE') {mutating=true;return json(await files.abandon(currentLease,ref),200,requestId);}
-      const result=await files.readPrivate(currentLease,ref);
+      const result=linked?await files.readLinked(currentLease,ref,recordId!):await files.readPrivate(currentLease,ref);
       return new Response(new Uint8Array(result.bytes),{status:200,headers:{...result.headers,'x-creezio-request-id':requestId}});
     };
     const deadline=new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new AccessHttpError(mutating?'unknown':'operation_timeout',mutating?202:504)),25000);});

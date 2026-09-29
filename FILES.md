@@ -157,8 +157,8 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 
 - [extensions/native/conversations](extensions/native/conversations/) : modèles, opérations, UI originale, API/MCP et six suites du module.
 - [sdk/conversations](sdk/conversations/) : contrôleur des conversations, brouillons et commandes incertaines partagé entre interfaces.
-- [sdk/files](sdk/files/) : client binaire natif et contrats de publication des pièces jointes.
-- [core/files](core/files/) : catalogue compilé, intentions privées D1/R2 et transport natif lié au propriétaire effectif.
+- [sdk/files](sdk/files/) : client binaire natif, publication des pièces jointes et lecture liée candidate `downloadLinked` (SDK 1.3).
+- [core/files](core/files/) : catalogue compilé, intentions privées D1/R2, transport propriétaire et garde de lecture liée déclarée. `tests/data/files*.test.mjs`, `tests/contracts/files.test.mjs` et `tests/conversations/files-client.test.mjs` en vérifient les frontières hôte, contrat et navigateur.
 - [scripts/data/prepare-native-module.mjs](scripts/data/prepare-native-module.mjs) : création SQL centrale des modèles natifs, sans accès à une base.
 - [tests/conversations](tests/conversations/) et [réalisation T14](docs/IMPLEMENTATION-T14.md) : preuves du module, de son SDK et recettes synthétiques.
 

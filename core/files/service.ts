@@ -70,8 +70,13 @@ export function createFileService(options: { data: DataAccess; catalog: RuntimeD
       && permission.actions.includes(action) && permission.resources.some(ref => ref.moduleId === moduleId && ref.kind === 'file' && ref.id === category.id))
     .map(permission => `${moduleId}:${permission.id}`));
   Object.freeze(allowed);
-  function port(lease: DataLease, action: DataAction = 'read'): DataPort {
+  function port(lease: DataLease, action: DataAction = 'read', linked = false): DataPort {
     if (category.public) throw new FileError('unsupported');
+    if (linked) {
+      if (action!=='read'||!category.linkedRead) throw new FileError('unsupported');
+      data.requirePermissions(lease,[`${moduleId}:${category.linkedRead.permission.id}`]);
+      return data.internalPort(lease, { moduleId, modelId, fields });
+    }
     let permitted = false;
     for (const permission of allowed[action]) {
       try { data.requirePermissions(lease, [permission]); permitted = true; break; }
@@ -82,12 +87,34 @@ export function createFileService(options: { data: DataAccess; catalog: RuntimeD
   }
   const key = (ref: StagedFile) => ({ [m.id]: ref.fileId });
   const exact = (ref: StagedFile) => ({ [m.intentId]: ref.intentId, [m.generation]: ref.generation, [m.digest]: ref.digest });
-  async function read(lease: DataLease, ref: StagedFile, action: DataAction = 'read'): Promise<DataRecord> {
+  async function read(lease: DataLease, ref: StagedFile, action: DataAction = 'read', linked = false): Promise<DataRecord> {
     const contextId = data.describeLease(lease).contextId;
     const expected = `f1_${await digest(encoder.encode(JSON.stringify([moduleId, category.id, contextId, ref.intentId, ref.generation])))}`;
     if (expected !== ref.fileId) throw new FileError('not_found');
-    const row = await port(lease, action).get(modelId, { key: key(ref), where: exact(ref) });
-    if (!row || options.ownerId !== undefined && row[category.ownerField] !== options.ownerId) throw new FileError('not_found'); return row;
+    const row = await port(lease, action, linked).get(modelId, { key: key(ref), where: exact(ref) });
+    if (!row || !linked && options.ownerId !== undefined && row[category.ownerField] !== options.ownerId) throw new FileError('not_found'); return row;
+  }
+  async function linkedProof(lease: DataLease, ref: StagedFile, recordId: string, metadata?: DataRecord): Promise<void> {
+    const linked=category.linkedRead;
+    if (!linked || !linked.audiences.includes(data.describeLease(lease).audience)) throw new FileError('not_found');
+    data.requirePermissions(lease,[`${moduleId}:${linked.permission.id}`]);
+    const link=options.catalog.modules.find(item=>item.moduleId===moduleId)?.models.find(item=>
+      item.modelId===linked.linkModel.id)?.model;
+    const relation=link?.relations.find(item=>item.id===linked.parentRelation);
+    if (!link || !relation) throw new FileError('invalid_mapping');
+    const fields=linked.referenceFields, linkId=relation.fields[1]!, parentId=relation.targetFields[1]!;
+    // These host-only proofs may use protected keys/state without exposing business columns.
+    const linkPort=data.internalPort(lease,{moduleId,modelId:link.id,
+      fields:[...new Set([linkId,...Object.values(fields)])]});
+    const parentPort=data.internalPort(lease,{moduleId,modelId:relation.target.id,
+      fields:[...new Set([parentId,linked.when.field])]});
+    const rows=await data.readBatch(lease,[
+      ...(metadata?[port(lease,'read',true).planGet(modelId,{key:key(ref),where:snapshot(metadata)})]:[]),
+      linkPort.planGet(link.id,{key:{[linkId]:recordId,[fields.fileId]:ref.fileId},fields:[linkId],
+        where:{[fields.intentId]:ref.intentId,[fields.generation]:ref.generation,[fields.digest]:ref.digest}}),
+      parentPort.planGet(relation.target.id,{key:{[parentId]:recordId},fields:[parentId],
+        where:{[linked.when.field]:linked.when.equals}})]);
+    if (rows.length!==(metadata?3:2)||rows.some(result=>!result?.rows[0])) throw new FileError('not_found');
   }
   function version(row: DataRecord): number {
     const value = row[m.version]; if (!Number.isSafeInteger(value) || Number(value) < 1 || Number(value) >= Number.MAX_SAFE_INTEGER) throw new FileError('conflict');
@@ -174,6 +201,20 @@ export function createFileService(options: { data: DataAccess; catalog: RuntimeD
         headers: Object.freeze({ 'content-type': 'application/octet-stream',
           'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(filename).replace(/[!'()*]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)}`,
           'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'; sandbox" }) });
+    },
+    async readLinked(lease: DataLease, value: StagedFile, recordId: string): Promise<PrivateFile> {
+      const ref=captureRef(value), id=string(recordId,128);
+      await linkedProof(lease,ref,id);
+      const row=await read(lease,ref,'read',true);
+      if (row[m.state]!=='available'||!category.mimeTypes.includes(String(row[m.contentType]))) throw new FileError('not_found');
+      const bytes=await verifiedObject(row);
+      await linkedProof(lease,ref,id,row);
+      const filename=String(row[m.filename]);
+      return Object.freeze({fileId:ref.fileId,filename,contentType:String(row[m.contentType]),byteSize:bytes.length,bytes,
+        headers:Object.freeze({'content-type':'application/octet-stream',
+          'content-disposition':`attachment; filename*=UTF-8''${encodeURIComponent(filename).replace(/[!'()*]/g,char=>`%${char.charCodeAt(0).toString(16).toUpperCase()}`)}`,
+          'cache-control':'private, no-store','x-content-type-options':'nosniff',
+          'content-security-policy':"default-src 'none'; sandbox"})});
     },
     async abandon(lease: DataLease, value: StagedFile): Promise<{ readonly state: 'abandoned'; readonly cleanup: 'delete_confirmed' | 'pending' }> {
       const ref = captureRef(value), row = await read(lease, ref, 'delete'), p = port(lease, 'delete');

@@ -70,3 +70,28 @@ test('a temporarily invalidated session cannot accept its old file response afte
   release(new Response('synthetic'));
   assert.deepEqual(await pending,{kind:'unknown',code:'stale'});
 });
+
+test('linked download uses the existing private transport with an explicit record and no retained capability',async()=>{
+  const a=access();let seen;
+  const c=client(a,async(url,init)=>{seen={url,init};return new Response('image-bytes',{headers:{'content-type':'application/octet-stream'}});});
+  const result=await c.downloadLinked(reference,'record:one');
+  assert.equal(result.kind,'ready');assert.equal(await result.value.text(),'image-bytes');
+  const url=new URL(seen.url);
+  assert.equal(url.pathname,'/api/files/app/creezio.conversations/attachments');
+  assert.deepEqual(Object.fromEntries(url.searchParams),{...reference,recordId:'record:one'});
+  assert.equal(seen.init.method,'GET');assert.equal(seen.init.cache,'no-store');
+  assert.equal(seen.init.credentials,'same-origin');assert.equal(Object.hasOwn(seen.init.headers,'authorization'),false);
+  await c.download(reference);assert.equal(new URL(seen.url).searchParams.has('recordId'),false);
+});
+
+test('linked download rejects invalid record identities before transport and drops a changed session',async()=>{
+  const a=access();let calls=0,release;
+  const c=client(a,()=>{calls++;return new Promise(resolve=>{release=resolve;});});
+  for(const recordId of ['',undefined,'x&recordId=y','../private','x'.repeat(129)])
+    assert.deepEqual(await c.downloadLinked(reference,recordId),{kind:'rejected',code:'invalid_input'});
+  assert.equal(calls,0);
+  const pending=c.downloadLinked(reference,'record-one');
+  a.set({phase:'anonymous',pending:null,session:null});
+  release(new Response('old-image',{headers:{'content-type':'application/octet-stream'}}));
+  assert.deepEqual(await pending,{kind:'unknown',code:'stale'});assert.equal(calls,1);
+});

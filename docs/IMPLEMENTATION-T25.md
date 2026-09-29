@@ -1,5 +1,13 @@
 # T25 — Catalogue métier commun
 
+## Complément en développement : images dans le front
+
+La tranche suivante relie le transport de fichiers commun aux images d'un produit publié. Le contrat optionnel `linkedRead` décrit le modèle de lien, sa relation contextuelle au parent, l'état de publication et la permission de lecture. Il permet une lecture authentifiée par un autre utilisateur sans modifier le propriétaire du fichier. Le SDK 1.3 candidat ajoute `downloadLinked` ; SDK 1.2 et les paquets déjà publics restent inchangés. Les contrôles de parent/lien/permissions avant et après lecture, ainsi que les refus croisés et la neutralisation des réponses périmées, sont les critères de cette tranche. Aucun déploiement ni qualification navigateur de ce complément n'est encore acquis. Anonymat, redimensionnement et images des widgets restent distincts.
+
+Les preuves internes ne lisent que les identifiants, références et état déclarés ; elles peuvent utiliser des colonnes protégées sans les rendre accessibles au port du module. Le second contrôle groupe métadonnées, lien et parent dans le même batch D1 avec réévaluation de l'autorisation. Le schéma SQL généré reste identique : ce complément n'ajoute ni table ni colonne et ne réécrit pas les données.
+
+## Tranche intégrée
+
 `creezio.catalog` est une extension métier réutilisable, distincte des modules natifs obligatoires. Le profil `configuration/composition.catalog.json` l'ajoute au front standard pour sa qualification ; les profils usuels ne l'activent pas implicitement. Quatre modèles D1 gèrent catégories, produits, attributs et références d'images privées. Les prix sont exprimés en unités monétaires mineures avec devise explicite.
 
 Le module fournit édition admin, lecture des produits publiés dans le front, opérations HTTP/MCP et port versionné `catalog.products@1.0.0`. Les consommateurs futurs dépendent de ce contrat ; ils ne lisent pas ses tables. Les vues reprennent les composants de catalogue identifiés dans WinHub sans reconstruire cette application ni importer son métier B2B. Révisions, SKU unique, état publié/archivé, droits par contexte et journal des mutations sont communs aux interfaces.

@@ -23,6 +23,7 @@ import {createOperationHttpTransport} from '../../core/operations/http.ts';
 import {createMcpHttpTransport} from '../../core/mcp/http.ts';
 import {createDataAccess} from '../../core/data/service.ts';
 import {createFileService} from '../../core/files/service.ts';
+import {dispatchFileHttp} from '../../core/files/http.ts';
 import {fileOwnerId} from '../../core/files/catalog.ts';
 import * as handlers from '../../extensions/common/catalog/module/operations.ts';
 
@@ -89,7 +90,7 @@ test('catalog D1/R2 engine preserves published visibility, CAS, context and medi
         roleId:'catalog-reader'});
       good(await acl.replacePolicy(admin.token,{expectedEpoch:before.epoch,policy}));
       const fileCatalog={compositionDigest:digest,categories:manifest.contracts.files.map(category=>({moduleId,
-        category,audiences:['admin']}))};
+        category,audiences:['admin','app']}))};
       const engine=createOperationEngine({db,catalog,registry:registry(),permissions,
         files:{catalog:fileCatalog,bucket}});
       const invoke=(operationId,input,audience='admin',contextId='application')=>engine.invoke({
@@ -180,11 +181,6 @@ test('catalog D1/R2 engine preserves published visibility, CAS, context and medi
       const listed=await client.callTool({name:'catalog_product_search',arguments:{limit:25}});
       assert.equal(listed.structuredContent.kind,'creezio.widget.render.v1');
       assert.deepEqual(listed.structuredContent.input.items.map(item=>item.id),[product.id]);
-      const latest=await acl.readPolicy(admin.token),revoked=structuredClone(latest.policy);
-      revoked.assignments=revoked.assignments.filter(item=>item.principalId!==machine.id);
-      good(await acl.replacePolicy(admin.token,{expectedEpoch:latest.epoch,policy:revoked}));
-      assert.equal((await wire('/api/app/catalog/product/search?limit=25')).status,403);
-      await assert.rejects(client.callTool({name:'catalog_product_search',arguments:{limit:25}}));
       await rejected(invoke('product.get',{id:product.id},'app','other-context'),'forbidden');
       const data=createDataAccess(db,{catalog,permissions});
       const lease=await data.authorize({kind:'session',token:admin.token},{contextId:'application',
@@ -200,15 +196,49 @@ test('catalog D1/R2 engine preserves published visibility, CAS, context and medi
         revision:2,staged}));
       assert.equal(linked.media.fileId,staged.fileId);
       assert.equal(output(await invoke('media.list',{productId:product.id},'app')).items[0].fileId,staged.fileId);
+      const imageRequest=(reference,recordId=product.id,contextId='application')=>{
+        const query=new URLSearchParams({...reference,...(recordId?{recordId}:{})});
+        return dispatchFileHttp(new Request(`${origin}/api/files/app/${moduleId}/images?${query}`,{
+          headers:{authorization:`Bearer ${token}`,'x-creezio-context':contextId}}),
+        {profile:'sites',bindings:{DB:db,BUCKET:bucket}},{CREEZIO_APP_ORIGIN:origin},
+        'catalog-image',{catalog,files:fileCatalog,permissions});
+      };
+      const shown=await imageRequest(linked.media.reference);
+      assert.equal(shown.status,200,await shown.clone().text());
+      assert.deepEqual(new Uint8Array(await shown.arrayBuffer()),bytes);
+      assert.equal(shown.headers.get('cache-control'),'private, no-store');
+      assert.equal((await imageRequest(linked.media.reference,null)).status,403,
+        'a reader cannot use the owner-only route');
+      assert.equal((await imageRequest({...linked.media.reference,generation:'2'})).status,404);
+      assert.equal((await imageRequest(linked.media.reference,'different-product')).status,404);
+      assert.equal((await imageRequest(linked.media.reference,product.id,'other-context')).status,401);
+      const other=output(await invoke('product.create',{requestKey:'other-product',...fields,
+        sku:'CAT-ARCHIVE'})).product;
+      output(await invoke('product.publish',{requestKey:'other-publish',id:other.id,revision:1}));
+      output(await invoke('media.link',{requestKey:'other-link',productId:other.id,revision:2,staged}));
+      assert.equal((await imageRequest(linked.media.reference,other.id)).status,200);
+      output(await invoke('product.archive',{requestKey:'other-archive',id:other.id,revision:3}));
+      assert.equal((await imageRequest(linked.media.reference,other.id)).status,404,
+        'archiving a linked product denies subsequent binary reads');
       await rejected(invoke('media.link',{requestKey:'media-stale',productId:product.id,
         revision:2,staged}),'conflict');
       const unlinked=output(await invoke('media.unlink',{requestKey:'media-unlink',productId:product.id,
         revision:3,fileId:staged.fileId}));
       assert.equal(unlinked.removed,true);
       assert.deepEqual(output(await invoke('media.list',{productId:product.id},'app')).items,[]);
+      assert.equal((await imageRequest(linked.media.reference)).status,404,
+        'a detached reference cannot read the retained R2 object');
+      assert.deepEqual((await files.readPrivate(lease,staged)).bytes,bytes,
+        'the owner-only read and retained object survive unlink');
       const archived=output(await invoke('product.archive',{requestKey:'archive',id:product.id,
         revision:4})).product;
       assert.equal(archived.status,'archived');
+      const latest=await acl.readPolicy(admin.token),revoked=structuredClone(latest.policy);
+      revoked.assignments=revoked.assignments.filter(item=>item.principalId!==machine.id);
+      good(await acl.replacePolicy(admin.token,{expectedEpoch:latest.epoch,policy:revoked}));
+      assert.equal((await wire('/api/app/catalog/product/search?limit=25')).status,403);
+      await assert.rejects(client.callTool({name:'catalog_product_search',arguments:{limit:25}}));
+      assert.equal((await imageRequest(linked.media.reference)).status,403);
       await rejected(invoke('product.get',{id:product.id},'app'),'not_found');
       assert.deepEqual(output(await invoke('product.search',{limit:25},'app')).items,[]);
       await rejected(invoke('media.list',{productId:product.id},'app'),'not_found');

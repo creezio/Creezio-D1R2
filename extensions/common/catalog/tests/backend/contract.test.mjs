@@ -23,6 +23,20 @@ test('D1 models and public port preserve context and integer prices',()=>{
   const field=manifest.contracts.models.find(model=>model.id==='product').fields
     .find(field=>field.id==='price_minor');
   assert.equal(field.type,'integer');
+  const metadata=manifest.contracts.models.find(model=>model.id==='file_metadata');
+  assert.ok(metadata.fields.every(field=>field.protected));
+  assert.ok(metadata.permissions.some(permission=>permission.id==='view'));
+  const view=manifest.contracts.permissions.find(permission=>permission.id==='view');
+  for(const resource of ['product','product_media','file_metadata'])
+    assert.ok(view.resources.some(item=>item.kind==='model'&&item.id===resource),resource);
+  assert.ok(view.resources.some(item=>item.kind==='file'&&item.id==='images'));
+  const file=manifest.contracts.files.find(item=>item.id==='images');
+  assert.deepEqual(file.permissions.map(item=>item.id),['manage']);
+  assert.deepEqual(file.linkedRead,{audiences:['app'],
+    permission:{moduleId:'creezio.catalog',kind:'permission',id:'view'},
+    linkModel:{moduleId:'creezio.catalog',kind:'model',id:'product_media'},
+    parentRelation:'product',referenceFields:{fileId:'file_id',intentId:'intent_id',
+      generation:'generation',digest:'digest'},when:{field:'status',equals:'published'}});
 });
 test('published search pages through 520 escaped rows without loss or oversized output',async()=>{
   const rows=Array.from({length:520},(_,i)=>product(i));

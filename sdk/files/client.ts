@@ -60,6 +60,15 @@ export function createFileClient(options:{access:AccessController;moduleId:strin
     finally{if(timer)clearTimeout(timer);unsubscribe();abort.abort();}
   }
   const query=(reference:StagedFileReference)=>'?'+new URLSearchParams({...reference}).toString();
+  async function download(reference:StagedFileReference,isCurrent?:()=>boolean,recordId?:string):Promise<FileClientResult<Blob>> {
+    if(!ref(reference)||recordId!==undefined&&(typeof recordId!=='string'||!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(recordId)))
+      return {kind:'rejected',code:'invalid_input'};
+    const suffix=recordId===undefined?'':`&recordId=${encodeURIComponent(recordId)}`;
+    return request('GET',query(reference)+suffix,{},undefined,(response,bytes)=>{
+      if(response.headers.get('content-type')?.split(';',1)[0]?.trim().toLowerCase()!=='application/octet-stream')throw new Error('invalid_response');
+      return new Blob([new Uint8Array(bytes)],{type:'application/octet-stream'});
+    },isCurrent);
+  }
   return Object.freeze({
     async upload(input:{file:Blob;filename:string;intentId:string;generation?:string;isCurrent?:()=>boolean}):Promise<FileClientResult<UploadedFile>> {
       if(!(input.file instanceof Blob)||input.file.size>maximum||!input.filename||new TextEncoder().encode(input.filename).length>255
@@ -73,11 +82,12 @@ export function createFileClient(options:{access:AccessController;moduleId:strin
         },input.isCurrent);
     },
     async download(reference:StagedFileReference,isCurrent?:()=>boolean):Promise<FileClientResult<Blob>> {
-      if(!ref(reference))return {kind:'rejected',code:'invalid_input'};
-      return request('GET',query(reference),{},undefined,(response,bytes)=>{
-        if(response.headers.get('content-type')?.split(';',1)[0]?.trim().toLowerCase()!=='application/octet-stream')throw new Error('invalid_response');
-        return new Blob([new Uint8Array(bytes)],{type:'application/octet-stream'});
-      },isCurrent);
+      return download(reference,isCurrent);
+    },
+    /** The server checks the declared link and record state; the reference alone grants no access. */
+    async downloadLinked(reference:StagedFileReference,recordId:string,isCurrent?:()=>boolean):Promise<FileClientResult<Blob>> {
+      if(typeof recordId!=='string'||!recordId)return {kind:'rejected',code:'invalid_input'};
+      return download(reference,isCurrent,recordId);
     },
     async abandon(reference:StagedFileReference,isCurrent?:()=>boolean):Promise<FileClientResult<{state:'abandoned';cleanup:'delete_confirmed'|'pending'}>> {
       if(!ref(reference))return {kind:'rejected',code:'invalid_input'};

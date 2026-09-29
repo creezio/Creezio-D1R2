@@ -539,6 +539,11 @@
         "moduleId": "creezio.catalog",
         "kind": "permission",
         "id": "manage"
+      },
+      {
+        "moduleId": "creezio.catalog",
+        "kind": "permission",
+        "id": "view"
       }
     ],
     "deletion": {

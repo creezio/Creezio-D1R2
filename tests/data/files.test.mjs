@@ -25,6 +25,46 @@ test('file mapping preserves canonical identifiers and refuses ambiguous or publ
   assert.throws(() => captureFileCategory(altered, moduleId, category), { code: 'invalid_mapping' });
 });
 
+test('linked read mapping accepts only an exact same-context relation, published state and read grant',()=>{
+  const extended=structuredClone(catalog),owner=extended.modules[0],ref=(kind,id)=>({moduleId,kind,id});
+  const parent={id:'product',title:'Product',scope:'context',contextField:'context_id',
+    fields:[{id:'context_id',type:'string',nullable:false,protected:true,computed:false},
+      {id:'id',type:'string',nullable:false,protected:false,computed:false},
+      {id:'status',type:'string',nullable:false,protected:false,computed:false,
+        constraints:{enum:['draft','published','archived']}}],
+    primaryKey:['context_id','id'],indexes:[],relations:[],permissions:[ref('permission','view')],
+    deletion:{mode:'soft',requiresApproval:false},public:false};
+  const link={id:'product_media',title:'Product media',scope:'context',contextField:'context_id',
+    fields:['context_id','product_id','file_id','intent_id','generation','digest'].map(id=>({id,type:'string',
+      nullable:false,protected:id==='context_id',computed:false})),
+    primaryKey:['context_id','product_id','file_id'],indexes:[],relations:[{id:'product',
+      fields:['context_id','product_id'],target:ref('model','product'),targetFields:['context_id','id'],
+      onDelete:'restrict'}],permissions:[ref('permission','view')],
+    deletion:{mode:'hard',requiresApproval:false},public:false};
+  owner.models.push({modelId:'product',model:parent,table:'unused_product'},
+    {modelId:'product_media',model:link,table:'unused_media'});
+  owner.models.find(item=>item.modelId==='file_metadata').model.permissions.push(ref('permission','view'));
+  owner.permissions.push({id:'view',actions:['read'],audiences:['app'],actors:['user'],resources:[
+    ref('model','file_metadata'),ref('model','product_media'),ref('model','product'),ref('file','attachment')]});
+  const policy={audiences:['app'],permission:ref('permission','view'),linkModel:ref('model','product_media'),
+    parentRelation:'product',referenceFields:{fileId:'file_id',intentId:'intent_id',
+      generation:'generation',digest:'digest'},when:{field:'status',equals:'published'}};
+  const linked={...category,linkedRead:policy};
+  assert.deepEqual(captureFileCategory(extended,moduleId,linked).linkedRead,policy);
+  for(const alter of [
+    value=>{value.linkedRead.referenceFields.fileId='product_id';},
+    value=>{value.linkedRead.when.equals='deleted';},
+    value=>{value.linkedRead.linkModel.moduleId='other.module';},
+    value=>{value.linkedRead.audiences=['admin'];},
+    value=>{value.linkedRead=null;},
+  ]){const changed=structuredClone(linked);alter(changed);
+    assert.throws(()=>captureFileCategory(extended,moduleId,changed),{code:'invalid_mapping'});}
+  const publicMetadata=structuredClone(extended);
+  publicMetadata.modules[0].models.find(item=>item.modelId==='file_metadata').model.fields
+    .find(field=>field.id==='object_key').protected=false;
+  assert.throws(()=>captureFileCategory(publicMetadata,moduleId,linked),{code:'invalid_mapping'});
+});
+
 test('file intentions, R2 publication and private reads use real guarded D1 and R2', { timeout: 60000 }, async t => {
   const fixture = await createStorageFixture();
   const { db, data, bucket } = fixture;

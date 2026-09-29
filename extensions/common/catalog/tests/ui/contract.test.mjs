@@ -6,6 +6,7 @@ import {manifest,read} from '../helpers.mjs';
 import {money} from '../../ui/money.ts';
 import {catalogPanelState,readCatalogPanelState} from '../../ui/panel-state.ts';
 import {retainedSessionId,sameCatalogScope,sessionVerified} from '../../ui/session.ts';
+import {createImageGate} from '../../ui/image-gate.ts';
 
 test('temporary session verification suspends catalog without discarding its scope',()=>{
   const authenticated=id=>({phase:'authenticated',pending:null,session:{id}});
@@ -49,7 +50,9 @@ test('admin and authenticated front use the same catalog without multiplying pri
     assert.ok(front.includes(phrase),phrase);
   assert.equal(manifest.contracts.ui.views.find(view=>view.id==='admin').surfaces[0],'workspace');
   assert.equal(manifest.contracts.ui.views.find(view=>view.id==='front').surfaces[0],'front');
-  assert.ok(!front.includes('createFileClient'));
+  assert.match(front,/downloadLinked\(first\.reference,productId,current\)/u);
+  assert.match(front,/IntersectionObserver/u);
+  assert.match(front,/URL\.revokeObjectURL\(objectUrl\)/u);
 });
 test('view sessions reject late results and clear data on scope change',()=>{
   for(const file of ['ui/index.tsx','ui/front.tsx']){
@@ -114,4 +117,36 @@ test('SDK journal refuses lost persistence, blocks uncertain replay, then inspec
   assert.equal(saved.data.pending,undefined);
   assert.equal(statuses,1);
   assert.equal(invokes,1);
+});
+
+test('visible image reads remain below the file throttle and queued stale views do not read',async()=>{
+  let now=0,wake=null,calls=0;
+  const gate=createImageGate({now:()=>now,maxConcurrent:1,maxPerMinute:2,
+    delay:(run,ms)=>{wake={run,ms};return 1;},clear:()=>{wake=null;}});
+  const read=()=>gate.run(()=>true,async()=>++calls);
+  assert.equal(await read(),1);
+  assert.equal(await read(),2);
+  let stale=false;
+  const third=gate.run(()=>!stale,async()=>++calls);
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(calls,2);
+  assert.equal(wake.ms,60000);
+  stale=true;now=60000;wake.run();
+  assert.equal(await third,undefined);
+  assert.equal(calls,2);
+  assert.equal(await read(),3);
+  gate.cancel();
+});
+
+test('visible image gate caps simultaneous GETs and clears queued work on unmount',async()=>{
+  const releases=[];
+  const gate=createImageGate({maxConcurrent:2,maxPerMinute:20});
+  const run=()=>gate.run(()=>true,()=>new Promise(resolve=>releases.push(resolve)));
+  const first=run(),second=run(),third=run();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(releases.length,2);
+  gate.cancel();
+  assert.equal(await third,undefined);
+  releases[0]('one');releases[1]('two');
+  assert.deepEqual(await Promise.all([first,second]),['one','two']);
 });
