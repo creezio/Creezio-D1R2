@@ -1,0 +1,5 @@
+# CRM Creezio
+
+Pour consulter les entreprises, contacts et prospects, utiliser les outils `crm_company_*`, `crm_contact_*` et `crm_prospect_*` de lecture. `list` parcourt les fiches, `search` exige une requête non vide et `read` ouvre une fiche par son identifiant. Les widgets liste et fiche présentent les mêmes sorties métier ; les outils restent utilisables sans widget. Demander une petite page et suivre uniquement le `nextCursor` reçu pour continuer. Une petite limite ne garantit pas un résultat court si les notes sont longues : le chat interne peut refuser un résultat dépassant sa borne de 8 192 octets, sans le tronquer ni le rejouer automatiquement.
+
+Conserver l'identité, l'audience, le contexte et la permission `crm.use` du demandeur. Une relation vers une entreprise ou un contact ne donne aucun accès supplémentaire. Ne pas déduire l'existence d'une fiche à partir d'un refus, ni présenter une archive ou une fiche devenue inaccessible comme actuelle. Les commandes de création, modification, archivage et restauration sont distinctes des actions de lecture des widgets ; ne jamais les déclencher au montage d'un widget ou à partir d'une simple sélection.

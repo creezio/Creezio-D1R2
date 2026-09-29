@@ -52,3 +52,36 @@ test('MCP projection refuses colliding names and nondelegated Access style decla
   const forged = structuredClone(compile()); forged.tools[0].contractDigest = `sha256-${'b'.repeat(64)}`;
   assert.throws(() => createMcpCatalog(forged, registry), TypeError);
 });
+
+function widgetResources(count,htmlBytes){
+  const shell='<!doctype html><html><body></body></html>';
+  const text=shell+'x'.repeat(htmlBytes-shell.length);
+  return Array.from({length:count},(_,index)=>{
+    const hash=`sha256-${index.toString(16).padStart(64,'0')}`;
+    const uri=`ui://creezio/example.one/widget-${index}/1.0.0/${hash}.html`;
+    return ['admin','app'].map(audience=>({id:`widget-${index}`,uri,
+      mimeType:'text/html;profile=mcp-app',contributorModuleId:'example.one',audience,
+      permissions:['example.one:read'],actors:['delegated-user'],context:'required',
+      source:{kind:'compiled-widget',digest:hash,cspProfileId:hash,text,
+        uiMeta:{csp:{connectDomains:[],resourceDomains:[],frameDomains:[],baseUriDomains:[]},
+          permissions:{},prefersBorder:true}}}));
+  }).flat();
+}
+
+test('MCP catalog admits six self-contained widgets in two audiences within its aggregate bound',()=>{
+  const catalog={...compile(),resources:widgetResources(6,608000)};
+  const bytes=Buffer.byteLength(JSON.stringify(catalog));
+  assert.ok(bytes>4*1024*1024&&bytes<16*1024*1024,bytes);
+  const runtime=createMcpCatalog(catalog,registry);
+  assert.equal(runtime.resources('admin').length,6);
+  assert.equal(runtime.resources('app').length,6);
+});
+
+test('MCP catalog refuses aggregates above 16 MiB without relaxing the per-resource HTML bound',()=>{
+  const oversized={...compile(),resources:widgetResources(14,608000)};
+  assert.ok(Buffer.byteLength(JSON.stringify(oversized))>16*1024*1024);
+  assert.throws(()=>createMcpCatalog(oversized,registry),TypeError);
+  const oneLarge={...compile(),resources:widgetResources(1,1_048_577)};
+  assert.ok(Buffer.byteLength(JSON.stringify(oneLarge))<16*1024*1024);
+  assert.throws(()=>createMcpCatalog(oneLarge,registry),TypeError);
+});

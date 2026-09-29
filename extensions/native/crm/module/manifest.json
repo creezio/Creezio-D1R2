@@ -8,8 +8,8 @@
     "version": "0.0.0",
     "source": {
       "kind": "snapshot",
-      "revision": "t20-crm-v1",
-      "integrity": "sha256-2ba62e4dfebdc1e0fec8830ef369a1e0a81e55a73376c409399aebdab02ed7b5"
+      "revision": "t20-crm-widgets-v2",
+      "integrity": "sha256-d329a4051f810ffe9e40c6109a54a0508aa7c445979a931834ff4b5345acf0d0"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -1824,6 +1824,34 @@
             "id",
             "revision"
           ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "crm-widget-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "query": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 120
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "archived": {
+              "type": "boolean"
+            }
+          },
+          "required": [],
           "additionalProperties": false
         }
       },
@@ -6656,6 +6684,11 @@
             "idempotent": true,
             "openWorld": false
           },
+          "widget": {
+            "moduleId": "creezio.crm",
+            "kind": "widget",
+            "id": "company-detail"
+          },
           "textFallback": true
         },
         {
@@ -6686,6 +6719,11 @@
             "idempotent": true,
             "openWorld": false
           },
+          "widget": {
+            "moduleId": "creezio.crm",
+            "kind": "widget",
+            "id": "company-list"
+          },
           "textFallback": true
         },
         {
@@ -6715,6 +6753,11 @@
             "destructive": false,
             "idempotent": true,
             "openWorld": false
+          },
+          "widget": {
+            "moduleId": "creezio.crm",
+            "kind": "widget",
+            "id": "company-list"
           },
           "textFallback": true
         },
@@ -6866,6 +6909,11 @@
             "idempotent": true,
             "openWorld": false
           },
+          "widget": {
+            "moduleId": "creezio.crm",
+            "kind": "widget",
+            "id": "contact-detail"
+          },
           "textFallback": true
         },
         {
@@ -6896,6 +6944,11 @@
             "idempotent": true,
             "openWorld": false
           },
+          "widget": {
+            "moduleId": "creezio.crm",
+            "kind": "widget",
+            "id": "contact-list"
+          },
           "textFallback": true
         },
         {
@@ -6925,6 +6978,11 @@
             "destructive": false,
             "idempotent": true,
             "openWorld": false
+          },
+          "widget": {
+            "moduleId": "creezio.crm",
+            "kind": "widget",
+            "id": "contact-list"
           },
           "textFallback": true
         },
@@ -7076,6 +7134,11 @@
             "idempotent": true,
             "openWorld": false
           },
+          "widget": {
+            "moduleId": "creezio.crm",
+            "kind": "widget",
+            "id": "prospect-detail"
+          },
           "textFallback": true
         },
         {
@@ -7106,6 +7169,11 @@
             "idempotent": true,
             "openWorld": false
           },
+          "widget": {
+            "moduleId": "creezio.crm",
+            "kind": "widget",
+            "id": "prospect-list"
+          },
           "textFallback": true
         },
         {
@@ -7135,6 +7203,11 @@
             "destructive": false,
             "idempotent": true,
             "openWorld": false
+          },
+          "widget": {
+            "moduleId": "creezio.crm",
+            "kind": "widget",
+            "id": "prospect-list"
           },
           "textFallback": true
         },
@@ -7229,9 +7302,285 @@
           "textFallback": true
         }
       ],
-      "resources": [],
+      "resources": [
+        {
+          "id": "company-list-ui",
+          "uri": "ui://creezio.crm/company-list",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "permission",
+              "id": "use"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/company-list.html"
+          },
+          "widget": {
+            "moduleId": "creezio.crm",
+            "kind": "widget",
+            "id": "company-list"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        },
+        {
+          "id": "company-detail-ui",
+          "uri": "ui://creezio.crm/company-detail",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "permission",
+              "id": "use"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/company-detail.html"
+          },
+          "widget": {
+            "moduleId": "creezio.crm",
+            "kind": "widget",
+            "id": "company-detail"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        },
+        {
+          "id": "contact-list-ui",
+          "uri": "ui://creezio.crm/contact-list",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "permission",
+              "id": "use"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/contact-list.html"
+          },
+          "widget": {
+            "moduleId": "creezio.crm",
+            "kind": "widget",
+            "id": "contact-list"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        },
+        {
+          "id": "contact-detail-ui",
+          "uri": "ui://creezio.crm/contact-detail",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "permission",
+              "id": "use"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/contact-detail.html"
+          },
+          "widget": {
+            "moduleId": "creezio.crm",
+            "kind": "widget",
+            "id": "contact-detail"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        },
+        {
+          "id": "prospect-list-ui",
+          "uri": "ui://creezio.crm/prospect-list",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "permission",
+              "id": "use"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/prospect-list.html"
+          },
+          "widget": {
+            "moduleId": "creezio.crm",
+            "kind": "widget",
+            "id": "prospect-list"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        },
+        {
+          "id": "prospect-detail-ui",
+          "uri": "ui://creezio.crm/prospect-detail",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "permission",
+              "id": "use"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/prospect-detail.html"
+          },
+          "widget": {
+            "moduleId": "creezio.crm",
+            "kind": "widget",
+            "id": "prospect-detail"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        }
+      ],
       "prompts": [],
-      "skills": []
+      "skills": [
+        {
+          "id": "crm",
+          "path": "plugin/skills/crm.md",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "company.list"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "company.search"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "company.read"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.list"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.search"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.read"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "prospect.list"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "prospect.search"
+            },
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "prospect.read"
+            }
+          ],
+          "resources": [
+            "company-list-ui",
+            "company-detail-ui",
+            "contact-list-ui",
+            "contact-detail-ui",
+            "prospect-list-ui",
+            "prospect-detail-ui"
+          ],
+          "integrity": "sha256-6ed04da6f2c67ba9a3ad4d8cf0cbf9d32ddf2d75019053ac289c44088337b4f8"
+        }
+      ]
     },
     "ui": {
       "views": [
@@ -7561,7 +7910,458 @@
       "themes": [],
       "styles": []
     },
-    "widgets": [],
+    "widgets": [
+      {
+        "id": "company-list",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "company-list-ui",
+        "renderer": {
+          "path": "ui/widgets/company-list.ts",
+          "export": "startCompanyList"
+        },
+        "input": {
+          "schemaId": "company-page"
+        },
+        "state": {
+          "schemaId": "crm-widget-state"
+        },
+        "result": {
+          "schemaId": "company-page"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "list",
+            "label": "Lister",
+            "input": {
+              "schemaId": "company-list"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.crm",
+                "kind": "operation",
+                "id": "company.list"
+              }
+            }
+          },
+          {
+            "id": "search",
+            "label": "Rechercher",
+            "input": {
+              "schemaId": "company-search"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.crm",
+                "kind": "operation",
+                "id": "company.search"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 786432,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      },
+      {
+        "id": "company-detail",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "company-detail-ui",
+        "renderer": {
+          "path": "ui/widgets/company-detail.ts",
+          "export": "startCompanyDetail"
+        },
+        "input": {
+          "schemaId": "company-output"
+        },
+        "state": {
+          "schemaId": "crm-widget-state"
+        },
+        "result": {
+          "schemaId": "company-output"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "read",
+            "label": "Actualiser",
+            "input": {
+              "schemaId": "company-id"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.crm",
+                "kind": "operation",
+                "id": "company.read"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 786432,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      },
+      {
+        "id": "contact-list",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "contact-list-ui",
+        "renderer": {
+          "path": "ui/widgets/contact-list.ts",
+          "export": "startContactList"
+        },
+        "input": {
+          "schemaId": "contact-page"
+        },
+        "state": {
+          "schemaId": "crm-widget-state"
+        },
+        "result": {
+          "schemaId": "contact-page"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "list",
+            "label": "Lister",
+            "input": {
+              "schemaId": "contact-list"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.crm",
+                "kind": "operation",
+                "id": "contact.list"
+              }
+            }
+          },
+          {
+            "id": "search",
+            "label": "Rechercher",
+            "input": {
+              "schemaId": "contact-search"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.crm",
+                "kind": "operation",
+                "id": "contact.search"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 786432,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      },
+      {
+        "id": "contact-detail",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "contact-detail-ui",
+        "renderer": {
+          "path": "ui/widgets/contact-detail.ts",
+          "export": "startContactDetail"
+        },
+        "input": {
+          "schemaId": "contact-output"
+        },
+        "state": {
+          "schemaId": "crm-widget-state"
+        },
+        "result": {
+          "schemaId": "contact-output"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "read",
+            "label": "Actualiser",
+            "input": {
+              "schemaId": "contact-id"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.crm",
+                "kind": "operation",
+                "id": "contact.read"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 786432,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      },
+      {
+        "id": "prospect-list",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "prospect-list-ui",
+        "renderer": {
+          "path": "ui/widgets/prospect-list.ts",
+          "export": "startProspectList"
+        },
+        "input": {
+          "schemaId": "prospect-page"
+        },
+        "state": {
+          "schemaId": "crm-widget-state"
+        },
+        "result": {
+          "schemaId": "prospect-page"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "list",
+            "label": "Lister",
+            "input": {
+              "schemaId": "prospect-list"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.crm",
+                "kind": "operation",
+                "id": "prospect.list"
+              }
+            }
+          },
+          {
+            "id": "search",
+            "label": "Rechercher",
+            "input": {
+              "schemaId": "prospect-search"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.crm",
+                "kind": "operation",
+                "id": "prospect.search"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 786432,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      },
+      {
+        "id": "prospect-detail",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "prospect-detail-ui",
+        "renderer": {
+          "path": "ui/widgets/prospect-detail.ts",
+          "export": "startProspectDetail"
+        },
+        "input": {
+          "schemaId": "prospect-output"
+        },
+        "state": {
+          "schemaId": "crm-widget-state"
+        },
+        "result": {
+          "schemaId": "prospect-output"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "read",
+            "label": "Actualiser",
+            "input": {
+              "schemaId": "prospect-id"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.crm",
+                "kind": "operation",
+                "id": "prospect.read"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 786432,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      }
+    ],
     "publicContracts": []
   },
   "documentation": {
@@ -7606,7 +8406,7 @@
     },
     "versionBinding": {
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t20-crm-v1"
+      "sourceRevision": "t20-crm-widgets-v2"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -7641,15 +8441,12 @@
         ]
       },
       "widgets": {
-        "mode": "not-applicable",
+        "mode": "required",
         "script": "ci/widgets.mjs",
         "tests": [
-          "tests/widgets/contract.test.mjs"
-        ],
-        "justification": {
-          "reason": "No visual widget is needed for CRM operations; MCP tools return text.",
-          "policyRule": "crm.text-tools"
-        }
+          "tests/widgets/contract.test.mjs",
+          "tests/widgets/runtime.test.mjs"
+        ]
       },
       "package": {
         "mode": "required",
@@ -7698,9 +8495,23 @@
         "prd.md",
         "CHANGELOG.md",
         "LICENSE",
+        "ui/widgets/runtime.ts",
+        "ui/widgets/company-list.ts",
+        "ui/widgets/company-list.html",
+        "ui/widgets/company-detail.ts",
+        "ui/widgets/company-detail.html",
+        "ui/widgets/contact-list.ts",
+        "ui/widgets/contact-list.html",
+        "ui/widgets/contact-detail.ts",
+        "ui/widgets/contact-detail.html",
+        "ui/widgets/prospect-list.ts",
+        "ui/widgets/prospect-list.html",
+        "ui/widgets/prospect-detail.ts",
+        "ui/widgets/prospect-detail.html",
         "plugin/plugin.json",
         "plugin/mcp.json",
-        "plugin/contributions.ts"
+        "plugin/contributions.ts",
+        "plugin/skills/crm.md"
       ],
       "references": []
     },
@@ -7725,14 +8536,15 @@
         "ci/package.mjs",
         "tests/package/contract.test.mjs",
         "ci/docs.mjs",
-        "tests/docs/contract.test.mjs"
+        "tests/docs/contract.test.mjs",
+        "tests/widgets/runtime.test.mjs"
       ],
       "references": []
     },
     "validationBinding": {
       "moduleId": "creezio.crm",
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t20-crm-v1"
+      "sourceRevision": "t20-crm-widgets-v2"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",
@@ -7744,10 +8556,6 @@
     "uninstall": "explicit-approved-action",
     "activationRequirements": [],
     "absent": {
-      "widgets": {
-        "reason": "MCP tools provide text results without a CRM widget.",
-        "policyRule": "crm.text-tools"
-      },
       "files": {
         "reason": "CRM v1 has no file category.",
         "policyRule": "crm.no-files"

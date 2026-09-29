@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 
 const root=new URL('../',import.meta.url);
 const template=JSON.parse(readFileSync(new URL('../openai/module/manifest.json',root),'utf8'));
-const id='creezio.crm', revision='t20-crm-v1';
+const id='creezio.crm', revision='t20-crm-widgets-v2';
 const ref=(kind,name)=>({moduleId:id,kind,id:name});
 const field=(name,type,options={})=>({id:name,type,nullable:options.nullable??false,
   protected:options.protected??false,computed:false,...(options.constraints?{constraints:options.constraints}:{})});
@@ -59,6 +59,7 @@ const mutable={company:{name:str(240),city:nullable(str(240,0)),website:nullable
     stage:{type:'string',enum:['a_contacter','contacte','rdv','client','perdu']},position:integer(),
     companyId:nullable(str()),contactId:nullable(str())}};
 const operations=[];
+const entities=['company','contact','prospect'];
 const errors=['invalid_input','unauthorized','forbidden','not_found','conflict','rate_limited','unavailable','unknown']
   .map(code=>({code,retryable:['rate_limited','unavailable','unknown'].includes(code),outcome:code==='unknown'?'unknown':'rejected'}));
 const permission={id:'use',title:'Gérer les relations CRM',audiences:['admin','app'],actors:['user','delegated-user','machine'],
@@ -90,7 +91,7 @@ function operation(entity,action,input,output){
     execution:{maxDurationMs:10000,maxItems:['list','search'].includes(action)?500:25,resumable:false},
     audit:{required:true,redactFields:['notes','email','phone','query']},public:false});
 }
-for(const entity of ['company','contact','prospect']){
+for(const entity of entities){
   const view=obj({...commonView,...extras[entity]});
   const output=schema(`${entity}-output`,obj({item:view}));
   const page=schema(`${entity}-page`,obj({items:{type:'array',items:view,maxItems:25},nextCursor:nullable(str(2048))}));
@@ -120,11 +121,43 @@ for(const op of operations){
       operation:ref('operation',op.id),audience,auth:['session','oauth','api-token'],parameters,input:op.input,output:op.output,
       rateLimit:{requests:60,windowSeconds:60}});
   }
+  const [entity,action]=op.id.split('.');
+  const widget=['list','search'].includes(action)?ref('widget',`${entity}-list`):
+    action==='read'?ref('widget',`${entity}-detail`):null;
   tools.push({id:op.id,name:`crm_${op.id.replaceAll('.','_')}`,operation:ref('operation',op.id),
     audiences:['admin','app'],auth:['oauth','api-token'],input:op.input,output:op.output,
     annotations:{readOnly:!command,destructive:op.id.endsWith('.archive'),idempotent:!command,openWorld:false},
-    textFallback:true});
+    ...(widget?{widget}:{}),textFallback:true});
 }
+const widgetState=schema('crm-widget-state',obj({id:str(),query:str(120,0),cursor:str(2048),
+  archived:{type:'boolean'}},[]));
+const widgetResource=name=>({id:`${name}-ui`,uri:`ui://${id}/${name}`,
+  mimeType:'text/html;profile=mcp-app',audiences:['admin','app'],permissions:[ref('permission','use')],
+  source:{kind:'asset',path:`ui/widgets/${name}.html`},widget:ref('widget',name),
+  ui:{csp:{connectDomains:[],resourceDomains:[],frameDomains:[],baseUriDomains:[]},
+    permissions:{},prefersBorder:true}});
+const widgetAction=(id,label,input,operation)=>({id,label,input,
+  requiredCapabilities:[],fallback:'unavailable',mode:'direct',
+  target:{kind:'operation',operation:ref('operation',operation)}});
+const widget=(entity,kind)=>{
+  const name=`${entity}-${kind}`,list=kind==='list';
+  const output={schemaId:list?`${entity}-page`:`${entity}-output`};
+  return {id:name,version:'1.0.0',compatibility:'^1.0.0',resource:`${name}-ui`,
+    renderer:{path:`ui/widgets/${name}.ts`,export:`start${entity[0].toUpperCase()+entity.slice(1)}${list?'List':'Detail'}`},
+    input:output,state:widgetState,result:output,audiences:['admin','app'],
+    permissions:[ref('permission','use')],requiredCapabilities:[],assets:[],
+    actions:list?[widgetAction('list','Lister',{schemaId:`${entity}-list`},`${entity}.list`),
+      widgetAction('search','Rechercher',{schemaId:`${entity}-search`},`${entity}.search`)]:
+      [widgetAction('read','Actualiser',{schemaId:`${entity}-id`},`${entity}.read`)],
+    instance:{identity:'host-generated',revision:'monotonic',correlation:'request-instance-conversation',
+      objectVersion:'distinct',lateResponse:'reject-stale'},
+    // MCP envelopes can contain structured output plus re-escaped JSON text.
+    transport:{protocol:'mcp-apps',maxPayloadBytes:786432,timeoutMs:15000,
+      uncertainResult:'reconcile-before-retry',fallbackDispatch:'before-first-dispatch-only'}};
+};
+const widgetNames=entities.flatMap(entity=>[`${entity}-list`,`${entity}-detail`]);
+const skillPath='plugin/skills/crm.md';
+const skillIntegrity=`sha256-${createHash('sha256').update(readFileSync(new URL(skillPath,root))).digest('hex')}`;
 const m=structuredClone(template);
 m.identity={id,title:'CRM natif',publisher:'creezio',origin:'https://github.com/creezio/Creezio-D1R2',
   version:'0.0.0',source:{kind:'snapshot',revision,integrity:`sha256-${createHash('sha256').update(revision).digest('hex')}`},
@@ -140,7 +173,11 @@ const panelState=schema('crm-panel-state',obj({entity:{type:'string',enum:['comp
     action:{type:'string',enum:['create','update','archive','restore']},requestKey:str(128),
     sessionId:str(128),contextId:str(128),audience:{type:'string',enum:['admin','app']}})},[]));
 m.contracts={schemas,models,files:[],events:[],settings:[],search:[],permissions:[permission],operations,api,
-  mcp:{tools,resources:[],prompts:[],skills:[]},ui:{views:[{id:'workspace',title:'CRM',surfaces:['workspace'],
+  mcp:{tools,resources:widgetNames.map(widgetResource),prompts:[],
+    skills:[{id:'crm',path:skillPath,audiences:['admin','app'],
+      operations:entities.flatMap(entity=>['list','search','read'].map(action=>ref('operation',`${entity}.${action}`))),
+      resources:widgetNames.map(name=>`${name}-ui`),integrity:skillIntegrity}]},
+  ui:{views:[{id:'workspace',title:'CRM',surfaces:['workspace'],
     route:'/admin/crm',component:{path:'ui/index.tsx',export:'CrmWorkspaceView'},permissions:[ref('permission','use')],
     operations:operations.map(op=>ref('operation',op.id)),input:viewInput,
     panel:{identityFields:[],navigation:'sdk',retention:'preserve',inactiveEffects:'suspend',stateSchema:panelState}},
@@ -150,20 +187,21 @@ m.contracts={schemas,models,files:[],events:[],settings:[],search:[],permissions
     navigation:[{id:'crm',title:'CRM',view:ref('view','workspace'),permissions:[ref('permission','use')],
       surfaces:['workspace'],order:55},{id:'crm-front',title:'CRM',view:ref('view','front'),
       permissions:[ref('permission','use')],surfaces:['front'],order:55}],slots:[],front:{mode:'provided'},
-      themes:[],styles:[]},widgets:[],publicContracts:[]};
+      themes:[],styles:[]},widgets:entities.flatMap(entity=>[widget(entity,'list'),widget(entity,'detail')]),
+      publicContracts:[]};
 m.documentation.versionBinding={moduleVersion:'0.0.0',sourceRevision:revision};
 for(const name of ['backend','ui','api-mcp','widgets','package','docs'])m.validation.suites[name].tests=[`tests/${name}/contract.test.mjs`];
-m.validation.suites.widgets.mode='not-applicable';
-m.validation.suites.widgets.justification={reason:'No visual widget is needed for CRM operations; MCP tools return text.',policyRule:'crm.text-tools'};
+m.validation.suites.widgets.tests.push('tests/widgets/runtime.test.mjs');
+m.validation.suites.widgets.mode='required';delete m.validation.suites.widgets.justification;
 m.packaging.runtime.files=['module/manifest.json','module/models.json','module/entry.server.ts','module/operations.ts',
   'module/service.ts','ui/index.tsx','ui/editing.ts','ui/commands.ts','ui/kanban.tsx','README.md','prd.md','CHANGELOG.md','LICENSE',
-  'plugin/plugin.json','plugin/mcp.json','plugin/contributions.ts'];
+  'ui/widgets/runtime.ts',...widgetNames.flatMap(name=>[`ui/widgets/${name}.ts`,`ui/widgets/${name}.html`]),
+  'plugin/plugin.json','plugin/mcp.json','plugin/contributions.ts',skillPath];
 m.packaging.validation.files=['AGENTS.md','FILES.md','interview.md','TODO.md','gate.mjs','module/generate-manifest.mjs',
   'ci/run-suite.mjs','tests/helpers.mjs',...['backend','ui','api-mcp','widgets','package','docs'].flatMap(name=>
-    [`ci/${name}.mjs`,`tests/${name}/contract.test.mjs`])];
+    [`ci/${name}.mjs`,`tests/${name}/contract.test.mjs`]),'tests/widgets/runtime.test.mjs'];
 m.packaging.validationBinding={moduleId:id,moduleVersion:'0.0.0',sourceRevision:revision};
-m.lifecycle.absent={widgets:{reason:'MCP tools provide text results without a CRM widget.',policyRule:'crm.text-tools'},
-  files:{reason:'CRM v1 has no file category.',policyRule:'crm.no-files'}};
+m.lifecycle.absent={files:{reason:'CRM v1 has no file category.',policyRule:'crm.no-files'}};
 m.lifecycle.configuration='explicit-state';
 writeFileSync(new URL('module/models.json',root),JSON.stringify(models,null,2)+'\n');
 writeFileSync(new URL('module/manifest.json',root),JSON.stringify(m,null,2)+'\n');

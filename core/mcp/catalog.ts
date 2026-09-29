@@ -11,7 +11,10 @@ const fail = (): never => { throw new TypeError('Invalid MCP catalog.'); };
 
 /** Runtime check against the compiled operation registry; a catalog never grants authority. */
 export function createMcpCatalog(catalog: McpCatalog, registry: OperationRegistry) {
-  try { catalog = copyJson(catalog, 4 * 1024 * 1024) as unknown as McpCatalog; }
+  // This static inventory includes compiled widget HTML for each exposed audience.
+  // The connectors composition with six CRM widgets measures about 12 MB. Keep
+  // an aggregate budget without changing request or individual resource limits.
+  try { catalog = copyJson(catalog, 16 * 1024 * 1024) as unknown as McpCatalog; }
   catch { fail(); }
   if (!catalog || !Array.isArray(catalog.tools) || !Array.isArray(catalog.resources)
     || catalog.tools.length > 1000 || catalog.resources.length > 1000) fail();

@@ -87,7 +87,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-17](#T-17) | P5 | Tâches humaines et travail | [T-11](#T-11), [T-14](#T-14) | À faire — dernier bloc |
 | [T-18](#T-18) | P5 | Messagerie native | [T-11](#T-11), [T-14](#T-14) | PR #42/#44 intégrées ; partage workspace/front vérifié sur Linux |
 | [T-19](#T-19) | P5 | Support | [T-11](#T-11), [T-17](#T-17), [T-18](#T-18) | En cours — première tranche intégrée, compléments ouverts |
-| [T-20](#T-20) | P5 | CRM | [T-11](#T-11) | Tranche locale intégrée PR #43, navigateur et CI candidate vérifiés ; compléments ouverts |
+| [T-20](#T-20) | P5 | CRM | [T-11](#T-11) | Tranche locale intégrée PR #43 ; six widgets de lecture en qualification, compléments ouverts |
 | [T-21](#T-21) | P5 | Pages et navigation | [T-11](#T-11), [T-13](#T-13) | En cours — première tranche en intégration |
 | [T-22](#T-22) | P5 | Analytics et diagnostics | [T-11](#T-11), [T-17](#T-17) | En cours — première tranche en intégration |
 | [T-23](#T-23) | P5 | Intentions et développement piloté | [T-12](#T-12), [T-17](#T-17) | À faire — dernier bloc, plan et accord explicite préalables |
@@ -310,11 +310,12 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 <a id="T-20"></a>
 ## T-20 — CRM
 
-- Lot : **P5** ; état : **en cours** ; responsable : root, réalisation/revues avec les agents Sol ; branche `core/t20-native-crm`.
+- Lot : **P5** ; état : **en cours** ; responsable : root, réalisation/revues avec les agents Sol ; complément `module/crm/t20-chat-widgets` après la tranche `core/t20-native-crm` intégrée.
 - Dépendances : [T-11](#T-11).
 - Travail/livrables : Module crm, entités/relations/recherche et vues. Première tranche : trois modèles, vingt et une opérations, front et workspace déclarés, révisions de formulaire et suivi des mutations incertaines.
 - Acquis ciblés : PR #43 fusionnée sur `c566fc1`, arbre identique au candidat `76327f8`, revue indépendante et CI candidate 1 188/1 188 sans omission. Intégration réelle D1 et HTTP/MCP, partage ADMIN/APP autorisé, refus de scope, révocation, cohérence des relations et course concurrente. Le navigateur vérifie kanban, fiches liées, archives, conservation des brouillons par sous-vue et mise à jour partagée workspace/front standard. La CI main 36473024844 a également réussi 1 188/1 188 tests ; restent profils hébergés, widgets visuels et contrats intermodules. Voir [T20](IMPLEMENTATION-T20.md).
 - Besoin : [US-20](USER-STORIES.md#US-20). Acceptation : [REQ-2001](EXIGENCES.md#REQ-2001).
+- Complément conversationnel en qualification : six widgets MCP Apps, listes et fiches des trois entités, avec les mêmes opérations de lecture et droits. Recherche et pagination sont volontaires ; les pages affichées sont remplacées sans accumulation. Un skill conversationnel accompagne ces ressources. Modèles, écritures et écrans du CRM restent inchangés. Les résultats dépassant la limite actuelle du chat interne sont refusés sans troncature ; la qualification ChatGPT externe reste distincte.
 - Validation : implémenter puis exécuter les recettes liées, sur **workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : PR #43, CI candidate/main 1 188/1 188, recettes D1/HTTP/MCP et navigateur ; voir les limites de T20.
 

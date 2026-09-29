@@ -53,3 +53,36 @@ test('relation commands declare the parent models they CAS-update',()=>{
   assert.ok(archive.effects.reads.some(ref=>ref.id==='contact'));
   assert.ok(archive.effects.reads.some(ref=>ref.id==='prospect'));
 });
+test('six typed CRM widgets bind only existing read operations',()=>{
+  const c=manifest.contracts;
+  const tools=new Map(c.mcp.tools.map(tool=>[tool.operation.id,tool]));
+  const resources=new Map(c.mcp.resources.map(resource=>[resource.id,resource]));
+  assert.equal(c.widgets.length,6);
+  assert.equal(resources.size,6);
+  for(const entity of ['company','contact','prospect'])for(const kind of ['list','detail']){
+    const name=`${entity}-${kind}`,widget=c.widgets.find(item=>item.id===name);
+    assert.ok(widget,name);
+    assert.equal(widget.input.schemaId,`${entity}-${kind==='list'?'page':'output'}`);
+    assert.equal(widget.result.schemaId,widget.input.schemaId);
+    assert.deepEqual(widget.audiences,['admin','app']);
+    assert.deepEqual(widget.permissions.map(ref=>ref.id),['use']);
+    assert.equal(widget.resource,`${name}-ui`);
+    const resource=resources.get(widget.resource);
+    assert.equal(resource.widget.id,name);
+    assert.equal(resource.mimeType,'text/html;profile=mcp-app');
+    assert.deepEqual(resource.permissions.map(ref=>ref.id),['use']);
+    assert.deepEqual(widget.actions.map(action=>action.id),kind==='list'?['list','search']:['read']);
+    for(const action of widget.actions){
+      const operationId=`${entity}.${action.id}`,operation=c.operations.find(item=>item.id===operationId);
+      assert.equal(operation?.kind,'query');
+      assert.equal(action.mode,'direct');
+      assert.equal(action.target.operation.id,operationId);
+      assert.equal(action.input.schemaId,operation.input.schemaId);
+      assert.equal(tools.get(operationId)?.widget?.id,name);
+      assert.equal(tools.get(operationId)?.textFallback,true);
+    }
+  }
+  for(const tool of c.mcp.tools.filter(item=>item.operation.id.endsWith('.create')
+    ||item.operation.id.endsWith('.update')||item.operation.id.endsWith('.archive')
+    ||item.operation.id.endsWith('.restore')))assert.equal(tool.widget,undefined);
+});

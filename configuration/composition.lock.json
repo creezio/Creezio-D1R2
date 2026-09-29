@@ -192,22 +192,22 @@
       "version": "0.0.0",
       "source": {
         "kind": "snapshot",
-        "revision": "t20-crm-v1",
-        "integrity": "sha256-2ba62e4dfebdc1e0fec8830ef369a1e0a81e55a73376c409399aebdab02ed7b5"
+        "revision": "t20-crm-widgets-v2",
+        "integrity": "sha256-d329a4051f810ffe9e40c6109a54a0508aa7c445979a931834ff4b5345acf0d0"
       },
-      "contractIntegrity": "sha256-b66d941c06bbcf709c225e7f139a87a5cc3bff90704cfb36a06d62826ee83aaf",
+      "contractIntegrity": "sha256-fedf95a039df694f7b5b5aee836e3422582d761c0d7938e24a14e44fad2f6090",
       "runtime": {
-        "integrity": "sha256-9215717549d550c9da65cb8cac18236b7c3b056fe5d9990b6e6d6e8220e88b3b",
+        "integrity": "sha256-a68a5c7e90f6da331f83283444d4241829e06ac9efb015e18e73e73b62c24aaa",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.crm/runtime-9215717549d550c9da65cb8cac18236b7c3b056fe5d9990b6e6d6e8220e88b3b.tgz"
+          "path": ".creezio/module-artifacts/creezio.crm/runtime-a68a5c7e90f6da331f83283444d4241829e06ac9efb015e18e73e73b62c24aaa.tgz"
         }
       },
       "validation": {
-        "integrity": "sha256-a5e7a8bb13b806be4852c2dc0c833a6f94a6976543239d60bd221cb606efdb11",
+        "integrity": "sha256-0c4adf29ce6e86dbcd4c73fdfd82e6fd252ca15bde7124e844c928a60ed4efbd",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.crm/validation-a5e7a8bb13b806be4852c2dc0c833a6f94a6976543239d60bd221cb606efdb11.tgz"
+          "path": ".creezio/module-artifacts/creezio.crm/validation-0c4adf29ce6e86dbcd4c73fdfd82e6fd252ca15bde7124e844c928a60ed4efbd.tgz"
         }
       },
       "dependencies": [

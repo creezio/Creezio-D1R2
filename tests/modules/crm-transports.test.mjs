@@ -2,6 +2,8 @@ import '../../scripts/local-environment.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {buildSync} from 'esbuild';
 import {Miniflare} from 'miniflare';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
@@ -9,6 +11,7 @@ import {Client,StreamableHTTPClientTransport} from '@modelcontextprotocol/client
 import {generateD1Schema} from '../../scripts/data/d1-schema.mjs';
 import {compileHttpBindings} from '../../scripts/operations/http-bindings.mjs';
 import {compileMcpBindings} from '../../scripts/mcp/bindings.mjs';
+import {compileWidgetCatalog} from '../../scripts/widgets/compile.mjs';
 import {OPERATION_MODELS,OPERATION_STORAGE_MODULE_ID} from '../../core/operations/models.ts';
 import {createAccountService,provisionBootstrapCapability} from '../../core/identity/accounts.ts';
 import {createAccountLifecycleService} from '../../core/identity/lifecycle.ts';
@@ -113,7 +116,17 @@ test('CRM HTTP and MCP share records, reject foreign scopes and honor fresh mach
       assert.equal((await wire('/api/admin/crm/company/list?limit=5')).status,401);
       assert.equal((await wire('/api/app/crm/company/list?limit=5',undefined,'other')).status,401);
       assert.equal((await wire('/api/app/crm/company/list?limit=5',undefined,'application','invalid-token')).status,401);
-      const mcpBindings=compileMcpBindings({composition,modules:[manifest],operationCatalog:registered.catalog});
+      const widgetCatalog=compileWidgetCatalog({composition,modules:[manifest],
+        operationCatalog:registered.catalog,
+        readAsset:(_id,relative)=>readFileSync(new URL(`../../extensions/native/crm/${relative}`,
+          import.meta.url),'utf8'),
+        bundleRenderer:(_id,reference)=>buildSync({entryPoints:[fileURLToPath(new URL(
+          `../../extensions/native/crm/${reference.path}`,import.meta.url))],bundle:true,
+          write:false,platform:'browser',format:'iife',globalName:'__creezioWidget',target:'es2022',
+          minify:true,footer:{js:`__creezioWidget.${reference.export}();`}}).outputFiles[0].text});
+      assert.equal(widgetCatalog.widgets.length,6);
+      const mcpBindings=compileMcpBindings({composition,modules:[manifest],
+        operationCatalog:registered.catalog,widgetCatalog});
       const mcp=createMcpHttpTransport(mcpBindings,registered,engine,{origin,
         resourceMetadataUrl:audience=>`${origin}/.well-known/oauth-protected-resource/mcp/${audience}`,
         authenticate:async(request,audience)=>{
@@ -130,7 +143,8 @@ test('CRM HTTP and MCP share records, reject foreign scopes and honor fresh mach
       const tools=(await client.listTools()).tools;
       assert.ok(tools.some(tool=>tool.name==='crm_company_read'));
       const read=await client.callTool({name:'crm_company_read',arguments:{id:company.id}});
-      assert.equal(read.structuredContent.item.name,creation.name);
+      assert.equal(read.structuredContent.kind,'creezio.widget.render.v1');
+      assert.equal(read.structuredContent.input.item.name,creation.name);
       const changed=await client.callTool({name:'crm_company_update',arguments:{id:company.id,revision:1,
         requestKey:'wire-update',name:'Updated through MCP'}});
       assert.equal(changed.structuredContent.item.revision,2);
@@ -139,11 +153,38 @@ test('CRM HTTP and MCP share records, reject foreign scopes and honor fresh mach
       const stale=await wire('/api/app/crm/company/update',{requestKey:'wire-stale',id:company.id,revision:1,name:'Lost update'});
       const staleBody=await stale.json();
       assert.equal(staleBody.error?.code??staleBody.execution?.errorCode,'conflict');
+      const contact=succeeded(await invoke('contact.create',
+        {requestKey:'widget-contact',name:'Widget contact'})).item;
+      const prospect=succeeded(await invoke('prospect.create',
+        {requestKey:'widget-prospect',name:'Widget prospect'})).item;
+      const examples={company:{...company,name:'Updated through MCP'},contact,prospect};
+      const resources=(await client.listResources()).resources;
+      assert.equal(resources.length,6);
+      for(const [entity,item] of Object.entries(examples)){
+        for(const action of ['read','list','search']){
+          const name=`crm_${entity}_${action}`,tool=tools.find(entry=>entry.name===name);
+          assert.ok(tool?._meta?.ui?.resourceUri,`${name} advertises its declared widget`);
+          const result=await client.callTool({name,arguments:action==='read'?{id:item.id}:
+            {limit:5,...(action==='search'?{query:item.name}:{})}});
+          assert.equal(result.structuredContent.kind,'creezio.widget.render.v1');
+          assert.equal(result.structuredContent.instance.moduleId,moduleId);
+          assert.equal(result.structuredContent.instance.audience,'app');
+          const output=result.structuredContent.input;
+          assert.ok(action==='read'?output.item.id===item.id:output.items.some(row=>row.id===item.id));
+          assert.deepEqual(JSON.parse(result.content[0].text).output,output,
+            'text-only clients receive the same authorized business result');
+          const resource=await client.readResource({uri:tool._meta.ui.resourceUri});
+          assert.ok(resource.contents.some(part=>typeof part.text==='string'&&part.text.includes('<main')));
+        }
+      }
+      assert.ok(!tools.find(tool=>tool.name==='crm_company_update')._meta?.ui,
+        'adding read widgets does not introduce a chat mutation action');
       const latest=good(await acl.readPolicy(ownerAdmin.token)),revoked=structuredClone(latest.policy);
       revoked.assignments=revoked.assignments.filter(row=>row.principalId!==machine.id);
       good(await acl.replacePolicy(ownerAdmin.token,{expectedEpoch:latest.epoch,policy:revoked}));
       assert.equal((await wire('/api/app/crm/company/list?limit=5')).status,403);
       await assert.rejects(client.callTool({name:'crm_company_read',arguments:{id:company.id}}));
+      await assert.rejects(client.readResource({uri:resources[0].uri}));
       assert.equal(succeeded(await invoke('company.read',{id:company.id},colleagueApp)).item.revision,2,
         'machine revocation does not remove colleague access or data');
     }finally{if(client)await client.close();await runtime.dispose();}
