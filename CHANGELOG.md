@@ -1,8 +1,8 @@
 # Changelog
 
-## En cours — images du catalogue dans le front authentifié (T25)
+## Préparation SDK 1.3.0 — images liées du Catalogue (T25/T30)
 
-Le contrat de fichiers reçoit une lecture liée à un enregistrement publié et à ses droits courants. Le SDK 1.3 candidat ajoute `downloadLinked` sur le transport natif existant ; les lectures privées du propriétaire, uploads et abandons conservent leurs règles. Ce complément est en développement et ne constitue pas une publication de paquet ou d'application.
+Le candidat de la PR #48 porte `linkedRead` déclaré et `downloadLinked` sur le transport natif existant ; lecture privée du propriétaire, upload et abandon gardent leurs règles. Il a passé 1 227/1 227 contrôles et la lecture d’image liée a été exercée sur Linux. Cette préparation documentaire ne publie ni le SDK 1.3 ni une nouvelle application : archive finale, tag et téléchargements restent à qualifier depuis le main de release. Voir [T25](docs/IMPLEMENTATION-T25.md) et [T30](docs/IMPLEMENTATION-T30.md).
 
 ## En qualification — outils du chat des modules (T15/T16)
 
