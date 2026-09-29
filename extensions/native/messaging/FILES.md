@@ -5,7 +5,8 @@
 - `ui/index.tsx` : orchestration du workspace, navigation, identité, recherche, brouillon, fichiers et commandes journalisées par le SDK public.
 - `ui/presentation.tsx` : dossiers, liste, lecteur en trois panneaux et destinataires issus du webmail original.
 - `ui/rich-editor.tsx` : éditeur visuel natif, vocabulaire HTML étroit et barre de mise en forme.
-- `plugin/` : projection MCP et skill de rédaction ; pas de second backend ni de widget V1 inventé.
+- `ui/widgets/` : trois rendus MCP Apps de lecture, issus des composants et couleurs du webmail natif ; aperçu borné puis détail explicite.
+- `plugin/` : projection MCP et skill de rédaction ; aucun second backend.
 - `ci/` et `tests/` : six suites backend, UI, API/MCP, widgets, paquet et docs.
 - `README.md`, `prd.md`, `CHANGELOG.md`, `LICENSE` : documents de version installée ; `AGENTS.md`, `FILES.md`, `interview.md`, `TODO.md` : documents de développement.
 

@@ -1,5 +1,5 @@
 import {OperationError} from '@creezio/sdk/operations/error';
-import type {OperationContext,JsonValue} from '../../../../sdk/operations/handler.ts';
+import type {OperationContext,JsonValue} from '@creezio/sdk/operations/handler';
 
 type Row=Record<string,JsonValue>;
 type Input=Record<string,any>;
@@ -85,6 +85,76 @@ async function list(c:OperationContext,model:string,args:Input,where:Row,indexId
   const page=await c.data.list(model,{limit,where,after,order:{indexId,direction:'desc'}}) as Page;
   return {output:{items:page.items.map(map),nextCursor:nextCursor(page.nextAfter,marker)}};
 }
+
+// Preview operations deliberately expose bounded excerpts. Full text and HTML are
+// fetched only by an explicit read in the widget or workspace.
+const excerpt=(value:JsonValue)=>{const chars=Array.from(String(value??''));
+  return {value:chars.slice(0,48).join(''),hasMore:chars.length>48};};
+const boundedPreview=(items:unknown[],after:Row|null,marker:Record<string,unknown>)=>{
+  const output={items,nextCursor:nextCursor(after,marker)};
+  // turn-bridge accepts at most 8192 bytes including its output wrapper.
+  if(new TextEncoder().encode(JSON.stringify({output})).length>7600)fail('unavailable');
+  return {output};
+};
+export async function boxPreviewList(value:JsonValue,c:OperationContext){
+  const a=input(value),limit=pageLimit(a.limit);
+  if(limit>5)fail('invalid_input');
+  const where=scope(c),marker=expected(c,where),after=cursor(a.cursor,marker);
+  const page=await c.data.list('box',{limit,where,after,
+    fields:['owner_id','updated_at','id','name','address','revision'],
+    order:{indexId:'recent-boxes',direction:'desc'}}) as Page;
+  return boundedPreview(page.items.map(row=>({id:row.id,
+    nameExcerpt:excerpt(row.name).value,nameHasMore:excerpt(row.name).hasMore,
+    addressExcerpt:excerpt(row.address).value,addressHasMore:excerpt(row.address).hasMore,
+    revision:row.revision})),page.nextAfter,marker);
+}
+export async function messagePreviewList(value:JsonValue,c:OperationContext){
+  const a=input(value),b=await box(c,a.boxId),limit=pageLimit(a.limit);
+  if(limit>5||a.folder!==undefined&&!['inbox','sent','outbox','archive','trash'].includes(String(a.folder))
+    ||a.unread!==undefined&&typeof a.unread!=='boolean'
+    ||a.query!==undefined&&(!validText(a.query,240)||!a.query.trim())
+    ||a.threadId!==undefined&&!validId(a.threadId))fail('invalid_input');
+  const where:Row={...scope(c),box_id:b.id,
+    ...(a.folder===undefined?{}:{folder:a.folder as string}),
+    ...(a.threadId===undefined?{}:{thread_id:a.threadId as string}),
+    ...(a.unread===true?{read_at:null}:{})};
+  const marker=expected(c,{...where,folder:a.folder??null,unread:a.unread??null,
+    query:a.query??null,threadId:a.threadId??null});
+  const after=cursor(a.cursor,marker);
+  const page=await c.data.list('message',{limit,where,after,
+    fields:['owner_id','box_id','created_at','id','direction','from_addr','to_addr',
+      'subject','text_body','state','folder','read_at','thread_id','received_at','sent_at','revision'],
+    order:{indexId:'recent-messages',direction:'desc'}}) as Page;
+  const query=String(a.query??'').toLocaleLowerCase();
+  const items=page.items.filter(row=>(a.unread===undefined||a.unread===(row.read_at===null))
+    &&(!query||`${row.from_addr} ${row.to_addr} ${row.subject} ${row.text_body}`.toLocaleLowerCase().includes(query)))
+    .map(row=>{const peer=excerpt(row.direction==='inbound'?row.from_addr:row.to_addr),
+      subject=excerpt(row.subject),body=excerpt(row.text_body);
+      return {id:row.id,boxId:row.box_id,direction:row.direction,
+        peerExcerpt:peer.value,peerHasMore:peer.hasMore,
+        subjectExcerpt:subject.value,subjectHasMore:subject.hasMore,
+        bodyExcerpt:body.value,bodyHasMore:body.hasMore,
+        state:row.state,folder:row.folder,read:row.read_at!==null,threadId:row.thread_id,
+        receivedAt:row.received_at,sentAt:row.sent_at,revision:row.revision};});
+  return boundedPreview(items,page.nextAfter,marker);
+}
+export async function draftPreviewList(value:JsonValue,c:OperationContext){
+  const a=input(value),b=await box(c,a.boxId),limit=pageLimit(a.limit);
+  if(limit>5||a.query!==undefined&&(!validText(a.query,240)||!a.query.trim()))fail('invalid_input');
+  const where={...scope(c),box_id:b.id},marker=expected(c,{...where,query:a.query??null});
+  const after=cursor(a.cursor,marker);
+  const page=await c.data.list('draft',{limit,where,after,
+    fields:['owner_id','box_id','updated_at','id','to_addr','subject','text_body','revision'],
+    order:{indexId:'recent-drafts',direction:'desc'}}) as Page;
+  const query=String(a.query??'').toLocaleLowerCase();
+  const items=page.items.filter(row=>!query||`${row.to_addr} ${row.subject} ${row.text_body}`.toLocaleLowerCase().includes(query))
+    .map(row=>{const peer=excerpt(row.to_addr),subject=excerpt(row.subject),body=excerpt(row.text_body);
+      return {id:row.id,boxId:row.box_id,peerExcerpt:peer.value,peerHasMore:peer.hasMore,
+        subjectExcerpt:subject.value,subjectHasMore:subject.hasMore,
+        bodyExcerpt:body.value,bodyHasMore:body.hasMore,updatedAt:row.updated_at,revision:row.revision};});
+  return boundedPreview(items,page.nextAfter,marker);
+}
+
 export async function boxList(value:JsonValue,c:OperationContext){
   return list(c,'box',input(value),scope(c),'recent-boxes',viewBox);
 }

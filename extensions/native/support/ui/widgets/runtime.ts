@@ -126,7 +126,7 @@ export async function mountSupportWidget(kind:'list'|'thread',audience:'admin'|'
       }
       const creation=byId('create-panel');if(creation)creation.hidden=audience==='admin';
     }else{
-      if(byId('subject'))byId('subject')!.textContent=ticket?.subject??'Ticket indisponible';
+      if(byId('subject'))byId('subject')!.textContent=ticket?.subject??'Fil du ticket';
       if(byId('ticket-meta'))byId('ticket-meta')!.textContent=ticket?
         `${ticketStatus[ticket.status]} · ${ticket.messageCount} message(s)`:'';
       const target=byId('messages');if(target){target.replaceChildren();

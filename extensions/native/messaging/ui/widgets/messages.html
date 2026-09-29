@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{margin:0;background:#fcfbf8;color:#14182f;font:14px system-ui,sans-serif}main{padding:14px}
+.messaging-row{background:#fff;border-bottom:1px solid #f0ebe1;padding:10px}.messaging-row p{margin:3px 0}
+.messaging-peer,.messaging-preview,#status{color:#5c6478;font-size:12px}.messaging-button,button,select,input{border:1px solid #e6e0d4;background:#fff;border-radius:6px;padding:6px;color:#14182f}
+button:disabled{opacity:.5}.messaging-body{white-space:pre-wrap;font:14px system-ui,sans-serif}#reader{margin-top:12px}
+</style></head><body><main id="messaging-widget"><h2>Messages</h2><p id="status">Résultat en lecture seule.</p>
+<div><label>Dossier <select id="folder"><option value="inbox">Réception</option><option value="sent">Envoyés</option><option value="outbox">File d’attente</option><option value="archive">Archives</option><option value="trash">Corbeille</option></select></label><label>Rechercher <input id="query" maxlength="240"></label><button id="search" type="button">Rechercher</button><button id="refresh" type="button">Actualiser</button></div><div id="list"></div>
+<button id="more" type="button">Afficher la suite</button><section id="reader" aria-label="Lecture"></section></main></body></html>

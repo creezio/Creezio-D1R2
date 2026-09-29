@@ -12,7 +12,13 @@ Décision utilisateur du 28 septembre : les boîtes, messages, brouillons et pi�
 
 Sans fournisseur configuré, la rédaction reste disponible et l'envoi/réception est explicitement indisponible. Le socle n'héberge aucun serveur SMTP/IMAP et ne lance aucun ordonnanceur. Un résultat inconnu chez un fournisseur ne doit jamais être transformé en envoi confirmé ou rejoué automatiquement.
 
-## Qualification
+## Widgets de lecture — tranche en qualification
+
+Trois cartes partagent les mêmes boîtes et droits que la messagerie : boîtes, messages et brouillons. Les listes conversationnelles utilisent des projections serveur de cinq éléments au maximum, avec extraits explicitement signalés et sortie bornée à 7 600 octets sous le plafond du chat. Le contenu complet est lu seulement sur demande ; un message HTML est présenté en texte dans la carte et renvoie à la messagerie pour sa mise en forme. Le module conserve ses modèles actuels et son interface native.
+
+Les outils directs des cartes appellent les opérations du module, sans envoi de courrier, mutation implicite au montage ou dépendance à un fournisseur. Le contrôle des curseurs, du propriétaire, du contexte et des permissions reste serveur. La qualification source, les tests sur archives autonomes et la recette dans le chat sont des étapes distinctes ; la présence du renderer ne clôt pas la recette ChatGPT.
+
+## Qualification historique avant les widgets
 
 Les six suites locales ont passé 19 tests initiaux (8 backend, 5 UI, 3 API/MCP et un dans chaque suite widgets, paquet et documentation). Après revue, la suite UI passe six tests et les parcours de sélection du brouillon sauvegardé, du lecteur après sauvegarde répétée et de restauration de la boîte sont corrigés. La suite widgets vérifie l'absence déclarée de renderer et le maintien des outils MCP textuels ; elle ne constitue pas une recette ChatGPT.
 

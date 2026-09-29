@@ -2,7 +2,7 @@ import {readFileSync,writeFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 
 const root=new URL('../',import.meta.url);
-const template=JSON.parse(readFileSync(new URL('../conversations/module/manifest.json',root),'utf8'));
+const template=JSON.parse(readFileSync(new URL('manifest.json',import.meta.url),'utf8'));
 const id='creezio.messaging',ref=(kind,name)=>({moduleId:id,kind,id:name});
 const S=(max=128,min=1)=>({minLength:min,maxLength:max});
 const I=(min=0)=>({minimum:min,maximum:Number.MAX_SAFE_INTEGER});
@@ -125,6 +125,34 @@ const empty=schema('empty-input',obj({}));
 const transportOutput=schema('transport-output',obj({state:{const:'unavailable'},send:{const:false},receive:{const:false}}));
 const sendInput=schema('message-send-input',obj({requestKey:str(),boxId:str(),draftId:str(),revision:num(1)}));
 const sendOutput=schema('message-send-output',obj({message}));
+const previewString=str(48,0),previewLimit=num(1,5);
+const boxPreview=obj({id:str(),nameExcerpt:previewString,nameHasMore:{type:'boolean'},
+  addressExcerpt:previewString,addressHasMore:{type:'boolean'},revision:num(1)});
+const messagePreview=obj({id:str(),boxId:str(),direction:{type:'string',enum:['inbound','outbound']},
+  peerExcerpt:previewString,peerHasMore:{type:'boolean'},subjectExcerpt:previewString,
+  subjectHasMore:{type:'boolean'},bodyExcerpt:previewString,bodyHasMore:{type:'boolean'},
+  state:{type:'string',enum:['received','queued','sending','sent','delivered','bounced','failed','unknown']},
+  folder:{type:'string',enum:['inbox','sent','outbox','archive','trash']},read:{type:'boolean'},
+  threadId:nullable(str()),receivedAt:nullable(str(35)),sentAt:nullable(str(35)),revision:num(1)});
+const draftPreview=obj({id:str(),boxId:str(),peerExcerpt:previewString,peerHasMore:{type:'boolean'},
+  subjectExcerpt:previewString,subjectHasMore:{type:'boolean'},bodyExcerpt:previewString,
+  bodyHasMore:{type:'boolean'},updatedAt:str(35),revision:num(1)});
+const previewPage=item=>obj({items:{type:'array',items:item,maxItems:5},nextCursor:nullable(str(2048))});
+const boxPreviewInput=schema('box-preview-list-input',obj({limit:previewLimit,cursor:str(2048)},['limit']));
+const boxPreviewPage=schema('box-preview-page-output',previewPage(boxPreview));
+const messagePreviewInput=schema('message-preview-list-input',obj({boxId:str(),limit:previewLimit,
+  cursor:str(2048),folder:{type:'string',enum:['inbox','sent','outbox','archive','trash']},
+  unread:{type:'boolean'},query:str(240),threadId:str()},['boxId','limit']));
+const messagePreviewPageSchema=previewPage(messagePreview);
+const messagePreviewPage=schema('message-preview-page-output',messagePreviewPageSchema);
+const messageWidgetInput=schema('message-widget-input',{
+  anyOf:[messagePreviewPageSchema,schemas.find(item=>item.id===messageOutput.schemaId).schema]});
+const draftPreviewInput=schema('draft-preview-list-input',obj({boxId:str(),limit:previewLimit,
+  cursor:str(2048),query:str(240)},['boxId','limit']));
+const draftPreviewPageSchema=previewPage(draftPreview);
+const draftPreviewPage=schema('draft-preview-page-output',draftPreviewPageSchema);
+const draftWidgetInput=schema('draft-widget-input',{
+  anyOf:[draftPreviewPageSchema,schemas.find(item=>item.id===draftOutput.schemaId).schema]});
 const viewInput=schema('messaging-view-input',obj({boxId:str()},[]));
 const pendingState=obj({sessionId:str(),audience:{type:'string',enum:['admin','app']},contextId:str(),
   bindingId:str(257),requestKey:str(512),intent:str(64),targetId:str()},
@@ -154,12 +182,18 @@ function operation(name,title,kind,input,output,reads=[],writes=[],options={}){
 }
 const pagination={mode:'cursor',cursorField:'cursor',limitField:'limit',maxItems:50};
 operation('box.list','Lister ses boîtes','query',listInput,boxPage,['box'],[],{exportName:'boxList',pagination,maxItems:50});
+operation('box.preview.list','Lister les boîtes pour le chat','query',boxPreviewInput,boxPreviewPage,['box'],[],
+  {exportName:'boxPreviewList',pagination:{...pagination,maxItems:5},maxItems:6});
 operation('box.create','Créer une boîte locale','command',boxCreateInput,boxOutput,[],['box'],{exportName:'boxCreate'});
 operation('message.list','Lister les messages','query',messageListInput,messagePage,['box','message'],[],{exportName:'messageList',pagination,maxItems:50});
+operation('message.preview.list','Aperçu des messages pour le chat','query',messagePreviewInput,messagePreviewPage,
+  ['box','message'],[],{exportName:'messagePreviewList',pagination:{...pagination,maxItems:5},maxItems:6});
 operation('message.read','Lire un message','query',messageReadInput,messageOutput,['box','message'],[],{exportName:'messageRead'});
 operation('message.update','Classer ou marquer un message','command',messageUpdateInput,messageOutput,
   ['box','message'],['message'],{exportName:'messageUpdate',concurrency:{mode:'object-version',versionField:'revision'}});
 operation('draft.list','Lister les brouillons','query',draftListInput,draftPage,['box','draft'],[],{exportName:'draftList',pagination,maxItems:50});
+operation('draft.preview.list','Aperçu des brouillons pour le chat','query',draftPreviewInput,draftPreviewPage,
+  ['box','draft'],[],{exportName:'draftPreviewList',pagination:{...pagination,maxItems:5},maxItems:6});
 operation('draft.create','Créer un brouillon','command',draftCreateInput,draftOutput,['box'],['draft'],{exportName:'draftCreate'});
 operation('draft.read','Lire un brouillon','query',draftReadInput,draftOutput,['box','draft'],[],{exportName:'draftRead'});
 operation('draft.save','Enregistrer un brouillon','command',draftSaveInput,draftOutput,['box','draft'],['draft'],
@@ -193,12 +227,37 @@ for(const audience of ['admin','app'])for(const op of operations){
     operation:ref('operation',op.id),audience,auth:['session','oauth','api-token'],parameters,input:op.input,output:op.output,
     rateLimit:{requests:60,windowSeconds:60}});
 }
+const widgetState=schema('messaging-widget-state',obj({boxId:str(),selectedId:str(),cursor:str(2048)},[]));
+const widgetNames=['boxes','messages','drafts'];
+const widgetOperations={boxes:['box.preview.list'],messages:['message.preview.list','message.read'],
+  drafts:['draft.preview.list','draft.read']};
+const widgetResource=name=>({id:`${name}-ui`,uri:`ui://${id}/${name}`,
+  mimeType:'text/html;profile=mcp-app',audiences:['admin','app'],permissions:[ref('permission','use')],
+  source:{kind:'asset',path:`ui/widgets/${name}.html`},widget:ref('widget',name),
+  ui:{csp:{connectDomains:[],resourceDomains:[],frameDomains:[],baseUriDomains:[]},
+    permissions:{},prefersBorder:true}});
+const widgetAction=(name,op,input)=>({id:name,label:name==='read'?'Lire':'Afficher',input,
+  requiredCapabilities:[],fallback:'unavailable',mode:'direct',
+  target:{kind:'operation',operation:ref('operation',op)}});
+const widget=name=>{const list=widgetOperations[name][0],read=widgetOperations[name][1],
+    input={schemaId:name==='boxes'?'box-preview-page-output':name==='messages'
+      ?messageWidgetInput.schemaId:draftWidgetInput.schemaId};
+  return {id:name,version:'1.0.0',compatibility:'^1.0.0',resource:`${name}-ui`,
+    renderer:{path:`ui/widgets/${name}.ts`,export:`start${name[0].toUpperCase()+name.slice(1)}`},
+    input,state:widgetState,result:input,audiences:['admin','app'],permissions:[ref('permission','use')],
+    requiredCapabilities:[],assets:[],actions:[widgetAction('list',list,
+      {schemaId:`${name==='boxes'?'box':name==='messages'?'message':'draft'}-preview-list-input`}),
+      ...(read?[widgetAction('read',read,{schemaId:`${name==='messages'?'message':'draft'}-read-input`})]:[])],
+    instance:{identity:'host-generated',revision:'monotonic',correlation:'request-instance-conversation',
+      objectVersion:'distinct',lateResponse:'reject-stale'},
+    transport:{protocol:'mcp-apps',maxPayloadBytes:786432,timeoutMs:15000,
+      uncertainResult:'reconcile-before-retry',fallbackDispatch:'before-first-dispatch-only'}};};
 const m=structuredClone(template);
 const skillPath='plugin/skills/compose-message.md';
 const skillIntegrity=`sha256-${createHash('sha256').update(readFileSync(new URL(skillPath,root))).digest('hex')}`;
 m.identity={id,title:'Messagerie native',publisher:'creezio',origin:'https://github.com/creezio/Creezio-D1R2',
-  version:'0.0.0',source:{kind:'snapshot',revision:'t18-messaging-v2',
-    integrity:`sha256-${createHash('sha256').update('t18-messaging-v2').digest('hex')}`},
+  version:'0.0.0',source:{kind:'snapshot',revision:'t18-messaging-widgets-v1',
+    integrity:`sha256-${createHash('sha256').update('t18-messaging-widgets-v1').digest('hex')}`},
   license:{expression:'NOASSERTION',file:'LICENSE'}};
 m.compatibility={core:'^0.0.0',sdk:'^1.2.0',requiredCapabilities:['runtime.worker','data.d1.shared','files.r2.shared'],
   optionalCapabilities:[]};
@@ -211,9 +270,16 @@ m.contracts={schemas,models,files:[category],events:[],settings:[],search:[],per
   mcp:{tools:operations.map(op=>({id:op.id,name:`messaging_${op.id.replaceAll('.','_')}`,
     operation:ref('operation',op.id),audiences:['admin','app'],auth:['oauth','api-token'],input:op.input,output:op.output,
     annotations:{readOnly:op.kind==='query',destructive:op.id==='draft.delete',idempotent:op.kind==='query',openWorld:op.id==='message.send'},
-    textFallback:true})),resources:[],prompts:[],skills:[{id:'compose-message',path:skillPath,
-    audiences:['admin','app'],operations:['transport.status','box.list','box.create','draft.create','draft.save','attachment.link']
-      .map(name=>ref('operation',name)),resources:[],integrity:skillIntegrity}]},
+    ...({
+      'box.preview.list':'boxes','message.preview.list':'messages','message.read':'messages',
+      'draft.preview.list':'drafts','draft.read':'drafts'}[op.id]
+      ?{widget:ref('widget',({
+        'box.preview.list':'boxes','message.preview.list':'messages','message.read':'messages',
+        'draft.preview.list':'drafts','draft.read':'drafts'})[op.id])}:{}),
+    textFallback:true})),resources:widgetNames.map(widgetResource),prompts:[],skills:[{id:'compose-message',path:skillPath,
+    audiences:['admin','app'],operations:['transport.status','box.list','box.create','draft.create','draft.save','attachment.link',
+      'box.preview.list','message.preview.list','draft.preview.list']
+      .map(name=>ref('operation',name)),resources:widgetNames.map(name=>`${name}-ui`),integrity:skillIntegrity}]},
   ui:{views:[{id:'admin',title:'Messagerie',surfaces:['workspace'],route:'/admin/messaging',
     component:{path:'ui/index.tsx',export:'MessagingView'},permissions:[ref('permission','use')],
     operations:operations.map(op=>ref('operation',op.id)),input:viewInput,
@@ -224,21 +290,22 @@ m.contracts={schemas,models,files:[category],events:[],settings:[],search:[],per
       panel:{identityFields:[],navigation:'sdk',retention:'preserve',inactiveEffects:'suspend',stateSchema:panelState}}],
     navigation:[{id:'messaging-admin',title:'Messagerie',view:ref('view','admin'),permissions:[ref('permission','use')],surfaces:['workspace'],order:30},
       {id:'messaging-front',title:'Messagerie',view:ref('view','front'),permissions:[ref('permission','use')],surfaces:['front'],order:30}],
-    slots:[],front:{mode:'provided'},themes:[],styles:[]},widgets:[],publicContracts:[]};
-m.documentation.versionBinding={moduleVersion:'0.0.0',sourceRevision:'t18-messaging-v2'};
+    slots:[],front:{mode:'provided'},themes:[],styles:[]},widgets:widgetNames.map(widget),publicContracts:[]};
+m.documentation.versionBinding={moduleVersion:'0.0.0',sourceRevision:'t18-messaging-widgets-v1'};
 for(const suite of ['backend','ui','api-mcp','package','docs'])m.validation.suites[suite].tests=[`tests/${suite}/contract.test.mjs`];
-m.validation.suites.widgets.mode='not-applicable';m.validation.suites.widgets.tests=['tests/widgets/contract.test.mjs'];
-m.validation.suites.widgets.justification={reason:'Native messaging exposes text MCP tools but no widget renderer.',
-  policyRule:'messaging.text-tools-only'};
+m.validation.suites.widgets.mode='required';m.validation.suites.widgets.tests=[
+  'tests/widgets/contract.test.mjs','tests/widgets/runtime.test.mjs'];
+delete m.validation.suites.widgets.justification;
 m.packaging.runtime.files=['module/manifest.json','module/models.json','module/entry.server.ts','module/operations.ts',
   'module/service.ts','ui/contracts.ts','ui/index.tsx','ui/presentation.tsx','ui/rich-editor.tsx',
+  'ui/widgets/runtime.ts',...widgetNames.flatMap(name=>[`ui/widgets/${name}.ts`,`ui/widgets/${name}.html`]),
   'README.md','prd.md','CHANGELOG.md','LICENSE','plugin/plugin.json',
   'plugin/mcp.json','plugin/contributions.ts',skillPath];
 m.packaging.validation.files=['AGENTS.md','FILES.md','interview.md','TODO.md','gate.mjs','module/generate-manifest.mjs',
   'ci/run-suite.mjs','tests/helpers.mjs',...['backend','ui','api-mcp','widgets','package','docs']
-    .flatMap(name=>[`ci/${name}.mjs`,`tests/${name}/contract.test.mjs`])];
-m.packaging.validationBinding={moduleId:id,moduleVersion:'0.0.0',sourceRevision:'t18-messaging-v2'};
-m.lifecycle.absent={widgets:{reason:'Text-only MCP tools do not require a widget renderer.',policyRule:'messaging.text-tools-only'}};
+    .flatMap(name=>[`ci/${name}.mjs`,`tests/${name}/contract.test.mjs`]),'tests/widgets/runtime.test.mjs'];
+m.packaging.validationBinding={moduleId:id,moduleVersion:'0.0.0',sourceRevision:'t18-messaging-widgets-v1'};
+m.lifecycle.absent={};
 m.lifecycle.configuration='explicit-state';
 writeFileSync(new URL('module/models.json',root),JSON.stringify(models,null,2)+'\n');
 writeFileSync(new URL('module/manifest.json',root),JSON.stringify(m,null,2)+'\n');

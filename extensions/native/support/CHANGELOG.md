@@ -11,3 +11,5 @@ Les brouillons survivent à la vérification de session lors du retour dans l'on
 Quatre widgets MCP Apps ajoutent la liste et le fil, chacun décliné pour app et admin. Les commandes directes reprennent les dix opérations existantes, avec des alias de lecture pour les cartes ; aucun modèle ni SQL n'est ajouté. Le pont natif conserve sa clé avant envoi ; l'hôte externe reçoit une protection de session conservatrice et n'émet jamais de commande au montage. Cette version source n'atteste pas encore une recette navigateur/MCP externe des nouvelles cartes.
 
 Les widgets exigent le correctif candidat SDK 1.4.1 du champ d'idempotence et le Core correspondant ; le SDK public 1.4.0 reste inchangé jusqu'à une publication distincte.
+
+Le fil ouvert depuis un résultat de messages affiche « Fil du ticket » jusqu'à la lecture directe de la fiche, sans nouvelle lecture automatique.

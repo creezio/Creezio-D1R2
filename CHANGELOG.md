@@ -1,14 +1,18 @@
 # Changelog
 
-## 29 septembre 2026 — Sites du compte courant et packaging T09 en qualification
+## En qualification — widgets de lecture de la messagerie (T18)
+
+Trois cartes affichent boîtes, messages et brouillons depuis les mêmes données et droits du workspace/front. Les listes proposent des extraits bornés ; la lecture complète reste explicite et le HTML n'est pas exécuté dans le widget. Les six suites du module passent depuis leurs archives avec le SDK 1.4.1 public, ainsi que l'intégration D1/HTTP/MCP ciblée. La CI finale et la recette dans le chat restent distinctes. Aucun transport e-mail ni schéma supplémentaire n'est ajouté.
+
+## 29 septembre 2026 — Sites du compte courant et packaging T09 intégré
 
 Deux nouvelles installations publiques T56, Original et Lab, sont distinctes des Sites version 5 conservés. Leur publication et leur déclaration au registre sont confirmées. Les lectures natives refusent le MCP anonyme en 401 et exposent les catalogues autorisés par audience ; un témoin synthétique par Site conserve réponse OpenAI, brouillon et pièce R2. Le navigateur admin retrouve ces témoins après rechargement, avec le widget de lecture historique sur Lab. La lecture directe « Actualiser la liste » du widget Lab termine sans tour IA et le widget se remonte prêt après rechargement ; la liste est vide. La sélection d’une demande, un nouveau plugin ChatGPT et le partage des conversations admin avec l’audience app ne sont pas qualifiés.
 
-Le correctif T09 en cours prépare des archives runtime séparées pour l'opérateur et l'application Sites : inventaire fermé de `dist/`, manifeste d'hébergement et historique DDL central contrôlés, source Git et empreintes vérifiées. Cinq tests ciblés passent ; la revue statique et ces tests ne constituent pas encore une CI complète, une archive finale intégrée ni une publication. Le guide [Installation Sites](docs/INSTALLATION-SITES.md) décrit le parcours prévu.
+Le correctif T09 est intégré par PR #58/main `eefb248` avec 1 258/1 258 tests CI. L'export officiel de l'application a produit une archive réelle de 161 fichiers dont chaque taille et empreinte a été vérifiée, avec manifeste d'hébergement et historique DDL central. Ce paquet n'est pas encore publié ; la liaison au commit Git propre au Site reste un complément distinct. Le guide [Installation Sites](docs/INSTALLATION-SITES.md) décrit cette frontière.
 
-## En qualification — widgets du Support (T19)
+## 29 septembre 2026 — widgets du Support intégrés et SDK 1.4.1 public
 
-Quatre cartes distinguent listes et fils de tickets pour les audiences app et admin. Les créations et réponses réutilisent les opérations, droits et clés d’idempotence existants. Le SDK reconnaît ces clés comme noms de champs JSON, y compris `requestKey` ; le binding MCP accepte une union limitée aux schémas de sortie exacts des outils de la carte. Les recettes et la publication de cette tranche restent à confirmer.
+Quatre cartes distinguent listes et fils de tickets pour les audiences app et admin. Les créations et réponses réutilisent les opérations, droits et clés d’idempotence existants. Le SDK reconnaît ces clés comme noms de champs JSON, y compris `requestKey` ; le binding MCP accepte une union limitée aux schémas de sortie exacts des outils de la carte. PR #57/main `f99a455` passe 1 257/1 257 tests ; SDK 1.4.1 et ses sept consommateurs sont vérifiés et publiés. La mise à jour Linux ne comporte aucun DDL ; sa recette API partage le ticket témoin entre les deux audiences. Deux tours IA ont ensuite rendu les quatre cartes liste/fil dans deux conversations ; une réponse directe admin confirmée a porté le ticket à la révision 3 avec trois messages identiques côté app/admin. Les cartes restent dans l'historique après rechargement, avec leur snapshot initial ; les sessions sont déconnectées. Un schéma d'outil non proposé, le MCP externe et la parité exhaustive restent à qualifier.
 
 ## 29 septembre 2026 — nouveaux Sites et mise à jour Cloudflare confirmée
 

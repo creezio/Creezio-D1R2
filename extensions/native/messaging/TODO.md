@@ -6,4 +6,5 @@
 - Tester une pièce jointe sur message reçu et sa lecture protégée quand le port de réception existe ; le flux actuel valide le lien privé d’un brouillon.
 - Qualifier la parité des commandes de corbeille et de suppression définitive sur données et fichiers ; la suppression définitive d’un message n’est pas exposée dans l’écran actuel.
 - Vérifier l’éditeur riche natif et les liens HTML dans les navigateurs cibles. Les liens ne doivent garder que des URL HTTP(S) assainies.
+- Qualifier les trois widgets de lecture sur ChatGPT réel : boîtes, pagination messages/brouillons, refus et reprise du détail, avec boîtes communes admin/app.
 - Ne pas déclarer les critères REQ-1801 de transport ni la compatibilité ChatGPT réelle acquis avant les recettes correspondantes.

@@ -5,8 +5,8 @@ import {Paperclip,Save,Send,X} from 'lucide-react';
 import {useRegisterWorkspaceMetadata} from '@creezio/sdk/workspace/metadata';
 import {createCommandJournal} from '@creezio/sdk/operations/command-journal';
 import type {PendingCommand,CommandOutcome} from '@creezio/sdk/operations/command-journal';
-import {createFileClient} from '../../../../sdk/files/client.ts';
-import type {RuntimeViewProps} from '../../../../sdk/runtime/ui.ts';
+import {createFileClient} from '@creezio/sdk/files/client';
+import type {WorkspaceViewProps as RuntimeViewProps} from '@creezio/sdk/workspace/types';
 import {call,readableError,folders,scopeChanged,messagingPanelData,panelMatchesScope,createLatestRequest,type Attachment,type Box,type Draft,type Folder,type Message,
   type Outcome,type Page,type UiIdentity} from './contracts.ts';
 import {FoldersPanel,ListPanel,ReaderPanel,RecipientsInput,messagingButton,messagingField} from './presentation.tsx';

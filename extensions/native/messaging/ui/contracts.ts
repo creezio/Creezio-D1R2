@@ -1,4 +1,4 @@
-import type {WorkspaceViewProps} from '../../../../sdk/workspace/types.ts';
+import type {WorkspaceViewProps} from '@creezio/sdk/workspace/types';
 import type {PendingCommand} from '@creezio/sdk/operations/command-journal';
 
 export type Folder = 'inbox'|'sent'|'drafts'|'outbox'|'archive'|'trash';
