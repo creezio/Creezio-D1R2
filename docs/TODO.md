@@ -1,4 +1,7 @@
 # Backlog de réalisation
+Point de qualification du 29 septembre : T-01 (gouvernance GitHub et guides manuels), T-03 (runtime local autonome) et T-31 (Docker dev/test persistant) sont vérifiés dans leurs critères initiaux, comme T-12 pour la documentation installée. Les futurs changements gardent leurs propres recettes ; ils ne maintiennent pas indéfiniment ces fondations « en cours ». T-02 conserve la qualification de son correctif d'environnement de validation.
+
+Core PR #61/main `938ede5` a rétabli Linux (1 262/1 262 tests). Les widgets Messages/Brouillons et Analytics ont été lus puis retrouvés après rechargement ; Boîtes reste non qualifié. Original T61 est publié sur le compte GPT actuel, avec installation native, registre et réponse OpenAI confirmés après reprise du même tour. Lab main `59374b4` passe 1 231/1 231 tests et son build Sites est prêt ; sa publication attend le composant local officiel Sites. La recette Catalogue sur Cloudflare `512a7ff` confirme produit publié, API app et image R2 identique, sans qualifier navigateur et widgets distants. PR #62/main `db9051e` intègre les trois archives synthétiques après 1 273/1 273 tests du candidat. Ce point prévaut sur les formulations d'activité historiques ci-dessous.
 Révision 47 — 29 septembre 2026. **Le socle, l’original et le vrai fork Lab sont publiés ; les compléments restent qualifiés par lot.** SDK 1.4.1 est public après PR #57 (CI main 1 257/1 257). PR #58 intègre l’export Sites avec 1 258/1 258 tests et une archive réelle vérifiée. Les Sites T56 du compte précédent conservent leurs versions applicatives distinctes : Original Core `4b32e96`, Lab `c8985bdb` avec SDK 1.2 et module d’achats 0.1.3. Le changement de compte du 29 septembre les rend inaccessibles aux outils actuels ; une nouvelle qualification est préparée. Core Cloudflare sert `512a7ff`, Lab Cloudflare conserve `949f028`. Les widgets Support ont été qualifiés sur Linux `f99a455`. Les widgets de messagerie sont intégrés par PR #59/main `468b101` (1 258/1 258), mais le démarrage du profil connecteurs dépasse le plafond du catalogue MCP. Le correctif du catalogue et les deux widgets Analytics restent en qualification, sans recette Linux annoncée. Les preuves détaillées et historiques restent dans les notes de chaque lot. Aucun lot partiel n’est déclaré entièrement terminé.
 
 La mise à jour T56 du 29 septembre concerne deux **installations Sites T56** du compte précédent, distinctes des cibles version 5 du compte précédent : Lab et Original ont chacun leur projet, leur propriétaire et leurs données. Après publication du relais de widgets avec les anciennes origines conservées, les deux API natives refusent le MCP anonyme (401), exposent leur catalogue de widgets autorisé (Lab admin/app : 3/2 ; Original admin/app : 7/0), et leurs sessions se déconnectent. Un témoin synthétique par Site a produit une réponse OpenAI, un brouillon et une pièce R2 vérifiés par API. Le navigateur admin retrouve ces éléments après rechargement ; Lab affiche en plus son widget historique de lecture. La lecture directe du widget Lab a également terminé sans tour IA ; le widget se remonte prêt après rechargement, avec une liste vide. La sélection d’une demande, un nouveau plugin ChatGPT et le partage des conversations admin avec l’audience app **ne sont pas qualifiés**. Voir les reçus T56 hors dépôt. Le packaging officiel est intégré par PR #58 et qualifié par CI et export réel ; le préparateur de source `scripts/sites/source.mjs` relie maintenant les fichiers du constructeur au commit Git distinct du Site. PR #60/main `a0f554c` passe 1 262/1 262 tests ; le parcours réel vérifie 1 396 fichiers Core→commit Site `2931d31` et une archive de 163 fichiers. Cette source n’a pas été publiée.
@@ -15,9 +18,9 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 
 | Lot | Acquis intégrés et testés | Reste à faire | Activité actuelle |
 |---|---|---|---|
-| T-01 — Gouvernance | Branches/PR, protections GitHub, revue indépendante, CI et refus d'un candidat invalide | Qualification des futurs parcours de release et de publication | Suivi transversal ; fondations acquises |
+| T-01 — Gouvernance | Branches/PR, protections, revue, CI, refus et usage manuel des guides | Contrôles à réappliquer aux changements futurs | Vérifié — GitHub et guides manuels |
 | T-02 — Contrats | Schémas, validateurs, dépendances et verrous ; cas valides et invalides | Intégration complète des vrais modules et paquets tiers en T-11/T-30 | Fondations acquises |
-| T-03 — Runtime | Worker commun, composition, build, démarrage local, persistance et budgets | Qualification du workspace/front complets au fil de leur construction | Fondations acquises |
+| T-03 — Runtime | Worker, composition, installation autonome sources/lockfile, persistance et budgets | Les interfaces et profils hébergés ont leurs recettes propres | Vérifié — runtime local |
 | T-04 — Comptes et droits | Comptes, sessions, rôles, tokens machine, impersonation, connexion/installation et écrans Access originaux locaux | Autres parcours d'administration, remise des liens, OAuth et recettes hébergées | Raccordement OAuth avec T-10 |
 | T-05 — Données | Compilation SQL centrale, accès D1 protégé, fichiers R2 et coffre | Explorateur, recherche, export/restauration, évolutions de modèles restantes et recettes hébergées | Fondations acquises ; autres fonctions à construire |
 | T-06 — Opérations | Registre/exécuteur intégrés PR #15 ; bindings HTTP et suivi par clé PR #16 | Événements, approbations, interopérations et autres transports | Fondations disponibles ; compléments au backlog |
@@ -32,7 +35,7 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-15 — OpenAI | PR #24 intégrée ; réponses réelles locales/Sites A/B, front/workspace ; reprise et arrêt locaux ; témoin Site A post-correction | Autres modèles, fournisseurs et voix non exercés | Première tranche locale et Sites qualifiée |
 | T-16 — Widgets | Trois modes exercés dans Linux Lab et ChatGPT ; anciens widgets conservés sur B ; lecture native APP 200 et refus ADMIN 401 avec cookie APP | Interactions restantes et approbations | Régression historique et frontière d'audience qualifiées dans ce périmètre |
 | T-30 — SDK/starter | SDK `sdk-v1.4.1` public ; Lab reste sur SDK 1.2 et starter `module-v0.1.3` publics ; démo locale, module réel 0.1.2 sur Site B et widgets de lecture dans ChatGPT ; actions Linux par Tab/Return | Démo Cloudflare et autres critères du lot ; clic pointeur iframe non observé | Distribution et adoption du témoin qualifiées, lot incomplet |
-| T-31 — Docker local | Persistance, redémarrage/restauration ; évolution centrale du schéma qualifiée dans Lab sans réinitialisation | Futurs modules et recettes complémentaires | Raccord qualifié dans le même volume |
+| T-31 — Docker local | Installation, persistance, arrêt/redémarrage/recréation et restauration | Requalifier les changements pertinents lors de leur livraison | Vérifié — Docker dev/test persistant |
 | T-32 — Cloudflare direct | Original publié et mis à jour avec D1/R2 conservés ; correctif de capture intégré Core/Lab | Démo, autres reprises et exactitude de la prose IA historique | Publication Lab, conservation, réponse OpenAI et widgets navigateur confirmés |
 | Autres lots T-17 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, publications et recette finale | À réaliser selon le jalon prioritaire |
 
@@ -63,9 +66,9 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 ## Vue ordonnée par dépendances
 | Tâche | Lot | Livrable | Dépendances | État |
 |---|---|---|---|---|
-| [T-01](#T-01) | P0 | Gouvernance effective et revue indépendante | GO reçu | En cours |
+| [T-01](#T-01) | P0 | Gouvernance effective et revue indépendante | GO reçu | Vérifié — GitHub et guides manuels |
 | [T-02](#T-02) | P0 | Contrats exécutables et contrôle commun | [T-01](#T-01) | En cours |
-| [T-03](#T-03) | P1 | Runtime commun et démarrage local | [T-02](#T-02) | En cours |
+| [T-03](#T-03) | P1 | Runtime commun et démarrage local | [T-02](#T-02) | Vérifié — runtime local |
 | [T-04](#T-04) | P2 | Identités, comptes et droits | [T-03](#T-03) | En cours |
 | [T-05](#T-05) | P2 | Données, fichiers, recherche et coffre | [T-03](#T-03), [T-04](#T-04) | En cours |
 | [T-06](#T-06) | P2 | Opérations, événements et exécutions bornées | [T-04](#T-04), [T-05](#T-05) | En cours |
@@ -80,7 +83,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-15](#T-15) | P4 | Module OpenAI et contrat fournisseur | [T-14](#T-14) | En cours — première tranche qualifiée, compléments différés |
 | [T-16](#T-16) | P4 | Widgets et plugins conversationnels compatibles GPT | [T-10](#T-10), [T-13](#T-13), [T-15](#T-15) | Tranche intégrée — qualification hébergée |
 | [T-30](#T-30) | P3 | Starter, paquets et extension externe | [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-16](#T-16) | En cours — distribution initiale publique et recette locale acquises, autres critères ouverts |
-| [T-31](#T-31) | P1 | Docker local persistant | [T-03](#T-03), [T-05](#T-05), [T-07](#T-07) | En cours |
+| [T-31](#T-31) | P1 | Docker local persistant | [T-03](#T-03), [T-05](#T-05), [T-07](#T-07) | Vérifié — Docker dev/test persistant |
 | [T-32](#T-32) | P6 | Publication complète Cloudflare | [T-08](#T-08), [T-30](#T-30), [T-31](#T-31) | En cours — original publié et mis à jour, SDK 1.1.0 public, démo ouverte |
 | [T-36](#T-36) | P7 | Version initiale de l’original, puis compléments | Jalon initial : [T-08](#T-08), [T-09](#T-09), [T-10](#T-10), [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-14](#T-14), [T-15](#T-15), [T-16](#T-16), tranche témoin [T-30](#T-30), [T-31](#T-31), [T-32](#T-32) | En cours — jalon `app/v0.0.1` public et Site A qualifié, recette complète ouverte |
 | [T-37](#T-37) | P7 | Vrai fork Creezio Lab et Site B | Version initiale publiée de [T-36](#T-36) | En cours — fork, Sites, Docker et publication Cloudflare Lab qualifiés dans leur périmètre ; critères restants ouverts |
@@ -106,7 +109,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-01"></a>
 ## T-01 — Gouvernance effective et revue indépendante
 
-- Lot : **P0** ; état : **en cours** ; responsable : Codex, coordination et contrôleurs locaux.
+- Lot : **P0** ; état : **vérifié — GitHub et guides manuels** ; responsable : Codex, coordination et contrôleurs locaux.
 - Dépendances : GO complet reçu le 26 septembre 2026. Compte unique `creezio` confirmé par le responsable ; revue technique par un autre agent, contrôles et protections à qualifier.
 - Travail/livrables : Politique et revue technique approuvées, premiers validateurs documentaires et de gouvernance construits puis qualifiés, règles distantes et propriétaires réels activés, tests de refus. T-02 ajoute ensuite les schémas métier et critères de modules.
 - Besoin : [US-01](USER-STORIES.md#US-01). Acceptation : [REQ-0101](EXIGENCES.md#REQ-0101), [REQ-0102](EXIGENCES.md#REQ-0102), [REQ-0103](EXIGENCES.md#REQ-0103), [REQ-0104](EXIGENCES.md#REQ-0104).
@@ -127,7 +130,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-03"></a>
 ## T-03 — Runtime commun et démarrage local
 
-- Lot : **P1** ; état : **en cours** ; responsable : Codex, runtime/composition/recettes répartis entre agents et intégration revue.
+- Lot : **P1** ; état : **vérifié — runtime local** ; responsable : Codex, runtime/composition/recettes répartis entre agents et intégration revue.
 - Dépendances : [T-02](#T-02).
 - Travail/livrables : Versions figées, lockfile, profils de build, installation sur base neuve et module témoin ; mesures initiales.
 - Besoin : [US-03](USER-STORIES.md#US-03). Acceptation : [REQ-0301](EXIGENCES.md#REQ-0301), [REQ-0302](EXIGENCES.md#REQ-0302), [REQ-0303](EXIGENCES.md#REQ-0303).
@@ -252,7 +255,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Lot : **P4** ; état : **en cours** ; responsable : Codex et trois chats Sol ; branche `core/t14-conversations`.
 - Dépendances : [T-06](#T-06), [T-07](#T-07), [T-11](#T-11).
 - Réalisation : [périmètre T14](IMPLEMENTATION-T14.md), UI originale Creezio, données et fichiers par ports communs.
-- Correctif candidat de reprise : après une réponse fournisseur connue et un résultat d'outil, la continuation durable remet le tour `running` et efface l'ancien `provider_unknown` sous CAS. Test D1 ciblé passé ; la réponse finale du témoin T61 Original n'est pas encore qualifiée.
+- Correctif candidat de reprise : après une réponse fournisseur connue et un résultat d'outil, la continuation durable remet le tour `running` et efface l'ancien `provider_unknown` sous CAS. Test D1 ciblé passé ; la réponse finale du même tour T61 a été confirmée sur l'ancien code publié 938ede5 ; le correctif de transition reste à déployer.
 - Travail/livrables : Module conversations, états partagés SDK, historique/recherche/archive et transport adapté ; OpenAI indépendant.
 - Correctif ciblé T40 en cours : dans un panneau sans conversation sélectionnée, projeter l’état depuis la configuration publique OpenAI plutôt que depuis le `no_provider` initial du contrôleur. Garder l’envoi désactivé sans modèle autorisé ; une recette Sites A/B reste requise après intégration.
 - Besoin : [US-14](USER-STORIES.md#US-14). Acceptation : [REQ-1401](EXIGENCES.md#REQ-1401), [REQ-1402](EXIGENCES.md#REQ-1402).
@@ -443,7 +446,7 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 <a id="T-31"></a>
 ## T-31 — Docker local persistant
 
-- Lot : **P1** ; état : **en cours** ; responsables : Codex et agents Sol sur `core/t08-publication-foundations`.
+- Lot : **P1** ; état : **vérifié — Docker dev/test persistant** ; responsables : Codex et agents Sol.
 - Dépendances : [T-03](#T-03), [T-05](#T-05), [T-07](#T-07).
 - Travail/livrables : Docker/Miniflare/workerd, volumes et diagnostic ; recette redémarrage/restauration.
 - Besoin : [US-31](USER-STORIES.md#US-31). Acceptation : [REQ-3101](EXIGENCES.md#REQ-3101).

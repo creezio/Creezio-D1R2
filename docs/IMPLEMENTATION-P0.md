@@ -1,5 +1,11 @@
 # P0 — démarrage de l'implémentation
 
+## Qualification des critères initiaux
+
+REQ-0101 à REQ-0104 sont vérifiés pour GitHub monocompte et les guides utilisés manuellement. Les preuves historiques ci-dessous couvrent protections, refus, revue et contrôleurs. Le 29 septembre, PR #62 a également exercé le routage `AGENTS.md` → `skills/README.md` → `review-change` et `contribute`, lus directement depuis leurs sources canoniques. La candidate `cb350420fa2e0ad940097d9752b649d511ffcf16` a reçu une revue indépendante avec les empreintes de ses six fichiers ; l'orchestrateur a vérifié workflow `10f4cf5778f6479e2885a2f4169d09142f4d3211`, App `15368`, run `36577553045` (1 273/1 273), parents et arbre. Le squash `db9051e` conserve cet arbre. Le reçu de routage et sa revue sont conservés hors source, sans secret.
+
+Il s'agit d'un choix manuel effectif, pas d'une découverte automatique dans tous les clients IA. Aucune copie adaptée des guides n'a été utilisée ; son contrôle de dérive n'est donc pas simulé. Toute modification future de gouvernance devra être comparée aux contrats approuvés et relue, et chaque livraison conservera ses propres preuves. Ces obligations récurrentes ne sont pas des fonctions manquantes du lot initial P0.
+
 Le GO complet a été reçu le 26 septembre 2026. Le mandat autorise la construction suivant le backlog, les validations et les déploiements de recette prévus. Les conditions de revue et de livraison restent applicables ; aucune fonction n'est acquise du seul fait du GO.
 
 ## Travail T-01

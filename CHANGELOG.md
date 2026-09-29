@@ -2,7 +2,7 @@
 
 ## En qualification — reprise d'un tour Conversations après résultat d'outil
 
-Quand un tour `unknown` récupère une réponse fournisseur connue et ajoute une continuation après un résultat d'outil, le même batch D1 remet le tour `running` et efface `provider_unknown`. Le résultat d'outil rejeté reste visible comme tel. Un test ciblé couvre la transition sans recréer la réponse initiale ; aucune réponse finale du Site T61 n'est encore revendiquée.
+Quand un tour `unknown` récupère une réponse fournisseur connue et ajoute une continuation après un résultat d'outil, le même batch D1 remet le tour `running` et efface `provider_unknown`. Le résultat d'outil rejeté reste visible comme tel. Un test ciblé couvre la transition sans recréer la réponse initiale ; la réponse finale du même tour T61 a ensuite été confirmée sur le Site publié en 938ede5. Le correctif de transition n'y est pas encore déployé.
 
 ## En qualification — environnement des archives et preuve Docker (T02/T03)
 
