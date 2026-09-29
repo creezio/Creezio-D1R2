@@ -91,7 +91,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-19](#T-19) | P5 | Support | [T-11](#T-11), [T-17](#T-17), [T-18](#T-18) | En cours — première tranche intégrée, compléments ouverts |
 | [T-20](#T-20) | P5 | CRM | [T-11](#T-11) | Tranche locale intégrée PR #43 ; six widgets de lecture en qualification, compléments ouverts |
 | [T-21](#T-21) | P5 | Pages et navigation | [T-11](#T-11), [T-13](#T-13) | En cours — première tranche en intégration |
-| [T-22](#T-22) | P5 | Analytics et diagnostics | [T-11](#T-11), [T-17](#T-17) | En cours — première tranche en intégration |
+| [T-22](#T-22) | P5 | Analytics et diagnostics | [T-11](#T-11), [T-17](#T-17) | En cours — lectures et widgets locaux qualifiés, raccords hôte ouverts |
 | [T-23](#T-23) | P5 | Intentions et développement piloté | [T-12](#T-12), [T-17](#T-17) | À faire — dernier bloc, plan et accord explicite préalables |
 | [T-24](#T-24) | P5 | Règles et automatisation sans scheduler | [T-11](#T-11), [T-17](#T-17) | À faire — dernier bloc, plan et accord explicite préalables |
 | [T-25](#T-25) | P5 | Catalogue métier réutilisable complet | [T-11](#T-11), [T-13](#T-13), [T-16](#T-16) | En cours — images du front qualifiées localement ; SDK 1.3 public |
@@ -344,7 +344,7 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 - Travail/livrables : Module analytics, consultation de l’audit, productivité/usage et exports limités.
 - Besoin : [US-22](USER-STORIES.md#US-22). Acceptation : [REQ-2201](EXIGENCES.md#REQ-2201).
 - Validation : implémenter puis exécuter les recettes liées, sur **workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Acquis ciblés : 13 contrôles des six suites et intégration D1 réelle sur 520 événements. Sur Linux au code UI `589a827`, un événement `activity` déclaré par API a été confirmé et affiché dans la vue admin ; page vues et clics restent à zéro. Instrumentation automatique, logs hôte, registre d'endpoints et productivité mesurée restent ouverts. Voir [Analytics](IMPLEMENTATION-T22.md). Aucune publication hébergée de cette tranche n'est attestée.
+- Acquis ciblés : six suites fermées 18/18 avec SDK public 1.4.1, intégration D1/HTTP/MCP réelle sur 520 événements et deux widgets admin de lecture à la demande (sept jours/cinq lignes). Un curseur historique sans arguments d'outil fiables n'est pas rejoué ; la liste filtrée doit être relancée. Sur Linux au code UI `589a827`, un événement `activity` déclaré par API a été confirmé et affiché dans la vue admin ; cette recette précède les widgets. Instrumentation automatique, logs hôte, registre d'endpoints et productivité mesurée restent ouverts. Voir [Analytics](IMPLEMENTATION-T22.md). Aucune publication hébergée de cette tranche n'est attestée.
 
 <a id="T-23"></a>
 ## T-23 — Intentions et développement piloté

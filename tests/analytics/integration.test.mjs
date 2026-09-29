@@ -2,6 +2,8 @@ import '../../scripts/local-environment.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {buildSync} from 'esbuild';
 import {Miniflare} from 'miniflare';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
@@ -9,6 +11,7 @@ import {Client,StreamableHTTPClientTransport} from '@modelcontextprotocol/client
 import {generateD1Schema} from '../../scripts/data/d1-schema.mjs';
 import {compileHttpBindings} from '../../scripts/operations/http-bindings.mjs';
 import {compileMcpBindings} from '../../scripts/mcp/bindings.mjs';
+import {compileWidgetCatalog} from '../../scripts/widgets/compile.mjs';
 import {OPERATION_MODELS,OPERATION_STORAGE_MODULE_ID} from '../../core/operations/models.ts';
 import {createAccountService,provisionBootstrapCapability} from '../../core/identity/accounts.ts';
 import {createMachineAccountService} from '../../core/identity/machines.ts';
@@ -105,6 +108,19 @@ test('analytics D1, paging, shared emission and admin-only read use engine ACL',
       assert.equal(summary.totals.events,56);
       assert.equal(summary.totals.clicks,55);
       assert.equal(summary.complete,true);
+      const widgetSummary=succeeded(await invoke('analytics.widget.summary',{}));
+      assert.equal(widgetSummary.totals.events,56);
+      assert.equal(widgetSummary.source,'reported');
+      assert.equal(widgetSummary.complete,true);
+      const widgetFirst=succeeded(await invoke('analytics.widget.events',{period:'week'}));
+      const widgetSecond=succeeded(await invoke('analytics.widget.events',
+        {period:'week',cursor:widgetFirst.nextCursor}));
+      assert.equal(widgetFirst.items.length,5);
+      assert.equal(widgetSecond.items.length,5);
+      assert.deepEqual(widgetSecond.period,widgetFirst.period);
+      assert.equal(new Set([...widgetFirst.items,...widgetSecond.items].map(item=>item.id)).size,10);
+      assert.ok(Buffer.byteLength(JSON.stringify(widgetFirst))<7500);
+      await rejected(invoke('analytics.widget.events',{period:'week'},app,'app'),'forbidden');
       const exported=succeeded(await invoke('event.export',{period:'week',limit:50,format:'csv'}));
       assert.ok(exported.content.startsWith('"id"'));
       assert.equal(exported.complete,false);
@@ -175,10 +191,22 @@ test('analytics D1, paging, shared emission and admin-only read use engine ACL',
       const machineList=await wire('/api/admin/analytics/event/list?period=week&limit=50');
       assert.equal(machineList.status,200,await machineList.clone().text());
       assert.ok(succeeded(await machineList.json()).items.length>0);
+      const widgetHttp=await wire('/api/admin/analytics/analytics/widget/events?period=week');
+      assert.equal(widgetHttp.status,200,await widgetHttp.clone().text());
+      assert.equal(succeeded(await widgetHttp.json()).items.length,5);
       assert.equal(await wire('/api/app/analytics/event/list?period=week&limit=50'),null,
         'app read is not exposed by HTTP bindings');
+      const widgetCatalog=compileWidgetCatalog({composition,modules:[manifest],
+        operationCatalog:registered.catalog,
+        readAsset:(_id,relative)=>readFileSync(new URL(`../../extensions/native/analytics/${relative}`,
+          import.meta.url),'utf8'),
+        bundleRenderer:(_id,reference)=>buildSync({entryPoints:[fileURLToPath(new URL(
+          `../../extensions/native/analytics/${reference.path}`,import.meta.url))],bundle:true,
+          write:false,platform:'browser',format:'iife',globalName:'__creezioWidget',target:'es2022',
+          minify:true,footer:{js:`__creezioWidget.${reference.export}();`}}).outputFiles[0].text});
+      assert.equal(widgetCatalog.widgets.length,2);
       const mcp=createMcpHttpTransport(compileMcpBindings({composition,modules:[manifest],
-        operationCatalog:registered.catalog}),registered,engine,{origin,
+        operationCatalog:registered.catalog,widgetCatalog}),registered,engine,{origin,
         resourceMetadataUrl:audience=>`${origin}/.well-known/oauth-protected-resource/mcp/${audience}`,
         authenticate:async(request,audience)=>{
           const bearer=request.headers.get('authorization')?.replace(/^Bearer /,'');
@@ -192,13 +220,25 @@ test('analytics D1, paging, shared emission and admin-only read use engine ACL',
       await client.connect(new StreamableHTTPClientTransport(new URL(origin+'/mcp/admin'),{
         authProvider:{token:async()=>token},fetch:(input,init)=>mcp.dispatch(new Request(input,init),
           'admin','analytics-mcp')}));
-      assert.ok((await client.listTools()).tools.some(tool=>tool.name==='analytics_analytics_snapshot'));
+      const tools=(await client.listTools()).tools;
+      assert.ok(tools.some(tool=>tool.name==='analytics_analytics_snapshot'));
+      const summaryTool=tools.find(tool=>tool.name==='analytics_analytics_widget_summary');
+      assert.ok(summaryTool?._meta?.ui?.resourceUri);
+      const resources=(await client.listResources()).resources;
+      assert.equal(resources.length,2);
+      assert.ok(resources.some(resource=>resource.uri===summaryTool._meta.ui.resourceUri));
+      const card=await client.readResource({uri:summaryTool._meta.ui.resourceUri});
+      assert.ok(card.contents.some(part=>typeof part.text==='string'&&part.text.includes('analytics-widget')));
       const mcpSnapshot=await client.callTool({name:'analytics_analytics_snapshot',arguments:{period:'week'}});
       assert.ok(mcpSnapshot.structuredContent.totals.events>0);
+      const mcpWidget=await client.callTool({name:'analytics_analytics_widget_summary',arguments:{}});
+      assert.equal(mcpWidget.structuredContent.input.source,'reported');
+      assert.ok(Buffer.byteLength(JSON.stringify(mcpWidget))<65536);
       const latest=await acl.readPolicy(admin.token),revoked=structuredClone(latest.policy);
       revoked.assignments=revoked.assignments.filter(item=>item.principalId!==machine.id);
       assert.equal((await acl.replacePolicy(admin.token,{expectedEpoch:latest.epoch,policy:revoked})).ok,true);
       assert.equal((await wire('/api/admin/analytics/event/list?period=week&limit=50')).status,403);
       await assert.rejects(client.callTool({name:'analytics_analytics_snapshot',arguments:{period:'week'}}));
+      await assert.rejects(client.readResource({uri:summaryTool._meta.ui.resourceUri}));
     }finally{if(client)await client.close();await runtime.dispose();}
   });

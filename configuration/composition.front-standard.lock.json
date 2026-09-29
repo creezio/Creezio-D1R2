@@ -280,22 +280,22 @@
       "version": "0.0.0",
       "source": {
         "kind": "snapshot",
-        "revision": "t22-analytics-reported-v1",
-        "integrity": "sha256-3998faaff2a9ccfaea115f83739b45310fff2549f2c60ab79d20cbc7048f6e51"
+        "revision": "t22-analytics-read-widgets-v1",
+        "integrity": "sha256-f6bb892c47522c87d14f1e36c5e395312280d2f0777abce8cde183298076ab43"
       },
-      "contractIntegrity": "sha256-360ce429a07fdaf3fb9f0111ef0c3230caacf8b46faad6397c8523b6748fd548",
+      "contractIntegrity": "sha256-c64d9c837851781e31dc5436bcf9a622c97aeabe01a24c8a2fa631f4fc893678",
       "runtime": {
-        "integrity": "sha256-c5e50e09c7d6916d9a81ded109e407d913638b45761b263e4726a3b6f36ca21e",
+        "integrity": "sha256-d2bb351d75f7cfcdc061f19542b1947879f8c780ac9a6a784e441e09f47cb5c3",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.analytics/runtime-c5e50e09c7d6916d9a81ded109e407d913638b45761b263e4726a3b6f36ca21e.tgz"
+          "path": ".creezio/module-artifacts/creezio.analytics/runtime-d2bb351d75f7cfcdc061f19542b1947879f8c780ac9a6a784e441e09f47cb5c3.tgz"
         }
       },
       "validation": {
-        "integrity": "sha256-89719a918ce917b34c13ec01911b5ee4cf867253b3edc209b433143ac9a47325",
+        "integrity": "sha256-4d948f192eaa1e3f6689f35179b4469f47258b4f97f18a594ac68aa7c60911d1",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.analytics/validation-89719a918ce917b34c13ec01911b5ee4cf867253b3edc209b433143ac9a47325.tgz"
+          "path": ".creezio/module-artifacts/creezio.analytics/validation-4d948f192eaa1e3f6689f35179b4469f47258b4f97f18a594ac68aa7c60911d1.tgz"
         }
       },
       "dependencies": [

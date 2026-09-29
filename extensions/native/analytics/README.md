@@ -7,3 +7,5 @@ Module natif `creezio.analytics`, adapté des six onglets de `packages/observabi
 Le raccordement automatique des routes, clics, heartbeats, journaux HTTP/MCP, journal technique des opérations et registre des endpoints manque au contrat hôte public actuel. La vue le signale dans les onglets concernés. Aucun accès aux tables privées du runtime, collecteur fleet, service tiers, scheduler ou export distant n’est ajouté. Le détail des ports nécessaires figure dans [TODO.md](TODO.md).
 
 Exécuter `node gate.mjs` pour les six suites locales, puis `node --test tests/analytics/integration.test.mjs` pour la recette Miniflare D1 si disponible.
+
+Deux widgets MCP Apps administrateur lisent seulement une synthèse de sept jours et des pages de cinq événements déclarés. Les totaux de synthèse sont ceux du segment scanné (`scanned`, `complete`, `nextCursor`) ; un dernier segment complet n'est pas un total cumulatif. Aucune collecte automatique ni nouvelle donnée n'est ajoutée. Chaque projection est limitée à 7 500 octets UTF-8 avant API/MCP ; une ligne historique anormale qui dépasse la borne est refusée, jamais tronquée silencieusement.

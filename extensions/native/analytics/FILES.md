@@ -7,3 +7,6 @@
 - `plugin/` : métadonnées et guide MCP textuel.
 - `tests/` et `ci/` : six suites contractuelles ; `tests/analytics/integration.test.mjs` : recette D1/permissions.
 - `README.md`, `prd.md`, `interview.md`, `TODO.md`, `CHANGELOG.md` : périmètre et écarts assumés.
+
+- `ui/widgets/` : deux rendus MCP Apps et runtime partagé, lectures explicites.
+- `tests/widgets/runtime.test.mjs` : lecture initiale, pagination et refus borné.

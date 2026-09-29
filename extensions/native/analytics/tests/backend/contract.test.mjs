@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {manifest} from '../helpers.mjs';
-import {eventRecord,eventList,analyticsSnapshot,eventExport} from '../../module/service.ts';
+import {eventRecord,eventList,analyticsSnapshot,eventExport,widgetSummary,widgetEvents} from '../../module/service.ts';
 
 const iso=new Date().toISOString();
 function harness(rows=[]){
@@ -94,4 +94,59 @@ test('year period spans twelve calendar months and remains cursor-compatible',as
   const second=await eventList({period:'year',limit:1,cursor:first.output.nextCursor},context);
   assert.equal(second.output.items.length,1);
   assert.equal(second.output.nextCursor,null);
+});
+
+test('widget projections preserve anchored cursor, page-local totals and bounded MCP envelope',async()=>{
+  const rows=Array.from({length:510},(_,index)=>row(`w-${String(index).padStart(3,'0')}`,
+    {principal_id:'P'.repeat(128),surface:'S'.repeat(64),path:`/${'x'.repeat(255)}` }));
+  const {context}=harness(rows);
+  const first=await widgetSummary({},context);
+  const second=await widgetSummary({cursor:first.output.nextCursor},context);
+  assert.equal(first.output.scanned,500);
+  assert.equal(first.output.complete,false);
+  assert.equal(second.output.scanned,10);
+  assert.equal(second.output.complete,true);
+  assert.deepEqual(second.output.period,first.output.period,'cursor anchors the seven-day window');
+  assert.equal(second.output.totals.events,10,'complete second segment is not cumulative');
+  const events=await widgetEvents({period:'week'},context);
+  assert.equal(events.output.items.length,5);
+  const next=await widgetEvents({period:'week',cursor:events.output.nextCursor},context);
+  assert.deepEqual(next.output.period,events.output.period);
+  assert.deepEqual([...events.output.items,...next.output.items].map(item=>item.id),
+    rows.slice(0,10).map(item=>item.id));
+  for(const result of [first,second,events,next]){
+    const serialized=JSON.stringify(result.output);
+    assert.ok(Buffer.byteLength(serialized,'utf8')<8192);
+    const envelope={content:[{type:'text',text:serialized}],structuredContent:{
+      kind:'creezio.widget.render.v1',input:result.output}};
+    assert.ok(Buffer.byteLength(JSON.stringify(envelope),'utf8')<65536);
+  }
+  await assert.rejects(widgetEvents({period:'day',cursor:events.output.nextCursor},context),
+    {code:'invalid_input'});
+  const maximal={...events.output,items:Array.from({length:5},()=>({
+    id:'I'.repeat(36),type:'page_view',actionId:'A'.repeat(80),surface:'S'.repeat(64),
+    path:`/${'P'.repeat(255)}`,errorCode:'E'.repeat(80),occurredAt:'2026-09-29T12:00:00.000Z'})),
+    nextCursor:'C'.repeat(2048),scanned:500};
+  const worst=JSON.stringify(maximal);
+  assert.ok(Buffer.byteLength(worst,'utf8')<7500,'five complete admissible ASCII fields and a max cursor fit chat');
+  assert.ok(Buffer.byteLength(JSON.stringify({content:[{type:'text',text:worst}],
+    structuredContent:{kind:'creezio.widget.render.v1',input:maximal}}),'utf8')<65536);
+  const unicodeRows=[row('u',{principal_id:'😀'.repeat(128),surface:'S'.repeat(64),
+    path:`/${'P'.repeat(255)}`,action_id:'A'.repeat(80),error_code:'E'.repeat(80)})];
+  const unicode=await widgetEvents({period:'week'},harness(unicodeRows).context);
+  assert.equal(JSON.stringify(unicode.output).includes('😀'),false,
+    'the chat projection omits the unbounded identity text');
+  await assert.rejects(eventRecord({type:'activity',surface:'😀'},context),{code:'invalid_input'});
+  await assert.rejects(eventRecord({type:'page_view',surface:'workspace',path:'/😀'},context),
+    {code:'invalid_input'});
+  const unicodeQuery=await widgetEvents({period:'week',query:'é'.repeat(120)},context);
+  assert.equal(unicodeQuery.output.items.length,0);
+  assert.ok(unicodeQuery.output.nextCursor,'valid Unicode filter remains in a scoped cursor');
+  const unicodeNext=await widgetEvents({period:'week',query:'é'.repeat(120),
+    cursor:unicodeQuery.output.nextCursor},context);
+  assert.deepEqual(unicodeNext.output.period,unicodeQuery.output.period);
+  const escapedRows=Array.from({length:5},(_,index)=>row(`bad-${index}`,
+    {path:'\u0001'.repeat(256)}));
+  await assert.rejects(widgetEvents({period:'week'},harness(escapedRows).context),
+    {code:'unavailable'},'legacy malformed D1 text is rejected before transport');
 });

@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{margin:0;background:#f8fafc;color:#0f172a;font:14px system-ui,sans-serif}main{padding:14px}
+.analytics-row{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:9px;margin:5px 0}
+.analytics-date,.analytics-surface,.analytics-period,.analytics-partial,#status{color:#64748b}
+button,select,input{border:1px solid #cbd5e1;border-radius:6px;background:#fff;padding:6px;margin-right:5px}button:disabled{opacity:.5}
+</style></head><body><main id="analytics-widget"><h2>Événements déclarés</h2><p id="status">Résultat en lecture seule.</p>
+<select id="period" aria-label="Période"><option value="day">Jour</option><option value="week" selected>Semaine</option>
+<option value="month">Mois</option><option value="year">Année</option></select><input id="query" aria-label="Recherche" maxlength="120">
+<button id="refresh" type="button">Actualiser</button><button id="more" type="button">Afficher la suite</button>
+<section id="result" aria-label="Événements déclarés"></section></main></body></html>

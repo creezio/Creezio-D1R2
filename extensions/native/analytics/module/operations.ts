@@ -1,1 +1,1 @@
-export {eventRecord,eventList,analyticsSnapshot,eventExport} from './service.ts';
+export {eventRecord,eventList,analyticsSnapshot,eventExport,widgetSummary,widgetEvents} from './service.ts';

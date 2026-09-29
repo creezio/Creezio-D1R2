@@ -140,6 +140,25 @@ export async function analyticsSnapshot(value:JsonValue,c:OperationContext){
     hours:ranked(byHour,24).sort((a,b)=>a.name.localeCompare(b.name)),
     pages:ranked(pages),clicks:ranked(clicks),users:ranked(users)}};
 }
+/** Seven-day, page-local projection of the existing snapshot. */
+export async function widgetSummary(value:JsonValue,c:OperationContext){
+  const input=args(value);
+  const calculated=await analyticsSnapshot({period:'week',...(input.cursor===undefined?{}:{cursor:input.cursor})} as JsonValue,c);
+  const {period,source,complete,scanned,nextCursor,totals,activePrincipals,timeline}=calculated.output;
+  const output={period,source,complete,scanned,nextCursor,totals,activePrincipals,timeline};
+  if(new TextEncoder().encode(JSON.stringify(output)).length>7500)throw new OperationError('unavailable');
+  return {output};
+}
+/** Existing event cursor, fixed to five rows before serialization. */
+export async function widgetEvents(value:JsonValue,c:OperationContext){
+  const listed=await eventList({...args(value),limit:5} as JsonValue,c);
+  const {period,nextCursor,complete,scanned}=listed.output;
+  const items=listed.output.items.map(({id,type,actionId,surface,path,errorCode,occurredAt})=>
+    ({id,type,actionId,surface,path,errorCode,occurredAt}));
+  const output={period,items,nextCursor,complete,scanned};
+  if(new TextEncoder().encode(JSON.stringify(output)).length>7500)throw new OperationError('unavailable');
+  return {output};
+}
 const csv=(cells:readonly unknown[])=>cells.map(value=>`"${String(value??'').replaceAll('"','""')}"`).join(',');
 export async function eventExport(value:JsonValue,c:OperationContext){
   const input=args(value),format=input.format;

@@ -4,6 +4,10 @@
 
 Le préparateur officiel relie le build Core aux sources et au commit Git du Site existant. Il conserve un plan avant copie, vérifie les empreintes et refuse les fichiers inconnus ou ignorés qu'il écraserait. La vérification finale exige un commit propre descendant de la base et produit un reçu distinct ; aucune publication n'est déclenchée depuis l'application. Quatre tests ciblés couvrent les modes CLI, la conservation d'un fichier ignoré, le refus d'un plan périmé et d'une branche sans parent commun. La recette du staging réel et la CI complète restent ouvertes.
 
+## En qualification — deux widgets de lecture Analytics (T22)
+
+La synthèse de sept jours et les pages de cinq événements déclarés sont lisibles sur demande dans deux cartes administrateur. Les segments, périodes, filtres et refus de résultat trop volumineux restent explicites ; sans arguments historiques fiables, la pagination exige de relancer la liste. Aucun collecteur, modèle D1 ou mesure automatique n'est ajouté. Six suites fermées 18/18 avec le SDK public 1.4.1 et intégration D1/HTTP/MCP ciblée 1/1 ; CI finale et recette des cartes dans le chat restent distinctes.
+
 ## En qualification — widgets de lecture de la messagerie (T18)
 
 Trois cartes affichent boîtes, messages et brouillons depuis les mêmes données et droits du workspace/front. Les listes proposent des extraits bornés ; la lecture complète reste explicite et le HTML n'est pas exécuté dans le widget. Les six suites du module passent depuis leurs archives avec le SDK 1.4.1 public, ainsi que l'intégration D1/HTTP/MCP ciblée. La PR #59 est intégrée sur `468b101` après 1 258/1 258 tests du candidat. Le contrôle de main et la recette dans le chat restent distincts. Aucun transport e-mail ni schéma supplémentaire n'est ajouté.

@@ -8,8 +8,8 @@
     "version": "0.0.0",
     "source": {
       "kind": "snapshot",
-      "revision": "t22-analytics-reported-v1",
-      "integrity": "sha256-3998faaff2a9ccfaea115f83739b45310fff2549f2c60ab79d20cbc7048f6e51"
+      "revision": "t22-analytics-read-widgets-v1",
+      "integrity": "sha256-f6bb892c47522c87d14f1e36c5e395312280d2f0777abce8cde183298076ab43"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -18,7 +18,7 @@
   },
   "compatibility": {
     "core": "^0.0.0",
-    "sdk": "^1.0.0",
+    "sdk": "^1.4.1",
     "requiredCapabilities": [
       "runtime.worker",
       "data.d1.shared"
@@ -854,6 +854,350 @@
         }
       },
       {
+        "id": "analytics-widget-summary-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "analytics-widget-summary-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "period": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "string",
+                  "enum": [
+                    "day",
+                    "week",
+                    "month",
+                    "year"
+                  ]
+                },
+                "from": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "to": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                }
+              },
+              "required": [
+                "period",
+                "from",
+                "to"
+              ],
+              "additionalProperties": false
+            },
+            "source": {
+              "const": "reported"
+            },
+            "complete": {
+              "type": "boolean"
+            },
+            "scanned": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 500
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "totals": {
+              "type": "object",
+              "properties": {
+                "events": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "pageViews": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "clicks": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "errors": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "reportedDurationMs": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "events",
+                "pageViews",
+                "clicks",
+                "errors",
+                "reportedDurationMs"
+              ],
+              "additionalProperties": false
+            },
+            "activePrincipals": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "timeline": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "name",
+                  "count"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 8
+            }
+          },
+          "required": [
+            "period",
+            "source",
+            "complete",
+            "scanned",
+            "nextCursor",
+            "totals",
+            "activePrincipals",
+            "timeline"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "analytics-widget-events-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "period": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "year"
+              ]
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "query": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 120
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "page_view",
+                "click",
+                "activity",
+                "error"
+              ]
+            },
+            "principalId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "period"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "analytics-widget-events-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "period": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "string",
+                  "enum": [
+                    "day",
+                    "week",
+                    "month",
+                    "year"
+                  ]
+                },
+                "from": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "to": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                }
+              },
+              "required": [
+                "period",
+                "from",
+                "to"
+              ],
+              "additionalProperties": false
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "page_view",
+                      "click",
+                      "activity",
+                      "error"
+                    ]
+                  },
+                  "actionId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "surface": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "path": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "errorCode": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "occurredAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  }
+                },
+                "required": [
+                  "id",
+                  "type",
+                  "actionId",
+                  "surface",
+                  "path",
+                  "errorCode",
+                  "occurredAt"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 5
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "complete": {
+              "type": "boolean"
+            },
+            "scanned": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 500
+            }
+          },
+          "required": [
+            "period",
+            "items",
+            "nextCursor",
+            "complete",
+            "scanned"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
         "id": "analytics-view-input",
         "schema": {
           "type": "object",
@@ -918,6 +1262,30 @@
             "type",
             "principalId"
           ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "analytics-widget-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "period": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "year"
+              ]
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          "required": [],
           "additionalProperties": false
         }
       }
@@ -1609,6 +1977,226 @@
           ]
         },
         "public": false
+      },
+      {
+        "id": "analytics.widget.summary",
+        "title": "Résumé des événements déclarés sur sept jours",
+        "kind": "query",
+        "input": {
+          "schemaId": "analytics-widget-summary-input"
+        },
+        "output": {
+          "schemaId": "analytics-widget-summary-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "widgetSummary"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "event"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "content"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "analytics.widget.events",
+        "title": "Cinq événements déclarés",
+        "kind": "query",
+        "input": {
+          "schemaId": "analytics-widget-events-input"
+        },
+        "output": {
+          "schemaId": "analytics-widget-events-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "widgetEvents"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "event"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "content"
+          ]
+        },
+        "public": false
       }
     ],
     "api": [
@@ -1845,6 +2433,98 @@
           "requests": 60,
           "windowSeconds": 60
         }
+      },
+      {
+        "id": "admin.analytics.widget.summary",
+        "method": "GET",
+        "path": "/api/admin/analytics/analytics/widget/summary",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "analytics.widget.summary"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "analytics-widget-summary-input"
+        },
+        "output": {
+          "schemaId": "analytics-widget-summary-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.analytics.widget.events",
+        "method": "GET",
+        "path": "/api/admin/analytics/analytics/widget/events",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "analytics.widget.events"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "inputField": "period",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": false
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "inputField": "type",
+            "required": false
+          },
+          {
+            "name": "principal_id",
+            "in": "query",
+            "inputField": "principalId",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "analytics-widget-events-input"
+        },
+        "output": {
+          "schemaId": "analytics-widget-events-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
       }
     ],
     "mcp": {
@@ -1965,9 +2645,146 @@
             "openWorld": false
           },
           "textFallback": true
+        },
+        {
+          "id": "analytics.widget.summary",
+          "name": "analytics_analytics_widget_summary",
+          "operation": {
+            "moduleId": "creezio.analytics",
+            "kind": "operation",
+            "id": "analytics.widget.summary"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "analytics-widget-summary-input"
+          },
+          "output": {
+            "schemaId": "analytics-widget-summary-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "widget": {
+            "moduleId": "creezio.analytics",
+            "kind": "widget",
+            "id": "summary"
+          },
+          "textFallback": true
+        },
+        {
+          "id": "analytics.widget.events",
+          "name": "analytics_analytics_widget_events",
+          "operation": {
+            "moduleId": "creezio.analytics",
+            "kind": "operation",
+            "id": "analytics.widget.events"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "analytics-widget-events-input"
+          },
+          "output": {
+            "schemaId": "analytics-widget-events-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "widget": {
+            "moduleId": "creezio.analytics",
+            "kind": "widget",
+            "id": "events"
+          },
+          "textFallback": true
         }
       ],
-      "resources": [],
+      "resources": [
+        {
+          "id": "summary-ui",
+          "uri": "ui://creezio.analytics/summary",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/summary.html"
+          },
+          "widget": {
+            "moduleId": "creezio.analytics",
+            "kind": "widget",
+            "id": "summary"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        },
+        {
+          "id": "events-ui",
+          "uri": "ui://creezio.analytics/events",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/events.html"
+          },
+          "widget": {
+            "moduleId": "creezio.analytics",
+            "kind": "widget",
+            "id": "events"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        }
+      ],
       "prompts": [],
       "skills": [
         {
@@ -1996,9 +2813,22 @@
               "moduleId": "creezio.analytics",
               "kind": "operation",
               "id": "event.export"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "analytics.widget.summary"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "analytics.widget.events"
             }
           ],
-          "resources": [],
+          "resources": [
+            "summary-ui",
+            "events-ui"
+          ],
           "integrity": "sha256-f8a715f289ca46710d7ed943f840c7412827fef3bff0eb05f8b2df658bc10591"
         }
       ]
@@ -2043,6 +2873,16 @@
               "moduleId": "creezio.analytics",
               "kind": "operation",
               "id": "event.export"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "analytics.widget.summary"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "analytics.widget.events"
             }
           ],
           "input": {
@@ -2092,7 +2932,138 @@
       "themes": [],
       "styles": []
     },
-    "widgets": [],
+    "widgets": [
+      {
+        "id": "summary",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "summary-ui",
+        "renderer": {
+          "path": "ui/widgets/summary.ts",
+          "export": "startSummary"
+        },
+        "input": {
+          "schemaId": "analytics-widget-summary-output"
+        },
+        "state": {
+          "schemaId": "analytics-widget-state"
+        },
+        "result": {
+          "schemaId": "analytics-widget-summary-output"
+        },
+        "audiences": [
+          "admin"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "read",
+            "label": "Lire",
+            "input": {
+              "schemaId": "analytics-widget-summary-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.analytics",
+                "kind": "operation",
+                "id": "analytics.widget.summary"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 65536,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      },
+      {
+        "id": "events",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "events-ui",
+        "renderer": {
+          "path": "ui/widgets/events.ts",
+          "export": "startEvents"
+        },
+        "input": {
+          "schemaId": "analytics-widget-events-output"
+        },
+        "state": {
+          "schemaId": "analytics-widget-state"
+        },
+        "result": {
+          "schemaId": "analytics-widget-events-output"
+        },
+        "audiences": [
+          "admin"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "read",
+            "label": "Lire",
+            "input": {
+              "schemaId": "analytics-widget-events-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.analytics",
+                "kind": "operation",
+                "id": "analytics.widget.events"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 65536,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      }
+    ],
     "publicContracts": []
   },
   "documentation": {
@@ -2137,7 +3108,7 @@
     },
     "versionBinding": {
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t22-analytics-reported-v1"
+      "sourceRevision": "t22-analytics-read-widgets-v1"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -2172,15 +3143,12 @@
         ]
       },
       "widgets": {
-        "mode": "not-applicable",
+        "mode": "required",
         "script": "ci/widgets.mjs",
         "tests": [
-          "tests/widgets/contract.test.mjs"
-        ],
-        "justification": {
-          "reason": "Analytics use the workspace view; no MCP widget renderer.",
-          "policyRule": "analytics.no-widget-renderer"
-        }
+          "tests/widgets/contract.test.mjs",
+          "tests/widgets/runtime.test.mjs"
+        ]
       },
       "package": {
         "mode": "required",
@@ -2224,6 +3192,11 @@
         "ui/index.tsx",
         "ui/contracts.ts",
         "ui/panel-state.ts",
+        "ui/widgets/runtime.ts",
+        "ui/widgets/summary.ts",
+        "ui/widgets/summary.html",
+        "ui/widgets/events.ts",
+        "ui/widgets/events.html",
         "README.md",
         "prd.md",
         "CHANGELOG.md",
@@ -2256,14 +3229,15 @@
         "ci/package.mjs",
         "tests/package/contract.test.mjs",
         "ci/docs.mjs",
-        "tests/docs/contract.test.mjs"
+        "tests/docs/contract.test.mjs",
+        "tests/widgets/runtime.test.mjs"
       ],
       "references": []
     },
     "validationBinding": {
       "moduleId": "creezio.analytics",
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t22-analytics-reported-v1"
+      "sourceRevision": "t22-analytics-read-widgets-v1"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",
@@ -2275,10 +3249,6 @@
     "uninstall": "explicit-approved-action",
     "activationRequirements": [],
     "absent": {
-      "widgets": {
-        "reason": "Analytics have no MCP widget renderer.",
-        "policyRule": "analytics.no-widget-renderer"
-      },
       "files": {
         "reason": "Analytics events do not store files.",
         "policyRule": "analytics.no-files"

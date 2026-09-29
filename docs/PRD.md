@@ -38,6 +38,7 @@ Les exigences numérotées figurent dans [EXIGENCES.md](EXIGENCES.md). Les déta
 
 - Socle technique : identité et OAuth, opérations, autorisations, contexte de données, D1/R2, coffre, audit, événements, recherche de base, composition et validation des modules.
 - Workspace standard : onglets et panneaux conservant leur état, navigation, tableaux/listes/formulaires, chat et widgets, administration et diagnostics.
+- La tranche de lecture Analytics conserve ses six vues originales et expose deux cartes admin d'événements déclarés ; instrumentation et mesures automatiques demeurent des exigences distinctes ([T-22](TODO.md#T-22)).
 - Douze familles de modules natifs décrites dans l'[architecture des dépôts](ARCHITECTURE-DEPOTS.md), notamment tâches humaines, messagerie et brouillons, support, CRM, pages/navigation, analytics et développement piloté par spécifications.
 - Front facultatif, thèmes standard et ChatGPT-like, contributions dynamiques des modules, composants et client headless.
 - API et MCP administrateur/utilisateur séparés par catalogue et permissions, sur le même backend ; appels externes sans navigateur et sans module n8n obligatoire.

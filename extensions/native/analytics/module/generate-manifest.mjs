@@ -52,6 +52,18 @@ const exportInput=schema('event-export-input',obj({...schemas.find(s=>s.id==='ev
   format:{type:'string',enum:['json','csv']}},['period','limit','format']));
 const exportOutput=schema('event-export-output',obj({format:{type:'string',enum:['json','csv']},
   content:str(180000,0),nextCursor:nullable(str(2048)),complete:{type:'boolean'},period:bounds}));
+const summaryInput=schema('analytics-widget-summary-input',obj({cursor:str(2048)},[]));
+const summaryOutput=schema('analytics-widget-summary-output',obj({period:bounds,source:{const:'reported'},
+  complete:{type:'boolean'},scanned:int(0,500),nextCursor:nullable(str(2048)),
+  totals:schemas.find(s=>s.id==='analytics-snapshot-output').schema.properties.totals,
+  activePrincipals:int(),timeline:counts(8)}));
+const widgetEvent=obj({id:str(36),type:eventType,actionId:nullable(str(80)),
+  surface:str(64),path:nullable(str(256)),errorCode:nullable(str(80)),occurredAt:str(35)});
+const widgetEventsInput=schema('analytics-widget-events-input',obj({period,cursor:str(2048),
+  query:str(120,0),type:eventType,principalId:str()},['period']));
+const widgetEventsOutput=schema('analytics-widget-events-output',obj({period:bounds,
+  items:{type:'array',items:widgetEvent,maxItems:5},nextCursor:nullable(str(2048)),
+  complete:{type:'boolean'},scanned:int(0,500)}));
 const viewInput=schema('analytics-view-input',obj({}));
 const panelState=schema('analytics-panel-state',obj({sessionId:str(128),
   audience:{type:'string',enum:['admin','app']},contextId:str(128),
@@ -73,7 +85,11 @@ const definitions=[
   ['event.record','Déclarer un événement','command',recordInput,recordOutput,'eventRecord','emit',['admin','app']],
   ['event.list','Lister les événements','query',listInput,listOutput,'eventList','read',['admin']],
   ['analytics.snapshot','Mesures déclarées','query',snapshotInput,snapshotOutput,'analyticsSnapshot','read',['admin']],
-  ['event.export','Exporter une page d’événements','query',exportInput,exportOutput,'eventExport','read',['admin']]];
+  ['event.export','Exporter une page d’événements','query',exportInput,exportOutput,'eventExport','read',['admin']],
+  ['analytics.widget.summary','Résumé des événements déclarés sur sept jours','query',summaryInput,summaryOutput,
+    'widgetSummary','read',['admin']],
+  ['analytics.widget.events','Cinq événements déclarés','query',widgetEventsInput,widgetEventsOutput,
+    'widgetEvents','read',['admin']]];
 const operations=definitions.map(([name,title,kind,input,output,handler,permission,audiences])=>({
   id:name,title,kind,input,output,permissions:[ref('permission',permission)],audiences,
   actors:['user','delegated-user','machine'],context:'required',handler:{path:'module/operations.ts',export:handler},
@@ -97,14 +113,14 @@ for(const operation of operations)for(const audience of operation.audiences){
         required:spec.required.includes(name)})),input:operation.input,output:operation.output,
     rateLimit:{requests:60,windowSeconds:60}});
 }
-const manifest=structuredClone(template),revision='t22-analytics-reported-v1';
+const manifest=structuredClone(template),revision='t22-analytics-read-widgets-v1';
 const skillPath='plugin/skills/analytics.md';
 const skillIntegrity=`sha256-${createHash('sha256').update(readFileSync(new URL(skillPath,root))).digest('hex')}`;
 manifest.identity={id,title:'Analytique et diagnostics',publisher:'creezio',
   origin:'https://github.com/creezio/Creezio-D1R2',version:'0.0.0',
   source:{kind:'snapshot',revision,integrity:`sha256-${createHash('sha256').update(revision).digest('hex')}`},
   license:{expression:'NOASSERTION',file:'LICENSE'}};
-manifest.compatibility={core:'^0.0.0',sdk:'^1.0.0',
+manifest.compatibility={core:'^0.0.0',sdk:'^1.4.1',
   requiredCapabilities:['runtime.worker','data.d1.shared'],optionalCapabilities:[]};
 manifest.entrypoints={server:{path:'module/entry.server.ts',export:'analytics'},
   ui:{path:'ui/index.tsx',export:'AnalyticsAdminView'},
@@ -112,15 +128,38 @@ manifest.entrypoints={server:{path:'module/entry.server.ts',export:'analytics'},
     contributions:{path:'plugin/contributions.ts',export:'contributions'}}};
 manifest.dependencies=[{moduleId:'creezio.access',origin:'https://github.com/creezio/Creezio-D1R2',
   versionRange:'^0.0.0',optional:false,contracts:[],whenAbsent:'block',whenIncompatible:'block',autoInstall:false}];
+const widgetNames=['summary','events'];
+const widgetOperation={summary:'analytics.widget.summary',events:'analytics.widget.events'};
+const widgetInput={summary:summaryInput,events:widgetEventsInput};
+const widgetOutput={summary:summaryOutput,events:widgetEventsOutput};
+const widgetState=schema('analytics-widget-state',obj({period,cursor:str(2048)},[]));
+const widgetResource=name=>({id:`${name}-ui`,uri:`ui://${id}/${name}`,
+  mimeType:'text/html;profile=mcp-app',audiences:['admin'],permissions:[ref('permission','read')],
+  source:{kind:'asset',path:`ui/widgets/${name}.html`},widget:ref('widget',name),
+  ui:{csp:{connectDomains:[],resourceDomains:[],frameDomains:[],baseUriDomains:[]},
+    permissions:{},prefersBorder:true}});
+const widget=name=>({id:name,version:'1.0.0',compatibility:'^1.0.0',resource:`${name}-ui`,
+  renderer:{path:`ui/widgets/${name}.ts`,export:`start${name[0].toUpperCase()+name.slice(1)}`},
+  input:widgetOutput[name],state:widgetState,result:widgetOutput[name],
+  audiences:['admin'],permissions:[ref('permission','read')],requiredCapabilities:[],assets:[],
+  actions:[{id:'read',label:'Lire',input:widgetInput[name],requiredCapabilities:[],
+    fallback:'unavailable',mode:'direct',target:{kind:'operation',operation:ref('operation',widgetOperation[name])}}],
+  instance:{identity:'host-generated',revision:'monotonic',correlation:'request-instance-conversation',
+    objectVersion:'distinct',lateResponse:'reject-stale'},
+  transport:{protocol:'mcp-apps',maxPayloadBytes:65536,timeoutMs:15000,
+    uncertainResult:'reconcile-before-retry',fallbackDispatch:'before-first-dispatch-only'}});
 manifest.contracts={schemas,models:[model],files:[],events:[],settings:[],search:[],permissions,
   operations,api,mcp:{tools:operations.map(operation=>({id:operation.id,
     name:`analytics_${operation.id.replaceAll('.','_')}`,operation:ref('operation',operation.id),
     audiences:operation.audiences,auth:['oauth','api-token'],input:operation.input,output:operation.output,
     annotations:{readOnly:operation.kind==='query',destructive:false,
-      idempotent:operation.kind==='query',openWorld:false},textFallback:true})),resources:[],prompts:[],
+      idempotent:operation.kind==='query',openWorld:false},
+    ...(Object.entries(widgetOperation).find(([,op])=>op===operation.id)
+      ?{widget:ref('widget',Object.entries(widgetOperation).find(([,op])=>op===operation.id)[0])}:{}),
+    textFallback:true})),resources:widgetNames.map(widgetResource),prompts:[],
     skills:[{id:'analytics',path:skillPath,audiences:['admin'],operations:operations
       .filter(operation=>operation.audiences.includes('admin')).map(operation=>ref('operation',operation.id)),
-      resources:[],integrity:skillIntegrity}]},
+      resources:widgetNames.map(name=>`${name}-ui`),integrity:skillIntegrity}]},
   ui:{views:[{id:'admin',title:'Analytique',surfaces:['workspace'],route:'/admin/analytics',
     component:{path:'ui/index.tsx',export:'AnalyticsAdminView'},permissions:[ref('permission','read')],
     operations:operations.filter(operation=>operation.audiences.includes('admin'))
@@ -129,24 +168,24 @@ manifest.contracts={schemas,models:[model],files:[],events:[],settings:[],search
     navigation:[{id:'analytics-admin',title:'Analytique',view:ref('view','admin'),
       permissions:[ref('permission','read')],surfaces:['workspace'],order:70}],
     slots:[],front:{mode:'absent',justification:{reason:'Analytics are an authorized workspace view; app emission uses the API.',
-      policyRule:'analytics.workspace-only'}},themes:[],styles:[]},widgets:[],publicContracts:[]};
+      policyRule:'analytics.workspace-only'}},themes:[],styles:[]},widgets:widgetNames.map(widget),publicContracts:[]};
 manifest.documentation.versionBinding={moduleVersion:'0.0.0',sourceRevision:revision};
 for(const suite of ['backend','ui','api-mcp','package','docs'])
   manifest.validation.suites[suite].tests=[`tests/${suite}/contract.test.mjs`];
-manifest.validation.suites.widgets.mode='not-applicable';
-manifest.validation.suites.widgets.tests=['tests/widgets/contract.test.mjs'];
-manifest.validation.suites.widgets.justification={reason:'Analytics use the workspace view; no MCP widget renderer.',
-  policyRule:'analytics.no-widget-renderer'};
+manifest.validation.suites.widgets.mode='required';
+manifest.validation.suites.widgets.tests=['tests/widgets/contract.test.mjs','tests/widgets/runtime.test.mjs'];
+delete manifest.validation.suites.widgets.justification;
 manifest.packaging.runtime.files=['module/manifest.json','module/models.json','module/entry.server.ts',
-  'module/operations.ts','module/service.ts','ui/index.tsx','ui/contracts.ts','ui/panel-state.ts','README.md','prd.md',
+  'module/operations.ts','module/service.ts','ui/index.tsx','ui/contracts.ts','ui/panel-state.ts',
+  'ui/widgets/runtime.ts',...widgetNames.flatMap(name=>[`ui/widgets/${name}.ts`,`ui/widgets/${name}.html`]),
+  'README.md','prd.md',
   'CHANGELOG.md','LICENSE','plugin/plugin.json','plugin/mcp.json','plugin/contributions.ts',skillPath];
 manifest.packaging.validation.files=['AGENTS.md','FILES.md','interview.md','TODO.md','gate.mjs',
   'module/generate-manifest.mjs','ci/run-suite.mjs','tests/helpers.mjs',
   ...['backend','ui','api-mcp','widgets','package','docs']
-    .flatMap(name=>[`ci/${name}.mjs`,`tests/${name}/contract.test.mjs`])];
+    .flatMap(name=>[`ci/${name}.mjs`,`tests/${name}/contract.test.mjs`]),'tests/widgets/runtime.test.mjs'];
 manifest.packaging.validationBinding={moduleId:id,moduleVersion:'0.0.0',sourceRevision:revision};
-manifest.lifecycle.absent={widgets:{reason:'Analytics have no MCP widget renderer.',
-  policyRule:'analytics.no-widget-renderer'},files:{reason:'Analytics events do not store files.',
+manifest.lifecycle.absent={files:{reason:'Analytics events do not store files.',
   policyRule:'analytics.no-files'}};
 manifest.lifecycle.configuration='explicit-state';
 writeFileSync(new URL('module/models.json',root),JSON.stringify([model],null,2)+'\n');
