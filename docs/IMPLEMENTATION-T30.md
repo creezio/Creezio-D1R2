@@ -28,7 +28,7 @@ La PR #49 est intégrée sur main `14f3e504145175e47c9c70ed28f56db494889d65`, ar
 
 ## SDK 1.4 — contrat de connecteurs
 
-Le SDK 1.4 définit des origines HTTPS fixes, des en-têtes de protocole constants et des paramètres de requête déclarés pour les GET de connecteurs. L’hôte lie la projection locale au contrôle courant des droits, de la configuration et de la version de clé lors du commit D1. Stripe 0.1.0 déclare SDK ^1.4.0 et utilise ces capacités pour la première lecture clients/abonnements/factures ; les POST externes, paiements et webhooks ne sont pas fournis par ce contrat. La disponibilité, l’empreinte, le commit source et le reçu CI de l’archive distribuée sont ceux vérifiés sur la release GitHub SDK 1.4, et ne se déduisent pas de cette source. Les applications déjà installées, dont Lab sur SDK 1.2, ne changent pas de paquet ou de données par cette seule mise à disposition.
+Le SDK 1.4 définit des origines HTTPS fixes, des en-têtes de protocole constants et des paramètres de requête déclarés pour les GET de connecteurs. L’hôte lie la projection locale au contrôle courant des droits, de la configuration et de la version de clé lors du commit D1. Stripe 0.1.0 déclare SDK ^1.4.0 et utilise ces capacités pour la première lecture clients/abonnements/factures ; les POST externes, paiements et webhooks ne sont pas fournis par ce contrat. Pour utiliser cette version, vérifier la disponibilité, l’empreinte, le commit source et le reçu CI de l’archive dans sa release GitHub ; ils ne se déduisent pas de cette source. Les applications déjà installées, dont Lab sur SDK 1.2, ne changent pas de paquet ou de données par cette seule mise à disposition.
 
 ## SDK 1.2 — journal public et contrats de connecteurs
 
