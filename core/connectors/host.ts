@@ -1,6 +1,6 @@
 import type {AuthorizationActor,AuthorizationAudience} from '../authorization/types.ts';
 import {DataAccessError,type DataAccess,type DataCredential,type DataLease,type RuntimeDataCatalog,
-  type DataRecord,type JsonValue} from '../data/types.ts';
+  type DataPlan,type DataRecord,type JsonValue} from '../data/types.ts';
 import {isVaultReference,VaultError,type VaultKeyring} from '../vault/crypto.ts';
 import {createVaultService} from '../vault/service.ts';
 import type {ConnectorDescriptor,ConnectorRequest,ConnectorResource,ConnectorResult,ConnectorPort} from '../../sdk/connectors/types.ts';
@@ -10,6 +10,20 @@ const segment=/^[A-Za-z0-9_~-][A-Za-z0-9._~-]*$/;
 const MAX_BODY=1_048_576;
 const MAX_CALLS=1;
 const TIMEOUT_MS=10_000;
+const queryName=(value:string)=>typeof value==='string'&&value.length<=64
+  &&/^[A-Za-z_]/.test(value)&&!/[^A-Za-z0-9_]/.test(value);
+const headerName=(value:string)=>typeof value==='string'&&value.length<=64
+  &&/^[A-Za-z]/.test(value)&&!/[^A-Za-z0-9-]/.test(value);
+const printable=(value:unknown,max:number)=>typeof value==='string'&&value.length>=1
+  &&value.length<=max&&!/[^\x20-\x7e]/.test(value);
+const forbiddenHeaders=new Set(['authorization','proxy-authorization','host','cookie','set-cookie',
+  'origin','referer','accept','accept-encoding','content-length','content-type','connection','upgrade',
+  'te','trailer','transfer-encoding','cache-control','range','user-agent','forwarded']);
+const forbiddenPrefixes=['proxy-','sec-','if-'];
+const forbiddenX=/^x-(?:forwarded|real|original|http|method|override|host|cookie|origin|proxy|cf|amz)(?:-|$)/;
+const forbiddenHeader=(name:string)=>{const lower=name.toLowerCase();
+  return forbiddenHeaders.has(lower)||forbiddenPrefixes.some(prefix=>lower.startsWith(prefix))
+    ||forbiddenX.test(lower);};
 const error=(code:Extract<ConnectorResult,{kind:'error'}>['code'],status?:number):ConnectorResult=>
   Object.freeze({kind:'error',code,...(status===undefined?{}:{status})});
 
@@ -37,7 +51,24 @@ function checkedResource(value:ConnectorResource):ConnectorResource{
   if(parts.some(item=>item!== '{id}'&&(!segment.test(item)||item==='.'||item==='..'))
     ||parts.filter(item=>item==='{id}').length>1
     ||parts.includes('{id}')!==value.params.includes('id'))throw new VaultError('invalid_input');
-  return Object.freeze({id:value.id,method:'GET',path:value.path,params:Object.freeze([...value.params])});
+  const query=value.query;
+  if(query!==undefined){
+    if(!query||typeof query!=='object'||Array.isArray(query)
+      ||Object.keys(query).some(key=>!['cursor','limit','fixed'].includes(key))
+      ||query.cursor!==undefined&&(!value.params.includes('cursor')||!queryName(query.cursor))
+      ||query.limit!==undefined&&(!value.params.includes('limit')||!queryName(query.limit))
+      ||query.fixed!==undefined&&(!Array.isArray(query.fixed)||query.fixed.length>8
+        ||query.fixed.some(item=>!item||!queryName(item.name)||!printable(item.value,256))))
+      throw new VaultError('invalid_input');
+    const dynamic=[...(value.params.includes('cursor')?[query.cursor??'cursor']:[]),
+      ...(value.params.includes('limit')?[query.limit??'limit']:[])];
+    const names=[...dynamic,...(query.fixed??[]).map(item=>item.name)];
+    if(new Set(names).size!==names.length)throw new VaultError('invalid_input');
+  }
+  return Object.freeze({id:value.id,method:'GET',path:value.path,params:Object.freeze([...value.params]),
+    ...(query===undefined?{}:{query:Object.freeze({
+      ...(query.cursor===undefined?{}:{cursor:query.cursor}),...(query.limit===undefined?{}:{limit:query.limit}),
+      ...(query.fixed===undefined?{}:{fixed:Object.freeze(query.fixed.map(item=>Object.freeze({...item})))})})})});
 }
 
 /** A compiled descriptor is validated before it can influence an outbound request. */
@@ -52,11 +83,22 @@ export function captureConnectorDescriptor(value:ConnectorDescriptor):ConnectorD
   if(auth.kind==='api-key-header'&&(!/^X-[A-Za-z0-9-]{1,62}$/i.test(auth.name)
     ||/^x-(?:forwarded|real|original|http|method|override|host|cookie|origin|proxy|cf|amz)(?:-|$)/i.test(auth.name)))
     throw new VaultError('invalid_input');
+  if(value.fixedOrigin!==undefined&&(!connectorOrigin(value.fixedOrigin)
+    ||connectorOrigin(value.fixedOrigin)!==value.fixedOrigin))throw new VaultError('invalid_input');
+  const staticHeaders=value.staticHeaders??[];
+  if(!Array.isArray(staticHeaders)||staticHeaders.length>8
+    ||staticHeaders.some(item=>!item||!headerName(item.name)||forbiddenHeader(item.name)
+      ||auth.kind==='api-key-header'&&item.name.toLowerCase()===auth.name.toLowerCase()
+      ||!printable(item.value,256))
+    ||new Set(staticHeaders.map(item=>item.name.toLowerCase())).size!==staticHeaders.length)
+    throw new VaultError('invalid_input');
   const resources=value.resources.map(checkedResource);
   if(new Set(resources.map(item=>item.id)).size!==resources.length)throw new VaultError('invalid_input');
   return Object.freeze({id:value.id,moduleId:value.moduleId,config:Object.freeze({...value.config,
     fields:Object.freeze({...value.config.fields})}),vault:Object.freeze({...value.vault,
-    fields:Object.freeze({...value.vault.fields})}),auth:Object.freeze({...auth}),resources:Object.freeze(resources)});
+    fields:Object.freeze({...value.vault.fields})}),auth:Object.freeze({...auth}),resources:Object.freeze(resources),
+    ...(value.fixedOrigin===undefined?{}:{fixedOrigin:value.fixedOrigin}),
+    ...(value.staticHeaders===undefined?{}:{staticHeaders:Object.freeze(staticHeaders.map(item=>Object.freeze({...item})))})});
 }
 
 function requestUrl(origin:string,resource:ConnectorResource,input:ConnectorRequest):URL|null{
@@ -71,8 +113,9 @@ function requestUrl(origin:string,resource:ConnectorResource,input:ConnectorRequ
     ||input.limit!==undefined&&(!Number.isSafeInteger(input.limit)||input.limit<1||input.limit>100))return null;
   const path=resource.path.replace('{id}',encodeURIComponent(input.id??''));
   const url=new URL(path,origin);
-  if(input.cursor!==undefined)url.searchParams.set('cursor',input.cursor);
-  if(input.limit!==undefined)url.searchParams.set('limit',String(input.limit));
+  for(const item of resource.query?.fixed??[])url.searchParams.set(item.name,item.value);
+  if(input.cursor!==undefined)url.searchParams.set(resource.query?.cursor??'cursor',input.cursor);
+  if(input.limit!==undefined)url.searchParams.set(resource.query?.limit??'limit',String(input.limit));
   return url.href.length<=8192?url:null;
 }
 
@@ -108,6 +151,8 @@ export interface ConnectorOperationScope {
   readonly signal:AbortSignal;
   /** The operation engine invalidates this lease when the handler completes or times out. */
   readonly ensureActive:()=>void;
+  /** Host-only: command GET proof is asserted in the same D1 batch as its projection. */
+  readonly registerCommitGuards?:(plans:readonly DataPlan[])=>void;
 }
 
 /** Separate from the OpenAI transport: one declared GET, scoped config and vault, no module credential. */
@@ -141,7 +186,8 @@ export function createConnectorHost(options:ConnectorHostOptions){
       const row=await read(lease);
       if(!row||row[cf.enabled]!==true||!row[cf.keyRef])return 'missing' as const;
       if(!vault)return 'unavailable' as const;
-      if(!usable(row)||!await matchingSecret(lease,row))return 'invalid' as const;
+      if(!usable(row)||descriptor.fixedOrigin&&connectorOrigin(row[cf.origin])!==descriptor.fixedOrigin
+        ||!await matchingSecret(lease,row))return 'invalid' as const;
       try{await vault.useSecret(lease,{reference:String(row[cf.keyRef]),bindingId:descriptor.id},()=>true);
         return 'ready' as const;}
       catch{return 'invalid' as const;}
@@ -176,6 +222,7 @@ export function createConnectorHost(options:ConnectorHostOptions){
           if(!vault||!usable(row)||!await matchingSecret(fresh,row!))return error('not_configured');
           scope.ensureActive();
           const origin=connectorOrigin(row![cf.origin]);
+          if(descriptor.fixedOrigin&&origin!==descriptor.fixedOrigin)return error('not_configured');
           const url=origin?requestUrl(origin,resource,input):null;
           if(!url)return error('invalid_request');
           const reference=String(row![cf.keyRef]),version=row![cf.secretVersion],revision=row![cf.revision];
@@ -195,6 +242,7 @@ export function createConnectorHost(options:ConnectorHostOptions){
             const headers=new Headers({accept:'application/json'});
             if(descriptor.auth.kind==='bearer')headers.set('Authorization',`Bearer ${secret}`);
             else headers.set(descriptor.auth.name,secret);
+            for(const item of descriptor.staticHeaders??[])headers.set(item.name,item.value);
             scope.ensureActive();
             return (options.fetcher??fetch)(url,{method:'GET',headers,redirect:'manual',credentials:'omit',
               referrerPolicy:'no-referrer',cache:'no-store',signal});
@@ -211,6 +259,20 @@ export function createConnectorHost(options:ConnectorHostOptions){
           await guard();
           const finalLease=await authorize();data.dispose(finalLease);
           scope.ensureActive();
+          if(scope.registerCommitGuards){
+            const vf=descriptor.vault.fields;
+            const configProof=data.internalPort(scope.lease,{moduleId:descriptor.moduleId,
+              modelId:descriptor.config.modelId,
+              fields:[cf.id,cf.revision,cf.origin,cf.keyRef,cf.secretVersion,cf.enabled]})
+              .planGet(descriptor.config.modelId,{key:{[cf.id]:descriptor.id},required:true,
+                where:{[cf.revision]:revision,[cf.origin]:row![cf.origin],[cf.keyRef]:reference,
+                  [cf.secretVersion]:version,[cf.enabled]:true},fields:[cf.id]});
+            const secretProof=data.internalPort(scope.lease,{moduleId:descriptor.moduleId,
+              modelId:descriptor.vault.modelId,fields:[vf.id,vf.version,vf.state,vf.bindingId]})
+              .planGet(descriptor.vault.modelId,{key:{[vf.id]:reference},required:true,
+                where:{[vf.version]:version,[vf.state]:'active',[vf.bindingId]:descriptor.id},fields:[vf.id]});
+            scope.registerCommitGuards([configProof,secretProof]);
+          }
           return Object.freeze({kind:'ok',status:200,body:body.body});
         }catch(caught){
           if(caught instanceof VaultError&&caught.code==='conflict')return error('unavailable');

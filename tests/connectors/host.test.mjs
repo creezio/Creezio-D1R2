@@ -30,7 +30,7 @@ const catalog={schemaVersion:1,compositionDigest:'sha256-test',modules:[{moduleI
   permissions:[],models:[{modelId:'connector_config',model:configModel,table:'config'},
     {modelId:'connector_secret',model:vaultModel,table:'secret'}]}]};
 
-async function fixture(fetcher){
+async function fixture(fetcher,described=descriptor){
   const keyring=createVaultKeyring({activeKeyId:'key',keys:{key:new Uint8Array(32).fill(17)}});
   const reference=createVaultReference();
   const ciphertext=await keyring.seal({moduleId,contextId:'application',bindingId:connectorId,
@@ -40,6 +40,7 @@ async function fixture(fetcher){
   secret:{id:reference,binding_id:connectorId,ciphertext,key_id:'key',version:1,state:'active'}};
   const identity={moduleId,contextId:'application',audience:'admin',principalId:'owner',
     actorPrincipalId:'owner',credentialKind:'session'};
+  const plans=[];
   const data={
     async authorize(){if(state.revoked)throw Object.assign(new Error('revoked'),{code:'forbidden'});
       return {kind:'data-lease'};},
@@ -49,14 +50,15 @@ async function fixture(fetcher){
       if(!row)return null;
       if(Object.entries(input.where??{}).some(([key,value])=>row[key]!==value))return null;
       return row;
-    }};}
+    },planGet(model,input){const plan=Object.freeze({kind:'data-plan',model,input,fields:options.fields});
+      plans.push(plan);return plan;}};}
   };
-  const host=createConnectorHost({data,catalog,descriptor,keyring,fetcher});
-  const port=()=>host.port({lease:{kind:'data-lease'},credential:{kind:'session',token:'opaque'},
+  const host=createConnectorHost({data,catalog,descriptor:described,keyring,fetcher});
+  const port=(extra={})=>host.port({lease:{kind:'data-lease'},credential:{kind:'session',token:'opaque'},
     contextId:'application',audience:'admin',actors:['user'],
     requiredPermissionIds:[`${moduleId}:read`],signal:new AbortController().signal,
-    ensureActive(){if(!state.alive)throw new Error('operation closed');}});
-  return {host,state,port};
+    ensureActive(){if(!state.alive)throw new Error('operation closed');},...extra});
+  return {host,state,port,plans};
 }
 
 test('the descriptor and configured origin cannot redirect a secret to an arbitrary host or header',()=>{
@@ -155,4 +157,62 @@ test('a config revision change and oversized response fail closed',async()=>{
     {headers:{'content-type':'application/json'}}));
   assert.deepEqual(await huge.port().request({resource:'workflows'}),
     {kind:'error',code:'invalid_response',status:200});
+});
+
+test('compiled Stripe GET mapping fixes origin, version and query without client-controlled headers',async()=>{
+  const stripe={...descriptor,auth:{kind:'bearer'},fixedOrigin:'https://api.stripe.com',
+    staticHeaders:[{name:'Stripe-Version',value:'2026-08-26.dahlia'},
+      {name:'Accept-Language',value:'fr'}],resources:[
+      {id:'subscriptions',method:'GET',path:'/v1/subscriptions',params:['cursor','limit'],
+        query:{cursor:'starting_after',fixed:[{name:'status',value:'all'}]}}]};
+  for(const bad of [
+    {...stripe,fixedOrigin:'https://api.stripe.com/'},
+    {...stripe,staticHeaders:[{name:'Authorization',value:'Bearer other'}]},
+    {...stripe,staticHeaders:[{name:'Proxy-Authorization',value:'Basic other'}]},
+    {...stripe,staticHeaders:[{name:'X-Forwarded',value:'other'}]},
+    {...stripe,staticHeaders:[{name:'X-Real',value:'other'}]},
+    {...stripe,staticHeaders:[{name:'Stripe-Version',value:'x\r\nHost: other'}]},
+    {...stripe,staticHeaders:[{name:'Stripe-Version',value:'2026-08-26.dahlia\n'}]},
+    {...stripe,staticHeaders:[{name:'Stripe-Version\n',value:'2026-08-26.dahlia'}]},
+    {...stripe,staticHeaders:[{name:'Stripe-Version',value:'x\u2028'}]},
+    {...stripe,staticHeaders:[{name:'Stripe-Version',value:'a'},
+      {name:'stripe-version',value:'b'}]},
+    {...stripe,resources:[{...stripe.resources[0],query:{cursor:'status',fixed:[{name:'status',value:'all'}]}}]},
+    {...stripe,resources:[{...stripe.resources[0],query:{cursor:'starting_after\n'}}]},
+    {...stripe,resources:[{...stripe.resources[0],query:{fixed:[{name:'status',value:'all\n'}]}}]},
+    {...stripe,resources:[{...stripe.resources[0],params:['limit'],query:{cursor:'starting_after'}}]},
+  ])assert.throws(()=>captureConnectorDescriptor(bad));
+  const requests=[];
+  const ready=await fixture(async(url,init)=>{requests.push({url:String(url),init});
+    return new Response(JSON.stringify({object:'list',data:[],has_more:false}),
+      {headers:{'content-type':'application/json'}});},stripe);
+  assert.equal(await ready.host.availability({kind:'data-lease'}),'invalid');
+  assert.deepEqual(await ready.port().request({resource:'subscriptions',limit:8}),
+    {kind:'error',code:'not_configured'});
+  assert.equal(requests.length,0,'a configured origin cannot redirect the Stripe credential');
+  ready.state.config.origin='https://api.stripe.com';
+  assert.equal(await ready.host.availability({kind:'data-lease'}),'ready');
+  assert.deepEqual(await ready.port().request({resource:'subscriptions',cursor:'sub_123',limit:8}),
+    {kind:'ok',status:200,body:{object:'list',data:[],has_more:false}});
+  assert.equal(requests[0].url,'https://api.stripe.com/v1/subscriptions?status=all&starting_after=sub_123&limit=8');
+  assert.equal(requests[0].init.headers.get('Authorization'),'Bearer secret-value');
+  assert.equal(requests[0].init.headers.get('Stripe-Version'),'2026-08-26.dahlia');
+  assert.equal(requests[0].init.headers.get('Accept-Language'),'fr');
+  assert.doesNotMatch(JSON.stringify(requests[0].init),/secret-value/);
+});
+
+test('successful command GET registers only host-private config and vault commit proofs',async()=>{
+  const ready=await fixture(async()=>new Response('{}',{headers:{'content-type':'application/json'}}));
+  const registered=[];
+  assert.deepEqual(await ready.port({registerCommitGuards:tokens=>registered.push(tokens)})
+    .request({resource:'workflows'}),{kind:'ok',status:200,body:{}});
+  assert.equal(registered.length,1);
+  assert.deepEqual(registered[0],ready.plans);
+  assert.equal(ready.plans.length,2);
+  assert.deepEqual(ready.plans[0].input,{key:{id:connectorId},required:true,
+    where:{revision:1,origin:'https://n8n.example.invalid',key_ref:ready.state.secret.id,
+      secret_version:1,enabled:true},fields:['id']});
+  assert.deepEqual(ready.plans[1].input,{key:{id:ready.state.secret.id},required:true,
+    where:{version:1,state:'active',binding_id:connectorId},fields:['id']});
+  assert.deepEqual(ready.plans[1].fields,['id','version','state','binding_id']);
 });

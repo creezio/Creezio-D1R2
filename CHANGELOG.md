@@ -1,8 +1,12 @@
 # Changelog
 
-## Préparation SDK 1.3.0 — images liées du Catalogue (T25/T30)
+## En cours — Stripe et projections D1 (T27)
 
-Le candidat de la PR #48 porte `linkedRead` déclaré et `downloadLinked` sur le transport natif existant ; lecture privée du propriétaire, upload et abandon gardent leurs règles. Il a passé 1 227/1 227 contrôles et la lecture d’image liée a été exercée sur Linux. Cette préparation documentaire ne publie ni le SDK 1.3 ni une nouvelle application : archive finale, tag et téléchargements restent à qualifier depuis le main de release. Voir [T25](docs/IMPLEMENTATION-T25.md) et [T30](docs/IMPLEMENTATION-T30.md).
+Le connecteur reprend l’administration de facturation Creezio et prépare la lecture des clients, abonnements et factures via le port GET déclaré, avec clé scellée, pagination bornée et projections D1 contextuelles. Le SDK 1.4 candidat ajoute des options de protocole et la vérification atomique de la connexion au commit ; aucune mutation Stripe, facturation premium ou publication du SDK 1.4 n’est incluse. Voir [T27](docs/IMPLEMENTATION-T27.md).
+
+## SDK 1.3.0 public — images liées du Catalogue (T25/T30)
+
+Le candidat de la PR #48 porte `linkedRead` déclaré et `downloadLinked` sur le transport natif existant ; lecture privée du propriétaire, upload et abandon gardent leurs règles. Il a passé 1 227/1 227 contrôles et la lecture d’image liée a été exercée sur Linux. La PR #49 est intégrée sur main `14f3e504` (CI 1 227/1 227) ; le SDK 1.3 est public, archive de 71 812 octets et SHA-256 `177616cb42288637d6eeaa91f55ffe9fe3d00c9d08e0f806886e40c72833a67d`. Les cinq consommateurs et les téléchargements draft/public sont vérifiés. Aucune application n’est déployée par cette release. Voir [T25](docs/IMPLEMENTATION-T25.md) et [T30](docs/IMPLEMENTATION-T30.md).
 
 ## En qualification — outils du chat des modules (T15/T16)
 

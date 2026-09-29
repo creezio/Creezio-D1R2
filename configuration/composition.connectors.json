@@ -19,7 +19,7 @@
     ]
   },
   "sdk": {
-    "version": "1.3.0",
+    "version": "1.4.0",
     "coreVersion": "0.0.0",
     "policy": {
       "id": "creezio.local-contracts",
@@ -183,6 +183,18 @@
       "enabled": true,
       "configuration": [],
       "integrations": []
+    },
+    {
+      "moduleId": "creezio.stripe",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.1.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/connectors/stripe"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
     }
   ],
   "front": {
@@ -204,7 +216,8 @@
         "creezio.pages-navigation",
         "creezio.analytics",
         "creezio.catalog",
-        "creezio.n8n"
+        "creezio.n8n",
+        "creezio.stripe"
       ]
     },
     "app": {

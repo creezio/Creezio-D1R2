@@ -1,14 +1,14 @@
 {
   "schemaVersion": "1.0.0",
   "applicationId": "creezio.app",
-  "sdkVersion": "1.3.0",
+  "sdkVersion": "1.4.0",
   "coreVersion": "0.0.0",
   "policy": {
     "id": "creezio.local-contracts",
     "version": "1.0.0",
     "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
   },
-  "compositionIntegrity": "sha256-9410efd15e6e2ee0940bc47e1168b9ac56a74337537d97930ea184526ef0f80f",
+  "compositionIntegrity": "sha256-fda34ef57f8526f19f2c9c6302dceb320abf124af6d8327ece6b13d795a7fb14",
   "modules": [
     {
       "moduleId": "creezio.access",
@@ -389,6 +389,37 @@
         "location": {
           "kind": "local",
           "path": ".creezio/module-artifacts/creezio.n8n/validation-d957c1b163cf0db01dd8463c56e8cdb2b1d0ef8dcd5d0bf9e72f06ef1cad1b07.tgz"
+        }
+      },
+      "dependencies": [
+        {
+          "moduleId": "creezio.access",
+          "version": "0.0.0"
+        }
+      ]
+    },
+    {
+      "moduleId": "creezio.stripe",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "version": "0.1.0",
+      "source": {
+        "kind": "snapshot",
+        "revision": "t27-stripe-read-projection-v1",
+        "integrity": "sha256-f0ffd3bee1daa4ebad3256d18ed1300b85699d51a0b3045fcaa96afb3f6dab48"
+      },
+      "contractIntegrity": "sha256-d90594a63b07f51004e3aca01d492c7242ee11bd88870c0eff621277d54b7415",
+      "runtime": {
+        "integrity": "sha256-405bc449ab00f4ff3172df8619d78231a90f6bd49bd861e9ac85ed8556b002fe",
+        "location": {
+          "kind": "local",
+          "path": ".creezio/module-artifacts/creezio.stripe/runtime-405bc449ab00f4ff3172df8619d78231a90f6bd49bd861e9ac85ed8556b002fe.tgz"
+        }
+      },
+      "validation": {
+        "integrity": "sha256-dc15e3883943df3d3d0d7b2014d3de7840d62a30e3e761763412e3fef39cfd59",
+        "location": {
+          "kind": "local",
+          "path": ".creezio/module-artifacts/creezio.stripe/validation-dc15e3883943df3d3d0d7b2014d3de7840d62a30e3e761763412e3fef39cfd59.tgz"
         }
       },
       "dependencies": [

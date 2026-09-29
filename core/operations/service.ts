@@ -175,7 +175,8 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           claimTtlMs: Math.min(OPERATION_LIMITS.maxDurationMs, Math.max(1000, op.execution.maxDurationMs + 5000)),
           retentionMs: op.idempotency.mode === 'required' ? op.idempotency.retentionSeconds * 1000 : 86400_000 });
         if (start.kind === 'existing') return Object.freeze({ execution: checkedExecution(start.execution, operation), replayed: true });
-        const controller = new AbortController(), issued = new Map<DataPlan, { write: boolean; compared: boolean; file?: boolean; secret?: boolean }>();
+        const controller = new AbortController(), issued = new Map<DataPlan, { write: boolean; compared: boolean;
+          file?: boolean; secret?: boolean; connectorGuard?: boolean }>();
         let active = true, usedItems = 0, failure: OperationError | undefined;
         const ensure = () => { if (!active || controller.signal.aborted) throw failure ?? new OperationError('cancelled'); };
         const spend = (amount: number) => { ensure(); if (!Number.isSafeInteger(amount) || amount < 1 || (usedItems += amount) > op.execution.maxItems) throw new OperationError('invalid_input'); };
@@ -218,6 +219,19 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
         const identity = data.describeLease(lease);
         const connector=connectors.find(item=>item.descriptor.moduleId===operation.moduleId
           &&op.effects.providers.includes(item.descriptor.id));
+        const connectorCommand=!!connector&&op.kind==='command'&&op.effects.writes.length>0;
+        const connectorState:{guards:readonly DataPlan[]|null}={guards:null};
+        const registerConnectorGuards=(tokens:readonly DataPlan[])=>{
+          ensure();
+          if(!connectorCommand||connectorState.guards||!Array.isArray(tokens)||tokens.length!==2
+            ||new Set(tokens).size!==2||tokens.some(token=>issued.has(token))
+            ||issued.size+tokens.length>OPERATION_LIMITS.maxPlans)throw new OperationError('invalid_output');
+          spend(tokens.length);
+          for(const token of tokens){
+            issued.set(token,{write:false,compared:false,connectorGuard:true});
+          }
+          connectorState.guards=Object.freeze([...tokens]);
+        };
         const moduleConnectors=connectors.filter(item=>item.descriptor.moduleId===operation.moduleId);
         const secretConnector=moduleConnectors.length===1?moduleConnectors[0]:null;
         const secretKeyring=secretConnector?options.connectors?.find(item=>item.descriptor.moduleId===operation.moduleId
@@ -240,13 +254,13 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
                 ensure();if(issued.size >= OPERATION_LIMITS.maxPlans)throw new OperationError('invalid_input');
                 spend(1);issued.set(token,{write:true,compared:false,secret:true});
               }})} : {}),
-          ...(connector&&op.kind==='query'&&operation.moduleId===connector.descriptor.moduleId
+          ...(connector&&(op.kind==='query'||connectorCommand)&&operation.moduleId===connector.descriptor.moduleId
             &&op.effects.providers.includes(connector.descriptor.id)
             ? {connector:connector.port({lease,credential:request.credential,contextId:identity.contextId,
               audience:identity.audience,actors:op.actors.filter((actor):actor is AuthorizationActor=>
                 ['user','machine','delegated-user','impersonated-user'].includes(actor)),
               requiredPermissionIds:op.permissions.map(ref=>`${ref.moduleId}:${ref.id}`),signal:controller.signal,
-              ensureActive:ensure})}
+              ensureActive:ensure,...(connectorCommand?{registerCommitGuards:registerConnectorGuards}:{})})}
             : {}),
           ...(options.files ? {files: Object.freeze({async preparePublication(categoryId, reference) {
             ensure();
@@ -310,8 +324,13 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           if (Reflect.ownKeys(descriptors).length !== suppliedPlans.length + 1) throw new OperationError('invalid_output');
           for (let i = 0; i < suppliedPlans.length; i++) {
             const descriptor = descriptors[String(i)], token = descriptor?.value;
-            if (!descriptor || !Object.hasOwn(descriptor, 'value') || !issued.has(token) || plans.includes(token)) throw new OperationError('invalid_output');
+            if (!descriptor || !Object.hasOwn(descriptor, 'value') || !issued.has(token)
+              || issued.get(token)?.connectorGuard || plans.includes(token)) throw new OperationError('invalid_output');
             plans.push(token);
+          }
+          if(connectorCommand){
+            if(!connectorState.guards||!plans.some(token=>issued.get(token)?.write))throw new OperationError('invalid_output');
+            plans.unshift(...connectorState.guards);
           }
           const filePlans=[...issued].filter(([,metadata])=>metadata.file).map(([token])=>token);
           if (filePlans.length && (filePlans.some(token=>!plans.includes(token))
@@ -322,7 +341,7 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           if (op.concurrency.mode === 'object-version' && !nativeCompared
             && !plans.some(token => issued.get(token)!.compared)) throw new OperationError('conflict');
           const outbox = copyJson(result.outbox ?? [], 65_536) as unknown as readonly OperationOutboxIntent[];
-          if (!Array.isArray(outbox) || outbox.length && op.kind !== 'command'
+          if (!Array.isArray(outbox) || outbox.length && (op.kind !== 'command'||connectorCommand)
             || outbox.some(intent => !op.effects.providers.includes(intent.provider))) throw new OperationError('invalid_output');
           ensure(); attemptingCommit = true;
           const committed = await Promise.race([store.commit(lease, start.claim, { plans, output, outbox,

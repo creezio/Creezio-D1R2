@@ -1,0 +1,4581 @@
+{
+  "schemaVersion": "1.0.0",
+  "identity": {
+    "id": "creezio.stripe",
+    "title": "Connecteur Stripe",
+    "publisher": "creezio",
+    "origin": "https://github.com/creezio/Creezio-D1R2",
+    "version": "0.1.0",
+    "source": {
+      "kind": "snapshot",
+      "revision": "t27-stripe-read-projection-v1",
+      "integrity": "sha256-f0ffd3bee1daa4ebad3256d18ed1300b85699d51a0b3045fcaa96afb3f6dab48"
+    },
+    "license": {
+      "expression": "NOASSERTION",
+      "file": "LICENSE"
+    }
+  },
+  "compatibility": {
+    "core": "^0.0.0",
+    "sdk": "^1.4.0",
+    "requiredCapabilities": [
+      "runtime.worker",
+      "data.d1.shared"
+    ],
+    "optionalCapabilities": []
+  },
+  "entrypoints": {
+    "server": {
+      "path": "module/entry.server.ts",
+      "export": "stripe"
+    },
+    "ui": {
+      "path": "ui/index.tsx",
+      "export": "StripeAdminView"
+    },
+    "plugin": {
+      "manifest": "plugin/plugin.json",
+      "mcp": "plugin/mcp.json",
+      "contributions": {
+        "path": "plugin/contributions.ts",
+        "export": "contributions"
+      }
+    }
+  },
+  "dependencies": [
+    {
+      "moduleId": "creezio.access",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "optional": false,
+      "contracts": [],
+      "whenAbsent": "block",
+      "whenIncompatible": "block",
+      "autoInstall": false
+    }
+  ],
+  "contracts": {
+    "schemas": [
+      {
+        "id": "empty-input",
+        "schema": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "config-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "config": {
+              "type": "object",
+              "properties": {
+                "origin": {
+                  "const": "https://api.stripe.com"
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "hasKey": {
+                  "type": "boolean"
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "missing",
+                    "configured",
+                    "unverified"
+                  ]
+                }
+              },
+              "required": [
+                "origin",
+                "enabled",
+                "hasKey",
+                "revision",
+                "state"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "config"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "config-set-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "enabled",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "config-key-set-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "apiKey": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 4096
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "apiKey",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "config-key-revoke-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "connection-check-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "reachable": {
+              "const": true
+            }
+          },
+          "required": [
+            "reachable"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "sync-states-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "states": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "collection": {
+                    "type": "string",
+                    "enum": [
+                      "customers",
+                      "subscriptions",
+                      "invoices"
+                    ]
+                  },
+                  "runId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "cursor": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "partial",
+                      "pages_exhausted"
+                    ]
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "updatedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "collection",
+                  "runId",
+                  "cursor",
+                  "status",
+                  "revision",
+                  "updatedAt"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 3
+            }
+          },
+          "required": [
+            "states"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "sync-start-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "collection": {
+              "type": "string",
+              "enum": [
+                "customers",
+                "subscriptions",
+                "invoices"
+              ]
+            },
+            "runId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "collection",
+            "runId",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "sync-start-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "object",
+              "properties": {
+                "collection": {
+                  "type": "string",
+                  "enum": [
+                    "customers",
+                    "subscriptions",
+                    "invoices"
+                  ]
+                },
+                "runId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "cursor": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "partial",
+                    "pages_exhausted"
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "updatedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "collection",
+                "runId",
+                "cursor",
+                "status",
+                "revision",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "sync-page-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "collection": {
+              "type": "string",
+              "enum": [
+                "customers",
+                "subscriptions",
+                "invoices"
+              ]
+            },
+            "runId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "cursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "expectedRevision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8
+            }
+          },
+          "required": [
+            "requestKey",
+            "collection",
+            "runId",
+            "cursor",
+            "expectedRevision",
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "sync-page-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "object",
+              "properties": {
+                "collection": {
+                  "type": "string",
+                  "enum": [
+                    "customers",
+                    "subscriptions",
+                    "invoices"
+                  ]
+                },
+                "runId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "cursor": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "partial",
+                    "pages_exhausted"
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "updatedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "collection",
+                "runId",
+                "cursor",
+                "status",
+                "revision",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            },
+            "processed": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 8
+            }
+          },
+          "required": [
+            "state",
+            "processed"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "local-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 25
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "customer-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "name": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 160
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "livemode": {
+                    "type": "boolean"
+                  },
+                  "updated_at": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "livemode",
+                  "updated_at"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 25
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "subscription-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "customer_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "status": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "currency": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 3
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "price_id": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "unit_amount_minor": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Raw Stripe minor-unit amount. Interpret with currency and Stripe rules; it is not always major units divided by 100."
+                  },
+                  "interval": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 32
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "interval_count": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "quantity": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "period_end_at": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "livemode": {
+                    "type": "boolean"
+                  },
+                  "updated_at": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "id",
+                  "customer_id",
+                  "status",
+                  "currency",
+                  "price_id",
+                  "unit_amount_minor",
+                  "interval",
+                  "interval_count",
+                  "quantity",
+                  "period_end_at",
+                  "livemode",
+                  "updated_at"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 25
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "invoice-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "customer_id": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "status": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 3
+                  },
+                  "amount_due_minor": {
+                    "type": "integer",
+                    "description": "Raw Stripe minor-unit amount; interpret with the currency and Stripe rules, never divide every currency by 100."
+                  },
+                  "period_start_at": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "period_end_at": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "livemode": {
+                    "type": "boolean"
+                  },
+                  "updated_at": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "id",
+                  "customer_id",
+                  "status",
+                  "currency",
+                  "amount_due_minor",
+                  "period_start_at",
+                  "period_end_at",
+                  "livemode",
+                  "updated_at"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 25
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "stripe-panel-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "audience": {
+              "const": "admin"
+            },
+            "contextId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "tab": {
+              "type": "string",
+              "enum": [
+                "overview",
+                "customers",
+                "subscriptions",
+                "invoices",
+                "settings"
+              ]
+            },
+            "pending": {
+              "type": "object",
+              "properties": {
+                "sessionId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "audience": {
+                  "const": "admin"
+                },
+                "contextId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "bindingId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 257
+                },
+                "requestKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                "intent": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "required": [
+                "sessionId",
+                "audience",
+                "contextId",
+                "bindingId",
+                "requestKey"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "sessionId",
+            "audience",
+            "contextId",
+            "tab"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "stripe-view-input",
+        "schema": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "key-reference-setting",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "connector_config",
+        "title": "Configuration Stripe",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "origin",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 8,
+              "maxLength": 512
+            }
+          },
+          {
+            "id": "key_ref",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "secret_version",
+            "type": "integer",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "connection_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "enabled",
+            "type": "boolean",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "connector_secret",
+        "title": "Clé Stripe scellée",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "binding_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "ciphertext",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 32768
+            }
+          },
+          {
+            "id": "key_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "state",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "active",
+                "revoked"
+              ]
+            }
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "sync_state",
+        "title": "Parcours de lecture Stripe",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "customers",
+                "subscriptions",
+                "invoices"
+              ]
+            }
+          },
+          {
+            "id": "run_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "connection_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "cursor",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "status",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "partial",
+                "pages_exhausted"
+              ]
+            }
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "stripe_customer",
+        "title": "Client Stripe projeté",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "connection_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "name",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 160
+            }
+          },
+          {
+            "id": "livemode",
+            "type": "boolean",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "by-connection",
+            "fields": [
+              "context_id",
+              "connection_id",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "stripe_subscription",
+        "title": "Abonnement Stripe projeté",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "connection_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "customer_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "status",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "currency",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 3,
+              "maxLength": 3
+            }
+          },
+          {
+            "id": "price_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "unit_amount_minor",
+            "type": "integer",
+            "nullable": true,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "interval",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 32
+            }
+          },
+          {
+            "id": "interval_count",
+            "type": "integer",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "quantity",
+            "type": "integer",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 0
+            }
+          },
+          {
+            "id": "period_end_at",
+            "type": "date-time",
+            "nullable": true,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "livemode",
+            "type": "boolean",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "by-connection",
+            "fields": [
+              "context_id",
+              "connection_id",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "stripe_invoice",
+        "title": "Facture Stripe projetée",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "connection_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "customer_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "status",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "currency",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 3,
+              "maxLength": 3
+            }
+          },
+          {
+            "id": "amount_due_minor",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "period_start_at",
+            "type": "date-time",
+            "nullable": true,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "period_end_at",
+            "type": "date-time",
+            "nullable": true,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "livemode",
+            "type": "boolean",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "by-connection",
+            "fields": [
+              "context_id",
+              "connection_id",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      }
+    ],
+    "files": [],
+    "events": [],
+    "connectors": [
+      {
+        "id": "stripe.api.v1",
+        "moduleId": "creezio.stripe",
+        "config": {
+          "moduleId": "creezio.stripe",
+          "modelId": "connector_config",
+          "contextField": "context_id",
+          "fields": {
+            "id": "id",
+            "origin": "origin",
+            "keyRef": "key_ref",
+            "secretVersion": "secret_version",
+            "enabled": "enabled",
+            "revision": "revision",
+            "updatedAt": "updated_at"
+          }
+        },
+        "vault": {
+          "moduleId": "creezio.stripe",
+          "modelId": "connector_secret",
+          "contextField": "context_id",
+          "fields": {
+            "id": "id",
+            "bindingId": "binding_id",
+            "ciphertext": "ciphertext",
+            "keyId": "key_id",
+            "version": "version",
+            "state": "state"
+          }
+        },
+        "auth": {
+          "kind": "bearer"
+        },
+        "fixedOrigin": "https://api.stripe.com",
+        "staticHeaders": [
+          {
+            "name": "Stripe-Version",
+            "value": "2026-08-26.dahlia"
+          }
+        ],
+        "resources": [
+          {
+            "id": "customers",
+            "method": "GET",
+            "path": "/v1/customers",
+            "params": [
+              "cursor",
+              "limit"
+            ],
+            "query": {
+              "cursor": "starting_after",
+              "limit": "limit"
+            }
+          },
+          {
+            "id": "subscriptions",
+            "method": "GET",
+            "path": "/v1/subscriptions",
+            "params": [
+              "cursor",
+              "limit"
+            ],
+            "query": {
+              "cursor": "starting_after",
+              "limit": "limit",
+              "fixed": [
+                {
+                  "name": "status",
+                  "value": "all"
+                }
+              ]
+            }
+          },
+          {
+            "id": "invoices",
+            "method": "GET",
+            "path": "/v1/invoices",
+            "params": [
+              "cursor",
+              "limit"
+            ],
+            "query": {
+              "cursor": "starting_after",
+              "limit": "limit"
+            }
+          }
+        ]
+      }
+    ],
+    "settings": [
+      {
+        "id": "api-key-ref",
+        "title": "Référence de clé Stripe",
+        "schema": {
+          "schemaId": "key-reference-setting"
+        },
+        "visibility": "secret-reference",
+        "required": false,
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "provider": "stripe.api.v1",
+        "redact": true
+      }
+    ],
+    "search": [],
+    "permissions": [
+      {
+        "id": "manage",
+        "title": "Configurer et synchroniser Stripe",
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "scopes": [
+          "stripe.manage"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "connector_config"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "connector_secret"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "sync_state"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "stripe_customer"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "stripe_subscription"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "stripe_invoice"
+          }
+        ],
+        "actions": [
+          "read",
+          "create",
+          "update",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      },
+      {
+        "id": "read",
+        "title": "Lire la facturation projetée",
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "scopes": [
+          "stripe.read"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "connector_config"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "sync_state"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "stripe_customer"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "stripe_subscription"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "stripe_invoice"
+          }
+        ],
+        "actions": [
+          "read",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      }
+    ],
+    "operations": [
+      {
+        "id": "config.read",
+        "title": "Lire la configuration Stripe",
+        "kind": "query",
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 8,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.set",
+        "title": "Activer ou suspendre Stripe",
+        "kind": "command",
+        "input": {
+          "schemaId": "config-set-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configSet"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 8,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.key.set",
+        "title": "Enregistrer la clé Stripe",
+        "kind": "command",
+        "input": {
+          "schemaId": "config-key-set-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configKeySet"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 10,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.key.revoke",
+        "title": "Révoquer la clé Stripe",
+        "kind": "command",
+        "input": {
+          "schemaId": "config-key-revoke-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configKeyRevoke"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 10,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "connection.check",
+        "title": "Vérifier la connexion Stripe",
+        "kind": "query",
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "connection-check-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "connectionCheck"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "stripe.api.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 15000,
+          "maxItems": 8,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "sync.state",
+        "title": "Lire l’état des parcours Stripe",
+        "kind": "query",
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "sync-states-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "syncState"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "sync_state"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 5,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "sync.start",
+        "title": "Démarrer un parcours de lecture Stripe",
+        "kind": "command",
+        "input": {
+          "schemaId": "sync-start-input"
+        },
+        "output": {
+          "schemaId": "sync-start-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "syncStart"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "sync_state"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "sync_state"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 6,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "sync.page",
+        "title": "Lire et projeter une page Stripe",
+        "kind": "command",
+        "input": {
+          "schemaId": "sync-page-input"
+        },
+        "output": {
+          "schemaId": "sync-page-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "syncPage"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "sync_state"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_customer"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_subscription"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_invoice"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "sync_state"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_customer"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_subscription"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_invoice"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "stripe.api.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 15000,
+          "maxItems": 32,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "customer.list",
+        "title": "Lire les customers projetés",
+        "kind": "query",
+        "input": {
+          "schemaId": "local-list-input"
+        },
+        "output": {
+          "schemaId": "customer-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "customerList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_customer"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 25
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 27,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "subscription.list",
+        "title": "Lire les subscriptions projetés",
+        "kind": "query",
+        "input": {
+          "schemaId": "local-list-input"
+        },
+        "output": {
+          "schemaId": "subscription-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "subscriptionList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_subscription"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 25
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 27,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "invoice.list",
+        "title": "Lire les invoices projetés",
+        "kind": "query",
+        "input": {
+          "schemaId": "local-list-input"
+        },
+        "output": {
+          "schemaId": "invoice-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "invoiceList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_invoice"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 25
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 27,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey"
+          ]
+        },
+        "public": false
+      }
+    ],
+    "api": [
+      {
+        "id": "admin.config.read",
+        "method": "GET",
+        "path": "/api/admin/stripe/config/read",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "config.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.set",
+        "method": "POST",
+        "path": "/api/admin/stripe/config/set",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "config.set"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "config-set-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.key.set",
+        "method": "POST",
+        "path": "/api/admin/stripe/config/key/set",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "config.key.set"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "config-key-set-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.key.revoke",
+        "method": "POST",
+        "path": "/api/admin/stripe/config/key/revoke",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "config.key.revoke"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "config-key-revoke-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.connection.check",
+        "method": "GET",
+        "path": "/api/admin/stripe/connection/check",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "connection.check"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "connection-check-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.sync.state",
+        "method": "GET",
+        "path": "/api/admin/stripe/sync/state",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "sync.state"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "sync-states-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.sync.start",
+        "method": "POST",
+        "path": "/api/admin/stripe/sync/start",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "sync.start"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "sync-start-input"
+        },
+        "output": {
+          "schemaId": "sync-start-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.sync.page",
+        "method": "POST",
+        "path": "/api/admin/stripe/sync/page",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "sync.page"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "sync-page-input"
+        },
+        "output": {
+          "schemaId": "sync-page-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.customer.list",
+        "method": "GET",
+        "path": "/api/admin/stripe/customer/list",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "customer.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "local-list-input"
+        },
+        "output": {
+          "schemaId": "customer-list-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.subscription.list",
+        "method": "GET",
+        "path": "/api/admin/stripe/subscription/list",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "subscription.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "local-list-input"
+        },
+        "output": {
+          "schemaId": "subscription-list-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.invoice.list",
+        "method": "GET",
+        "path": "/api/admin/stripe/invoice/list",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "invoice.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "local-list-input"
+        },
+        "output": {
+          "schemaId": "invoice-list-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      }
+    ],
+    "mcp": {
+      "tools": [
+        {
+          "id": "config.read",
+          "name": "stripe_config_read",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "config.read"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "empty-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.set",
+          "name": "stripe_config_set",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "config.set"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "config-set-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.key.set",
+          "name": "stripe_config_key_set",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "config.key.set"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "config-key-set-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.key.revoke",
+          "name": "stripe_config_key_revoke",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "config.key.revoke"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "config-key-revoke-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "connection.check",
+          "name": "stripe_connection_check",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "connection.check"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "empty-input"
+          },
+          "output": {
+            "schemaId": "connection-check-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": true
+          },
+          "textFallback": true
+        },
+        {
+          "id": "sync.state",
+          "name": "stripe_sync_state",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "sync.state"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "empty-input"
+          },
+          "output": {
+            "schemaId": "sync-states-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "widget": {
+            "moduleId": "creezio.stripe",
+            "kind": "widget",
+            "id": "sync-status"
+          },
+          "textFallback": true
+        },
+        {
+          "id": "sync.start",
+          "name": "stripe_sync_start",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "sync.start"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "sync-start-input"
+          },
+          "output": {
+            "schemaId": "sync-start-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "sync.page",
+          "name": "stripe_sync_page",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "sync.page"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "sync-page-input"
+          },
+          "output": {
+            "schemaId": "sync-page-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": true
+          },
+          "textFallback": true
+        },
+        {
+          "id": "customer.list",
+          "name": "stripe_customer_list",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "customer.list"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "local-list-input"
+          },
+          "output": {
+            "schemaId": "customer-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "subscription.list",
+          "name": "stripe_subscription_list",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "subscription.list"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "local-list-input"
+          },
+          "output": {
+            "schemaId": "subscription-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "invoice.list",
+          "name": "stripe_invoice_list",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "invoice.list"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "local-list-input"
+          },
+          "output": {
+            "schemaId": "invoice-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        }
+      ],
+      "resources": [
+        {
+          "id": "sync-status-ui",
+          "uri": "ui://creezio.stripe/sync-status",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/sync-status.html"
+          },
+          "widget": {
+            "moduleId": "creezio.stripe",
+            "kind": "widget",
+            "id": "sync-status"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        }
+      ],
+      "prompts": [],
+      "skills": [
+        {
+          "id": "stripe",
+          "path": "plugin/skills/stripe.md",
+          "audiences": [
+            "admin"
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "sync.state"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "customer.list"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "subscription.list"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "invoice.list"
+            }
+          ],
+          "resources": [
+            "sync-status-ui"
+          ],
+          "integrity": "sha256-ea380ec317da768d8efdcc0bf0a27f87a857911049a1d1572728ec69583d2def"
+        }
+      ]
+    },
+    "ui": {
+      "views": [
+        {
+          "id": "admin",
+          "title": "Facturation",
+          "surfaces": [
+            "workspace"
+          ],
+          "route": "/admin/billing",
+          "component": {
+            "path": "ui/index.tsx",
+            "export": "StripeAdminView"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "permission",
+              "id": "manage"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "config.read"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "config.set"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "config.key.set"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "config.key.revoke"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "connection.check"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "sync.state"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "sync.start"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "sync.page"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "customer.list"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "subscription.list"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "invoice.list"
+            }
+          ],
+          "input": {
+            "schemaId": "stripe-view-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend",
+            "stateSchema": {
+              "schemaId": "stripe-panel-state"
+            }
+          }
+        }
+      ],
+      "navigation": [
+        {
+          "id": "stripe-admin",
+          "title": "Facturation",
+          "view": {
+            "moduleId": "creezio.stripe",
+            "kind": "view",
+            "id": "admin"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "permission",
+              "id": "manage"
+            }
+          ],
+          "surfaces": [
+            "workspace"
+          ],
+          "order": 80
+        }
+      ],
+      "slots": [],
+      "front": {
+        "mode": "absent",
+        "justification": {
+          "reason": "The original billing page is administrative; no customer payment front is in this read-only slice.",
+          "policyRule": "stripe.admin-only-first-slice"
+        }
+      },
+      "themes": [],
+      "styles": []
+    },
+    "widgets": [
+      {
+        "id": "sync-status",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "sync-status-ui",
+        "renderer": {
+          "path": "ui/widgets/sync-status.ts",
+          "export": "startSyncStatus"
+        },
+        "input": {
+          "schemaId": "sync-states-output"
+        },
+        "state": {
+          "schemaId": "empty-input"
+        },
+        "result": {
+          "schemaId": "sync-states-output"
+        },
+        "audiences": [
+          "admin"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "refresh",
+            "label": "Relire l’état",
+            "input": {
+              "schemaId": "empty-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.stripe",
+                "kind": "operation",
+                "id": "sync.state"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 65536,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      }
+    ],
+    "publicContracts": []
+  },
+  "documentation": {
+    "installed": {
+      "readme": {
+        "path": "README.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "prd": {
+        "path": "prd.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "changelog": {
+        "path": "CHANGELOG.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      }
+    },
+    "development": {
+      "agents": {
+        "path": "AGENTS.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "files": {
+        "path": "FILES.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "interview": {
+        "path": "interview.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "todo": {
+        "path": "TODO.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      }
+    },
+    "versionBinding": {
+      "moduleVersion": "0.1.0",
+      "sourceRevision": "t27-stripe-read-projection-v1"
+    },
+    "localRevisions": {
+      "installedVersionDistinct": true,
+      "approvedImmutable": true
+    },
+    "installationHistory": {
+      "distinctFromPackageChangelog": true
+    }
+  },
+  "validation": {
+    "gate": "gate.mjs",
+    "suites": {
+      "backend": {
+        "mode": "required",
+        "script": "ci/backend.mjs",
+        "tests": [
+          "tests/backend/contract.test.mjs"
+        ]
+      },
+      "ui": {
+        "mode": "required",
+        "script": "ci/ui.mjs",
+        "tests": [
+          "tests/ui/contract.test.mjs"
+        ]
+      },
+      "api-mcp": {
+        "mode": "required",
+        "script": "ci/api-mcp.mjs",
+        "tests": [
+          "tests/api-mcp/contract.test.mjs"
+        ]
+      },
+      "widgets": {
+        "mode": "required",
+        "script": "ci/widgets.mjs",
+        "tests": [
+          "tests/widgets/contract.test.mjs"
+        ]
+      },
+      "package": {
+        "mode": "required",
+        "script": "ci/package.mjs",
+        "tests": [
+          "tests/package/contract.test.mjs"
+        ]
+      },
+      "docs": {
+        "mode": "required",
+        "script": "ci/docs.mjs",
+        "tests": [
+          "tests/docs/contract.test.mjs"
+        ]
+      }
+    },
+    "policy": {
+      "id": "creezio.local-contracts",
+      "version": "1.0.0",
+      "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
+    },
+    "isolation": {
+      "productionSecrets": false,
+      "publicationRights": false
+    },
+    "evidence": {
+      "sourceIntegrity": true,
+      "artifactIntegrity": true,
+      "profile": true,
+      "executedSuites": true
+    }
+  },
+  "packaging": {
+    "runtime": {
+      "files": [
+        "module/manifest.json",
+        "module/models.json",
+        "module/entry.server.ts",
+        "module/storage.ts",
+        "module/operations.ts",
+        "module/service.ts",
+        "module/projection.ts",
+        "ui/index.tsx",
+        "ui/panel-state.ts",
+        "ui/state.ts",
+        "ui/money.ts",
+        "ui/widgets/sync-status.ts",
+        "ui/widgets/sync-status.html",
+        "README.md",
+        "prd.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "plugin/plugin.json",
+        "plugin/mcp.json",
+        "plugin/contributions.ts",
+        "plugin/skills/stripe.md"
+      ],
+      "references": []
+    },
+    "validation": {
+      "files": [
+        "AGENTS.md",
+        "FILES.md",
+        "interview.md",
+        "TODO.md",
+        "gate.mjs",
+        "module/generate-manifest.mjs",
+        "ci/run-suite.mjs",
+        "tests/helpers.mjs",
+        "ci/backend.mjs",
+        "tests/backend/contract.test.mjs",
+        "ci/ui.mjs",
+        "tests/ui/contract.test.mjs",
+        "ci/api-mcp.mjs",
+        "tests/api-mcp/contract.test.mjs",
+        "ci/widgets.mjs",
+        "tests/widgets/contract.test.mjs",
+        "ci/package.mjs",
+        "tests/package/contract.test.mjs",
+        "ci/docs.mjs",
+        "tests/docs/contract.test.mjs"
+      ],
+      "references": []
+    },
+    "validationBinding": {
+      "moduleId": "creezio.stripe",
+      "moduleVersion": "0.1.0",
+      "sourceRevision": "t27-stripe-read-projection-v1"
+    },
+    "noRuntimeTests": true,
+    "installation": "build-and-publish",
+    "providerInstallation": false
+  },
+  "lifecycle": {
+    "deactivation": "preserve-data",
+    "configuration": "explicit-state",
+    "uninstall": "explicit-approved-action",
+    "activationRequirements": [],
+    "absent": {
+      "files": {
+        "reason": "This read-only Stripe projection stores no file content.",
+        "policyRule": "stripe.no-files"
+      }
+    },
+    "dependencyChanges": {
+      "install": "resolve-explicit-consumer-selection",
+      "activate": "require-active-dependencies",
+      "update": "validate-dependent-contracts",
+      "deactivate": "block-or-explicit-dependent-plan",
+      "uninstall": "block-or-explicit-dependent-plan",
+      "data": "preserve"
+    }
+  }
+}

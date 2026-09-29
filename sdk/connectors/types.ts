@@ -22,6 +22,9 @@ export interface ConnectorResource {
   readonly method:'GET';
   readonly path:string;
   readonly params:readonly ConnectorParameter[];
+  /** Provider names for declared inputs and fixed filters, never supplied by the operation. */
+  readonly query?:Readonly<{cursor?:string;limit?:string;
+    fixed?:readonly Readonly<{name:string;value:string}>[]}>;
 }
 export interface ConnectorDescriptor {
   readonly id:string;
@@ -29,6 +32,10 @@ export interface ConnectorDescriptor {
   readonly config:ConnectorConfigStorage;
   readonly vault:ConnectorVaultStorage;
   readonly auth:Readonly<{kind:'api-key-header';name:string}|{kind:'bearer'}>;
+  /** Optional canonical HTTPS origin required in addition to the stored configuration. */
+  readonly fixedOrigin?:string;
+  /** Non-credential protocol headers fixed by the module contract. */
+  readonly staticHeaders?:readonly Readonly<{name:string;value:string}>[];
   readonly resources:readonly ConnectorResource[];
 }
 export interface ConnectorRequest {

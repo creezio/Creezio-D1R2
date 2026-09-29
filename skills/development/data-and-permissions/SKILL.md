@@ -30,4 +30,6 @@ Pour le transport navigateur natif, réutiliser les services et l'adaptateur com
 
 ## Dépendances entre modules
 
+Pour projeter une lecture de connecteur en D1, utiliser le port déclaré et le commit commun : une origine ou un entête ne vient jamais du payload métier. La configuration et la version de clé sont revérifiées atomiquement avec les écritures, en plus des droits courants. Déclarer et tester les comparaisons de révision de chaque projection et du curseur ; une issue inconnue se relit sans réémettre la commande. Voir [T27](../../../docs/IMPLEMENTATION-T27.md) pour la capacité GET du SDK 1.4 candidat ; elle n'autorise aucun effet distant mutateur.
+
 Appliquer le [contrat commun](../../../docs/DEPENDANCES-MODULES.md). Relier les références intermodules à des contrats publics déclarés et versionnés. Dépendre d’un catalogue ne donne accès ni à ses tables privées ni aux données d’un autre contexte. Vérifier les relations persistantes avant désactivation/retrait ; une intégration facultative ne peut laisser de référence obligatoire orpheline. Tester la garde d’exécution et les plans concurrents.

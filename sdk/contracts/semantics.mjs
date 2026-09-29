@@ -172,11 +172,42 @@ export function checkModule(module, report) {
     }
     if(connector.auth.kind==='api-key-header'&&/^x-(?:forwarded|real|original|http|method|override|host|cookie|origin|proxy|cf|amz)(?:-|$)/i.test(connector.auth.name))
       report('connector.auth',`${p}/auth`,'A credential header cannot alter routing, proxy identity or cookies.');
+    if(connector.fixedOrigin!==undefined){
+      let valid=false;
+      try{
+        const url=new URL(connector.fixedOrigin);
+        valid=url.protocol==='https:'&&connector.fixedOrigin===url.origin
+          &&!url.username&&!url.password&&!url.hostname.endsWith('.')
+          &&url.hostname!=='localhost'&&!/\.(?:localhost|local|internal)$/.test(url.hostname)
+          &&!url.hostname.includes(':')&&!/^\d+(?:\.\d+){3}$/.test(url.hostname);
+      }catch{}
+      if(!valid)report('connector.origin',`${p}/fixedOrigin`,'A fixed origin is a canonical public HTTPS origin, without credentials, path or query.');
+    }
+    const reservedHeaders=new Set(['authorization','proxy-authorization','host','cookie','set-cookie',
+      'origin','referer','accept','accept-encoding','content-length','content-type','connection',
+      'upgrade','te','trailer','transfer-encoding','cache-control','range','user-agent','forwarded',
+      ...(connector.auth.kind==='api-key-header'?[connector.auth.name.toLowerCase()]:[])]);
+    const headerNames=new Set();
+    (connector.staticHeaders??[]).forEach((header,j)=>{
+      const name=header.name.toLowerCase();
+      if(reservedHeaders.has(name)||/^(?:proxy-|sec-|if-|x-(?:forwarded|real|original|http|method|override|host|cookie|origin|proxy|cf|amz)(?:-|$))/.test(name)
+        ||headerNames.has(name))report('connector.header',`${p}/staticHeaders/${j}`,'Static headers must be unique and cannot replace credentials or host-controlled headers.');
+      headerNames.add(name);
+    });
     connector.resources.forEach((resource,j)=>{
       const parts=resource.path.slice(1).split('/');
       if(parts.some(part=>part!=='{id}'&&(!/^[A-Za-z0-9_~-][A-Za-z0-9._~-]*$/.test(part)||part==='.'||part==='..'))
         ||parts.filter(part=>part==='{id}').length>1||parts.includes('{id}')!==resource.params.includes('id'))
         report('connector.resource',`${p}/resources/${j}`,'Only a fixed path and one declared ID segment are allowed.');
+      const query=resource.query??{},names=[];
+      for(const key of ['cursor','limit']){
+        if(query[key]!==undefined&&!resource.params.includes(key))
+          report('connector.query',`${p}/resources/${j}/query/${key}`,'A query alias must name a declared operation parameter.');
+        if(resource.params.includes(key))names.push(query[key]??key);
+      }
+      names.push(...(query.fixed??[]).map(item=>item.name));
+      if(new Set(names).size!==names.length)
+        report('connector.query',`${p}/resources/${j}/query`,'Fixed and dynamic query parameter names must not collide.');
     });
   });
   c.operations.forEach((op, i) => {

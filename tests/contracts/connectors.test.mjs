@@ -83,3 +83,66 @@ test('a connector cannot select a system header or a traversing outbound path',(
     catch(error){error.message=`${name}: ${error.message}`;throw error;}
   }
 });
+
+test('a module can fix its provider origin, protocol version and pagination names',()=>{
+  const module=fixture(),connector=module.contracts.connectors[0];
+  connector.fixedOrigin='https://api.stripe.com';
+  connector.staticHeaders=[{name:'Stripe-Version',value:'2026-08-26.dahlia'}];
+  connector.resources[0].query={cursor:'starting_after',limit:'limit',fixed:[{name:'status',value:'all'}]};
+  accepted(validateModule(module));
+});
+
+test('fixed provider origins cannot contain routing overrides or local destinations',()=>{
+  for(const origin of ['http://api.stripe.com','https://api.stripe.com/',
+    'https://api.stripe.com/v1','https://key@api.stripe.com','https://api.stripe.com?other=1',
+    'https://127.0.0.1','https://[::1]','https://localhost','https://service.internal',
+    'https://api.stripe.com.']){
+    const module=fixture();module.contracts.connectors[0].fixedOrigin=origin;
+    refused(validateModule(module),'connector.origin');
+  }
+});
+
+test('static connector headers cannot replace authority, credentials or host transport policy',()=>{
+  for(const name of ['aUtHoRiZaTiOn','Proxy-Authorization','Host','Cookie','Set-Cookie',
+    'Origin','Referer','Accept','Content-Type','Content-Length','Connection','Transfer-Encoding',
+    'Cache-Control','Range','If-Match','Sec-Fetch-Site','X-Forwarded-Host','Forwarded',
+    'X-N8N-API-KEY']){
+    const module=fixture();module.contracts.connectors[0].staticHeaders=[{name,value:'fixed'}];
+    refused(validateModule(module),'connector.header');
+  }
+  const duplicate=fixture();
+  duplicate.contracts.connectors[0].staticHeaders=[{name:'Api-Version',value:'v1'},{name:'api-version',value:'v2'}];
+  refused(validateModule(duplicate),'connector.header');
+});
+
+test('static header and query values are bounded protocol constants',()=>{
+  for(const mutate of [
+    connector=>{connector.staticHeaders=[{name:'Api-Version',value:'v1\r\nHost: other'}];},
+    connector=>{connector.staticHeaders=[{name:'Api-Version',value:'v1\n'}];},
+    connector=>{connector.staticHeaders=[{name:'Api-Version\n',value:'v1'}];},
+    connector=>{connector.staticHeaders=[{name:'Api-Version',value:'x'.repeat(257)}];},
+    connector=>{connector.staticHeaders=Array.from({length:9},(_,i)=>({name:`Api-${i}`,value:'v1'}));},
+    connector=>{connector.resources[0].query={fixed:[{name:'status',value:'all\nother'}]};},
+    connector=>{connector.resources[0].query={cursor:'start&other=1'};},
+    connector=>{connector.resources[0].query={cursor:'starting_after\n'};},
+    connector=>{connector.resources[0].query={fixed:[{name:'status',value:'all\u2028'}]};},
+    connector=>{connector.resources[0].query={fixed:Array.from({length:9},(_,i)=>({name:`field_${i}`,value:'v1'}))};},
+    connector=>{connector.resources[0].query={url:'https://other.example'};},
+  ]){
+    const module=fixture();mutate(module.contracts.connectors[0]);
+    refused(validateModule(module),'schema.invalid');
+  }
+});
+
+test('query mappings cannot shadow a dynamic parameter or enable undeclared input',()=>{
+  for(const mutate of [
+    resource=>{resource.query={cursor:'same',limit:'same'};},
+    resource=>{resource.query={fixed:[{name:'cursor',value:'fixed'}]};},
+    resource=>{resource.query={cursor:'starting_after',fixed:[{name:'starting_after',value:'fixed'}]};},
+    resource=>{resource.query={fixed:[{name:'status',value:'all'},{name:'status',value:'active'}]};},
+    resource=>{resource.params=[];resource.query={cursor:'starting_after'};},
+  ]){
+    const module=fixture();mutate(module.contracts.connectors[0].resources[0]);
+    refused(validateModule(module),'connector.query');
+  }
+});
