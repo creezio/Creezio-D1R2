@@ -25,6 +25,28 @@ function witness(){
   return {current:{composition,lock,descriptors:[descriptor]},inventory:{schemaVersion:1,candidates,
     digest:contractIntegrity({schemaVersion:1,candidates})},currentInstalledDocuments};
 }
+function paddedWitness(groups,perGroup){
+  const value=witness(),descriptor=structuredClone(value.current.descriptors[0]);
+  value.current.descriptors[0]=descriptor;
+  value.inventory.candidates[0].descriptor=descriptor;
+  // Exercise the host's aggregate copy budget; the same selected descriptor
+  // is present in both the current selection and candidate inventory.
+  descriptor.budgetFixture=Array.from({length:groups},()=>Array(perGroup).fill(0));
+  value.current.lock.modules[0].contractIntegrity=contractIntegrity(descriptor);
+  value.inventory.digest=contractIntegrity({schemaVersion:1,candidates:value.inventory.candidates});
+  return value;
+}
+test('static host inventory accepts the duplicate descriptor aggregate above the request limit',()=>{
+  const value=paddedWitness(1,55_000),digest=contractIntegrity(value.current.composition);
+  const captured=captureHostInventory(value,digest);
+  assert.equal(captured.current.descriptors[0].budgetFixture[0].length,55_000);
+  assert.ok(Object.isFrozen(captured.current.descriptors[0].budgetFixture[0]));
+});
+test('static host inventory still refuses more than 300000 nodes',()=>{
+  const value=paddedWitness(2,75_000);
+  assert.throws(()=>captureHostInventory(value,contractIntegrity(value.current.composition)),
+    {code:'invalid_catalog'});
+});
 test('host inventory is captured immutably and tied to deployed composition',()=>{
   const value=witness(),captured=captureHostInventory(value,contractIntegrity(value.current.composition));
   value.current.composition.modules[0].enabled=false;

@@ -10,6 +10,8 @@ Une commande lit au plus une page de huit objets, puis projette les champs utile
 
 Les montants gardent leurs unités mineures et leur devise. Le formatage respecte les particularités du fournisseur, notamment ISK et UGX ; un abonnement annuel, à paliers ou à l'usage ne devient pas automatiquement un montant mensuel. Les données restent dans leur contexte et les opérations de cette première tranche sont administratives.
 
+La composition de quatorze modules dépasse les 100 000 nœuds lors de la capture de l'inventaire statique, qui contient deux copies des descripteurs validés. Cette capture dispose d'un budget explicite de 300 000 nœuds, toujours limité à 4 Mio et 24 niveaux ; le budget des entrées de requête reste inchangé. Les intégrités des descripteurs, verrous et documents restent vérifiées.
+
 ## Preuves et limites
 
 Une clé de test existante de WinHub a été retrouvée par lecture seule, puis conservée hors dépôt sous chiffrement local. Le 29 septembre 2026, trois lectures directes limitées à un objet ont répondu HTTP 200 avec `livemode=false` sur la version fixée. La preuve opérateur `CREEZIO-T27-STRIPE-READONLY-2026-09-29.json` conserve seulement les statuts et types des réponses, sans identifiant client ni secret. Cette vérification qualifie l'accès de test, pas le module encore en développement.

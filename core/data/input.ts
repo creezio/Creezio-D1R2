@@ -5,11 +5,15 @@ export const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
 export const validId = (value: unknown): value is string => typeof value === 'string'
   && value.length <= 128 && /^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(value) && !/[\r\n\u2028\u2029]/.test(value);
 /** Capture plain JSON without invoking getters; bound before serialization or asynchronous work. */
-export function copyJson(value: unknown, maximumBytes = 65_536): JsonValue {
+export function copyJson(value: unknown, maximumBytes = 65_536, maximumNodes = 100_000): JsonValue {
+  // Only static host inventories opt into a larger aggregate; request callers
+  // keep the default budget. Individual arrays, depth and byte limits still apply.
+  if (!Number.isSafeInteger(maximumNodes) || maximumNodes < 1 || maximumNodes > 300_000)
+    throw new DataAccessError('invalid_input');
   let nodes = 0, characters = 0;
   const ancestors = new Set<object>();
   function visit(input: unknown, depth: number): JsonValue {
-    if (++nodes > 100_000 || depth > 24) throw new DataAccessError('invalid_input');
+    if (++nodes > maximumNodes || depth > 24) throw new DataAccessError('invalid_input');
     if (input === null || typeof input === 'boolean') return input;
     if (typeof input === 'number' && Number.isFinite(input)) return input;
     if (typeof input === 'string') {

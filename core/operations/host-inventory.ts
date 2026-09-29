@@ -12,7 +12,9 @@ const sourcePath = 'extensions/native/modules-settings';
 export function captureHostInventory(value: ModuleSettingsHostInventory | undefined, compositionDigest: string) {
   if (value === undefined) return undefined;
   try {
-    const captured = copyJson(value, 4 * 1024 * 1024) as unknown as ModuleSettingsHostInventory;
+    // The validated descriptor aggregate (100k nodes) appears in both the
+    // current selection and the candidate inventory, alongside locks/documents.
+    const captured = copyJson(value, 4 * 1024 * 1024, 300_000) as unknown as ModuleSettingsHostInventory;
     const {current, inventory} = captured;
     if (contractIntegrity(current.composition) !== compositionDigest || inventory.schemaVersion !== 1
       || contractIntegrity({schemaVersion: 1, candidates: inventory.candidates}) !== inventory.digest
