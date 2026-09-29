@@ -72,7 +72,8 @@ const published=obj({id:str(),slug:str(160),title:str(240),sections,settings,seo
   publishedRevision:num(1),publishedAt:str(35)});
 const publishedSummary=obj({id:str(),slug:str(160),title:str(240),publishedRevision:num(1),publishedAt:str(35)});
 const navItem=obj({id:str(),label:str(120),href:str(512),icon:str(80,0),group:str(80,0),
-  order:num(0,10000),hidden:{type:'boolean'}});
+  order:num(0,10000),hidden:{type:'boolean'},pageSlug:str(160)},
+  ['id','label','href','icon','group','order','hidden']);
 const navItems={type:'array',items:navItem,maxItems:100};
 const navigation=obj({items:navItems,revision:num(),publishedRevision:num(),
   updatedAt:nullable(str(35)),publishedAt:nullable(str(35))});
@@ -82,6 +83,8 @@ const media=obj({pageId:str(),fileId:str(67),filename:str(255),contentType:str()
 const pageOutput=schema('page-output',obj({page:draft}));
 const publishedOutput=schema('published-page-output',obj({page:published}));
 const pageIdInput=schema('page-id-input',obj({pageId:str()}));
+const publishedSlugInput=schema('published-slug-input',obj({slug:str(160)}));
+const publishedSlugOutput=schema('published-slug-output',obj({pageId:str(),slug:str(160)}));
 const listInput=schema('page-list-input',obj({limit:num(1,50),cursor:str(2048)},['limit']));
 const pageListOutput=schema('page-list-output',obj({items:{type:'array',items:pageSummary,maxItems:50},nextCursor:nullable(str(2048))}));
 const publishedListOutput=schema('published-list-output',obj({items:{type:'array',items:publishedSummary,maxItems:50},nextCursor:nullable(str(2048))}));
@@ -101,7 +104,7 @@ const mediaLinkInput=schema('media-link-input',obj({requestKey:str(),pageId:str(
 const mediaLinkOutput=schema('media-link-output',obj({media,page:pageSummary}));
 const mediaUnlinkInput=schema('media-unlink-input',obj({requestKey:str(),pageId:str(),revision:num(1),fileId:str(67)}));
 const mediaUnlinkOutput=schema('media-unlink-output',obj({removed:{const:true},page:pageSummary}));
-const viewInput=schema('editor-view-input',obj({pageId:str()},[]));
+const viewInput=schema('editor-view-input',obj({pageId:str(),slug:str(160)},[]));
 const pendingCommand=obj({sessionId:str(),audience:{type:'string',enum:['admin','app']},contextId:str(),
   bindingId:str(257),requestKey:str(512),intent:str(64),targetId:str()},
   ['sessionId','audience','contextId','bindingId','requestKey']);
@@ -147,11 +150,14 @@ operation('page.published.list','Lister les pages publiées','query',listInput,p
   {exportName:'pagePublishedList',pagination,maxItems:50,view:true});
 operation('page.published.read','Lire une page publiée','query',pageIdInput,publishedOutput,['page'],[],
   {exportName:'pagePublishedRead',view:true});
+operation('page.published.resolve','Résoudre le slug publié','query',publishedSlugInput,publishedSlugOutput,['page'],[],
+  {exportName:'pagePublishedResolve',view:true,maxItems:1});
 operation('navigation.read','Lire la navigation en édition','query',empty,navOutput,['navigation'],[],{exportName:'navigationRead'});
 operation('navigation.save','Enregistrer la navigation','command',navSaveInput,navOutput,['navigation'],['navigation'],
   {exportName:'navigationSave'});
-operation('navigation.publish','Publier la navigation','command',navStateInput,publishedNavOutput,['navigation'],['navigation'],
-  {exportName:'navigationPublish',concurrency:{mode:'object-version',versionField:'revision'}});
+operation('navigation.publish','Publier la navigation','command',navStateInput,publishedNavOutput,['navigation','page'],['navigation'],
+  {exportName:'navigationPublish',maxItems:102,
+    concurrency:{mode:'object-version',versionField:'revision'}});
 operation('navigation.reset','Rétablir la navigation brouillon','command',navStateInput,navOutput,['navigation'],['navigation'],
   {exportName:'navigationReset',concurrency:{mode:'object-version',versionField:'revision'}});
 operation('navigation.published','Lire la navigation publiée','query',empty,publishedNavOutput,['navigation'],[],
@@ -207,19 +213,26 @@ m.contracts={schemas,models,files:[category],events:[],settings:[],search:[],per
     {id:'front',title:'Pages',surfaces:['front'],route:'/pages',
       component:{path:'ui/front-page.tsx',export:'PagesNavigationFrontView'},permissions:[ref('permission','view')],
       operations:operations.filter(op=>op.permissions[0].id==='view').map(op=>ref('operation',op.id)),input:viewInput,
-      panel:{identityFields:[],navigation:'sdk',retention:'preserve',inactiveEffects:'suspend',stateSchema:panelState}}],
+      panel:{identityFields:[],navigation:'sdk',retention:'preserve',inactiveEffects:'suspend',stateSchema:panelState}},
+    {id:'editorial-nav',title:'Navigation publiée',surfaces:['front'],route:'/pages/editorial-nav',
+      component:{path:'ui/front-nav.tsx',export:'PublishedEditorialNavigation'},permissions:[ref('permission','view')],
+      operations:[ref('operation','navigation.published'),ref('operation','page.published.resolve')],input:empty,
+      panel:{identityFields:[],navigation:'sdk',retention:'preserve',inactiveEffects:'suspend'}}],
     navigation:[{id:'pages-navigation-admin',title:'Pages et navigation',view:ref('view','admin'),
       permissions:[ref('permission','edit')],surfaces:['workspace'],order:40},
       {id:'pages-navigation-front',title:'Pages',view:ref('view','front'),
         permissions:[ref('permission','view')],surfaces:['front'],order:40}],
-    slots:[],front:{mode:'provided'},themes:[],styles:[]},widgets:[],publicContracts:[]};
+    slots:[{id:'published-navigation',slot:'front.header',view:ref('view','editorial-nav'),
+      permissions:[ref('permission','view')],surfaces:['front']}],
+    front:{mode:'provided'},themes:[],styles:[]},widgets:[],publicContracts:[]};
 m.documentation.versionBinding={moduleVersion:'0.0.0',sourceRevision:'t21-pages-navigation-v1'};
 for(const suite of ['backend','ui','api-mcp','package','docs'])m.validation.suites[suite].tests=[`tests/${suite}/contract.test.mjs`];
 m.validation.suites.widgets.mode='not-applicable';m.validation.suites.widgets.tests=['tests/widgets/contract.test.mjs'];
 m.validation.suites.widgets.justification={reason:'Published pages render through the front view, not an MCP widget.',
   policyRule:'pages-navigation.no-widget-renderer'};
 m.packaging.runtime.files=['module/manifest.json','module/models.json','module/entry.server.ts','module/operations.ts',
-  'module/service.ts','ui/contracts.ts','ui/index.tsx','ui/front-page.tsx','ui/prefabs.tsx','ui/landing.css','ui/types.ts','ui/state.ts',
+  'module/service.ts','ui/contracts.ts','ui/index.tsx','ui/front-page.tsx','ui/front-nav.tsx',
+  'ui/front-link.ts','ui/seo.ts','ui/prefabs.tsx','ui/landing.css','ui/types.ts','ui/state.ts',
   'README.md','prd.md','CHANGELOG.md','LICENSE','plugin/plugin.json','plugin/mcp.json',
   'plugin/contributions.ts',skillPath];
 m.packaging.validation.files=['AGENTS.md','FILES.md','interview.md','TODO.md','gate.mjs','module/generate-manifest.mjs',

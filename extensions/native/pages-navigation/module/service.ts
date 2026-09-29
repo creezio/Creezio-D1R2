@@ -119,10 +119,12 @@ function navItems(v:unknown):JsonValue{
     if(!item||typeof item!=='object'||Array.isArray(item)||!id(item.id)||seen.has(item.id)
       ||!line(item.label,120)||!item.label||!line(item.href,512)||!safeHref(item.href)
       ||!line(item.icon,80)||!line(item.group,80)
-      ||!Number.isSafeInteger(item.order)||item.order<0||item.order>10000||typeof item.hidden!=='boolean')fail('invalid_input');
+      ||!Number.isSafeInteger(item.order)||item.order<0||item.order>10000||typeof item.hidden!=='boolean'
+      ||item.pageSlug!==undefined&&(!line(item.pageSlug,160)||!/^\/[A-Za-z0-9/_-]*$/u.test(item.pageSlug)
+        ||item.href!==item.pageSlug))fail('invalid_input');
     seen.add(item.id);
     return {id:item.id,label:item.label,href:item.href,icon:item.icon,group:item.group,
-      order:item.order,hidden:item.hidden};
+      order:item.order,hidden:item.hidden,...(item.pageSlug?{pageSlug:item.pageSlug}:{})};
   });
   return clean as JsonValue;
 }
@@ -186,6 +188,16 @@ export async function pagePublishedRead(value:JsonValue,c:OperationContext){
   if(row.published_at===null)fail('not_found');
   return {output:{page:publishedView(row)}};
 }
+/** Resolve only a published slug, using the context-scoped unique index. */
+export async function pagePublishedResolve(value:JsonValue,c:OperationContext){
+  const slug=arg(value).slug;
+  if(typeof slug!=='string'||slug.length>160||!/^\/[A-Za-z0-9/_-]*$/u.test(slug))fail('invalid_input');
+  const result=await c.data.list('page',{limit:1,where:{published_slug:slug},
+    fields:['id','published_slug','published_at']}) as Page;
+  const row=result.items[0];
+  if(!row||row.published_slug!==slug||row.published_at===null)fail('not_found');
+  return {output:{pageId:row.id,slug:row.published_slug}};
+}
 export async function navigationRead(_value:JsonValue,c:OperationContext){
   const row=await navigation(c);
   return {output:{navigation:row?navView(row):{items:[],revision:0,publishedRevision:0,updatedAt:null,publishedAt:null}}};
@@ -204,6 +216,13 @@ export async function navigationPublish(value:JsonValue,c:OperationContext){
   const a=arg(value),old=await navigation(c);
   if(!old)throw new OperationError('not_found');
   const rev=Number(a.revision);if(!Number.isSafeInteger(rev)||rev!==old.revision)fail('conflict');
+  const linked=new Set((old.draft_items as Array<{pageSlug?:string}>).map(item=>item.pageSlug)
+    .filter((slug):slug is string=>typeof slug==='string'));
+  for(const slug of linked){
+    const found=await c.data.list('page',{limit:1,where:{published_slug:slug},
+      fields:['id','published_slug','published_at']}) as Page;
+    if(!found.items[0]||found.items[0].published_at===null)fail('not_found');
+  }
   const at=iso(),changes={published_items:old.draft_items,published_at:at,
     published_revision:Number(old.published_revision)+1,updated_at:at};
   return {output:{navigation:publishedNav({...old,...changes})},plans:[
