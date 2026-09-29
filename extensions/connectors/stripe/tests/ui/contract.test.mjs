@@ -75,7 +75,7 @@ test('original billing cards/tables remain, unavailable numbers and events are e
     'Factures impayées','Clients &amp; abonnements','Factures','Événements Stripe reçus',
     'Resynchroniser Stripe','SUB_STATUT_LABEL','INVOICE_STATUT_LABEL'])
     assert.ok(ui.includes(label),label);
-  assert.match(ui,/import \{Badge,Button,Card\} from '@creezio\/sdk\/ui'/u);
+  assert.ok(ui.includes("import {Badge,Button,Card} from '@creezio/sdk/ui'"));
   assert.match(ui,/subVariant\(/u);assert.match(ui,/invoiceVariant\(/u);
   assert.match(ui,/Calcul non disponible sur ce parcours partiel/u);
   assert.match(ui,/Aucun webhook n’est raccordé/u);

@@ -416,10 +416,10 @@
         }
       },
       "validation": {
-        "integrity": "sha256-dc15e3883943df3d3d0d7b2014d3de7840d62a30e3e761763412e3fef39cfd59",
+        "integrity": "sha256-e464261fdafb3a175eb0cce27b47c2a264840234754a4f3583165951623556b0",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.stripe/validation-dc15e3883943df3d3d0d7b2014d3de7840d62a30e3e761763412e3fef39cfd59.tgz"
+          "path": ".creezio/module-artifacts/creezio.stripe/validation-e464261fdafb3a175eb0cce27b47c2a264840234754a4f3583165951623556b0.tgz"
         }
       },
       "dependencies": [
