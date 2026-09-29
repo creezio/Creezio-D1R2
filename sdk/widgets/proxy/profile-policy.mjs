@@ -45,7 +45,7 @@ export function sandboxProfileHeaders({cspProfileId, csp = {}, hostOrigins, loca
     "default-src 'none'",
     `script-src 'self' 'unsafe-inline' ${resources.join(' ')}`.trim(),
     `style-src 'self' 'unsafe-inline' ${resources.join(' ')}`.trim(),
-    `img-src 'self' data: ${resources.join(' ')}`.trim(),
+    `img-src 'self' data: blob: ${resources.join(' ')}`.trim(),
     `font-src 'self' data: ${resources.join(' ')}`.trim(),
     `media-src 'self' data: ${resources.join(' ')}`.trim(),
     `connect-src ${sources(connects)}`,

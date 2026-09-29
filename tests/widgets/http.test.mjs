@@ -6,6 +6,7 @@ import {Miniflare} from 'miniflare';
 import {generateD1Schema} from '../../scripts/data/d1-schema.mjs';
 import {widgetSandboxOrigin} from '../../core/widgets/http.ts';
 import {compileWidgetSandbox} from '../../scripts/widgets/sandbox.mjs';
+import {sandboxProfileHeaders} from '../../sdk/widgets/proxy/profile-policy.mjs';
 
 const origin = 'https://widgets.example.invalid',digest=`sha256-${'a'.repeat(64)}`;
 const uri = `ui://creezio/example.notes/card/1.0.0/${digest}.html`;
@@ -27,13 +28,34 @@ test('static sandbox publishes only compiled profiles and never business data', 
   try {
     const response=await worker.dispatchFetch(`https://proxy.invalid/profiles/${digest}/sandbox.html`);
     assert.equal(response.status,200);
-    assert.match(response.headers.get('content-security-policy'),new RegExp(`frame-ancestors ${origin.replaceAll('.','\\.')}`));
+    const csp=response.headers.get('content-security-policy');
+    assert.match(csp,new RegExp(`frame-ancestors ${origin.replaceAll('.','\\.')}`));
+    const directives=new Map(csp.split('; ').map(part=>{
+      const [name,...sources]=part.split(' ');return [name,sources];
+    }));
+    assert.deepEqual(directives.get('img-src'),["'self'",'data:','blob:']);
+    for(const [name,sources] of directives){
+      if(name!=='img-src')assert.equal(sources.includes('blob:'),false,`${name} must not accept Blob URLs`);
+    }
     assert.equal(response.headers.get('set-cookie'),null);
     assert.equal(response.headers.get('cache-control'),'no-cache');
     assert.equal((await worker.dispatchFetch('https://proxy.invalid/api/health')).status,404);
     assert.equal((await worker.dispatchFetch(`https://proxy.invalid/profiles/${digest}/sandbox.html`,{method:'POST'})).status,405);
     assert.equal((await worker.dispatchFetch(`https://proxy.invalid/profiles/${digest}/sandbox.html`,{method:'HEAD'})).body,null);
   } finally {await worker.dispose();}
+});
+
+test('Blob image policy does not make Blob an acceptable declared network or frame source',()=>{
+  const options={cspProfileId:digest,hostOrigins:[origin]};
+  const policy=sandboxProfileHeaders({...options,csp:{resourceDomains:['https://cdn.example.invalid']}});
+  const directives=new Map(policy['Content-Security-Policy'].split('; ').map(part=>{
+    const [name,...sources]=part.split(' ');return [name,sources];
+  }));
+  assert.deepEqual(directives.get('img-src'),["'self'",'data:','blob:','https://cdn.example.invalid']);
+  assert.deepEqual(directives.get('connect-src'),["'none'"]);
+  assert.deepEqual(directives.get('frame-src'),["'none'"]);
+  for(const source of ['resourceDomains','connectDomains','frameDomains'])
+    assert.throws(()=>sandboxProfileHeaders({...options,csp:{[source]:['blob:']}}));
 });
 
 test('native widget projection and HTML recheck audience, context, permission and revoked session in real D1', {timeout:60000}, async () => {
