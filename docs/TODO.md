@@ -250,6 +250,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Lot : **P4** ; état : **en cours** ; responsable : Codex et trois chats Sol ; branche `core/t14-conversations`.
 - Dépendances : [T-06](#T-06), [T-07](#T-07), [T-11](#T-11).
 - Réalisation : [périmètre T14](IMPLEMENTATION-T14.md), UI originale Creezio, données et fichiers par ports communs.
+- Correctif candidat de reprise : après une réponse fournisseur connue et un résultat d'outil, la continuation durable remet le tour `running` et efface l'ancien `provider_unknown` sous CAS. Test D1 ciblé passé ; la réponse finale du témoin T61 Original n'est pas encore qualifiée.
 - Travail/livrables : Module conversations, états partagés SDK, historique/recherche/archive et transport adapté ; OpenAI indépendant.
 - Correctif ciblé T40 en cours : dans un panneau sans conversation sélectionnée, projeter l’état depuis la configuration publique OpenAI plutôt que depuis le `no_provider` initial du contrôleur. Garder l’envoi désactivé sans modèle autorisé ; une recette Sites A/B reste requise après intégration.
 - Besoin : [US-14](USER-STORIES.md#US-14). Acceptation : [REQ-1401](EXIGENCES.md#REQ-1401), [REQ-1402](EXIGENCES.md#REQ-1402).

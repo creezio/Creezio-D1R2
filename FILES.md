@@ -169,7 +169,7 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 ## OpenAI et publication Sites
 
 - [extensions/native/openai](extensions/native/openai/) et [sdk/providers](sdk/providers/) : module optionnel, configuration, transport Responses et contrat public fournisseur ; [réalisation T15](docs/IMPLEMENTATION-T15.md).
-- [core/providers](core/providers/) et [core/conversations](core/conversations/) : résolution du coffre, projection autorisée d'outils et étapes des tours, sans ordonnanceur.
+- [core/providers](core/providers/) et [core/conversations](core/conversations/) : résolution du coffre, projection autorisée d'outils et étapes des tours ; la continuation d'outil remet un tour récupéré en cours sous CAS, sans ordonnanceur.
 - [tests/openai](tests/openai/) : recettes D1 du fournisseur ; suites obligatoires du contrôle commun.
 - [adapters/sites](adapters/sites/) et [scripts/sites](scripts/sites/) : opérateur temporaire, configuration et schéma central ; [installation Sites](docs/INSTALLATION-SITES.md).
 - `scripts/sites/artifacts.mjs` et `scripts/sites/export.mjs` : inclusion du manifeste et de tout l’historique DDL central dans `dist/.openai`, export des seuls artefacts construits, reçu lié à Git et vérification des octets archivés.

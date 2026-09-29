@@ -1,5 +1,9 @@
 # Changelog
 
+## En qualification — reprise d'un tour Conversations après résultat d'outil
+
+Quand un tour `unknown` récupère une réponse fournisseur connue et ajoute une continuation après un résultat d'outil, le même batch D1 remet le tour `running` et efface `provider_unknown`. Le résultat d'outil rejeté reste visible comme tel. Un test ciblé couvre la transition sans recréer la réponse initiale ; aucune réponse finale du Site T61 n'est encore revendiquée.
+
 ## En qualification — chaîne de trois éditeurs (REQ-3004)
 
 Un hôte de test installe trois archives npm d'origines distinctes et compile la chaîne obligatoire A → B → C. L'intégration D facultative reste absente et seule sa contribution est désactivée. Les refus d'absence, d'origine, de version, de contrat et d'altération sont exercés. Le SDK public 1.4.1 est vérifié dans une qualification locale séparée ; aucun module métier ni service tiers n'est ajouté au produit.

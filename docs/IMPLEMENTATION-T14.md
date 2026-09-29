@@ -16,6 +16,8 @@ Les listes utilisent un index déclaré et un curseur déterministe, avec la cl�
 
 Les commandes utilisent le journal commun et l'idempotence ; une réponse perdue se réconcilie par lecture. Une demande d'annulation ne prouve pas l'arrêt du fournisseur. Les événements persistants se lisent depuis un client actif, sans boucle de traitement serveur. La qualification d'un vrai fournisseur et de sa réception progressive se poursuit en T15.
 
+La reprise d'une réponse fournisseur connue peut aboutir à un appel d'outil avant la réponse finale. Lorsqu'un tour auparavant incertain enregistre le résultat de cet outil et crée sa continuation durable, son état redevient `running` et son ancien code `provider_unknown` est effacé dans le même batch CAS. Le prochain drive traite cette continuation ; il ne rejoue pas la création initiale. Un résultat d'outil rejeté reste un rejet explicite, sans réponse finale simulée. Le test D1 reproduit `unknown → tool_result → running` avec un seul appel initial au fournisseur ; la recette du Site concerné et l'issue finale restent à confirmer séparément.
+
 ## Pièces jointes privées
 
 Le catalogue de fichiers est compilé depuis les catégories déclarées et les audiences exposées. Le transport binaire natif `/api/files/{audience}/{moduleId}/{categoryId}` contrôle identité, origine, contexte, permissions, taille et types. Un propriétaire opaque est dérivé du principal et de l'audience. Les références ne contiennent ni clé du bucket ni capacité d'accès.

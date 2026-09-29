@@ -246,7 +246,8 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
     }
     const time=now(),sequence=Number(turn.last_sequence)+1,p=port(lease);
     const plans=[p.planPatch('turn',{key:childKey(lease,request.conversationId,request.turnId),
-      compare:{field:'revision',expected:Number(turn.revision)},values:{updated_at:time,last_sequence:sequence}}),
+      compare:{field:'revision',expected:Number(turn.revision)},
+      values:{state:'running',error_code:null,updated_at:time,last_sequence:sequence}}),
       p.planCreate('event',{values:{...scope(lease),conversation_id:request.conversationId,
         turn_id:request.turnId,sequence,kind:'tool_result',
         payload:{callId:tool.callId,state:Object.hasOwn(tool.result as object,'output')?'succeeded':'rejected',

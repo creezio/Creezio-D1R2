@@ -151,6 +151,42 @@ test('client drive persists one confirmed assistant and never recreates an unkno
     assert.equal((await uncertain.drive(unknownRequest)).turn.state,'unknown');
     assert.equal(uncertainCreates,1);
 
+    const resumedConversation=await invoke('conversation.create',{requestKey:'create-resumed-tool',
+      mode:'chat',title:'Resumed tool'});
+    const resumedConversationId=resumedConversation.execution.output.conversation.id;
+    const resumedStart=await invoke('turn.start',{requestKey:'start-resumed-tool',
+      conversationId:resumedConversationId,messageId:'user-resumed-tool',body:'Read a tool',
+      modelId:'model-a',revision:1,draftRevision:0});
+    const resumedTurnId=resumedStart.execution.output.turn.id;
+    let resumedCreates=0,resumedStreams=0;
+    const resumedBridge=createTurnBridge({engine,db,catalog,permissions,registry:reg,toolCatalog:[],
+      provider:{withTransport:async(_request,callback)=>callback({
+        async create(){resumedCreates++;return {receipt:{responseId:'resp_resumed_tool',cursor:0},
+          events:(async function*(){throw new Error('stream interrupted');})()};},
+        async *resume(responseId,afterCursor){
+          resumedStreams++;assert.equal(responseId,'resp_resumed_tool');assert.equal(afterCursor,0);
+          yield {cursor:1,kind:'function_call',callId:'call_resumed_tool',name:'t_not_advertised',arguments:{}};
+          yield {cursor:2,kind:'terminal',state:'succeeded'};
+        },
+        async status(){throw new Error('status unavailable');},
+        async cancel(){throw new Error('Unexpected cancel');}
+      },'model-a')}});
+    const resumedRequest={...driveRequest,conversationId:resumedConversationId,turnId:resumedTurnId};
+    const beforeResume=await resumedBridge.drive(resumedRequest);
+    assert.equal(beforeResume.turn.state,'unknown');
+    assert.equal(beforeResume.turn.errorCode,'provider_unknown');
+    const resumed=await resumedBridge.drive(resumedRequest);
+    assert.equal(resumed.turn.state,'running');
+    assert.equal(resumed.turn.errorCode,null);
+    assert.equal(resumed.turn.lastSequence,4);
+    assert.equal(resumedCreates,1);
+    assert.equal(resumedStreams,1);
+    const resumedEvents=await invoke('event.list',{conversationId:resumedConversationId,
+      turnId:resumedTurnId,limit:50,afterSequence:0});
+    assert.deepEqual(resumedEvents.execution.output.items.map(item=>item.kind),
+      ['queued','started','unknown','tool_result']);
+    assert.equal(resumedEvents.execution.output.items[3].payload.state,'rejected');
+
     for(const [label,allowed] of [['allowed',true],['denied',false]]){
       const newConversation=await invoke('conversation.create',{requestKey:`create-${label}`,
         mode:'chat',title:label});
