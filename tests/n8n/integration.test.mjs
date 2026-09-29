@@ -123,6 +123,9 @@ test('n8n connector uses real D1/vault/ACL and HTTP/MCP while external REST is m
         enabled:false,revision:0}),'conflict');
       const keyed=success(await invoke('config.key.set',{requestKey:'set-key',apiKey:secret,revision:1})).config;
       assert.equal(keyed.hasKey,true);assert.equal(keyed.revision,2);
+      await failed(invoke('config.set',{requestKey:'change-sealed-origin',
+        origin:'https://other.example.invalid',enabled:false,revision:2}),'conflict');
+      assert.equal(success(await invoke('config.read',{})).config.origin,first.origin);
       assert.doesNotMatch(JSON.stringify(keyed),/synthetic-n8n-api-key|creezio-secret/u);
       const storedConfig=await db.prepare(`SELECT key_ref FROM "${generated.tables.connector_config}" WHERE context_id=?`)
         .bind('application').first();
@@ -190,6 +193,9 @@ test('n8n connector uses real D1/vault/ACL and HTTP/MCP while external REST is m
       assert.equal(mcpList.structuredContent.items[0].id,'wf-1');
       const revoked=success(await invoke('config.key.revoke',{requestKey:'revoke-key',revision:3})).config;
       assert.equal(revoked.hasKey,false);assert.equal(revoked.enabled,false);
+      const moved=success(await invoke('config.set',{requestKey:'origin-after-revoke',
+        origin:'https://other.example.invalid',enabled:false,revision:4})).config;
+      assert.equal(moved.origin,'https://other.example.invalid');assert.equal(moved.revision,5);
       assert.equal((await db.prepare(`SELECT state FROM "${generated.tables.connector_secret}" WHERE context_id=?`)
         .bind('application').first()).state,'revoked');
       const beforeRefusal=requests.length;

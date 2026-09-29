@@ -1,5 +1,9 @@
 # Changelog
 
+## Correctif n8n — origine de connexion (T26)
+
+Le connecteur refuse de déplacer une clé scellée vers une autre origine, y compris quand la connexion est désactivée. Révoquer la clé avant de changer d’instance ; les lectures fournisseur positives restent à qualifier.
+
 ## Qualification — marge de durée de l'agrégat (T27)
 
 Le plafond du processus de tests passe de dix à quinze minutes, dans le job CI toujours limité à vingt minutes. Les 1 246 tests du candidat ont réussi en 483 secondes ; le contrôle du main a atteint son dernier test puis sa limite de 600 secondes sans bilan final. Le test Stripe isolé sur Linux s'est terminé avec son bilan complet et sans processus restant. Cette marge ne change ni les délais individuels, ni les suites requises, ni les refus des bilans incomplets ou des preuves périmées. Le contrôle interrompu demeure non qualifié.

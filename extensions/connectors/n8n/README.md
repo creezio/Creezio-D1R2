@@ -2,6 +2,8 @@
 
 Ce module relie Creezio à une instance n8n déjà exploitée par l’administrateur. Il ne lance, n’installe et ne maintient pas n8n. Dans l’espace de travail, l’administrateur enregistre l’URL HTTPS de l’instance et sa clé API n8n ; le coffre natif chiffre la clé, et seul l’hôte l’ajoute aux requêtes autorisées. La clé n8n ne sert jamais à appeler l’API Creezio.
 
+Une origine ne peut pas changer tant qu’une clé reste scellée, même si la connexion est désactivée. Pour changer d’instance, révoquer la clé dans Creezio, enregistrer la nouvelle origine, puis fournir une clé pour cette instance. Chaque étape conserve sa révision attendue et sa clé de demande ; la révocation locale n’efface pas la clé distante.
+
 Selon la [documentation n8n sur les clés API](https://docs.n8n.io/connect/n8n-api/authentication/), l’API n’est pas disponible pendant l’essai gratuit ; les clés non Enterprise peuvent avoir accès à toutes les ressources du compte. Choisir une clé et un compte adaptés aux droits consentis, puis révoquer la clé dans n8n si elle ne doit plus servir. La révocation dans Creezio désactive sa référence dans le coffre et bloque les appels du connecteur ; elle ne supprime pas la clé à distance.
 
 Cette première tranche expose `config.read/set`, `config.key.set/revoke`, `connection.check`, `workflow.list/read` et `execution.list/read` en UI, API et MCP selon les droits. Les lectures distantes utilisent l’[API publique n8n](https://docs.n8n.io/connect/n8n-api/) version `/api/v1` et projettent uniquement les métadonnées : aucun nœud, credential, donnée d’exécution ou contenu épinglé n’est renvoyé. La pagination n8n utilise un curseur opaque. Une réponse distante trop grande ou mal formée échoue clairement, sans troncature silencieuse.
