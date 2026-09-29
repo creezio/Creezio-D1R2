@@ -45,6 +45,15 @@ test('configuration and key changes use revision CAS, atomic vault plans, no sec
     harness(row).context),{code:'conflict'});
   await assert.rejects(configSet({requestKey:'a',origin:'https://other.example',enabled:true,revision:4},
     harness(row).context),{code:'conflict'});
+  const disabledWithKey={...row,enabled:false};
+  const guarded=harness(disabledWithKey);
+  await assert.rejects(configSet({requestKey:'different-origin',origin:'https://other.example',
+    enabled:false,revision:4},guarded.context),{code:'conflict'});
+  assert.equal(guarded.calls.length,0,'a sealed key cannot be redirected by disabling the connection');
+  const withoutKey=harness({...disabledWithKey,key_ref:null,secret_version:null});
+  const changedOrigin=await configSet({requestKey:'after-revoke',origin:'https://other.example',
+    enabled:false,revision:4},withoutKey.context);
+  assert.equal(changedOrigin.output.config.origin,'https://other.example');
   const rotated=harness(row),secret='synthetic-secret-only';
   const changed=await configKeySet({requestKey:'k',apiKey:secret,revision:4},rotated.context);
   assert.equal(changed.plans.length,2);

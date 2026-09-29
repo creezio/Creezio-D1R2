@@ -190,9 +190,8 @@ export function MeiliAdminView(props:WorkspaceViewProps){
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-xs text-slate-500">État : {config?stateLabel[config.state]:'Non configuré'}
-          {config?.hasKey?' · clé enregistrée':' · clé absente'}
-          {connection?.authenticated?' · connexion vérifiée':''}</p>
+        <p className="text-xs text-slate-500">État : {connection?.authenticated===true&&connection.status==='connected'?'Connecté':connection?.authenticated===false&&connection.status==='key_rejected'?'Clé refusée':config?stateLabel[config.state]:'Non configuré'}
+          {config?.hasKey?' · clé enregistrée':' · clé absente'}</p>
         <label className="grid gap-1 text-sm">URL HTTPS de l’instance
           <input className="rounded-md border px-3 py-2 text-sm" type="url" maxLength={512}
             value={origin} disabled={busy||!!pending}

@@ -99,7 +99,7 @@ export async function configRead(_value:JsonValue,context:OperationContext){
 export async function configSet(value:JsonValue,context:OperationContext){
   const args=input(value),prior=await current(context),old=revision(args.revision,prior),origin=canonicalOrigin(args.origin);
   if(typeof args.enabled!=='boolean'||args.enabled&&!prior?.key_ref)throw new OperationError('invalid_input');
-  if(prior?.enabled===true&&prior.origin!==origin&&args.enabled)throw new OperationError('conflict');
+  if(typeof prior?.key_ref==='string'&&prior.origin!==origin)throw new OperationError('conflict');
   const now=new Date().toISOString();
   const changes={origin,enabled:args.enabled,updated_at:now};
   const plan=prior?context.data.planPatch('connector_config',{key:key(),compare:{field:'revision',expected:old},values:changes}):
