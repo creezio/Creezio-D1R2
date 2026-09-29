@@ -1,12 +1,16 @@
 # Changelog
 
-## En qualification — images Blob dans le sandbox des widgets (T16/T25)
+## En qualification — identifiants des outils Catalogue (T25)
 
-La politique CSP commune du sandbox autorise les URL `blob:` uniquement pour les images reçues par le composant. Le fichier privé arrivait correctement au navigateur, mais sa règle `img-src` en bloquait l'affichage dans les deux widgets Catalogue. Les directives de scripts, connexions, cadres et les domaines déclarés restent inchangés. Cette correction n'ajoute ni droit, ni API, ni donnée ; sa recette navigateur après publication reste à réaliser.
+Les outils et le guide conversationnel indiquent qu'une recherche accepte un nom ou SKU, puis que la fiche attend l'identifiant interne renvoyé dans `items[].id`. Le test vérifie ces descriptions dans la projection fournisseur, sans modifier les opérations, droits ou données. Les verrous des deux compositions Catalogue et Connecteurs sont régénérés après le dernier changement du module.
+
+## Qualifié sur Linux — images Blob dans le sandbox des widgets (T16/T25)
+
+La politique CSP commune du sandbox autorise les URL `blob:` uniquement pour les images reçues par le composant. Le fichier privé arrivait correctement au navigateur, mais sa règle `img-src` en bloquait l'affichage dans les deux widgets Catalogue. Les directives de scripts, connexions, cadres et les domaines déclarés restent inchangés. Cette correction n'ajoute ni droit, ni API, ni donnée. Core main `7451334` passe 1 285/1 285 tests ; sur Linux, les deux images de widgets sont visibles et décodées en 32 × 32 après actions directes et rechargement, avec déconnexion confirmée. Le même code est livré sur Cloudflare, où les témoins API/D1/R2 sont conservés ; le rendu des images des widgets n'y a pas été vérifié.
 
 ## Intégré à la source — images privées dans les widgets Catalogue (T16/T25)
 
-La grille et la fiche Catalogue peuvent lire leurs images liées depuis les widgets app en réutilisant les contrôles D1/R2 existants. Le contrat SDK 1.5 ajoute une lecture d'image réservée au composant dans `_meta` et l'appel d'une opération commune par plusieurs widgets via `widgetCalls`. La limite de 3 Mio concerne uniquement le résultat privé vérifié hôte vers widget ; les autres messages conservent 1 Mio. La PR #68 intègre ces contrats dans la source Core ; l'archive SDK 1.5.0 reste à préparer et à vérifier avec sept consommateurs avant toute annonce de disponibilité publique. Catalogue 0.1.2 reste un module du workspace, sans release autonome ; les recettes navigateur et ChatGPT des images restent à réaliser.
+La grille et la fiche Catalogue peuvent lire leurs images liées depuis les widgets app en réutilisant les contrôles D1/R2 existants. Le contrat SDK 1.5 ajoute une lecture d'image réservée au composant dans `_meta` et l'appel d'une opération commune par plusieurs widgets via `widgetCalls`. La limite de 3 Mio concerne uniquement le résultat privé vérifié hôte vers widget ; les autres messages conservent 1 Mio. La PR #68 intègre ces contrats dans la source Core ; le SDK 1.5.0 est public depuis main `b2ae2ef`, avec archive exacte et sept consommateurs vérifiés. Le correctif CSP de l'hôte est intégré séparément par PR #70 ; la recette Linux des images est qualifiée, tandis que leur rendu Cloudflare/Sites et ChatGPT reste ouvert. Catalogue 0.1.2 reste un module du workspace, sans release autonome.
 
 Le suivi T38 est rapproché des livraisons existantes : Sites Original/Lab version 4, Lab Linux puis Cloudflare `7ebf532`, conservation des témoins après arrêt Docker et previews de dépendances refusées. Aucun nouveau déploiement ne découle de cette mise à jour documentaire.
 

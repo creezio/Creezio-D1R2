@@ -1,5 +1,9 @@
 # Changelog
 
+## Non publié — identifiant des outils Catalogue
+
+Les schémas et le guide conversationnel précisent qu'une recherche accepte un nom ou SKU, tandis que `product.get.id` attend l'ID interne renvoyé par `product.search.items[].id`. Cette clarification répond au témoin T25 où un SKU passé à `product.get` donnait `not_found` ; les opérations, droits et données restent inchangés.
+
 ## 0.1.2 — images privées dans les widgets app
 
 Les cartes liste/fiche chargent à la demande une première image visible ou une galerie de cinq liens maximum. `media.list` reste un seul outil partagé et les octets liés sont remis uniquement au composant par le pont privé du SDK `^1.5.0` candidat ; le contenu modèle reste textuel et neutre. Les widgets admin restent textuels. Aucune mutation, table SQL, URL publique ou modification du port `catalog.products@1.0.0`.
