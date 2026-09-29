@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {lstatSync} from 'node:fs';
-import {validateModule} from '../../../../../sdk/contracts/validate.mjs';
+import {validateModule} from '@creezio/sdk/contracts/node';
 import {manifest, moduleRoot} from '../helpers.mjs';
 
 test('messaging package closes its declared runtime and validation artifacts', () => {

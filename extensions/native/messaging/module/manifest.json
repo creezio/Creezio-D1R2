@@ -8,8 +8,8 @@
     "version": "0.0.0",
     "source": {
       "kind": "snapshot",
-      "revision": "t18-messaging-v2",
-      "integrity": "sha256-bec7fb4c478ba17aa0f2296488d4190fd2700aa554ef904aa316cedcaef6b24f"
+      "revision": "t18-messaging-widgets-v1",
+      "integrity": "sha256-f73ba5a50bd6d90c1313beb01dc61d278a1d6a0cd9b43384e44f052bb6dcbdc9"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -1801,6 +1801,943 @@
         }
       },
       {
+        "id": "box-preview-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "box-preview-page-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "nameExcerpt": {
+                    "type": "string",
+                    "minLength": 0,
+                    "maxLength": 48
+                  },
+                  "nameHasMore": {
+                    "type": "boolean"
+                  },
+                  "addressExcerpt": {
+                    "type": "string",
+                    "minLength": 0,
+                    "maxLength": 48
+                  },
+                  "addressHasMore": {
+                    "type": "boolean"
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "id",
+                  "nameExcerpt",
+                  "nameHasMore",
+                  "addressExcerpt",
+                  "addressHasMore",
+                  "revision"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 5
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "message-preview-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "boxId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "folder": {
+              "type": "string",
+              "enum": [
+                "inbox",
+                "sent",
+                "outbox",
+                "archive",
+                "trash"
+              ]
+            },
+            "unread": {
+              "type": "boolean"
+            },
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "threadId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "boxId",
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "message-preview-page-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "boxId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "inbound",
+                      "outbound"
+                    ]
+                  },
+                  "peerExcerpt": {
+                    "type": "string",
+                    "minLength": 0,
+                    "maxLength": 48
+                  },
+                  "peerHasMore": {
+                    "type": "boolean"
+                  },
+                  "subjectExcerpt": {
+                    "type": "string",
+                    "minLength": 0,
+                    "maxLength": 48
+                  },
+                  "subjectHasMore": {
+                    "type": "boolean"
+                  },
+                  "bodyExcerpt": {
+                    "type": "string",
+                    "minLength": 0,
+                    "maxLength": 48
+                  },
+                  "bodyHasMore": {
+                    "type": "boolean"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "received",
+                      "queued",
+                      "sending",
+                      "sent",
+                      "delivered",
+                      "bounced",
+                      "failed",
+                      "unknown"
+                    ]
+                  },
+                  "folder": {
+                    "type": "string",
+                    "enum": [
+                      "inbox",
+                      "sent",
+                      "outbox",
+                      "archive",
+                      "trash"
+                    ]
+                  },
+                  "read": {
+                    "type": "boolean"
+                  },
+                  "threadId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "receivedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 35
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "sentAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 35
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "id",
+                  "boxId",
+                  "direction",
+                  "peerExcerpt",
+                  "peerHasMore",
+                  "subjectExcerpt",
+                  "subjectHasMore",
+                  "bodyExcerpt",
+                  "bodyHasMore",
+                  "state",
+                  "folder",
+                  "read",
+                  "threadId",
+                  "receivedAt",
+                  "sentAt",
+                  "revision"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 5
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "message-widget-input",
+        "schema": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "boxId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "direction": {
+                        "type": "string",
+                        "enum": [
+                          "inbound",
+                          "outbound"
+                        ]
+                      },
+                      "peerExcerpt": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 48
+                      },
+                      "peerHasMore": {
+                        "type": "boolean"
+                      },
+                      "subjectExcerpt": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 48
+                      },
+                      "subjectHasMore": {
+                        "type": "boolean"
+                      },
+                      "bodyExcerpt": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 48
+                      },
+                      "bodyHasMore": {
+                        "type": "boolean"
+                      },
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "received",
+                          "queued",
+                          "sending",
+                          "sent",
+                          "delivered",
+                          "bounced",
+                          "failed",
+                          "unknown"
+                        ]
+                      },
+                      "folder": {
+                        "type": "string",
+                        "enum": [
+                          "inbox",
+                          "sent",
+                          "outbox",
+                          "archive",
+                          "trash"
+                        ]
+                      },
+                      "read": {
+                        "type": "boolean"
+                      },
+                      "threadId": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "receivedAt": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 35
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "sentAt": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 35
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "revision": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "boxId",
+                      "direction",
+                      "peerExcerpt",
+                      "peerHasMore",
+                      "subjectExcerpt",
+                      "subjectHasMore",
+                      "bodyExcerpt",
+                      "bodyHasMore",
+                      "state",
+                      "folder",
+                      "read",
+                      "threadId",
+                      "receivedAt",
+                      "sentAt",
+                      "revision"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "maxItems": 5
+                },
+                "nextCursor": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2048
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "items",
+                "nextCursor"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "boxId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "direction": {
+                      "type": "string",
+                      "enum": [
+                        "inbound",
+                        "outbound"
+                      ]
+                    },
+                    "from": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 320
+                    },
+                    "to": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 2048
+                    },
+                    "cc": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 2048
+                    },
+                    "subject": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 240
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 16000
+                    },
+                    "html": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 32000
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "received",
+                        "queued",
+                        "sending",
+                        "sent",
+                        "delivered",
+                        "bounced",
+                        "failed",
+                        "unknown"
+                      ]
+                    },
+                    "folder": {
+                      "type": "string",
+                      "enum": [
+                        "inbox",
+                        "sent",
+                        "outbox",
+                        "archive",
+                        "trash"
+                      ]
+                    },
+                    "read": {
+                      "type": "boolean"
+                    },
+                    "threadId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "replyTo": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 320
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "inReplyTo": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "receivedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 35
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "sentAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 35
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "boxId",
+                    "direction",
+                    "from",
+                    "to",
+                    "cc",
+                    "subject",
+                    "text",
+                    "html",
+                    "state",
+                    "folder",
+                    "read",
+                    "threadId",
+                    "replyTo",
+                    "inReplyTo",
+                    "receivedAt",
+                    "sentAt",
+                    "revision"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "message"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      {
+        "id": "draft-preview-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "boxId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            }
+          },
+          "required": [
+            "boxId",
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "draft-preview-page-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "boxId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "peerExcerpt": {
+                    "type": "string",
+                    "minLength": 0,
+                    "maxLength": 48
+                  },
+                  "peerHasMore": {
+                    "type": "boolean"
+                  },
+                  "subjectExcerpt": {
+                    "type": "string",
+                    "minLength": 0,
+                    "maxLength": 48
+                  },
+                  "subjectHasMore": {
+                    "type": "boolean"
+                  },
+                  "bodyExcerpt": {
+                    "type": "string",
+                    "minLength": 0,
+                    "maxLength": 48
+                  },
+                  "bodyHasMore": {
+                    "type": "boolean"
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "id",
+                  "boxId",
+                  "peerExcerpt",
+                  "peerHasMore",
+                  "subjectExcerpt",
+                  "subjectHasMore",
+                  "bodyExcerpt",
+                  "bodyHasMore",
+                  "updatedAt",
+                  "revision"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 5
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "draft-widget-input",
+        "schema": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "boxId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "peerExcerpt": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 48
+                      },
+                      "peerHasMore": {
+                        "type": "boolean"
+                      },
+                      "subjectExcerpt": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 48
+                      },
+                      "subjectHasMore": {
+                        "type": "boolean"
+                      },
+                      "bodyExcerpt": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 48
+                      },
+                      "bodyHasMore": {
+                        "type": "boolean"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 35
+                      },
+                      "revision": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "boxId",
+                      "peerExcerpt",
+                      "peerHasMore",
+                      "subjectExcerpt",
+                      "subjectHasMore",
+                      "bodyExcerpt",
+                      "bodyHasMore",
+                      "updatedAt",
+                      "revision"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "maxItems": 5
+                },
+                "nextCursor": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2048
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "items",
+                "nextCursor"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "draft": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "boxId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "to": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 2048
+                    },
+                    "cc": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 2048
+                    },
+                    "bcc": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 2048
+                    },
+                    "subject": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 240
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 16000
+                    },
+                    "html": {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 32000
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 35
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "boxId",
+                    "to",
+                    "cc",
+                    "bcc",
+                    "subject",
+                    "text",
+                    "html",
+                    "updatedAt",
+                    "revision"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "draft"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      {
         "id": "messaging-view-input",
         "schema": {
           "type": "object",
@@ -1903,6 +2840,31 @@
             "audience",
             "contextId"
           ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "messaging-widget-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "boxId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "selectedId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          "required": [],
           "additionalProperties": false
         }
       }
@@ -3167,6 +4129,126 @@
         "public": false
       },
       {
+        "id": "box.preview.list",
+        "title": "Lister les boîtes pour le chat",
+        "kind": "query",
+        "input": {
+          "schemaId": "box-preview-list-input"
+        },
+        "output": {
+          "schemaId": "box-preview-page-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.messaging",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "boxPreviewList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "model",
+              "id": "box"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 5
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 6,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "to",
+            "cc",
+            "bcc",
+            "subject",
+            "text",
+            "html",
+            "address"
+          ]
+        },
+        "public": false
+      },
+      {
         "id": "box.create",
         "title": "Créer une boîte locale",
         "kind": "command",
@@ -3395,6 +4477,131 @@
         "execution": {
           "maxDurationMs": 10000,
           "maxItems": 50,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "to",
+            "cc",
+            "bcc",
+            "subject",
+            "text",
+            "html",
+            "address"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "message.preview.list",
+        "title": "Aperçu des messages pour le chat",
+        "kind": "query",
+        "input": {
+          "schemaId": "message-preview-list-input"
+        },
+        "output": {
+          "schemaId": "message-preview-page-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.messaging",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "messagePreviewList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "model",
+              "id": "box"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "model",
+              "id": "message"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 5
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 6,
           "resumable": false
         },
         "audit": {
@@ -3774,6 +4981,131 @@
         "execution": {
           "maxDurationMs": 10000,
           "maxItems": 50,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "to",
+            "cc",
+            "bcc",
+            "subject",
+            "text",
+            "html",
+            "address"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "draft.preview.list",
+        "title": "Aperçu des brouillons pour le chat",
+        "kind": "query",
+        "input": {
+          "schemaId": "draft-preview-list-input"
+        },
+        "output": {
+          "schemaId": "draft-preview-page-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.messaging",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "draftPreviewList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "model",
+              "id": "box"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "model",
+              "id": "draft"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 5
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 6,
           "resumable": false
         },
         "audit": {
@@ -5005,6 +6337,46 @@
         }
       },
       {
+        "id": "admin.box.preview.list",
+        "method": "GET",
+        "path": "/api/admin/messaging/box/preview/list",
+        "operation": {
+          "moduleId": "creezio.messaging",
+          "kind": "operation",
+          "id": "box.preview.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "box-preview-list-input"
+        },
+        "output": {
+          "schemaId": "box-preview-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
         "id": "admin.box.create",
         "method": "POST",
         "path": "/api/admin/messaging/box/create",
@@ -5095,6 +6467,76 @@
         },
         "output": {
           "schemaId": "message-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.message.preview.list",
+        "method": "GET",
+        "path": "/api/admin/messaging/message/preview/list",
+        "operation": {
+          "moduleId": "creezio.messaging",
+          "kind": "operation",
+          "id": "message.preview.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "box_id",
+            "in": "query",
+            "inputField": "boxId",
+            "required": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "folder",
+            "in": "query",
+            "inputField": "folder",
+            "required": false
+          },
+          {
+            "name": "unread",
+            "in": "query",
+            "inputField": "unread",
+            "required": false
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": false
+          },
+          {
+            "name": "thread_id",
+            "in": "query",
+            "inputField": "threadId",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "message-preview-list-input"
+        },
+        "output": {
+          "schemaId": "message-preview-page-output"
         },
         "rateLimit": {
           "requests": 60,
@@ -5214,6 +6656,58 @@
         },
         "output": {
           "schemaId": "draft-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.draft.preview.list",
+        "method": "GET",
+        "path": "/api/admin/messaging/draft/preview/list",
+        "operation": {
+          "moduleId": "creezio.messaging",
+          "kind": "operation",
+          "id": "draft.preview.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "box_id",
+            "in": "query",
+            "inputField": "boxId",
+            "required": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "draft-preview-list-input"
+        },
+        "output": {
+          "schemaId": "draft-preview-page-output"
         },
         "rateLimit": {
           "requests": 60,
@@ -5542,6 +7036,46 @@
         }
       },
       {
+        "id": "app.box.preview.list",
+        "method": "GET",
+        "path": "/api/app/messaging/box/preview/list",
+        "operation": {
+          "moduleId": "creezio.messaging",
+          "kind": "operation",
+          "id": "box.preview.list"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "box-preview-list-input"
+        },
+        "output": {
+          "schemaId": "box-preview-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
         "id": "app.box.create",
         "method": "POST",
         "path": "/api/app/messaging/box/create",
@@ -5632,6 +7166,76 @@
         },
         "output": {
           "schemaId": "message-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.message.preview.list",
+        "method": "GET",
+        "path": "/api/app/messaging/message/preview/list",
+        "operation": {
+          "moduleId": "creezio.messaging",
+          "kind": "operation",
+          "id": "message.preview.list"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "box_id",
+            "in": "query",
+            "inputField": "boxId",
+            "required": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "folder",
+            "in": "query",
+            "inputField": "folder",
+            "required": false
+          },
+          {
+            "name": "unread",
+            "in": "query",
+            "inputField": "unread",
+            "required": false
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": false
+          },
+          {
+            "name": "thread_id",
+            "in": "query",
+            "inputField": "threadId",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "message-preview-list-input"
+        },
+        "output": {
+          "schemaId": "message-preview-page-output"
         },
         "rateLimit": {
           "requests": 60,
@@ -5751,6 +7355,58 @@
         },
         "output": {
           "schemaId": "draft-page-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.draft.preview.list",
+        "method": "GET",
+        "path": "/api/app/messaging/draft/preview/list",
+        "operation": {
+          "moduleId": "creezio.messaging",
+          "kind": "operation",
+          "id": "draft.preview.list"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "box_id",
+            "in": "query",
+            "inputField": "boxId",
+            "required": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "draft-preview-list-input"
+        },
+        "output": {
+          "schemaId": "draft-preview-page-output"
         },
         "rateLimit": {
           "requests": 60,
@@ -6072,6 +7728,41 @@
           "textFallback": true
         },
         {
+          "id": "box.preview.list",
+          "name": "messaging_box_preview_list",
+          "operation": {
+            "moduleId": "creezio.messaging",
+            "kind": "operation",
+            "id": "box.preview.list"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "box-preview-list-input"
+          },
+          "output": {
+            "schemaId": "box-preview-page-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "widget": {
+            "moduleId": "creezio.messaging",
+            "kind": "widget",
+            "id": "boxes"
+          },
+          "textFallback": true
+        },
+        {
           "id": "box.create",
           "name": "messaging_box_create",
           "operation": {
@@ -6132,6 +7823,41 @@
           "textFallback": true
         },
         {
+          "id": "message.preview.list",
+          "name": "messaging_message_preview_list",
+          "operation": {
+            "moduleId": "creezio.messaging",
+            "kind": "operation",
+            "id": "message.preview.list"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "message-preview-list-input"
+          },
+          "output": {
+            "schemaId": "message-preview-page-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "widget": {
+            "moduleId": "creezio.messaging",
+            "kind": "widget",
+            "id": "messages"
+          },
+          "textFallback": true
+        },
+        {
           "id": "message.read",
           "name": "messaging_message_read",
           "operation": {
@@ -6158,6 +7884,11 @@
             "destructive": false,
             "idempotent": true,
             "openWorld": false
+          },
+          "widget": {
+            "moduleId": "creezio.messaging",
+            "kind": "widget",
+            "id": "messages"
           },
           "textFallback": true
         },
@@ -6222,6 +7953,41 @@
           "textFallback": true
         },
         {
+          "id": "draft.preview.list",
+          "name": "messaging_draft_preview_list",
+          "operation": {
+            "moduleId": "creezio.messaging",
+            "kind": "operation",
+            "id": "draft.preview.list"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "draft-preview-list-input"
+          },
+          "output": {
+            "schemaId": "draft-preview-page-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "widget": {
+            "moduleId": "creezio.messaging",
+            "kind": "widget",
+            "id": "drafts"
+          },
+          "textFallback": true
+        },
+        {
           "id": "draft.create",
           "name": "messaging_draft_create",
           "operation": {
@@ -6278,6 +8044,11 @@
             "destructive": false,
             "idempotent": true,
             "openWorld": false
+          },
+          "widget": {
+            "moduleId": "creezio.messaging",
+            "kind": "widget",
+            "id": "drafts"
           },
           "textFallback": true
         },
@@ -6492,7 +8263,113 @@
           "textFallback": true
         }
       ],
-      "resources": [],
+      "resources": [
+        {
+          "id": "boxes-ui",
+          "uri": "ui://creezio.messaging/boxes",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "permission",
+              "id": "use"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/boxes.html"
+          },
+          "widget": {
+            "moduleId": "creezio.messaging",
+            "kind": "widget",
+            "id": "boxes"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        },
+        {
+          "id": "messages-ui",
+          "uri": "ui://creezio.messaging/messages",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "permission",
+              "id": "use"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/messages.html"
+          },
+          "widget": {
+            "moduleId": "creezio.messaging",
+            "kind": "widget",
+            "id": "messages"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        },
+        {
+          "id": "drafts-ui",
+          "uri": "ui://creezio.messaging/drafts",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "permission",
+              "id": "use"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/drafts.html"
+          },
+          "widget": {
+            "moduleId": "creezio.messaging",
+            "kind": "widget",
+            "id": "drafts"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        }
+      ],
       "prompts": [],
       "skills": [
         {
@@ -6532,10 +8409,29 @@
               "moduleId": "creezio.messaging",
               "kind": "operation",
               "id": "attachment.link"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "operation",
+              "id": "box.preview.list"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "operation",
+              "id": "message.preview.list"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "operation",
+              "id": "draft.preview.list"
             }
           ],
-          "resources": [],
-          "integrity": "sha256-fc7260de74b6be74ac22fa9e3cb211c9b5b73cecbc0141580609995c06dc8be1"
+          "resources": [
+            "boxes-ui",
+            "messages-ui",
+            "drafts-ui"
+          ],
+          "integrity": "sha256-c328a1193767097a83c7ba7d545dae250761f20e5a36ad412c84df087190999f"
         }
       ]
     },
@@ -6568,12 +8464,22 @@
             {
               "moduleId": "creezio.messaging",
               "kind": "operation",
+              "id": "box.preview.list"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "operation",
               "id": "box.create"
             },
             {
               "moduleId": "creezio.messaging",
               "kind": "operation",
               "id": "message.list"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "operation",
+              "id": "message.preview.list"
             },
             {
               "moduleId": "creezio.messaging",
@@ -6589,6 +8495,11 @@
               "moduleId": "creezio.messaging",
               "kind": "operation",
               "id": "draft.list"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "operation",
+              "id": "draft.preview.list"
             },
             {
               "moduleId": "creezio.messaging",
@@ -6676,12 +8587,22 @@
             {
               "moduleId": "creezio.messaging",
               "kind": "operation",
+              "id": "box.preview.list"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "operation",
               "id": "box.create"
             },
             {
               "moduleId": "creezio.messaging",
               "kind": "operation",
               "id": "message.list"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "operation",
+              "id": "message.preview.list"
             },
             {
               "moduleId": "creezio.messaging",
@@ -6697,6 +8618,11 @@
               "moduleId": "creezio.messaging",
               "kind": "operation",
               "id": "draft.list"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "operation",
+              "id": "draft.preview.list"
             },
             {
               "moduleId": "creezio.messaging",
@@ -6807,7 +8733,242 @@
       "themes": [],
       "styles": []
     },
-    "widgets": [],
+    "widgets": [
+      {
+        "id": "boxes",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "boxes-ui",
+        "renderer": {
+          "path": "ui/widgets/boxes.ts",
+          "export": "startBoxes"
+        },
+        "input": {
+          "schemaId": "box-preview-page-output"
+        },
+        "state": {
+          "schemaId": "messaging-widget-state"
+        },
+        "result": {
+          "schemaId": "box-preview-page-output"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.messaging",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "list",
+            "label": "Afficher",
+            "input": {
+              "schemaId": "box-preview-list-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.messaging",
+                "kind": "operation",
+                "id": "box.preview.list"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 786432,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      },
+      {
+        "id": "messages",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "messages-ui",
+        "renderer": {
+          "path": "ui/widgets/messages.ts",
+          "export": "startMessages"
+        },
+        "input": {
+          "schemaId": "message-widget-input"
+        },
+        "state": {
+          "schemaId": "messaging-widget-state"
+        },
+        "result": {
+          "schemaId": "message-widget-input"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.messaging",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "list",
+            "label": "Afficher",
+            "input": {
+              "schemaId": "message-preview-list-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.messaging",
+                "kind": "operation",
+                "id": "message.preview.list"
+              }
+            }
+          },
+          {
+            "id": "read",
+            "label": "Lire",
+            "input": {
+              "schemaId": "message-read-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.messaging",
+                "kind": "operation",
+                "id": "message.read"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 786432,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      },
+      {
+        "id": "drafts",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "drafts-ui",
+        "renderer": {
+          "path": "ui/widgets/drafts.ts",
+          "export": "startDrafts"
+        },
+        "input": {
+          "schemaId": "draft-widget-input"
+        },
+        "state": {
+          "schemaId": "messaging-widget-state"
+        },
+        "result": {
+          "schemaId": "draft-widget-input"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.messaging",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "list",
+            "label": "Afficher",
+            "input": {
+              "schemaId": "draft-preview-list-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.messaging",
+                "kind": "operation",
+                "id": "draft.preview.list"
+              }
+            }
+          },
+          {
+            "id": "read",
+            "label": "Lire",
+            "input": {
+              "schemaId": "draft-read-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.messaging",
+                "kind": "operation",
+                "id": "draft.read"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 786432,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      }
+    ],
     "publicContracts": []
   },
   "documentation": {
@@ -6852,7 +9013,7 @@
     },
     "versionBinding": {
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t18-messaging-v2"
+      "sourceRevision": "t18-messaging-widgets-v1"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -6887,15 +9048,12 @@
         ]
       },
       "widgets": {
-        "mode": "not-applicable",
+        "mode": "required",
         "script": "ci/widgets.mjs",
         "tests": [
-          "tests/widgets/contract.test.mjs"
-        ],
-        "justification": {
-          "reason": "Native messaging exposes text MCP tools but no widget renderer.",
-          "policyRule": "messaging.text-tools-only"
-        }
+          "tests/widgets/contract.test.mjs",
+          "tests/widgets/runtime.test.mjs"
+        ]
       },
       "package": {
         "mode": "required",
@@ -6940,6 +9098,13 @@
         "ui/index.tsx",
         "ui/presentation.tsx",
         "ui/rich-editor.tsx",
+        "ui/widgets/runtime.ts",
+        "ui/widgets/boxes.ts",
+        "ui/widgets/boxes.html",
+        "ui/widgets/messages.ts",
+        "ui/widgets/messages.html",
+        "ui/widgets/drafts.ts",
+        "ui/widgets/drafts.html",
         "README.md",
         "prd.md",
         "CHANGELOG.md",
@@ -6972,14 +9137,15 @@
         "ci/package.mjs",
         "tests/package/contract.test.mjs",
         "ci/docs.mjs",
-        "tests/docs/contract.test.mjs"
+        "tests/docs/contract.test.mjs",
+        "tests/widgets/runtime.test.mjs"
       ],
       "references": []
     },
     "validationBinding": {
       "moduleId": "creezio.messaging",
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t18-messaging-v2"
+      "sourceRevision": "t18-messaging-widgets-v1"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",
@@ -6990,12 +9156,7 @@
     "configuration": "explicit-state",
     "uninstall": "explicit-approved-action",
     "activationRequirements": [],
-    "absent": {
-      "widgets": {
-        "reason": "Text-only MCP tools do not require a widget renderer.",
-        "policyRule": "messaging.text-tools-only"
-      }
-    },
+    "absent": {},
     "dependencyChanges": {
       "install": "resolve-explicit-consumer-selection",
       "activate": "require-active-dependencies",

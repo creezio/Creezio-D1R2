@@ -161,22 +161,22 @@
       "version": "0.0.0",
       "source": {
         "kind": "snapshot",
-        "revision": "t18-messaging-v2",
-        "integrity": "sha256-bec7fb4c478ba17aa0f2296488d4190fd2700aa554ef904aa316cedcaef6b24f"
+        "revision": "t18-messaging-widgets-v1",
+        "integrity": "sha256-f73ba5a50bd6d90c1313beb01dc61d278a1d6a0cd9b43384e44f052bb6dcbdc9"
       },
-      "contractIntegrity": "sha256-8889021f9a21379f333516e18e5d3ad342aadbca264cd0077283f49de959cf51",
+      "contractIntegrity": "sha256-9f11bfd9b2b89d13958c18cf53fdf26f5dadf5076e5aef4b2d86c01cc49975ad",
       "runtime": {
-        "integrity": "sha256-5c9020bd4c866c25bbdfaa4c3a6a17978c00eded12ddb983e42995adc7ce03dd",
+        "integrity": "sha256-ce1511edff94e42cabdcacde56023a09ce50fa039ada5e4f3cd4fb8c05e3aaa6",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.messaging/runtime-5c9020bd4c866c25bbdfaa4c3a6a17978c00eded12ddb983e42995adc7ce03dd.tgz"
+          "path": ".creezio/module-artifacts/creezio.messaging/runtime-ce1511edff94e42cabdcacde56023a09ce50fa039ada5e4f3cd4fb8c05e3aaa6.tgz"
         }
       },
       "validation": {
-        "integrity": "sha256-fbcab08720a2dd6cf0c7f431faed5982b42c965fa6220a38e648a0e766aa753a",
+        "integrity": "sha256-4967543d056aef0e0c93483e8da48a1682d27ffc35164ed7b5a854177fbc81e2",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.messaging/validation-fbcab08720a2dd6cf0c7f431faed5982b42c965fa6220a38e648a0e766aa753a.tgz"
+          "path": ".creezio/module-artifacts/creezio.messaging/validation-4967543d056aef0e0c93483e8da48a1682d27ffc35164ed7b5a854177fbc81e2.tgz"
         }
       },
       "dependencies": [
@@ -228,10 +228,10 @@
       },
       "contractIntegrity": "sha256-df9a17d650ca36c5eece10c7b5e6a051313e2f1c23a25094d9ddac29bc6f3c75",
       "runtime": {
-        "integrity": "sha256-85e070badfbe87ce37bbcb3f565cd8855d57aa5cee3a067624a616010140bacd",
+        "integrity": "sha256-af513a6958d090fbfe1f2423df1c7205d54842cb50c5acbc831726f0ce1e955c",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.support/runtime-85e070badfbe87ce37bbcb3f565cd8855d57aa5cee3a067624a616010140bacd.tgz"
+          "path": ".creezio/module-artifacts/creezio.support/runtime-af513a6958d090fbfe1f2423df1c7205d54842cb50c5acbc831726f0ce1e955c.tgz"
         }
       },
       "validation": {

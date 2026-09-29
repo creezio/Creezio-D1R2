@@ -2,6 +2,8 @@ import '../../scripts/local-environment.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {buildSync} from 'esbuild';
 import {Miniflare} from 'miniflare';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
@@ -21,6 +23,7 @@ import {compileHttpBindings} from '../../scripts/operations/http-bindings.mjs';
 import {createOperationHttpTransport} from '../../core/operations/http.ts';
 import {Client, StreamableHTTPClientTransport} from '@modelcontextprotocol/client';
 import {compileMcpBindings} from '../../scripts/mcp/bindings.mjs';
+import {compileWidgetCatalog} from '../../scripts/widgets/compile.mjs';
 import {createMcpHttpTransport} from '../../core/mcp/http.ts';
 import * as handlers from '../../extensions/native/messaging/module/operations.ts';
 
@@ -106,6 +109,9 @@ test('native messaging persists drafts and private files through the real D1 ope
     const box = success(await invoke('box.create', boxInput)).box;
     assert.equal(success(await invoke('box.create', boxInput)).box.id, box.id, 'replay keeps the same mailbox');
     assert.equal(success(await invoke('box.list', {limit: 10})).items.length, 1);
+    const boxPreview = success(await invoke('box.preview.list', {limit: 5}));
+    assert.equal(boxPreview.items[0].id, box.id);
+    assert.equal(Object.hasOwn(boxPreview.items[0], 'name'), false);
     const appScope = {token: ownerApp.token, audience: 'app'};
     assert.equal(success(await invoke('box.list', {limit: 10}, appScope)).items[0].id, box.id,
       'the same owner sees an admin-created box in app');
@@ -122,6 +128,10 @@ test('native messaging persists drafts and private files through the real D1 ope
     assert.equal(saved.revision, 2);
     assert.ok(!saved.html.includes('<img'));
     assert.equal(success(await invoke('draft.read', privateRead)).draft.text, 'Contenu privé');
+    const draftPreview = success(await invoke('draft.preview.list', {boxId: box.id, limit: 5}));
+    assert.equal(draftPreview.items[0].id, draft.id);
+    assert.equal(Object.hasOwn(draftPreview.items[0], 'text'), false);
+    assert.equal(Object.hasOwn(draftPreview.items[0], 'html'), false);
     await rejected(invoke('draft.save', {...privateRead, requestKey: 'mail-stale', revision: 1,
       to: '', cc: '', bcc: '', subject: 'Lost update', text: '', html: ''}), 'conflict');
     const appDraft = success(await invoke('draft.create', {requestKey: 'app-mail-draft',boxId:box.id},appScope)).draft;
@@ -156,7 +166,8 @@ test('native messaging persists drafts and private files through the real D1 ope
 
     const received = {context_id: 'application', owner_id: owner.principalId, box_id: box.id,
       id: 'received-message', direction: 'inbound', from_addr: 'sender@example.invalid', to_addr: 'owner@example.invalid',
-      cc_addr: '', subject: 'Facture reçue', text_body: 'Contenu fournisseur', html_body: '<p>Contenu fournisseur</p>',
+      cc_addr: '', subject: 'Facture reçue', text_body: `Contenu fournisseur ${'x'.repeat(150)}`,
+      html_body: '<p>Contenu fournisseur</p>',
       state: 'received', folder: 'inbox', read_at: null, thread_id: 'thread-1', reply_to: null, in_reply_to: null,
       provider_message_id: null, received_at: new Date().toISOString(), sent_at: null,
       created_at: new Date().toISOString(), revision: 1};
@@ -172,6 +183,15 @@ test('native messaging persists drafts and private files through the real D1 ope
     }));
     const found = success(await invoke('message.list', {boxId: box.id, limit: 10, folder: 'inbox', unread: true, query: 'fournisseur'}));
     assert.equal(found.items[0].id, received.id);
+    const messagePreview = success(await invoke('message.preview.list', {boxId: box.id, limit: 5,
+      folder: 'inbox', unread: true, query: 'fournisseur'}, appScope));
+    assert.equal(messagePreview.items[0].id, received.id);
+    assert.equal(messagePreview.items[0].bodyExcerpt.length, 48);
+    assert.equal(messagePreview.items[0].bodyHasMore, true);
+    assert.equal(Object.hasOwn(messagePreview.items[0], 'text'), false);
+    assert.ok(Buffer.byteLength(JSON.stringify(messagePreview)) < 8192);
+    await rejected(invoke('message.preview.list', {boxId: box.id, limit: 5},
+      {token: otherAdmin.token}), 'not_found');
     assert.equal(success(await invoke('message.read',{boxId:box.id,messageId:received.id},appScope)).message.id,received.id);
     assert.equal(success(await invoke('message.list', {boxId: box.id, limit: 10, threadId: 'thread-1'})).items[0].id, received.id);
     assert.equal(success(await invoke('message.list', {boxId: box.id, limit: 10, unread: true})).items[0].id, received.id);
@@ -210,8 +230,19 @@ test('native messaging persists drafts and private files through the real D1 ope
     const wrongAudience = await dispatch(httpRequest('/api/admin/messaging/box/list?limit=10', apiToken));
     assert.equal(wrongAudience.status, 401);
     assert.equal((await wrongAudience.json()).error.code, 'unauthorized');
-    const mcpBindings = compileMcpBindings({composition: {modules: [{moduleId, enabled: true}],
-      exposure: {admin: {moduleIds: [moduleId]}, app: {moduleIds: [moduleId]}}}, modules: [manifest], operationCatalog: registered.catalog});
+    const composition = {modules: [{moduleId, enabled: true}],
+      exposure: {admin: {moduleIds: [moduleId]}, app: {moduleIds: [moduleId]}}};
+    const widgetCatalog = compileWidgetCatalog({composition, modules: [manifest],
+      operationCatalog: registered.catalog,
+      readAsset: (_id, relative) => readFileSync(new URL(`../../extensions/native/messaging/${relative}`,
+        import.meta.url), 'utf8'),
+      bundleRenderer: (_id, reference) => buildSync({entryPoints: [fileURLToPath(new URL(
+        `../../extensions/native/messaging/${reference.path}`, import.meta.url))], bundle: true,
+        write: false, platform: 'browser', format: 'iife', globalName: '__creezioWidget', target: 'es2022',
+        minify: true, footer: {js: `__creezioWidget.${reference.export}();`}}).outputFiles[0].text});
+    assert.equal(widgetCatalog.widgets.length, 3);
+    const mcpBindings = compileMcpBindings({composition, modules: [manifest],
+      operationCatalog: registered.catalog, widgetCatalog});
     const mcp = createMcpHttpTransport(mcpBindings, registered, engine, {origin,
       resourceMetadataUrl: audience => `${origin}/.well-known/oauth-protected-resource/mcp/${audience}`,
       authenticate: async (request, audience) => {
@@ -228,10 +259,14 @@ test('native messaging persists drafts and private files through the real D1 ope
       fetch: (input, init) => mcp.dispatch(new Request(input, init), 'app', 'messaging-native-mcp')});
     try {
       await client.connect(wire);
-      assert.ok((await client.listTools()).tools.some(tool => tool.name === 'messaging_box_list'));
+      const tools = (await client.listTools()).tools;
+      assert.ok(tools.some(tool => tool.name === 'messaging_box_list'));
       const toolResult = await client.callTool({name: 'messaging_box_list', arguments: {limit: 10}});
       assert.equal(toolResult.structuredContent.items[0].id, machineItems[0].id);
       assert.notEqual(toolResult.structuredContent.items[0].id, box.id);
+      const widgetResult = await client.callTool({name: 'messaging_box_preview_list', arguments: {limit: 5}});
+      assert.equal(widgetResult.structuredContent.input.items[0].id, machineItems[0].id);
+      assert.ok(tools.find(tool => tool.name === 'messaging_box_preview_list')._meta?.ui?.resourceUri);
     } finally {await client.close();}
 
     data = createDataAccess(db, {catalog, permissions});

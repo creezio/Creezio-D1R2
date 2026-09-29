@@ -4,7 +4,7 @@ import {manifest} from '../helpers.mjs';
 
 test('every native operation has separate admin/app HTTP and MCP bindings',()=>{
   const operations=manifest.contracts.operations;
-  assert.equal(operations.length,15);
+  assert.equal(operations.length,18);
   for(const op of operations){
     assert.deepEqual(op.audiences,['admin','app']);
     assert.deepEqual(op.actors,['user','delegated-user','machine']);

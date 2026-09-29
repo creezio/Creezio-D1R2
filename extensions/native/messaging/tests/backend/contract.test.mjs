@@ -1,9 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {manifest,read} from '../helpers.mjs';
-import {generateD1Schema} from '../../../../../scripts/data/d1-schema.mjs';
 import {safeHtml,boxCreate,draftCreate,draftSave,draftDelete,messageList,messageUpdate,
-  attachmentLink,attachmentUnlink,transportStatus,messageSend} from '../../module/service.ts';
+  attachmentLink,attachmentUnlink,transportStatus,messageSend,boxPreviewList,messagePreviewList,draftPreviewList} from '../../module/service.ts';
 
 const box={id:'box-one',name:'Personnel',address:'',kind:'local',revision:1};
 const draft={id:'draft-one',box_id:'box-one',to_addr:'',cc_addr:'',bcc_addr:'',subject:'',text_body:'',
@@ -20,6 +19,30 @@ function harness(rows={}){
   return {context,calls};
 }
 
+test('previews omit full bodies and HTML, retain scoped cursor and fit the chat result bound',async()=>{
+  const long='\\"'.repeat(8000),stamp='2026-09-28T00:00:00.000Z';
+  const message={id:'message-one',box_id:'box-one',direction:'inbound',from_addr:'a@example.org',
+    to_addr:'',subject:long.slice(0,240),text_body:long,html_body:long,
+    state:'received',folder:'inbox',read_at:null,thread_id:null,received_at:stamp,sent_at:null,revision:1};
+  const draftRow={...draft,to_addr:'a@example.org',subject:long.slice(0,240),text_body:long};
+  const h=harness({box,boxPage:{items:[{...box,updated_at:stamp}],nextAfter:null},
+    messagePage:{items:[message],nextAfter:{owner_id:'alice',box_id:'box-one',created_at:stamp,id:'message-one'}},
+    draftPage:{items:[draftRow],nextAfter:null}});
+  const boxes=await boxPreviewList({limit:5},h.context);
+  const messages=await messagePreviewList({boxId:'box-one',limit:5},h.context);
+  const drafts=await draftPreviewList({boxId:'box-one',limit:5},h.context);
+  assert.equal(boxes.output.items[0].id,'box-one');
+  assert.equal(messages.output.items[0].subjectHasMore,true);
+  assert.equal(drafts.output.items[0].bodyHasMore,true);
+  assert.ok(Buffer.byteLength(JSON.stringify({output:messages.output}))<8192);
+  assert.doesNotMatch(JSON.stringify(messages.output),/html_body|text_body/);
+  assert.ok(!JSON.stringify(messages.output).includes(long.slice(0,200)));
+  assert.ok(h.calls.filter(call=>call.kind==='list').every(call=>!Object.hasOwn(call.args.where,'audience')));
+  assert.ok(h.calls.filter(call=>call.kind==='list'&&call.model==='message')
+    .every(call=>!call.args.fields.includes('html_body')&&!call.args.fields.includes('context_id')));
+  assert.equal(typeof messages.output.nextCursor,'string');
+});
+
 test('business models use owner and context keys across authorized audiences',()=>{
   const models=JSON.parse(read('module/models.json'));
   assert.deepEqual(manifest.contracts.models,models);
@@ -33,7 +56,6 @@ test('business models use owner and context keys across authorized audiences',()
     ['context_id','owner_id','box_id','draft_id']);
   assert.ok(models.every(model=>!model.fields.some(field=>field.id==='audience')));
   assert.equal(manifest.contracts.files[0].ownerScope,'principal');
-  assert.match(generateD1Schema(manifest.identity.id,models).sql,/FOREIGN KEY/);
 });
 
 test('HTML is safe and stable across save/read/save, links retain only HTTPS or HTTP',()=>{

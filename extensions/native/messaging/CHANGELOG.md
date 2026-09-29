@@ -1,10 +1,12 @@
 # Changelog
 
+- T18 widgets : trois rendus de lecture boîtes, messages et brouillons, aperçus bornés, détail explicite, sans nouveau transport ni SQL.
+
 ## Source t18-messaging-v2 — partage des données entre audiences
 
 Les modèles métier utilisent le couple contexte/propriétaire. Admin et app voient les mêmes boîtes et brouillons sauvegardés lorsqu’ils disposent chacun du droit `messaging.use`. Les pièces jointes privées partagent l’identité fichier du principal, tout en conservant les contrôles de contexte et d’audience de chaque accès.
 
-Les mutations UI sont désormais coordonnées par le journal public du SDK candidat 1.2.0 : clé persistée avant envoi, blocage après issue incertaine et lecture du statut sans rejeu. La restauration de la boîte et du brouillon vérifie la session, l’audience et le contexte après authentification.
+Les mutations UI sont désormais coordonnées par le journal public du SDK : clé persistée avant envoi, blocage après issue incertaine et lecture du statut sans rejeu. La restauration de la boîte et du brouillon vérifie la session, l’audience et le contexte après authentification.
 
 Les réponses tardives de sélection et de marquage automatique ne rétablissent plus un message quitté entre-temps. Un changement réel de compte ou de contexte efface aussi recherche et formulaire de création de boîte ; la vérification transitoire de la même session conserve les saisies.
 
