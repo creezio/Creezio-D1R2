@@ -314,6 +314,26 @@ test('Conversations operations use real D1 authority, CAS, cursors and atomic fi
     const turnRow=await db.prepare(`SELECT widget_context_snapshot FROM "${generated.tables.turn}" WHERE id=?`)
       .bind(widgetTurn.execution.output.turn.id).first();
     assert.equal(JSON.parse(turnRow.widget_context_snapshot)[0].revision,3);
+    const removedConversation=success(await widgetInvoke('conversation.create',{
+      requestKey:'widget-removed-conversation',mode:'chat',title:'Contexte retiré'})).conversation;
+    const removedMessage=success(await widgetInvoke('widget.message.create',{
+      requestKey:'widget-removed-message',conversationId:removedConversation.id,revision:1,
+      instances:[{moduleId:widget.moduleId,widgetId:widget.widgetId,widgetVersion:widget.version,state:{}}]})).message;
+    const removedBase={conversationId:removedConversation.id,messageId:removedMessage.id,
+      instanceId:removedMessage.content.instances[0].instanceId,instanceRevision:1,
+      actionId:'pin',input:{selected:'beta'}};
+    success(await widgetInvoke('widget.context.replace',{requestKey:'context-to-remove',
+      ...removedBase,expectedRevision:0}));
+    const removedWidgetContext=success(await widgetInvoke('widget.context.remove',{requestKey:'context-removed-before-turn',
+      ...removedBase,expectedRevision:1})).context;
+    assert.equal(removedWidgetContext.removed,true);
+    const afterRemoval=await widgetInvoke('turn.start',{requestKey:'widget-turn-after-removal',
+      conversationId:removedConversation.id,messageId:'widget-user-after-removal',body:'Continue',
+      revision:2,draftRevision:0,modelId:'model-a'});
+    assert.equal(afterRemoval.execution.state,'waiting');
+    const removedTurnRow=await db.prepare(`SELECT widget_context_snapshot FROM "${generated.tables.turn}" WHERE id=?`)
+      .bind(afterRemoval.execution.output.turn.id).first();
+    assert.deepEqual(JSON.parse(removedTurnRow.widget_context_snapshot),[]);
     // A real tool turn stores a host-created renderExecution pointer. The list output schema must accept it on reload.
     const rendered=await widgetInvoke('message.list',{conversationId:widgetConversation.id,limit:1});
     const renderExecution={moduleId,operationId:'message.list',operationDigest:digest,executionId:rendered.execution.id};

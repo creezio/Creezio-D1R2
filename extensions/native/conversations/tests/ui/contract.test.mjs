@@ -11,13 +11,13 @@ import {startTurnDriveLoop} from '../../ui/drive-loop.ts';
 
 const bundle = await build({entryPoints:[fileURLToPath(new URL('../../ui/panel.tsx',import.meta.url))],
   bundle:true,platform:'node',format:'esm',packages:'external',write:false,logLevel:'silent'});
-const providerBundle = await build({stdin:{contents:"export {projectProviderStatus} from '../../ui/index.tsx';",
+const providerBundle = await build({stdin:{contents:"export {projectProviderStatus} from '../../ui/index.tsx'; export {widgetContextActionStatus} from '../../ui/widget-message.tsx';",
   resolveDir:fileURLToPath(new URL('./',import.meta.url)),sourcefile:'provider-projection.ts',loader:'ts'},
   bundle:true,platform:'node',format:'esm',packages:'external',write:false,logLevel:'silent'});
 // Load beside this test so bare package imports resolve through the SDK's ESM exports.
 const rendered = fileURLToPath(new URL(`./.contract-render-${randomUUID()}.mjs`,import.meta.url));
 const providerRendered = fileURLToPath(new URL(`./.provider-render-${randomUUID()}.mjs`,import.meta.url));
-let ConversationPanel, projectProviderStatus;
+let ConversationPanel, projectProviderStatus, widgetContextActionStatus;
 let written = false;
 let providerWritten = false;
 try {
@@ -26,7 +26,7 @@ try {
   ({ConversationPanel} = await import(pathToFileURL(rendered).href));
   writeFileSync(providerRendered,providerBundle.outputFiles[0].text,{flag:'wx'});
   providerWritten = true;
-  ({projectProviderStatus} = await import(pathToFileURL(providerRendered).href));
+  ({projectProviderStatus,widgetContextActionStatus} = await import(pathToFileURL(providerRendered).href));
 } finally {
   if (written) unlinkSync(rendered);
   if (providerWritten) unlinkSync(providerRendered);
@@ -37,6 +37,16 @@ const props = {variant:'embedded',open:true,onOpenChange:noop,mode:'chat',onMode
   messages:[{id:'m1',role:'user',content:'Bonjour'}],draft:'Brouillon conservé',onDraftChange:noop,
   onCreate:noop,onSelect:noop,onArchive:noop,onRestore:noop,searchQuery:'',onSearchQueryChange:noop,
   showArchived:false,onShowArchivedChange:noop,hasMore:false,onLoadMore:noop,providerStatus:'no_provider'};
+
+test('widget host reports a confirmed context removal without claiming it is ready',()=>{
+  assert.equal(widgetContextActionStatus({kind:'ok',value:{removed:true}}),
+    'Contexte retiré pour les prochains tours.');
+  assert.equal(widgetContextActionStatus({kind:'ok',value:{removed:false}}),
+    'Contexte prêt pour le prochain tour.');
+  assert.equal(widgetContextActionStatus({kind:'unknown',code:'unavailable',requestKey:'pending'}),
+    'Résultat du contexte incertain.');
+  assert.equal(widgetContextActionStatus({kind:'rejected',code:'forbidden'}),'Contexte refusé.');
+});
 
 test('embedded conversation renders history, draft, and an explicit unavailable provider', () => {
   const html = renderToStaticMarkup(React.createElement(ConversationPanel, props));
