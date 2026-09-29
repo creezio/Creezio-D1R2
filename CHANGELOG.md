@@ -4,9 +4,9 @@
 
 Le plafond du processus de tests passe de dix à quinze minutes, dans le job CI toujours limité à vingt minutes. Les 1 246 tests du candidat ont réussi en 483 secondes ; le contrôle du main a atteint son dernier test puis sa limite de 600 secondes sans bilan final. Le test Stripe isolé sur Linux s'est terminé avec son bilan complet et sans processus restant. Cette marge ne change ni les délais individuels, ni les suites requises, ni les refus des bilans incomplets ou des preuves périmées. Le contrôle interrompu demeure non qualifié.
 
-## En cours — Stripe et projections D1 (T27)
+## SDK 1.4 — contrat de connecteurs et première lecture Stripe (T27)
 
-Le connecteur reprend l’administration de facturation Creezio et prépare la lecture des clients, abonnements et factures via le port GET déclaré, avec clé scellée, pagination bornée et projections D1 contextuelles. Le SDK 1.4 candidat ajoute des options de protocole et la vérification atomique de la connexion au commit ; aucune mutation Stripe, facturation premium ou publication du SDK 1.4 n’est incluse. Voir [T27](docs/IMPLEMENTATION-T27.md).
+Le contrat SDK 1.4 ajoute une origine HTTPS fixe, des en-têtes de protocole constants et des noms de paramètres déclarés aux ressources GET des connecteurs. L’hôte peut relier une lecture distante bornée à une projection D1 qui revérifie atomiquement la configuration, la version de clé et les droits. La première tranche Stripe 0.1.0 lit clients, abonnements et factures par pages bornées, avec clé scellée, génération de connexion et journal de commandes. La recette Linux en mode test a confirmé trois parcours et douze projections ; l’interface de facturation originale a affiché quatre abonnements et quatre factures, avec montants EUR concordants et connexion conservée après rechargement. Aucune mutation Stripe, paiement, webhook ni clôture de REQ-2701 n’en découle. La disponibilité et l’empreinte de l’archive SDK 1.4 se vérifient sur sa release GitHub ; le module n’est pas publié automatiquement.
 
 ## SDK 1.3.0 public — images liées du Catalogue (T25/T30)
 

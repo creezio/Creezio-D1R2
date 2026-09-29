@@ -94,7 +94,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-24](#T-24) | P5 | Règles et automatisation sans scheduler | [T-11](#T-11), [T-17](#T-17) | À faire — dernier bloc, plan et accord explicite préalables |
 | [T-25](#T-25) | P5 | Catalogue métier réutilisable complet | [T-11](#T-11), [T-13](#T-13), [T-16](#T-16) | En cours — images du front qualifiées localement ; SDK 1.3 public |
 | [T-26](#T-26) | P5 | Connecteur n8n | [T-10](#T-10), [T-11](#T-11), [T-16](#T-16), [T-24](#T-24) | En cours — port externe et module |
-| [T-27](#T-27) | P5 | Connecteur Stripe | [T-11](#T-11), [T-16](#T-16) | À faire — après première app |
+| [T-27](#T-27) | P5 | Connecteur Stripe | [T-11](#T-11), [T-16](#T-16) | Première tranche lue et projetée en mode test ; API et UI Linux qualifiées, REQ-2701 ouverte |
 | [T-28](#T-28) | P5 | Connecteur Meili | [T-05](#T-05), [T-11](#T-11) | À faire — après première app |
 | [T-29](#T-29) | P5 | Autres connecteurs et frontières externes | [T-11](#T-11), [T-16](#T-16), [T-18](#T-18), [T-23](#T-23) | À faire — après première app |
 | [T-33](#T-33) | P6 | Stockages distincts hors Sites | [T-32](#T-32) | À faire — après première app |
@@ -382,7 +382,7 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 - Travail/livrables : Module n8n : connexion, workflows autorisés, déclenchements/suivi/widgets et callbacks.
 - Besoin : [US-26](USER-STORIES.md#US-26). Acceptation : [REQ-2601](EXIGENCES.md#REQ-2601), [REQ-2602](EXIGENCES.md#REQ-2602).
 - Validation : implémenter puis exécuter les recettes liées, sur **n8n réel + Site public** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Réalisation en cours : réglages URL/clé, coffre natif et lectures API/MCP sur des ressources déclarées. Le port générique et le contrat déclaratif sont intégrés en source avec tests D1/coffre/HTTP/MCP simulés. Sur Linux au code UI `589a827`, le panneau n8n affiche `non configuré` ; aucune clé, connexion ou requête fournisseur réelle n'a été utilisée. Mutations distantes, widgets, callbacks et recette n8n réelle restent ouverts ; aucun moteur tiers embarqué ni ordonnanceur. Voir [T26](IMPLEMENTATION-T26.md).
+- Réalisation en cours : réglages URL/clé, coffre natif et lectures API/MCP sur des ressources déclarées. Le port générique et le contrat déclaratif sont intégrés en source avec tests D1/coffre/HTTP/MCP simulés. Sur Linux, quatre commandes de configuration sont confirmées et la connexion se relit active à la révision 3. La première lecture native n’a pas réussi ; un GET direct unique vers n8n a répondu 401, sans en prouver la cause ni le statut distant du GET natif. La recette positive fournisseur, les listes/fiches app, l’interface, les mutations distantes, widgets et callbacks restent ouverts ; aucun moteur tiers embarqué ni ordonnanceur. Voir [T26](IMPLEMENTATION-T26.md).
 
 <a id="T-27"></a>
 ## T-27 — Connecteur Stripe
@@ -392,7 +392,7 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 - Travail/livrables : Module Stripe : produits/prix/clients/checkout/abonnements selon PRD, webhooks et widgets.
 - Besoin : [US-27](USER-STORIES.md#US-27). Acceptation : [REQ-2701](EXIGENCES.md#REQ-2701).
 - Validation : implémenter puis exécuter les recettes liées, sur **Stripe en mode test** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Réalisation : première tranche clients/abonnements/factures avec UI originale, connexion scellée, projections par contexte et génération de connexion, parcours paginé borné et journal des commandes. Trois lectures fournisseur en mode test confirment seulement les accès. API/MCP/widget et recette Linux du module restent à qualifier. Produits/prix, Checkout, mutations Stripe et webhooks restent ouverts ; voir [T27](IMPLEMENTATION-T27.md).
+- Réalisation : première tranche clients/abonnements/factures avec UI originale, connexion scellée, projections par contexte et génération de connexion, parcours paginé borné et journal des commandes. La recette API Linux en mode test a confirmé trois pages et douze projections ; l’interface originale a affiché quatre abonnements et quatre factures avec montants EUR concordants et connexion conservée après rechargement. API/MCP/widget et contrôles D1 ciblés qualifient leur périmètre local. Produits/prix, Checkout, mutations Stripe et webhooks restent ouverts ; voir [T27](IMPLEMENTATION-T27.md).
 
 <a id="T-28"></a>
 ## T-28 — Connecteur Meili
@@ -417,7 +417,7 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 <a id="T-30"></a>
 ## T-30 — Starter, paquets et extension externe
 
-- Distribution : SDK 1.2 public depuis main `11be33a2` (PR #46, CI 1 218/1 218). Son archive exacte de 70 423 octets passe les six suites de cinq modules consommateurs et les téléchargements draft/public ; empreinte et reçus dans [T30](IMPLEMENTATION-T30.md). Le Starter 0.1.3 est public et Lab l’a adopté avec SDK 1.2 (CI main 1 225/1 225) ; les autres apps conservent leur SDK jusqu’à leur propre adoption qualifiée. SDK 1.3 est public depuis main `14f3e504` (PR #49, CI 1 227/1 227), archive exacte et cinq consommateurs vérifiés ; le SDK 1.4 des nouvelles options de connecteurs reste candidat.
+- Distribution : SDK 1.2 public depuis main `11be33a2` (PR #46, CI 1 218/1 218). Son archive exacte de 70 423 octets passe les six suites de cinq modules consommateurs et les téléchargements draft/public ; empreinte et reçus dans [T30](IMPLEMENTATION-T30.md). Le Starter 0.1.3 est public et Lab l’a adopté avec SDK 1.2 (CI main 1 225/1 225) ; les autres apps conservent leur SDK jusqu’à leur propre adoption qualifiée. SDK 1.3 est public depuis main `14f3e504` (PR #49, CI 1 227/1 227), archive exacte et cinq consommateurs vérifiés. Le contrat SDK 1.4 apporte les options de connecteurs utilisées par Stripe 0.1.0 ; disponibilité, intégrité et provenance de son archive sont à vérifier sur la release GitHub. Les versions installées demeurent inchangées sans adoption explicite.
 - Lot : **P3** ; état : **en cours — distribution initiale acquise, critères restants ouverts** ; responsables : orchestrateur, agents API/SDK, UI et hôte. PR #26 fusionnée sur main `e67636635a526daa544ea3573b271e1822f3f4fe` ; dépôt public Creezio-Extension-Starter, PR #1 fusionnée sur `527a1bc1446a529ad6e560e3a25dea13a12001e9`.
 - Dépendances : [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-16](#T-16).
 - Travail/livrables : Première tranche prioritaire : starter, paquet runtime réel, validation autonome, plugin et démo locale d'un seul module métier témoin, installé hors du checkout source. Les comparateurs, dépendances interéditeurs et intégrations facultatives restent dans le lot pour la suite ; ils ne conditionnent pas cette première app. Vérifier les droits avant toute distribution concernée ; publication de la démo qualifiée en T-32.
