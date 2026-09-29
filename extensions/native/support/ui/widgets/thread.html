@@ -1,0 +1,13 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Discussion Support</title><style>
+*{box-sizing:border-box}body{margin:0;padding:12px;background:#f8fafc;color:#0f172a;font:14px system-ui,sans-serif}
+main{max-width:640px;margin:auto;padding:16px;border:1px solid #cbd5e1;border-radius:14px;background:white}
+h1{font-size:18px;margin:0 0 8px}.bar{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+button,textarea{padding:9px;border:1px solid #cbd5e1;border-radius:8px;background:white;font:inherit}textarea{width:100%;min-height:80px}button:disabled{opacity:.5}
+#messages{display:grid;gap:8px;margin:12px 0}.message{padding:10px;border-radius:9px;background:#f1f5f9;white-space:pre-wrap;overflow-wrap:anywhere}
+.message.agent{background:#e0f2fe}.meta{color:#475569;font-size:12px}output{display:block;color:#475569;min-height:1.5em;margin-top:8px}
+</style></head><body><main id="support-widget"><h1 id="subject">Ticket support</h1><p id="ticket-meta" class="meta"></p>
+<div class="bar"><button id="refresh" type="button" disabled>Actualiser le ticket</button><button id="messages-load" type="button" disabled>Lire les messages</button></div>
+<div id="messages" aria-live="polite"></div><button id="more" type="button" disabled>Messages suivants</button>
+<textarea id="reply" maxlength="4000" aria-label="Réponse" placeholder="Votre réponse"></textarea>
+<button id="send" type="button" disabled>Enregistrer la réponse</button><output id="status" role="status"></output></main></body></html>

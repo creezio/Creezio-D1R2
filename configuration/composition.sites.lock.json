@@ -1,14 +1,14 @@
 {
   "schemaVersion": "1.0.0",
   "applicationId": "creezio.app",
-  "sdkVersion": "1.4.0",
+  "sdkVersion": "1.4.1",
   "coreVersion": "0.0.0",
   "policy": {
     "id": "creezio.local-contracts",
     "version": "1.0.0",
     "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
   },
-  "compositionIntegrity": "sha256-9eac6bad29a5edac14914c27c43812cca3dc44cc1178619496c1bba4388619f0",
+  "compositionIntegrity": "sha256-6e4ffa22f3f90ff0150666f8d7b630429cab773840fadf358f91379a2cb7feef",
   "modules": [
     {
       "moduleId": "creezio.access",
@@ -249,22 +249,22 @@
       "version": "0.0.0",
       "source": {
         "kind": "snapshot",
-        "revision": "t19-support-v1",
-        "integrity": "sha256-01c89f2f96ef40ad40a69589caeb949d484ea5c9472602ac81bec7f99bde76a5"
+        "revision": "t19-support-widgets-v1",
+        "integrity": "sha256-0b74dd8608a03730511ec87cf016e6cf2581128f1b50d9d1a10bfbdd45ffb54a"
       },
-      "contractIntegrity": "sha256-cf22a69d5fe1c70ec7098ac0d292291ad682fd48898dd389df446dd4ceb61194",
+      "contractIntegrity": "sha256-df9a17d650ca36c5eece10c7b5e6a051313e2f1c23a25094d9ddac29bc6f3c75",
       "runtime": {
-        "integrity": "sha256-8ea951af64dcd2782f8199c20e1fd85b093f73e2a79f757be4825e2735452fa9",
+        "integrity": "sha256-85e070badfbe87ce37bbcb3f565cd8855d57aa5cee3a067624a616010140bacd",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.support/runtime-8ea951af64dcd2782f8199c20e1fd85b093f73e2a79f757be4825e2735452fa9.tgz"
+          "path": ".creezio/module-artifacts/creezio.support/runtime-85e070badfbe87ce37bbcb3f565cd8855d57aa5cee3a067624a616010140bacd.tgz"
         }
       },
       "validation": {
-        "integrity": "sha256-7f27634c5fd36ecfdd3818cd4db09fcddd17917ee2eb18c20ee86dca39b2f337",
+        "integrity": "sha256-778809819d2dbfab233ffe1119d6819ddbafccf8df062a24b77144fe073476c8",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.support/validation-7f27634c5fd36ecfdd3818cd4db09fcddd17917ee2eb18c20ee86dca39b2f337.tgz"
+          "path": ".creezio/module-artifacts/creezio.support/validation-778809819d2dbfab233ffe1119d6819ddbafccf8df062a24b77144fe073476c8.tgz"
         }
       },
       "dependencies": [

@@ -6,11 +6,15 @@ Deux nouvelles installations publiques T56, Original et Lab, sont distinctes des
 
 Le correctif T09 en cours prépare des archives runtime séparées pour l'opérateur et l'application Sites : inventaire fermé de `dist/`, manifeste d'hébergement et historique DDL central contrôlés, source Git et empreintes vérifiées. Cinq tests ciblés passent ; la revue statique et ces tests ne constituent pas encore une CI complète, une archive finale intégrée ni une publication. Le guide [Installation Sites](docs/INSTALLATION-SITES.md) décrit le parcours prévu.
 
-## 29 septembre 2026 — mise à jour Core Cloudflare en confirmation (T32)
+## En qualification — widgets du Support (T19)
 
-La source `512a7ff1` est active sur la cible Core existante, avec 30 tables et 30 index ajoutés par le plan additif. La relecture opérateur de l'artefact volumineux échoue encore en `content_format` : update `e11287c4` en `delivery-unknown`, journal de publication `prepared`. Ni livraison attestée ni registre synchronisé ni conservation après update ne sont encore revendiqués. Voir [T32](docs/IMPLEMENTATION-T32.md).
+Quatre cartes distinguent listes et fils de tickets pour les audiences app et admin. Les créations et réponses réutilisent les opérations, droits et clés d’idempotence existants. Le SDK reconnaît ces clés comme noms de champs JSON, y compris `requestKey` ; le binding MCP accepte une union limitée aux schémas de sortie exacts des outils de la carte. Les recettes et la publication de cette tranche restent à confirmer.
 
-La correction ultérieure de la borne de lecture a permis de confirmer **ce même update** sans renvoyer l'artefact applicatif. L'application source `512a7ff1` garde le digest `sha256-2cd9ef002aee4bf52ac5a55aeab5c69467b5f7c247170bcf351898507cf3f4e1` ; l'opérateur `4b32e96f` a attesté `delivered` et le registre `synchronized`. La lecture native AFTER et le navigateur ont confirmé les conversations historiques admin, leurs brouillons et les pièces R2 conservées. Aucun nouvel upload, témoin ni appel OpenAI n'a été fait pour cette confirmation. L'audience app n'avait pas de conversation témoin ; voir les reçus T55 hors dépôt et [T32](docs/IMPLEMENTATION-T32.md).
+## 29 septembre 2026 — nouveaux Sites et mise à jour Cloudflare confirmée
+
+L’original et Lab sont republiés sur le compte GPT courant, dans deux Sites distincts, avec leurs nouveaux comptes natifs et leurs données propres. Le registre confirme les deux publications. Les droits, OpenAI et les recettes natives/API et navigateur sont maintenant qualifiés dans les limites T56 indiquées ci-dessus ; les recettes des anciens Sites restent distinctes.
+
+La source `512a7ff1` est active sur la cible Core Cloudflare existante, avec 30 tables et 30 index ajoutés par le plan additif. Après le correctif PR #56 et ses 1 253 tests, le même update `e11287c4` est confirmé `delivered`, registre synchronisé. La relecture API et le navigateur vérifient les conversations, brouillons, fichiers et droits historiques conservés. Aucun nouvel upload ni appel OpenAI n’a été nécessaire à cette confirmation. Voir [T32](docs/IMPLEMENTATION-T32.md).
 
 ## En qualification — widgets de lecture du CRM (T20)
 

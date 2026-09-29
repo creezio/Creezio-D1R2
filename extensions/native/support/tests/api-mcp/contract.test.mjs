@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {manifest} from '../helpers.mjs';
 
-test('API and MCP use the same ten operations with audience-specific exposure',()=>{
+test('API and MCP use ten operations with audience-specific readonly widget aliases',()=>{
   const c=manifest.contracts;
   assert.equal(c.operations.length,10);
-  assert.equal(c.mcp.tools.length,10);
+  assert.equal(c.mcp.tools.length,17);
   assert.equal(c.api.length,14);
   for(const op of c.operations){
     for(const audience of op.audiences)assert.ok(c.api.some(binding=>binding.id===`${audience}.${op.id}`));
@@ -14,6 +14,12 @@ test('API and MCP use the same ten operations with audience-specific exposure',(
   }
   assert.deepEqual(c.operations.find(op=>op.id==='message.reply').audiences,['admin']);
   assert.deepEqual(c.operations.find(op=>op.id==='message.customer').audiences,['app']);
+  const alias=c.mcp.tools.find(tool=>tool.id==='ticket.open.app');
+  assert.equal(alias.operation.id,'ticket.read');
+  assert.equal(alias.name,'support_ticket_open_app');
+  assert.equal(alias.annotations.readOnly,true);
+  assert.equal(alias.widget.id,'ticket-list-app');
+  assert.deepEqual(alias.audiences,['app']);
 });
 test('distinct rights and machine tokens stay explicit and deny by default',()=>{
   const c=manifest.contracts;

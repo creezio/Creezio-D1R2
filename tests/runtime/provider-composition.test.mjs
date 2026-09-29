@@ -45,9 +45,14 @@ test('provider tool schemas are the exact canonical inputs of selected operation
     const identity=item.widget?`${label}:${item.widget.toolName}`:label;
     assert.equal(seen.has(identity),false);seen.add(identity);
     const module=composition.modules.find(node=>node.moduleId===item.moduleId);
-    assert.deepEqual(item.audiences,['admin','app'].filter(audience=>
-      composition.exposure[audience].moduleIds.includes(item.moduleId)));
     const manifest=read(`${module.source.path}/module/manifest.json`);
+    const declaredTool=item.widget?manifest.contracts.mcp.tools.find(tool=>
+      tool.name===item.widget.toolName&&tool.operation.id===item.operationId&&
+      tool.widget?.id===item.widget.widgetId):null;
+    assert.ok(!item.widget||declaredTool,`${label}:declared-tool`);
+    assert.deepEqual(item.audiences,['admin','app'].filter(audience=>
+      composition.exposure[audience].moduleIds.includes(item.moduleId)&&
+      (!declaredTool||declaredTool.audiences.includes(audience))));
     const operation=manifest.contracts.operations.find(op=>op.id===item.operationId);
     assert.ok(operation,label);
     const schema=manifest.contracts.schemas.find(entry=>entry.id===operation.input.schemaId)?.schema;

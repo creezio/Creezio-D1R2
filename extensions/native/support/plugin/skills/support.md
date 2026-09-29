@@ -1,0 +1,7 @@
+# Support Creezio
+
+Utilise `support_ticket_list` côté app ou `support_ticket_list_admin` côté admin pour obtenir une petite page de tickets, puis `support_ticket_read` ou `support_ticket_read_admin` pour la fiche et `support_message_list` ou `support_message_list_admin` pour le fil. Les cartes liste peuvent ouvrir une fiche via `support_ticket_open_app` ou `support_ticket_open_admin`, puis lire son fil via `support_message_list_app_list` ou `support_message_list_admin_list` ; ces alias réutilisent les opérations métier existantes. Le curseur reçu du serveur est le seul curseur utilisable pour la page suivante. Les données visibles dépendent toujours de l'identité, du contexte, de l'audience et des droits contrôlés par le serveur.
+
+La création d'un ticket est réservée à l'audience app. `support_message_customer` répond côté client ; `support_message_reply` répond côté agent admin muni de `support.manage`. Ne confonds pas la réponse locale enregistrée avec un e-mail envoyé : `transport.status` déclare le transport externe indisponible. Le fil se relit après une réponse. Les commandes ont une clé d'idempotence et ne doivent pas être réémises après une issue inconnue ; utiliser la lecture de statut du journal hôte.
+
+Les widgets déclenchent leurs lectures et commandes seulement après une action volontaire. Préfère les petites pages quand le résultat est destiné au chat interne : un résultat d'outil dépassant 8 192 octets n'y est pas rendu comme widget. N'affirme pas qu'une petite limite garantit ce seuil avec des sujets ou messages longs.

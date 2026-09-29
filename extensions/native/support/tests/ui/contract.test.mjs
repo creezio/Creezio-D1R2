@@ -16,7 +16,7 @@ test('workspace and front retain the original customer/agent pathways',()=>{
   assert.equal(front.panel.inactiveEffects,'suspend');
   assert.equal(front.operations.length,7);
   assert.equal(manifest.contracts.ui.front.mode,'provided');
-  assert.equal(manifest.compatibility.sdk,'^1.2.0');
+  assert.equal(manifest.compatibility.sdk,'^1.4.1');
   const panel=manifest.contracts.schemas.find(item=>item.id===view.panel.stateSchema.schemaId).schema;
   assert.deepEqual(panel.required,[]);
   for(const key of ['sessionId','audience','contextId','ticketId'])
