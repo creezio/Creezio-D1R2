@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
 import {fileURLToPath} from 'node:url';
+import {runInThisContext} from 'node:vm';
 
 let harness;
 class FakeApp{
@@ -15,13 +16,16 @@ class FakeApp{
 globalThis.__supportWidgetApp=FakeApp;
 globalThis.__supportWidgetTransport=class {};
 const bundle=await build({entryPoints:[fileURLToPath(new URL('../../ui/widgets/runtime.ts',import.meta.url))],
-  platform:'browser',format:'esm',bundle:true,write:false,plugins:[{name:'mcp-stub',setup(ctx){
+  platform:'browser',format:'cjs',bundle:true,write:false,plugins:[{name:'mcp-stub',setup(ctx){
     ctx.onResolve({filter:/^@modelcontextprotocol\/ext-apps$/},()=>({path:'mcp-stub',namespace:'test'}));
     ctx.onLoad({filter:/.*/,namespace:'test'},()=>({contents:
       'export const App=globalThis.__supportWidgetApp; export const PostMessageTransport=globalThis.__supportWidgetTransport;'}));
   }}]});
-const {mountSupportWidget}=await import('data:text/javascript;base64,'+
-  Buffer.from(bundle.outputFiles[0].text).toString('base64'));
+// Execute this module's bundled source only; no external module loader is available.
+const compiled={exports:{}};
+runInThisContext('(function(module,exports){'+bundle.outputFiles[0].text+'\n})')
+  (compiled,compiled.exports);
+const {mountSupportWidget}=compiled.exports;
 class Element{
   constructor(tag){this.tagName=tag;this.children=[];this.listeners=new Map();this.textContent='';
     this.value='';this.disabled=false;this.hidden=false;this.isConnected=true;}
