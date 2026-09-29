@@ -193,6 +193,7 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 
 ## Modules natifs et catalogue T19–T25
 
+- `extensions/native/pages-navigation/ui/published-images.ts` : chargement borné des images privées pour les préfabriqués et l'aperçu ; références du snapshot publié et refus D1/R2 vérifiés dans `tests/pages-navigation/integration.test.mjs`.
 - `extensions/native/support/`, `extensions/native/pages-navigation/` et `extensions/native/analytics/` : modèles, opérations, contributions workspace/front et six suites propres ; interfaces adaptées des composants Creezio originaux. Analytics ajoute deux widgets admin de lecture sous `extensions/native/analytics/ui/widgets/`, validés par la suite du module et `tests/analytics/integration.test.mjs`.
 - `extensions/common/catalog/` : extension métier optionnelle, port `catalog.products`, interfaces et deux widgets. `configuration/composition.catalog.json` compose sa recette sur le thème standard.
 - `data/schema/{support,pages-navigation,analytics,catalog}.sql` : artefacts du générateur central ; aucun script de transformation dans les modules.
