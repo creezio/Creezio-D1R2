@@ -1,8 +1,12 @@
 # Changelog
 
+## En qualification — catalogue MCP complet et widgets Analytics
+
+Le démarrage Linux du profil connecteurs avec les widgets de messagerie a révélé un catalogue statique de 18 529 969 octets, supérieur à son plafond de 16 Mio. Avec les deux widgets Analytics, il atteint 19 826 304 octets. Le plafond de cet inventaire compilé passe à 24 Mio ; les limites des requêtes, des ressources HTML individuelles et de profondeur restent identiques. La composition vérifie désormais le vrai catalogue avec le registre d'opérations avant de produire le code, pour refuser un déploiement qui échouerait à ce contrôle au démarrage. La nouvelle recette Linux reste nécessaire.
+
 ## En qualification — provenance des sources GPT Sites (T09)
 
-Le préparateur officiel relie le build Core aux sources et au commit Git du Site existant. Il conserve un plan avant copie, vérifie les empreintes et refuse les fichiers inconnus ou ignorés qu'il écraserait. La vérification finale exige un commit propre descendant de la base et produit un reçu distinct ; aucune publication n'est déclenchée depuis l'application. Quatre tests ciblés couvrent les modes CLI, la conservation d'un fichier ignoré, le refus d'un plan périmé et d'une branche sans parent commun. La recette du staging réel et la CI complète restent ouvertes.
+Le préparateur officiel relie le build Core aux sources et au commit Git du Site existant. Il conserve un plan avant copie, vérifie les empreintes et refuse les fichiers inconnus ou ignorés qu'il écraserait. La vérification finale exige un commit propre descendant de la base et produit un reçu distinct ; aucune publication n'est déclenchée depuis l'application. PR #60/main `a0f554c` passe 1 262/1 262 tests. Le parcours réel relie 1 396 fichiers du Core au commit Site `2931d31`, avec une archive de 163 fichiers vérifiée. Cette source n'a pas été publiée ; un nouveau changement de compte GPT rend les deux projets T56 inaccessibles depuis le compte actuel, sans effacer leurs données ni leurs preuves.
 
 ## En qualification — deux widgets de lecture Analytics (T22)
 

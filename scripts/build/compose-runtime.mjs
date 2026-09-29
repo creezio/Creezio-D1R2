@@ -8,6 +8,7 @@ import { compileWidgetCatalog, compileWidgetContextValidators, projectWidgetProv
 import {providerOutputDescription} from './provider-output-description.mjs';
 import { serializeMcpCatalogWithWidgetResources } from '../widgets/serialize.mjs';
 import { createOperationRegistry } from '../../core/operations/registry.ts';
+import { createMcpCatalog } from '../../core/mcp/catalog.ts';
 import { compileModuleInventoryWithDocuments } from '../../sdk/modules/inventory.mjs';
 import { packageExports, verifyCandidatePackageReceipt } from '../modules/package-receipt.mjs';
 import { captureHostInventory } from '../../core/operations/host-inventory.ts';
@@ -438,12 +439,15 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   checkSurfaceCatalogBounds('front',frontCatalog);
   // Validate the complete operation registry, including operations with no HTTP exposure.
   // Only inert sentinels are supplied here; package handlers never execute during composition.
+  let registry;
   try {
     const sentinel = () => { throw new Error('Build validation must never invoke contribution code.'); };
-    createOperationRegistry({ catalog: operationPlan.catalog,
+    registry = createOperationRegistry({ catalog: operationPlan.catalog,
       validators: Object.fromEntries(operationPlan.catalog.modules.flatMap(module => module.schemas.map(schema => [schema.validator, sentinel]))),
       handlers: Object.fromEntries(operationHandlers.map(item => [item.name, sentinel])) });
   } catch { fail('build.operation-registry', 'The operation registry exceeds host capabilities or contains invalid bindings.'); }
+  try { createMcpCatalog(mcpCatalog, registry); }
+  catch { fail('build.mcp-catalog', 'The compiled MCP catalog exceeds host capabilities or contains invalid bindings.'); }
   const banner = '// Generated from an explicit validated composition. Do not edit.\n';
   const serverModules = modules.map(module => `{ id: ${JSON.stringify(module.id)}, version: ${JSON.stringify(module.version)}, operations: [${module.operations.map(operation => {
     const { handler, ...metadata } = operation; return `{ ...${JSON.stringify(metadata)}, handler: ${handler} }`;
