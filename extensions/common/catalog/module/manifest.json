@@ -600,7 +600,8 @@
             "id": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 36
+              "maxLength": 36,
+              "description": "Internal product ID, never SKU. For a published product, use items[].id from product.search."
             }
           },
           "required": [
@@ -904,7 +905,8 @@
             "query": {
               "type": "string",
               "minLength": 0,
-              "maxLength": 120
+              "maxLength": 120,
+              "description": "Search text, such as a product name or SKU; use the returned items[].id for product.get."
             },
             "categoryId": {
               "type": "string",
@@ -931,7 +933,8 @@
                   "id": {
                     "type": "string",
                     "minLength": 1,
-                    "maxLength": 36
+                    "maxLength": 36,
+                    "description": "Internal product ID, not SKU; pass it to product.get for a published product."
                   },
                   "sku": {
                     "type": "string",
@@ -1042,7 +1045,8 @@
                   "id": {
                     "type": "string",
                     "minLength": 1,
-                    "maxLength": 36
+                    "maxLength": 36,
+                    "description": "Internal product ID, not SKU; pass it to product.get for a published product."
                   },
                   "sku": {
                     "type": "string",
@@ -5794,7 +5798,7 @@
             "product-list-ui",
             "product-detail-ui"
           ],
-          "integrity": "sha256-999019a99fcfd9ee79dca23e528b5bef5ca72f3bf137d93f259a90b30d072e46"
+          "integrity": "sha256-f3e3d9a8d569a5d7574caf46ceb83dcc254a09c1f39f4ebf7cd88f9f63fcd7f0"
         }
       ]
     },

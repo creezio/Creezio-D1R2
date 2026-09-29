@@ -6,6 +6,8 @@ Le catalogue possède ses catégories, produits et images privées dans le D1/R2
 
 Le port **`catalog.products@1.0.0`** exporte `product.search`, `product.get` et `category.list` et leurs schémas pour d’autres modules autorisés, notamment futurs panier/paiement. « Public » signifie contrat versionné consommable après installation, activation et permission ; **aucun accès HTTP anonyme** n’est créé. Un consommateur absent, désactivé ou incompatible n’appelle pas ce port. API, MCP, UI front et deux widgets liste/fiche partagent ces mêmes opérations et refus.
 
+La recherche accepte un nom ou un SKU dans `query`. Pour ouvrir la fiche, `product.get.id` reçoit l'ID interne renvoyé dans `product.search.items[].id`, jamais le SKU affiché.
+
 Le module `0.1.2` requiert le SDK `^1.5.0` pour la lecture privée dans les widgets. Le journal public de commandes conserve l’identifiant d’action dans l’état du panneau avant chaque mutation. Si la réponse est incertaine, l’éditeur bloque toute nouvelle mutation et propose une vérification de statut sans réémettre la commande ; si cet état ne peut être enregistré, rien n’est envoyé. Le journal ne contient ni description, ni prix, ni image.
 Les filtres, l’onglet et la sélection du panneau sont restaurés uniquement lorsque les identifiants de session, d’audience et de contexte correspondent exactement. Un ancien état sans ces identifiants est ignoré ; aucune conversion implicite ne lui attribue le contexte courant.
 

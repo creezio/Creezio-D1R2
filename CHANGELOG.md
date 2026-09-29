@@ -1,5 +1,9 @@
 # Changelog
 
+## En qualification — identifiants des outils Catalogue (T25)
+
+Les outils et le guide conversationnel indiquent qu'une recherche accepte un nom ou SKU, puis que la fiche attend l'identifiant interne renvoyé dans `items[].id`. Le test vérifie ces descriptions dans la projection fournisseur, sans modifier les opérations, droits ou données. Les verrous des deux compositions Catalogue et Connecteurs sont régénérés après le dernier changement du module.
+
 ## Qualifié sur Linux — images Blob dans le sandbox des widgets (T16/T25)
 
 La politique CSP commune du sandbox autorise les URL `blob:` uniquement pour les images reçues par le composant. Le fichier privé arrivait correctement au navigateur, mais sa règle `img-src` en bloquait l'affichage dans les deux widgets Catalogue. Les directives de scripts, connexions, cadres et les domaines déclarés restent inchangés. Cette correction n'ajoute ni droit, ni API, ni donnée. Core main `7451334` passe 1 285/1 285 tests ; sur Linux, les deux images de widgets sont visibles et décodées en 32 × 32 après actions directes et rechargement, avec déconnexion confirmée. Le même code est livré sur Cloudflare, où les témoins API/D1/R2 sont conservés ; le rendu des images des widgets n'y a pas été vérifié.
