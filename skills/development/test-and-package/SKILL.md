@@ -5,7 +5,7 @@ description: "Qualifier un changement Creezio, ses suites pertinentes et les arc
 
 # Tests et paquets
 
-Lire les [règles communes et la phase autorisée](../../README.md), le [standard de développement](../../../docs/DEVELOPMENT-STANDARD.md), le [standard de module](../../../docs/STANDARD-MODULE.md) et les critères des [exigences](../../../docs/EXIGENCES.md). Avant le GO, relire les contrats et préparer les recettes ; P0 qualifie les premiers contrôles documentaires et de gouvernance. Les commandes et contrôleurs applicatifs sont construits puis qualifiés dans les lots suivants ; ce guide ne les rend pas disponibles.
+Lire les [règles communes et le mandat courant](../../README.md), le [standard de développement](../../../docs/DEVELOPMENT-STANDARD.md), le [standard de module](../../../docs/STANDARD-MODULE.md) et les critères des [exigences](../../../docs/EXIGENCES.md). Utiliser les commandes présentes dans la révision travaillée et vérifier leurs preuves ; ce guide ne leur attribue pas une réussite par sa seule présence.
 
 1. Vérifier les scripts et dépendances réellement disponibles. Le contrôleur commun sélectionne les suites selon le diff, les contrats et le profil ; ne pas retirer une suite pour obtenir un succès. Les six familles du module, les contrôles SDK indépendants et les intégrations affectées se complètent. Une justification sans objet doit être contrôlée.
 2. Réutiliser installations, espaces et builds. Exécuter les vérifications adaptées au changement ; ne pas refaire une recette coûteuse inchangée sans motif. Pour un changement documentaire, contrôler cohérence et liens sans prétendre valider le runtime.
@@ -15,6 +15,10 @@ Lire les [règles communes et la phase autorisée](../../README.md), le [standar
 6. Pour une candidate de PR, un résultat sur A ne valide pas B ni une nouvelle base main. Après intégration/release, le SHA et l'artefact réellement livrés doivent correspondre aux preuves ; appliquer le [cycle Git](../../../docs/GIT-FLOW.md).
 
 Rendre un bilan des contrôles exécutés, échecs, éléments non vérifiés et artefacts identifiés. Une CI verte, une capture ou un healthcheck isolé n'est pas une recette produit complète. Nettoyer uniquement les temporaires créés devenus inutiles après vérification de leur usage.
+
+## Finalisation d'une candidate avant push
+
+Après la dernière édition d'un fichier déclaré dans le manifeste d'un module, y compris document ou test, recenser toutes les compositions qui le sélectionnent, profils actifs et exemples distribués compris. Pour chaque profil affecté, exécuter `npm run modules:lock -- --composition <chemin-de-composition>` sans `--write` (par exemple `configuration/composition.json` ou `configuration/composition.sites.json`) : le contrôleur existant compare le verrou aux archives déterministes **runtime et validation**. Pour une source `package`, fournir `--validation-receipt moduleId=chemin` depuis l'inventaire et vérifier le reçu ; ne pas substituer un checkout. Si un verrou est invalide, examiner le diff source, régénérer uniquement ce profil avec les mêmes arguments et `--write`, relire les nœuds et empreintes des deux archives, puis refaire le contrôle en lecture seule sur tous les profils affectés. Toute nouvelle édition déclarée rend ce contrôle caduc. Réutiliser le cache d'archives ; aucun nouveau validateur, hook ou build global n'est requis pour ce point.
 
 ## Dépendances entre modules
 
