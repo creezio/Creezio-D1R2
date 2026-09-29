@@ -203,7 +203,7 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - [scripts/modules/package-receipt.mjs](scripts/modules/package-receipt.mjs) : vérification du reçu détaché et des octets installés ; préflight sans effet d'un candidat externe plus récent avant son ajout explicite à l'inventaire. `module-inventory.json` relie le reçu installé à son module.
 - `scripts/build/compose-runtime.mjs`, `scripts/modules/lock.mjs`, `scripts/modules/archives.mjs` et `sdk/modules/inventory.mjs` : projection des métadonnées externes vérifiées depuis `externalPackages`, adoption explicite de la validation détachée en cache par empreinte et compatibilité des verrous précédents ; aucun chargement du code candidat avant installation.
 - [scripts/data/install-composition.mjs](scripts/data/install-composition.mjs) : installation locale du schéma composé complet et du premier compte natif, avec inspection et conservation des états existants.
-- `tests/modules/package-receipt.test.mjs`, `tests/workspace/package-context.test.mjs` et `tests/local/composed-installation.test.mjs` : preuves ciblées ; [réalisation T30](docs/IMPLEMENTATION-T30.md) pour la portée d'intégration.
+- `tests/modules/package-receipt.test.mjs`, `tests/modules/three-publishers.test.mjs`, `tests/workspace/package-context.test.mjs` et `tests/local/composed-installation.test.mjs` : preuves ciblées ; [réalisation T30](docs/IMPLEMENTATION-T30.md) pour la portée d'intégration.
 
 ## Livraison locale T32
 

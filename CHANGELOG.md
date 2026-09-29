@@ -1,5 +1,9 @@
 # Changelog
 
+## En qualification — chaîne de trois éditeurs (REQ-3004)
+
+Un hôte de test installe trois archives npm d'origines distinctes et compile la chaîne obligatoire A → B → C. L'intégration D facultative reste absente et seule sa contribution est désactivée. Les refus d'absence, d'origine, de version, de contrat et d'altération sont exercés. Le SDK public 1.4.1 est vérifié dans une qualification locale séparée ; aucun module métier ni service tiers n'est ajouté au produit.
+
 ## En qualification — catalogue MCP complet et widgets Analytics
 
 Le démarrage Linux du profil connecteurs avec les widgets de messagerie a révélé un catalogue statique de 18 529 969 octets, supérieur à son plafond de 16 Mio. Avec les deux widgets Analytics, il atteint 19 826 304 octets. Le plafond de cet inventaire compilé passe à 24 Mio ; les limites des requêtes, des ressources HTML individuelles et de profondeur restent identiques. La composition vérifie désormais le vrai catalogue avec le registre d'opérations avant de produire le code, pour refuser un déploiement qui échouerait à ce contrôle au démarrage. La nouvelle recette Linux reste nécessaire.
