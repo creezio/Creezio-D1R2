@@ -173,6 +173,7 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - [tests/openai](tests/openai/) : recettes D1 du fournisseur ; suites obligatoires du contrôle commun.
 - [adapters/sites](adapters/sites/) et [scripts/sites](scripts/sites/) : opérateur temporaire, configuration et schéma central ; [installation Sites](docs/INSTALLATION-SITES.md).
 - `scripts/sites/artifacts.mjs` et `scripts/sites/export.mjs` : inclusion du manifeste et de tout l’historique DDL central dans `dist/.openai`, export des seuls artefacts construits, reçu lié à Git et vérification des octets archivés.
+- `scripts/sites/source.mjs` et `tests/local/sites-source.test.mjs` : plan durable de source Sites, staging Git du même projet sans écrasement inconnu, et vérification du commit Site distinct du constructeur.
 - `configuration/composition.sites.json` et son verrou : composition Sites sans données ni identifiant personnel de Site.
 
 ## Widgets et plugins conversationnels T16
