@@ -1,5 +1,9 @@
 # Changelog
 
+## Qualification — marge de durée de l'agrégat (T27)
+
+Le plafond du processus de tests passe de dix à quinze minutes, dans le job CI toujours limité à vingt minutes. Les 1 246 tests du candidat ont réussi en 483 secondes ; le contrôle du main a atteint son dernier test puis sa limite de 600 secondes sans bilan final. Le test Stripe isolé sur Linux s'est terminé avec son bilan complet et sans processus restant. Cette marge ne change ni les délais individuels, ni les suites requises, ni les refus des bilans incomplets ou des preuves périmées. Le contrôle interrompu demeure non qualifié.
+
 ## En cours — Stripe et projections D1 (T27)
 
 Le connecteur reprend l’administration de facturation Creezio et prépare la lecture des clients, abonnements et factures via le port GET déclaré, avec clé scellée, pagination bornée et projections D1 contextuelles. Le SDK 1.4 candidat ajoute des options de protocole et la vérification atomique de la connexion au commit ; aucune mutation Stripe, facturation premium ou publication du SDK 1.4 n’est incluse. Voir [T27](docs/IMPLEMENTATION-T27.md).

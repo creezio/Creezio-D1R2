@@ -20,7 +20,7 @@ jobs:
   p0-local:
     name: Documentation, contracts and local Worker
     runs-on: ubuntu-latest
-    # The test harness has its own 600-second ceiling; dependency installation,
+    # The test harness has its own 900-second ceiling; dependency installation,
     # compilation and evidence collection must fit outside that test deadline.
     timeout-minutes: 20
     steps:
