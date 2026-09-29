@@ -27,6 +27,9 @@ test('context-scoped page, navigation and private media have generated D1 relati
   assert.deepEqual(manifest.contracts.models,models);
   assert.deepEqual(models.find(model=>model.id==='page').primaryKey,['context_id','id']);
   assert.deepEqual(models.find(model=>model.id==='page_media').relations[0].fields,['context_id','page_id']);
+  assert.deepEqual(models.find(model=>model.id==='published_page_media').relations[0].target.id,'page_publication');
+  assert.deepEqual(manifest.contracts.files[0].linkedRead.linkModel.id,'published_page_media');
+  assert.deepEqual(manifest.contracts.files[0].linkedRead.when,{field:'state',equals:'published'});
   assert.equal(manifest.contracts.files[0].public,false);
 });
 
@@ -34,18 +37,68 @@ test('save and publish use CAS; reset changes draft only',async()=>{
   const h=harness({page});
   const saved=await pageSave({pageId:'home',revision:1,slug:'/accueil',title:'Nouveau',...content},h.context);
   assert.equal(saved.output.page.revision,2);
-  assert.deepEqual(h.calls.at(-1).args.compare,{field:'revision',expected:1});
+  assert.deepEqual(h.calls.findLast(call=>call.model==='page'&&call.kind==='patch').args.compare,
+    {field:'revision',expected:1});
   assert.equal(h.calls.at(-1).args.values.published_slug,undefined);
   const published=await pagePublish({pageId:'home',revision:1},h.context);
   assert.equal(published.output.page.slug,'/');
   assert.equal(published.output.page.publishedRevision,1);
-  assert.deepEqual(h.calls.at(-1).args.compare,{field:'revision',expected:1});
+  assert.deepEqual(h.calls.findLast(call=>call.model==='page'&&call.kind==='patch').args.compare,
+    {field:'revision',expected:1});
   const reset=await pageReset({pageId:'home',revision:1},h.context);
   assert.equal(reset.output.page.revision,2);
   assert.equal(h.calls.at(-1).args.values.published_sections,undefined);
   await assert.rejects(pageSave({pageId:'home',revision:0,slug:'/',title:'X',...content},h.context),
     {code:'conflict'});
   await assert.rejects(pagePublishedRead({pageId:'home'},h.context),{code:'not_found'});
+});
+
+test('publication copies only cited media; reset can restore its draft link without touching R2',async()=>{
+  const fileId=`f1_${'a'.repeat(64)}`;
+  const link={page_id:'home',file_id:fileId,filename:'cover.png',content_type:'image/png',byte_size:9,
+    digest:'b'.repeat(64),intent_id:'cover',generation:'1',position:0};
+  const draft={...page,draft_sections:[{id:'hero',kind:'hero',enabled:true,position:0,
+    content:{imageFileId:fileId}}]};
+  const publishing=harness({page:draft,page_media:link});
+  const published=await pagePublish({pageId:'home',revision:1},publishing.context);
+  assert.equal(published.plans.length,3);
+  assert.deepEqual(publishing.calls.filter(call=>call.kind==='create').map(call=>call.model),
+    ['page_publication','published_page_media']);
+  assert.deepEqual(publishing.calls.find(call=>call.model==='page'&&call.kind==='patch').args.compare,
+    {field:'revision',expected:1});
+  const restoring=harness({page:{...draft,published_sections:draft.draft_sections,
+    published_settings:{},published_seo:{}},published_page_mediaPage:{items:[link],nextAfter:null}});
+  const reset=await pageReset({pageId:'home',revision:1},restoring.context);
+  assert.equal(reset.plans.length,2);
+  assert.deepEqual(restoring.calls.find(call=>call.model==='page_media'&&call.kind==='create').args.values.file_id,fileId);
+  const six=Array.from({length:6},(_,i)=>`f1_${String(i).repeat(64)}`);
+  const excess=harness({page:{...page,draft_sections:[{id:'features',kind:'features',enabled:true,position:0,
+    content:{items:six.map(imageFileId=>({imageFileId}))}}]}});
+  await assert.rejects(pagePublish({pageId:'home',revision:1},excess.context),{code:'invalid_input'});
+  assert.equal(excess.calls.some(call=>call.kind==='patch'||call.kind==='create'),false);
+});
+
+test('five-image replacement stays within the declared atomic publication budget',async()=>{
+  const ids=Array.from({length:10},(_,i)=>`f1_${String(i).repeat(64)}`);
+  const row=(fileId,position)=>({page_id:'home',file_id:fileId,filename:'image.png',
+    content_type:'image/png',byte_size:9,digest:'b'.repeat(64),intent_id:'cover',generation:'1',position});
+  const oldLinks=ids.slice(0,5).map(row);
+  const selected=new Map(ids.slice(5).map((fileId,position)=>[fileId,row(fileId,position)]));
+  const current={...page,revision:2,published_revision:1,
+    draft_sections:[{id:'features',kind:'features',enabled:true,position:0,
+      content:{items:ids.slice(5).map(imageFileId=>({imageFileId}))}}]};
+  const h=harness({page:current,page_publication:{page_id:'home',state:'published',published_revision:1},
+    published_page_mediaPage:{items:oldLinks,nextAfter:null}});
+  h.context.data.get=async(model,args)=>model==='page_media'?selected.get(args.key.file_id)??null:
+    model==='page'?current:model==='page_publication'?{page_id:'home',state:'published',published_revision:1}:null;
+  const result=await pagePublish({pageId:'home',revision:2},h.context);
+  assert.equal(result.plans.length,12);
+  assert.equal(1+5+1+6+result.plans.length,25);
+  assert.equal(manifest.contracts.operations.find(op=>op.id==='page.publish').execution.maxItems,25);
+  assert.deepEqual(h.calls.filter(call=>call.kind==='delete').map(call=>call.model),
+    Array(5).fill('published_page_media'));
+  assert.deepEqual(h.calls.filter(call=>call.kind==='create').map(call=>call.model),
+    Array(5).fill('published_page_media'));
 });
 
 test('server rejects unsafe links, including nested section content',async()=>{

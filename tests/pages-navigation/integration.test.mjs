@@ -16,6 +16,7 @@ import {compileHttpBindings} from '../../scripts/operations/http-bindings.mjs';
 import {createOperationHttpTransport} from '../../core/operations/http.ts';
 import {createDataAccess} from '../../core/data/service.ts';
 import {createFileService} from '../../core/files/service.ts';
+import {dispatchFileHttp} from '../../core/files/http.ts';
 import {fileOwnerId} from '../../core/files/catalog.ts';
 import * as handlers from '../../extensions/native/pages-navigation/module/operations.ts';
 
@@ -79,7 +80,7 @@ test('D1 operation engine keeps drafts, published snapshots and access boundarie
     const adminToken=good(await machines.issueToken(admin.token,{principalId:machine.id,label:'Editorial admin edit',
       ttlMs:60000,scopes:[{contextId:'application',audience:'admin',permissionIds:[`${moduleId}:edit`]}]})).token;
     const fileCatalog={compositionDigest:digest,categories:manifest.contracts.files.map(category=>({moduleId,
-      category,audiences:['admin']}))};
+      category,audiences:['admin','app']}))};
     const registered=registry();
     const engine=createOperationEngine({db,catalog,registry:registered,permissions,files:{catalog:fileCatalog,bucket}});
     const invoke=(operationId,input,audience='admin')=>engine.invoke({credential:{kind:'session',
@@ -180,10 +181,66 @@ test('D1 operation engine keeps drafts, published snapshots and access boundarie
     assert.equal(linked.media.fileId,staged.fileId);
     assert.equal(output(await invoke('media.list',{pageId:'home',limit:10})).items[0].fileId,staged.fileId);
     await rejected(invoke('media.list',{pageId:'home',limit:10},'app'),'forbidden');
-    const detached=output(await invoke('media.unlink',{requestKey:'media-unlink',pageId:'home',revision:6,
-      fileId:staged.fileId}));
-    assert.equal(detached.removed,true);
-    assert.deepEqual(output(await invoke('media.list',{pageId:'home',limit:10})).items,[]);
+    assert.deepEqual(output(await invoke('media.published.list',{pageId:'home'},'app')).items,[],
+      'a draft upload is not part of the previous publication');
+    const withImage={...content,sections:[{id:'hero',kind:'hero',position:0,enabled:true,
+      content:{title:'Bienvenue',imageFileId:staged.fileId}}]};
+    const edited=output(await invoke('page.save',{requestKey:'image-draft',pageId:'home',revision:6,
+      slug:'/',title:'Accueil V1',...withImage})).page;
+    const snapshot=output(await invoke('page.publish',{requestKey:'image-publish',pageId:'home',
+      revision:edited.revision})).page;
+    assert.equal(snapshot.sections[0].content.imageFileId,staged.fileId);
+    assert.deepEqual(output(await invoke('media.published.list',{pageId:'home'},'app'))
+      .items.map(item=>item.fileId),[staged.fileId]);
+    const imageRequest=(reference,recordId='home',contextId='application')=>{
+      const query=new URLSearchParams({...reference,recordId});
+      return dispatchFileHttp(new Request(`${origin}/api/files/app/${moduleId}/media?${query}`,{
+        headers:{authorization:`Bearer ${appToken}`,'x-creezio-context':contextId}}),
+      {profile:'sites',bindings:{DB:db,BUCKET:bucket}},{CREEZIO_APP_ORIGIN:origin},
+      'pages-image',{catalog,files:fileCatalog,permissions});
+    };
+    const shown=await imageRequest(staged);
+    assert.equal(shown.status,200,await shown.clone().text());
+    assert.deepEqual(new Uint8Array(await shown.arrayBuffer()),bytes);
+    output(await invoke('media.link',{requestKey:'unpublished-page-media',pageId:'machine',revision:1,staged}));
+    assert.equal((await imageRequest(staged,'machine')).status,404);
+    assert.equal((await imageRequest({...staged,digest:'0'.repeat(64)})).status,404);
+    assert.equal((await imageRequest(staged,'home','other-context')).status,401);
+    const newer=await files.stage(lease,{ownerId,intentId:'draft-only',generation:'1',filename:'new.png',
+      contentType:'image/png',bytes});
+    const afterPublish=output(await invoke('page.read',{pageId:'home'})).page;
+    output(await invoke('media.link',{requestKey:'new-draft-media',pageId:'home',
+      revision:afterPublish.revision,staged:newer}));
+    assert.deepEqual(output(await invoke('media.published.list',{pageId:'home'},'app'))
+      .items.map(item=>item.fileId),[staged.fileId]);
+    assert.equal((await imageRequest(newer)).status,404,'draft-only bytes remain private');
+    const withNewMedia=output(await invoke('page.read',{pageId:'home'})).page;
+    output(await invoke('media.unlink',{requestKey:'detach-draft-published',pageId:'home',
+      revision:withNewMedia.revision,fileId:staged.fileId}));
+    assert.equal((await imageRequest(staged)).status,200,
+      'detaching a draft does not revoke its published snapshot');
+    const beforeReset=output(await invoke('page.read',{pageId:'home'})).page;
+    const restored=output(await invoke('page.reset',{requestKey:'restore-image',pageId:'home',
+      revision:beforeReset.revision})).page;
+    assert.equal(restored.sections[0].content.imageFileId,staged.fileId);
+    assert.ok(output(await invoke('media.list',{pageId:'home',limit:10})).items
+      .some(item=>item.fileId===staged.fileId),'reset restores the selected draft link without copying R2');
+    const replacement=output(await invoke('page.save',{requestKey:'replace-image-draft',pageId:'home',
+      revision:restored.revision,slug:'/',title:'Accueil V2',sections:[{...withImage.sections[0],
+        content:{title:'Bienvenue',imageFileId:newer.fileId}}],settings:withImage.settings,seo:withImage.seo})).page;
+    const race=await Promise.allSettled(['replace-image-a','replace-image-b'].map(requestKey=>
+      invoke('page.publish',{requestKey,pageId:'home',revision:replacement.revision})));
+    assert.equal(race.filter(result=>result.status==='fulfilled'&&result.value.execution?.state==='succeeded').length,1,
+      'the same page revision may publish only one media snapshot');
+    const receipts=await Promise.all(['replace-image-a','replace-image-b'].map(requestKey=>
+      engine.lookup({credential:{kind:'session',token:admin.token},moduleId,operationId:'page.publish',
+        contextId:'application',audience:'admin',requestKey})));
+    assert.equal(receipts.filter(result=>result?.state==='succeeded').length,1,
+      'unknown acknowledgements must be read by key, never replayed');
+    assert.deepEqual(output(await invoke('media.published.list',{pageId:'home'},'app'))
+      .items.map(item=>item.fileId),[newer.fileId]);
+    assert.equal((await imageRequest(staged)).status,404,'replaced snapshot refuses the old reference');
+    assert.equal((await imageRequest(newer)).status,200);
     const latest=good(await acl.readPolicy(admin.token)),revoked=structuredClone(latest.policy);
     revoked.assignments=revoked.assignments.filter(row=>row.principalId!==machine.id);
     good(await acl.replacePolicy(admin.token,{expectedEpoch:latest.epoch,policy:revoked}));

@@ -11,6 +11,7 @@ import {LANDING_PREFAB_COMPONENTS} from './prefabs.tsx';
 import {call,operationResult,errorText,requestKey,type DraftPage,type Media,type Navigation,type NavItem,
   type PageResult,type PageSummary,type PublishedPage,type Seo,type Result} from './contracts.ts';
 import {createReadGeneration,pageScopeAfter,panelBelongsToScope,parseContentInput,requiresPageReset,samePageSelection} from './state.ts';
+import {createPublishedImageLoad,publishedImageIds,referencedMedia,type ImageStates} from './published-images.ts';
 import './landing.css';
 
 const button='rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 hover:bg-slate-50 disabled:opacity-50';
@@ -41,14 +42,14 @@ function ContentField(props:{name:string;value:unknown;onChange:(value:unknown)=
         setInvalid(!parsed.valid);props.onValidity(parsed.valid);if(parsed.valid)props.onChange(parsed.value);}}/>:
       <input className={input} value={String(props.value??'')} onChange={event=>props.onChange(event.target.value)}/>}</label>;
 }
-function LandingPreview(props:{page:DraftPage|PublishedPage;local?:boolean}){
+function LandingPreview(props:{page:DraftPage|PublishedPage;local?:boolean;images:ImageStates}){
   const style={...(props.page.settings.accent?{'--lnd-accent':String(props.page.settings.accent)}:{}),
     ...(props.page.settings.background?{'--lnd-bg':String(props.page.settings.background)}:{})} as React.CSSProperties;
   return <div className="overflow-hidden rounded-lg border border-slate-200">
     <p className="bg-amber-50 px-4 py-2 text-xs text-amber-900">{props.local?'Aperçu du brouillon enregistré — non public':'Snapshot éditorial publié'}</p>
     <div className="lnd-root" style={style}>{sorted(props.page.sections).filter(section=>section.enabled)
       .map(section=>{const Component=LANDING_PREFAB_COMPONENTS[section.kind];return Component?
-        <Component key={section.id} content={section.content} settings={props.page.settings}/>:null;})}</div>
+        <Component key={section.id} content={section.content} settings={props.page.settings} images={props.images}/>:null;})}</div>
   </div>;
 }
 
@@ -71,6 +72,7 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
     initialPanelOwned&&typeof initialPanel.current?.data?.pageId==='string'?initialPanel.current.data.pageId:'') ,
     [saved,setSaved]=useState<DraftPage|null>(null),[edited,setEdited]=useState<DraftPage|null>(null),
     [preview,setPreview]=useState<DraftPage|PublishedPage|null>(null),
+    [previewImages,setPreviewImages]=useState<{key:string;states:ImageStates}>({key:'',states:{}}),
     [navigation,setNavigation]=useState<Navigation>(blankNav),[navEdited,setNavEdited]=useState<Navigation>(blankNav),
     [media,setMedia]=useState<Media[]>([]),[notice,setNotice]=useState(''),
     [newSlug,setNewSlug]=useState('/'),[newTitle,setNewTitle]=useState(''),
@@ -332,7 +334,7 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
       const readSerial=pageReadSerial.current.begin(),readValid=()=>valid()&&pageReadSerial.current.accepts(readSerial);
       const read=await call<{page:DraftPage}>(scope,'page.read',{pageId},readValid);
       if(readValid()&&read.kind==='ok'){setSaved(read.value.page);setEdited(read.value.page);setMedia(items=>[result.value.media,...items]);
-        setNotice('Média privé joint à la page. Une route publique contrôlée reste à raccorder.');}
+        setNotice('Média joint à la page. Sélectionnez-le dans une section, puis enregistrez et publiez.');}
     }finally{finishBusy(serial);}
   }
   async function unlinkMedia(item:Media){if(!saved||dirty||!window.confirm(`Détacher ${item.filename} ? Le fichier privé reste conservé.`))return;
@@ -390,6 +392,26 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
       ...(selected?{pageId:selected}:{}),tab:next,...(journal.current?.pending?{pending:{...journal.current.pending}}:{})}});}
   const ownScope=scopeIdentity.current.sessionId===sessionId&&
     scopeIdentity.current.audience===props.audience&&scopeIdentity.current.contextId===props.contextId;
+  const previewKey=preview?JSON.stringify([sessionId,props.audience,props.contextId,preview.id,
+    'revision' in preview?`draft:${preview.revision}`:`published:${preview.publishedRevision}`]):'';
+  useEffect(()=>{
+    if(!enabled||!ownScope||!preview||!previewKey)return;
+    const pageId=preview.id,selection=selectionEpoch.current,draft='revision' in preview,
+      imageIds=publishedImageIds(preview);
+    const valid=()=>pageCurrent(pageId,selection);
+    let files:ReturnType<typeof createFileClient>|null=null;
+    try{files=createFileClient({access:props.access,moduleId:'creezio.pages-navigation',
+      categoryId:'media',contextId:props.contextId});}catch{ /* The loader reports unavailable. */ }
+    const loader=createPublishedImageLoad({ids:imageIds,isCurrent:valid,
+      list:()=>draft?Promise.resolve({kind:'ok' as const,value:{items:referencedMedia(media,imageIds)}}):
+        call<{items:Media[]}>(scope,'media.published.list',{pageId},valid),
+      download:item=>files?(draft?files.download(item.reference,valid):
+        files.downloadLinked(item.reference,pageId,valid)):Promise.resolve({kind:'rejected'}),
+      createUrl:(blob,mime)=>URL.createObjectURL(new Blob([blob],{type:mime})),
+      revokeUrl:url=>URL.revokeObjectURL(url),
+      update:states=>{if(valid())setPreviewImages({key:previewKey,states});}});
+    void loader.run();return()=>loader.dispose();
+  },[previewKey,preview,media,enabled,ownScope,props.client,props.access,props.contextId,props.audience,sessionId]);
   if(!enabled||!ownScope)return <div className={card}>Éditeur indisponible pour cette session.</div>;
   return <div className="space-y-4 p-4 text-slate-900">
     <header className="flex flex-wrap items-center gap-3"><h1 className="text-xl font-semibold">Pages et navigation</h1>
@@ -431,6 +453,12 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
           {(['brandName','tagline','accent','background','logoUrl'] as const).map(name=><label key={name} className="text-xs">{name}
             <input className={input} value={String(edited.settings[name]??'')} onChange={e=>setEdited({...edited,
               settings:{...edited.settings,[name]:e.target.value}})}/></label>)}
+          <label className="text-xs">Logo privé de la page
+            <select className={input} value={edited.settings.logoFileId??''} onChange={e=>setEdited({...edited,
+              settings:{...edited.settings,logoFileId:e.target.value}})}>
+              <option value="">Aucun — conserver l’URL si renseignée</option>
+              {media.map(item=><option key={item.fileId} value={item.fileId}>{item.filename}</option>)}
+            </select></label>
           {(['title','description','canonical'] as const).map(name=><label key={name} className="text-xs">SEO {name}
             <input className={input} value={String(edited.seo[name]??'')} onChange={e=>setEdited({...edited,
               seo:{...edited.seo,[name]:e.target.value}})}/></label>)}
@@ -443,10 +471,20 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
             <button type="button" className={button} disabled={index===0} onClick={()=>moveSection(index,-1)} aria-label="Monter"><ChevronUp size={14}/></button>
             <button type="button" className={button} disabled={index===edited.sections.length-1} onClick={()=>moveSection(index,1)} aria-label="Descendre"><ChevronDown size={14}/></button>
             <button type="button" className={button} onClick={()=>setEdited({...edited,sections:edited.sections.filter(item=>item.id!==section.id)})}><Trash2 size={14}/> Retirer</button></div>
-          <div className="grid gap-3 md:grid-cols-2">{Object.entries(section.content).map(([name,value])=><ContentField key={`${section.id}-${name}`}
+          <div className="grid gap-3 md:grid-cols-2">{Object.entries(section.content)
+            .filter(([name])=>section.kind!=='hero'||name!=='imageFileId'&&name!=='logoFileId')
+            .map(([name,value])=><ContentField key={`${section.id}-${name}`}
             name={name} value={value} onValidity={valid=>setInvalidContent(previous=>{const next=new Set(previous),key=`${section.id}:${name}`;
               if(valid)next.delete(key);else next.add(key);return next;})}
             onChange={next=>updateSection(section.id,{content:{...section.content,[name]:next}})}/>)}</div>
+          {section.kind==='hero'&&<div className="grid gap-3 md:grid-cols-2">
+            {(['imageFileId','logoFileId'] as const).map(name=><label key={name} className="text-xs">
+              {name==='imageFileId'?'Image privée du hero':'Logo privé du hero'}
+              <select className={input} value={String(section.content[name]??'')}
+                onChange={e=>updateSection(section.id,{content:{...section.content,[name]:e.target.value}})}>
+                <option value="">Aucune — conserver l’URL si renseignée</option>
+                {media.map(item=><option key={item.fileId} value={item.fileId}>{item.filename}</option>)}
+              </select></label>)}</div>}
         </section>)}
         <div className={`${card} flex gap-2`}><select aria-label="Type de section" className={input} value={newKind} onChange={e=>setNewKind(e.target.value)}>
           {kinds.map(kind=><option key={kind} value={kind}>{kind}</option>)}</select>
@@ -454,13 +492,16 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
             {id:crypto.randomUUID(),kind:newKind,position:edited.sections.length,enabled:true,content:{...defaults[newKind]}}]})}>
             <Plus size={14}/> Section</button></div>
         <section className={`${card} space-y-2`}><h3 className="font-semibold">Médias privés</h3>
-          <p className="text-xs text-slate-600">Téléversement R2 et aperçu privé. Aucun lien public n’est généré par ce module.</p>
+          <p className="text-xs text-slate-600">Téléversement R2 privé. Sélectionnez les images dans les champs existants ;
+            Jusqu’à cinq images différentes par page publiée. Aucun lien public n’est généré.</p>
           <label className={button}><ImagePlus size={14}/> Joindre un média<input hidden type="file" accept="image/png,image/jpeg,image/webp"
             disabled={busy||dirty} onChange={event=>void uploadMedia(event)}/></label>
-          {media.map(item=><div key={item.fileId} className="flex items-center gap-2 text-sm"><span className="flex-1 truncate">{item.filename}</span>
+          {media.map(item=><div key={item.fileId} className="flex items-center gap-2 text-sm"><span className="flex-1 truncate">{item.filename}
+            <span className="block truncate text-xs text-slate-500" title={item.fileId}>{item.fileId}</span></span>
             <button type="button" className={button} onClick={()=>void downloadMedia(item)}>Télécharger</button>
             <button type="button" className={button} onClick={()=>void unlinkMedia(item)}>Détacher</button></div>)}</section>
-        {preview&&<LandingPreview page={preview} local={'revision' in preview}/>}
+        {preview&&<LandingPreview page={preview} local={'revision' in preview}
+          images={previewImages.key===previewKey?previewImages.states:{}}/>}
       </>:<div className={card}>Créez ou choisissez une page.</div>}</fieldset></main>
     </div><section className={tab==='navigation'?`${card} space-y-4`:'hidden'}><fieldset disabled={busy} className="space-y-4"><div className="flex flex-wrap items-center gap-2"><h2 className="mr-auto font-semibold">Navigation éditoriale</h2>
       <button type="button" className={button} disabled={!navDirty||busy} onClick={()=>void saveNav()}><Save size={14}/> Enregistrer</button>

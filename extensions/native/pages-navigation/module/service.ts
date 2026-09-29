@@ -12,6 +12,7 @@ const line=(v:unknown,max:number):v is string=>typeof v==='string'&&v.length<=ma
 const iso=()=>new Date().toISOString();
 const key=(v:string)=>({id:v});
 const mediaKey=(pageId:string,fileId:string)=>({page_id:pageId,file_id:fileId});
+const publicationKey=(pageId:string)=>({page_id:pageId});
 const navId='primary';
 const navKey={id:navId};
 const pageSummary=(r:Row)=>({id:r.id,slug:r.slug,title:r.title,revision:r.revision,
@@ -61,7 +62,8 @@ const safeHref=(v:string)=>!/[\\\u0000-\u001f]/u.test(v)&&(v.startsWith('/')&&!v
 function inspectContent(value:unknown,keyName='',depth=0):void{
   if(depth>6)fail('invalid_input');
   if(typeof value==='string'){
-    if(value.length>4000||!value.isWellFormed()||/(?:href|url)$/i.test(keyName)&&value&&!safeHref(value))
+    if(value.length>4000||!value.isWellFormed()||/(?:href|url)$/i.test(keyName)&&value&&!safeHref(value)
+      ||/FileId$/u.test(keyName)&&value&&!/^f1_[a-f0-9]{64}$/u.test(value))
       fail('invalid_input');
   }else if(Array.isArray(value)){
     if(value.length>100)fail('invalid_input');
@@ -89,12 +91,13 @@ function sections(v:unknown):JsonValue{
 }
 function settings(v:unknown):JsonValue{
   if(!v||typeof v!=='object'||Array.isArray(v))fail('invalid_input');
-  const allowed=['brandName','tagline','accent','background','logoUrl'];
+  const allowed=['brandName','tagline','accent','background','logoUrl','logoFileId'];
   if(Object.keys(v as object).some(name=>!allowed.includes(name)))fail('invalid_input');
   const clean:Record<string,string>={};
   for(const [name,value] of Object.entries(v as object)){
     if(!line(value,500))fail('invalid_input');
     if(name==='logoUrl'&&value&&!safeHref(value))fail('invalid_input');
+    if(name==='logoFileId'&&value&&!/^f1_[a-f0-9]{64}$/u.test(value))fail('invalid_input');
     if((name==='accent'||name==='background')&&value&&!/^#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?$/u.test(value))
       fail('invalid_input');
     clean[name]=value;
@@ -157,23 +160,90 @@ export async function pageSave(value:JsonValue,c:OperationContext){
 export async function pagePreview(value:JsonValue,c:OperationContext){
   return {output:{page:draftView(await page(c,arg(value).pageId))}};
 }
+const imageFileId=(value:unknown):string=>{
+  if(value===undefined||value===null||value==='')return '';
+  if(typeof value!=='string'||!/^f1_[a-f0-9]{64}$/u.test(value))fail('invalid_input');
+  return value as string;
+};
+/** Only media referenced by visible published prefabs enter the linked-read snapshot. */
+function publishedImageIds(row:Row):string[]{
+  const ids:string[]=[],add=(value:unknown)=>{const fileId=imageFileId(value);
+    if(fileId&&!ids.includes(fileId))ids.push(fileId);};
+  const settings=row.draft_settings as Record<string,unknown>;
+  const sections=row.draft_sections as Array<{kind:string;enabled:boolean;content:Record<string,unknown>}>;
+  for(const section of sections){
+    if(!section.enabled)continue;
+    if(section.kind==='hero'){add(section.content.logoFileId||settings.logoFileId);add(section.content.imageFileId);}
+    if(section.kind==='features'&&Array.isArray(section.content.items))
+      for(const item of section.content.items){
+        if(item&&typeof item==='object'&&!Array.isArray(item))add((item as Record<string,unknown>).imageFileId);
+      }
+  }
+  if(ids.length>5)fail('invalid_input');
+  return ids;
+}
 export async function pagePublish(value:JsonValue,c:OperationContext){
   const a=arg(value),old=await page(c,a.pageId),rev=Number(a.revision);
   if(!Number.isSafeInteger(rev)||rev!==old.revision)fail('conflict');
+  const ids=publishedImageIds(old),selected:Row[]=[];
+  for(const fileId of ids){const row=await c.data.get('page_media',{key:mediaKey(String(a.pageId),fileId)}) as Row|null;
+    if(!row||row.page_id!==a.pageId||row.file_id!==fileId)fail('not_found');selected.push(row as Row);}
+  const marker=await c.data.get('page_publication',{key:publicationKey(String(a.pageId))}) as Row|null;
+  if(marker&&marker.published_revision!==old.published_revision)fail('conflict');
+  const existing=await c.data.list('published_page_media',{limit:6,where:{page_id:a.pageId},
+    order:{indexId:'by-page',direction:'asc'}}) as Page;
+  if(existing.nextAfter||existing.items.length>5)fail('conflict');
   const at=iso(),changes={published_slug:old.slug,published_title:old.title,
     published_sections:old.draft_sections,published_settings:old.draft_settings,published_seo:old.draft_seo,
     published_at:at,published_revision:Number(old.published_revision)+1,updated_at:at};
-  return {output:{page:publishedView({...old,...changes})},plans:[
-    c.data.planPatch('page',{key:key(a.pageId),compare:{field:'revision',expected:rev},values:changes})]};
+  const selectedById=new Map(selected.map((row,position)=>[String(row.file_id),{row,position}]));
+  const previous=new Map(existing.items.map(row=>[String(row.file_id),row]));
+  const plans=[c.data.planPatch('page',{key:key(a.pageId),compare:{field:'revision',expected:rev},values:changes}),
+    marker?c.data.planPatch('page_publication',{key:publicationKey(String(a.pageId)),
+      compare:{field:'published_revision',expected:Number(old.published_revision)},
+      values:{state:'published'}}):
+      c.data.planCreate('page_publication',{values:{page_id:a.pageId,state:'published',
+        published_revision:changes.published_revision}})];
+  for(const [fileId,row] of previous){
+    const wanted=selectedById.get(fileId);
+    if(!wanted)
+      plans.push(c.data.planDelete('published_page_media',{key:mediaKey(String(a.pageId),fileId)}));
+    else if(row.position!==wanted.position||row.digest!==wanted.row.digest||
+      row.intent_id!==wanted.row.intent_id||row.generation!==wanted.row.generation)
+      plans.push(c.data.planPatch('published_page_media',{key:mediaKey(String(a.pageId),fileId),
+        values:{position:wanted.position,filename:wanted.row.filename,content_type:wanted.row.content_type,
+          byte_size:wanted.row.byte_size,digest:wanted.row.digest,intent_id:wanted.row.intent_id,
+          generation:wanted.row.generation}}));
+  }
+  for(const [fileId,{row,position}] of selectedById){
+    if(!previous.has(fileId))
+      plans.push(c.data.planCreate('published_page_media',{values:{page_id:a.pageId,file_id:fileId,
+        filename:row.filename,content_type:row.content_type,byte_size:row.byte_size,
+        digest:row.digest,intent_id:row.intent_id,generation:row.generation,position}}));
+  }
+  if(plans.length>16)fail('invalid_input');
+  return {output:{page:publishedView({...old,...changes})},plans};
 }
 export async function pageReset(value:JsonValue,c:OperationContext){
   const a=arg(value),old=await page(c,a.pageId),rev=Number(a.revision);
   if(!Number.isSafeInteger(rev)||rev!==old.revision)fail('conflict');
+  const published=await c.data.list('published_page_media',{limit:6,where:{page_id:a.pageId},
+    order:{indexId:'by-page',direction:'asc'}}) as Page;
+  if(published.nextAfter||published.items.length>5)fail('conflict');
   const changes={slug:old.published_slug??old.slug,title:old.published_title??old.title,
     draft_sections:old.published_sections??[],draft_settings:old.published_settings??{},
     draft_seo:old.published_seo??{},updated_at:iso()};
-  return {output:{page:draftView({...old,...changes,revision:rev+1})},plans:[
-    c.data.planPatch('page',{key:key(a.pageId),compare:{field:'revision',expected:rev},values:changes})]};
+  const plans=[c.data.planPatch('page',{key:key(a.pageId),compare:{field:'revision',expected:rev},values:changes})];
+  for(const item of published.items){
+    const fileId=String(item.file_id),draft=await c.data.get('page_media',
+      {key:mediaKey(String(a.pageId),fileId)}) as Row|null;
+    if(draft){if(draft.digest!==item.digest||draft.intent_id!==item.intent_id||
+      draft.generation!==item.generation)fail('conflict');continue;}
+    plans.push(c.data.planCreate('page_media',{values:{page_id:a.pageId,file_id:fileId,
+      filename:item.filename,content_type:item.content_type,byte_size:item.byte_size,
+      digest:item.digest,intent_id:item.intent_id,generation:item.generation,created_at:iso()}}));
+  }
+  return {output:{page:draftView({...old,...changes,revision:rev+1})},plans};
 }
 export async function pagePublishedList(value:JsonValue,c:OperationContext){
   const a=arg(value),n=limit(a.limit),scope={context:c.contextId,kind:'published'};
@@ -245,6 +315,17 @@ export async function mediaList(value:JsonValue,c:OperationContext){
   const result=await c.data.list('page_media',{limit:n,where:{page_id:a.pageId},after:cursor(a.cursor,scope),
     order:{indexId:'by-page',direction:'desc'}}) as Page;
   return {output:{items:result.items.map(mediaView),nextCursor:continuation(result.nextAfter,scope)}};
+}
+export async function publishedMediaList(value:JsonValue,c:OperationContext){
+  const a=arg(value),parent=await page(c,a.pageId);
+  if(parent.published_at===null)fail('not_found');
+  const marker=await c.data.get('page_publication',{key:publicationKey(String(a.pageId))}) as Row|null;
+  if(!marker)return {output:{items:[]}}; // Legacy published pages continue to use external image URLs.
+  if(marker.state!=='published'||marker.published_revision!==parent.published_revision)fail('conflict');
+  const result=await c.data.list('published_page_media',{limit:6,where:{page_id:a.pageId},
+    order:{indexId:'by-page',direction:'asc'}}) as Page;
+  if(result.nextAfter||result.items.length>5)fail('conflict');
+  return {output:{items:result.items.map(mediaView)}};
 }
 export async function mediaLink(value:JsonValue,c:OperationContext){
   const a=arg(value),parent=await page(c,a.pageId),rev=Number(a.revision);

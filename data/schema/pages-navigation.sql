@@ -66,6 +66,30 @@ CREATE TABLE "cz_637265657a696f2e70616765732d6e617669676174696f6e_706167655f6d65
   FOREIGN KEY ("context_id", "page_id") REFERENCES "cz_637265657a696f2e70616765732d6e617669676174696f6e_70616765" ("context_id", "id") ON DELETE RESTRICT
 ) WITHOUT ROWID;
 
+CREATE TABLE "cz_637265657a696f2e70616765732d6e617669676174696f6e_706167655f7075626c69636174696f6e" (
+  "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "page_id" TEXT NOT NULL CHECK ("page_id" IS NOT NULL AND (typeof("page_id") = 'text' AND instr("page_id", char(0)) = 0 AND length("page_id") >= 1 AND length("page_id") <= 128)),
+  "published_revision" INTEGER NOT NULL CHECK ("published_revision" IS NOT NULL AND (typeof("published_revision") = 'integer' AND "published_revision" BETWEEN -9007199254740991 AND 9007199254740991 AND "published_revision" >= 1 AND "published_revision" <= 9007199254740991)),
+  "state" TEXT NOT NULL CHECK ("state" IS NOT NULL AND (typeof("state") = 'text' AND instr("state", char(0)) = 0 AND "state" IN ('published'))),
+  PRIMARY KEY ("context_id", "page_id"),
+  FOREIGN KEY ("context_id", "page_id") REFERENCES "cz_637265657a696f2e70616765732d6e617669676174696f6e_70616765" ("context_id", "id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e70616765732d6e617669676174696f6e_7075626c69736865645f706167655f6d65646961" (
+  "byte_size" INTEGER NOT NULL CHECK ("byte_size" IS NOT NULL AND (typeof("byte_size") = 'integer' AND "byte_size" BETWEEN -9007199254740991 AND 9007199254740991 AND "byte_size" >= 0 AND "byte_size" <= 9007199254740991)),
+  "content_type" TEXT NOT NULL CHECK ("content_type" IS NOT NULL AND (typeof("content_type") = 'text' AND instr("content_type", char(0)) = 0 AND length("content_type") >= 1 AND length("content_type") <= 128)),
+  "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "digest" TEXT NOT NULL CHECK ("digest" IS NOT NULL AND (typeof("digest") = 'text' AND instr("digest", char(0)) = 0 AND length("digest") >= 64 AND length("digest") <= 64)),
+  "file_id" TEXT NOT NULL CHECK ("file_id" IS NOT NULL AND (typeof("file_id") = 'text' AND instr("file_id", char(0)) = 0 AND length("file_id") >= 1 AND length("file_id") <= 67)),
+  "filename" TEXT NOT NULL CHECK ("filename" IS NOT NULL AND (typeof("filename") = 'text' AND instr("filename", char(0)) = 0 AND length("filename") >= 1 AND length("filename") <= 255)),
+  "generation" TEXT NOT NULL CHECK ("generation" IS NOT NULL AND (typeof("generation") = 'text' AND instr("generation", char(0)) = 0 AND length("generation") >= 1 AND length("generation") <= 128)),
+  "intent_id" TEXT NOT NULL CHECK ("intent_id" IS NOT NULL AND (typeof("intent_id") = 'text' AND instr("intent_id", char(0)) = 0 AND length("intent_id") >= 1 AND length("intent_id") <= 128)),
+  "page_id" TEXT NOT NULL CHECK ("page_id" IS NOT NULL AND (typeof("page_id") = 'text' AND instr("page_id", char(0)) = 0 AND length("page_id") >= 1 AND length("page_id") <= 128)),
+  "position" INTEGER NOT NULL CHECK ("position" IS NOT NULL AND (typeof("position") = 'integer' AND "position" BETWEEN -9007199254740991 AND 9007199254740991 AND "position" >= 0 AND "position" <= 9007199254740991)),
+  PRIMARY KEY ("context_id", "page_id", "file_id"),
+  FOREIGN KEY ("context_id", "page_id") REFERENCES "cz_637265657a696f2e70616765732d6e617669676174696f6e_706167655f7075626c69636174696f6e" ("context_id", "page_id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
 CREATE UNIQUE INDEX "cz_637265657a696f2e70616765732d6e617669676174696f6e_66696c655f6d65746164617461_idx_696e74656e74" ON "cz_637265657a696f2e70616765732d6e617669676174696f6e_66696c655f6d65746164617461" ("context_id", "intent_id", "generation");
 
 CREATE UNIQUE INDEX "cz_637265657a696f2e70616765732d6e617669676174696f6e_66696c655f6d65746164617461_idx_6f626a6563742d6b6579" ON "cz_637265657a696f2e70616765732d6e617669676174696f6e_66696c655f6d65746164617461" ("context_id", "object_key");
@@ -77,3 +101,5 @@ CREATE UNIQUE INDEX "cz_637265657a696f2e70616765732d6e617669676174696f6e_7061676
 CREATE INDEX "cz_637265657a696f2e70616765732d6e617669676174696f6e_70616765_idx_726563656e742d7061676573" ON "cz_637265657a696f2e70616765732d6e617669676174696f6e_70616765" ("context_id", "updated_at", "id");
 
 CREATE INDEX "cz_637265657a696f2e70616765732d6e617669676174696f6e_706167655f6d65646961_idx_62792d70616765" ON "cz_637265657a696f2e70616765732d6e617669676174696f6e_706167655f6d65646961" ("context_id", "page_id", "created_at", "file_id");
+
+CREATE INDEX "cz_637265657a696f2e70616765732d6e617669676174696f6e_7075626c69736865645f706167655f6d65646961_idx_62792d70616765" ON "cz_637265657a696f2e70616765732d6e617669676174696f6e_7075626c69736865645f706167655f6d65646961" ("context_id", "page_id", "position", "file_id");

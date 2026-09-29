@@ -15,12 +15,14 @@ export type LandingSettingsView = {
   accent?: string;
   background?: string;
   logoUrl?: string;
+  logoFileId?: string;
   [k: string]: unknown;
 };
 
 export type LandingSectionProps = {
   content: Record<string, unknown>;
   settings: LandingSettingsView;
+  images?: Record<string, {status:'loading'|'unavailable'|'ready';url?:string}>;
 };
 
 /**

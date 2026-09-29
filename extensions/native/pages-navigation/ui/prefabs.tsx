@@ -10,14 +10,20 @@ function str(content: Record<string, unknown>, key: string): string {
   const v = content[key];
   return v == null ? "" : String(v);
 }
+function linkedImage(fileId:unknown,external:string,images:LandingSectionProps['images'],className?:string){
+  if(typeof fileId!=='string'||!fileId)return external?<img className={className} src={external} alt=""/>:null;
+  const image=images?.[fileId];
+  return image?.status==='ready'&&image.url?<img className={className} src={image.url} alt=""/>:
+    <span className="lnd-image-status">{image?.status==='unavailable'?'Image indisponible':'Chargement de l’image…'}</span>;
+}
 
-export function LandingHero({ content, settings }: LandingSectionProps) {
+export function LandingHero({ content, settings,images }: LandingSectionProps) {
   const logo = str(content, "logoUrl") || (settings.logoUrl ? String(settings.logoUrl) : "");
   const image = str(content, "imageUrl");
   const cta = str(content, "ctaLabel");
   return (
     <section className="lnd-section lnd-hero">
-      {logo ? <img className="lnd-hero-logo" src={logo} alt="" /> : null}
+      {linkedImage(content.logoFileId||settings.logoFileId,logo,images,'lnd-hero-logo')}
       <h1>{str(content, "title") || settings.brandName || ""}</h1>
       <p>{str(content, "subtitle") || settings.tagline || ""}</p>
       {cta ? (
@@ -25,12 +31,12 @@ export function LandingHero({ content, settings }: LandingSectionProps) {
           {cta}
         </a>
       ) : null}
-      {image ? <img className="lnd-hero-image" src={image} alt="" /> : null}
+      {linkedImage(content.imageFileId,image,images,'lnd-hero-image')}
     </section>
   );
 }
 
-export function LandingFeatures({ content }: LandingSectionProps) {
+export function LandingFeatures({ content,images }: LandingSectionProps) {
   const items = Array.isArray(content.items)
     ? (content.items as Array<Record<string, unknown>>)
     : [];
@@ -40,7 +46,7 @@ export function LandingFeatures({ content }: LandingSectionProps) {
       <div className="lnd-features-grid">
         {items.map((it, i) => (
           <div className="lnd-feature" key={i}>
-            {it.imageUrl ? <img src={String(it.imageUrl)} alt="" /> : null}
+            {linkedImage(it.imageFileId,it.imageUrl?String(it.imageUrl):'',images)}
             <h3>{it.title == null ? "" : String(it.title)}</h3>
             <p>{it.text == null ? "" : String(it.text)}</p>
           </div>
