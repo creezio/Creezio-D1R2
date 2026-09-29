@@ -103,6 +103,20 @@ export function checkModule(module, report) {
     }
     if(file.linkedRead){
       const policy=file.linkedRead, q=`${p}/linkedRead`;
+      if(policy.mcpImage){
+        const image=policy.mcpImage;
+        if(!semver.validRange(module.compatibility.sdk)||!semver.subset(module.compatibility.sdk,'>=1.5.0'))
+          report('file.linked-image-sdk',`${q}/mcpImage`,'Private widget image tools require SDK 1.5 or later.');
+        if(!policy.audiences.includes('app')||file.maxBytes>2*1024*1024
+          ||file.mimeTypes.some(type=>!['image/png','image/jpeg','image/webp'].includes(type)))
+          report('file.linked-image',`${q}/mcpImage`,'Private widget images require app linked-read, a 2 MiB bound and approved image MIME types.');
+        for(const widgetId of image.widgetIds){
+          const widget=c.widgets.find(item=>item.id===widgetId);
+          if(!widget||!widget.audiences.includes('app')
+            ||!widget.permissions.some(ref=>refKey(ref)===refKey(policy.permission)))
+            report('file.linked-image-widget',`${q}/mcpImage`,'Every private image widget must be app-exposed and declare the linked-read permission.');
+        }
+      }
       if(!semver.validRange(module.compatibility.sdk)||!semver.subset(module.compatibility.sdk,'>=1.3.0'))
         report('file.linked-sdk',q,'Linked file reads require SDK 1.3 or later.');
       needKind(policy.linkModel,['model'],`${q}/linkModel`);
@@ -135,6 +149,12 @@ export function checkModule(module, report) {
         ||![model,link,parent].every(item=>item?.permissions.some(ref=>refKey(ref)===refKey(policy.permission))))
         report('file.linked-permission',q,'Linked readers require explicit read permission for the file, metadata, link and parent in every declared audience.');
     }
+  });
+  c.mcp.tools.forEach((tool,i)=>{
+    if(tool.widgetCalls&&(!semver.validRange(module.compatibility.sdk)
+      ||!semver.subset(module.compatibility.sdk,'>=1.5.0')))
+      report('mcp.widget-calls-sdk',`/contracts/mcp/tools/${i}/widgetCalls`,
+        'Callable widget tool bindings require SDK 1.5 or later.');
   });
   (c.connectors??[]).forEach((connector,i)=>{
     const p=`/contracts/connectors/${i}`;

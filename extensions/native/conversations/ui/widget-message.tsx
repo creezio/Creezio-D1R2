@@ -3,7 +3,10 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import type {CallToolRequest, CallToolResult} from '@modelcontextprotocol/client';
 import {createMcpAppsBridge, type McpAppsBridge} from '../../../../sdk/widgets/mcp-apps-bridge.ts';
+import {linkedImageToolResult} from '../../../../sdk/widgets/private-image.ts';
 import {useWidgetHost} from '../../../../sdk/widgets/provider.tsx';
+import {createFileClient} from '../../../../sdk/files/client.ts';
+import type {StagedFileReference} from '../../../../sdk/files/types.ts';
 import type {WidgetApprovalPreview} from '../../../../sdk/widgets/approval-client.ts';
 import type {WidgetMessageContentV1, WidgetMessageInstanceV1} from '../../../../sdk/widgets/types.ts';
 import type {ConversationsController} from '../../../../sdk/conversations/types.ts';
@@ -51,8 +54,9 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
     item.widgetId === props.instance.widgetId && item.version === props.instance.widgetVersion &&
     item.audiences.includes(host!.audience));
   const approvalMatchesCurrent = (draft: WidgetApprovalDraft): boolean => {
-    const tool=entry?.serverTools.find(item=>item.toolName===draft.toolName
-      &&item.operationDigest===draft.operationDigest&&item.operationKind==='command');
+    const matched=entry?.serverTools.find(item=>item.toolName===draft.toolName);
+    const tool=matched&&!('kind' in matched)&&matched.operationDigest===draft.operationDigest
+      &&matched.operationKind==='command'?matched:null;
     const action=entry?.actions.find(item=>item.id===tool?.actionId);
     return !!host&&!!tool&&action?.mode==='direct'&&action.target.kind==='operation'
       &&action.target.operation.moduleId===draft.moduleId
@@ -164,8 +168,25 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
       if (!isCurrent()) return toolResult('rejected', 'widget_inactive');
       const tool = entry.serverTools.find(item => item.toolName === params.name &&
         item.visibility.includes('app'));
-      const action = entry.actions.find(item => item.id === tool?.actionId);
-      if (!tool || !action || action.mode !== 'direct' || action.target.kind !== 'operation' ||
+      if (tool && 'kind' in tool && tool.kind === 'linked-image') {
+        const args = params.arguments;
+        if (host.audience !== 'app' || !('categoryId' in tool) ||
+          typeof tool.categoryId !== 'string' || !args || typeof args !== 'object' ||
+          Array.isArray(args) || Object.keys(args).sort().join(',') !== 'recordId,reference' ||
+          typeof args.recordId !== 'string') return toolResult('rejected', 'image_unavailable');
+        try {
+          const files = createFileClient({access:host.access,moduleId:entry.moduleId,
+            categoryId:tool.categoryId,contextId:host.contextId});
+          const read = await files.downloadLinked(args.reference as StagedFileReference,
+            args.recordId,isCurrent);
+          if (!isCurrent() || read.kind !== 'ready') return toolResult('rejected', 'image_unavailable');
+          const image = await linkedImageToolResult(read.value);
+          return isCurrent() && image ? image : toolResult('rejected', 'image_unavailable');
+        } catch {return toolResult('rejected', 'image_unavailable');}
+      }
+      if (!tool || 'kind' in tool) return toolResult('rejected', 'tool_unavailable');
+      const action = entry.actions.find(item => item.id === tool.actionId);
+      if (!action || action.mode !== 'direct' || action.target.kind !== 'operation' ||
         action.target.operationDigest !== tool.operationDigest ||
         action.target.operationKind !== tool.operationKind ||
         (action.target.idempotencyKeyField ?? null) !== tool.idempotencyKeyField)
@@ -296,8 +317,11 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
             baseUriDomains: [...resource.uiMeta.csp.baseUriDomains]},
           permissions: resource.uiMeta.permissions,
           instance: instanceRef,
-          toolNames: entry.serverTools.filter(tool => tool.visibility.includes('app')).map(tool => tool.toolName),
-          toolInput: {state: props.instance.state, instanceId: props.instance.instanceId},
+          toolNames: entry.serverTools.filter(tool => tool.visibility.includes('app') &&
+            (!('kind' in tool) || tool.kind !== 'linked-image' || host.audience === 'app'))
+            .map(tool => tool.toolName),
+          toolInput: {state: props.instance.state, instanceId: props.instance.instanceId,
+            audience: host.audience},
           ...(initialResult ? {toolResult: initialResult} : {}),
           isCurrent, callTool,
           ...(proposeRef.current ? {proposeMessage: async text => {

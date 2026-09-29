@@ -21,13 +21,24 @@ export function createMcpCatalog(catalog: McpCatalog, registry: OperationRegistr
   const tools = {admin: new Map<string, McpToolBinding>(), app: new Map<string, McpToolBinding>()};
   const resources = {admin: new Map<string, McpResourceBinding>(), app: new Map<string, McpResourceBinding>()};
   for (const item of catalog.tools) {
-    if (!item || !['admin', 'app'].includes(item.audience) || !id(item.moduleId) || !id(item.operationId)
+    if (!item || !['admin', 'app'].includes(item.audience) || !id(item.moduleId)
       || !id(item.contributorModuleId) || typeof item.name !== 'string' || !/^[A-Za-z0-9_.-]{1,128}$/.test(item.name)
       || !Array.isArray(item.auth) || !item.auth.length || item.auth.some(auth => !['oauth', 'api-token'].includes(auth))
       || !Array.isArray(item.actors) || item.actors.length !== item.auth.length
       || item.auth.some((auth, index) => item.actors[index] !== ({oauth: 'delegated-user', 'api-token': 'machine'} as Record<string, string>)[auth])
-      || !schema(item.inputSchema) || !schema(item.outputSchema) || !Array.isArray(item.permissions)
+      || !schema(item.inputSchema) || !Array.isArray(item.permissions)
       || item.permissions.some(permission => typeof permission !== 'string')) fail();
+    if (item.kind === 'linked-image') {
+      if (item.audience !== 'app' || !id(item.categoryId) || item.context !== 'required'
+        || item.auth.length !== 1 || item.auth[0] !== 'oauth' || item.actors[0] !== 'delegated-user'
+        || item.permissions.length !== 1 || !item.permissions[0]?.startsWith(`${item.moduleId}:`)
+        || item.annotations?.readOnly !== true || item.annotations.destructive !== false
+        || item.annotations.idempotent !== true || item.annotations.openWorld !== false
+        || tools.app.has(item.name)) fail();
+      tools.app.set(item.name, item);
+      continue;
+    }
+    if (item.kind !== undefined && item.kind !== 'operation' || !id(item.operationId) || !schema(item.outputSchema)) fail();
     const operation = registry.resolve(item.moduleId, item.operationId);
     if (!operation.declaration.audiences.includes(item.audience)
       || item.actors.some(actor => !operation.declaration.actors.includes(actor))
@@ -72,7 +83,7 @@ export function createMcpCatalog(catalog: McpCatalog, registry: OperationRegistr
     resources[audience].set(item.uri, item);
   }
   for (const audience of ['admin', 'app'] as const) for (const tool of tools[audience].values()) {
-    if (tool.ui && resources[audience].get(tool.ui.resourceUri)?.source.kind !== 'compiled-widget') fail();
+    if (tool.kind !== 'linked-image' && tool.ui && resources[audience].get(tool.ui.resourceUri)?.source.kind !== 'compiled-widget') fail();
   }
   return Object.freeze({
     tool(audience: AuthorizationAudience, name: string): McpToolBinding | undefined { return tools[audience].get(name); },

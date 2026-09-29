@@ -1,8 +1,14 @@
 # Changelog
 
-## En qualification — statut du contexte de widget retiré (T16)
+## Candidate — images privées dans les widgets Catalogue (T16/T25)
 
-Après un retrait confirmé, l'hôte Conversations affiche que le contexte est retiré pour les prochains tours. Le service conserve son retrait durable ; un test D1 vérifie qu'un tour démarré après ce retrait capture un snapshot vide. Le parcours Lab Sites version 3 a exercé lecture directe, sélection et contexte, puis préparation sans envoi d'un message ; aucun tour suivant réel n'y a été lancé. Ce correctif source n'est pas encore publié.
+La grille et la fiche Catalogue peuvent lire leurs images liées depuis les widgets app en réutilisant les contrôles D1/R2 existants. Le contrat SDK 1.5 ajoute une lecture d'image réservée au composant dans `_meta` et l'appel d'une opération commune par plusieurs widgets via `widgetCalls`. La limite de 3 Mio concerne uniquement le résultat privé vérifié hôte vers widget ; les autres messages conservent 1 Mio. Les versions SDK 1.5.0 et Catalogue 0.1.2 ne sont pas publiées ; les recettes navigateur et ChatGPT des images restent à réaliser.
+
+Le suivi T38 est rapproché des livraisons existantes : Sites Original/Lab version 4, Lab Linux puis Cloudflare `7ebf532`, conservation des témoins après arrêt Docker et previews de dépendances refusées. Aucun nouveau déploiement ne découle de cette mise à jour documentaire.
+
+## Publié — statut du contexte de widget retiré (T16)
+
+Après un retrait confirmé, l'hôte Conversations affiche que le contexte est retiré pour les prochains tours. Le service conserve son retrait durable ; un test D1 vérifie qu'un tour démarré après ce retrait capture un snapshot vide. Le parcours Lab Sites version 3 a exercé lecture directe, sélection et contexte, puis préparation sans envoi d'un message ; aucun tour suivant réel n'y a été lancé. Le correctif est intégré par PR #67 et publié sur les deux Sites version 4 ainsi que sur Lab Linux/Cloudflare ; la recette visuelle de ce statut sur ces versions reste distincte.
 
 ## En préparation — documentation du repli Sites depuis la source
 

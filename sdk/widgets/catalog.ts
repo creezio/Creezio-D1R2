@@ -99,12 +99,15 @@ export interface WidgetCatalogEntry {
     toolName: string; operationModuleId: string; operationId: string; operationDigest: Integrity;
     audiences: readonly Audience[];
   }>[];
-  /** Direct operation tools exposed to this widget; no implicit tool authority. */
-  readonly serverTools: readonly Readonly<{
+  /** Explicit app-callable tools; linked images are a host file capability, not an operation. */
+  readonly serverTools: readonly (Readonly<{
     actionId: string; toolName: string; operationDigest: Integrity;
     operationKind: 'query' | 'command'; idempotencyKeyField: string | null;
     visibility: ToolVisibility;
-  }>[];
+  }> | Readonly<{
+    kind: 'linked-image'; toolName: string; categoryId: string;
+    visibility: readonly ['app'];
+  }>)[];
   readonly transport: Readonly<{
     protocol: 'mcp-apps'; maxPayloadBytes: number; timeoutMs: number;
     uncertainResult: 'reconcile-before-retry';
@@ -341,7 +344,18 @@ export function validateCompiledWidgetCatalog(
       renderNames.add(tool.toolName);
     }
     const linkedActions = new Set<string>();
+    const serverToolNames = new Set<string>();
     for (const tool of w.serverTools) {
+      assert(validId(tool.toolName) && !serverToolNames.has(tool.toolName),
+        'invalid or duplicate server tool name');
+      serverToolNames.add(tool.toolName);
+      if ('kind' in tool) {
+        assert(tool.kind === 'linked-image' && w.audiences.includes('app') && validId(tool.categoryId) &&
+          tool.visibility.length === 1 && tool.visibility[0] === 'app' &&
+          Object.keys(tool).sort().join(',') === 'categoryId,kind,toolName,visibility',
+        'invalid linked-image server tool');
+        continue;
+      }
       const action = w.actions.find(a => a.id === tool.actionId);
       assert(action?.mode === 'direct' && action.target.kind === 'operation',
         'server tool must link one direct operation action');

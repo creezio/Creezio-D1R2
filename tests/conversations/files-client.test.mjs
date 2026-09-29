@@ -76,12 +76,27 @@ test('linked download uses the existing private transport with an explicit recor
   const c=client(a,async(url,init)=>{seen={url,init};return new Response('image-bytes',{headers:{'content-type':'application/octet-stream'}});});
   const result=await c.downloadLinked(reference,'record:one');
   assert.equal(result.kind,'ready');assert.equal(await result.value.text(),'image-bytes');
+  assert.equal(result.value.type,'application/octet-stream','old linked GET keeps generic Blob type');
   const url=new URL(seen.url);
   assert.equal(url.pathname,'/api/files/app/creezio.conversations/attachments');
   assert.deepEqual(Object.fromEntries(url.searchParams),{...reference,recordId:'record:one'});
   assert.equal(seen.init.method,'GET');assert.equal(seen.init.cache,'no-store');
   assert.equal(seen.init.credentials,'same-origin');assert.equal(Object.hasOwn(seen.init.headers,'authorization'),false);
   await c.download(reference);assert.equal(new URL(seen.url).searchParams.has('recordId'),false);
+});
+
+test('linked download carries a verified MIME header without changing ordinary download',async()=>{
+  const a=access();
+  const c=client(a,async()=>new Response('image-bytes',{headers:{'content-type':'application/octet-stream',
+    'x-creezio-file-content-type':'image/png'}}));
+  const linked=await c.downloadLinked(reference,'record:one');
+  assert.equal(linked.kind,'ready');assert.equal(linked.value.type,'image/png');
+  const ordinary=await c.download(reference);
+  assert.equal(ordinary.kind,'ready');assert.equal(ordinary.value.type,'application/octet-stream');
+  const nonImage=client(a,async()=>new Response('private-text',{headers:{'content-type':'application/octet-stream',
+    'x-creezio-file-content-type':'text/html'}}));
+  const generic=await nonImage.downloadLinked(reference,'record:one');
+  assert.equal(generic.kind,'ready');assert.equal(generic.value.type,'application/octet-stream');
 });
 
 test('linked download rejects invalid record identities before transport and drops a changed session',async()=>{

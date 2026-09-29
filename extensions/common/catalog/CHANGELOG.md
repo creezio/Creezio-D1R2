@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 — images privées dans les widgets app
+
+Les cartes liste/fiche chargent à la demande une première image visible ou une galerie de cinq liens maximum. `media.list` reste un seul outil partagé et les octets liés sont remis uniquement au composant par le pont privé du SDK `^1.5.0` candidat ; le contenu modèle reste textuel et neutre. Les widgets admin restent textuels. Aucune mutation, table SQL, URL publique ou modification du port `catalog.products@1.0.0`.
+
 ## 0.1.1 — images liées du front authentifié
 
 Lecture binaire contrôlée des images de produits publiés dans la grille et la fiche, via le transport fichier commun et SDK `^1.3.0`. Le port métier `catalog.products@1.0.0` et les modèles SQL restent identiques ; seuls les droits de lecture protégée du fichier et du modèle de métadonnées évoluent. Les objets R2 privés et la voie propriétaire sont conservés.

@@ -1,5 +1,7 @@
 # Repères du dépôt
 
+Le pont privé d'images déclarées dans `linkedRead.mcpImage` utilise `core/files/mcp.ts` pour réemployer le service de fichiers liés depuis MCP. `core/files/admission.ts` partage les quotas HTTP/MCP existants. `sdk/widgets/private-image.ts` forme le résultat transitoire `_meta` pour l'hôte natif, et `sdk/widgets/proxy/sandbox.js` borne son transport. `extensions/common/catalog/ui/widgets/image-view.ts` gère les images visibles et leurs URL Blob. Les tests de transport, de pont et de widgets sont séparés ; la [note T25](docs/IMPLEMENTATION-T25.md) conserve leurs limites de qualification.
+
 La projection du chat dans `core/providers/tools.ts` conserve les droits des opérations et borne les définitions envoyées au fournisseur. `scripts/build/provider-output-description.mjs` extrait les annotations JSON Schema de sortie pour cette projection ; `tests/openai/provider-host.test.mjs` et `tests/runtime/provider-composition.test.mjs` vérifient leurs limites et leur raccord. Les diagnostics restent dans le panneau Conversations original.
 
 `scripts/modules/validate-archives.mjs` vérifie puis assemble les archives runtime/validation des modules du dépôt avec un paquet SDK public identifié par SHA-256. La CI exécute leurs six suites depuis cet assemblage et refuse les imports externes non déclarés, fichiers manquants ou générateurs non reproductibles. Ce contrôle ne remplace pas l'isolation nécessaire pour exécuter du code tiers non approuvé.
@@ -50,7 +52,7 @@ Le module de [messagerie native](extensions/native/messaging/README.md) est adap
 | [docs/IMPLEMENTATION-T30.md](docs/IMPLEMENTATION-T30.md) | Paquets publics SDK/starter, démo indépendante et limites de la recette locale. |
 | [docs/IMPLEMENTATION-T32.md](docs/IMPLEMENTATION-T32.md) | Première publication et premier update réels de l'original, puis publication du Lab sur Cloudflare avec provenance, conservation et limites des recettes. |
 | [docs/IMPLEMENTATION-T36.md](docs/IMPLEMENTATION-T36.md) | Préparation de la release initiale de l’original : versions, usage, preuves et limites. |
-| [docs/IMPLEMENTATION-T38.md](docs/IMPLEMENTATION-T38.md) | Contribution amont des certificats TLS du Docker local, cause et qualification bornée. |
+| [docs/IMPLEMENTATION-T38.md](docs/IMPLEMENTATION-T38.md) | Adoptions du socle dans Lab sur Sites/Linux/Cloudflare, refus de dépendances et preuve historique TLS. |
 | [docs/IMPLEMENTATION-T39.md](docs/IMPLEMENTATION-T39.md) | Checkpoints du flux OpenAI, observation Site A et limites de la recette T39. |
 | [docs/IMPLEMENTATION-T40.md](docs/IMPLEMENTATION-T40.md) | Mise à jour Lab 0.1.2, restauration des widgets historiques, cycle durable des plans et qualifications réelles. |
 | [docs/LICENCES-ET-OFFRES.md](docs/LICENCES-ET-OFFRES.md) | Politiques/activation/accompagnement et décisions commerciales différées. |

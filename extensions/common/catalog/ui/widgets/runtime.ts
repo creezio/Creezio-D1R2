@@ -1,5 +1,6 @@
 import {App,PostMessageTransport} from '@modelcontextprotocol/ext-apps';
 import {money} from '../money.ts';
+import {createWidgetImageView,linkedImageFromResult,linkedMediaFromResult} from './image-view.ts';
 
 type Summary={id:string;sku:string;name:string;categoryId:string|null;priceMinor:number;
   currency:string;status:'published';revision:number;updatedAt:string};
@@ -46,13 +47,29 @@ function productsFrom(value:unknown):Summary[]|null{
 }
 const el=(id:string)=>document.getElementById(id);
 const say=(message:string)=>{const status=el('status');if(status)status.textContent=message;};
-/** MCP Apps rendering never calls the business operation until a user chooses Refresh/Search. */
+/** Product search/get remain user-initiated; visible app images use authorized reads. */
 export async function mountCatalogWidget(kind:'list'|'detail'):Promise<void>{
   const app=new App({name:`Creezio catalog ${kind}`,version:'0.1.0'},{});
   const root=el('catalog-widget'),direct=el('direct') as HTMLButtonElement|null;
   if(!root||!direct)return;
   let list:Summary[]=[],detail:Detail|null=null,interactive=false,reading=false,serial=0;
+  let tools=false,audience:'admin'|'app'|null=null;
+  const images=createWidgetImageView({
+    media:async productId=>{
+      const response=await app.callServerTool({name:'catalog_media_list',arguments:{productId}});
+      const items=linkedMediaFromResult(response,productId);
+      if(!items)throw new Error('media_unavailable');return items;
+    },
+    image:async(productId,media)=>{
+      const response=await app.callServerTool({name:'catalog_linked_image_read',
+        arguments:{recordId:productId,reference:media.reference}});
+      const image=linkedImageFromResult(response);
+      if(!image)throw new Error('image_unavailable');return image;
+    },
+  });
+  const imageEnabled=()=>tools&&audience==='app';
   const render=()=>{
+    images.clear();
     if(kind==='detail'){
       const name=el('name'),sku=el('sku'),price=el('price'),description=el('description'),attrs=el('attributes');
       if(name)name.textContent=detail?.name??'Produit indisponible';
@@ -61,6 +78,8 @@ export async function mountCatalogWidget(kind:'list'|'detail'):Promise<void>{
       if(description)description.textContent=detail?.description??'';
       if(attrs){attrs.replaceChildren();for(const attr of detail?.attributes??[]){
         const row=document.createElement('li');row.textContent=`${attr.key} : ${attr.value}`;attrs.appendChild(row);}}
+      const gallery=el('images');if(gallery){gallery.hidden=!imageEnabled()||!detail;
+        if(imageEnabled()&&detail)images.attach(gallery,detail.id,5);}
     }else{
       const results=el('results');if(!results)return;results.replaceChildren();
       if(!list.length){const empty=document.createElement('p');empty.textContent='Aucun produit publié dans ce résultat.';
@@ -68,20 +87,36 @@ export async function mountCatalogWidget(kind:'list'|'detail'):Promise<void>{
       for(const item of list){const card=document.createElement('article'),title=document.createElement('strong'),
         detail=document.createElement('span');
         title.textContent=item.name;detail.textContent=`${item.sku} · ${money(item.priceMinor,item.currency)}`;
-        card.appendChild(title);card.appendChild(detail);results.appendChild(card);}
+        if(imageEnabled()){const image=document.createElement('div');image.className='image';card.appendChild(image);
+          card.appendChild(title);card.appendChild(detail);results.appendChild(card);images.attach(image,item.id,1);}
+        else{card.appendChild(title);card.appendChild(detail);results.appendChild(card);}}
     }
-    direct.disabled=reading||kind==='detail'&&!detail;
+    direct.disabled=!tools||reading||kind==='detail'&&!detail;
   };
+  app.addEventListener('toolinput',input=>{
+    const args=input.arguments as Record<string,unknown>|undefined;
+    if(args&&typeof args==='object'&&!Array.isArray(args)&&
+      (args.audience==='app'||args.audience==='admin')&&args.instanceId){
+      audience=args.audience;render();}
+  });
   app.addEventListener('toolresult',result=>{
     if(interactive)return;
+    const content=result.structuredContent as Record<string,unknown>|undefined;
+    const instance=content&&typeof content==='object'&&!Array.isArray(content)
+      ?content.instance as Record<string,unknown>|undefined:undefined;
+    if(instance&&(instance.audience==='app'||instance.audience==='admin')){
+      if(audience&&audience!==instance.audience)return;
+      audience=instance.audience;}
     if(kind==='list'){const next=productsFrom(result.structuredContent);if(next){list=next;render();}}
     else{const next=productFrom(result.structuredContent);if(next){detail=next;render();}}
   });
   render();
   try{await app.connect(new PostMessageTransport(window.parent,window.parent));}
   catch{say('Pont MCP Apps indisponible ; affichage en lecture seule.');return;}
-  const tools=!!app.getHostCapabilities()?.serverTools;
+  tools=!!app.getHostCapabilities()?.serverTools;
   direct.disabled=!tools||kind==='detail'&&!detail;
+  render();
+  window.addEventListener('pagehide',()=>images.clear(),{once:true});
   say(tools?'Données du catalogue chargé ; la recherche est déclenchée volontairement.':
     'Outils directs indisponibles dans cet hôte ; résultat en lecture seule.');
   direct.addEventListener('click',async()=>{

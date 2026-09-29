@@ -1,6 +1,6 @@
 # Widgets multiples et modes d'interaction
 
-Contrat cible du 26 septembre 2026, complément du [contrat GPT](COMPATIBILITE-CHATGPT.md) et du [standard module](STANDARD-MODULE.md). Réalisation : [T-16](TODO.md#T-16), [US-16](USER-STORIES.md#US-16), exigences REQ-1604 à REQ-1607. Aucun hôte Creezio implémenté ni recette GPT acquise par ce document.
+Contrat cible du 26 septembre 2026, complément du [contrat GPT](COMPATIBILITE-CHATGPT.md) et du [standard module](STANDARD-MODULE.md). Réalisation : [T-16](TODO.md#T-16), [US-16](USER-STORIES.md#US-16), exigences REQ-1604 à REQ-1607. Les recettes acquises sont suivies séparément dans [T16](IMPLEMENTATION-T16.md) et [T38](IMPLEMENTATION-T38.md) ; ce document décrit les comportements attendus.
 
 ## Un module, plusieurs widgets, plusieurs actions
 
@@ -46,6 +46,8 @@ Valider un panier ne se déduit jamais d'une sélection, d'un ajout de contexte 
 | Routage | Association vérifiée entre iframe/instance, conversation, requête/réponse et objets ; réponse tardive ne remplace pas un autre widget ou une révision plus récente. |
 
 Le SDK valide les déclarations avant composition. L'hôte filtre les contributions selon capacités et droits, puis le serveur recontrôle l'accès lors de l'exécution. Le contrat couvre plusieurs types du même module et plusieurs modules dans le même chat.
+
+Dans la candidate SDK 1.5, `widgetCalls` rattache un outil d'opération à plusieurs actions directes de widgets sans lui attribuer le rendu initial `widget`. Les lectures privées d'images utilisent l'opt-in `linkedRead.mcpImage` de la catégorie de fichiers et les mêmes preuves de lecture liée. Leur résultat `_meta` transitoire n'est ni un contexte pour le prochain tour, ni un état persistant, ni un résultat métier à envoyer au modèle. Voir [le contrat GPT](COMPATIBILITE-CHATGPT.md#lectures-privées-réservées-au-composant).
 
 ## Chat interne Creezio
 

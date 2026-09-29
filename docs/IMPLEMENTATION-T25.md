@@ -1,5 +1,15 @@
 # T25 — Catalogue métier commun
 
+## Candidate : images privées dans les widgets
+
+La tranche T16/T25 sur `core/t25-private-widget-images` conserve la grille et la fiche existantes. Les widgets du front chargent leurs médias via l'opération `media.list`, puis leurs images via le pont générique de fichiers liés ; l'administration reste textuelle, car cette lecture liée est déclarée pour l'audience app. Le module candidat 0.1.2 exige SDK 1.5.0. Les versions publiques antérieures et le port métier `catalog.products@1.0.0` restent inchangés ; aucun modèle ni SQL n'est ajouté.
+
+Le SDK déclare `linkedRead.mcpImage` et `mcp.tools[].widgetCalls`. Un outil peut ainsi servir plusieurs widgets sans produire un rendu supplémentaire. Le pont natif réutilise `downloadLinked` ; le MCP externe utilise le même service `readLinked`, avec ses contrôles de parent, lien, permission, contexte et référence. Les octets PNG/JPEG/WebP sont réservés au composant dans `_meta['creezio/linkedImage']`, jamais dans `content`, `structuredContent`, le contexte du modèle ou la persistance. Le type vérifié et la signature des octets doivent concorder.
+
+Chaque image reste limitée à 2 Mio ; seul ce résultat privé validé peut traverser le relais hôte vers widget dans une enveloppe maximale de 3 Mio. Les autres messages restent limités à 1 Mio. Le module charge une image par carte visible ou jusqu'à cinq dans une fiche, borne les demandes et révoque les URL Blob au remplacement. Les réponses tardives ne rétablissent pas une image d'une ancienne session, audience, conversation ou instance.
+
+Les tests ciblés de cette candidate couvrent décodage, bornes, MIME, message réservé au composant, relais, visibilité et invalidation. La recette navigateur avec une image réelle, le profil hébergé et la recette ChatGPT ne sont pas encore acquises. Les versions candidates ne sont ni publiées ni adoptées dans Lab à ce stade. Cette tranche précise REQ-1602/REQ-1604/REQ-1607 et REQ-2501 sans changer les usages du PRD ou ajouter une architecture propre au Catalogue.
+
 ## Images liées intégrées — recette Linux
 
 Cette tranche relie le transport de fichiers commun aux images d’un produit publié. Le contrat optionnel `linkedRead` décrit le modèle de lien, sa relation contextuelle au parent, l'état de publication et la permission de lecture. Il permet une lecture authentifiée par un autre utilisateur sans modifier le propriétaire du fichier. Le SDK 1.3 public ajoute `downloadLinked` ; SDK 1.2 et les paquets déjà publics restent inchangés. Les contrôles de parent/lien/permissions avant et après lecture, ainsi que les refus croisés et la neutralisation des réponses périmées, sont les critères de cette tranche. La recette Linux du candidat `0c244c3` vérifie API, octets et navigateur sur un hôte local ; elle ne prouve aucune publication du complément sur Sites ou Cloudflare. Anonymat, redimensionnement et images des widgets restent distincts.

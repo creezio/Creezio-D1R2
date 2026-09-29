@@ -22,7 +22,8 @@ export interface FileCategory {
   readonly linkedRead?: Readonly<{readonly audiences: readonly ('admin' | 'app')[];
     readonly permission: ContractReference; readonly linkModel: ContractReference;
     readonly parentRelation: string; readonly referenceFields: Readonly<{fileId:string;intentId:string;generation:string;digest:string}>;
-    readonly when: Readonly<{field:string;equals:string}>}>;
+    readonly when: Readonly<{field:string;equals:string}>;
+    readonly mcpImage?: Readonly<{toolName:string;widgetIds:readonly string[]}>}>;
 }
 const equal = (a: readonly unknown[], b: readonly unknown[]) => a.length === b.length && a.every((v, i) => v === b[i]);
 const fieldId = (value: unknown): value is string => typeof value === 'string'
@@ -37,7 +38,7 @@ function captureLinkedRead(catalog: RuntimeDataCatalog, moduleId: string, catego
   const input=category.linkedRead;
   if (input===undefined) return undefined;
   if (!plainRecord(input) || Object.keys(input).sort().join(',')!==
-    'audiences,linkModel,parentRelation,permission,referenceFields,when'
+    (input.mcpImage===undefined?'audiences,linkModel,parentRelation,permission,referenceFields,when':'audiences,linkModel,mcpImage,parentRelation,permission,referenceFields,when')
     || !Array.isArray(input.audiences) || !input.audiences.length || input.audiences.length>2
     || new Set(input.audiences).size!==input.audiences.length
     || input.audiences.some(audience=>!['admin','app'].includes(audience))
@@ -51,7 +52,15 @@ function captureLinkedRead(catalog: RuntimeDataCatalog, moduleId: string, catego
     || new Set(Object.values(input.referenceFields)).size!==4
     || !plainRecord(input.when) || Object.keys(input.when).sort().join(',')!=='equals,field'
     || !fieldId(input.when.field) || typeof input.when.equals!=='string'
-    || !input.when.equals || input.when.equals.length>128 || category.public) throw new FileError('invalid_mapping');
+    || !input.when.equals || input.when.equals.length>128 || category.public
+    || input.mcpImage!==undefined && (!plainRecord(input.mcpImage)
+      || Object.keys(input.mcpImage).sort().join(',')!=='toolName,widgetIds'
+      || typeof input.mcpImage.toolName!=='string' || !/^[A-Za-z0-9_.-]{1,128}$/.test(input.mcpImage.toolName)
+      || !Array.isArray(input.mcpImage.widgetIds) || !input.mcpImage.widgetIds.length || input.mcpImage.widgetIds.length>16
+      || input.mcpImage.widgetIds.some(value=>!fieldId(value))
+      || new Set(input.mcpImage.widgetIds).size!==input.mcpImage.widgetIds.length
+      || !input.audiences.includes('app') || category.maxBytes>2*1024*1024
+      || category.mimeTypes.some(value=>!['image/png','image/jpeg','image/webp'].includes(value)))) throw new FileError('invalid_mapping');
   const module=catalog.modules.find(item=>item.moduleId===moduleId&&item.enabled);
   const metadata=ownedModel(catalog,moduleId,category.metadataModel.id);
   const link=ownedModel(catalog,moduleId,input.linkModel.id);
@@ -83,7 +92,9 @@ function captureLinkedRead(catalog: RuntimeDataCatalog, moduleId: string, catego
       ref.moduleId===moduleId&&ref.kind==='permission'&&ref.id===permission.id))) throw new FileError('invalid_mapping');
   return Object.freeze({audiences:Object.freeze([...input.audiences]),permission:Object.freeze({...input.permission}),
     linkModel:Object.freeze({...input.linkModel}),parentRelation:input.parentRelation,
-    referenceFields:Object.freeze({...input.referenceFields}),when:Object.freeze({...input.when})});
+    referenceFields:Object.freeze({...input.referenceFields}),when:Object.freeze({...input.when}),
+    ...(input.mcpImage===undefined?{}:{mcpImage:Object.freeze({toolName:input.mcpImage.toolName,
+      widgetIds:Object.freeze([...input.mcpImage.widgetIds])})})});
 }
 /** Rechecked at the service boundary; a TypeScript cast cannot approve a mapping. */
 export function captureFileCategory(catalog: RuntimeDataCatalog, moduleId: string, input: FileCategory): Readonly<FileCategory> {

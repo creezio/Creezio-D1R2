@@ -3,7 +3,9 @@
 *{box-sizing:border-box}body{margin:0;padding:12px;background:#f8fafc;color:#0f172a;font:14px system-ui,sans-serif}
 main{max-width:580px;margin:auto;padding:16px;border:1px solid #cbd5e1;border-radius:14px;background:white}
 h1{font-size:17px;margin:0 0 12px}.bar{display:flex;gap:8px}input{flex:1}input,button{padding:9px;border:1px solid #cbd5e1;border-radius:8px;background:white;font:inherit}
-#results{display:grid;gap:8px;margin:12px 0}article{display:grid;gap:3px;padding:10px;border:1px solid #e2e8f0;border-radius:8px}span{color:#475569}output{display:block;color:#64748b;min-height:1.4em}
+#results{display:grid;gap:8px;margin:12px 0}article{display:grid;gap:3px;padding:10px;border:1px solid #e2e8f0;border-radius:8px}
+article .image{display:grid;aspect-ratio:1;place-items:center;overflow:hidden;background:#f1f5f9;color:#64748b}
+article .image img{width:100%;height:100%;object-fit:cover}span{color:#475569}output{display:block;color:#64748b;min-height:1.4em}
 </style></head><body><main id="catalog-widget"><h1>Produits publiés</h1><div class="bar">
 <input id="query" aria-label="Recherche produit" maxlength="120" placeholder="Rechercher"/>
 <button id="direct" type="button" disabled>Rechercher</button></div><div id="results" aria-live="polite"></div>

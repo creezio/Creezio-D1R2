@@ -66,7 +66,10 @@ export function createFileClient(options:{access:AccessController;moduleId:strin
     const suffix=recordId===undefined?'':`&recordId=${encodeURIComponent(recordId)}`;
     return request('GET',query(reference)+suffix,{},undefined,(response,bytes)=>{
       if(response.headers.get('content-type')?.split(';',1)[0]?.trim().toLowerCase()!=='application/octet-stream')throw new Error('invalid_response');
-      return new Blob([new Uint8Array(bytes)],{type:'application/octet-stream'});
+      const linkedType=recordId===undefined?null:response.headers.get('x-creezio-file-content-type');
+      const type=linkedType&&['image/png','image/jpeg','image/webp'].includes(linkedType)
+        ?linkedType:'application/octet-stream';
+      return new Blob([new Uint8Array(bytes)],{type});
     },isCurrent);
   }
   return Object.freeze({

@@ -1,6 +1,6 @@
 # Modules Creezio compatibles ChatGPT
 
-Contrat de conception du 26 septembre 2026. La compatibilité ChatGPT fait partie du contrat natif des modules. Elle reste à implémenter et à vérifier dans ChatGPT ; l'existence d'API ou d'un serveur MCP ne suffit pas à la déclarer acquise.
+Contrat de conception du 26 septembre 2026, précisé au fil des tranches réalisées. La compatibilité ChatGPT fait partie du contrat natif des modules. Les preuves réelles et leurs limites sont suivies dans [T16](IMPLEMENTATION-T16.md) et [T38](IMPLEMENTATION-T38.md) ; l'existence d'API ou d'un serveur MCP ne suffit pas à déclarer chaque widget compatible.
 
 ## Module métier et plugin conversationnel
 
@@ -44,6 +44,14 @@ Adopter MCP Apps pour les nouveaux widgets : ressource HTML `text/html;profile=m
 Déclarer schémas d'entrée/sortie, annotations, identité stable, droits et périmètre d'exposition. Retourner des résultats structurés utilisables par le modèle et l'UI, avec pagination. Les métadonnées réservées au composant ne sont jamais un coffre à secrets. Les domaines de ressources/connexion, l'origine du composant et ses capacités d'affichage font partie du profil d'hébergement. La soumission publique avec UI exige une origine dédiée unique au plugin : qualifier cette exigence pour chaque paquet exposé, sans imposer un Worker par module. [Référence UI](https://developers.openai.com/plugins/reference).
 
 Les bundles de widgets sont construits et versionnés avec leurs styles/assets. Le Worker expose les ressources depuis le build ou les assets autorisés ; il ne lit pas un dossier Node local à l'exécution. Fixer ensemble les versions du SDK MCP et des helpers MCP Apps compatibles. Les exemples sont des références de composition ; un serveur Node de démonstration n'est pas le runtime serverless du produit. [Exemples officiels](https://github.com/openai/openai-apps-sdk-examples).
+
+### Lectures privées réservées au composant
+
+`_meta.ui.visibility: ['app']` réserve l'appel d'un outil au composant ; cela ne rend pas son `content` privé. La référence OpenAI distingue `content` et `structuredContent`, accessibles au modèle, de `_meta` de résultat, réservé au composant. Une image privée destinée seulement au widget se transmet donc sous `_meta['creezio/linkedImage']`, avec un texte neutre sans octets dans `content`. Aucune clé, cookie, URL signée ou liaison D1/R2 n'entre dans le widget. [Résultats d'outils et métadonnées](https://developers.openai.com/plugins/reference).
+
+La candidate SDK 1.5 ajoute l'opt-in `contracts.files[].linkedRead.mcpImage` : nom d'outil et widgets autorisés du même module. Il réutilise les contrôles de fichier lié (acteur, contexte, permission, parent publié, référence et empreinte) dans le chat natif et le MCP app. Les images PNG/JPEG/WebP sont bornées à 2 Mio ; l'enveloppe vérifiée dispose d'un plafond de 3 Mio, sans élargir les autres messages du relais. Les octets restent transitoires et les URL Blob sont révoquées quand le composant change. La [note T25](IMPLEMENTATION-T25.md) suit les tests et les profils réellement qualifiés ; cette déclaration ne vaut pas une recette ChatGPT.
+
+Pour une opération commune appelée depuis plusieurs widgets sans nouveau rendu, `contracts.mcp.tools[].widgetCalls` associe la même opération à leurs actions directes. `widget` garde son rôle de rendu initial. Cette distinction évite de générer une nouvelle fiche lors de la simple lecture de ses médias ; elle ne crée ni opération métier supplémentaire ni second stockage.
 
 ## Plusieurs widgets et trois modes par action
 

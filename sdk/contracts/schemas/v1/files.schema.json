@@ -46,6 +46,15 @@
               "equals":{"type":"string","minLength":1,"maxLength":128}
             },
             "required":["field","equals"],"additionalProperties":false
+          },
+          "mcpImage": {
+            "description": "Opt-in app-only private image tool for listed same-module widgets.",
+            "type": "object",
+            "properties": {
+              "toolName": {"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},
+              "widgetIds": {"type":"array","items":{"$ref":"urn:creezio:contracts:v1:common#/$defs/id"},"minItems":1,"maxItems":16,"uniqueItems":true}
+            },
+            "required":["toolName","widgetIds"],"additionalProperties":false
           }
         },
         "required":["audiences","permission","linkModel","parentRelation","referenceFields","when"],
