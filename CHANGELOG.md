@@ -1,8 +1,8 @@
 # Changelog
 
-## Candidate — images privées dans les widgets Catalogue (T16/T25)
+## Intégré à la source — images privées dans les widgets Catalogue (T16/T25)
 
-La grille et la fiche Catalogue peuvent lire leurs images liées depuis les widgets app en réutilisant les contrôles D1/R2 existants. Le contrat SDK 1.5 ajoute une lecture d'image réservée au composant dans `_meta` et l'appel d'une opération commune par plusieurs widgets via `widgetCalls`. La limite de 3 Mio concerne uniquement le résultat privé vérifié hôte vers widget ; les autres messages conservent 1 Mio. Les versions SDK 1.5.0 et Catalogue 0.1.2 ne sont pas publiées ; les recettes navigateur et ChatGPT des images restent à réaliser.
+La grille et la fiche Catalogue peuvent lire leurs images liées depuis les widgets app en réutilisant les contrôles D1/R2 existants. Le contrat SDK 1.5 ajoute une lecture d'image réservée au composant dans `_meta` et l'appel d'une opération commune par plusieurs widgets via `widgetCalls`. La limite de 3 Mio concerne uniquement le résultat privé vérifié hôte vers widget ; les autres messages conservent 1 Mio. La PR #68 intègre ces contrats dans la source Core ; l'archive SDK 1.5.0 reste à préparer et à vérifier avec sept consommateurs avant toute annonce de disponibilité publique. Catalogue 0.1.2 reste un module du workspace, sans release autonome ; les recettes navigateur et ChatGPT des images restent à réaliser.
 
 Le suivi T38 est rapproché des livraisons existantes : Sites Original/Lab version 4, Lab Linux puis Cloudflare `7ebf532`, conservation des témoins après arrêt Docker et previews de dépendances refusées. Aucun nouveau déploiement ne découle de cette mise à jour documentaire.
 

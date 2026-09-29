@@ -44,6 +44,12 @@ Le correctif accepte les noms de champs JSON tels que `requestKey` dans les sch�
 
 La PR #57 est intégrée sur main `f99a455356120f89a0ed35a7f64fe38c06299c4d`, arbre `805caa28d3c05b0646f2aef5b3b3cd213b629f77`, avec 1 257/1 257 tests CI, sans omission. Le [SDK 1.4.1 public](https://github.com/creezio/Creezio-D1R2/releases/download/sdk-v1.4.1/creezio-sdk-1.4.1.tgz) contient 79 fichiers et 73 013 octets, SHA-256 `3196390908a13cf32290f100584a3edb20931c8b3f56c37c6fab131c3fe4b37d`. Sept consommateurs ont été vérifiés avec cette archive : 38 suites réussies, quatre suites widgets explicitement non applicables avec justification, 123 tests exécutés. Tag annoté et téléchargements draft/public vérifiés, release `399075187`, asset `598041140`. Les anciennes versions publiques restent immuables ; Lab conserve SDK 1.2 et son module d'achats 0.1.3 jusqu'à une adoption distincte.
 
+## SDK 1.5.0 — images privées des widgets Catalogue
+
+La PR #68 intègre le contrat optionnel `linkedRead.mcpImage` et `widgetCalls` : plusieurs widgets peuvent appeler le même outil de lecture sans rendu supplémentaire. L'image liée est réservée au composant dans `_meta['creezio/linkedImage']` ; ses octets ne rejoignent ni `content`, ni `structuredContent`, ni le contexte du modèle, ni la persistance. Les droits, le parent et le lien sont contrôlés par le service de fichiers existant.
+
+La source prépare SDK 1.5.0 ; son archive publique, son intégrité et les sept consommateurs restent à vérifier depuis le main de release qualifié. Catalogue 0.1.2 reste un module du workspace Core, sans release autonome. Starter et Lab conservent leurs versions installées ; la recette navigateur/ChatGPT avec image privée reste distincte.
+
 ## SDK 1.2 — journal public et contrats de connecteurs
 
 Le Starter public `module-v0.1.3` adopte ce SDK : journal commun du workspace/front, conservation des anciennes actions incertaines sans renvoi, et préparation de démo liée à la version exacte du module. La release est construite depuis main `25144f306d59a81077daf8ab4f07a4a1ddc0951d` après PR #5/#6 et CI main (41 tests). Runtime SHA-256 `3cc1600d2fa5555be7013105521af2fbd4a0fb92408135465601d22cdd05ea4a`, validation `fda2bab507a5d7ec7ac58d6360bd720d5b95039872be4f822bd738d8fe21383f` ; les quatre assets publics ont été téléchargés et vérifiés. Lab l’a ensuite adopté séparément sur main `c8985bdb` (CI 1 225/1 225).
