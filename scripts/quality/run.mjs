@@ -45,6 +45,7 @@ for (const name of ['support', 'pages-navigation', 'analytics']) {
 execute('catalog-models', ['scripts/data/prepare-native-module.mjs', 'catalog', '--family=common']);
 execute('n8n-models', ['scripts/data/prepare-native-module.mjs', 'n8n', '--family=connectors']);
 execute('stripe-models', ['scripts/data/prepare-native-module.mjs', 'stripe', '--family=connectors']);
+execute('meili-models', ['scripts/data/prepare-native-module.mjs', 'meili', '--family=connectors']);
 // These modules run their six suites from their actual runtime/validation
 // archives with the packed public SDK, not from hidden Core source imports.
 const sdkPackage=JSON.parse(readFileSync(resolve(root,'sdk/package.json'),'utf8'));
@@ -58,7 +59,8 @@ const sdkArchive=resolve(sdkDirectory,`creezio-sdk-${sdkPackage.version}.tgz`);
 const sdkSha=createHash('sha256').update(readFileSync(sdkArchive)).digest('hex');
 execute('module-archive-suites',['scripts/modules/validate-archives.mjs','--sdk-archive',sdkArchive,
   '--sdk-sha256',sdkSha,'extensions/native/support','extensions/native/pages-navigation',
-  'extensions/native/analytics','extensions/common/catalog','extensions/connectors/n8n','extensions/connectors/stripe'],180_000);
+  'extensions/native/analytics','extensions/common/catalog','extensions/connectors/n8n',
+  'extensions/connectors/stripe','extensions/connectors/meili'],180_000);
 execute('delivery-suites', ['extensions/native/delivery/gate.mjs']);
 execute('widgets-witness-suites', ['extensions/widgets-witness/gate.mjs']);
 execute('theme-standard-suites', ['themes/standard/gate.mjs']);

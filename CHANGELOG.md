@@ -1,5 +1,9 @@
 # Changelog
 
+## En cours — connexion Meili externe (T28)
+
+Le module optionnel prépare les réglages HTTPS, la clé scellée et un contrôle de connexion borné sur la liste des index, sans retourner leurs données. La PR #53 a passé 1 247/1 247 contrôles ; la recette Linux du code `3b2131c` a confirmé les réglages et affiché la connexion Meili dans l’interface après un contrôle réel. Aucune indexation, recherche Meili, écriture distante ou recherche globale T05 n'est livrée par cette première tranche. Voir [T28](docs/IMPLEMENTATION-T28.md).
+
 ## Correctif n8n — origine de connexion (T26)
 
 Le connecteur refuse de déplacer une clé scellée vers une autre origine, y compris quand la connexion est désactivée. Révoquer la clé avant de changer d’instance ; les lectures fournisseur positives restent à qualifier.
