@@ -340,7 +340,7 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 - Travail/livrables : Module pages-navigation, médias/SEO/édition et reset contrôlé.
 - Besoin : [US-21](USER-STORIES.md#US-21). Acceptation : [REQ-2101](EXIGENCES.md#REQ-2101).
 - Validation : implémenter puis exécuter les recettes liées, sur **front, workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Acquis ciblés : 19 contrôles des six suites et intégration D1 réelle ; snapshots séparés des brouillons. Sur Linux au code UI `589a827`, brouillon, publication et navigation éditoriale ont été exercés ; le front authentifié `/pages` a affiché hero et lien. Publication anonyme, médias publics, SEO document et raccord complet de navigation au thème restent ouverts. Voir [Pages/navigation](IMPLEMENTATION-T21.md). Aucune publication hébergée de cette tranche n'est attestée.
+- Acquis ciblés : snapshots séparés des brouillons. Sur Linux au code UI `589a827`, brouillon, publication et navigation éditoriale ont été exercés ; le front authentifié `/pages` a affiché hero et lien. La tranche suivante, validée localement, compose la navigation publiée dans le slot standard des thèmes, résout une URL par slug publié et met à jour les métadonnées du document connecté ; sa recette navigateur/Site reste à faire. Publication anonyme, médias publics et SEO serveur indexable restent ouverts. Voir [Pages/navigation](IMPLEMENTATION-T21.md).
 
 <a id="T-22"></a>
 ## T-22 — Analytics et diagnostics

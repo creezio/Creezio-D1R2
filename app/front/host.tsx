@@ -15,6 +15,7 @@ import type {WorkspaceInput, WorkspaceLocation, WorkspaceView, WorkspaceViewProp
 import type {RuntimeFrontView} from '../../sdk/runtime/ui';
 import type {FrontProjection, FrontThemeProps, PublicFrontViewProps} from '../../sdk/front/types';
 import {shouldNavigateFromPanel} from '../../sdk/front/navigation';
+import {currentProtectedSlot,protectedSlotNavigation} from './slot-navigation';
 import {FrontAccessRefused, readFrontProjection} from './projection-client';
 import styles from './host.module.css';
 import {WidgetHostProvider} from '../../sdk/widgets/provider';
@@ -41,12 +42,31 @@ function workspaceAdapter(view: RuntimeFrontView): WorkspaceView {
   return {...view, component: PublicViewAdapter};
 }
 
-function ProtectedSlot({slotName, slotId, view, access, projection, client, visible, revocationVersion}: {
+function ProtectedSlot({slotName, slotId, view, access, projection, client, visible, revocationVersion,
+  navigate, visit}: {
   slotName: string; slotId: string; view: Extract<RuntimeFrontView, {access:'protected'}>;
   access: AccessController; projection: FrontProjection | null;
   client: ReturnType<typeof createOperationClient>; visible: boolean; revocationVersion: number;
+  navigate:(viewId:string,input?:WorkspaceInput,options?:{newTab?:boolean;replace?:boolean})=>boolean;
+  visit:(url:string,options?:{newTab?:boolean;replace?:boolean})=>boolean;
 }) {
-  const views = useMemo<readonly WorkspaceView[]>(() => [view], [view]);
+  const live=useRef({visible,projection,navigate,visit});
+  live.current={visible,projection,navigate,visit};
+  const views = useMemo<readonly WorkspaceView[]>(() => {
+    const Original=view.component;
+    function SlotView(props:WorkspaceViewProps){
+      const host={isCurrent:()=>{
+        const state=access.getSnapshot(),current=live.current,granted=current.projection;
+        return currentProtectedSlot(state,granted,{active:props.active,authorized:props.authorized,
+          visible:current.visible,contextId,compositionDigest,slotId,
+          viewId:view.id});
+      },open:(id: string,input?:WorkspaceInput,options?:{newTab?:boolean;replace?:boolean})=>
+        live.current.navigate(id,input,options),
+      visit:(url:string,options?:{newTab?:boolean;replace?:boolean})=>live.current.visit(url,options)};
+      return <Original {...props} navigation={protectedSlotNavigation(props.navigation,host)} />;
+    }
+    return [{...view,component:SlotView}];
+  },[view,access,slotId]);
   return <section className={styles.flow} data-front-slot={slotName} data-slot-id={slotId} hidden={!visible} inert={!visible}>
     <Workspace access={access} projection={visible ? projection : null} views={views}
       navigation={[]} client={client} contextId={contextId} surface="front" persist={false}
@@ -149,8 +169,10 @@ function BoundFront({access, initialUrl}: {access: AccessController; initialUrl?
   const routeTo = useCallback((location: WorkspaceLocation, replace = false) => {
     if (browserUrl() !== location.url) window.history[replace ? 'replaceState' : 'pushState'](null, '', location.url);
     setCurrentUrl(location.url);
+    window.dispatchEvent(new Event('creezio:front-location'));
   }, []);
-  const navigate = useCallback((viewId: string, input: WorkspaceInput = {}): boolean => {
+  const navigate = useCallback((viewId: string, input: WorkspaceInput = {},
+    options?:{newTab?:boolean;replace?:boolean}): boolean => {
     const view = appViews.find(item => item.id === viewId);
     const location = view && createWorkspaceLocation(view, input);
     if (!location) return false;
@@ -158,16 +180,16 @@ function BoundFront({access, initialUrl}: {access: AccessController; initialUrl?
       if (view.access === 'protected' && !authorized) { routeTo(location); return true; }
       return false;
     }
-    if (view.access === 'protected' && controllerRef.current?.open(viewId, input)) {
-      routeTo(location);
+    if (view.access === 'protected' && controllerRef.current?.open(viewId, input, options)) {
+      routeTo(location,options?.replace);
       return true;
     }
-    routeTo(location);
+    routeTo(location,options?.replace);
     return true;
   }, [authorized, routeTo, visibleIds]);
-  const visit = useCallback((url: string): boolean => {
+  const visit = useCallback((url: string,options?:{newTab?:boolean;replace?:boolean}): boolean => {
     const location = resolveWorkspaceLocation(url, appViews, appViewIds, 'front');
-    return location ? navigate(location.viewId, location.input) : false;
+    return location ? navigate(location.viewId, location.input, options) : false;
   }, [navigate]);
   useEffect(() => {
     if (!authorized || !allLocation || currentView?.access !== 'protected' || activePanelUrl === allLocation.url) return;
@@ -205,7 +227,7 @@ function BoundFront({access, initialUrl}: {access: AccessController; initialUrl?
       }
       return <ProtectedSlot key={slot.id} slotName={slotName} slotId={slot.id} view={view}
         access={access} projection={projection} client={client} visible={currentSlot}
-        revocationVersion={revocationVersion} />;
+        revocationVersion={revocationVersion} navigate={navigate} visit={visit} />;
     });
   };
 

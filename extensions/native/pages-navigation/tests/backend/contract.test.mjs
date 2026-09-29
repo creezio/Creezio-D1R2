@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {manifest,read} from '../helpers.mjs';
-import {pageCreate,pageSave,pagePublish,pageReset,pagePublishedRead,pagePublishedList,navigationSave,
+import {pageCreate,pageSave,pagePublish,pageReset,pagePublishedRead,pagePublishedList,pagePublishedResolve,navigationSave,
   navigationPublish,navigationReset,mediaLink,mediaUnlink} from '../../module/service.ts';
 
 const page={id:'home',slug:'/',title:'Accueil',draft_sections:[],draft_settings:{},draft_seo:{},
@@ -73,6 +73,21 @@ test('published listing projects summaries and preserves cursor across unpublish
     ['id','updated_at','published_slug','published_title','published_revision','published_at']);
 });
 
+test('slug resolution uses the published unique index and never returns a draft',async()=>{
+  const published={...page,published_slug:'/accueil',published_at:'2026-09-28T00:00:00.000Z'};
+  const h=harness({pagePage:{items:[published],nextAfter:null}});
+  assert.deepEqual((await pagePublishedResolve({slug:'/accueil'},h.context)).output,
+    {pageId:'home',slug:'/accueil'});
+  assert.deepEqual(h.calls[0].args.where,{published_slug:'/accueil'});
+  assert.equal(h.calls[0].args.order,undefined,
+    'the nullable published slug can filter through the index but cannot be a port sort key');
+  assert.equal(h.calls[0].args.limit,1);
+  const unpublished=harness({pagePage:{items:[{...published,published_at:null}],nextAfter:null}});
+  await assert.rejects(pagePublishedResolve({slug:'/accueil'},unpublished.context),{code:'not_found'});
+  await assert.rejects(pagePublishedResolve({slug:'/admin'},harness().context),{code:'not_found'});
+  await assert.rejects(pagePublishedResolve({slug:'//other.example'},h.context),{code:'invalid_input'});
+});
+
 test('navigation starts empty, publishes a snapshot and reset preserves published items',async()=>{
   const item={id:'home',label:'Accueil',href:'/',icon:'Home',group:'brand',order:0,hidden:false};
   const h=harness();
@@ -90,6 +105,27 @@ test('navigation starts empty, publishes a snapshot and reset preserves publishe
   assert.equal(h2.calls.at(-1).args.values.published_items,undefined);
   await assert.rejects(navigationSave({revision:1,items:[{...item,href:'//evil.test'}]},h2.context),
     {code:'invalid_input'});
+});
+
+test('explicit page links publish only a matching published slug; legacy routes remain unchanged',async()=>{
+  const linked={id:'help',label:'Aide',href:'/aide',pageSlug:'/aide',icon:'',group:'',order:0,hidden:false};
+  const h=harness({navigation:{id:'primary',draft_items:[linked],published_items:[],revision:1,
+    published_revision:0,updated_at:'2026-09-28T00:00:00.000Z',published_at:null},
+    pagePage:{items:[{...page,published_slug:'/aide',published_at:'2026-09-28T00:00:00.000Z'}]}});
+  assert.deepEqual((await navigationPublish({revision:1},h.context)).output.navigation.items,[linked]);
+  assert.deepEqual(h.calls.find(call=>call.kind==='list').args.where,{published_slug:'/aide'});
+  const missing=harness({navigation:{
+    id:'primary',draft_items:[linked],published_items:[],revision:1,published_revision:0}});
+  await assert.rejects(navigationPublish({revision:1},missing.context),{code:'not_found'});
+  await assert.rejects(navigationSave({revision:0,items:[{...linked,href:'/other'}]},harness().context),
+    {code:'invalid_input'});
+  const hundred=Array.from({length:100},(_,index)=>({...linked,id:`link-${index}`,
+    href:`/page-${index}`,pageSlug:`/page-${index}`}));
+  const budget=harness({navigation:{id:'primary',draft_items:hundred,published_items:[],revision:1,
+    published_revision:0},pagePage:{items:[{...page,published_at:'2026-09-28T00:00:00.000Z'}]}});
+  await navigationPublish({revision:1},budget.context);
+  assert.equal(budget.calls.filter(call=>call.kind==='list').length,100);
+  assert.equal(manifest.contracts.operations.find(op=>op.id==='navigation.publish').execution.maxItems,102);
 });
 
 test('private R2 link and unlink pair page CAS with relation, without deleting file',async()=>{

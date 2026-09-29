@@ -9,7 +9,7 @@ export type DraftPage=PageSummary&{sections:LandingSectionView[];settings:Landin
 export type PublishedPage={id:string;slug:string;title:string;sections:LandingSectionView[];
   settings:LandingSettingsView;seo:Seo;publishedRevision:number;publishedAt:string};
 export type PublishedPageSummary=Pick<PublishedPage,'id'|'slug'|'title'|'publishedRevision'|'publishedAt'>;
-export type NavItem={id:string;label:string;href:string;icon:string;group:string;order:number;hidden:boolean};
+export type NavItem={id:string;label:string;href:string;icon:string;group:string;order:number;hidden:boolean;pageSlug?:string};
 export type Navigation={items:NavItem[];revision:number;publishedRevision:number;
   updatedAt:string|null;publishedAt:string|null};
 export type PublishedNavigation={items:NavItem[];publishedRevision:number;publishedAt:string|null};

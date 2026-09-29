@@ -4,7 +4,7 @@ import {manifest} from '../helpers.mjs';
 
 test('admin editing and authenticated published reads have distinct permissions',()=>{
   const operations=manifest.contracts.operations;
-  const published=new Set(['page.published.list','page.published.read','navigation.published']);
+  const published=new Set(['page.published.list','page.published.read','page.published.resolve','navigation.published']);
   for(const op of operations){
     assert.deepEqual(op.audiences,published.has(op.id)?['admin','app']:['admin']);
     assert.equal(op.permissions[0].id,published.has(op.id)?'view':'edit');

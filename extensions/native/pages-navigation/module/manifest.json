@@ -397,6 +397,46 @@
         }
       },
       {
+        "id": "published-slug-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            }
+          },
+          "required": [
+            "slug"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "published-slug-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "pageId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "slug": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            }
+          },
+          "required": [
+            "pageId",
+            "slug"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
         "id": "page-list-input",
         "schema": {
           "type": "object",
@@ -822,6 +862,11 @@
                       },
                       "hidden": {
                         "type": "boolean"
+                      },
+                      "pageSlug": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 160
                       }
                     },
                     "required": [
@@ -933,6 +978,11 @@
                       },
                       "hidden": {
                         "type": "boolean"
+                      },
+                      "pageSlug": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 160
                       }
                     },
                     "required": [
@@ -1032,6 +1082,11 @@
                   },
                   "hidden": {
                     "type": "boolean"
+                  },
+                  "pageSlug": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
                   }
                 },
                 "required": [
@@ -1536,6 +1591,11 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 128
+            },
+            "slug": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
             }
           },
           "required": [],
@@ -3498,6 +3558,120 @@
         "public": false
       },
       {
+        "id": "page.published.resolve",
+        "title": "Résoudre le slug publié",
+        "kind": "query",
+        "input": {
+          "schemaId": "published-slug-input"
+        },
+        "output": {
+          "schemaId": "published-slug-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "view"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "pagePublishedResolve"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 1,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
         "id": "navigation.read",
         "title": "Lire la navigation en édition",
         "kind": "query",
@@ -3768,6 +3942,11 @@
               "moduleId": "creezio.pages-navigation",
               "kind": "model",
               "id": "navigation"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
             }
           ],
           "writes": [
@@ -3841,7 +4020,7 @@
         },
         "execution": {
           "maxDurationMs": 10000,
-          "maxItems": 100,
+          "maxItems": 102,
           "resumable": false
         },
         "audit": {
@@ -4845,6 +5024,74 @@
         }
       },
       {
+        "id": "admin.page.published.resolve",
+        "method": "GET",
+        "path": "/api/admin/pages-navigation/page/published/resolve",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "page.published.resolve"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "query",
+            "inputField": "slug",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "published-slug-input"
+        },
+        "output": {
+          "schemaId": "published-slug-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.page.published.resolve",
+        "method": "GET",
+        "path": "/api/app/pages-navigation/page/published/resolve",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "page.published.resolve"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "query",
+            "inputField": "slug",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "published-slug-input"
+        },
+        "output": {
+          "schemaId": "published-slug-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
         "id": "admin.navigation.read",
         "method": "GET",
         "path": "/api/admin/pages-navigation/navigation/read",
@@ -5373,6 +5620,36 @@
           "textFallback": true
         },
         {
+          "id": "page.published.resolve",
+          "name": "pages_page_published_resolve",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "page.published.resolve"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "published-slug-input"
+          },
+          "output": {
+            "schemaId": "published-slug-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
           "id": "navigation.read",
           "name": "pages_navigation_read",
           "operation": {
@@ -5761,6 +6038,11 @@
             {
               "moduleId": "creezio.pages-navigation",
               "kind": "operation",
+              "id": "page.published.resolve"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
               "id": "navigation.read"
             },
             {
@@ -5844,6 +6126,11 @@
             {
               "moduleId": "creezio.pages-navigation",
               "kind": "operation",
+              "id": "page.published.resolve"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
               "id": "navigation.published"
             }
           ],
@@ -5858,6 +6145,46 @@
             "stateSchema": {
               "schemaId": "editor-panel-state"
             }
+          }
+        },
+        {
+          "id": "editorial-nav",
+          "title": "Navigation publiée",
+          "surfaces": [
+            "front"
+          ],
+          "route": "/pages/editorial-nav",
+          "component": {
+            "path": "ui/front-nav.tsx",
+            "export": "PublishedEditorialNavigation"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "permission",
+              "id": "view"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "navigation.published"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.published.resolve"
+            }
+          ],
+          "input": {
+            "schemaId": "empty-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend"
           }
         }
       ],
@@ -5903,7 +6230,27 @@
           "order": 40
         }
       ],
-      "slots": [],
+      "slots": [
+        {
+          "id": "published-navigation",
+          "slot": "front.header",
+          "view": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "view",
+            "id": "editorial-nav"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "permission",
+              "id": "view"
+            }
+          ],
+          "surfaces": [
+            "front"
+          ]
+        }
+      ],
       "front": {
         "mode": "provided"
       },
@@ -6042,6 +6389,9 @@
         "ui/contracts.ts",
         "ui/index.tsx",
         "ui/front-page.tsx",
+        "ui/front-nav.tsx",
+        "ui/front-link.ts",
+        "ui/seo.ts",
         "ui/prefabs.tsx",
         "ui/landing.css",
         "ui/types.ts",

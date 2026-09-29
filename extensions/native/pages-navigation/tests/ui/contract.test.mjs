@@ -4,6 +4,58 @@ import {manifest,read} from '../helpers.mjs';
 import {createReadGeneration,pageScopeAfter,panelBelongsToScope,parseContentInput,requiresPageReset,samePageSelection} from '../../ui/state.ts';
 import {createCommandJournal} from '@creezio/sdk/operations/command-journal';
 import {operationResult} from '../../ui/contracts.ts';
+import {activatePublishedSeo} from '../../ui/seo.ts';
+import {editorialHref,editorialLinkActive} from '../../ui/front-link.ts';
+
+function fakeDocument(){
+  const elements=[];
+  class Element{
+    constructor(kind){this.kind=kind;this.attrs=new Map();this.dataset={};}
+    getAttribute(name){return this.attrs.get(name)??null;}
+    setAttribute(name,value){this.attrs.set(name,String(value));}
+    removeAttribute(name){this.attrs.delete(name);}
+    set name(value){this.setAttribute('name',value);}
+    set content(value){this.setAttribute('content',value);}
+    set rel(value){this.setAttribute('rel',value);}
+    set href(value){this.setAttribute('href',value);}
+    remove(){const at=elements.indexOf(this);if(at>=0)elements.splice(at,1);}
+  }
+  const head={appendChild:element=>{elements.push(element);return element;},
+    querySelector(selector){return elements.find(element=>selector==='meta[name="description"]'
+      ?element.kind==='meta'&&element.getAttribute('name')==='description'
+      :element.kind==='link'&&element.getAttribute('rel')==='canonical')??null;}};
+  return {title:'Creezio',location:{origin:'https://example.invalid'},head,
+    createElement:kind=>new Element(kind),elements};
+}
+
+test('active published SEO restores shared head values without overwriting a newer view',()=>{
+  const doc=fakeDocument(),base=doc.createElement('meta');base.name='description';base.content='Application';
+  doc.head.appendChild(base);
+  const release=activatePublishedSeo(doc,{title:'Page',seo:{title:'Bienvenue',description:'Résumé',canonical:'/pages?slug=%2F'}});
+  assert.equal(doc.title,'Bienvenue');
+  assert.equal(base.getAttribute('content'),'Résumé');
+  assert.equal(doc.head.querySelector('link[rel="canonical"]').getAttribute('href'),
+    'https://example.invalid/pages?slug=%2F');
+  release();
+  assert.equal(doc.title,'Creezio');
+  assert.equal(base.getAttribute('content'),'Application');
+  assert.equal(doc.head.querySelector('link[rel="canonical"]'),null);
+  const stale=activatePublishedSeo(doc,{title:'Autre',seo:{description:'Ancien'}});
+  doc.title='Une autre vue';base.content='Nouveau';stale();
+  assert.equal(doc.title,'Une autre vue');
+  assert.equal(base.getAttribute('content'),'Nouveau');
+});
+
+test('published page links have canonical anchors and active state; external routes stay intact',()=>{
+  const pageLink={pageSlug:'/aide',href:'/aide'};
+  assert.equal(editorialHref(pageLink),'/pages?slug=%2Faide');
+  assert.equal(editorialLinkActive(pageLink,'/pages?slug=%2Faide'),true);
+  assert.equal(editorialLinkActive(pageLink,'/pages?slug=%2Fautre'),false);
+  assert.equal(editorialHref({href:'/crm'}),'/crm');
+  assert.equal(editorialLinkActive({href:'/crm'},'/crm'),true);
+  assert.equal(editorialLinkActive({href:'/aide'},'/pages?slug=%2Faide'),true,
+    'the historical link follows a resolved page on ordinary navigation');
+});
 
 test('an unconfirmed server execution cannot be presented as a rejected write',()=>{
   for(const state of ['claimed','running','unknown']){
@@ -33,14 +85,23 @@ test('original five section prefabs remain available in the native editor',()=>{
 test('front only reads published snapshots under authenticated app permission',()=>{
   const front=read('ui/front-page.tsx');
   assert.match(front,/page\.published\.list/);
-  assert.match(front,/navigation\.published/);
+  assert.match(front,/page\.published\.resolve/);
   assert.doesNotMatch(front,/page\.save|navigation\.save/);
   assert.match(front,/if\(!enabled\|\|!ownScope\)return/,
     'old published content must be hidden before the new scope reset effect runs');
   const view=manifest.contracts.ui.views.find(item=>item.id==='front');
   assert.deepEqual(view.permissions.map(item=>item.id),['view']);
-  assert.ok(view.operations.every(item=>['page.published.list','page.published.read','navigation.published']
+  assert.ok(view.operations.every(item=>['page.published.list','page.published.read','page.published.resolve','navigation.published']
     .includes(item.id)));
+  const slot=manifest.contracts.ui.slots.find(item=>item.id==='published-navigation');
+  assert.equal(slot.slot,'front.header');
+  assert.equal(slot.view.id,'editorial-nav');
+  assert.deepEqual(slot.permissions.map(item=>item.id),['view']);
+  const editorial=manifest.contracts.ui.views.find(item=>item.id==='editorial-nav');
+  assert.deepEqual(editorial.operations.map(item=>item.id),['navigation.published','page.published.resolve']);
+  assert.match(read('ui/front-nav.tsx'),/navigation\.published/);
+  assert.match(read('ui/front-nav.tsx'),/editorialHref\(item\)/,
+    'a page link has a canonical anchor before any click');
 });
 
 test('inactive pages retain their draft, while identity and context changes invalidate it',()=>{

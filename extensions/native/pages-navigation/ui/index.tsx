@@ -470,8 +470,12 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
       <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left text-slate-500">
         <th className="p-2">Lien</th><th className="p-2">Libellé</th><th className="p-2">Visible</th><th className="p-2">Ordre</th><th className="p-2">Actions</th></tr></thead>
         <tbody>{navEdited.items.map((item,index)=><tr key={item.id} className="border-b">
-          <td className="p-2"><input className={input} value={item.href} onChange={e=>setNavEdited({...navEdited,
-            items:navEdited.items.map(row=>row.id===item.id?{...row,href:e.target.value}:row)})}/></td>
+          <td className="p-2"><input className={input} aria-label="Lien ou route" value={item.href} disabled={!!item.pageSlug} onChange={e=>setNavEdited({...navEdited,
+            items:navEdited.items.map(row=>row.id===item.id?{...row,href:e.target.value}:row)})}/>
+            <input className={input} aria-label="Chemin de page publiée (facultatif)" placeholder="Page publiée : /aide"
+              value={item.pageSlug??''} onChange={e=>setNavEdited({...navEdited,
+                items:navEdited.items.map(row=>row.id===item.id?{...row,
+                  ...(e.target.value?{href:e.target.value,pageSlug:e.target.value}:{pageSlug:undefined})}:row)})}/></td>
           <td className="p-2"><input className={input} value={item.label} onChange={e=>setNavEdited({...navEdited,
             items:navEdited.items.map(row=>row.id===item.id?{...row,label:e.target.value}:row)})}/></td>
           <td className="p-2"><input type="checkbox" checked={!item.hidden} onChange={e=>setNavEdited({...navEdited,
