@@ -108,9 +108,13 @@ function executionResult(execution: Awaited<ReturnType<Engine['status']>>, repla
   return {content: [{type: 'text', text: JSON.stringify(envelope)}], ...(structuredContent ? {structuredContent} : {})};
 }
 
-/** One stateless MCP exchange per request, routed by the host to an exact audience path. */
-export function createMcpHttpTransport(catalog: McpCatalog, registry: OperationRegistry, engine: Engine, options: McpHttpOptions) {
+/** Validate the static catalog once; each transport still binds its own engine and live request options. */
+export function createMcpHttpTransportFactory(catalog: McpCatalog, registry: OperationRegistry) {
   const index = createMcpCatalog(catalog, registry);
+  return (engine: Engine, options: McpHttpOptions) => createTransportWithIndex(index, engine, options);
+}
+
+function createTransportWithIndex(index: ReturnType<typeof createMcpCatalog>, engine: Engine, options: McpHttpOptions) {
   const origin = new URL(options.origin);
   const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname);
   if (origin.protocol !== 'https:' && !(origin.protocol === 'http:' && loopback)
@@ -229,4 +233,9 @@ export function createMcpHttpTransport(catalog: McpCatalog, registry: OperationR
       return new Response(response.body, {status: response.status, statusText: response.statusText, headers});
     },
   });
+}
+
+/** One stateless MCP exchange per request, routed by the host to an exact audience path. */
+export function createMcpHttpTransport(catalog: McpCatalog, registry: OperationRegistry, engine: Engine, options: McpHttpOptions) {
+  return createMcpHttpTransportFactory(catalog, registry)(engine, options);
 }

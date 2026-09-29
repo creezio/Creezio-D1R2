@@ -5,14 +5,13 @@ import { gzipSync } from 'node:zlib';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 
-// The selected local composition includes Support, Pages and Analytics with
-// their handlers, static validators and original SSR views. The T19/T21/T22
-// build measured 8,066,612 raw / 1,254,636 gzip bytes (83 Worker files).
-// Keep under 3% raw-size margin. The existing gzip, graph and timing ceilings
-// remain unchanged. New compositions must
-// still be measured explicitly rather than treated as arbitrarily extensible.
+// The selected composition now includes six self-contained CRM widget renderers.
+// CI at 619e95e measured 11,931,616 raw / 2,068,665 gzip bytes (83 Worker files).
+// Keep less than 3% margin for both sizes; graph and timing ceilings are unchanged.
+// Each widget remains independently consumable by MCP Apps hosts. New compositions
+// must still be measured explicitly rather than treated as arbitrarily extensible.
 // They are neither provider quotas nor production latency guarantees.
-export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 8_300_000, workerGzipBytes: 1_290_000,
+export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 12_250_000, workerGzipBytes: 2_130_000,
   selectedGraphInputs: 32, startupMs: 15_000, routeMs: 3_000 });
 
 export function assertRuntimeBudgets(report) {

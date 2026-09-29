@@ -11,7 +11,7 @@ import {createOpenAiProviderHost, readProviderKeyring} from './core/providers/ho
 import { createOperationRegistry } from './core/operations/registry';
 import { createDeclaredHttpDispatcher } from './core/operations/http';
 import { createOperationEngine } from './core/operations/service';
-import { createMcpHttpTransport } from './core/mcp/http';
+import { createMcpHttpTransportFactory } from './core/mcp/http';
 import { createMcpAuthentication } from './core/mcp/authentication';
 import { dispatchOAuthHttp } from './core/oauth/http';
 import { oauthResourceMetadataUrl } from './core/oauth/protocol';
@@ -19,6 +19,7 @@ import { resolveAccessHttpConfiguration } from './core/identity/http-policy';
 import {createWidgetApprovalService} from './core/widgets/approval';
 
 const registry = createOperationRegistry({catalog: operationCatalog, validators: operationValidators, handlers: operationHandlers});
+const mcpTransportFactory = createMcpHttpTransportFactory(mcpCatalog, registry);
 const declaredHttp = createDeclaredHttpDispatcher({registry, dataCatalog, fileCatalog, permissions, bindings: httpBindings,
   workspaceCatalog, frontCatalog, runtimeInventory, toolCatalog, widgetCatalog, widgetValidators, connectors, ...(openAiProvider ? {openAiProvider} : {})});
 const oauthHttp = {dispatch(request: Request, resolved: Parameters<typeof dispatchOAuthHttp>[1], rawEnvironment: unknown,
@@ -44,7 +45,7 @@ const mcpHttp = {async dispatch(request: Request, resolved: Parameters<typeof di
     ...(openAiProvider && keyring ? {providerSecrets:{storage:openAiProvider.vault,keyring,providerId:'openai.responses.v1'}} : {}),
     files:{catalog:fileCatalog,bucket:resolved.bindings.BUCKET as unknown as FileBucket}});
   const authentication = createMcpAuthentication(resolved.bindings.DB, permissions);
-  return createMcpHttpTransport(mcpCatalog, registry, engine, {
+  return mcpTransportFactory(engine, {
     origin: configuration.origin,
     resourceMetadataUrl: selected => oauthResourceMetadataUrl(configuration.origin, selected),
     authenticate: authentication.authenticate,
