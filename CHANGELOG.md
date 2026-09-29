@@ -4,6 +4,10 @@
 
 Quand un tour `unknown` récupère une réponse fournisseur connue et ajoute une continuation après un résultat d'outil, le même batch D1 remet le tour `running` et efface `provider_unknown`. Le résultat d'outil rejeté reste visible comme tel. Un test ciblé couvre la transition sans recréer la réponse initiale ; aucune réponse finale du Site T61 n'est encore revendiquée.
 
+## En qualification — environnement des archives et preuve Docker (T02/T03)
+
+Les commandes Node des archives de validation reçoivent un environnement limité aux chemins système nécessaires et à un répertoire temporaire propre à l'assemblage ; une sentinelle vérifie l'absence de variables ambiantes chez l'enfant et son descendant, et la gate Support passe avec le SDK public 1.4.1. Ce contrôle ne constitue pas une isolation du système de fichiers ou du réseau. REQ-0302 est reliée à la recette Docker T31 existante, image bâtie depuis les sources et le lockfile puis redémarrage avec D1/R2 conservés ; aucune nouvelle image n'est construite pour cette mise en documentation.
+
 ## En qualification — chaîne de trois éditeurs (REQ-3004)
 
 Un hôte de test installe trois archives npm d'origines distinctes et compile la chaîne obligatoire A → B → C. L'intégration D facultative reste absente et seule sa contribution est désactivée. Les refus d'absence, d'origine, de version, de contrat et d'altération sont exercés. Le SDK public 1.4.1 est vérifié dans une qualification locale séparée ; aucun module métier ni service tiers n'est ajouté au produit.

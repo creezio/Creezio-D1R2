@@ -122,6 +122,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Besoin : [US-02](USER-STORIES.md#US-02). Acceptation : [REQ-0201](EXIGENCES.md#REQ-0201), [REQ-0202](EXIGENCES.md#REQ-0202), [REQ-0203](EXIGENCES.md#REQ-0203), [REQ-0204](EXIGENCES.md#REQ-0204).
 - Validation : implémenter puis exécuter les recettes liées, sur **local et CI, puis intégration des modules** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : [réalisation T-02](IMPLEMENTATION-T02.md), checkpoint/revue exacte conservés hors sources ; PR #2 intégrée en `61c70fd`, 195 tests distants réussis et CI du nouveau main verte. Livrable statique consommable, sans installation ou runtime module qualifié par ces fixtures.
+- Complément REQ-0203 : le lanceur des archives assemblées transmet aux commandes de validation un environnement borné sans secrets ambiants ; test sentinelle dans un processus enfant et son descendant, puis gate réelle Support avec SDK 1.4.1. Cette borne d'environnement ne remplace ni la politique d'origine ni l'isolation OS du code tiers. Voir [T-02](IMPLEMENTATION-T02.md#complément-req-0203--archives-de-validation).
 
 <a id="T-03"></a>
 ## T-03 — Runtime commun et démarrage local
@@ -132,6 +133,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Besoin : [US-03](USER-STORIES.md#US-03). Acceptation : [REQ-0301](EXIGENCES.md#REQ-0301), [REQ-0302](EXIGENCES.md#REQ-0302), [REQ-0303](EXIGENCES.md#REQ-0303).
 - Validation : implémenter puis exécuter les recettes liées, sur **local workerd/Miniflare** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : [réalisation T-03](IMPLEMENTATION-T03.md), checkpoint local `4d97e9e` et revue exacte conservés hors sources. Build/types, workerd et persistance D1/R2 après redémarrage vérifiés ; PR #3 intégrée en `b14cef7`, 245 tests distants réussis et CI du nouveau main verte. Ce livrable permet T-04 ; aucune qualification Sites/Cloudflare ni CMS complet acquise.
+- Complément REQ-0302 : la recette Docker T-31 lie une image bâtie depuis sources et lockfile, `npm ci --ignore-scripts`, contexte sans dépendances locales ni secrets, au démarrage et à la conservation D1/R2 après redémarrage. Voir [T-03](IMPLEMENTATION-T03.md#preuves-et-limites) et [T-31](IMPLEMENTATION-T31.md) ; cette preuve n'est pas une nouvelle exécution Docker.
 
 <a id="T-04"></a>
 ## T-04 — Identités, comptes et droits

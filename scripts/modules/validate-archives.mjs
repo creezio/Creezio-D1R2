@@ -124,6 +124,19 @@ function checkModule(directory,sdk){
   }
   return {directory,manifest,artifacts,imports};
 }
+// Archive code runs as Node children; pass only the OS paths needed by Node and
+// a temporary directory owned by this validation run. Nested test children
+// inherit this same restricted environment.
+export function runClosedArchiveNode(stage,args,options){
+  const temporary=join(stage,'child-tmp');
+  mkdirSync(temporary,{recursive:true});
+  const env={PATH:dirname(process.execPath),TMP:temporary,TEMP:temporary,TMPDIR:temporary};
+  if(process.platform==='win32'){
+    if(process.env.SystemRoot)env.SystemRoot=process.env.SystemRoot;
+    if(process.env.WINDIR)env.WINDIR=process.env.WINDIR;
+  }
+  return execFileSync(process.execPath,args,{...options,env});
+}
 function executeClosed(stage,sdkArchive,sdk,checked,results){
   const scoped=join(stage,'node_modules/@creezio');
   mkdirSync(scoped,{recursive:true});
@@ -144,10 +157,10 @@ function executeClosed(stage,sdkArchive,sdk,checked,results){
     scanNoLinks(assembled);
     const files=['module/manifest.json','module/models.json'];
     const before=files.map(name=>sha256(readFileSync(join(assembled,name))));
-    execFileSync(process.execPath,['module/generate-manifest.mjs'],{cwd:assembled,timeout:30000});
+    runClosedArchiveNode(stage,['module/generate-manifest.mjs'],{cwd:assembled,timeout:30000});
     if(files.some((name,index)=>sha256(readFileSync(join(assembled,name)))!==before[index]))
       throw Error(`${directory}: generator changed packaged contract`);
-    const gate=JSON.parse(execFileSync(process.execPath,['gate.mjs'],{cwd:assembled,encoding:'utf8',
+    const gate=JSON.parse(runClosedArchiveNode(stage,['gate.mjs'],{cwd:assembled,encoding:'utf8',
       timeout:90000,maxBuffer:8*1024*1024}));
     const suites=['backend','ui','api-mcp','widgets','package','docs'];
     if(!Array.isArray(gate.results)||gate.results.length!==suites.length

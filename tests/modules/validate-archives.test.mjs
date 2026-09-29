@@ -4,7 +4,7 @@ import {existsSync,mkdtempSync,mkdirSync,rmdirSync,writeFileSync,unlinkSync} fro
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {parseArchiveValidationArgs,assertArchiveValidationStage,inspectSdkTarEntries,
-  packArchiveValidationArtifacts,runArchiveValidation}
+  packArchiveValidationArtifacts,runArchiveValidation,runClosedArchiveNode}
   from '../../scripts/modules/validate-archives.mjs';
 
 const digest='a'.repeat(64);
@@ -40,6 +40,27 @@ test('wrong SDK digest refuses before creating an assembly',t=>{
   t.after(()=>{unlinkSync(fake);rmdirSync(temp);});
   assert.throws(()=>runArchiveValidation(['--sdk-archive',fake,'--sdk-sha256',digest,
     'extensions/native/pages-navigation']),/SDK archive digest mismatch/);
+});
+
+test('archive validation children and their descendants do not inherit ambient secrets',t=>{
+  const stage=mkdtempSync(path.join(tmpdir(),'creezio-archive-child-env-'));
+  const marker='CREEZIO_ARCHIVE_TEST_SECRET';
+  const prior=process.env[marker];
+  t.after(()=>{
+    if(prior===undefined)delete process.env[marker];else process.env[marker]=prior;
+    rmdirSync(path.join(stage,'child-tmp'));
+    rmdirSync(stage);
+  });
+  process.env[marker]='sentinel-not-a-real-secret';
+  const script=`const {execFileSync}=require('node:child_process');
+    const nested=execFileSync(process.execPath,['-e','process.stdout.write(String(process.env.${marker}??"absent"))'],{encoding:'utf8'});
+    process.stdout.write(JSON.stringify({direct:process.env.${marker}??'absent',nested,
+      nodeOptions:process.env.NODE_OPTIONS??'absent',temporary:require('node:os').tmpdir()}));`;
+  const observed=JSON.parse(runClosedArchiveNode(stage,['-e',script],
+    {cwd:stage,encoding:'utf8',timeout:10000}));
+  assert.deepEqual({direct:observed.direct,nested:observed.nested,nodeOptions:observed.nodeOptions},
+    {direct:'absent',nested:'absent',nodeOptions:'absent'});
+  assert.equal(observed.temporary,path.join(stage,'child-tmp'));
 });
 
 test('closed validation packs deterministic runtime and validation archives on an empty cache',t=>{
