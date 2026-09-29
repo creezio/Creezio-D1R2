@@ -31,23 +31,8 @@ const bundled=await build({absWorkingDir:root,bundle:true,write:false,metafile:t
 if(Object.values(bundled.metafile.outputs).some(output=>output.imports.length))throw new Error('Operator contains unresolved imports.');
 const code=bundled.outputFiles[0].text;
 writeFileSync(path.join(target,'operator.mjs'),code);
-writeFileSync(path.join(target,'build.mjs'),`import {mkdirSync,copyFileSync,lstatSync} from 'node:fs';
-import path from 'node:path';
-const root=process.cwd();
-for(const relative of ['.','operator.mjs','dist','dist/server','dist/server/index.js']){
-  const target=path.resolve(root,relative);
-  for(let cursor=target;;cursor=path.dirname(cursor)){
-    const stat=lstatSync(cursor,{throwIfNoEntry:false});
-    if(stat?.isSymbolicLink())throw new Error('Linked operator build path refused.');
-    if(cursor===path.dirname(cursor))break;
-  }
-  const stat=lstatSync(target,{throwIfNoEntry:false});
-  if(stat&&(['operator.mjs','dist/server/index.js'].includes(relative)?!stat.isFile():!stat.isDirectory()))
-    throw new Error('Non-regular operator build path refused.');
-}
-mkdirSync('dist/server',{recursive:true});
-copyFileSync('operator.mjs','dist/server/index.js');
-`);
+writeFileSync(path.join(target,'build.mjs'),
+  readFileSync(new URL('./artifacts.mjs',import.meta.url),'utf8')+'\nawait buildOperator();\n');
 writeFileSync(path.join(target,'package.json'),JSON.stringify({name:'creezio-hosted-installer',private:true,type:'module',
   scripts:{build:'node build.mjs'}},null,2)+'\n');
 if(!existsSync(path.join(target,'.gitignore')))writeFileSync(path.join(target,'.gitignore'),'.env*\n.dev.vars*\n*.clixml\nnode_modules/\ndist/\n.sites-runtime/\n.wrangler/\n');

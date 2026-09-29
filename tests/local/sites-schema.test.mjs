@@ -1,13 +1,19 @@
 import '../../scripts/local-environment.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync,mkdtempSync,readdirSync,lstatSync,unlinkSync,rmdirSync,writeFileSync,symlinkSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+import {readFileSync,mkdtempSync,readdirSync,lstatSync,unlinkSync,rmdirSync,writeFileSync,symlinkSync,mkdirSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {Miniflare} from 'miniflare';
 import {compileCompositionSchema} from '../../scripts/data/composition-schema.mjs';
 import {contractIntegrity} from '../../sdk/contracts/validate.mjs';
 import {prepareSitesSchema} from '../../scripts/sites/schema.mjs';
+import {inspectSitesMetadata,stageSitesMetadata,verifySitesMetadata} from '../../scripts/sites/artifacts.mjs';
+import {planSitesExport,writeSitesArchive} from '../../scripts/sites/export.mjs';
+import {sourceIdentity} from '../../scripts/quality/evidence.mjs';
+import {measureRuntimeArtifacts} from '../../scripts/quality/runtime.mjs';
 
 const json=name=>JSON.parse(readFileSync(new URL(name,import.meta.url),'utf8'));
 function plan(){
@@ -134,4 +140,93 @@ test('Sites central evolution rejects changed constraints and non-null column ad
     const journal=JSON.parse(readFileSync(path.join(directory,'drizzle/meta/_journal.json'),'utf8'));
     assert.equal(journal.entries.length,1);
   }finally{dispose(directory);}
+});
+
+test('Sites operator archive contains every central migration across two evolutions and rejects alteration',()=>{
+  const directory=mkdtempSync(path.join(tmpdir(),'creezio-sites-package-'));
+  const outputs=mkdtempSync(path.join(tmpdir(),'creezio-sites-package-output-'));
+  const application=mkdtempSync(path.join(tmpdir(),'creezio-sites-package-app-'));
+  try{
+    mkdirSync(path.join(directory,'.openai'));
+    writeFileSync(path.join(directory,'.openai/hosting.json'),
+      JSON.stringify({project_id:'appgprj_test',d1:'DB',r2:'BUCKET'})+'\n');
+    prepareSitesSchema(taskPlan(),directory);
+    const next=prepareSitesSchema(taskPlan({snapshot:true,index:true}),directory);
+    const history=JSON.parse(readFileSync(path.join(directory,'db/creezio-schema-history.json'),'utf8'));
+    assert.equal(history.files.length,5);
+    const code='export default {fetch(){return new Response("operator");}};\n';
+    writeFileSync(path.join(directory,'operator.mjs'),code);
+    writeFileSync(path.join(directory,'build.mjs'),
+      readFileSync(new URL('../../scripts/sites/artifacts.mjs',import.meta.url),'utf8')+
+      '\nawait buildOperator();\n');
+    writeFileSync(path.join(directory,'package.json'),JSON.stringify({type:'module'})+'\n');
+    const operatorDigest='sha256-'+createHash('sha256').update(code).digest('hex');
+    writeFileSync(path.join(directory,'operator-provenance.json'),JSON.stringify({
+      projectId:'appgprj_test',applicationId:history.applicationId,
+      compositionDigest:history.compositionDigest,planDigest:'sha256-test',
+      operatorDigest,schemaObjects:history.objects.length})+'\n');
+    execFileSync(process.execPath,['build.mjs'],{cwd:directory,timeout:10_000});
+    const built=inspectSitesMetadata(directory);
+    assert.equal(built.files.length,6);
+    assert.equal(readFileSync(path.join(directory,'dist/server/index.js'),'utf8'),code);
+    assert.equal(verifySitesMetadata(directory,directory).digest,built.digest);
+    writeFileSync(path.join(directory,'.gitignore'),'dist/\n');
+    execFileSync('git',['-C',directory,'init','-q']);
+    execFileSync('git',['-C',directory,'-c','core.autocrlf=false','add','.']);
+    execFileSync('git',['-C',directory,'-c','user.name=Sites Test','-c',
+      'user.email=sites@example.invalid','commit','-q','-m','synthetic operator']);
+    const plan=planSitesExport('operator',directory);
+    const archive=path.join(outputs,'operator.tar.gz'),receipt=path.join(outputs,'operator.json');
+    writeFileSync(path.join(directory,'dist/server/index.js'),'changed');
+    assert.throws(()=>writeSitesArchive(plan,archive,receipt),/differs|changed/);
+    writeFileSync(path.join(directory,'dist/server/index.js'),code);
+    const evidence=writeSitesArchive(plan,archive,receipt);
+    assert.equal(evidence.archive.files.length,7);
+    assert(evidence.archive.files.some(file=>file.path==='dist/.openai/'+next.migration));
+    assert(evidence.archive.files.some(file=>file.path==='dist/.openai/drizzle/meta/0000_snapshot.json'));
+    assert(!evidence.archive.files.some(file=>file.path==='operator.mjs'));
+    assert.equal(JSON.parse(readFileSync(receipt,'utf8')).metadataDigest,built.digest);
+    assert.throws(()=>writeSitesArchive(plan,archive,receipt),/already exists/);
+    writeFileSync(path.join(application,'.gitignore'),'.quality/\ndist/\n');
+    writeFileSync(path.join(application,'app.js'),'export default "synthetic";\n');
+    execFileSync('git',['-C',application,'init','-q']);
+    execFileSync('git',['-C',application,'-c','core.autocrlf=false','add','.gitignore','app.js']);
+    execFileSync('git',['-C',application,'-c','user.name=Sites Test','-c',
+      'user.email=sites@example.invalid','commit','-q','-m','synthetic source']);
+    mkdirSync(path.join(application,'dist/server'),{recursive:true});
+    mkdirSync(path.join(application,'dist/client'),{recursive:true});
+    mkdirSync(path.join(application,'.quality'));
+    writeFileSync(path.join(application,'dist/server/index.js'),'export default "Worker";\n');
+    writeFileSync(path.join(application,'dist/client/index.html'),'<main>Site</main>\n');
+    const appMetadata=stageSitesMetadata(directory,application,{projectId:'appgprj_test',
+      compositionDigest:history.compositionDigest});
+    const appArtifact=measureRuntimeArtifacts(application),appSource=sourceIdentity(application);
+    const buildReceipt={projectId:'appgprj_test',compositionDigest:history.compositionDigest,
+      source:appSource,artifact:appArtifact,metadata:appMetadata};
+    writeFileSync(path.join(application,'.quality/sites-build.json'),JSON.stringify(buildReceipt));
+    const appPlan=planSitesExport('app',directory,{applicationRoot:application});
+    const appArchive=path.join(outputs,'app.tar.gz'),appReceipt=path.join(outputs,'app.json');
+    const appEvidence=writeSitesArchive(appPlan,appArchive,appReceipt);
+    assert(appEvidence.archive.files.some(file=>file.path==='dist/server/index.js'));
+    assert(appEvidence.archive.files.some(file=>file.path==='dist/.openai/'+next.migration));
+    assert(!appEvidence.archive.files.some(file=>file.path==='app.js'||file.path===next.migration));
+    buildReceipt.metadata.digest='sha256-'+'0'.repeat(64);
+    writeFileSync(path.join(application,'.quality/sites-build.json'),JSON.stringify(buildReceipt));
+    assert.throws(()=>planSitesExport('app',directory,{applicationRoot:application}),/differs/);
+    writeFileSync(path.join(directory,'dist/.openai',next.migration),'changed');
+    assert.throws(()=>verifySitesMetadata(directory,directory),/differs/);
+    writeFileSync(path.join(directory,'dist/.openai',next.migration),
+      readFileSync(path.join(directory,next.migration)));
+    writeFileSync(path.join(directory,'dist/.openai/unexpected.txt'),'extra');
+    assert.throws(()=>verifySitesMetadata(directory,directory),/unexpected files/);
+    unlinkSync(path.join(directory,'dist/.openai/unexpected.txt'));
+    writeFileSync(path.join(directory,'dist/unexpected.txt'),'extra');
+    assert.throws(()=>planSitesExport('operator',directory),/dist contains unexpected/);
+    unlinkSync(path.join(directory,'dist/unexpected.txt'));
+    writeFileSync(path.join(directory,'drizzle/unexpected.sql'),'extra');
+    assert.throws(()=>inspectSitesMetadata(directory),/tree differs/);
+    unlinkSync(path.join(directory,'drizzle/unexpected.sql'));
+    writeFileSync(path.join(directory,next.migration),'altered');
+    assert.throws(()=>inspectSitesMetadata(directory),/differs/);
+  }finally{dispose(directory);dispose(outputs);dispose(application);}
 });

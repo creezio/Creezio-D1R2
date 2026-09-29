@@ -1,8 +1,16 @@
 # Changelog
 
+## 29 septembre 2026 — Sites du compte courant et packaging T09 en qualification
+
+Deux nouvelles installations publiques T56, Original et Lab, sont distinctes des Sites version 5 conservés. Leur publication et leur déclaration au registre sont confirmées. Les lectures natives refusent le MCP anonyme en 401 et exposent les catalogues autorisés par audience ; un témoin synthétique par Site conserve réponse OpenAI, brouillon et pièce R2. Le navigateur admin retrouve ces témoins après rechargement, avec le widget de lecture historique sur Lab. L'action directe dans ce widget, un nouveau plugin ChatGPT et le partage des conversations admin avec l'audience app ne sont pas qualifiés.
+
+Le correctif T09 en cours prépare des archives runtime séparées pour l'opérateur et l'application Sites : inventaire fermé de `dist/`, manifeste d'hébergement et historique DDL central contrôlés, source Git et empreintes vérifiées. Cinq tests ciblés passent ; la revue statique et ces tests ne constituent pas encore une CI complète, une archive finale intégrée ni une publication. Le guide [Installation Sites](docs/INSTALLATION-SITES.md) décrit le parcours prévu.
+
 ## 29 septembre 2026 — mise à jour Core Cloudflare en confirmation (T32)
 
 La source `512a7ff1` est active sur la cible Core existante, avec 30 tables et 30 index ajoutés par le plan additif. La relecture opérateur de l'artefact volumineux échoue encore en `content_format` : update `e11287c4` en `delivery-unknown`, journal de publication `prepared`. Ni livraison attestée ni registre synchronisé ni conservation après update ne sont encore revendiqués. Voir [T32](docs/IMPLEMENTATION-T32.md).
+
+La correction ultérieure de la borne de lecture a permis de confirmer **ce même update** sans renvoyer l'artefact applicatif. L'application source `512a7ff1` garde le digest `sha256-2cd9ef002aee4bf52ac5a55aeab5c69467b5f7c247170bcf351898507cf3f4e1` ; l'opérateur `4b32e96f` a attesté `delivered` et le registre `synchronized`. La lecture native AFTER et le navigateur ont confirmé les conversations historiques admin, leurs brouillons et les pièces R2 conservées. Aucun nouvel upload, témoin ni appel OpenAI n'a été fait pour cette confirmation. L'audience app n'avait pas de conversation témoin ; voir les reçus T55 hors dépôt et [T32](docs/IMPLEMENTATION-T32.md).
 
 ## En qualification — widgets de lecture du CRM (T20)
 

@@ -172,6 +172,7 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - [core/providers](core/providers/) et [core/conversations](core/conversations/) : résolution du coffre, projection autorisée d'outils et étapes des tours, sans ordonnanceur.
 - [tests/openai](tests/openai/) : recettes D1 du fournisseur ; suites obligatoires du contrôle commun.
 - [adapters/sites](adapters/sites/) et [scripts/sites](scripts/sites/) : opérateur temporaire, configuration et schéma central ; [installation Sites](docs/INSTALLATION-SITES.md).
+- `scripts/sites/artifacts.mjs` et `scripts/sites/export.mjs` : inclusion du manifeste et de tout l’historique DDL central dans `dist/.openai`, export des seuls artefacts construits, reçu lié à Git et vérification des octets archivés.
 - `configuration/composition.sites.json` et son verrou : composition Sites sans données ni identifiant personnel de Site.
 
 ## Widgets et plugins conversationnels T16
