@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {compileMcpBindings, McpBindingError} from '../../scripts/mcp/bindings.mjs';
 import {createMcpCatalog} from '../../core/mcp/catalog.ts';
+import {contractIntegrity} from '../../sdk/contracts/validate.mjs';
 
 const digest = `sha256-${'a'.repeat(64)}`;
 const operation = {id: 'read', kind: 'query', context: 'application', audiences: ['admin', 'app'],
@@ -51,6 +52,50 @@ test('MCP projection refuses colliding names and nondelegated Access style decla
   assert.throws(() => compile(session), error => error instanceof McpBindingError && error.code === 'tool');
   const forged = structuredClone(compile()); forged.tools[0].contractDigest = `sha256-${'b'.repeat(64)}`;
   assert.throws(() => createMcpCatalog(forged, registry), TypeError);
+});
+
+test('MCP widget accepts only exact top-level output branches for a multi-result card',()=>{
+  const module=structuredClone(descriptor),catalog=structuredClone(operationCatalog);
+  const second={type:'object',properties:{message:{type:'string'}},additionalProperties:false};
+  module.contracts.schemas.push({id:'answer-output',schema:second});
+  module.contracts.mcp.tools[0].widget={moduleId:'example.one',kind:'widget',id:'card'};
+  module.contracts.mcp.tools.push({...structuredClone(tool),id:'answer',name:'example_answer',
+    operation:{moduleId:'example.one',id:'answer'},output:{schemaId:'answer-output'},
+    audiences:['app'],annotations:{...tool.annotations,readOnly:false},
+    widget:{moduleId:'example.one',kind:'widget',id:'card'}});
+  catalog.modules[0].operations.push({operation:{...operation,id:'answer',kind:'command',
+    audiences:['app'],output:{schemaId:'answer-output'}},active:true,contractDigest:digest});
+  const original=module.contracts.schemas.find(item=>item.id==='output').schema;
+  const union={anyOf:[original,second]};
+  const widgetCatalog={widgets:[{moduleId:'example.one',widgetId:'card',version:'1.0.0',
+    resourceUri:'ui://creezio/example.one/card',resourceDigest:digest,audiences:['admin','app'],
+    schemas:{input:{schema:union,digest:contractIntegrity(union)}}}],resources:[]};
+  const project=(candidate=widgetCatalog)=>compileMcpBindings({composition,modules:[module],
+    operationCatalog:catalog,widgetCatalog:candidate});
+  assert.equal(project().tools.length,3);
+  for(const replacement of [{type:'object',properties:{message:{type:'number'}},additionalProperties:false},
+    true,{type:'object',additionalProperties:true}]){
+    const invalid=structuredClone(widgetCatalog);
+    invalid.widgets[0].schemas.input.schema.anyOf[1]=replacement;
+    invalid.widgets[0].schemas.input.digest=contractIntegrity(invalid.widgets[0].schemas.input.schema);
+    assert.throws(()=>project(invalid),error=>error instanceof McpBindingError&&error.code==='widget');
+  }
+  const contributor=structuredClone(module);
+  contributor.contracts.schemas=contributor.contracts.schemas.filter(item=>item.id!=='answer-output');
+  contributor.contracts.mcp.tools[1].operation.moduleId='example.two';
+  const foreign={identity:{id:'example.two'},contracts:{schemas:[
+    {id:'input',schema:descriptor.contracts.schemas[0].schema},{id:'answer-output',schema:second}],
+  mcp:{tools:[],resources:[]}}};
+  const crossOperations=structuredClone(catalog);
+  crossOperations.modules[0].operations.pop();
+  crossOperations.modules.push({moduleId:'example.two',operations:[{operation:{...operation,
+    id:'answer',kind:'command',audiences:['app'],output:{schemaId:'answer-output'}},
+    active:true,contractDigest:digest}]});
+  const crossComposition=structuredClone(composition);
+  crossComposition.modules.push({moduleId:'example.two',enabled:true});
+  crossComposition.exposure.app.moduleIds.push('example.two');
+  assert.equal(compileMcpBindings({composition:crossComposition,modules:[contributor,foreign],
+    operationCatalog:crossOperations,widgetCatalog}).tools.length,3);
 });
 
 function widgetResources(count,htmlBytes){

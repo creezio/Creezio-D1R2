@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 
 const root=new URL('../',import.meta.url);
 const m=JSON.parse(readFileSync(new URL('module/manifest.json',root),'utf8'));
-const id='creezio.support',revision='t19-support-v1';
+const id='creezio.support',revision='t19-support-widgets-v1';
 const ref=(kind,name)=>({moduleId:id,kind,id:name});
 const S=(max=128,min=1)=>({minLength:min,maxLength:max});
 const I=(min=0)=>({minimum:min,maximum:Number.MAX_SAFE_INTEGER});
@@ -41,6 +41,15 @@ const ticketOutput=schema('ticket-output',obj({item:ticketView}));
 const ticketPage=schema('ticket-page',obj({items:{type:'array',items:ticketView,maxItems:25},nextCursor:nullable(str(2048))}));
 const messageOutput=schema('message-output',obj({item:messageView,ticket:ticketView}));
 const messagePage=schema('message-page',obj({items:{type:'array',items:messageView,maxItems:50},nextCursor:nullable(str(2048))}));
+// Read aliases share one visual card, so either successful readonly output can initialize it.
+const listWidgetOutput=schema('support-list-widget-output',{anyOf:[
+  schemas.find(item=>item.id==='ticket-page').schema,
+  schemas.find(item=>item.id==='ticket-output').schema,
+  schemas.find(item=>item.id==='message-page').schema]});
+const threadWidgetOutput=schema('support-thread-widget-output',{anyOf:[
+  schemas.find(item=>item.id==='ticket-output').schema,
+  schemas.find(item=>item.id==='message-page').schema,
+  schemas.find(item=>item.id==='message-output').schema]});
 const statusOutput=schema('transport-output',obj({state:{type:'string',enum:['unavailable']},externalEmail:{type:'boolean'}}));
 const requestKey=str(),revisionNumber=integer(1),status={type:'string',enum:['ouvert','repondu','resolu','ferme']};
 const inputs={
@@ -87,6 +96,9 @@ const operations=spec.map(([name,kind,audiences,required,reads,writes,output])=>
   execution:{maxDurationMs:10000,maxItems:name==='ticket.list'?500:name==='message.list'?51:10,resumable:false},
   audit:{required:true,redactFields:['body','query']},public:false}));
 const api=[],tools=[];
+const widgetForTool={'ticket.list':'ticket-list-app','ticket.read':'ticket-thread-app',
+  'ticket.create':'ticket-list-app','message.list':'ticket-thread-app',
+  'message.customer':'ticket-thread-app','message.reply':'ticket-thread-admin'};
 for(const op of operations){const command=op.kind==='command';
   for(const audience of op.audiences){const input=schemas.find(item=>item.id===op.input.schemaId).schema;
     api.push({id:`${audience}.${op.id}`,method:command?'POST':'GET',path:`/api/${audience}/support/${op.id.replaceAll('.','/')}`,
@@ -94,12 +106,60 @@ for(const op of operations){const command=op.kind==='command';
       parameters:command?[]:Object.keys(input.properties).map(name=>({name:name.replace(/[A-Z]/g,letter=>`-${letter.toLowerCase()}`),in:'query',inputField:name,
         required:input.required.includes(name)})),input:op.input,output:op.output,rateLimit:{requests:60,windowSeconds:60}});}
   tools.push({id:op.id,name:`support_${op.id.replaceAll('.','_')}`,operation:ref('operation',op.id),
-    audiences:op.audiences,auth:['oauth','api-token'],input:op.input,output:op.output,
-    annotations:{readOnly:!command,destructive:false,idempotent:!command,openWorld:false},textFallback:true});}
+    audiences:widgetForTool[op.id]&&op.audiences.length===2?['app']:op.audiences,
+    auth:['oauth','api-token'],input:op.input,output:op.output,
+    annotations:{readOnly:!command,destructive:false,idempotent:!command,openWorld:false},
+    ...(widgetForTool[op.id]?{widget:ref('widget',widgetForTool[op.id])}:{}),textFallback:true});}
+// Read aliases expose the same three operations to the other audience's renderer.
+for(const [alias,operation,widget,audience] of [
+  ['ticket.list.admin','ticket.list','ticket-list-admin','admin'],
+  ['ticket.read.admin','ticket.read','ticket-thread-admin','admin'],
+  ['message.list.admin','message.list','ticket-thread-admin','admin'],
+  ['ticket.open.app','ticket.read','ticket-list-app','app'],
+  ['ticket.open.admin','ticket.read','ticket-list-admin','admin'],
+  ['message.list.app.list','message.list','ticket-list-app','app'],
+  ['message.list.admin.list','message.list','ticket-list-admin','admin']]){
+  tools.push({id:alias,name:`support_${alias.replaceAll('.','_')}`,
+    operation:ref('operation',operation),audiences:[audience],auth:['oauth','api-token'],
+    input:inputs[operation],output:operations.find(item=>item.id===operation).output,
+    annotations:{readOnly:true,destructive:false,idempotent:true,openWorld:false},
+    widget:ref('widget',widget),textFallback:true});
+}
+const skillPath='plugin/skills/support.md';
+const skillIntegrity=`sha256-${createHash('sha256').update(readFileSync(new URL(skillPath,root))).digest('hex')}`;
+const widgetState=schema('support-widget-state',obj({ticketId:str(),cursor:str(2048),query:str(120)},[]));
+const widgetResource=(name,audience)=>({id:`${name}-ui`,uri:`ui://${id}/${name}`,
+  mimeType:'text/html;profile=mcp-app',audiences:[audience],permissions:[ref('permission','use')],
+  source:{kind:'asset',path:`ui/widgets/${name.split('-')[1]}.html`},widget:ref('widget',name),
+  ui:{csp:{connectDomains:[],resourceDomains:[],frameDomains:[],baseUriDomains:[]},
+    permissions:{},prefersBorder:true}});
+const widgetAction=(name,label,operation)=>({id:name,label,input:inputs[operation],
+  requiredCapabilities:[],fallback:'unavailable',mode:'direct',
+  target:{kind:'operation',operation:ref('operation',operation)}});
+const widget=(kind,audience)=>{
+  const list=kind==='list',name=`ticket-${kind}-${audience}`;
+  const actions=list?[widgetAction('list','Actualiser','ticket.list'),
+    widgetAction('open','Ouvrir','ticket.read'),
+    widgetAction('messages','Lire le fil','message.list'),
+    ...(audience==='app'?[widgetAction('create','Créer un ticket','ticket.create')]:[])]:
+    [widgetAction('read','Actualiser le ticket','ticket.read'),
+      widgetAction('messages','Lire le fil','message.list'),
+      widgetAction('send','Enregistrer une réponse',audience==='app'?'message.customer':'message.reply')];
+  return {id:name,version:'1.0.0',compatibility:'^1.0.0',resource:`${name}-ui`,
+    renderer:{path:`ui/widgets/${name}.ts`,export:`start${audience==='app'?'App':'Admin'}${list?'List':'Thread'}`},
+    input:list?listWidgetOutput:threadWidgetOutput,state:widgetState,
+    result:list?listWidgetOutput:threadWidgetOutput,
+    audiences:[audience],permissions:[ref('permission','use')],requiredCapabilities:[],assets:[],actions,
+    instance:{identity:'host-generated',revision:'monotonic',correlation:'request-instance-conversation',
+      objectVersion:'distinct',lateResponse:'reject-stale'},
+    transport:{protocol:'mcp-apps',maxPayloadBytes:786432,timeoutMs:15000,
+      uncertainResult:'reconcile-before-retry',fallbackDispatch:'before-first-dispatch-only'}};
+};
+const widgets=[widget('list','app'),widget('list','admin'),widget('thread','app'),widget('thread','admin')];
 m.identity={id,title:'Support natif',publisher:'creezio',origin:'https://github.com/creezio/Creezio-D1R2',
   version:'0.0.0',source:{kind:'snapshot',revision,integrity:`sha256-${createHash('sha256').update(revision).digest('hex')}`},
   license:{expression:'NOASSERTION',file:'LICENSE'}};
-m.compatibility={core:'^0.0.0',sdk:'^1.2.0',requiredCapabilities:['runtime.worker','data.d1.shared'],optionalCapabilities:[]};
+m.compatibility={core:'^0.0.0',sdk:'^1.4.1',requiredCapabilities:['runtime.worker','data.d1.shared'],optionalCapabilities:[]};
 m.entrypoints={server:{path:'module/entry.server.ts',export:'support'},ui:{path:'ui/index.tsx',export:'SupportWorkspaceView'},
   plugin:{manifest:'plugin/plugin.json',mcp:'plugin/mcp.json',contributions:{path:'plugin/contributions.ts',export:'contributions'}}};
 m.dependencies=[{moduleId:'creezio.access',origin:m.identity.origin,versionRange:'^0.0.0',optional:false,
@@ -111,7 +171,11 @@ const pendingState=obj({sessionId:str(),audience:{type:'string',enum:['admin','a
 const panelState=schema('support-panel-state',obj({sessionId:str(),audience:{type:'string',enum:['admin','app']},
   contextId:str(),ticketId:str(),pending:pendingState},[]));
 m.contracts={schemas,models:[ticket,message],files:[],events:[],settings:[],search:[],permissions,operations,api,
-  mcp:{tools,resources:[],prompts:[],skills:[]},ui:{views:[{id:'workspace',title:'Support',surfaces:['workspace'],
+  mcp:{tools,resources:widgets.map(item=>widgetResource(item.id,item.audiences[0])),prompts:[],
+    skills:[{id:'support',path:skillPath,audiences:['admin','app'],
+      operations:['ticket.list','ticket.read','ticket.create','message.list','message.customer','message.reply']
+        .map(name=>ref('operation',name)),resources:widgets.map(item=>`${item.id}-ui`),integrity:skillIntegrity}]},
+  ui:{views:[{id:'workspace',title:'Support',surfaces:['workspace'],
     route:'/admin/support',component:{path:'ui/index.tsx',export:'SupportWorkspaceView'},permissions:[ref('permission','use')],
     operations:operations.map(op=>ref('operation',op.id)),input:viewInput,
     panel:{identityFields:[],navigation:'sdk',retention:'preserve',inactiveEffects:'suspend',stateSchema:panelState}},
@@ -123,20 +187,23 @@ m.contracts={schemas,models:[ticket,message],files:[],events:[],settings:[],sear
       surfaces:['workspace'],order:60},
       {id:'support-front',title:'Support',view:ref('view','front'),permissions:[ref('permission','use')],
         surfaces:['front'],order:60}],slots:[],front:{mode:'provided'},
-      themes:[],styles:[]},widgets:[],publicContracts:[]};
+      themes:[],styles:[]},widgets,publicContracts:[]};
 m.documentation.versionBinding={moduleVersion:'0.0.0',sourceRevision:revision};
 for(const name of ['backend','ui','api-mcp','widgets','package','docs'])m.validation.suites[name].tests=[`tests/${name}/contract.test.mjs`];
 m.validation.suites.widgets.mode='not-applicable';
-m.validation.suites.widgets.justification={reason:'Support threads use text and do not need a visual widget.',policyRule:'support.text-tools'};
+delete m.validation.suites.widgets.justification;
+m.validation.suites.widgets.mode='required';
+m.validation.suites.widgets.tests.push('tests/widgets/runtime.test.mjs');
 m.packaging.runtime.files=['module/manifest.json','module/models.json','module/entry.server.ts','module/operations.ts',
   'module/service.ts','ui/index.tsx','ui/state.ts','README.md','prd.md','CHANGELOG.md','LICENSE',
-  'plugin/plugin.json','plugin/mcp.json','plugin/contributions.ts'];
+  'ui/widgets/runtime.ts','ui/widgets/list.html','ui/widgets/thread.html',
+  ...widgets.map(item=>`ui/widgets/${item.id}.ts`),
+  'plugin/plugin.json','plugin/mcp.json','plugin/contributions.ts',skillPath];
 m.packaging.validation.files=['AGENTS.md','FILES.md','interview.md','TODO.md','gate.mjs','module/generate-manifest.mjs',
   'ci/run-suite.mjs','tests/helpers.mjs',...['backend','ui','api-mcp','widgets','package','docs'].flatMap(name=>
-    [`ci/${name}.mjs`,`tests/${name}/contract.test.mjs`])];
+    [`ci/${name}.mjs`,`tests/${name}/contract.test.mjs`]),'tests/widgets/runtime.test.mjs'];
 m.packaging.validationBinding={moduleId:id,moduleVersion:'0.0.0',sourceRevision:revision};
-m.lifecycle.absent={widgets:{reason:'MCP tools return support text without a widget.',policyRule:'support.text-tools'},
-  files:{reason:'Support v1 has no attachment category.',policyRule:'support.no-files'}};
+m.lifecycle.absent={files:{reason:'Support v1 has no attachment category.',policyRule:'support.no-files'}};
 m.lifecycle.configuration='explicit-state';
 writeFileSync(new URL('module/models.json',root),JSON.stringify([ticket,message],null,2)+'\n');
 writeFileSync(new URL('module/manifest.json',root),JSON.stringify(m,null,2)+'\n');

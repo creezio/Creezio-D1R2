@@ -24,6 +24,31 @@ export function compileMcpBindings({composition, modules, operationCatalog, disa
   const exposed = (moduleId, audience) => composition.exposure[audience]?.moduleIds?.includes(moduleId) === true;
   const widgetFor = ref => widgetCatalog.widgets.find(item => item.moduleId === ref?.moduleId && item.widgetId === ref?.id);
   const widgetResourceFor = widget => widgetCatalog.resources.find(item => item.uri === widget?.resourceUri);
+  const widgetInputAccepts = (widget, outputSchema, descriptor) => {
+    if (!widget) return false;
+    const outputDigest=contractIntegrity(outputSchema);
+    if (outputDigest === widget.schemas.input.digest) return true;
+    const input=widget.schemas.input.schema;
+    // An aggregate card may render distinct existing tool outputs. Every top-level
+    // branch must be exactly one of those output schemas; no general subsumption.
+    if (!input || typeof input !== 'object' || Array.isArray(input) ||
+      Object.keys(input).length !== 1 || !Array.isArray(input.anyOf) ||
+      input.anyOf.length < 2 || input.anyOf.length > 8) return false;
+    const expected=new Set();
+    for (const candidate of descriptor.contracts.mcp.tools) {
+      if (candidate.widget?.moduleId !== widget.moduleId || candidate.widget.id !== widget.widgetId) continue;
+      const operation=operations.get(`${candidate.operation?.moduleId}:${candidate.operation?.id}`)?.operation;
+      const schema=descriptors.get(candidate.operation?.moduleId)?.contracts.schemas
+        .find(item=>item.id===operation?.output?.schemaId)?.schema;
+      if (!schema || schema.type !== 'object') return false;
+      expected.add(contractIntegrity(schema));
+    }
+    const branches=input.anyOf;
+    const actual=branches.map(branch=>branch && typeof branch === 'object' && !Array.isArray(branch) &&
+      branch.type === 'object' ? contractIntegrity(branch) : null);
+    return actual.length === expected.size && actual.every(digest=>digest && expected.has(digest)) &&
+      new Set(actual).size === actual.length && expected.has(outputDigest);
+  };
   const tools = [], resources = [], seenTools = new Set(), seenResources = new Set();
   for (const selection of composition.modules) {
     if (!selection.enabled) continue;
@@ -42,7 +67,7 @@ export function compileMcpBindings({composition, modules, operationCatalog, disa
       const outputSchema = descriptors.get(owner)?.contracts?.schemas?.find(schema => schema.id === op.output.schemaId)?.schema;
       if (!inputSchema || inputSchema.type !== 'object' || !outputSchema || outputSchema.type !== 'object') fail('schema');
       const widget = tool.widget ? widgetFor(tool.widget) : undefined;
-      if (tool.widget && (!widget || contractIntegrity(outputSchema) !== widget.schemas.input.digest)) fail('widget');
+      if (tool.widget && !widgetInputAccepts(widget,outputSchema,descriptor)) fail('widget');
       for (const audience of tool.audiences) {
         if (!['admin', 'app'].includes(audience) || !op.audiences.includes(audience)) fail('audience');
         if (!exposed(selection.moduleId, audience)) continue;

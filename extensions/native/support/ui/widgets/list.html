@@ -1,0 +1,21 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tickets Support</title><style>
+*{box-sizing:border-box}body{margin:0;padding:12px;background:#f8fafc;color:#0f172a;font:14px system-ui,sans-serif}
+main{max-width:640px;margin:auto;padding:16px;border:1px solid #cbd5e1;border-radius:14px;background:white}
+h1{font-size:18px;margin:0 0 12px}.bar{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+input,textarea,button{padding:9px;border:1px solid #cbd5e1;border-radius:8px;background:white;font:inherit}
+input,textarea{flex:1;min-width:130px}textarea{width:100%;min-height:75px}button:disabled{opacity:.5}
+#results{display:grid;gap:8px;margin:12px 0}.ticket{padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff}
+.ticket p{margin:5px 0;color:#475569}.ticket strong{display:block}.ticket button{margin-top:6px}
+#messages{display:grid;gap:8px;margin:8px 0}.message{padding:9px;border-radius:8px;background:#f1f5f9;white-space:pre-wrap;overflow-wrap:anywhere}.message.agent{background:#e0f2fe}.meta{color:#475569;font-size:12px}
+output{display:block;color:#475569;min-height:1.5em;margin-top:8px}
+</style></head><body><main id="support-widget"><h1>Tickets support</h1>
+<div class="bar"><input id="query" maxlength="120" aria-label="Recherche de tickets" placeholder="Rechercher un ticket"><button id="list" type="button" disabled>Actualiser</button></div>
+<div id="results" aria-live="polite"></div><button id="more" type="button" disabled>Page suivante</button>
+<section id="opened" hidden><h2 id="opened-title"></h2><p id="opened-meta"></p>
+<button id="messages-load" type="button" disabled>Lire les messages</button>
+<div id="messages" aria-live="polite"></div><button id="messages-more" type="button" disabled>Messages suivants</button></section>
+<section id="create-panel" hidden><h2>Nouvelle demande</h2><div class="bar"><input id="subject" maxlength="240" aria-label="Sujet" placeholder="Sujet"></div>
+<textarea id="body" maxlength="4000" aria-label="Message" placeholder="Décrivez votre demande"></textarea>
+<button id="create" type="button" disabled>Créer le ticket</button></section>
+<output id="status" role="status"></output></main></body></html>

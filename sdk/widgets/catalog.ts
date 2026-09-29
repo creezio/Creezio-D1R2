@@ -283,6 +283,12 @@ export function validateCompiledWidgetCatalog(
   const digest = /^sha256-[a-f0-9]{64}$/;
   const assert = (ok: unknown, message: string): void => { if (!ok) throw new Error(`P1: ${message}`); };
   const validId = (s: string): boolean => s.length <= 128 && id.test(s);
+  // Operation idempotency keys name an input JSON property, not a canonical contract ID.
+  // Keep this aligned with common.schema.json/$defs/fieldName (including camelCase).
+  const fieldName = /^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[A-Za-z][A-Za-z0-9_]*)$/;
+  const validFieldName = (s: string): boolean => s.length <= 128 &&
+    fieldName.exec(s)?.[0] === s &&
+    !['__proto__', 'prototype', 'constructor'].includes(s);
   const validDigest = (s: string): boolean => digest.test(s);
   const entries = new Map<WidgetKey, WidgetCatalogEntry>();
   const resourceMap = new Map<ResourceKey, CompiledWidgetResource>();
@@ -321,7 +327,7 @@ export function validateCompiledWidgetCatalog(
           validDigest(a.target.operationDigest) &&
           (a.target.operationKind === 'query' || a.target.operationKind === 'command') &&
           (a.target.idempotencyKeyField === undefined ||
-            validId(a.target.idempotencyKeyField) && a.target.operationKind === 'command'),
+            validFieldName(a.target.idempotencyKeyField) && a.target.operationKind === 'command'),
           'unresolved operation target');
       }
     }

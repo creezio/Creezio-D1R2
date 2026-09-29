@@ -2,6 +2,8 @@ import '../../scripts/local-environment.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {buildSync} from 'esbuild';
 import {Miniflare} from 'miniflare';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
@@ -9,6 +11,7 @@ import {Client,StreamableHTTPClientTransport} from '@modelcontextprotocol/client
 import {generateD1Schema} from '../../scripts/data/d1-schema.mjs';
 import {compileHttpBindings} from '../../scripts/operations/http-bindings.mjs';
 import {compileMcpBindings} from '../../scripts/mcp/bindings.mjs';
+import {compileWidgetCatalog} from '../../scripts/widgets/compile.mjs';
 import {OPERATION_MODELS,OPERATION_STORAGE_MODULE_ID} from '../../core/operations/models.ts';
 import {createAccountService,provisionBootstrapCapability} from '../../core/identity/accounts.ts';
 import {createAccountLifecycleService} from '../../core/identity/lifecycle.ts';
@@ -150,8 +153,17 @@ test('Support app/admin/machine share only authorized tickets and revisioned mes
       const httpList=await wire('/api/app/support/ticket/list?limit=25');
       assert.equal(httpList.status,200,await httpList.clone().text());
       assert.equal(succeeded(await httpList.json()).items[0].id,botTicket.id);
+      const widgetCatalog=compileWidgetCatalog({composition,modules:[manifest],
+        operationCatalog:registered.catalog,
+        readAsset:(_id,relative)=>readFileSync(new URL(`../../extensions/native/support/${relative}`,
+          import.meta.url),'utf8'),
+        bundleRenderer:(_id,reference)=>buildSync({entryPoints:[fileURLToPath(new URL(
+          `../../extensions/native/support/${reference.path}`,import.meta.url))],bundle:true,
+          write:false,platform:'browser',format:'iife',globalName:'__creezioWidget',target:'es2022',
+          minify:true,footer:{js:`__creezioWidget.${reference.export}();`}}).outputFiles[0].text});
+      assert.equal(widgetCatalog.widgets.length,4);
       const mcp=createMcpHttpTransport(compileMcpBindings({composition,modules:[manifest],
-        operationCatalog:registered.catalog}),registered,engine,{origin,
+        operationCatalog:registered.catalog,widgetCatalog}),registered,engine,{origin,
         resourceMetadataUrl:audience=>`${origin}/.well-known/oauth-protected-resource/mcp/${audience}`,
         authenticate:async(request,audience)=>{
           const bearer=request.headers.get('authorization')?.replace(/^Bearer /,'');
@@ -167,8 +179,31 @@ test('Support app/admin/machine share only authorized tickets and revisioned mes
       const tools=(await client.listTools()).tools;
       assert.ok(tools.some(tool=>tool.name==='support_ticket_read'));
       assert.ok(tools.every(tool=>tool.name!=='support_message_reply'));
+      assert.ok(tools.some(tool=>tool.name==='support_ticket_open_app'));
+      assert.ok(tools.every(tool=>tool.name!=='support_ticket_open_admin'));
+      const resources=(await client.listResources()).resources;
+      assert.equal(resources.length,2);
       const mcpRead=await client.callTool({name:'support_ticket_read',arguments:{id:botTicket.id}});
-      assert.equal(mcpRead.structuredContent.item.subject,'Automate');
+      assert.equal(mcpRead.structuredContent.kind,'creezio.widget.render.v1');
+      assert.equal(mcpRead.structuredContent.instance.audience,'app');
+      assert.equal(mcpRead.structuredContent.input.item.subject,'Automate');
+      const mcpList=await client.callTool({name:'support_ticket_list',arguments:{limit:2}});
+      assert.equal(mcpList.structuredContent.kind,'creezio.widget.render.v1');
+      assert.equal(mcpList.structuredContent.instance.widgetId,'ticket-list-app');
+      assert.equal(mcpList.structuredContent.input.items[0].id,botTicket.id);
+      const createdByCard=await client.callTool({name:'support_ticket_create',arguments:{
+        requestKey:'support-widget-create',subject:'Demande depuis la carte'}});
+      assert.equal(createdByCard.structuredContent.kind,'creezio.widget.render.v1');
+      assert.equal(createdByCard.structuredContent.instance.widgetId,'ticket-list-app');
+      const cardTicket=createdByCard.structuredContent.input.item;
+      assert.equal(cardTicket.subject,'Demande depuis la carte');
+      const repliedByCard=await client.callTool({name:'support_message_customer',arguments:{
+        requestKey:'support-widget-reply',ticketId:cardTicket.id,revision:cardTicket.revision,
+        body:'Complément client'}});
+      assert.equal(repliedByCard.structuredContent.kind,'creezio.widget.render.v1');
+      assert.equal(repliedByCard.structuredContent.instance.widgetId,'ticket-thread-app');
+      assert.equal(repliedByCard.structuredContent.input.item.body,'Complément client');
+      assert.equal(repliedByCard.structuredContent.input.ticket.revision,cardTicket.revision+1);
       const latest=good(await acl.readPolicy(ownerAdmin.token)),revoked=structuredClone(latest.policy);
       revoked.assignments=revoked.assignments.filter(row=>row.principalId!==machine.id);
       good(await acl.replacePolicy(ownerAdmin.token,{expectedEpoch:latest.epoch,policy:revoked}));
