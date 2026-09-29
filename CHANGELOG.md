@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — finalisation des candidates de module
+
+Les guides de développement demandent de contrôler, après la dernière édition d'un fichier déclaré, tous les profils qui sélectionnent le module et leurs archives runtime et validation avant push. Ils renvoient au contrôleur `modules:lock` existant, avec reçu pour les paquets externes. Les indications historiques « avant GO/P0 à construire » sont retirées des guides courants ; aucune règle de fusion ni capacité runtime ne change.
+
 ## En qualification — reprise d'un tour Conversations après résultat d'outil
 
 Quand un tour `unknown` récupère une réponse fournisseur connue et ajoute une continuation après un résultat d'outil, le même batch D1 remet le tour `running` et efface `provider_unknown`. Le résultat d'outil rejeté reste visible comme tel. Un test ciblé couvre la transition sans recréer la réponse initiale ; la réponse finale du même tour T61 a ensuite été confirmée sur le Site publié en 938ede5. Le correctif de transition n'y est pas encore déployé.
