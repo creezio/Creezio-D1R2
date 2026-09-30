@@ -1,5 +1,9 @@
 # Changelog
 
+## En qualification — liste complète des médias Pages (T21)
+
+La lecture d'une page de 50 médias doit compter aussi la lecture préalable de la page propriétaire : le budget du seul traitement `media.list` passe de 50 à 51 unités. La pagination reste limitée à 50 et les contrôles centraux restent inchangés. Ce refus a été détecté pendant la recette Linux de PR #73, après son intégration et sa CI ; aucune page n'a été modifiée par ces lectures refusées.
+
 ## En qualification — images privées des pages (T21)
 
 L'éditeur et le front authentifié affichent les images R2 dans les sections existantes. La publication fige jusqu'à cinq références sélectionnées ; modifier ou détacher un média du brouillon laisse la page publiée intacte. Le reset restaure les liens sans recopier les fichiers. Deux modèles D1 et un index sont ajoutés par le générateur central, sans modifier les anciennes tables. Les contrôles locaux couvrent permissions, publication concurrente, aperçu, références exactes et nettoyage des URL Blob ; la recette sur Linux reste à effectuer.

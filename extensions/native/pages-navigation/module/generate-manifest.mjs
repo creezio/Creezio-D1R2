@@ -187,7 +187,7 @@ operation('navigation.reset','Rétablir la navigation brouillon','command',navSt
 operation('navigation.published','Lire la navigation publiée','query',empty,publishedNavOutput,['navigation'],[],
   {exportName:'navigationPublished',view:true});
 operation('media.list','Lister les médias privés d’une page','query',mediaListInput,mediaListOutput,['page','page_media'],[],
-  {exportName:'mediaList',pagination,maxItems:50});
+  {exportName:'mediaList',pagination,maxItems:51});
 operation('media.published.list','Lister les images liées du snapshot publié','query',publishedMediaInput,
   publishedMediaOutput,['page','page_publication','published_page_media'],[],
   {exportName:'publishedMediaList',view:true,maxItems:8});

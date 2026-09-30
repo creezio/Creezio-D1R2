@@ -1,5 +1,9 @@
 # Changelog
 
+## T21 — lecture complète des médias du brouillon
+
+`media.list` conserve une page maximale de 50 médias ; son budget couvre aussi la lecture de la page parente, ce qui évite un refus `invalid_input` à cette limite.
+
 ## T21 — images privées du snapshot publié
 
 Le front authentifié et l'aperçu admin affichent les images R2 déjà liées à une page, dans les préfabriqués existants. Deux modèles D1 additifs figent jusqu'à cinq références citées au moment de `page.publish` ; les ajouts et détachements ultérieurs du brouillon n'altèrent pas la publication. `page.reset` rétablit les liens cités sans copie R2. La lecture privée liée, les gardes de révision, le refus des accès hors publication et le nettoyage des URL Blob sont couverts par les suites ciblées. Aucune route média publique ni lecture anonyme n'est ajoutée.

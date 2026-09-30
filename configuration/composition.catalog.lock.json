@@ -257,19 +257,19 @@
         "revision": "t21-pages-navigation-v2",
         "integrity": "sha256-c51904baf31a815c8e38e711668e353b4877bb68df147e2ef701da6465c061cc"
       },
-      "contractIntegrity": "sha256-255e77d5c2cd6d8c06f17f0c302804d5d69a363382f64b89ff3c13e940fa97c4",
+      "contractIntegrity": "sha256-85d574e3d5220cf90e84dce9ca884147e30a234d27fae53c43bd1bc5b66a7d32",
       "runtime": {
-        "integrity": "sha256-e72baa68ee3ca52a2e0d185967f3e6d726e0672cc47eeba6d91d57e1e47a6511",
+        "integrity": "sha256-f0e9990aad7a37d9898d7568f899021bf737b9efe739df5d50e1b6ef8605906d",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.pages-navigation/runtime-e72baa68ee3ca52a2e0d185967f3e6d726e0672cc47eeba6d91d57e1e47a6511.tgz"
+          "path": ".creezio/module-artifacts/creezio.pages-navigation/runtime-f0e9990aad7a37d9898d7568f899021bf737b9efe739df5d50e1b6ef8605906d.tgz"
         }
       },
       "validation": {
-        "integrity": "sha256-7c1cc5b362fe429c41eee8cc1afb1a02e0e7de07497864073df34f280171f006",
+        "integrity": "sha256-c9fc6762385de8b7926cfc76daebe08ddf56f54a921824b72f82353a1b06bb2d",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.pages-navigation/validation-7c1cc5b362fe429c41eee8cc1afb1a02e0e7de07497864073df34f280171f006.tgz"
+          "path": ".creezio/module-artifacts/creezio.pages-navigation/validation-c9fc6762385de8b7926cfc76daebe08ddf56f54a921824b72f82353a1b06bb2d.tgz"
         }
       },
       "dependencies": [
