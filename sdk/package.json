@@ -20,6 +20,7 @@
     "dist/types/sdk/operations/command-journal.d.ts",
     "dist/types/sdk/operations/error.d.ts",
     "dist/types/sdk/operations/handler.d.ts",
+    "dist/types/sdk/search",
     "dist/types/sdk/ui",
     "dist/types/sdk/widgets",
     "dist/types/sdk/workspace",
@@ -47,6 +48,10 @@
     "./connectors/types": {
       "types": "./dist/types/sdk/connectors/types.d.ts",
       "import": "./dist/esm/connectors/types.js"
+    },
+    "./search/types": {
+      "types": "./dist/types/sdk/search/types.d.ts",
+      "import": "./dist/esm/search/types.js"
     },
     "./delivery/context": {
       "types": "./dist/types/sdk/delivery/context.d.ts",

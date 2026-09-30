@@ -14,6 +14,9 @@ import {generateD1Schema} from '../../scripts/data/d1-schema.mjs';
 import {createRuntime} from '../../core/runtime/dispatch.ts';
 import {createPublicPages} from '../../core/runtime/public-pages.ts';
 import {publishedImageIds} from '../../extensions/native/pages-navigation/ui/published-images.ts';
+import {STORAGE_AUTHORITY_MODELS,STORAGE_AUTHORITY_MODULE_ID,STORAGE_AUTHORITY_TABLES}
+  from '../../core/storage-authority/models.ts';
+import {appendStorageCompositionReceipt} from '../storage-authority/fixtures/schema-receipt.mjs';
 
 const bundle=await build({entryPoints:[fileURLToPath(new URL('../../extensions/native/pages-navigation/ui/public-document.tsx',import.meta.url))],
   bundle:true,write:false,platform:'node',format:'esm',jsx:'automatic',
@@ -28,7 +31,7 @@ try{const bundlePath=join(bundleDir,'public-pages.mjs');
 const models=JSON.parse(readFileSync(new URL('../../extensions/native/pages-navigation/module/models.json',import.meta.url)));
 const schema=generateD1Schema('creezio.pages-navigation',models);
 const digest='sha256-'+'8'.repeat(64);
-const catalog={schemaVersion:1,compositionDigest:digest,modules:[{moduleId:'creezio.pages-navigation',
+const catalog={schemaVersion:1,compositionDigest:digest,lockDigest:`sha256-${'7'.repeat(64)}`,modules:[{moduleId:'creezio.pages-navigation',
   version:'0.0.0',enabled:true,permissions:[],models:models.map(model=>({modelId:model.id,
     table:schema.tables[model.id],model}))}]};
 const origin='https://pages.example.invalid',at='2026-09-30T10:00:00.000Z';
@@ -156,5 +159,70 @@ test('anonymous SSR and exact published media are gated by the explicit marker a
     assert.equal((await fetch(media)).status,404);
     await db.prepare(`DELETE FROM "${schema.tables.public_page}" WHERE context_id='application' AND page_id='home'`).run();
     assert.equal((await fetch('/p?slug=%2F')).status,404,'revocation is immediate');
+  }finally{await mf.dispose();}
+});
+
+test('a fixed routed front reads its published page and image from the same D1/R2 pair',
+  {timeout:30000},async()=>{
+  const mf=new Miniflare({host:'127.0.0.1',port:0,cf:false,modules:true,compatibilityDate:'2026-05-15',
+    script:'export default {fetch(){return new Response(null,{status:404})}}',
+    d1Databases:{DB:'public-primary',TARGET:'public-target'},r2Buckets:['BUCKET','FILES'],
+    d1Persist:false,r2Persist:false});
+  try{
+    const db=await mf.getD1Database('TARGET'),bucket=await mf.getR2Bucket('FILES');
+    await db.batch(schema.statements.map(statement=>db.prepare(statement)));
+    const authoritySchema=generateD1Schema(STORAGE_AUTHORITY_MODULE_ID,STORAGE_AUTHORITY_MODELS);
+    await db.batch(authoritySchema.statements.map(statement=>db.prepare(statement)));
+    await appendStorageCompositionReceipt(db,digest,catalog.lockDigest);
+    const contextId='tenant-front',image=Buffer.from('routed published image');
+    await db.prepare(`INSERT INTO "${STORAGE_AUTHORITY_TABLES.storage_routes}"
+      (id,installation_id,slot,generation,source_epoch,state,mutation_id,updated_at_ms)
+      VALUES (?,'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',1,1,1,'active',NULL,?)`)
+      .bind(contextId,Date.now()).run();
+    const sha=createHash('sha256').update(image).digest('hex');
+    await insert(db,'page',{context_id:contextId,id:'home',slug:'/',title:'Private draft',
+      draft_sections:'[]',draft_settings:'{}',draft_seo:'{}',published_slug:'/',
+      published_title:'Routed public page',published_sections:JSON.stringify(sections),
+      published_settings:JSON.stringify(settings),published_seo:JSON.stringify(seo),
+      created_at:at,updated_at:at,published_at:at,revision:1,published_revision:1});
+    await insert(db,'page_publication',{context_id:contextId,page_id:'home',state:'published',published_revision:1});
+    await insert(db,'public_page',{context_id:contextId,page_id:'home',published_revision:1,enabled_at:at});
+    await bucket.put(key,image);
+    await insert(db,'file_metadata',{context_id:contextId,file_id:fileId,file_owner:'owner',object_key:key,
+      digest:sha,byte_size:image.byteLength,content_type:'image/png',filename:'image.png',version:1,
+      state:'available',intent_id:'intent',generation:'1'});
+    await insert(db,'published_page_media',{context_id:contextId,page_id:'home',file_id:fileId,
+      filename:'image.png',content_type:'image/png',byte_size:image.byteLength,digest:sha,
+      intent_id:'intent',generation:'1',position:0});
+    const runtime=createRuntime({modules:[],compositionDigest:digest,
+      publicPages:createPublicPages({catalog,contextId,projection:{moduleId:'creezio.pages-navigation',
+        models:{page:'page',page_publication:'page_publication',public_page:'public_page',navigation:'navigation',
+          published_page_media:'published_page_media',file_metadata:'file_metadata'},
+        css:'',render:renderPublicPage,imageIds:publishedImageIds}})});
+    const manifest={schemaVersion:2,storageInstallationId:'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      routes:[{contextId,slot:1,status:'active'}]};
+    // No page tables exist on the principal D1, and the principal R2 is empty.
+    const env={CREEZIO_RUNTIME_PROFILE:'local',CREEZIO_APP_ORIGIN:origin,
+      DB:await mf.getD1Database('DB'),BUCKET:await mf.getR2Bucket('BUCKET'),
+      DB_RESOURCE_01:db,BUCKET_RESOURCE_01:bucket,CREEZIO_STORAGE_ROUTES:JSON.stringify(manifest)};
+    const page=await runtime.fetch(request('/p?slug=%2F',{headers:{'x-creezio-context':'application'}}),env);
+    assert.equal(page.status,200,await page.clone().text());
+    assert.match(await page.text(),/Published headline/);
+    const media=await runtime.fetch(request(`/api/public/pages-navigation/media?slug=%2F&file_id=${fileId}&revision=1`),env);
+    assert.equal(media.status,200,await media.clone().text());
+    assert.deepEqual(Buffer.from(await media.arrayBuffer()),image);
+    assert.equal((await runtime.fetch(request('/p?slug=%2F&context=application'),env)).status,400);
+    const changedBucket={get:async objectKey=>{
+      await appendStorageCompositionReceipt(db,digest,'sha256-'+'9'.repeat(64));return bucket.get(objectKey);},
+      head:objectKey=>bucket.head(objectKey),put:(...args)=>bucket.put(...args),delete:objectKey=>bucket.delete(objectKey)};
+    const oldImage=await runtime.fetch(request(`/api/public/pages-navigation/media?slug=%2F&file_id=${fileId}&revision=1`),
+      {...env,BUCKET_RESOURCE_01:changedBucket});
+    assert.equal(oldImage.status,404,'a new composition during the R2 read suppresses the old response');
+    assert.equal((await runtime.fetch(request('/p?slug=%2F'),env)).status,404,'old Worker cannot render after cutover');
+    await appendStorageCompositionReceipt(db,digest,catalog.lockDigest);
+    await db.prepare(`UPDATE "${STORAGE_AUTHORITY_TABLES.storage_routes}" SET state='deny' WHERE id=?`).bind(contextId).run();
+    assert.equal((await runtime.fetch(request('/p?slug=%2F'),env)).status,404,'durable target fence suppresses anonymous reads');
+    const revoked={...manifest,routes:[{...manifest.routes[0],status:'revoked'}]};
+    assert.equal((await runtime.fetch(request('/p?slug=%2F'),{...env,CREEZIO_STORAGE_ROUTES:JSON.stringify(revoked)})).status,503);
   }finally{await mf.dispose();}
 });

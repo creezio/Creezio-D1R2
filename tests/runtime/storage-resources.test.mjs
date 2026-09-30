@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createStorageResourceResolver,resourceBindingNames,validateStorageRoutes} from '../../adapters/storage/resources.ts';
 import {resolveRuntimeEnvironment} from '../../core/runtime/environment.ts';
+import {createStorageAuthorityHost} from '../../core/storage-authority/host.ts';
 
 const unused=()=>{throw new Error('Storage must not be probed by the resolver.');};
 const pair=()=>({DB:{prepare:unused,batch:unused},BUCKET:{get:unused,head:unused,put:unused,delete:unused}});
@@ -53,4 +54,34 @@ test('malformed, duplicated and forged routes are rejected without fallback',()=
   ])assert.throws(()=>validateStorageRoutes(manifest));
   assert.throws(()=>resourceBindingNames(0));
   assert.equal(resolveRuntimeEnvironment({...environment(),CREEZIO_STORAGE_ROUTES:'{"routes":'}),null);
+  assert.equal(validateStorageRoutes({schemaVersion:2,storageInstallationId:
+    'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',routes:routes.routes}).schemaVersion,2);
+  assert.throws(()=>validateStorageRoutes({schemaVersion:2,storageInstallationId:'foreign',routes:routes.routes}));
+});
+
+test('host factory carries primary authority and complete active inventory into routed selection',()=>{
+  const env=environment();
+  const manifest={schemaVersion:2,storageInstallationId:'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+    routes:routes.routes};
+  const host=createStorageAuthorityHost(env,'cloudflare',manifest);
+  assert.equal(host.authorityDb,env.DB);
+  assert.equal(host.inventory.length,1);
+  assert.ok(host.storageMutation);
+  assert.deepEqual(host.inventory[0].identity,{installationId:manifest.storageInstallationId,
+    contextId:'tenant-a',slot:1});
+  const selected=host.forContext('tenant-a');
+  assert.equal(selected.db,env.DB_RESOURCE_01);
+  assert.equal(selected.bucket,env.BUCKET_RESOURCE_01);
+  assert.equal(selected.authorityDb,env.DB);
+  assert.deepEqual(selected.storageRoute,host.inventory[0].identity);
+  assert.equal(host.forContext('application').db,env.DB);
+  assert.throws(()=>host.forContext('tenant-b'),/unavailable/);
+  assert.throws(()=>createStorageAuthorityHost(env,'cloudflare',routes),/physical installation/);
+  const sites=createStorageAuthorityHost(pair(),'sites',undefined);
+  assert.equal(sites.storageMutation,null);
+  assert.equal(sites.forContext('tenant-a').db,sites.authorityDb);
+  const resolved=resolveRuntimeEnvironment({...env,CREEZIO_STORAGE_ROUTES:JSON.stringify(manifest)});
+  assert.ok(resolved.storageAuthority);
+  assert.equal(resolved.storageAuthority.forContext('tenant-a').db,env.DB_RESOURCE_01);
+  assert.equal(resolveRuntimeEnvironment(env).storageAuthority,undefined);
 });

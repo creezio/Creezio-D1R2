@@ -1,0 +1,7 @@
+# PRD T29 — Resend sortant
+
+REQ-2901/2902 et US-29 : l’utilisateur autorisé envoie explicitement un brouillon depuis les mêmes boîtes Messagerie que dans les audiences admin et app. Le brouillon et sa révision, ses destinataires, ses corps sûrs et ses références de fichiers sont figés avant effet dans une intention durable unique. La réponse visible distingue intention enregistrée, acceptation Resend, état inconnu, livraison, rebond et plainte ; elle ne présente jamais une attente comme un envoi confirmé.
+
+Ce module ne possède que la configuration et le secret Resend. Le descripteur fixe `GET /domains` et `POST /emails` ; les chemins, champs, tailles et en-têtes ne sont pas choisis par un handler. Une extraction hôte de l’outbox canonique doit appeler le mutateur avec la même identité, le même contexte et un identifiant d’intention stable ; la clé d’idempotence est dérivée par l’hôte, jamais passée par le module. Un timeout après tentative reste inconnu. Révocation et changement de configuration sont revalidés avant l’egress.
+
+Le callback signed webhook est authentifié sur les octets bruts, horodaté, dédupliqué puis rapproché d’un identifiant fournisseur connu sans autocorrélation par adresse email. Une réception autorisée utilisera le contrat public Messagerie. Les pièces jointes nécessitent un port hôte R2 borné distinct du mutateur JSON 64 KiB. Le critère final exige un destinataire de test explicitement autorisé et une recette réelle ; les tests locaux n’en tiennent pas lieu.

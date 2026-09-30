@@ -6,21 +6,22 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { prepareRuntimeSchema } from '../../scripts/data/prepare-runtime.mjs';
 import { describeD1Schema } from '../../scripts/data/d1-schema.mjs';
-import { OPERATION_STORAGE_MODULE_ID, OPERATION_MODELS, OPERATION_TABLES } from '../../core/operations/models.ts';
+import { RUNTIME_STORAGE_MODULE_ID, RUNTIME_MODELS, RUNTIME_TABLES } from '../../scripts/data/runtime-models.mjs';
 import { temporaryDirectory } from '../quality/temporary.mjs';
 
 const repository = fileURLToPath(new URL('../../', import.meta.url));
 const artifact = root => path.join(root, 'data/schema/runtime.sql');
 
 test('versioned technical SQL exactly matches canonical host models and mappings without database I/O', () => {
-  const generated = describeD1Schema(OPERATION_STORAGE_MODULE_ID, OPERATION_MODELS), report = prepareRuntimeSchema();
+  const generated = describeD1Schema(RUNTIME_STORAGE_MODULE_ID, RUNTIME_MODELS), report = prepareRuntimeSchema();
   const bytes = readFileSync(artifact(repository));
   assert.equal(bytes.toString('utf8'), generated.sql);
-  assert.deepEqual(Object.fromEntries(Object.entries(generated.tables)), OPERATION_TABLES);
-  assert.deepEqual(OPERATION_MODELS.map(model => model.id), ['executions', 'attempts', 'audit', 'outbox', 'approvals']);
-  assert.deepEqual(OPERATION_MODELS.find(model => model.id === 'approvals').indexes.map(index => index.id),
+  assert.deepEqual(Object.fromEntries(Object.entries(generated.tables)), RUNTIME_TABLES);
+  assert.deepEqual(RUNTIME_MODELS.map(model => model.id), ['executions', 'attempts', 'audit', 'outbox', 'approvals',
+    'storage_routes', 'storage_grants', 'storage_mutations', 'storage_source_receipts']);
+  assert.deepEqual(RUNTIME_MODELS.find(model => model.id === 'approvals').indexes.map(index => index.id),
     ['request', 'actor-state', 'expiry']);
-  assert.equal(report.models, 5); assert.equal(report.statements, generated.statements.length);
+  assert.equal(report.models, RUNTIME_MODELS.length); assert.equal(report.statements, generated.statements.length);
   assert.equal(report.sqlBytes, bytes.length);
   assert.equal(report.sqlDigest, `sha256-${createHash('sha256').update(bytes).digest('hex')}`);
   assert.equal(report.checked, true); assert.equal(report.artifactChanged, false); assert.equal(report.databaseChanged, false);

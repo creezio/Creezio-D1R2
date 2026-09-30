@@ -12,7 +12,7 @@ export type Message = {id:string;boxId:string;direction:string;from:string;to:st
   subject:string;text:string;html:string;state:string;folder:Folder;read:boolean;threadId:string|null;
   replyTo:string|null;inReplyTo:string|null;receivedAt:string|null;sentAt:string|null;revision:number};
 export type Draft = {id:string;boxId:string;to:string;cc:string;bcc:string;
-  subject:string;text:string;html:string;updatedAt:string;revision:number};
+  subject:string;text:string;html:string;updatedAt:string;revision:number;sendIntentId:string|null};
 /** An attachment changes the saved revision, not the unsaved composition in the editor. */
 export function attachmentRevision<T extends {id:string|null;revision:number}>(editor:T,
   draft:Pick<Draft,'id'|'revision'>):T {
@@ -37,9 +37,11 @@ export function scopeChanged(previous:UiIdentity|null,current:UiIdentity):boolea
       current.phase==='anonymous'));
 }
 export function messagingPanelData(scope:{sessionId:string;audience:string;contextId:string},
-  boxId:string,draftId:string|null,pending:PendingCommand|null):Record<string,unknown>{
+  boxId:string,draftId:string|null,pending:PendingCommand|null,
+  sendFollowup:PendingCommand|null=null):Record<string,unknown>{
   return {sessionId:scope.sessionId,audience:scope.audience,contextId:scope.contextId,
-    ...(boxId?{boxId}:{}),...(draftId?{draftId}:{}),...(pending?{pending}:{})};
+    ...(boxId?{boxId}:{}),...(draftId?{draftId}:{}),...(pending?{pending}:{}),
+    ...(sendFollowup?{sendFollowup}:{})};
 }
 export function panelMatchesScope(data:Readonly<Record<string,unknown>>|undefined,
   scope:{sessionId:string;audience:string;contextId:string}):boolean{

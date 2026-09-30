@@ -7,11 +7,14 @@ import type { AuthorizationDecision, AuthorizationTarget, PermissionDefinition }
 import type { IdentityDatabase } from '../identity/d1-store.ts';
 import { ACCESS_MANAGEMENT as MANAGEMENT, createNativeAuthorizationResolver } from './resolver.ts';
 import { ACCESS_DELTA_LIMITS, applyAccessPolicyChanges, parseAccessPolicyChanges } from './delta.ts';
+import {ACCESS_TABLES} from '../identity/d1-store.ts';
+import type {StorageMutationPort} from '../storage-authority/native-mutation.ts';
 
 type Failure = { readonly ok: false; readonly error: 'invalid_input' | 'unauthorized' | 'forbidden' | 'conflict' | 'storage_error' };
 const fail = (error: Failure['error']): Failure => Object.freeze({ ok: false, error });
 /** Server composition supplies the catalog; callers never choose permission definitions or actor identities. */
-export function createAuthorizationService(db: IdentityDatabase, options: { permissions: readonly PermissionDefinition[] }) {
+export function createAuthorizationService(db: IdentityDatabase, options: {
+  permissions: readonly PermissionDefinition[]; storageMutation?: StorageMutationPort }) {
   const { permissions, resolve: state, resolveAdminAuthority: adminState } = createNativeAuthorizationResolver(db, options);
   const store = createD1AuthorizationStore(db);
   async function check(token: unknown, target: AuthorizationTarget): Promise<AuthorizationDecision> {
@@ -52,12 +55,29 @@ export function createAuthorizationService(db: IdentityDatabase, options: { perm
       // administration needs a separate operation, not an implicit exception.
       if (!authorize(current.snapshotFor(policy), MANAGEMENT, current.nowMs).allowed)
         return fail('forbidden');
-      const committed = await store.commitPolicy({ guard: current.guard, policy, beforePolicy: current.policy });
+      const change={ guard: current.guard, policy, beforePolicy: current.policy };
+      if(options.storageMutation){
+        const commandKey=JSON.stringify([current.principalId,expectedEpoch,policy]);
+        const plan=store.preparePolicyCommit(change,
+          await options.storageMutation.receiptId('policy.replace',commandKey));
+        const outcome=await options.storageMutation.commit({kind:'policy.replace',
+          commandKey,
+          sourceCommit:()=>store.commitPreparedPolicy(plan),committed:value=>value===true,
+          recoverValue:async()=>true,
+          inspectSource:async()=>{
+            const receipt=await db.prepare(`SELECT 1 AS ok FROM "${ACCESS_TABLES.access_policy_audit_details}"
+              WHERE audit_id=? AND from_epoch=? AND to_epoch=? LIMIT 2`)
+              .bind(plan.auditId,expectedEpoch,expectedEpoch+1).first();
+            return receipt?.ok===1;
+          }});
+        return outcome.state==='confirmed'?Object.freeze({ok:true,epoch:current.epoch+1}):fail('storage_error');
+      }
+      const committed = await store.commitPolicy(change);
       return committed ? Object.freeze({ ok: true, epoch: current.epoch + 1 }) : fail('conflict');
     } catch { return fail('storage_error'); }
   }
   /** Host-only plan. The ordinary T04 service and T06 operation use the same graph checks and store. */
-  async function preparePolicyDelta(token: unknown, input: unknown) {
+  async function preparePolicyDelta(token: unknown, input: unknown,sourceAuditId?:string) {
     if (!exactRecord(input, ['requestKey', 'expectedEpoch', 'changes'])
       || typeof input.requestKey !== 'string' || !input.requestKey || new TextEncoder().encode(input.requestKey).length > 512
       || !Number.isSafeInteger(input.expectedEpoch) || Number(input.expectedEpoch) < 1
@@ -79,8 +99,9 @@ export function createAuthorizationService(db: IdentityDatabase, options: { perm
       if (policy.memberships.some(m => !principals.has(m.principalId))) return fail('invalid_input');
       if (!authorize(current.snapshotFor(policy), MANAGEMENT, current.nowMs).allowed)
         return fail('forbidden');
-      const plan = store.preparePolicyCommit({guard: current.guard, policy, beforePolicy: current.policy});
+      const plan = store.preparePolicyCommit({guard: current.guard, policy, beforePolicy: current.policy},sourceAuditId);
       return Object.freeze({ok: true as const, statements: Object.freeze([...plan.statements, plan.assertion]),
+        auditId:plan.auditId,
         output: Object.freeze({epoch: current.epoch + 1, auditId: plan.auditId, changedCount: changes.length})});
     } catch { return fail('storage_error'); }
   }

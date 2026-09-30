@@ -2,7 +2,9 @@ import '../../scripts/local-environment.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
 import {Miniflare} from 'miniflare';
+import {buildSync} from 'esbuild';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import {Client,StreamableHTTPClientTransport} from '@modelcontextprotocol/client';
@@ -16,8 +18,10 @@ import {createOperationEngine} from '../../core/operations/service.ts';
 import {createOperationHttpTransport} from '../../core/operations/http.ts';
 import {createMcpHttpTransport} from '../../core/mcp/http.ts';
 import {createVaultKeyring} from '../../core/vault/crypto.ts';
+import {compileSearchProjectionSources} from '../../core/search/projection.ts';
 import {compileHttpBindings} from '../../scripts/operations/http-bindings.mjs';
 import {compileMcpBindings} from '../../scripts/mcp/bindings.mjs';
+import {compileWidgetCatalog} from '../../scripts/widgets/compile.mjs';
 import * as handlers from '../../extensions/connectors/meili/module/operations.ts';
 import {meiliConnectorDescriptor} from '../../extensions/connectors/meili/module/storage.ts';
 
@@ -192,7 +196,16 @@ test('Meili connection uses real D1/vault/ACL and HTTP/MCP with bounded syntheti
       const httpList=await wire('/api/admin/meili/index/list?limit=2',manageToken);
       assert.equal(httpList.status,200,await httpList.clone().text());
       assert.equal((await httpList.json()).execution.output.nextCursor,'2');
-      const mcpBindings=compileMcpBindings({composition,modules:[manifest],operationCatalog:registered.catalog});
+      const widgetCatalog=compileWidgetCatalog({composition,modules:[manifest],
+        operationCatalog:registered.catalog,
+        readAsset:(_id,relative)=>readFileSync(new URL(`../../extensions/connectors/meili/${relative}`,
+          import.meta.url),'utf8'),
+        bundleRenderer:(_id,reference)=>buildSync({entryPoints:[fileURLToPath(new URL(
+          `../../extensions/connectors/meili/${reference.path}`,import.meta.url))],bundle:true,
+          write:false,platform:'browser',format:'iife',globalName:'__creezioWidget',target:'es2022',
+          minify:true,footer:{js:`__creezioWidget.${reference.export}();`}}).outputFiles[0].text});
+      const mcpBindings=compileMcpBindings({composition,modules:[manifest],
+        operationCatalog:registered.catalog,widgetCatalog});
       const mcp=createMcpHttpTransport(mcpBindings,registered,engine,{origin,
         resourceMetadataUrl:audience=>`${origin}/.well-known/oauth-protected-resource/mcp/${audience}`,
         authenticate:async(request,audience)=>{
@@ -240,4 +253,185 @@ test('Meili connection uses real D1/vault/ACL and HTTP/MCP with bounded syntheti
       await assert.rejects(mcpClient.callTool({name:'meili_connection_check',arguments:{}}));
     }finally{if(manageMcpClient)await manageMcpClient.close();
       if(mcpClient)await mcpClient.close();await runtime.dispose();}
+  });
+
+test('Meili projection uses D1 owner reads, task confirmation, tombstones and unknown write claims',
+  {timeout:90000},async()=>{
+    const catalogManifest=json('../../extensions/common/catalog/module/manifest.json');
+    const catalogId=catalogManifest.identity.id,sourceId=`${catalogId}:catalog-products`;
+    const catalogSchema=generateD1Schema(catalogId,catalogManifest.contracts.models);
+    const runtime=new Miniflare({host:'127.0.0.1',port:0,cf:false,modules:true,
+      compatibilityDate:'2026-05-15',script:'export default {fetch(){return new Response(null,{status:404})}}',
+      d1Databases:{DB:'creezio-meili-indexing-integration'},d1Persist:false});
+    try{
+      const db=await runtime.getD1Database('DB');
+      await db.batch([...access.statements,...technical.statements,...generated.statements,
+        ...catalogSchema.statements].map(sql=>db.prepare(sql)));
+      const accounts=createAccountService(db),bootstrap=await provisionBootstrapCapability(db);
+      const password='Synthetic Meili indexing password';
+      const owner=good(await accounts.bootstrap({token:bootstrap.token,
+        loginIdentifier:'meili-indexer@example.invalid',displayName:'Meili indexer',password}));
+      const admin=good(await accounts.login({loginIdentifier:'meili-indexer@example.invalid',password,
+        audience:'admin'}));
+      const definitions=[...permissions,...catalogManifest.contracts.permissions.map(item=>({
+        id:`${catalogId}:${item.id}`,audiences:item.audiences,actors:item.actors}))];
+      const acl=createAuthorizationService(db,{permissions:definitions});
+      const before=good(await acl.readPolicy(admin.token)),policy=structuredClone(before.policy);
+      policy.roles.push({id:'projection-manager',inherits:[],permissionIds:[`${moduleId}:manage`,
+        `${moduleId}:read`,`${moduleId}:search`,`${catalogId}:view`],permissionOverrides:[]});
+      policy.contexts.push({id:'other',status:'active'});
+      for(const contextId of ['application','other']){
+        if(!policy.memberships.some(item=>item.principalId===owner.principalId&&item.audience==='admin'
+          &&item.contextId===contextId))policy.memberships.push({principalId:owner.principalId,
+            audience:'admin',contextId,status:'active'});
+        policy.assignments.push({principalId:owner.principalId,audience:'admin',contextId,
+          roleId:'projection-manager'});
+      }
+      good(await acl.replacePolicy(admin.token,{expectedEpoch:before.epoch,policy}));
+      const dataCatalog={schemaVersion:1,compositionDigest:digest,modules:[catalog.modules[0],{
+        moduleId:catalogId,version:catalogManifest.identity.version,enabled:true,
+        permissions:catalogManifest.contracts.permissions,models:catalogManifest.contracts.models.map(model=>({
+          modelId:model.id,table:catalogSchema.tables[model.id],model}))}]};
+      const sources=compileSearchProjectionSources(catalogManifest.contracts.search,dataCatalog);
+      assert.deepEqual(sources.map(item=>item.id),[sourceId]);
+      const insert=async(contextId,id,name,status,updatedAt,revision=1)=>db.prepare(
+        `INSERT INTO "${catalogSchema.tables.product}" (context_id,id,sku,name,description,attributes,
+        category_id,price_minor,currency,status,revision,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(contextId,id,`${contextId}-${id}`,name,'','[]',
+        'category-a',1299,'EUR',status,revision,updatedAt,updatedAt).run();
+      for(const contextId of ['application','other'])await db.prepare(
+        `INSERT INTO "${catalogSchema.tables.category}" (context_id,id,name,slug,parent_id,
+        position,archived_at,revision,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`)
+        .bind(contextId,'category-a','Category A','category-a',null,0,null,1,
+          '2026-09-30T09:00:00.000Z','2026-09-30T09:00:00.000Z').run();
+      await insert('application','visible','Visible application','published','2026-09-30T10:00:00.000Z');
+      await insert('application','draft','Secret draft','draft','2026-09-30T10:01:00.000Z');
+      await insert('other','visible','Visible other','published','2026-09-30T10:00:00.000Z');
+      const keyring=createVaultKeyring({activeKeyId:'meili-index-test',
+        keys:{'meili-index-test':new Uint8Array(32).fill(19)}});
+      const remote=new Map(),tasks=new Map(),outbound=[];
+      let nextTask=0,processingOnce=true,staleHit=false,throwNextPost=false;
+      const fetcher=async(url,init)=>{
+        const target=new URL(String(url)),parts=target.pathname.split('/').filter(Boolean);
+        outbound.push({path:target.pathname,method:init.method,body:init.body});
+        if(init.method==='POST'){
+          if(throwNextPost){throwNextPost=false;throw new Error('synthetic lost acknowledgement');}
+          const indexUid=parts[1],deleting=parts.at(-1)==='delete-batch',body=JSON.parse(init.body);
+          const documents=remote.get(indexUid)??new Map();
+          if(deleting)for(const id of body)documents.delete(id);
+          else for(const document of body)documents.set(document.id,document);
+          remote.set(indexUid,documents);
+          const taskUid=++nextTask,type=deleting?'documentDeletion':'documentAdditionOrUpdate';
+          tasks.set(taskUid,{indexUid,type});
+          return Response.json({taskUid,indexUid,status:'enqueued',type},{status:202});
+        }
+        if(parts[0]==='tasks'){
+          const uid=Number(parts[1]),task=tasks.get(uid);
+          return Response.json({uid,indexUid:task.indexUid,type:task.type,
+            status:processingOnce?(processingOnce=false,'processing'):'succeeded',
+            error:{private:'never-return'}});
+        }
+        if(parts.at(-1)==='search'){
+          const indexUid=parts[1],limit=Number(target.searchParams.get('limit')),
+            offset=Number(target.searchParams.get('offset'));
+          const ids=[...(remote.get(indexUid)?.keys()??[])];
+          if(staleHit&&!ids.includes('visible'))ids.push('visible');
+          return Response.json({hits:ids.slice(offset,offset+limit).map(id=>({id,secret:'hidden'})),
+            offset,limit,estimatedTotalHits:999,facetDistribution:{secret:{hidden:999}}});
+        }
+        throw new Error(`Unexpected synthetic Meili request ${target.pathname}`);
+      };
+      const engine=createOperationEngine({db,catalog:dataCatalog,registry:registry(),permissions:definitions,
+        connectors:[{descriptor:meiliConnectorDescriptor,keyring,fetcher}],
+        search:[{moduleId,sources}]});
+      const invoke=(operationId,input,contextId='application')=>engine.invoke({
+        credential:{kind:'session',token:admin.token},moduleId,operationId,contextId,audience:'admin',input});
+      for(const contextId of ['application','other']){
+        success(await invoke('config.set',{requestKey:`origin-${contextId}`,
+          origin:'https://meili.example.invalid',enabled:false,revision:0},contextId));
+        success(await invoke('config.key.set',{requestKey:`key-${contextId}`,
+          apiKey:'example_meili_local_test_key',revision:1},contextId));
+        success(await invoke('config.set',{requestKey:`enable-${contextId}`,
+          origin:'https://meili.example.invalid',enabled:true,revision:2},contextId));
+      }
+      const command=async(name,state,contextId='application',key=`${name}-${contextId}-${state.revision}`)=>
+        success(await invoke(name,{source:sourceId,revision:state.revision,requestKey:key},contextId)).index;
+      let app=success(await invoke('index.read',{source:sourceId})).index;
+      app=await command('index.rebuild.start',app);
+      const appUid=app.building;
+      app=await command('index.prepare',app);
+      assert.equal(app.preparedCount,1,'draft is not sent as a searchable document');
+      app=await command('index.emit',app,'application',app.emitKey);
+      assert.equal(app.state,'waiting');
+      const beforePoll=await db.prepare(`SELECT cursor FROM "${generated.tables.index_job}"
+        WHERE context_id=? AND id=?`).bind('application',sourceId).first();
+      assert.equal(beforePoll.cursor,null);
+      app=await command('index.reconcile',app);
+      assert.equal(app.state,'waiting','processing is not task success');
+      app=await command('index.reconcile',app);
+      assert.equal(app.state,'building');
+      const afterPoll=await db.prepare(`SELECT cursor FROM "${generated.tables.index_job}"
+        WHERE context_id=? AND id=?`).bind('application',sourceId).first();
+      assert.ok(afterPoll.cursor,'cursor advances only after task success');
+      app=await command('index.prepare',app);
+      assert.equal(app.state,'ready');assert.equal(app.active,appUid);
+      let other=success(await invoke('index.read',{source:sourceId},'other')).index;
+      other=await command('index.rebuild.start',other,'other');
+      const otherUid=other.building;
+      assert.notEqual(otherUid,appUid,'context-scoped generations have different provider UIDs');
+      other=await command('index.prepare',other,'other');
+      other=await command('index.emit',other,'other',other.emitKey);
+      other=await command('index.reconcile',other,'other');
+      other=await command('index.prepare',other,'other');
+      assert.equal(other.state,'ready');
+      const query={source:sourceId,q:'Visible',limit:20,offset:0};
+      const appResult=success(await invoke('index.search',query));
+      const otherResult=success(await invoke('index.search',query,'other'));
+      assert.deepEqual(appResult.items.map(item=>item.fields.name),['Visible application']);
+      assert.deepEqual(otherResult.items.map(item=>item.fields.name),['Visible other']);
+      assert.deepEqual(JSON.parse(JSON.stringify(appResult.facets)),
+        [{field:'category_id',values:[{value:'category-a',count:1}]}]);
+      assert.equal(appResult.pageCount,1);
+      assert.doesNotMatch(JSON.stringify(appResult),/999|hidden|Secret draft/u);
+      await db.prepare(`UPDATE "${catalogSchema.tables.product}" SET status='archived',revision=2,
+        updated_at='2026-09-30T11:00:00.000Z' WHERE context_id='application' AND id='visible'`).run();
+      app=await command('index.sync.start',app);
+      app=await command('index.prepare',app);
+      assert.equal(app.preparedCount,1);
+      app=await command('index.emit',app,'application',app.emitKey);
+      assert.equal(outbound.filter(item=>item.method==='POST').at(-1).path,
+        `/indexes/${appUid}/documents/delete-batch`);
+      const beforeDeleteReconcile=await db.prepare(`SELECT revision,state,pending_task_uid,
+        pending_kind FROM "${generated.tables.index_job}" WHERE context_id=? AND id=?`)
+        .bind('application',sourceId).first();
+      assert.equal(beforeDeleteReconcile.revision,app.revision);
+      app=await command('index.reconcile',app);
+      app=await command('index.prepare',app);
+      assert.equal(app.state,'ready');
+      staleHit=true;
+      const invisible=success(await invoke('index.search',query));
+      assert.deepEqual(invisible.items,[]);
+      assert.equal(invisible.pageCount,0);
+      assert.deepEqual(JSON.parse(JSON.stringify(invisible.facets)),[{field:'category_id',values:[]}]);
+      await insert('application','new','New product','published','2026-09-30T12:00:00.000Z');
+      app=await command('index.sync.start',app);
+      app=await command('index.prepare',app);
+      const frozenKey=app.emitKey,attempts=outbound.filter(item=>item.method==='POST').length;
+      throwNextPost=true;
+      const unknown=await invoke('index.emit',{source:sourceId,revision:app.revision,
+        requestKey:frozenKey});
+      assert.equal(unknown.execution.state,'unknown');
+      const replay=await invoke('index.emit',{source:sourceId,revision:app.revision,
+        requestKey:frozenKey});
+      assert.equal(replay.execution.state,'unknown');
+      await failed(invoke('index.emit',{source:sourceId,revision:app.revision,
+        requestKey:'different-key'}),'conflict');
+      assert.equal(outbound.filter(item=>item.method==='POST').length,attempts+1,
+        'unknown POST is never re-emitted');
+      const current=good(await acl.readPolicy(admin.token)),revoked=structuredClone(current.policy);
+      revoked.roles.find(role=>role.id==='projection-manager').permissionIds=
+        revoked.roles.find(role=>role.id==='projection-manager').permissionIds.filter(id=>id!==`${catalogId}:view`);
+      good(await acl.replacePolicy(admin.token,{expectedEpoch:current.epoch,policy:revoked}));
+      await failed(invoke('index.search',query,'other'),'forbidden');
+    }finally{await runtime.dispose();}
   });

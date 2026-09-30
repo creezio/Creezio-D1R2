@@ -69,6 +69,62 @@ export function checkModule(module, report) {
     unique(contribution.entry.requiresModules??[],`${contribution.path}/requiresModules`,report);
     for(const id of contribution.entry.requiresModules??[])if(!module.dependencies.some(dep=>dep.moduleId===id&&dep.optional&&dep.whenAbsent==='disable-contributions'))report('dependency.guard',`${contribution.path}/requiresModules`,'A contribution guard must name an optional dependency with explicit removal when absent.');
   }
+  (c.deliveries??[]).forEach((delivery,i)=>{
+    const p=`/contracts/deliveries/${i}`;
+    for(const key of ['command','prepare']){
+      const ref=delivery[key],operation=get(ref,'operation');
+      needKind(ref,['operation'],`${p}/${key}`);
+      if(ref.moduleId!==ownId||!operation||operation.kind!==(key==='command'?'command':'query'))
+        report('delivery.operation',`${p}/${key}`,'Delivery command and preparation query must belong to the declaring module.');
+      if(operation?.public)report('delivery.operation',`${p}/${key}`,'Delivery operations must use native authorization, not public anonymous access.');
+    }
+    if(!delivery.command||!delivery.prepare||delivery.command.id===delivery.prepare.id)
+      report('delivery.operation',p,'Delivery command and preparation query must be distinct.');
+    needKind(delivery.provider.publicContract,['publicContract'],`${p}/provider/publicContract`);
+    needKind(delivery.provider.readiness,['operation'],`${p}/provider/readiness`);
+    if(delivery.provider.publicContract.moduleId===ownId
+      ||delivery.provider.readiness.moduleId!==delivery.provider.publicContract.moduleId)
+      report('delivery.provider',`${p}/provider`,'A delivery must consume one external provider contract.');
+    const providerDependency=module.dependencies.find(item=>item.moduleId===delivery.provider.publicContract.moduleId);
+    if(providerDependency?.optional&&!delivery.requiresModules?.includes(providerDependency.moduleId))
+      report('dependency.guard',`${p}/requiresModules`,'An optional delivery provider must guard the entire contribution.');
+    unique(delivery.models,`${p}/models`,report,refKey);
+    for(const [j,ref] of delivery.models.entries()){
+      needKind(ref,['model'],`${p}/models/${j}`);
+      if(ref.moduleId!==ownId||!get(ref,'model')||get(ref,'model')?.public)
+        report('delivery.model',`${p}/models/${j}`,'A delivery projector may use only own private models.');
+    }
+    const command=get(delivery.command,'operation'),prepare=get(delivery.prepare,'operation');
+    if(command&&(!command.effects.providers.includes(delivery.provider.connectorId)
+      ||!command.effects.calls.some(ref=>refKey(ref)===refKey(delivery.provider.readiness))))
+      report('delivery.command',`${p}/command`,'The command must declare its provider and readiness query effects.');
+    if(prepare&&(!prepare.effects.reads.every(ref=>delivery.models.some(model=>refKey(model)===refKey(ref)))
+      ||prepare.effects.writes.length||prepare.effects.calls.length||prepare.effects.providers.length))
+      report('delivery.prepare',`${p}/prepare`,'Preparation must be a read-only own-model query.');
+    if(!Object.values(delivery.prepareInput).includes('$intentId')
+      ||delivery.matchFields.some(field=>field===delivery.envelopeField))
+      report('delivery.prepare',`${p}/prepareInput`,'Preparation must bind the durable intent ID and keep envelope separate from matched fields.');
+    if(!Object.values(delivery.projectorInput).includes('$intentId')
+      ||!Object.values(delivery.projectorInput).includes('$receipt'))
+      report('delivery.projector',`${p}/projectorInput`,'The projector must receive the durable intent ID and normalized receipt.');
+    if(prepare){
+      requireInputFields(prepare.input,Object.keys(delivery.prepareInput),`${p}/prepareInput`,true);
+      const output=schema(prepare.output);
+      if(output?.type!=='object'||output.properties?.intentId?.type!=='string'
+        ||!(output.required??[]).includes('intentId')
+        ||[delivery.envelopeField,...delivery.matchFields].some(field=>
+        !Object.hasOwn(output.properties??{},field)||!(output.required??[]).includes(field)))
+        report('delivery.prepare',`${p}/prepare`,'Preparation output must require the string intent ID, envelope and every matched durable field.');
+      const revisionField=delivery.provider.configRevisionField;
+      if(!delivery.matchFields.includes(revisionField)
+        ||output?.properties?.[revisionField]?.type!=='integer'
+        ||!(output.required??[]).includes(revisionField))
+        report('delivery.prepare',`${p}/provider/configRevisionField`,'The provider configuration revision must be a required integer matched against the durable intent.');
+    }
+    if(!c.schemas.some(item=>item.id===delivery.receipt.schemaId))
+      report('delivery.receipt',`${p}/receipt`,'The receipt schema must belong to the declaring module.');
+  });
+  unique((c.deliveries??[]).map(item=>item.command.id),'/contracts/deliveries',report);
   c.models.forEach((model, i) => {
     const p = `/contracts/models/${i}`, fields = new Map(model.fields.map(field => [field.id, field]));
     const checkFields = (values, location) => { unique(values, location, report); if (values.some(field => !fields.has(field))) report('model.field', location, 'Referenced model field does not exist.'); };
@@ -235,14 +291,44 @@ export function checkModule(module, report) {
           report('connector.query',`${p}/resources/${j}/query/${key}`,'A query alias must name a declared operation parameter.');
         if(resource.params.includes(key))names.push(query[key]??key);
       }
-      names.push(...(query.fixed??[]).map(item=>item.name));
+      names.push(...(query.fixed??[]).map(item=>item.name),
+        ...(query.fields??[]).map(item=>item.wireName));
       if(new Set(names).size!==names.length)
         report('connector.query',`${p}/resources/${j}/query`,'Fixed and dynamic query parameter names must not collide.');
+      if(new Set((query.fields??[]).map(item=>item.name)).size!==(query.fields??[]).length)
+        report('connector.query',`${p}/resources/${j}/query/fields`,'Query field names must be unique.');
+      const write=resource.method!=='GET',body=resource.body;
+      if(!write&&(body!==undefined||resource.idempotencyHeader!==undefined)
+        ||write&&resource.params.some(param=>param!=='id')
+        ||write&&(query.cursor!==undefined||query.limit!==undefined||query.fields?.length))
+        report('connector.resource',`${p}/resources/${j}`,'Mutations use fixed paths, declared IDs and bodies; GET has no body or replay header.');
+      if(body){
+        const wire=/^[A-Za-z][A-Za-z0-9_]*(?:\[(?:\d+|[A-Za-z_][A-Za-z0-9_]*)\])*$/;
+        const names=[...body.fields.map(field=>field.wireName),...(body.fixed??[]).map(field=>field.name)];
+        if(!write||new Set(names).size!==names.length
+          ||new Set(body.fields.map(field=>field.name)).size!==body.fields.length
+          ||body.encoding==='json-root'&&(body.fields.length!==1
+            ||body.fields[0].kind!=='json'||body.fixed!==undefined)
+          ||body.fields.some(field=>!wire.test(field.wireName)
+            ||body.encoding!=='form'&&field.wireName.includes('[')
+            ||body.encoding==='form'&&field.kind==='json')
+          ||(body.fixed??[]).some(field=>!wire.test(field.name)
+            ||body.encoding==='json'&&field.name.includes('[')))
+          report('connector.body',`${p}/resources/${j}/body`,'Mutation body fields must be unique, declared and compatible with their encoding.');
+      }
+      if(resource.idempotencyHeader){
+        const lower=resource.idempotencyHeader.toLowerCase();
+        if(!write||reservedHeaders.has(lower)||headerNames.has(lower)
+          ||/^(?:proxy-|sec-|if-|x-(?:forwarded|real|original|http|method|override|host|cookie|origin|proxy|cf|amz)(?:-|$))/.test(lower))
+          report('connector.header',`${p}/resources/${j}/idempotencyHeader`,'The provider replay header cannot replace host or credential headers.');
+      }
     });
   });
   c.operations.forEach((op, i) => {
     const p = `/contracts/operations/${i}`;
     unique(op.audiences, `${p}/audiences`, report); unique(op.actors, `${p}/actors`, report);
+    if(op.actors.includes('signed-webhook')&&(!op.actors.includes('machine')||op.kind!=='command'))
+      report('operation.webhook',p,'Signed ingress requires a machine-authorized command.');
     if (op.actors.includes('impersonated-user') && op.permissions.some(ref => ref.moduleId === 'creezio.access' && ['manage', 'impersonate'].includes(ref.id)))
       report('operation.impersonation', p, 'Impersonation cannot administer access or start another impersonation.');
     if (!op.permissions.length && !op.actors.every(actor => actor === 'anonymous')) report('operation.permissions', `${p}/permissions`, 'Protected operations need declared permissions.');
@@ -251,7 +337,10 @@ export function checkModule(module, report) {
     if (op.kind === 'command' && (op.effects.writes.length || op.effects.emits.length || op.effects.providers.length) && op.idempotency.mode !== 'required') report('operation.idempotency', p, 'Effectful commands require idempotency.');
     for (const permission of op.permissions) {
       needKind(permission, ['permission'], `${p}/permissions`); const allowed = get(permission,'permission');
-      if (allowed && (!subset(op.audiences, allowed.audiences) || !subset(op.actors, allowed.actors) || allowed.context === 'required' && op.context !== 'required')) report('operation.permissions', p, 'Operation audience, actors or context exceed its permission.');
+      if (allowed && (!subset(op.audiences, allowed.audiences)
+        || !subset(op.actors.filter(actor=>actor!=='signed-webhook'), allowed.actors)
+        || allowed.context === 'required' && op.context !== 'required'))
+        report('operation.permissions', p, 'Operation audience, actors or context exceed its permission.');
     }
     for (const [effect, refs] of Object.entries(op.effects)) {
       if (effect === 'providers') continue;
@@ -389,7 +478,9 @@ function checkPackaging(module, report) {
   requireFile(module.entrypoints.plugin.manifest,'runtime','/entrypoints/plugin/manifest'); requireFile(module.entrypoints.plugin.mcp,'runtime','/entrypoints/plugin/mcp'); requireFile(module.identity.license.file,'runtime','/identity/license/file');
   for (const [section, value] of Object.entries(module.contracts)) if (section !== 'schemas') walkContracts(value, (node, location) => {
     if (node && typeof node === 'object' && !Array.isArray(node)) {
-      if (typeof node.path === 'string' && !location.startsWith('/contracts/api/') && !/^\/contracts\/connectors\/\d+\/resources\/\d+$/.test(location)) requireFile(node.path,'runtime',`${location}/path`);
+      if (typeof node.path === 'string' && !location.startsWith('/contracts/api/')
+        && !/^\/contracts\/connectors\/\d+\/(?:resources\/\d+|webhook)$/.test(location))
+        requireFile(node.path,'runtime',`${location}/path`);
       if (typeof node.template === 'string') requireFile(node.template,'runtime',`${location}/template`);
       for (const key of ['assets','styles']) if (Array.isArray(node[key])) node[key].forEach((file,i) => requireFile(file,'runtime',`${location}/${key}/${i}`));
     }
@@ -424,6 +515,7 @@ function checkCollisions(modules, report) {
 function contributionEntries(module) {
   const c = module.contracts;
   return Object.entries({ operations:c.operations, api:c.api, widgets:c.widgets, events:c.events, search:c.search, settings:c.settings,
+    deliveries:c.deliveries??[],
     'mcp/tools':c.mcp.tools, 'mcp/resources':c.mcp.resources, 'mcp/prompts':c.mcp.prompts, 'mcp/skills':c.mcp.skills,
     'ui/views':c.ui.views, 'ui/navigation':c.ui.navigation, 'ui/slots':c.ui.slots
   }).flatMap(([section,entries]) => entries.map((entry,i) => ({entry,path:`/contracts/${section}/${i}`,section})))
@@ -521,6 +613,21 @@ export function checkComposition(composition, modules, lock, report) {
       if (!exported) report('ref.private',`/descriptors/${module.identity.id}${path}`,'External references must be exported by a consumed versioned public contract.');
     }
     module.contracts.models.forEach((model,i)=>model.relations.forEach((relation,j)=>{ const target=indexes.get(relation.target.moduleId)?.get('model')?.get(relation.target.id); if(target)checkRelation(model,relation,target,`/descriptors/${module.identity.id}/contracts/models/${i}/relations/${j}`,report); }));
+    (module.contracts.deliveries??[]).forEach((delivery,i)=>{
+      if((inactive.get(module.identity.id)??[]).some(item=>item.path===`/contracts/deliveries/${i}`))return;
+      const p=`/descriptors/${module.identity.id}/contracts/deliveries/${i}`;
+      const provider=descriptors.get(delivery.provider.publicContract.moduleId);
+      const selectedProvider=selected.get(delivery.provider.publicContract.moduleId);
+      const exported=provider?.contracts.publicContracts.find(item=>item.id===delivery.provider.publicContract.id);
+      const connector=provider?.contracts.connectors?.find(item=>item.id===delivery.provider.connectorId);
+      const readiness=provider?.contracts.operations.find(item=>item.id===delivery.provider.readiness.id);
+      if(!provider||!selectedProvider?.enabled||!exported
+        ||!exported.operations.some(ref=>refKey(ref)===refKey(delivery.provider.readiness))
+        ||readiness?.kind!=='query'
+        ||!connector||!connector.resources.some(item=>item.id===delivery.provider.resourceId
+          &&item.method!=='GET'&&item.idempotencyHeader))
+        report('delivery.provider',p,'An active delivery needs an exported readiness query and one active idempotent mutation resource.');
+    });
     checkResolvedOperations(module,indexes,inactive.get(module.identity.id)??[],report);
   }
   for (const audience of ['admin','app']) {

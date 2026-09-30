@@ -1,5 +1,6 @@
 import type {RuntimeDataCatalog} from '../data/types.ts';
 import type {RuntimeEnvironment} from './environment.ts';
+import {activeStorageCompositionCondition} from '../storage-authority/target.ts';
 
 const mediaPath='/api/public/pages-navigation/media';
 const slugPattern=/^\/[A-Za-z0-9/_-]{0,159}$/u;
@@ -80,8 +81,14 @@ export function createPublicPages(options:{catalog:RuntimeDataCatalog;contextId:
     if(!queryShape(url,names))return badRequest(requestId);
     const slug=url.searchParams.get('slug')??'/';
     if(!slugPattern.test(slug))return badRequest(requestId);
-    const db=resolved.bindings.DB;
     try{
+      // Public access is fixed to the deployment's front context, never a client-selected tenant.
+      const selected=resolved.storageAuthority?.forContext(contextId);
+      if(resolved.storage&&!resolved.storageAuthority)return unavailable(requestId);
+      const db=selected?.db??resolved.bindings.DB;
+      const routeCondition=selected?.storageRoute
+        ?activeStorageCompositionCondition(selected.storageRoute,options.catalog.compositionDigest,options.catalog.lockDigest??'')
+        :{sql:'1',bindings:[]};
       if(!media){
         const row=await db.prepare(`SELECT p.id,p.published_slug,p.published_title,p.published_sections,
           p.published_settings,p.published_seo,p.published_at,p.published_revision
@@ -90,7 +97,8 @@ export function createPublicPages(options:{catalog:RuntimeDataCatalog;contextId:
           JOIN ${tables.public_page} visible ON visible.context_id=p.context_id AND visible.page_id=p.id
           WHERE p.context_id=? AND p.published_slug=? AND p.published_at IS NOT NULL
           AND pub.state='published' AND pub.published_revision=p.published_revision
-          AND visible.published_revision=p.published_revision LIMIT 2`).bind(contextId,slug).all<Row>();
+          AND visible.published_revision=p.published_revision AND (${routeCondition.sql}) LIMIT 2`)
+          .bind(contextId,slug,...routeCondition.bindings).all<Row>();
         if(row.results.length!==1)return missing(requestId);
         const page=parsePage(row.results[0]);
         const nav=await db.prepare(`SELECT published_items FROM ${tables.navigation}
@@ -120,7 +128,8 @@ export function createPublicPages(options:{catalog:RuntimeDataCatalog;contextId:
           WHERE p.context_id=? AND p.id=? AND p.published_slug=? AND p.published_revision=?
           AND p.published_at IS NOT NULL AND pub.state='published'
           AND pub.published_revision=p.published_revision AND visible.published_revision=p.published_revision
-          LIMIT 1`).bind(contextId,page.id,page.slug,page.publishedRevision).first<Row>();
+          AND (${routeCondition.sql}) LIMIT 1`)
+          .bind(contextId,page.id,page.slug,page.publishedRevision,...routeCondition.bindings).first<Row>();
         if(!stillVisible)return missing(requestId);
         const body='<!doctype html>'+options.projection.render(page,navigation,origin,options.projection.css);
         const responseHeaders=headers(requestId,'text/html; charset=utf-8');
@@ -141,7 +150,8 @@ export function createPublicPages(options:{catalog:RuntimeDataCatalog;contextId:
         WHERE p.context_id=? AND p.published_slug=? AND p.published_at IS NOT NULL
         AND pub.state='published' AND pub.published_revision=p.published_revision
         AND visible.published_revision=p.published_revision AND p.published_revision=?
-        AND m.file_id=? LIMIT 1`).bind(contextId,slug,revision,fileId).first<Row>();
+        AND m.file_id=? AND (${routeCondition.sql}) LIMIT 1`)
+        .bind(contextId,slug,revision,fileId,...routeCondition.bindings).first<Row>();
       if(!row||row.file_state!=='available'||row.object_key!==`creezio/files/v1/${fileId}`
         ||!imageTypes.has(String(row.content_type))||row.content_type!==row.file_content_type
         ||!Number.isSafeInteger(row.byte_size)||Number(row.byte_size)>maxImageBytes||Number(row.byte_size)<1
@@ -151,7 +161,7 @@ export function createPublicPages(options:{catalog:RuntimeDataCatalog;contextId:
       const sections=jsonValue(row.published_sections,28_000),settings=jsonValue(row.published_settings,4_000);
       if(!Array.isArray(sections)||!settings||typeof settings!=='object'||Array.isArray(settings)
         ||!options.projection.imageIds({sections,settings} as PublishedPage).includes(fileId))return missing(requestId);
-      const bucket=resolved.bindings.BUCKET as unknown as {get(key:string):Promise<{size:number;arrayBuffer():Promise<ArrayBuffer>}|null>};
+      const bucket=(selected?.bucket??resolved.bindings.BUCKET) as unknown as {get(key:string):Promise<{size:number;arrayBuffer():Promise<ArrayBuffer>}|null>};
       const object=await bucket.get(String(row.object_key));
       if(!object||object.size!==row.byte_size)return missing(requestId);
       const bytes=await object.arrayBuffer();
@@ -169,7 +179,8 @@ export function createPublicPages(options:{catalog:RuntimeDataCatalog;contextId:
         AND m.digest=? AND m.byte_size=? AND m.content_type=?
         AND f.state='available' AND f.object_key=? AND f.digest=m.digest AND f.byte_size=m.byte_size
         AND f.content_type=m.content_type AND f.intent_id=m.intent_id AND f.generation=m.generation
-        LIMIT 1`).bind(contextId,slug,revision,fileId,digest,bytes.byteLength,row.content_type,row.object_key).first<Row>();
+        AND (${routeCondition.sql}) LIMIT 1`)
+        .bind(contextId,slug,revision,fileId,digest,bytes.byteLength,row.content_type,row.object_key,...routeCondition.bindings).first<Row>();
       if(!stillVisible)return missing(requestId);
       const responseHeaders=headers(requestId,String(row.content_type));
       responseHeaders.set('content-length',String(bytes.byteLength));

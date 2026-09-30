@@ -34,9 +34,22 @@ const identifier=(value:unknown,max=128):string=>{
 const cursor=(value:unknown):string|null=>value===null?null:identifier(value);
 const keySecret=(value:unknown):value is string=>typeof value==='string'&&value.length>=8
   &&value.length<=4096&&value.isWellFormed()&&!/[\u0000-\u001f\u007f]/u.test(value);
+const returnOrigin=(value:unknown):string|null=>{
+  if(value===null)return null;
+  if(typeof value!=='string'||value.length>512||!value.isWellFormed())throw new OperationError('invalid_input');
+  let url:URL;try{url=new URL(value);}catch{throw new OperationError('invalid_input');}
+  if(url.protocol!=='https:'||url.username||url.password||url.pathname!=='/'||url.search||url.hash
+    ||url.origin!==value||url.hostname==='localhost'||url.hostname.endsWith('.localhost')
+    ||!url.hostname.includes('.'))throw new OperationError('invalid_input');
+  return value;
+};
 const now=()=>new Date().toISOString();
 const configView=(row:Row|null)=>({origin:STRIPE_ORIGIN,enabled:row?.enabled===true,
-  hasKey:typeof row?.key_ref==='string',revision:typeof row?.revision==='number'?row.revision:0,
+  hasKey:typeof row?.key_ref==='string',
+  hasWebhookSecret:typeof row?.webhook_key_ref==='string',
+  hasWebhookService:typeof row?.webhook_service_token_ref==='string',
+  checkoutReturnOrigin:typeof row?.checkout_return_origin==='string'?row.checkout_return_origin:null,
+  revision:typeof row?.revision==='number'?row.revision:0,
   state:!row||!row.key_ref?'missing':row.enabled===true?'unverified':'configured'});
 const runView=(row:Row|null,id:Collection)=>({collection:id,runId:typeof row?.run_id==='string'?row.run_id:null,
   cursor:typeof row?.cursor==='string'?row.cursor:null,
@@ -47,6 +60,14 @@ const secrets=(context:OperationContext):ProviderSecretsPort=>{
   if(!context.providerSecrets)throw new OperationError('unsupported');
   return context.providerSecrets;
 };
+const webhookRefs=(row:Row)=>[
+  [row.webhook_key_ref,row.webhook_secret_version],
+  [row.webhook_previous_key_ref,row.webhook_previous_secret_version],
+  [row.webhook_service_token_ref,row.webhook_service_token_version]
+].filter((item):item is [string,number]=>typeof item[0]==='string'&&Number.isSafeInteger(item[1]));
+const revokeWebhookSecrets=async(context:OperationContext,row:Row)=>Promise.all(webhookRefs(row)
+  .map(async([reference,expectedVersion])=>(await secrets(context).prepareRevoke({
+    providerId:STRIPE_CONNECTOR_ID,reference,expectedVersion})).plan));
 const remote=async(context:OperationContext,request:Parameters<ConnectorPort['request']>[0]):Promise<JsonValue>=>{
   if(!context.connector)throw new OperationError('unavailable');
   const answer=await context.connector.request({...request,signal:context.signal});
@@ -54,6 +75,140 @@ const remote=async(context:OperationContext,request:Parameters<ConnectorPort['re
   throw new OperationError(answer.code==='access_denied'?'forbidden':
     answer.code==='invalid_request'?'invalid_input':answer.code==='remote_not_found'?'not_found':'unavailable');
 };
+const mutation=async(context:OperationContext,request:Parameters<ConnectorPort['mutate']>[0]):Promise<JsonValue>=>{
+  if(!context.connector)throw new OperationError('unavailable');
+  const answer=await context.connector.mutate({...request,signal:context.signal});
+  if(answer.kind==='ok')return answer.body;
+  throw new OperationError(answer.code==='access_denied'?'forbidden':
+    answer.code==='invalid_request'?'invalid_input':
+    answer.code==='outcome_unknown'?'unknown':'unavailable');
+};
+const supplier=(value:JsonValue):Record<string,unknown>=>value&&typeof value==='object'&&!Array.isArray(value)
+  ?value as Record<string,unknown>:(()=>{throw new OperationError('unavailable');})();
+const testCheckout=(value:JsonValue,expectedMode:'payment'|'subscription')=>{
+  const row=supplier(value),id=identifier(row.id),mode=row.mode;
+  if(!id.startsWith('cs_test_')||row.object!=='checkout.session'||row.livemode!==false
+    ||mode!==expectedMode||!['open','complete','expired'].includes(String(row.status))
+    ||!['paid','unpaid','no_payment_required'].includes(String(row.payment_status)))
+    throw new OperationError('unavailable');
+  const url=row.url;
+  if(url!==null&&url!==undefined&&(typeof url!=='string'||url.length>2048
+    ||!url.startsWith('https://checkout.stripe.com/')))throw new OperationError('unavailable');
+  return {id,url:typeof url==='string'?url:null,mode:expectedMode,
+    status:String(row.status),paymentStatus:String(row.payment_status),livemode:false as const};
+};
+const checkoutReady=async(context:OperationContext,priceId:unknown,mode:'payment'|'subscription',
+  quantity:unknown,customerId:unknown)=>{
+  const id=identifier(priceId),count=Number(quantity),configuration=await config(context);
+  if(!id.startsWith('price_')||!Number.isSafeInteger(count)||count<1||count>100
+    ||!configuration||configuration.enabled!==true||typeof configuration.connection_id!=='string'
+    ||typeof configuration.checkout_return_origin!=='string')throw new OperationError('invalid_input');
+  const price=await context.data.get('stripe_price',{key:{id}}) as Row|null;
+  if(!price||price.connection_id!==configuration.connection_id||price.active!==true
+    ||price.livemode!==false||price.type!==(mode==='payment'?'one_time':'recurring')
+    ||price.billing_scheme!=='per_unit'||price.custom_amount!==false
+    ||price.usage_type==='metered'||!Number.isSafeInteger(price.unit_amount_minor)
+    ||Number(price.unit_amount_minor)<1)throw new OperationError('invalid_input');
+  let customer:string|undefined;
+  if(customerId!==undefined){
+    customer=identifier(customerId);
+    if(!customer.startsWith('cus_'))throw new OperationError('invalid_input');
+    const projected=await context.data.get('stripe_customer',{key:{id:customer}}) as Row|null;
+    if(!projected||projected.connection_id!==configuration.connection_id||projected.livemode!==false)
+      throw new OperationError('invalid_input');
+  }
+  return {configuration,id,count,customer};
+};
+async function checkoutCreate(value:JsonValue,context:OperationContext,mode:'payment'|'subscription'){
+  const input=args(value),ready=await checkoutReady(context,input.priceId,mode,input.quantity,input.customerId);
+  const returnUrl=String(ready.configuration.checkout_return_origin);
+  const body=await mutation(context,{resource:mode==='payment'?'checkout_payment_create':
+    'checkout_subscription_create',fields:{priceId:ready.id,quantity:ready.count,
+    successUrl:`${returnUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl:`${returnUrl}/?checkout=cancel`,clientReferenceId:context.executionId,
+    ...(ready.customer?{customerId:ready.customer}:{})}});
+  const session=testCheckout(body,mode);
+  if(session.status!=='open'||session.paymentStatus!=='unpaid'||!session.url
+    ||supplier(body).client_reference_id!==context.executionId)throw new OperationError('unknown');
+  const plan=context.data.planCreate('stripe_checkout',{values:{id:session.id,
+    connection_id:ready.configuration.connection_id,execution_id:context.executionId,
+    price_id:ready.id,quantity:ready.count,mode,status:session.status,
+    payment_status:session.paymentStatus,url:session.url,livemode:false,
+    revision:1,updated_at:now()}});
+  return {output:{session},plans:[plan]};
+}
+export async function checkoutPaymentCreate(value:JsonValue,context:OperationContext){
+  return checkoutCreate(value,context,'payment');
+}
+export async function checkoutSubscriptionCreate(value:JsonValue,context:OperationContext){
+  return checkoutCreate(value,context,'subscription');
+}
+export async function checkoutRead(value:JsonValue,context:OperationContext){
+  const id=identifier(args(value).sessionId),configuration=await config(context);
+  const local=await context.data.get('stripe_checkout',{key:{id}}) as Row|null;
+  if(!id.startsWith('cs_test_')||!local||local.connection_id!==configuration?.connection_id
+    ||!['payment','subscription'].includes(String(local.mode)))throw new OperationError('not_found');
+  const body=await remote(context,{resource:'checkout_session',id});
+  const session=testCheckout(body,local.mode as 'payment'|'subscription');
+  if(session.id!==id)throw new OperationError('unavailable');
+  return {output:{session}};
+}
+export async function subscriptionCancelSchedule(value:JsonValue,context:OperationContext){
+  const input=args(value),id=identifier(input.subscriptionId),configuration=await config(context);
+  const prior=await context.data.get('stripe_subscription',{key:{id}}) as Row|null;
+  if(!id.startsWith('sub_')||!prior||prior.connection_id!==configuration?.connection_id
+    ||prior.livemode!==false||!['active','trialing','past_due'].includes(String(prior.status))
+    ||prior.cancel_at_period_end===true)throw new OperationError('invalid_input');
+  const revision=rev(input.revision,prior);
+  const body=supplier(await mutation(context,{resource:'subscription_schedule_cancel',id,
+    fields:{cancelAtPeriodEnd:true}}));
+  if(body.object!=='subscription'||body.id!==id||body.livemode!==false
+    ||body.cancel_at_period_end!==true||body.customer!==prior.customer_id)
+    throw new OperationError('unknown');
+  const plan=context.data.planPatch('stripe_subscription',{key:{id},
+    compare:{field:'revision',expected:revision},
+    values:{cancel_at_period_end:true,updated_at:now()}});
+  return {output:{subscriptionId:id,cancelAtPeriodEnd:true,livemode:false},plans:[plan]};
+}
+export async function eventReceive(value:JsonValue,context:OperationContext){
+  const input=args(value),eventId=identifier(input.eventId),objectId=identifier(input.objectId),
+    digest=input.bodyDigest,type=input.type,configuration=await config(context);
+  if(!eventId.startsWith('evt_')||input.requestKey!==eventId||typeof digest!=='string'
+    ||!/^[a-f0-9]{64}$/u.test(digest)||typeof type!=='string'||type.length>128
+    ||input.livemode!==false||!configuration||configuration.enabled!==true
+    ||typeof configuration.connection_id!=='string'||typeof configuration.webhook_key_ref!=='string')
+    throw new OperationError('invalid_input');
+  const existing=await context.data.get('stripe_event',{key:{id:eventId}}) as Row|null;
+  if(existing){
+    if(existing.body_digest!==digest)throw new OperationError('conflict');
+    return {output:{eventId,recorded:true,checkoutUpdated:false}};
+  }
+  const plans=[context.data.planGet('connector_config',{key:configKey(),required:true,
+    where:{connection_id:configuration.connection_id,enabled:true,
+      revision:configuration.revision,webhook_key_ref:configuration.webhook_key_ref}})];
+  plans.push(context.data.planCreate('stripe_event',{values:{id:eventId,
+    connection_id:configuration.connection_id,type,object_id:objectId,
+    body_digest:digest,livemode:false,revision:1,updated_at:now()}}));
+  let checkoutUpdated=false;
+  if(objectId.startsWith('cs_test_')&&input.sessionMode&&input.sessionStatus&&input.paymentStatus){
+    const session=await context.data.get('stripe_checkout',{key:{id:objectId}}) as Row|null;
+    const statusRank:Record<string,number>={open:0,expired:1,complete:2};
+    const paymentRank:Record<string,number>={unpaid:0,no_payment_required:1,paid:2};
+    if(session&&session.connection_id===configuration.connection_id
+      &&session.mode===input.sessionMode&&session.livemode===false
+      &&statusRank[String(input.sessionStatus)]!==undefined
+      &&paymentRank[String(input.paymentStatus)]!==undefined
+      &&statusRank[String(input.sessionStatus)]>=statusRank[String(session.status)]
+      &&paymentRank[String(input.paymentStatus)]>=paymentRank[String(session.payment_status)]){
+      plans.push(context.data.planPatch('stripe_checkout',{key:{id:objectId},
+        compare:{field:'revision',expected:Number(session.revision)},
+        values:{status:String(input.sessionStatus),payment_status:String(input.paymentStatus),
+          updated_at:now()}}));
+      checkoutUpdated=true;
+    }
+  }
+  return {output:{eventId,recorded:true,checkoutUpdated},plans};
+}
 
 export async function configRead(_value:JsonValue,context:OperationContext){
   return {output:{config:configView(await config(context))}};
@@ -62,7 +217,11 @@ export async function configSet(value:JsonValue,context:OperationContext){
   const input=args(value),prior=await config(context),revision=rev(input.revision,prior);
   if(typeof input.enabled!=='boolean'||input.enabled&&typeof prior?.key_ref!=='string')
     throw new OperationError('invalid_input');
-  const changes={origin:STRIPE_ORIGIN,enabled:input.enabled,updated_at:now()};
+  const checkoutOrigin=input.checkoutReturnOrigin===undefined
+    ?typeof prior?.checkout_return_origin==='string'?prior.checkout_return_origin:null
+    :returnOrigin(input.checkoutReturnOrigin);
+  const changes={origin:STRIPE_ORIGIN,enabled:input.enabled,
+    checkout_return_origin:checkoutOrigin,updated_at:now()};
   const plan=prior?context.data.planPatch('connector_config',{key:configKey(),
     compare:{field:'revision',expected:revision},values:changes}):
     context.data.planCreate('connector_config',{values:{id:STRIPE_CONNECTOR_ID,...changes,
@@ -78,10 +237,14 @@ export async function configKeySet(value:JsonValue,context:OperationContext){
     :await vault.preparePut({providerId:STRIPE_CONNECTOR_ID,secret:input.apiKey});
   // A new credential invalidates every previous cursor and visible projection.
   const changes={key_ref:sealed.reference,secret_version:sealed.version,
-    connection_id:crypto.randomUUID(),enabled:false,updated_at:now()};
+    connection_id:crypto.randomUUID(),enabled:false,webhook_key_ref:null,
+    webhook_secret_version:null,webhook_previous_key_ref:null,
+    webhook_previous_secret_version:null,webhook_service_token_ref:null,
+    webhook_service_token_version:null,updated_at:now()};
   const plan=context.data.planPatch('connector_config',{key:configKey(),
     compare:{field:'revision',expected:revision},values:changes});
-  return {output:{config:configView({...prior,...changes,revision:revision+1})},plans:[sealed.plan,plan]};
+  return {output:{config:configView({...prior,...changes,revision:revision+1})},
+    plans:[sealed.plan,...await revokeWebhookSecrets(context,prior),plan]};
 }
 export async function configKeyRevoke(value:JsonValue,context:OperationContext){
   const input=args(value),prior=await config(context),revision=rev(input.revision,prior);
@@ -89,10 +252,82 @@ export async function configKeyRevoke(value:JsonValue,context:OperationContext){
     throw new OperationError('invalid_input');
   const sealed=await secrets(context).prepareRevoke({providerId:STRIPE_CONNECTOR_ID,
     reference:prior.key_ref,expectedVersion:Number(prior.secret_version)});
-  const changes={key_ref:null,secret_version:null,connection_id:null,enabled:false,updated_at:now()};
+  const changes={key_ref:null,secret_version:null,connection_id:null,enabled:false,
+    webhook_key_ref:null,webhook_secret_version:null,
+    webhook_previous_key_ref:null,webhook_previous_secret_version:null,
+    webhook_service_token_ref:null,webhook_service_token_version:null,updated_at:now()};
   const plan=context.data.planPatch('connector_config',{key:configKey(),
     compare:{field:'revision',expected:revision},values:changes});
-  return {output:{config:configView({...prior,...changes,revision:revision+1})},plans:[sealed.plan,plan]};
+  return {output:{config:configView({...prior,...changes,revision:revision+1})},
+    plans:[sealed.plan,...await revokeWebhookSecrets(context,prior),plan]};
+}
+export async function configWebhookSet(value:JsonValue,context:OperationContext){
+  const input=args(value),prior=await config(context),revision=rev(input.revision,prior);
+  if(!prior||!keySecret(input.webhookSecret)||typeof input.webhookSecret!=='string'
+    ||!/^whsec_[A-Za-z0-9_+\-/=]{16,512}$/u.test(input.webhookSecret)
+    ||prior.enabled!==true||typeof prior.connection_id!=='string')
+    throw new OperationError('invalid_input');
+  const sealed=await secrets(context).preparePut({providerId:STRIPE_CONNECTOR_ID,
+    secret:input.webhookSecret});
+  const revoked=typeof prior.webhook_previous_key_ref==='string'
+    &&Number.isSafeInteger(prior.webhook_previous_secret_version)
+    ?[(await secrets(context).prepareRevoke({providerId:STRIPE_CONNECTOR_ID,
+      reference:prior.webhook_previous_key_ref,
+      expectedVersion:Number(prior.webhook_previous_secret_version)})).plan]:[];
+  const changes={webhook_key_ref:sealed.reference,webhook_secret_version:sealed.version,
+    webhook_previous_key_ref:typeof prior.webhook_key_ref==='string'?prior.webhook_key_ref:null,
+    webhook_previous_secret_version:Number.isSafeInteger(prior.webhook_secret_version)
+      ?Number(prior.webhook_secret_version):null,updated_at:now()};
+  const plan=context.data.planPatch('connector_config',{key:configKey(),
+    compare:{field:'revision',expected:revision},values:changes});
+  return {output:{config:configView({...prior,...changes,revision:revision+1})},
+    plans:[sealed.plan,...revoked,plan]};
+}
+export async function configWebhookRevoke(value:JsonValue,context:OperationContext){
+  const input=args(value),prior=await config(context),revision=rev(input.revision,prior);
+  if(!prior||typeof prior.webhook_key_ref!=='string')throw new OperationError('invalid_input');
+  const changes={webhook_key_ref:null,webhook_secret_version:null,
+    webhook_previous_key_ref:null,webhook_previous_secret_version:null,updated_at:now()};
+  const plan=context.data.planPatch('connector_config',{key:configKey(),
+    compare:{field:'revision',expected:revision},values:changes});
+  return {output:{config:configView({...prior,...changes,revision:revision+1})},
+    plans:[...await Promise.all(webhookRefs(prior).filter(([reference])=>
+      reference!==prior.webhook_service_token_ref).map(async([reference,expectedVersion])=>
+      (await secrets(context).prepareRevoke({providerId:STRIPE_CONNECTOR_ID,
+        reference,expectedVersion})).plan)),plan]};
+}
+export async function configWebhookServiceSet(value:JsonValue,context:OperationContext){
+  const input=args(value),prior=await config(context),revision=rev(input.revision,prior);
+  if(!prior||typeof input.serviceToken!=='string'
+    ||!/^cz1a_[A-Za-z0-9_-]{43}$/u.test(input.serviceToken)
+    ||prior.enabled!==true||typeof prior.connection_id!=='string')
+    throw new OperationError('invalid_input');
+  const sealed=await secrets(context).preparePut({providerId:STRIPE_CONNECTOR_ID,
+    secret:input.serviceToken});
+  const revoked=typeof prior.webhook_service_token_ref==='string'
+    &&Number.isSafeInteger(prior.webhook_service_token_version)
+    ?[(await secrets(context).prepareRevoke({providerId:STRIPE_CONNECTOR_ID,
+      reference:prior.webhook_service_token_ref,
+      expectedVersion:Number(prior.webhook_service_token_version)})).plan]:[];
+  const changes={webhook_service_token_ref:sealed.reference,
+    webhook_service_token_version:sealed.version,updated_at:now()};
+  const plan=context.data.planPatch('connector_config',{key:configKey(),
+    compare:{field:'revision',expected:revision},values:changes});
+  return {output:{config:configView({...prior,...changes,revision:revision+1})},
+    plans:[sealed.plan,...revoked,plan]};
+}
+export async function configWebhookServiceRevoke(value:JsonValue,context:OperationContext){
+  const input=args(value),prior=await config(context),revision=rev(input.revision,prior);
+  if(!prior||typeof prior.webhook_service_token_ref!=='string'
+    ||!Number.isSafeInteger(prior.webhook_service_token_version))throw new OperationError('invalid_input');
+  const sealed=await secrets(context).prepareRevoke({providerId:STRIPE_CONNECTOR_ID,
+    reference:prior.webhook_service_token_ref,
+    expectedVersion:Number(prior.webhook_service_token_version)});
+  const changes={webhook_service_token_ref:null,webhook_service_token_version:null,updated_at:now()};
+  const plan=context.data.planPatch('connector_config',{key:configKey(),
+    compare:{field:'revision',expected:revision},values:changes});
+  return {output:{config:configView({...prior,...changes,revision:revision+1})},
+    plans:[sealed.plan,plan]};
 }
 export async function connectionCheck(_value:JsonValue,context:OperationContext){
   const body=await remote(context,{resource:'customers',limit:1});
@@ -158,14 +393,15 @@ const listInput=(value:JsonValue)=>{
     throw new OperationError('invalid_input');
   return {limit:Number(input.limit),cursor:input.cursor===undefined?null:identifier(input.cursor)};
 };
-const localPage=async(context:OperationContext,model:string,value:JsonValue,fields:readonly string[])=>{
+const localPage=async(context:OperationContext,model:string,value:JsonValue,fields:readonly string[],
+  includeRevision=false)=>{
   const input=listInput(value),generation=connectionId(await config(context));
   if(!generation)return {output:{items:[],nextCursor:null}};
   const result=await context.data.list(model,{limit:input.limit,where:{connection_id:generation},
     ...(input.cursor?{after:{id:input.cursor}}:{}),fields});
   if(connectionId(await config(context))!==generation)throw new OperationError('conflict');
   const items=result.items.map(row=>({id:row.id,...Object.fromEntries(Object.entries(row)
-    .filter(([name])=>name!=='id'&&name!=='revision').map(([name,val])=>[name,val]))}));
+    .filter(([name])=>name!=='id'&&(includeRevision||name!=='revision')).map(([name,val])=>[name,val]))}));
   const output={items,nextCursor:typeof result.nextAfter?.id==='string'?result.nextAfter.id:null};
   if(new TextEncoder().encode(JSON.stringify(output)).length>220_000)throw new OperationError('unavailable');
   return {output};
@@ -176,7 +412,7 @@ export async function customerList(value:JsonValue,context:OperationContext){
 export async function subscriptionList(value:JsonValue,context:OperationContext){
   return localPage(context,'stripe_subscription',value,
     ['id','customer_id','status','currency','price_id','unit_amount_minor','interval',
-      'interval_count','quantity','period_end_at','livemode','updated_at']);
+      'interval_count','quantity','cancel_at_period_end','period_end_at','livemode','revision','updated_at'],true);
 }
 export async function invoiceList(value:JsonValue,context:OperationContext){
   return localPage(context,'stripe_invoice',value,
@@ -191,4 +427,8 @@ export async function priceList(value:JsonValue,context:OperationContext){
   return localPage(context,'stripe_price',value,
     ['id','product_id','active','livemode','currency','type','billing_scheme','unit_amount_minor',
       'unit_amount_decimal','interval','interval_count','usage_type','tiers_mode','custom_amount','updated_at']);
+}
+export async function eventList(value:JsonValue,context:OperationContext){
+  return localPage(context,'stripe_event',value,
+    ['id','type','object_id','body_digest','livemode','updated_at']);
 }

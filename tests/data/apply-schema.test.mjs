@@ -5,15 +5,15 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Miniflare } from 'miniflare';
 import { temporaryDirectory } from '../quality/temporary.mjs';
-import { compileCompositionSchema } from '../../scripts/data/composition-schema.mjs';
+import { compileCompositionSchema, schemaDigest } from '../../scripts/data/composition-schema.mjs';
 import { applyCompositionSchema, inspectCompositionSchema, inspectManagedSchema, managedSchemaGuard, SCHEMA_RECEIPT_TABLE, D1_INTERNAL_SCHEMA_OBJECTS } from '../../scripts/data/apply-schema.mjs';
 import { loadAccessInstallPlan, installAccess, inspectAccessInstallation } from '../../scripts/data/install-access.mjs';
-import { contractIntegrity } from '../../sdk/contracts/validate.mjs';
+import { contractIntegrity, canonicalJson } from '../../sdk/contracts/validate.mjs';
 import { describeD1Schema } from '../../scripts/data/d1-schema.mjs';
-import { OPERATION_STORAGE_MODULE_ID, OPERATION_MODELS } from '../../core/operations/models.ts';
+import { RUNTIME_STORAGE_MODULE_ID, RUNTIME_MODELS } from '../../scripts/data/runtime-models.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const hostObjectCount = describeD1Schema(OPERATION_STORAGE_MODULE_ID, OPERATION_MODELS).objects.length;
+const hostObjectCount = describeD1Schema(RUNTIME_STORAGE_MODULE_ID, RUNTIME_MODELS).objects.length;
 const syntheticPassword = ['synthetic', 'password', 'for', 'isolated', 'd1', 'test'].join('-');
 const json = name => JSON.parse(readFileSync(new URL(name, import.meta.url), 'utf8'));
 const field = (id, type = 'string', extra = {}) => ({ id, type, nullable: false, protected: true, computed: false, ...extra });
@@ -99,6 +99,25 @@ test('central additive publication with real D1, isolated ephemeral bindings', a
       const result = await apply(database, plan); assert.equal(result.ok, true); assert.equal(result.effect, 'confirmed');
       assert.equal((await apply(database, plan)).effect, 'none');
       assert.equal((await database.prepare(`SELECT COUNT(*) AS n FROM ${SCHEMA_RECEIPT_TABLE}`).first()).n, 1);
+    });
+    await t.test('legacy receipts remain inspectable and gain a lock proof without recreating data',async()=>{
+      const database=await db(),plan=planFor([model('items')]);
+      assert.equal((await apply(database,plan)).ok,true);
+      await database.prepare(`INSERT INTO "${table(plan)}" (id,label) VALUES ('one','preserved')`).run();
+      const current=await inspectManagedSchema(database);
+      assert.equal(current.receipt.lockDigest,plan.lockDigest);
+      const legacy={...current.receipt};delete legacy.lockDigest;
+      const payload=canonicalJson(legacy),id=schemaDigest(payload);
+      await database.prepare(`UPDATE ${SCHEMA_RECEIPT_TABLE} SET id=?,payload=? WHERE sequence=1`)
+        .bind(id,payload).run();
+      assert.equal((await inspectManagedSchema(database)).ok,true);
+      const inspected=await inspectCompositionSchema(database,plan);
+      assert.equal(inspected.state,'additive');assert.equal(inspected.additions.length,0);
+      assert.equal((await apply(database,plan)).ok,true);
+      const updated=await inspectManagedSchema(database);
+      assert.equal(updated.receipt.sequence,2);assert.equal(updated.receipt.previousId,id);
+      assert.equal(updated.receipt.lockDigest,plan.lockDigest);
+      assert.equal((await database.prepare(`SELECT label FROM "${table(plan)}" WHERE id='one'`).first()).label,'preserved');
     });
     await t.test('new tables and indexes are additive, existing records survive disabled and removed modules', async () => {
       const database = await db(), first = planFor([model('items')]);

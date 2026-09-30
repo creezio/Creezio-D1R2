@@ -1,5 +1,7 @@
 # Changelog
 
+- T29 candidat : snapshot d’envoi texte/HTML et Cci figé, message `queued` et outbox atomique, refus explicite des pièces jointes, query interne de préparation et projecteur de reçu CAS. Aucun appel fournisseur sans bridge hôte ; `waiting` reste visible et suivi par clé persistée.
+
 - Complément T18 : une pièce jointe ne remplace plus la composition non enregistrée ; l'éditeur ne publie que du HTML nettoyé et des URL HTTP(S) analysées. Le port public `message-lookup` v1 expose `message.read` sans modèle privé. Les trois cartes refusent un résultat marqué en erreur.
 
 - T18 widgets : trois rendus de lecture boîtes, messages et brouillons, aperçus bornés, détail explicite, sans nouveau transport ni SQL.

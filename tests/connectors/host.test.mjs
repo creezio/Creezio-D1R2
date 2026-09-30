@@ -57,6 +57,7 @@ async function fixture(fetcher,described=descriptor){
   const port=(extra={})=>host.port({lease:{kind:'data-lease'},credential:{kind:'session',token:'opaque'},
     contextId:'application',audience:'admin',actors:['user'],
     requiredPermissionIds:[`${moduleId}:read`],signal:new AbortController().signal,
+    executionId:'claim-123',
     ensureActive(){if(!state.alive)throw new Error('operation closed');},...extra});
   return {host,state,port,plans};
 }
@@ -215,4 +216,93 @@ test('successful command GET registers only host-private config and vault commit
   assert.deepEqual(ready.plans[1].input,{key:{id:ready.state.secret.id},required:true,
     where:{version:1,state:'active',binding_id:connectorId},fields:['id']});
   assert.deepEqual(ready.plans[1].fields,['id','version','state','binding_id']);
+});
+
+test('authenticated GET 404 carries the same private commit proofs while 429 does not',async()=>{
+  const missing=await fixture(async()=>new Response(null,{status:404}));
+  const missingGuards=[];
+  assert.deepEqual(await missing.port({registerCommitGuards:tokens=>missingGuards.push(tokens)})
+    .request({resource:'workflow',id:'gone'}),{kind:'error',code:'remote_not_found',status:404});
+  assert.equal(missingGuards.length,1);
+  assert.deepEqual(missingGuards[0],missing.plans);
+  assert.equal(missing.plans.length,2);
+  const limited=await fixture(async()=>new Response(null,{status:429}));
+  const limitedGuards=[];
+  assert.deepEqual(await limited.port({registerCommitGuards:tokens=>limitedGuards.push(tokens)})
+    .request({resource:'workflow',id:'later'}),{kind:'error',code:'remote_error',status:429});
+  assert.equal(limitedGuards.length,0);
+});
+
+test('a declared mutation sends only bounded fields with a claim-derived provider key',async()=>{
+  const writing={...descriptor,resources:[...descriptor.resources,
+    {id:'create',method:'POST',path:'/api/v1/items',params:[],
+      body:{encoding:'json',fields:[{name:'title',wireName:'title',kind:'string',required:true,maxBytes:40}]},
+      idempotencyHeader:'Idempotency-Key',successStatuses:[202]}]};
+  const sent=[];
+  const ready=await fixture(async(url,init)=>{sent.push({url:String(url),init});
+    return new Response(JSON.stringify({taskUid:19}),
+      {status:202,headers:{'content-type':'application/json'}});},writing);
+  const registered=[];
+  const result=await ready.port({registerCommitGuards:tokens=>registered.push(tokens)})
+    .mutate({resource:'create',fields:{title:'Bonjour'}});
+  assert.deepEqual(result,{kind:'ok',status:202,body:{taskUid:19}});
+  assert.equal(sent.length,1);
+  assert.equal(sent[0].url,'https://n8n.example.invalid/api/v1/items');
+  assert.equal(sent[0].init.headers.get('Idempotency-Key'),'creezio-claim-123');
+  assert.equal(sent[0].init.headers.get('Content-Type'),'application/json');
+  assert.equal(sent[0].init.body,JSON.stringify({title:'Bonjour'}));
+  assert.equal(registered.length,1);
+  assert.equal(registered[0].length,2);
+});
+
+test('mutation rejects undeclared fields before egress and never retries an unknown outcome',async()=>{
+  const writing={...descriptor,resources:[{id:'checkout',method:'POST',path:'/v1/checkout/sessions',
+    params:[],body:{encoding:'form',fields:[
+      {name:'price',wireName:'line_items[0][price]',kind:'string',required:true,maxBytes:128},
+      {name:'quantity',wireName:'line_items[0][quantity]',kind:'integer',required:true,maxBytes:4}],
+      fixed:[{name:'mode',value:'payment'}]},idempotencyHeader:'Idempotency-Key'}]};
+  let calls=0;
+  const ready=await fixture(async()=>{calls++;throw new Error('network lost');},writing);
+  const port=ready.port({registerCommitGuards:()=>{}});
+  assert.deepEqual(await port.mutate({resource:'checkout',fields:{price:'price_1',quantity:1,
+    secret:'free-form'}}),{kind:'error',code:'invalid_request'});
+  assert.equal(calls,0);
+  const second=ready.port({registerCommitGuards:()=>{}});
+  assert.deepEqual(await second.mutate({resource:'checkout',fields:{price:'price_1',quantity:1}}),
+    {kind:'error',code:'outcome_unknown'});
+  assert.deepEqual(await second.mutate({resource:'checkout',fields:{price:'price_1',quantity:1}}),
+    {kind:'error',code:'invalid_request'});
+  assert.equal(calls,1);
+});
+
+test('Meili task writes accept a declared JSON array and a 202 response',async()=>{
+  const meili={...descriptor,resources:[{id:'documents',method:'POST',path:'/indexes/{id}/documents',
+    params:['id'],body:{encoding:'json-root',fields:[
+      {name:'documents',wireName:'documents',kind:'json',required:true,maxBytes:4096}]},
+    successStatuses:[202]}]};
+  const sent=[];
+  const ready=await fixture(async(url,init)=>{sent.push({url:String(url),init});
+    return new Response(JSON.stringify({taskUid:7,status:'enqueued'}),
+      {status:202,headers:{'content-type':'application/json'}});},meili);
+  assert.deepEqual(await ready.port({registerCommitGuards:()=>{}}).mutate({resource:'documents',
+    id:'products',fields:{documents:[{id:'p1',title:'Book'}]}}),
+    {kind:'ok',status:202,body:{taskUid:7,status:'enqueued'}});
+  assert.equal(sent[0].url,'https://n8n.example.invalid/indexes/products/documents');
+  assert.equal(sent[0].init.body,JSON.stringify([{id:'p1',title:'Book'}]));
+});
+
+test('GET query fields are declared and bounded before network egress',async()=>{
+  const search={...descriptor,resources:[{id:'search',method:'GET',path:'/indexes/{id}/search',
+    params:['id','limit'],query:{fields:[
+      {name:'q',wireName:'q',kind:'string',required:true,maxBytes:64},
+      {name:'offset',wireName:'offset',kind:'integer',maxBytes:4}]}}]};
+  const sent=[];
+  const ready=await fixture(async(url)=>{sent.push(String(url));return new Response('{}',
+    {headers:{'content-type':'application/json'}});},search);
+  assert.deepEqual(await ready.port().request({resource:'search',id:'products',limit:8,
+    fields:{q:'lamp',offset:2}}),{kind:'ok',status:200,body:{}});
+  assert.equal(sent[0],'https://n8n.example.invalid/indexes/products/search?limit=8&q=lamp&offset=2');
+  assert.deepEqual(await ready.port().request({resource:'search',id:'products',
+    fields:{q:'lamp',arbitrary:'all'}}),{kind:'error',code:'invalid_request'});
+  assert.equal(sent.length,1);
 });

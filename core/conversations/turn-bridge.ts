@@ -2,6 +2,7 @@ import {createDataAccess} from '../data/service.ts';
 import type {DataCredential,DataLease,DataRecord,JsonValue,PermissionDefinition,RuntimeDataCatalog} from '../data/types.ts';
 import type {AuthorizationAudience} from '../authorization/types.ts';
 import type {IdentityDatabase} from '../identity/d1-store.ts';
+import type {StorageRouteIdentity} from '../storage-authority/target.ts';
 import {createOperationStore} from '../operations/store.ts';
 import type {DeliveryClaim,OperationDelivery} from '../operations/store-types.ts';
 import {OperationError} from '../operations/types.ts';
@@ -28,11 +29,13 @@ const view=(row:Row)=>({id:row.id,conversationId:row.conversation_id,state:row.s
 
 /** A client driven, request bounded step. Read routes never call this bridge. */
 export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly catalog:RuntimeDataCatalog;
+  readonly authorityDb?:IdentityDatabase;readonly storageRoute?:StorageRouteIdentity;
   readonly permissions:readonly PermissionDefinition[];readonly provider:ReturnType<typeof createOpenAiProviderHost>;
   readonly registry:OperationRegistry;readonly toolCatalog:readonly ProviderOperationSchema[];
   readonly engine:ReturnType<typeof createOperationEngine>;
   readonly widgets?:{readonly catalog:CompiledWidgetCatalog;readonly validators:WidgetValidatorMap}}){
-  const data=createDataAccess(options.db,{catalog:options.catalog,permissions:options.permissions});
+  const data=createDataAccess(options.db,{catalog:options.catalog,permissions:options.permissions,
+    authorityDb:options.authorityDb,storageRoute:options.storageRoute});
   const store=createOperationStore({db:options.db,data});
   const engine=options.engine;
   const authorize=(request:Request)=>data.authorize(request.credential,{

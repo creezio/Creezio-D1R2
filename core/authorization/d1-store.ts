@@ -386,7 +386,7 @@ export function createD1AuthorizationStore(db: IdentityDatabase) {
   }
 
   const planned = (sql: string, bindings: (string | number | null)[] = []): SqlStatement => ({sql, bindings});
-  function preparePolicyCommit(input: CommitAccessPolicyInput) {
+  function preparePolicyCommit(input: CommitAccessPolicyInput,auditId:string=crypto.randomUUID()) {
     if (!inputShape(input)) throw new AuthorizationStoreInputError();
     let authority: AccessAdminGuard;
     try { authority = captureAccessAdminGuard('guard' in input ? input.guard : {
@@ -398,7 +398,7 @@ export function createD1AuthorizationStore(db: IdentityDatabase) {
     const policy = parseAccessPolicy(input.policy);
     const beforePolicy = parseAccessPolicy(input.beforePolicy);
     if (!policy || !beforePolicy) throw new AuthorizationStoreInputError();
-    const claim = crypto.randomUUID(), auditId = crypto.randomUUID();
+    const claim = crypto.randomUUID();
     const current = accessAdminCondition(authority);
     const claimExists = `EXISTS (SELECT 1 FROM ${table.access_audit}
       WHERE id = ? AND claim_nonce = ? AND action = 'authorization-updated')`;
@@ -456,8 +456,7 @@ export function createD1AuthorizationStore(db: IdentityDatabase) {
       assertion: planned(`SELECT CASE WHEN ${claimExists} THEN 1 ELSE json('creezio_access_policy_conflict') END AS accepted`, guard())});
   }
 
-  async function commitPolicy(input: CommitAccessPolicyInput): Promise<boolean> {
-    const plan = preparePolicyCommit(input);
+  async function commitPreparedPolicy(plan: ReturnType<typeof preparePolicyCommit>): Promise<boolean> {
     const results = await batch(plan.statements.map(item => statement(item.sql, [...item.bindings])));
     const acquired = results[0].meta.changes;
     if (acquired !== 0 && acquired !== 1) throw new AuthorizationStoreError();
@@ -467,5 +466,10 @@ export function createD1AuthorizationStore(db: IdentityDatabase) {
     return acquired === 1;
   }
 
-  return Object.freeze({ read, readMachine, readOAuthAccess, readForImpersonation, readImpersonation, commitPolicy, preparePolicyCommit });
+  async function commitPolicy(input: CommitAccessPolicyInput): Promise<boolean> {
+    return commitPreparedPolicy(preparePolicyCommit(input));
+  }
+
+  return Object.freeze({ read, readMachine, readOAuthAccess, readForImpersonation, readImpersonation,
+    commitPolicy, commitPreparedPolicy, preparePolicyCommit });
 }

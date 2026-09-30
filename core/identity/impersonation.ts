@@ -1,4 +1,4 @@
-import { createD1IdentityStore, type IdentityDatabase } from './d1-store.ts';
+import { ACCESS_TABLES, createD1IdentityStore, type IdentityDatabase } from './d1-store.ts';
 import { createD1ImpersonationStore } from './impersonation-store.ts';
 import { IMPERSONATION_LIMITS, normalizeImpersonationReason, parseImpersonationPermissions } from './impersonation-policy.ts';
 import { identityAdmissionKey, identityInputFields, validIdentityId } from './input.ts';
@@ -8,6 +8,7 @@ import { authorize, copyAuthorizationTarget } from '../authorization/authorize.t
 import { createNativeAuthorizationResolver, IMPERSONATION_TARGET } from '../authorization/resolver.ts';
 import { IMPERSONATE_ACCESS, MANAGE_ACCESS, policySnapshot, validPolicyCatalog, type AccessPolicy } from '../authorization/policy.ts';
 import type { AuthorizationAudience, AuthorizationDecision, AuthorizationSnapshot, AuthorizationTarget, PermissionDefinition } from '../authorization/types.ts';
+import type {StorageMutationPort} from '../storage-authority/native-mutation.ts';
 
 type Failure = Readonly<{ok: false; error: 'invalid_input' | 'unauthorized' | 'forbidden' | 'rate_limited' | 'conflict' | 'storage_error'}>;
 const fail = (error: Failure['error']): Failure => Object.freeze({ok: false, error});
@@ -30,7 +31,8 @@ function startInput(value: unknown): (Scope & {readonly reason: string; readonly
 }
 
 /** Internal operations. No cookie, HTTP adapter, UI identity switch or business write permit is issued here. */
-export function createImpersonationService(db: IdentityDatabase, options: {permissions: readonly PermissionDefinition[]}) {
+export function createImpersonationService(db: IdentityDatabase, options: {
+  permissions: readonly PermissionDefinition[];storageMutation?:StorageMutationPort}) {
   const { permissions } = createNativeAuthorizationResolver(db, options);
   const catalog = new Map(permissions.map(p => [p.id, p]));
   const authorization = createD1AuthorizationStore(db), store = createD1ImpersonationStore(db), identity = createD1IdentityStore(db);
@@ -111,6 +113,19 @@ export function createImpersonationService(db: IdentityDatabase, options: {permi
       if (!digest) return fail('unauthorized');
       // Ending one's credential does not require an administrator still to have
       // access. This never restores the source session or returns its secret.
+      if(options.storageMutation){
+        const commandKey=digest;
+        const auditId=await options.storageMutation.receiptId('impersonation.stop',commandKey);
+        const outcome=await options.storageMutation.commit({kind:'impersonation.stop',commandKey,
+          sourceCommit:()=>store.stop(digest,auditId),committed:value=>value===true,
+          inspectSource:async()=>{
+            const receipt=await db.prepare(`SELECT 1 AS ok FROM "${ACCESS_TABLES.access_audit}"
+              WHERE id=? AND action='impersonation-stopped' LIMIT 2`).bind(auditId).first();
+            return receipt?.ok===1;
+          },recoverValue:async()=>true});
+        return outcome.state==='confirmed'&&outcome.value===true
+          ?Object.freeze({ok:true as const}):fail('storage_error');
+      }
       return await store.stop(digest) ? Object.freeze({ok: true as const}) : fail('conflict');
     } catch { return fail('storage_error'); }
   }

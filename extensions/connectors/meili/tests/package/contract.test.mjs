@@ -11,7 +11,7 @@ test('meili source manifest is valid and declares every runtime/validation artif
   }
   assert.ok(manifest.packaging.runtime.files.includes('module/storage.ts'));
   assert.ok(manifest.packaging.runtime.files.includes('ui/index.tsx'));
-  assert.equal(manifest.compatibility.sdk,'^1.4.0');
-  assert.equal(manifest.identity.version,'0.2.0');
+  assert.equal(manifest.compatibility.sdk,'^1.6.0');
+  assert.equal(manifest.identity.version,'0.3.0');
   assert.ok(read('module/storage.ts').includes('meiliConnectorDescriptor'));
 });

@@ -5,6 +5,7 @@ import type {RuntimeEnvironment} from '../runtime/environment.ts';
 import {AccessHttpError, HTTP_POLICY, readAccessCookie, resolveAccessHttpConfiguration} from '../identity/http-policy.ts';
 import {oauthResource} from '../oauth/protocol.ts';
 import {createD1IdentityStore} from '../identity/d1-store.ts';
+import type {createStorageAuthorityHost,StorageAuthoritySelection} from '../storage-authority/host.ts';
 import {admitFileRequest} from './admission.ts';
 import {FileError, FILE_POLICY} from './mapping.ts';
 import {fileOwnerId, resolveFileCategory, type RuntimeFileCatalog} from './catalog.ts';
@@ -69,12 +70,16 @@ async function body(request: Request, maximum: number): Promise<Uint8Array> {
 
 /** Private binary transport shared by modules. It stages content; only an operation can publish it. */
 export async function dispatchFileHttp(request: Request, environment: RuntimeEnvironment, rawEnvironment: unknown,
-  requestId: string, options: {catalog: RuntimeDataCatalog; files: RuntimeFileCatalog; permissions: readonly PermissionDefinition[]}): Promise<Response> {
+  requestId: string, options: {catalog: RuntimeDataCatalog; files: RuntimeFileCatalog; permissions: readonly PermissionDefinition[];
+    storageAuthority?:Pick<ReturnType<typeof createStorageAuthorityHost>,'forContext'>}): Promise<Response> {
   const url = new URL(request.url), match = /^\/api\/files\/(admin|app)\/([^/]+)\/([^/]+)$/.exec(url.pathname);
   if (!match || !id.test(match[2]!) || !id.test(match[3]!)) return json({error:{code:'not_found'},requestId},404,requestId);
   const audience = match[1] as AuthorizationAudience, moduleId=match[2]!, categoryId=match[3]!;
   const configuration = resolveAccessHttpConfiguration(rawEnvironment,environment.profile);
   if (!configuration) return json({error:{code:'runtime_unavailable'},requestId},503,requestId);
+  if (environment.storage && !environment.storageAuthority
+    || environment.storageAuthority !== options.storageAuthority)
+    return json({error:{code:'runtime_unavailable'},requestId},503,requestId);
   if (!['PUT','GET','DELETE'].includes(request.method)) return json({error:{code:'method_not_allowed'},requestId},405,requestId);
   let data: ReturnType<typeof createDataAccess> | undefined;
   let lease: Awaited<ReturnType<ReturnType<typeof createDataAccess>['authorize']>> | undefined, timer: ReturnType<typeof setTimeout> | undefined;
@@ -102,12 +107,18 @@ export async function dispatchFileHttp(request: Request, environment: RuntimeEnv
     if(typeof credentialToken!=='string')fail('authentication_required',401);
     const store=createD1IdentityStore(environment.bindings.DB);
     if(!await admitFileRequest(store,moduleId,categoryId,audience,credentialToken))fail('rate_limited',429);
-    data=createDataAccess(environment.bindings.DB,{catalog:options.catalog,permissions:options.permissions});
+    let selected:StorageAuthoritySelection|undefined;
+    try{selected=options.storageAuthority?.forContext(contextId);}
+    catch{fail('forbidden',403);}
+    const targetDb=selected?.db??environment.bindings.DB;
+    data=createDataAccess(targetDb,{catalog:options.catalog,permissions:options.permissions,
+      ...(selected?.storageRoute?{authorityDb:selected.authorityDb,storageRoute:selected.storageRoute}:{})});
     const actors: AuthorizationActor[] = ['user','machine','delegated-user'];
     lease=await data.authorize(credential,{contextId,audience,actors,requiredPermissionIds:linked
       ?[`${moduleId}:${category.linkedRead!.permission.id}`]:category.permissions.map(p=>`${moduleId}:${p.id}`),purpose:'operation'},{moduleId});
     const ownerId=await fileOwnerId(data.describeLease(lease).principalId,audience,category.ownerScope);
-    const files=createFileService({data,catalog:options.catalog,moduleId,category,bucket:environment.bindings.BUCKET as unknown as FileBucket,
+    const files=createFileService({data,catalog:options.catalog,moduleId,category,
+      bucket:(selected?.bucket??environment.bindings.BUCKET) as unknown as FileBucket,
       ...(!linked?{ownerId}:{})});
     const currentLease=lease;
     const execute=async (): Promise<Response> => {

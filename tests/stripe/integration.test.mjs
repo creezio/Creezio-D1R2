@@ -18,6 +18,9 @@ import {createOperationEngine} from '../../core/operations/service.ts';
 import {createOperationHttpTransport} from '../../core/operations/http.ts';
 import {createMcpHttpTransport} from '../../core/mcp/http.ts';
 import {createVaultKeyring} from '../../core/vault/crypto.ts';
+import {createWebhookProofAuthority} from '../../core/connectors/webhook-proof.ts';
+import {createVaultedWebhookResolver} from '../../core/connectors/webhook-resolver.ts';
+import {stripeWebhookInput} from '../../extensions/connectors/stripe/module/webhook.ts';
 import {compileHttpBindings} from '../../scripts/operations/http-bindings.mjs';
 import {compileMcpBindings} from '../../scripts/mcp/bindings.mjs';
 import {compileWidgetCatalog} from '../../scripts/widgets/compile.mjs';
@@ -31,7 +34,7 @@ const generated=generateD1Schema(moduleId,manifest.contracts.models);
 const access=generateD1Schema('creezio.access',json('../../extensions/native/access/module/models.json'));
 const technical=generateD1Schema(OPERATION_STORAGE_MODULE_ID,OPERATION_MODELS);
 const permissions=manifest.contracts.permissions.map(item=>({id:`${moduleId}:${item.id}`,
-  audiences:item.audiences,actors:item.actors}));
+  audiences:item.audiences,actors:item.actors.filter(actor=>actor!=='signed-webhook')}));
 const catalog={schemaVersion:1,compositionDigest:digest,modules:[{moduleId,version:manifest.identity.version,
   enabled:true,permissions:manifest.contracts.permissions,models:manifest.contracts.models.map(model=>({
     modelId:model.id,table:generated.tables[model.id],model}))}]};
@@ -85,7 +88,7 @@ test('Stripe GET-only connector commits pages atomically in D1 and scopes API/MC
         permissionOverrides:[]});
       policy.contexts.push({id:'other',status:'active'});
       for(const [principalId,audience,contextId,roleId] of [[owner.principalId,'admin','application','stripe-admin'],
-        [owner.principalId,'admin','other','stripe-reader'],[machine.id,'admin','application','stripe-reader']]){
+        [owner.principalId,'admin','other','stripe-reader'],[machine.id,'admin','application','stripe-admin']]){
         if(!policy.memberships.some(item=>item.principalId===principalId&&item.audience===audience&&item.contextId===contextId))
           policy.memberships.push({principalId,audience,contextId,status:'active'});
         policy.assignments.push({principalId,audience,contextId,roleId});
@@ -93,13 +96,24 @@ test('Stripe GET-only connector commits pages atomically in D1 and scopes API/MC
       good(await acl.replacePolicy(admin.token,{expectedEpoch:before.epoch,policy}));
       const apiToken=good(await machines.issueToken(admin.token,{principalId:machine.id,label:'stripe read test',
         ttlMs:60000,scopes:[{contextId:'application',audience:'admin',permissionIds:[`${moduleId}:read`]}]})).token;
+      const serviceToken=good(await machines.issueToken(admin.token,{principalId:machine.id,label:'stripe webhook test',
+        ttlMs:60000,scopes:[{contextId:'application',audience:'admin',permissionIds:[`${moduleId}:manage`]}]})).token;
       const keyring=createVaultKeyring({activeKeyId:'stripe-test',keys:{'stripe-test':new Uint8Array(32).fill(23)}});
       const requests=[];
-      let pauseCustomer=null;
+      let pauseCustomer=null,checkoutCount=0,rotateOnCheckout=false,rotateCheckout;
       const fetcher=async(url,init)=>{
         const parsed=new URL(url),credential=init.headers.get('Authorization');
         requests.push({url:String(url),method:init.method,redirect:init.redirect,credential,
-          apiVersion:init.headers.get('Stripe-Version')});
+          apiVersion:init.headers.get('Stripe-Version'),idempotencyKey:init.headers.get('Idempotency-Key')});
+        if(parsed.pathname==='/v1/checkout/sessions'&&init.method==='POST'){
+          checkoutCount++;
+          if(rotateOnCheckout)await rotateCheckout();
+          const form=new URLSearchParams(init.body);
+          return Response.json({id:`cs_test_${checkoutCount}`,object:'checkout.session',
+            livemode:false,mode:form.get('mode'),status:'open',payment_status:'unpaid',
+            url:`https://checkout.stripe.com/c/test_${checkoutCount}`,
+            client_reference_id:form.get('client_reference_id')});
+        }
         const account=credential==='Bearer synthetic-key-two'?'account-two':'account-one';
         if(parsed.pathname==='/v1/customers'){
           if(pauseCustomer){const pause=pauseCustomer;pauseCustomer=null;pause.enter();await pause.releasePromise;}
@@ -131,7 +145,8 @@ test('Stripe GET-only connector commits pages atomically in D1 and scopes API/MC
         }
         return new Response(null,{status:404});
       };
-      const registered=registry(),engine=createOperationEngine({db,catalog,registry:registered,permissions,
+      const registered=registry(),proof=createWebhookProofAuthority(),engine=createOperationEngine({
+        db,catalog,registry:registered,permissions,webhooks:proof,
         connectors:[{descriptor:stripeConnectorDescriptor,keyring,fetcher}]});
       const invoke=(operationId,input,{token=admin.token,audience='admin',contextId='application',kind='session'}={})=>
         engine.invoke({credential:{kind,token},moduleId,operationId,contextId,audience,input});
@@ -297,5 +312,67 @@ test('Stripe GET-only connector commits pages atomically in D1 and scopes API/MC
       assert.deepEqual(success(await invoke('customer.list',{limit:25})).items,[]);
       await failed(invoke('connection.check',{}),'unavailable');
       assert.equal(requests.length,egressBeforeRevoke,'revoked connection cannot issue a GET');
+      const tested=success(await invoke('config.key.set',{requestKey:'key-three',
+        apiKey:'sk_test_example_key_three',revision:6})).config;
+      const checkoutReady=success(await invoke('config.set',{requestKey:'enable-three',enabled:true,
+        checkoutReturnOrigin:'https://app.example.test',revision:tested.revision})).config;
+      assert.equal(checkoutReady.revision,8);
+      const priceRun=success(await invoke('sync.start',{requestKey:'price-three-start',
+        collection:'prices_active',runId:'price-three',revision:2})).state;
+      success(await invoke('sync.page',{requestKey:'price-three-page',collection:'prices_active',
+        runId:'price-three',cursor:null,expectedRevision:priceRun.revision,limit:8}));
+      const checkoutInput={requestKey:'checkout-one',priceId:'price_active',quantity:1};
+      const checkoutResult=await invoke('checkout.subscription.create',checkoutInput);
+      assert.equal(checkoutResult.execution.state,'succeeded');
+      assert.equal(checkoutResult.execution.output.session.id,'cs_test_1');
+      assert.equal(checkoutCount,1);
+      const savedCheckout=await db.prepare(`SELECT id,mode,livemode FROM "${generated.tables.stripe_checkout}" WHERE context_id=? AND id=?`)
+        .bind('application','cs_test_1').first();
+      assert.equal(savedCheckout.mode,'subscription');assert.equal(savedCheckout.livemode,0);
+      const replayCheckout=await invoke('checkout.subscription.create',checkoutInput);
+      assert.equal(replayCheckout.replayed,true);assert.equal(checkoutCount,1);
+      rotateCheckout=()=>invoke('config.set',{requestKey:'disable-during-checkout',
+        enabled:false,revision:checkoutReady.revision});
+      rotateOnCheckout=true;
+      const uncertain=await invoke('checkout.subscription.create',{requestKey:'checkout-race',
+        priceId:'price_active',quantity:1}).catch(error=>error);
+      assert.notEqual(uncertain.execution?.state,'succeeded');
+      const receipt=await lookup('checkout.subscription.create','checkout-race');
+      assert.equal(receipt?.state,'unknown');
+      const egressAfterRace=checkoutCount;
+      const repeated=await invoke('checkout.subscription.create',{requestKey:'checkout-race',
+        priceId:'price_active',quantity:1});
+      assert.equal(repeated.replayed,true);assert.equal(checkoutCount,egressAfterRace);
+      const reenabled=success(await invoke('config.set',{requestKey:'webhook-enable',
+        enabled:true,revision:9})).config;
+      const signed=success(await invoke('config.key.webhook.set',{requestKey:'webhook-signing',
+        webhookSecret:'whsec_synthetic_signing_secret_123456789',revision:reenabled.revision})).config;
+      const serviced=success(await invoke('config.key.webhook.service.set',{requestKey:'webhook-service',
+        serviceToken,revision:signed.revision})).config;
+      const resolver=createVaultedWebhookResolver({db,catalog,keyring,contextId:'application',
+        connectors:[stripeConnectorDescriptor],mappings:[{moduleId,operationId:'event.receive',
+          path:'/api/webhooks/stripe',map:stripeWebhookInput}]});
+      const binding={moduleId,operationId:'event.receive',path:'/api/webhooks/stripe',
+        audience:'admin',auth:['webhook-signature']};
+      const snapshot=await resolver(binding);
+      assert.equal(snapshot?.serviceToken,serviceToken);
+      const eventInput={requestKey:'evt_test_race',eventId:'evt_test_race',
+        bodyDigest:'a'.repeat(64),type:'checkout.session.completed',objectId:'cs_test_1',
+        livemode:false,sessionMode:'subscription',sessionStatus:'complete',paymentStatus:'paid'};
+      const raceProof=await proof.issue({moduleId,operationId:'event.receive',
+        contextId:'application',audience:'admin',token:serviceToken,
+        eventId:eventInput.eventId,bodyDigest:eventInput.bodyDigest,
+        guards:snapshot.guards,operationInput:eventInput});
+      await assert.rejects(engine.invoke({credential:{kind:'api-token',token:serviceToken},
+        moduleId,operationId:'event.receive',contextId:'application',audience:'admin',
+        input:eventInput}),{code:'forbidden'},'the service token alone cannot invoke signed ingress');
+      success(await invoke('config.key.webhook.revoke',{requestKey:'webhook-revoke',
+        revision:serviced.revision}));
+      const racedEvent=await engine.invoke({credential:{kind:'api-token',token:serviceToken},
+        moduleId,operationId:'event.receive',contextId:'application',audience:'admin',
+        input:eventInput,webhookProof:raceProof}).catch(error=>error);
+      assert.notEqual(racedEvent.execution?.state,'succeeded');
+      assert.equal(await db.prepare(`SELECT count(*) AS n FROM "${generated.tables.stripe_event}" WHERE context_id=?`)
+        .bind('application').first().then(row=>row.n),0);
     }finally{if(mcpClient)await mcpClient.close();await runtime.dispose();}
   });

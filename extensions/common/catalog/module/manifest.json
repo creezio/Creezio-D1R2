@@ -54,6 +54,21 @@
       "whenAbsent": "block",
       "whenIncompatible": "block",
       "autoInstall": false
+    },
+    {
+      "moduleId": "creezio.meili",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.3.0",
+      "optional": true,
+      "contracts": [
+        {
+          "id": "meili.index",
+          "versionRange": "^1.0.0"
+        }
+      ],
+      "whenAbsent": "disable-contributions",
+      "whenIncompatible": "block",
+      "autoInstall": false
     }
   ],
   "contracts": {
@@ -2624,7 +2639,64 @@
     ],
     "events": [],
     "settings": [],
-    "search": [],
+    "search": [
+      {
+        "id": "catalog-products",
+        "model": {
+          "moduleId": "creezio.catalog",
+          "kind": "model",
+          "id": "product"
+        },
+        "fields": [
+          "id",
+          "name",
+          "description",
+          "category_id",
+          "price_minor",
+          "currency",
+          "status",
+          "revision",
+          "updated_at"
+        ],
+        "facets": [
+          "category_id"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.catalog",
+            "kind": "permission",
+            "id": "view"
+          }
+        ],
+        "context": "required",
+        "engine": "provider",
+        "provider": "meili.api.v1",
+        "projection": {
+          "orderIndexId": "by-updated",
+          "idField": "id",
+          "revisionField": "revision",
+          "visibilityField": "status",
+          "visibleValue": "published"
+        },
+        "rebuildOperation": {
+          "moduleId": "creezio.meili",
+          "kind": "operation",
+          "id": "index.rebuild.start"
+        },
+        "deleteOperation": {
+          "moduleId": "creezio.meili",
+          "kind": "operation",
+          "id": "index.emit"
+        },
+        "invalidatedBy": [],
+        "projectionVersion": "1.0.0",
+        "filterBeforeCount": true,
+        "resumable": true,
+        "requiresModules": [
+          "creezio.meili"
+        ]
+      }
+    ],
     "permissions": [
       {
         "id": "manage",

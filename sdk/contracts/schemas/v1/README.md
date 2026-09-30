@@ -22,6 +22,7 @@ Le descripteur est la sortie portable des déclarations SDK. Les fichiers `model
 | `permissions` / `operations` | Acteurs, portées, audiences et refus ; opérations communes, schémas, effets, concurrence, approbations, audit et exécution bornée. |
 | `api` / `mcp` | Projections HTTP et conversationnelles des opérations : outils, ressources, prompts et skills. |
 | `events` / `settings` / `search` | Événements durables et appels externes ; configuration typée et références de secrets ; projections et reprise de recherche. |
+| `connectors` / `deliveries` | Ressources HTTPS bornées ; liaison d'une commande et de son outbox à une préparation figée, une mutation de connecteur idempotente et un projecteur de reçu. |
 | `ui` / `widgets` | Contributions workspace/front ; collection de widgets et modes d'action. |
 | `documentation` / `validation` / `packaging` | Documents de version, six suites, politique et séparation des artefacts runtime/validation. |
 | `composition` / `composition-lock` | Sélection demandée, profils/capacités, exposition ; versions, origines et intégrités réellement résolues. |
@@ -54,6 +55,8 @@ Exemple : un panier peut déclarer une dépendance obligatoire vers un contrat c
 Les opérations restent communes à l'API, au MCP et aux widgets. Le contexte demandé n'est jamais une preuve de droit. Les permissions, audiences, approbations, versions d'objet et clés d'idempotence sont vérifiées à l'exécution et au commit. Les effets déclarent lectures, écritures, événements, appels et fournisseurs ; une opération `query` ne peut pas déclarer de mutation. Les approbations requises sont liées à l'acteur, au contexte, à l'opération, aux entrées et à la version pertinente de l'objet.
 
 Les modèles décrivent directement les données actuelles. Aucun champ de script SQL de transformation n'est prévu par module. Le SQL est généré et examiné par la chaîne centrale. Les tâches, événements et progrès peuvent être persistés, mais les appels et reprises sont déclenchés de l'extérieur : aucun scheduler interne.
+
+Une contribution `contracts.deliveries` reste au module émetteur. Elle désigne sa commande et sa requête de préparation, un contrat public de disponibilité du fournisseur, une ressource de mutation idempotente, les modèles privés projetés et le schéma du reçu. La sortie de préparation exige un `intentId` texte identique à l'intention durable et le champ entier `provider.configRevisionField`, également inclus dans `matchFields`. L'hôte réclame l'intention avant l'appel externe, compare la préparation aux champs figés et la révision de configuration réellement utilisée, puis projette le reçu avec des plans CAS. Un résultat inconnu ne réémet pas la mutation.
 
 Sites conserve un couple D1/R2 partagé. Les capacités distinctes des profils `sites`, `docker-local` et `cloudflare` ne modifient pas les modèles métier. La liste `host.capabilities` est une demande à confronter au profil approuvé, jamais un moyen d'inventer un binding ou d'activer une fonction par paiement. Les clés fournisseurs, jetons d'accès, droits d'activation et token d'inscription ne figurent pas dans ces documents.
 

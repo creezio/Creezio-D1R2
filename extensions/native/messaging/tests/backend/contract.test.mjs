@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {manifest,read} from '../helpers.mjs';
 import {safeHtml,boxCreate,draftCreate,draftSave,draftDelete,messageList,messageUpdate,
-  attachmentLink,attachmentUnlink,transportStatus,messageSend,boxPreviewList,messagePreviewList,draftPreviewList} from '../../module/service.ts';
+  attachmentLink,attachmentUnlink,transportStatus,messageSend,messageDeliveryPrepare,
+  boxPreviewList,messagePreviewList,draftPreviewList} from '../../module/service.ts';
 
 const box={id:'box-one',name:'Personnel',address:'',kind:'local',revision:1};
 const draft={id:'draft-one',box_id:'box-one',to_addr:'',cc_addr:'',bcc_addr:'',subject:'',text_body:'',
@@ -10,6 +11,8 @@ const draft={id:'draft-one',box_id:'box-one',to_addr:'',cc_addr:'',bcc_addr:'',s
 function harness(rows={}){
   const calls=[];
   const context={principalId:'alice',actorPrincipalId:'alice',audience:'app',contextId:'application',
+    executionId:'intent-one',providerAvailability:{providerId:'resend.api.v1',state:'ready',modelIds:[]},
+    operations:{query:async()=>({state:'ready',from:'sender@example.test',configRevision:3})},
     data:{get:async(model,args)=>{calls.push({kind:'get',model,args});return rows[model]??null;},
       list:async(model,args)=>{calls.push({kind:'list',model,args});return rows[`${model}Page`]??{items:[],nextAfter:null};},
       planGet:(model,args)=>{calls.push({kind:'planGet',model,args});return {kind:'data-plan'};},
@@ -139,7 +142,42 @@ test('message search can return empty page with continuation; mutations are CAS'
     revision:1,folder:'sent'},h.context),{code:'invalid_input'});
 });
 
-test('absent transport cannot imply queued or sent',()=>{
-  assert.deepEqual(transportStatus().output,{state:'unavailable',send:false,receive:false});
-  assert.throws(()=>messageSend(),{code:'unavailable'});
+test('absent transport cannot imply queued or sent',async()=>{
+  const missing=harness();missing.context.operations=undefined;
+  assert.deepEqual((await transportStatus({},missing.context)).output,
+    {state:'unavailable',send:false,receive:false,from:null});
+  await assert.rejects(messageSend({boxId:'box-one',draftId:'draft-one',revision:1},
+    harness({box,draft}).context),{code:'invalid_input'});
+});
+test('send freezes text/HTML and Bcc in one durable outbox intent, never claims sent',async()=>{
+  const from={...box,address:'sender@example.test'};
+  const saved={...draft,to_addr:'to@example.test',bcc_addr:'hidden@example.test',subject:'Bonjour',
+    text_body:'Corps',html_body:'<p>Corps</p>',send_intent_id:null};
+  const h=harness({box:from,draft:saved});
+  const result=await messageSend({boxId:'box-one',draftId:'draft-one',revision:1},h.context);
+  assert.equal(result.output.message.state,'queued');
+  assert.equal(result.output.message.folder,'outbox');
+  assert.equal(result.output.draft.sendIntentId,'intent-one');
+  assert.equal(result.outbox.length,1);
+  assert.deepEqual(result.outbox[0].payload.kind,'mail.send.v1');
+  assert.equal(result.outbox[0].providerIdempotencyKey,'intent-one');
+  assert.doesNotMatch(JSON.stringify(result.outbox),/hidden@example|Corps/u);
+  assert.equal(h.calls.find(x=>x.kind==='planPatch').args.compare.expected,1);
+  const snapshot=h.calls.find(x=>x.kind==='planCreate'&&x.model==='send_snapshot').args.values;
+  assert.equal(snapshot.bcc_addr,'hidden@example.test');
+  assert.equal(snapshot.config_revision,3);
+  assert.equal(result.plans.length,4);
+  const reread=harness({box:from,message:h.calls.find(x=>x.kind==='planCreate'&&x.model==='message').args.values,
+    send_snapshot:snapshot});
+  const prepared=await messageDeliveryPrepare({intentId:'intent-one',boxId:'box-one',
+    snapshotDigest:snapshot.payload_digest},reread.context);
+  assert.deepEqual(prepared.output.envelope.bcc,['hidden@example.test']);
+  assert.equal(prepared.output.configRevision,3);
+  await assert.rejects(messageDeliveryPrepare({intentId:'intent-one',boxId:'box-one',
+    snapshotDigest:'0'.repeat(64)},reread.context),{code:'unavailable'});
+  const duplicate=harness({box:from,draft:{...saved,send_intent_id:'intent-one'}});
+  await assert.rejects(messageSend({boxId:'box-one',draftId:'draft-one',revision:1},duplicate.context),{code:'conflict'});
+  const attached=harness({box:from,draft:saved,draft_attachmentPage:{items:[{file_id:'file-1'}],nextAfter:null}});
+  await assert.rejects(messageSend({boxId:'box-one',draftId:'draft-one',revision:1},attached.context),{code:'unavailable'});
+  assert.equal(attached.calls.some(x=>x.kind==='planCreate'),false);
 });

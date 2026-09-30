@@ -3,7 +3,23 @@ import assert from 'node:assert/strict';
 import Ajv2020 from 'ajv/dist/2020.js';
 import {createCommandJournal,readPendingCommand} from '@creezio/sdk/operations/command-journal';
 import {manifest,read} from '../helpers.mjs';
-import {retainedSessionId,scopeChange,sessionVerified,readPanel,panelData} from '../../ui/panel-state.ts';
+import {retainedSessionId,scopeChange,sessionVerified,readPanel,panelData,
+  preferFreshConfig,providerChanged} from '../../ui/panel-state.ts';
+
+test('provider views expire on key, origin or revision changes and reject stale config reads',()=>{
+  const current={revision:4,origin:'https://example.n8n.cloud',enabled:true,hasKey:true};
+  assert.equal(preferFreshConfig(current,{...current,revision:3}),current);
+  assert.equal(providerChanged(current,current),false);
+  for(const next of [{...current,revision:5},{...current,origin:'https://other.example'},
+    {...current,enabled:false},{...current,hasKey:false}]){
+    assert.equal(providerChanged(current,next),true);
+  }
+  assert.equal(providerChanged(null,current),false);
+  const ui=read('ui/index.tsx');
+  assert.match(ui,/props\.client\.audience===props\.audience/u);
+  assert.match(ui,/providerChanged\(previous,next\)\)clearProviderViews\(\)/u);
+  assert.match(ui,/listSerial\.current\+\+;detailSerial\.current\+\+/u);
+});
 
 test('transient access masks n8n without dropping the panel or a pending command',()=>{
   const authenticated=id=>({phase:'authenticated',pending:null,session:{id}});

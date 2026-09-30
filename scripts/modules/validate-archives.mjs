@@ -3,6 +3,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import {existsSync,lstatSync,mkdirSync,readFileSync,readdirSync,renameSync,realpathSync,rmSync} from 'node:fs';
 import {dirname,join,relative,resolve,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import ts from 'typescript';
 import {packModuleArtifacts} from './archives.mjs';
 import {safePackagePath} from '../../sdk/contracts/references.mjs';
 
@@ -90,17 +91,36 @@ export function packArchiveValidationArtifacts({root,moduleDirectory,descriptor}
   return packModuleArtifacts({root,moduleDirectory,moduleId:descriptor.identity.id,
     descriptor,writeCache:true});
 }
+export function moduleSpecifiers(body,file){
+  const scriptKind=/\.tsx$/.test(file)?ts.ScriptKind.TSX:/\.tsx?$/.test(file)?ts.ScriptKind.TS:ts.ScriptKind.JS;
+  const source=ts.createSourceFile(file,body,ts.ScriptTarget.Latest,true,scriptKind);
+  const specs=[];
+  const visit=node=>{
+    if((ts.isImportDeclaration(node)||ts.isExportDeclaration(node))
+      &&node.moduleSpecifier&&ts.isStringLiteralLike(node.moduleSpecifier))
+      specs.push(node.moduleSpecifier.text);
+    else if(ts.isImportEqualsDeclaration(node)&&ts.isExternalModuleReference(node.moduleReference)
+      &&node.moduleReference.expression&&ts.isStringLiteralLike(node.moduleReference.expression))
+      specs.push(node.moduleReference.expression.text);
+    else if(ts.isCallExpression(node)&&node.expression.kind===ts.SyntaxKind.ImportKeyword
+      &&node.arguments.length===1&&ts.isStringLiteralLike(node.arguments[0]))
+      specs.push(node.arguments[0].text);
+    ts.forEachChild(node,visit);
+  };
+  visit(source);
+  return specs;
+}
 function checkModule(directory,sdk){
   const source=resolve(root,directory),manifest=JSON.parse(readFileSync(join(source,'module/manifest.json'),'utf8'));
-  const artifacts=packArchiveValidationArtifacts({root,moduleDirectory:source,descriptor:manifest});
+  let artifacts;
+  try{artifacts=packArchiveValidationArtifacts({root,moduleDirectory:source,descriptor:manifest});}
+  catch(error){throw Error(`${directory}: ${error.message}`,{cause:error});}
   const names=new Set([...manifest.packaging.runtime.files,...manifest.packaging.validation.files]);
   let imports=0;
   for(const name of names){
     if(!/\.(?:ts|tsx|mjs|js)$/.test(name))continue;
     const file=resolve(source,name),body=readFileSync(file,'utf8');
-    const pattern=/(?:\bfrom\s*|\bimport\s*|\bimport\s*\(\s*)['"]([^'"]+)['"]/g;
-    for(const match of body.matchAll(pattern)){
-      const spec=match[1];
+    for(const spec of moduleSpecifiers(body,name)){
       if(spec.startsWith('.')){
         const target=resolve(dirname(file),spec),inside=relative(source,target).replaceAll('\\','/');
         if(inside.startsWith('..')||!names.has(inside))throw Error(`${directory}: ${name} imports absent ${spec}`);

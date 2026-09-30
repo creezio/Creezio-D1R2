@@ -43,10 +43,11 @@ function planFor(includeOutcome, withIndex=false) {
   lock.compositionIntegrity=contractIntegrity(composition);
   return compileCompositionSchema({composition,lock,modules:[access,module]});
 }
-function harness(db, loadPlan, {approval, disposalError=false, busy=false}={}) {
+function harness(db, loadPlan, {approval, disposalError=false, busy=false,storageAuthority=false}={}) {
   const calls={lines:[],purposes:[],released:0,disposed:0,opened:0,reads:0};
   const config={root:'unused',d1Path:'/isolated/local.d1',
-    bindings:{database:'DB',databaseId:'isolated-schema-test'}};
+    bindings:{database:'DB',databaseId:'isolated-schema-test'},
+    ...(storageAuthority?{storageInstallationId:'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'}:{})};
   const io={interactive:true,write:value=>calls.lines.push(value),
     async readLine(){calls.reads++;return approval;}};
   const adapter=async()=>{calls.opened++;return {db,async dispose(){calls.disposed++;
@@ -58,6 +59,15 @@ function harness(db, loadPlan, {approval, disposalError=false, busy=false}={}) {
     inspectManagedSchema,applyCompositionSchema};
   return {calls,run:mode=>runLocalSchema({mode,config,io,adapter,lock,engine})};
 }
+
+test('routed local schema refuses before loading a plan, lock, or D1',async()=>{
+  const f=harness(null,()=>assert.fail('must not load plan'),{storageAuthority:true});
+  for(const mode of ['inspect','apply'])assert.deepEqual(await f.run(mode),
+    {ok:false,code:'storage_authority_cutover_unavailable',effect:'none'});
+  assert.deepEqual(f.calls.purposes,[]);
+  assert.equal(f.calls.opened,0);
+  assert.equal(f.calls.reads,0);
+});
 
 test('local schema command updates an initialized D1 only after exact approval and preserves records',async t=>{
   const mf=new Miniflare({host:'127.0.0.1',port:0,cf:false,modules:true,

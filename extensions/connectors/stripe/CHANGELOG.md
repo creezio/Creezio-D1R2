@@ -1,5 +1,11 @@
 # Changelog Stripe
 
+## 0.3.0 — candidate Checkout test et événements signés
+
+Création de sessions Checkout de paiement ou d'abonnement, lecture de leur état, arrêt d'abonnement en fin de période et réception des événements Stripe signés. Ces fonctions reprennent la page Facturation et les mêmes opérations API/MCP. Deux projections D1, `stripe_checkout` et `stripe_event`, complètent les neuf modèles précédents. Le coffre conserve séparément la clé Stripe, les secrets webhook courant/précédent et le jeton machine Creezio.
+
+Les mutations de cette candidate acceptent uniquement le mode test. Le journal fournit l'idempotence et conserve une issue inconnue sans second envoi ; les événements reçus vérifient les droits, la signature et la configuration jusqu'au commit. Les tests locaux couvrent le moteur D1 avec transport simulé. Paiement et webhook Stripe réels, mode live, autres mutations du catalogue et du cycle d'abonnement, paquet final et publication restent à qualifier. SDK ^1.6.0 candidat requis.
+
 ## 0.2.1 — périodicités françaises
 
 La vue Prix affiche les intervalles Stripe connus en français, au singulier et au pluriel. Une valeur inconnue ou incomplète reste signalée sans fréquence inventée. Montants, identifiants, requêtes et projections demeurent ceux de 0.2.0.

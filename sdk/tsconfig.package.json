@@ -21,6 +21,7 @@
     "operations/client.ts",
     "operations/command-journal.ts",
     "connectors/types.ts",
+    "search/types.ts",
     "delivery/context.tsx",
     "delivery/transport.ts",
     "files/types.ts",

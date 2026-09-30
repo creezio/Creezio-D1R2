@@ -48,12 +48,23 @@ export interface ProviderSecretsPort {
 }
 import type {OperationFilesPort} from '@creezio/sdk/files/types';
 import type {ConnectorPort} from '@creezio/sdk/connectors/types';
+import type {SearchProjectionPort} from '@creezio/sdk/search/types';
+export interface OperationProviderAvailability {
+  readonly providerId:string;readonly state:'ready'|'missing'|'invalid'|'unavailable';
+  readonly modelIds:readonly string[];
+}
+/** Intent only: the host validates its provider, durable identity and declared delivery before emission. */
+export interface OperationOutboxIntent {
+  readonly id:string;readonly provider:string;readonly payload:JsonValue;readonly providerIdempotencyKey:string;
+}
 export interface OperationContext {
   readonly moduleId:string;readonly operationId:string;readonly executionId:string;
   readonly contextId:string;readonly audience:'admin'|'app';
   readonly principalId:string;readonly actorPrincipalId:string;readonly signal:AbortSignal;
   readonly data:OperationDataPort;readonly files?:OperationFilesPort;readonly connector?:ConnectorPort;
   readonly providerSecrets?:ProviderSecretsPort;
+  readonly search?:SearchProjectionPort;
+  readonly providerAvailability?:OperationProviderAvailability;
   readonly diagnostics?:{
     listExecutions(input:Readonly<{period:'day'|'week'|'month'|'year';limit:number;cursor?:string}>):Promise<{
       period:{period:string;from:string;to:string};items:readonly {id:string;moduleId:string;operationId:string;
@@ -66,5 +77,6 @@ export interface OperationContext {
   };
   readonly operations?:{query(request:{moduleId:string;operationId:string;input:JsonValue}):Promise<JsonValue>};
 }
-export interface OperationHandlerResult {readonly output:unknown;readonly plans?:readonly DataPlan[]}
+export interface OperationHandlerResult {readonly output:unknown;readonly plans?:readonly DataPlan[];
+  readonly outbox?:readonly OperationOutboxIntent[]}
 export type OperationHandler=(input:JsonValue,context:OperationContext)=>OperationHandlerResult|Promise<OperationHandlerResult>;

@@ -337,6 +337,9 @@
         },
         "connectors": {
           "$ref": "urn:creezio:contracts:v1:connectors"
+        },
+        "deliveries": {
+          "$ref": "urn:creezio:contracts:v1:deliveries"
         }
       },
       "required": [

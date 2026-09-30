@@ -1,5 +1,14 @@
 # Changelog
 
+## En développement — connecteurs et runtime des données isolées
+
+- Les contrats de module déclarent les mutations de connecteurs, les webhooks, les projections de recherche et les livraisons différées dans le journal commun. Le SDK 1.6 correspondant reste candidat.
+- Messagerie et le connecteur externe Resend partagent un transport d'envoi avec intention durable, projection du reçu et inspection des résultats incertains sans nouvel envoi automatique.
+- Meili ajoute l'indexation et la recherche du Catalogue sous les droits courants. Stripe ajoute Checkout, les abonnements et les événements en mode test ; ces ajouts ne constituent pas encore un parcours de paiement de production.
+- Granola et Hermes ajoutent leurs connexions et opérations aux interfaces originales. Hermes conserve les commandes incertaines entre les vues ; aucun service tiers n'est intégré à l'application.
+- Le runtime hors Sites route les données, fichiers, fournisseurs et journaux vers le contexte D1/R2 sélectionné. La révocation coordonne les accusés des cibles ; les gardes de composition refusent une ancienne version. Les essais locaux et la revue du runtime sont acquis ; la mise à jour opérateur et la recette Cloudflare sur plusieurs bases restent ouvertes.
+- Les recettes réelles n8n, Granola, Resend et Hermes sont différées par l'utilisateur. Les tests avec transports simulés ne les remplacent pas. Aucun SDK ou déploiement de cette tranche n'est annoncé publié.
+
 ## En développement — compléments des modules natifs et externes
 
 - Lectures entre contrats publics de modules avec la même identité et les mêmes droits serveur, contrôle de l'opération enfant, budgets et journal D1 commun ; requis pour les relations Support/CRM/Messagerie. Les commandes imbriquées restent indisponibles.

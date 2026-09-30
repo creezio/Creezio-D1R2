@@ -14,6 +14,7 @@ import { packageExports, verifyCandidatePackageReceipt } from '../modules/packag
 import { captureHostInventory } from '../../core/operations/host-inventory.ts';
 import {captureFileCategory} from '../../core/files/mapping.ts';
 import {captureConnectorDescriptor} from '../../core/connectors/host.ts';
+import {compileSearchProjectionSources} from '../../core/search/projection.ts';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadJson } from '../../sdk/contracts/load.mjs';
@@ -353,6 +354,57 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     return (item.descriptor.contracts.connectors??[]).map(captureConnectorDescriptor);
   });
   if(connectors.length>16)fail('connector.limit','An application supports at most sixteen declared connectors.');
+  const searchDeclarations=located.flatMap(item=>{
+    const moduleId=item.descriptor.identity.id;
+    if(!composition.modules.some(selection=>selection.moduleId===moduleId&&selection.enabled))return [];
+    return (item.descriptor.contracts.search??[]).filter((declaration,index)=>
+      declaration.engine==='provider'&&active(moduleId,`/contracts/search/${index}`));
+  });
+  const searchSources=compileSearchProjectionSources(searchDeclarations,dataPlan.runtimeCatalog);
+  const searchProjections=[...new Set(connectors.map(connector=>connector.moduleId))].flatMap(moduleId=>{
+    const providers=new Set(connectors.filter(connector=>connector.moduleId===moduleId)
+      .map(connector=>connector.id));
+    const sources=searchDeclarations.filter(declaration=>providers.has(declaration.provider))
+      .map(declaration=>searchSources.find(source=>source.id===`${declaration.model.moduleId}:${declaration.id}`
+        &&source.moduleId===declaration.model.moduleId));
+    if(sources.some(source=>!source))fail('search.source','An active search source failed compilation.');
+    return sources.length?[{moduleId,sources}]:[];
+  });
+  if(searchDeclarations.some(declaration=>!connectors.some(connector=>connector.id===declaration.provider)))
+    fail('search.provider','A provider-backed search source needs its active declared connector.');
+  const webhookMappings=connectors.filter(connector=>connector.webhook).map(connector=>{
+    const webhook=connector.webhook,owner=indexes.get(connector.moduleId);
+    const matching=(owner?.descriptor.contracts.api??[]).filter(api=>api.path===webhook.path
+      &&api.operation?.moduleId===connector.moduleId&&api.operation?.id===webhook.operationId
+      &&api.auth?.length===1&&api.auth[0]==='webhook-signature');
+    if(matching.length!==1)fail('webhook.binding','A signed webhook needs one exact declared HTTP binding.');
+    return {moduleId:connector.moduleId,operationId:webhook.operationId,path:webhook.path,
+      mapper:importCode(output,owner,webhook.mapper,providerImports)};
+  });
+  const deliveryMappings=located.flatMap(item=>{
+    const moduleId=item.descriptor.identity.id;
+    if(!composition.modules.some(selection=>selection.moduleId===moduleId&&selection.enabled))return [];
+    return (item.descriptor.contracts.deliveries??[]).flatMap((delivery,index)=>{
+      if(!active(moduleId,`/contracts/deliveries/${index}`))return [];
+      const provider=connectors.find(connector=>connector.moduleId===delivery.provider.publicContract.moduleId
+        &&connector.id===delivery.provider.connectorId);
+      const resource=provider?.resources.find(resource=>resource.id===delivery.provider.resourceId);
+      const source=resolveOperation(delivery.command),prepare=resolveOperation(delivery.prepare);
+      const receipt=item.descriptor.contracts.schemas.find(schema=>schema.id===delivery.receipt.schemaId);
+      const receiptValidator=operationPlan.catalog.modules.find(module=>module.moduleId===moduleId)
+        ?.schemas.find(schema=>schema.schemaId===delivery.receipt.schemaId)?.validator;
+      if(!provider||!resource||resource.method==='GET'||!resource.idempotencyHeader
+        ||!source||source.kind!=='command'||!prepare||prepare.kind!=='query'||!receipt||!receiptValidator)
+        fail('delivery.binding','An active delivery needs an own command, preparation query, receipt schema and idempotent provider resource.');
+      return [{id:delivery.id,moduleId,commandId:delivery.command.id,prepareId:delivery.prepare.id,
+        providerModuleId:provider.moduleId,connectorId:provider.id,resourceId:resource.id,
+        readinessId:delivery.provider.readiness.id,configRevisionField:delivery.provider.configRevisionField,
+        prepareInput:delivery.prepareInput,matchFields:delivery.matchFields,
+        envelopeField:delivery.envelopeField,modelIds:delivery.models.map(ref=>ref.id),
+        projectorInput:delivery.projectorInput,acceptance:delivery.acceptance,receiptValidator,
+        projector:importCode(output,item,delivery.projector,providerImports)}];
+    });
+  });
   let providerDefinition = 'null';
   const openAi = indexes.get('creezio.openai');
   if (openAi && composition.modules.some(selection => selection.moduleId === 'creezio.openai' && selection.enabled)) {
@@ -488,7 +540,12 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
       handlers: Object.fromEntries(operationHandlers.map(item => [item.name, sentinel])) });
   } catch { fail('build.operation-registry', 'The operation registry exceeds host capabilities or contains invalid bindings.'); }
   try { createMcpCatalog(mcpCatalog, registry); }
-  catch { fail('build.mcp-catalog', 'The compiled MCP catalog exceeds host capabilities or contains invalid bindings.'); }
+  catch {
+    const bytes=Buffer.byteLength(JSON.stringify(mcpCatalog));
+    throw new CompositionBuildError('build.mcp-catalog',
+      'The compiled MCP catalog exceeds host capabilities or contains invalid bindings.',
+      [{code:'mcp.catalog-summary',message:`${bytes} bytes; ${mcpCatalog.tools.length} tools; ${mcpCatalog.resources.length} resources.`}]);
+  }
   const banner = '// Generated from an explicit validated composition. Do not edit.\n';
   const serverModules = modules.map(module => `{ id: ${JSON.stringify(module.id)}, version: ${JSON.stringify(module.version)}, operations: [${module.operations.map(operation => {
     const { handler, ...metadata } = operation; return `{ ...${JSON.stringify(metadata)}, handler: ${handler} }`;
@@ -532,7 +589,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
       ? `Object.freeze({moduleId:${JSON.stringify(publicPages[0].moduleId)},models:Object.freeze(${JSON.stringify(publicPages[0].models)}),css:${JSON.stringify(publicPages[0].stylesheet)},render:${publicPages[0].renderer} as unknown as PublicPageProjection['render'],imageIds:${publicPages[0].imageIds} as unknown as PublicPageProjection['imageIds']})`
       : 'null'};\n`,
     'widget-catalog.ts': `${banner}import {widgetKey, type CompiledWidgetCatalog, type WidgetValidatorMap} from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/widgets/catalog.ts')))};\nimport * as compiledValidators from './operation-validators.mjs';\nimport * as contextValidators from './widget-context-validators.mjs';\n${freezeSource}export const widgetCatalog: CompiledWidgetCatalog = freeze(${JSON.stringify(widgetCatalog)});\nexport const widgetValidators: WidgetValidatorMap = new Map([${widgetValidatorEntries}]);\n`,
-    'provider-catalog.ts': `${banner}import type {ProviderOperationSchema} from ${JSON.stringify(importSpecifier(output, path.join(root,'core/providers/tools.ts')))};\nimport type {ConnectorDescriptor} from ${JSON.stringify(importSpecifier(output,path.join(root,'sdk/connectors/types.ts')))};\n${providerImports.join('\n')}\n${freezeSource}export const toolCatalog: readonly ProviderOperationSchema[] = freeze(${JSON.stringify(providerToolCatalog)});\nexport const openAiProvider = ${providerDefinition};\nexport const connectors: readonly ConnectorDescriptor[] = freeze(${JSON.stringify(connectors)});\n`,
+    'provider-catalog.ts': `${banner}import type {ProviderOperationSchema} from ${JSON.stringify(importSpecifier(output, path.join(root,'core/providers/tools.ts')))};\nimport type {ConnectorDescriptor} from ${JSON.stringify(importSpecifier(output,path.join(root,'sdk/connectors/types.ts')))};\nimport * as compiledValidators from './operation-validators.mjs';\n${providerImports.join('\n')}\n${freezeSource}export const toolCatalog: readonly ProviderOperationSchema[] = freeze(${JSON.stringify(providerToolCatalog)});\nexport const openAiProvider = ${providerDefinition};\nexport const connectors: readonly ConnectorDescriptor[] = freeze(${JSON.stringify(connectors)});\nexport const searchProjections = freeze(${JSON.stringify(searchProjections)});\nexport const webhookMappings = Object.freeze([${webhookMappings.map(item=>`Object.freeze({moduleId:${JSON.stringify(item.moduleId)},operationId:${JSON.stringify(item.operationId)},path:${JSON.stringify(item.path)},map:${item.mapper}})`).join(',')}]);\nexport const deliveryMappings = Object.freeze([${deliveryMappings.map(item=>`Object.freeze({id:${JSON.stringify(item.id)},moduleId:${JSON.stringify(item.moduleId)},commandId:${JSON.stringify(item.commandId)},prepareId:${JSON.stringify(item.prepareId)},providerModuleId:${JSON.stringify(item.providerModuleId)},connectorId:${JSON.stringify(item.connectorId)},resourceId:${JSON.stringify(item.resourceId)},readinessId:${JSON.stringify(item.readinessId)},configRevisionField:${JSON.stringify(item.configRevisionField)},prepareInput:freeze(${JSON.stringify(item.prepareInput)}),matchFields:freeze(${JSON.stringify(item.matchFields)}),envelopeField:${JSON.stringify(item.envelopeField)},projectorInput:freeze(${JSON.stringify(item.projectorInput)}),acceptance:freeze(${JSON.stringify(item.acceptance)}),modelIds:freeze(${JSON.stringify(item.modelIds)}),validateReceipt:compiledValidators.${item.receiptValidator},projector:${item.projector}})`).join(',')}]);\n`,
     'file-catalog.ts': `${banner}import type {RuntimeFileCatalog} from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/files/catalog.ts')))};\n${freezeSource}export const fileCatalog: RuntimeFileCatalog = freeze(${JSON.stringify(fileCatalog)});\n`,
     'module-inventory.ts': `${banner}import type { ModuleSettingsHostInventory } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/module-settings/types.ts')))};\n${freezeSource}${runtimeInventory
       ? `const inventory: ModuleSettingsHostInventory['inventory'] = freeze(${JSON.stringify(runtimeInventory.inventory)});\nexport const runtimeInventory: ModuleSettingsHostInventory = freeze({current: {composition: ${JSON.stringify(composition)}, lock: ${JSON.stringify(lock)}, descriptors: ${JSON.stringify(currentModuleCandidateKeys(composition,lock,runtimeInventory.inventory))}.map(key => inventory.candidates.find(candidate => candidate.candidateKey === key)!.descriptor)}, inventory, currentInstalledDocuments: ${JSON.stringify(runtimeInventory.currentInstalledDocuments)}});\n`

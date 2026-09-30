@@ -4,7 +4,7 @@ import {useEffect,useRef,useState,useSyncExternalStore} from 'react';
 import type {WorkspaceViewProps} from '@creezio/sdk/workspace/types';
 import {useWorkspaceActivity} from '@creezio/sdk/workspace/components';
 import {createCommandJournal,readPendingCommand,type PendingCommand} from '@creezio/sdk/operations/command-journal';
-import {panelData,readPanel,retainedSessionId,scopeChange,sessionVerified,
+import {panelData,preferFreshConfig,providerChanged,readPanel,retainedSessionId,scopeChange,sessionVerified,
   type N8nScope,type N8nTab} from './panel-state.ts';
 
 type Config={origin:string|null;enabled:boolean;hasKey:boolean;
@@ -28,7 +28,8 @@ export function N8nAdminView(props:WorkspaceViewProps){
   const retained=useRef('');
   const sessionId=retained.current=retainedSessionId(retained.current,access);
   const verified=sessionVerified(access,sessionId);
-  const active=activity&&props.active&&props.authorized&&verified;
+  const active=activity&&props.active&&props.authorized&&verified
+    &&props.client.audience===props.audience;
   const initial=useRef(props.navigation.readPanelState());
   const scope:N8nScope={sessionId,audience:props.audience,contextId:props.contextId,panelId:props.panelId};
   const restored=verified?readPanel(initial.current?.data,scope):null;
@@ -41,6 +42,7 @@ export function N8nAdminView(props:WorkspaceViewProps){
   const [selected,setSelected]=useState<{kind:'workflow'|'execution';value:Workflow|Execution}|null>(null);
   const [busy,setBusy]=useState(false),[checking,setChecking]=useState(false),[loading,setLoading]=useState(false);
   const [notice,setNotice]=useState('');
+  const configSnapshot=useRef<Config|null>(null);
   const journal=useRef<ReturnType<typeof createCommandJournal>|null>(verified?
     createCommandJournal({sessionId,audience:props.audience,contextId:props.contextId},
       readPendingCommand(restored?.pending,{sessionId,audience:props.audience,contextId:props.contextId})):null);
@@ -71,9 +73,21 @@ export function N8nAdminView(props:WorkspaceViewProps){
       return value;
     }catch{if(current(token))setNotice('Connexion interrompue.');return null;}
   };
+  const clearProviderViews=()=>{
+    listSerial.current++;detailSerial.current++;
+    setWorkflows([]);setExecutions([]);setWorkflowCursor(null);setExecutionCursor(null);setSelected(null);
+    cursorRef.current={workflowCursor:null,executionCursor:null};
+  };
+  const acceptConfig=(next:Config):boolean=>{
+    const previous=configSnapshot.current;
+    if(preferFreshConfig(previous,next)!==next)return false;
+    if(providerChanged(previous,next))clearProviderViews();
+    configSnapshot.current=next;setConfig(next);
+    return true;
+  };
   const loadConfig=async(token:number)=>{
     const value=await invoke('config.read',{},token),next=value?.config as Config|undefined;
-    if(current(token)&&next){setConfig(next);if(!enableDirty.current)setEnableInput(next.enabled);
+    if(current(token)&&next&&acceptConfig(next)){if(!enableDirty.current)setEnableInput(next.enabled);
       if(!originDirty.current)setOrigin(next.origin??'');}
   };
   const loadList=async(kind:'workflow'|'execution',token:number,cursor?:string,append=false)=>{
@@ -100,7 +114,7 @@ export function N8nAdminView(props:WorkspaceViewProps){
     const next:N8nScope={sessionId,audience:props.audience,contextId:props.contextId,panelId:props.panelId};
     const phase=access.pending?'loading':access.phase;
     const transition=scopeChange(prior.current,next,phase);
-    if(transition.purge){setTab('settings');setConfig(null);setOrigin('');setApiKey('');
+    if(transition.purge){setTab('settings');setConfig(null);configSnapshot.current=null;setOrigin('');setApiKey('');
       setEnableInput(false);originDirty.current=false;enableDirty.current=false;
       editRevision.current=null;keyEditRevision.current=null;
       setWorkflows([]);setExecutions([]);setWorkflowCursor(null);setExecutionCursor(null);
@@ -140,7 +154,8 @@ export function N8nAdminView(props:WorkspaceViewProps){
     if(!current(token))return;
     setPending(result.pending);setBusy(!!result.pending);
     const value=output(result.result);
-    if(value?.config){const next=value.config as Config;setConfig(next);setOrigin(next.origin??'');
+    if(value?.config){const next=value.config as Config;if(!acceptConfig(next))return;
+      setOrigin(next.origin??'');
       setEnableInput(next.enabled);originDirty.current=false;enableDirty.current=false;
       editRevision.current=null;keyEditRevision.current=null;
       if(operation.startsWith('config.key.'))setApiKey('');setNotice('Configuration enregistrée.');}
@@ -157,7 +172,7 @@ export function N8nAdminView(props:WorkspaceViewProps){
     setChecking(false);setPending(result?.pending??null);setBusy(!!result?.pending);
     if(result?.result.kind==='execution'&&result.result.execution.state==='succeeded'){
       const next=(result.result.execution.output as Record<string,unknown>).config as Config|undefined;
-      if(next){setConfig(next);setOrigin(next.origin??'');setEnableInput(next.enabled);
+      if(next&&acceptConfig(next)){setOrigin(next.origin??'');setEnableInput(next.enabled);
         originDirty.current=false;enableDirty.current=false;editRevision.current=null;
         keyEditRevision.current=null;setApiKey('');}
       setNotice('Modification confirmée.');

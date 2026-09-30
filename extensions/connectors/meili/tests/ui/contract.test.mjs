@@ -100,15 +100,16 @@ test('a fresh config read invalidates a prior connection check, same revision do
   const ui=read('ui/index.tsx');
   assert.match(ui,/if\(configRevisionChanged\(configSnapshot\.current,next\)\)\{\s*checkSerial\.current\+\+;setChecking\(false\);setConnection\(null\)/u);
 });
-test('original settings surface exposes a connection probe while indexing/search remain unavailable',()=>{
+test('admin surface exposes a resumable projection without persisting provider secrets',()=>{
   const ui=read('ui/index.tsx');
-  for(const label of ['Connexion','Clé API','Vérifier','Réindexer'])
+  for(const label of ['Connexion','Clé API','Vérifier','Nouvelle génération Catalogue',
+    'Préparer le lot suivant','Émettre le lot préparé','Vérifier la tâche fournisseur'])
     assert.ok(ui.includes(label),label);
-  assert.ok(ui.includes('indexation'));
+  assert.match(ui,/name==='index\.emit'\?prior\.emitKey:crypto\.randomUUID\(\)/u);
+  assert.match(ui,/acknowledgeUnknown:true/u);
   assert.ok(!ui.includes('ensureMeiliRuntime'));
   assert.equal(manifest.contracts.ui.views.length,1);
   assert.equal(manifest.contracts.ui.views[0].panel.inactiveEffects,'suspend');
-  assert.deepEqual(manifest.contracts.search,[]);
   assert.match(ui,/index\.list/u);
   assert.match(ui,/setIndexPage\(null\)/u);
   assert.match(ui,/Page suivante/u);

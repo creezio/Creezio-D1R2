@@ -235,7 +235,10 @@ m.entrypoints={server:{path:'module/entry.server.ts',export:'catalog'},
   plugin:{manifest:'plugin/plugin.json',mcp:'plugin/mcp.json',
     contributions:{path:'plugin/contributions.ts',export:'contributions'}}};
 m.dependencies=[{moduleId:'creezio.access',origin:'https://github.com/creezio/Creezio-D1R2',
-  versionRange:'^0.0.0',optional:false,contracts:[],whenAbsent:'block',whenIncompatible:'block',autoInstall:false}];
+  versionRange:'^0.0.0',optional:false,contracts:[],whenAbsent:'block',whenIncompatible:'block',autoInstall:false},
+  {moduleId:'creezio.meili',origin:'https://github.com/creezio/Creezio-D1R2',
+    versionRange:'^0.3.0',optional:true,contracts:[{id:'meili.index',versionRange:'^1.0.0'}],
+    whenAbsent:'disable-contributions',whenIncompatible:'block',autoInstall:false}];
 const mcpTools=operations.map(op=>({id:op.id,name:`catalog_${op.id.replaceAll('.','_')}`,
   operation:ref('operation',op.id),audiences:op.audiences,auth:['oauth','api-token'],input:op.input,output:op.output,
   annotations:{readOnly:op.kind==='query',destructive:op.id.endsWith('.archive')||op.id==='media.unlink',
@@ -244,7 +247,16 @@ const mcpTools=operations.map(op=>({id:op.id,name:`catalog_${op.id.replaceAll('.
     op.id==='product.get'?{widget:ref('widget','product-detail')}:
       op.id==='media.list'?{widgetCalls:[ref('widget','product-list'),ref('widget','product-detail')]}:{}),
   textFallback:true}));
-m.contracts={schemas,models,files:[file],events:[],settings:[],search:[],permissions,operations,api,
+m.contracts={schemas,models,files:[file],events:[],settings:[],
+  search:[{id:'catalog-products',model:ref('model','product'),
+    fields:['id','name','description','category_id','price_minor','currency','status','revision','updated_at'],
+    facets:['category_id'],permissions:[ref('permission','view')],context:'required',engine:'provider',
+    provider:'meili.api.v1',projection:{orderIndexId:'by-updated',idField:'id',revisionField:'revision',
+      visibilityField:'status',visibleValue:'published'},
+    rebuildOperation:{moduleId:'creezio.meili',kind:'operation',id:'index.rebuild.start'},
+    deleteOperation:{moduleId:'creezio.meili',kind:'operation',id:'index.emit'},invalidatedBy:[],
+    projectionVersion:'1.0.0',filterBeforeCount:true,resumable:true,requiresModules:['creezio.meili']}],
+  permissions,operations,api,
   mcp:{tools:mcpTools,resources:[widgetResource('product-list'),widgetResource('product-detail')],prompts:[],
     skills:[{id:'catalog',path:skillPath,audiences:['admin','app'],operations:[ref('operation','product.search'),
       ref('operation','product.get'),ref('operation','category.list')],

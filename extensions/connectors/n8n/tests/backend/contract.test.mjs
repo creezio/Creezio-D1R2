@@ -103,6 +103,23 @@ test('remote failures remain expurgated and malformed pages fail without truncat
   const check=harness();assert.deepEqual((await connectionCheck({},check.context)).output,{reachable:true});
   assert.equal(check.calls.filter(call=>call.request).length,1);
 });
+test('in-flight key revocation and non-progressing pagination reject without leaking stale data',async()=>{
+  const h=harness(row,{data:[{id:'1',name:'Private',active:true}],nextCursor:null});
+  let connected=row;
+  h.context.data.get=async()=>connected;
+  h.context.connector.request=async()=>{
+    connected={...row,enabled:false,revision:5,key_ref:null,secret_version:null};
+    return {kind:'ok',status:200,body:{data:[{id:'1',name:'Private',active:true}],nextCursor:null}};
+  };
+  await assert.rejects(workflowList({limit:1},h.context),{code:'conflict'});
+  const looping=harness(row,{data:[{id:'1',name:'Safe',active:true}],nextCursor:'cursor-a'});
+  await assert.rejects(workflowList({limit:1,cursor:'cursor-a'},looping.context),{code:'unavailable'});
+  const empty=harness(row,{data:[],nextCursor:'cursor-b'});
+  await assert.rejects(workflowList({limit:1},empty.context),{code:'unavailable'});
+  const invalid=harness(row);
+  await assert.rejects(workflowList({limit:1,cursor:'bad\nheader'},invalid.context),{code:'invalid_input'});
+  assert.equal(invalid.calls.length,0);
+});
 test('maximal escaped metadata fits the engine output budget or fails explicitly',async()=>{
   const name='"\\'.repeat(2048);
   const data=Array.from({length:25},(_,i)=>({id:`wf-${i}`,name,active:true,

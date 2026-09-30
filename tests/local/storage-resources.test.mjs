@@ -14,6 +14,11 @@ test('local configuration retains primary bindings and declares two separate sto
   assert.deepEqual(worker.d1_databases.map(item=>item.binding),['DB','DB_RESOURCE_01','DB_RESOURCE_02']);
   assert.deepEqual(worker.r2_buckets.map(item=>item.binding),['BUCKET','BUCKET_RESOURCE_01','BUCKET_RESOURCE_02']);
   assertLocalBuiltConfiguration(worker,config);
+  const identified=localWorkerConfiguration({...config,
+    storageInstallationId:'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'});
+  assert.equal(JSON.parse(identified.vars.CREEZIO_STORAGE_ROUTES).schemaVersion,2);
+  assert.equal(JSON.parse(identified.vars.CREEZIO_STORAGE_ROUTES).storageInstallationId,
+    'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee');
   assert.throws(()=>assertLocalBuiltConfiguration({...worker,r2_buckets:worker.r2_buckets.slice(0,2)},config));
   assert.throws(()=>loadLocalConfiguration({storageResources:[resources[0],
     {...resources[1],databaseId:resources[0].databaseId}]}));

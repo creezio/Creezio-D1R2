@@ -1,5 +1,11 @@
 # T27 — Connecteur Stripe
 
+## Tranche candidate 0.3.0 — Checkout test et événements signés
+
+La source candidate ajoute les commandes de création Checkout test (`payment` et `subscription`), la lecture de session et l'arrêt d'abonnement en fin de période. L'origine HTTPS de retour est configurée côté serveur ; seul un prix fixe actif et projeté du compte test peut être utilisé. La clé fournisseur d'idempotence dérive du claim D1 avant l'appel, et une émission dont le résultat est perdu reste `unknown` sans réémission. Le module projette la session et les événements signés dans D1, consultables dans l'écran Facturation, l'API et MCP. Le webhook Stripe exige un secret de signature et un jeton natif de service scellés séparément ; l'hôte vérifie les octets bruts, l'horodatage et la signature, puis lie une preuve opaque à l'opération. Révision de configuration et références/version des secrets actifs sont vérifiées dans le même commit D1 que l'événement. Les cas de doublon, de collision d'ID et de rotation sont bornés par le journal et les gardes.
+
+Les tests locaux du candidat couvrent Checkout sous fournisseur simulé, rejeu sans second POST, issue incertaine après changement de configuration et révocation de signature entre preuve et commit ; ils ne prouvent aucun paiement ou webhook sur Stripe réel. La recette fournisseur en mode test, l'intégration applicative, les autres évolutions d'abonnement et la clôture de REQ-2701 restent ouvertes.
+
 ## Première tranche de lecture et projection
 
 Le module optionnel reprend l'écran de facturation de Creezio : état de la connexion, clients et abonnements, factures, événements et resynchronisation. Le transport et le stockage sont adaptés au SDK commun et à D1. Aucun service Stripe n'est embarqué dans Creezio et aucune base WinHub n'est importée. Les événements restent indisponibles tant que le webhook signé n'est pas implémenté ; un MRR non calculable n'est pas fabriqué.

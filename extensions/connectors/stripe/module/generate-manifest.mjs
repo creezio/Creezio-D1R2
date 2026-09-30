@@ -4,7 +4,7 @@ import {stripeConnectorDescriptor} from './storage.ts';
 
 const root=new URL('../',import.meta.url);
 const template=JSON.parse(readFileSync(new URL('module/manifest.json',root),'utf8'));
-const id='creezio.stripe',connectorId='stripe.api.v1',version='0.2.1',sourceRevision='t27-stripe-price-frequency-fr-v1';
+const id='creezio.stripe',connectorId='stripe.api.v1',version='0.3.0',sourceRevision='t27-stripe-checkout-test-v1';
 const ref=(kind,name)=>({moduleId:id,kind,id:name});
 const str=(max=128,min=1)=>({type:'string',minLength:min,maxLength:max});
 const integer=(min=0,max=Number.MAX_SAFE_INTEGER)=>({type:'integer',minimum:min,maximum:max});
@@ -28,6 +28,13 @@ model('connector_config','Configuration Stripe',[idField,
   field('key_ref','string',{nullable:true,constraints:{minLength:1,maxLength:128}}),
   field('secret_version','integer',{nullable:true,constraints:{minimum:1}}),
   field('connection_id','string',{nullable:true,constraints:{minLength:1,maxLength:128}}),
+  field('checkout_return_origin','string',{nullable:true,constraints:{minLength:8,maxLength:512}}),
+  field('webhook_key_ref','string',{nullable:true,constraints:{minLength:1,maxLength:128}}),
+  field('webhook_secret_version','integer',{nullable:true,constraints:{minimum:1}}),
+  field('webhook_previous_key_ref','string',{nullable:true,constraints:{minLength:1,maxLength:128}}),
+  field('webhook_previous_secret_version','integer',{nullable:true,constraints:{minimum:1}}),
+  field('webhook_service_token_ref','string',{nullable:true,constraints:{minLength:1,maxLength:128}}),
+  field('webhook_service_token_version','integer',{nullable:true,constraints:{minimum:1}}),
   field('enabled','boolean'),revisionField,updatedField],['manage','read']);
 model('connector_secret','Clé Stripe scellée',[
   field('id','string',{protected:true,constraints:{minLength:1,maxLength:128}}),
@@ -67,6 +74,7 @@ model('stripe_subscription','Abonnement Stripe projeté',[idField,
   field('interval','string',{nullable:true,constraints:{minLength:1,maxLength:32}}),
   field('interval_count','integer',{nullable:true,constraints:{minimum:1}}),
   field('quantity','integer',{nullable:true,constraints:{minimum:0}}),
+  field('cancel_at_period_end','boolean',{nullable:true}),
   field('period_end_at','date-time',{nullable:true}),
   field('livemode','boolean'),revisionField,updatedField],['manage','read'],
   [{id:'by-connection',fields:['context_id','connection_id','id'],unique:false}]);
@@ -102,18 +110,42 @@ model('stripe_price','Prix Stripe projeté',[idField,
   field('tiers_mode','string',{nullable:true,constraints:{minLength:1,maxLength:16}}),
   field('custom_amount','boolean'),revisionField,updatedField],['manage','read'],
   [{id:'by-connection',fields:['context_id','connection_id','id'],unique:false}]);
+model('stripe_checkout','Session Checkout Stripe',[idField,
+  field('connection_id','string',{constraints:{minLength:1,maxLength:128}}),
+  field('execution_id','string',{constraints:{minLength:1,maxLength:128}}),
+  field('price_id','string',{constraints:{minLength:1,maxLength:128}}),
+  field('quantity','integer',{constraints:{minimum:1,maximum:100}}),
+  field('mode','string',{constraints:{enum:['payment','subscription']}}),
+  field('status','string',{constraints:{minLength:1,maxLength:32}}),
+  field('payment_status','string',{constraints:{minLength:1,maxLength:32}}),
+  field('url','string',{nullable:true,constraints:{minLength:8,maxLength:2048}}),
+  field('livemode','boolean'),revisionField,updatedField],['manage','read'],
+  [{id:'by-connection',fields:['context_id','connection_id','id'],unique:false}]);
+model('stripe_event','Événement Stripe signé',[idField,
+  field('connection_id','string',{constraints:{minLength:1,maxLength:128}}),
+  field('type','string',{constraints:{minLength:1,maxLength:128}}),
+  field('object_id','string',{constraints:{minLength:1,maxLength:128}}),
+  field('body_digest','string',{constraints:{minLength:64,maxLength:64}}),
+  field('livemode','boolean'),revisionField,updatedField],['manage','read'],
+  [{id:'by-connection',fields:['context_id','connection_id','id'],unique:false}]);
 
 const schemas=[],schema=(name,value)=>{schemas.push({id:name,schema:value});return {schemaId:name};};
 const requestKey=str(128),revision=integer(0),stripeId=str(128),cursor=nullable(str(128));
 const collection={type:'string',enum:allCollections},status={type:'string',enum:['partial','pages_exhausted']};
 const configView=obj({origin:{const:'https://api.stripe.com'},enabled:{type:'boolean'},hasKey:{type:'boolean'},
+  checkoutReturnOrigin:nullable(str(512,8)),hasWebhookSecret:{type:'boolean'},
+  hasWebhookService:{type:'boolean'},
   revision,state:{type:'string',enum:['missing','configured','unverified']}});
 const runView=obj({collection,runId:nullable(str(128)),cursor,status,revision,updatedAt:nullable(str(64))});
 const empty=schema('empty-input',obj({}));
 const configOutput=schema('config-output',obj({config:configView}));
-const configSetInput=schema('config-set-input',obj({requestKey,enabled:{type:'boolean'},revision}));
+const configSetInput=schema('config-set-input',obj({requestKey,enabled:{type:'boolean'},revision,
+  checkoutReturnOrigin:nullable(str(512,8))},['requestKey','enabled','revision']));
 const keySetInput=schema('config-key-set-input',obj({requestKey,apiKey:str(4096,8),revision}));
 const keyRevokeInput=schema('config-key-revoke-input',obj({requestKey,revision}));
+const webhookSetInput=schema('webhook-secret-set-input',obj({requestKey,webhookSecret:str(512,16),revision}));
+const webhookServiceInput=schema('webhook-service-set-input',obj({requestKey,
+  serviceToken:str(256,32),revision}));
 const checkOutput=schema('connection-check-output',obj({reachable:{const:true}}));
 const statesOutput=schema('sync-states-output',obj({states:array(runView,6)}));
 const startInput=schema('sync-start-input',obj({requestKey,collection,runId:str(128),revision}));
@@ -128,6 +160,8 @@ const subscription=obj({id:stripeId,customer_id:stripeId,status:str(64),currency
     'Raw Stripe minor-unit amount. Interpret with currency and Stripe rules; it is not always major units divided by 100.'},
   interval:nullable(str(32)),
   interval_count:nullable(integer(1)),quantity:nullable(integer(0)),period_end_at:nullable(str(64)),
+  revision,
+  cancel_at_period_end:nullable({type:'boolean'}),
   livemode:{type:'boolean'},updated_at:str(64)});
 const invoice=obj({id:stripeId,customer_id:nullable(stripeId),status:nullable(str(64)),currency:str(3),
   amount_due_minor:{type:'integer',description:'Raw Stripe minor-unit amount; interpret with the currency and Stripe rules, never divide every currency by 100.'},
@@ -145,8 +179,25 @@ const price=obj({id:stripeId,product_id:stripeId,active:{type:'boolean'},livemod
   custom_amount:{type:'boolean'},updated_at:str(64)});
 const productOutput=schema('product-list-output',obj({items:array(product,25),nextCursor:cursor}));
 const priceOutput=schema('price-list-output',obj({items:array(price,25),nextCursor:cursor}));
+const checkout=obj({id:stripeId,url:nullable(str(2048,8)),mode:{type:'string',enum:['payment','subscription']},
+  status:str(32),paymentStatus:str(32),livemode:{const:false}});
+const checkoutCreateInput=schema('checkout-create-input',obj({requestKey,priceId:stripeId,
+  quantity:integer(1,100),customerId:stripeId},['requestKey','priceId','quantity']));
+const checkoutReadInput=schema('checkout-read-input',obj({sessionId:stripeId}));
+const checkoutOutput=schema('checkout-output',obj({session:checkout}));
+const cancelInput=schema('subscription-cancel-input',obj({requestKey,subscriptionId:stripeId,revision:integer(1)}));
+const cancelOutput=schema('subscription-cancel-output',obj({subscriptionId:stripeId,
+  cancelAtPeriodEnd:{const:true},livemode:{const:false}}));
+const eventInput=schema('stripe-event-input',obj({requestKey,eventId:stripeId,bodyDigest:str(64,64),
+  type:str(128),objectId:stripeId,livemode:{const:false},sessionMode:nullable({type:'string',enum:['payment','subscription']}),
+  sessionStatus:nullable(str(32)),paymentStatus:nullable(str(32))}));
+const eventOutput=schema('stripe-event-output',obj({eventId:stripeId,recorded:{const:true},
+  checkoutUpdated:{type:'boolean'}}));
+const eventRow=obj({id:stripeId,type:str(128),object_id:stripeId,body_digest:str(64,64),
+  livemode:{const:false},updated_at:str(64)});
+const eventListOutput=schema('stripe-event-list-output',obj({items:array(eventRow,25),nextCursor:cursor}));
 const panelState=schema('stripe-panel-state',obj({sessionId:str(128),audience:{const:'admin'},contextId:str(128),
-  tab:{type:'string',enum:['overview','customers','subscriptions','invoices','products','prices','settings']},
+  tab:{type:'string',enum:['overview','customers','subscriptions','invoices','products','prices','checkout','settings']},
   pending:obj({sessionId:str(128),audience:{const:'admin'},contextId:str(128),bindingId:str(257),
     requestKey:str(512),intent:str(128)},['sessionId','audience','contextId','bindingId','requestKey'])},
   ['sessionId','audience','contextId','tab']));
@@ -159,7 +210,7 @@ const permissions=[{id:'manage',title:'Configurer et synchroniser Stripe',audien
 {id:'read',title:'Lire la facturation projetée',audiences:['admin'],
   actors:['user','delegated-user','machine'],scopes:['stripe.read'],context:'required',default:'deny',
   resources:['connector_config','sync_state','stripe_catalog_sync_state','stripe_customer','stripe_subscription',
-    'stripe_invoice','stripe_product','stripe_price'].map(name=>ref('model',name)),
+    'stripe_invoice','stripe_product','stripe_price','stripe_checkout','stripe_event'].map(name=>ref('model',name)),
   actions:['read','execute'],enforcement:{request:true,commit:true},public:false}];
 const errors=['invalid_input','unauthorized','forbidden','not_found','conflict','rate_limited','unsupported','unavailable','unknown']
   .map(code=>({code,retryable:['rate_limited','unavailable','unknown'].includes(code),
@@ -176,7 +227,7 @@ function operation(name,title,kind,input,output,permission,reads,writes,options=
     idempotency:command?{mode:'required',keyField:'requestKey',scope:'actor-context-operation',retentionSeconds:86400}:{mode:'none'},
     approval:{mode:'none'},concurrency:options.cas?{mode:'object-version',versionField:'revision'}:{mode:'none'},
     execution:{maxDurationMs:options.remote?15000:10000,maxItems:options.maxItems??8,resumable:false},
-    audit:{required:true,redactFields:['apiKey']},public:false});
+    audit:{required:true,redactFields:['apiKey','webhookSecret']},public:false});
 }
 operation('config.read','Lire la configuration Stripe','query',empty,configOutput,'manage',
   ['connector_config'],[],{exportName:'configRead'});
@@ -188,8 +239,39 @@ operation('config.key.set','Enregistrer la clé Stripe','command',keySetInput,co
 operation('config.key.revoke','Révoquer la clé Stripe','command',keyRevokeInput,configOutput,'manage',
   ['connector_config','connector_secret'],['connector_config','connector_secret'],
   {exportName:'configKeyRevoke',cas:true,maxItems:10});
+operation('config.key.webhook.set','Enregistrer le secret du webhook Stripe','command',webhookSetInput,
+  configOutput,'manage',['connector_config','connector_secret'],['connector_config','connector_secret'],
+  {exportName:'configWebhookSet',cas:true,maxItems:10});
+operation('config.key.webhook.revoke','Révoquer le secret du webhook Stripe','command',keyRevokeInput,
+  configOutput,'manage',['connector_config','connector_secret'],['connector_config','connector_secret'],
+  {exportName:'configWebhookRevoke',cas:true,maxItems:10});
+operation('config.key.webhook.service.set','Enregistrer le jeton de service webhook','command',webhookServiceInput,
+  configOutput,'manage',['connector_config','connector_secret'],['connector_config','connector_secret'],
+  {exportName:'configWebhookServiceSet',cas:true,maxItems:10});
+operation('config.key.webhook.service.revoke','Révoquer le jeton de service webhook','command',keyRevokeInput,
+  configOutput,'manage',['connector_config','connector_secret'],['connector_config','connector_secret'],
+  {exportName:'configWebhookServiceRevoke',cas:true,maxItems:10});
 operation('connection.check','Vérifier la connexion Stripe','query',empty,checkOutput,'manage',
   ['connector_config','connector_secret'],[],{exportName:'connectionCheck',remote:true});
+operation('checkout.payment.create','Créer un Checkout de paiement test','command',checkoutCreateInput,
+  checkoutOutput,'manage',['connector_config','connector_secret','stripe_price'],['stripe_checkout'],
+  {exportName:'checkoutPaymentCreate',remote:true,maxItems:12});
+operation('checkout.subscription.create','Créer un Checkout abonnement test','command',checkoutCreateInput,
+  checkoutOutput,'manage',['connector_config','connector_secret','stripe_price'],['stripe_checkout'],
+  {exportName:'checkoutSubscriptionCreate',remote:true,maxItems:12});
+operation('checkout.read','Relire une session Checkout test','query',checkoutReadInput,checkoutOutput,
+  'manage',['connector_config','connector_secret','stripe_checkout'],[],
+  {exportName:'checkoutRead',remote:true,maxItems:8});
+operation('subscription.cancel.schedule','Programmer l’arrêt d’un abonnement test','command',cancelInput,
+  cancelOutput,'manage',['connector_config','connector_secret','stripe_subscription'],['stripe_subscription'],
+  {exportName:'subscriptionCancelSchedule',remote:true,cas:true,maxItems:12});
+operation('event.receive','Enregistrer un événement Stripe signé','command',eventInput,eventOutput,
+  'manage',['connector_config','stripe_event','stripe_checkout'],['stripe_event','stripe_checkout'],
+  {exportName:'eventReceive',maxItems:12});
+operations.at(-1).actors.push('signed-webhook');
+operation('event.list','Lire les événements Stripe rapprochés','query',listInput,eventListOutput,
+  'read',['connector_config','stripe_event'],[],{exportName:'eventList',
+    pagination:{mode:'cursor',cursorField:'cursor',limitField:'limit',maxItems:25},maxItems:27});
 operation('sync.state','Lire l’état des parcours Stripe','query',empty,statesOutput,'read',
   ['connector_config','sync_state','stripe_catalog_sync_state'],[],{exportName:'syncState',maxItems:8});
 operation('sync.start','Démarrer un parcours de lecture Stripe','command',startInput,startOutput,'manage',
@@ -217,15 +299,20 @@ for(const [name,output,model,exportName] of [
     {exportName,pagination:{mode:'cursor',cursorField:'cursor',limitField:'limit',maxItems:25},maxItems:27});
 const api=[];
 for(const op of operations){
+  if(op.id==='event.receive')continue;
   const definition=schemas.find(item=>item.id===op.input.schemaId).schema;
   api.push({id:`admin.${op.id}`,method:op.kind==='command'?'POST':'GET',
     path:`/api/admin/stripe/${op.id.replaceAll('.','/')}`,operation:ref('operation',op.id),audience:'admin',
     auth:['session','oauth','api-token'],parameters:op.kind==='command'?[]:
       Object.entries(definition.properties).filter(([,value])=>['string','integer','boolean'].includes(value.type))
-        .map(([name])=>({name,in:'query',inputField:name,required:definition.required.includes(name)})),
+        .map(([name])=>({name:name.replace(/[A-Z]/gu,letter=>`_${letter.toLowerCase()}`),
+          in:'query',inputField:name,required:definition.required.includes(name)})),
     input:op.input,output:op.output,rateLimit:{requests:30,windowSeconds:60}});
 }
-const mcpTools=operations.map(op=>({id:op.id,name:`stripe_${op.id.replaceAll('.','_')}`,
+api.push({id:'webhook.event.receive',method:'POST',path:'/api/webhooks/stripe',
+  operation:ref('operation','event.receive'),audience:'admin',auth:['webhook-signature'],parameters:[],
+  input:eventInput,output:eventOutput,rateLimit:{requests:120,windowSeconds:60}});
+const mcpTools=operations.filter(op=>op.id!=='event.receive').map(op=>({id:op.id,name:`stripe_${op.id.replaceAll('.','_')}`,
   operation:ref('operation',op.id),audiences:['admin'],auth:['oauth','api-token'],input:op.input,output:op.output,
   annotations:{readOnly:op.kind==='query',destructive:op.id==='config.key.revoke',
     idempotent:op.kind==='query',openWorld:op.effects.providers.length>0},
@@ -252,7 +339,7 @@ m.identity={id,title:'Connecteur Stripe',publisher:'creezio',origin:'https://git
   version,source:{kind:'snapshot',revision:sourceRevision,
     integrity:`sha256-${createHash('sha256').update(sourceRevision).digest('hex')}`},
   license:{expression:'NOASSERTION',file:'LICENSE'}};
-m.compatibility={core:'^0.0.0',sdk:'^1.4.0',requiredCapabilities:['runtime.worker','data.d1.shared'],optionalCapabilities:[]};
+m.compatibility={core:'^0.0.0',sdk:'^1.6.0',requiredCapabilities:['runtime.worker','data.d1.shared'],optionalCapabilities:[]};
 m.entrypoints={server:{path:'module/entry.server.ts',export:'stripe'},ui:{path:'ui/index.tsx',export:'StripeAdminView'},
   plugin:{manifest:'plugin/plugin.json',mcp:'plugin/mcp.json',
     contributions:{path:'plugin/contributions.ts',export:'contributions'}}};
@@ -264,22 +351,26 @@ m.contracts={schemas,models,files:[],events:[],connectors:[structuredClone(strip
   search:[],permissions,operations,api,mcp:{tools:mcpTools,resources:[widgetResource],prompts:[],
     skills:[{id:'stripe',path:skillPath,audiences:['admin'],operations:[ref('operation','sync.state'),
       ref('operation','customer.list'),ref('operation','subscription.list'),ref('operation','invoice.list'),
-      ref('operation','product.list'),ref('operation','price.list')],
+      ref('operation','product.list'),ref('operation','price.list'),
+      ref('operation','checkout.payment.create'),ref('operation','checkout.subscription.create'),
+      ref('operation','checkout.read'),ref('operation','subscription.cancel.schedule'),
+      ref('operation','event.list')],
       resources:['sync-status-ui'],integrity:skillIntegrity}]},
   ui:{views:[{id:'admin',title:'Facturation',surfaces:['workspace'],route:'/admin/billing',
     component:{path:'ui/index.tsx',export:'StripeAdminView'},permissions:[ref('permission','manage')],
-    operations:operations.map(op=>ref('operation',op.id)),input:viewInput,
+    operations:operations.filter(op=>op.id!=='event.receive').map(op=>ref('operation',op.id)),input:viewInput,
     panel:{identityFields:[],navigation:'sdk',retention:'preserve',inactiveEffects:'suspend',stateSchema:panelState}}],
     navigation:[{id:'stripe-admin',title:'Facturation',view:ref('view','admin'),
       permissions:[ref('permission','manage')],surfaces:['workspace'],order:80}],slots:[],
-    front:{mode:'absent',justification:{reason:'The original billing page is administrative; no customer payment front is in this read-only slice.',
-      policyRule:'stripe.admin-only-first-slice'}},themes:[],styles:[]},
+    front:{mode:'absent',justification:{reason:'Checkout URLs are issued by an authorized administrative operation; this module does not render a customer checkout page.',
+      policyRule:'stripe.admin-checkout-api'}},themes:[],styles:[]},
   widgets:[widget],publicContracts:[]};
 m.documentation.versionBinding={moduleVersion:version,sourceRevision};
 for(const suite of ['backend','ui','api-mcp','widgets','package','docs'])m.validation.suites[suite].tests=[`tests/${suite}/contract.test.mjs`];
 m.validation.suites.widgets.mode='required';delete m.validation.suites.widgets.justification;
 m.packaging.runtime.files=['module/manifest.json','module/models.json','module/entry.server.ts','module/storage.ts',
-  'module/operations.ts','module/service.ts','module/projection.ts','ui/index.tsx','ui/panel-state.ts','ui/state.ts','ui/money.ts',
+  'module/operations.ts','module/service.ts','module/projection.ts','module/webhook.ts',
+  'ui/index.tsx','ui/panel-state.ts','ui/state.ts','ui/money.ts',
   'ui/widgets/sync-status.ts','ui/widgets/sync-status.html',
   'README.md','prd.md','CHANGELOG.md','LICENSE','plugin/plugin.json','plugin/mcp.json',
   'plugin/contributions.ts',skillPath];
@@ -288,7 +379,7 @@ m.packaging.validation.files=['AGENTS.md','FILES.md','interview.md','TODO.md','g
   ...['backend','ui','api-mcp','widgets','package','docs'].flatMap(name=>
     [`ci/${name}.mjs`,`tests/${name}/contract.test.mjs`])];
 m.packaging.validationBinding={moduleId:id,moduleVersion:version,sourceRevision};
-m.lifecycle.absent={files:{reason:'This read-only Stripe projection stores no file content.',policyRule:'stripe.no-files'}};
+m.lifecycle.absent={files:{reason:'Stripe payment data does not store file content.',policyRule:'stripe.no-files'}};
 m.lifecycle.configuration='explicit-state';
 writeFileSync(new URL('module/models.json',root),JSON.stringify(models,null,2)+'\n');
 writeFileSync(new URL('module/manifest.json',root),JSON.stringify(m,null,2)+'\n');

@@ -10,7 +10,14 @@ import { OperationError, type OperationDeclaration, type OperationErrorCode } fr
 
 type Failure = { readonly ok: false; readonly error: string };
 export interface NativeAccessResult { readonly output: unknown; readonly nativeStatements?: readonly SqlStatement[];
-  readonly compared?: boolean }
+  readonly compared?: boolean; readonly storageRevocation?: NativeStorageRevocation }
+/** Host-only receipt specification; the operation runner owns route inventory and fencing. */
+export interface NativeStorageRevocation {
+  readonly kind:'policy.apply-delta'|'principals.set-human-status'|'principals.revoke-sessions'|'sessions.revoke';
+  readonly requestKey:string;readonly auditId:string;readonly action:string;
+  readonly targetPrincipalId?:string;readonly targetSessionId?:string;readonly expectedEpoch?:number;
+}
+const revocation=(value:NativeStorageRevocation):NativeStorageRevocation=>Object.freeze(value);
 
 const nativeQueries = new Set(['policy.read', 'permissions.list', 'principals.list', 'sessions.list', 'audit.list', 'audit.detail']);
 const nativeCommands = new Set(['policy.apply-delta', 'principals.set-human-status',
@@ -92,7 +99,8 @@ export function createNativeAccessOperationAdapter(db: IdentityDatabase, supplie
   const accounts = createAccountAdministrationService(db, {permissions: ordinaryPermissions});
   const accountPlans = createAccountAdministrationPlanService(db, {permissions: ordinaryPermissions});
   const audit = createAccessAuditService(db, {permissions: ordinaryPermissions});
-  async function execute(operationId: string, credential: {readonly kind: 'session' | 'oauth'; readonly token: unknown; readonly resource?: string}, inputValue: unknown): Promise<NativeAccessResult> {
+  async function execute(operationId: string, credential: {readonly kind: 'session' | 'oauth'; readonly token: unknown; readonly resource?: string},
+    inputValue: unknown,sourceAuditId?:string): Promise<NativeAccessResult> {
     const token: unknown = credential.kind === 'session' ? credential.token : credential;
     const input = record(inputValue);
     switch (operationId) {
@@ -138,26 +146,34 @@ export function createNativeAccessOperationAdapter(db: IdentityDatabase, supplie
           changes: result.changes, nextAfterIndex: result.nextAfterIndex}};
       }
       case 'policy.apply-delta': {
-        const result = await policy.preparePolicyDelta(token, input);
+        const result = await policy.preparePolicyDelta(token, input,sourceAuditId);
         if (!result.ok) return failure(result);
-        return {output: result.output, nativeStatements: result.statements, compared: true};
+        return {output: result.output, nativeStatements: result.statements, compared: true,
+          storageRevocation:revocation({kind:'policy.apply-delta',requestKey:String(input.requestKey),
+            auditId:result.auditId,action:'authorization-updated',expectedEpoch:Number(input.expectedEpoch)})};
       }
       case 'principals.set-human-status': {
         const result = await accountPlans.prepareSetHumanStatus(token, {principalId: input.principalId,
-          expectedAuthVersion: input.expectedAuthVersion, status: input.status});
+          expectedAuthVersion: input.expectedAuthVersion, status: input.status},sourceAuditId);
         if (!result.ok) return failure(result);
-        return {output: result.output, nativeStatements: [...result.statements, result.assertion], compared: true};
+        return {output: result.output, nativeStatements: [...result.statements, result.assertion], compared: true,
+          storageRevocation:revocation({kind:'principals.set-human-status',requestKey:String(input.requestKey),
+            auditId:result.auditId,action:'human-status-updated',targetPrincipalId:String(input.principalId)})};
       }
       case 'principals.revoke-sessions': {
         const result = await accountPlans.prepareRevokeAllHumanSessions(token, {principalId: input.principalId,
-          expectedAuthVersion: input.expectedAuthVersion});
+          expectedAuthVersion: input.expectedAuthVersion},sourceAuditId);
         if (!result.ok) return failure(result);
-        return {output: result.output, nativeStatements: [...result.statements, result.assertion], compared: true};
+        return {output: result.output, nativeStatements: [...result.statements, result.assertion], compared: true,
+          storageRevocation:revocation({kind:'principals.revoke-sessions',requestKey:String(input.requestKey),
+            auditId:result.auditId,action:'human-sessions-revoked',targetPrincipalId:String(input.principalId)})};
       }
       case 'sessions.revoke': {
-        const result = await accountPlans.prepareRevokeSessionById(token, {sessionId: input.sessionId});
+        const result = await accountPlans.prepareRevokeSessionById(token, {sessionId: input.sessionId},sourceAuditId);
         if (!result.ok) return failure(result);
-        return {output: result.output, nativeStatements: [...result.statements, result.assertion]};
+        return {output: result.output, nativeStatements: [...result.statements, result.assertion],
+          storageRevocation:revocation({kind:'sessions.revoke',requestKey:String(input.requestKey),
+            auditId:result.auditId,action:'human-session-revoked',targetSessionId:String(input.sessionId)})};
       }
       default: throw new OperationError('not_found');
     }

@@ -5,6 +5,7 @@ import type { ModuleSettingsHostInventory } from '../../sdk/module-settings/type
 import type {OperationFilesPort} from '../../sdk/files/types.ts';
 import type {ProviderSecretsPort} from '../../sdk/providers/types.ts';
 import type {ConnectorPort} from '../../sdk/connectors/types.ts';
+import type {SearchProjectionPort} from '../../sdk/search/types.ts';
 import type {WidgetOperationPort} from '../widgets/host.ts';
 import type {OperationDiagnosticsPort} from './diagnostics.ts';
 import type {ModuleQueryPort} from './intermodule.ts';
@@ -63,6 +64,8 @@ export interface OperationContext {
   readonly providerSecrets?: ProviderSecretsPort;
   /** Declared, host-controlled outbound read capability; no URL, headers or secret reach module code. */
   readonly connector?: ConnectorPort;
+  /** Build-owned projection policy; every read reauthorizes against its source model. */
+  readonly search?: SearchProjectionPort;
   /** Server-selected readiness only; it carries neither credentials nor authority to emit. */
   readonly providerAvailability?: OperationProviderAvailability;
   /** Build-owned inventory; supplied only to the trusted native modules-settings implementation. */

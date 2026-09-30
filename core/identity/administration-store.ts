@@ -144,8 +144,9 @@ export function createD1AccountAdministrationStore(db: IdentityDatabase) {
   }
 
   type Action = 'human-status-updated' | 'human-sessions-revoked' | 'human-session-revoked';
-  function acquire(guard: AccessAdminGuard, action: Action, extra: string, values: (string | number)[]) {
-    const auditId = crypto.randomUUID(), nonce = crypto.randomUUID();
+  function acquire(guard: AccessAdminGuard, action: Action, extra: string, values: (string | number)[],
+    auditId:string=crypto.randomUUID()) {
+    const nonce = crypto.randomUUID();
     const authority = accessAdminCondition(guard);
     const exists = `EXISTS (SELECT 1 FROM ${table.access_audit} WHERE id = ? AND claim_nonce = ? AND action = ?)`;
     const args = () => [auditId, nonce, action];
@@ -187,7 +188,8 @@ export function createD1AccountAdministrationStore(db: IdentityDatabase) {
     if (count !== 0 && count !== 1) throw new AdministrationStoreError();
     return count === 1;
   }
-  function prepareSetHumanStatus(guardValue: AdminGuardInput, input: HumanStatusInput) {
+  function prepareSetHumanStatus(guardValue: AdminGuardInput, input: HumanStatusInput,
+    auditId?:string) {
     const guard = captureGuard(guardValue);
     if (!identityInputFields(input, ['principalId', 'expectedAuthVersion', 'status']) || !principalStatus(input.status)) throw new AdministrationStoreInputError();
     const target = targetVersion({ principalId: input.principalId, expectedAuthVersion: input.expectedAuthVersion }), nextStatus = input.status;
@@ -196,7 +198,7 @@ export function createD1AccountAdministrationStore(db: IdentityDatabase) {
       AND EXISTS (SELECT 1 FROM ${table.principals} WHERE id = ? AND status <> ?)
       AND (? <> 'disabled' OR ? <> ?)`,
     [target.principalId, target.expectedAuthVersion, target.principalId, nextStatus, nextStatus,
-      guard.principalId, target.principalId]);
+      guard.principalId, target.principalId],auditId);
     const statements: SqlStatement[] = [
       claim.query,
       planned(`UPDATE ${table.principals} SET status = ?, auth_version = auth_version + 1, updated_at_ms = ${NOW}
@@ -204,21 +206,32 @@ export function createD1AccountAdministrationStore(db: IdentityDatabase) {
       ...markers(claim, target), recordTarget(claim, target.principalId),
       planned(`SELECT ${principalColumns} ${principalFrom} WHERE tp.id = ? AND ${claim.exists}`, [target.principalId, ...claim.args()]),
     ];
-    return Object.freeze({statements: Object.freeze(statements),
+    return Object.freeze({auditId:claim.auditId,statements: Object.freeze(statements),
       assertion: planned(`SELECT CASE WHEN ${claim.exists} THEN 1 ELSE json('creezio_access_admin_conflict') END AS accepted`, claim.args()),
       output: Object.freeze({principalId: target.principalId, status: nextStatus, authVersion: target.expectedAuthVersion + 1})});
   }
-  async function setHumanStatus(guardValue: AdminGuardInput, input: HumanStatusInput): Promise<AdministrativePrincipal | null> {
-    const plan = prepareSetHumanStatus(guardValue, input);
+  async function commitPreparedSetHumanStatus(plan:NonNullable<ReturnType<typeof prepareSetHumanStatus>>): Promise<AdministrativePrincipal | null> {
     if (!plan) return null;
     const results = await execute(plan.statements);
     if (!didAcquire(results)) return null;
     if (results.at(-1)!.results.length !== 1) throw new AdministrationStoreError();
     return principalRow(results.at(-1)!.results[0]);
   }
-  function prepareRevokeAllHumanSessions(guardValue: AdminGuardInput, input: HumanVersionInput) {
+  async function setHumanStatus(guardValue: AdminGuardInput, input: HumanStatusInput): Promise<AdministrativePrincipal | null> {
+    const plan = prepareSetHumanStatus(guardValue, input);
+    return plan?commitPreparedSetHumanStatus(plan):null;
+  }
+  async function readPrincipal(principalId:string):Promise<AdministrativePrincipal|null>{
+    if(!validIdentityId(principalId))throw new AdministrationStoreInputError();
+    const rows=await batch([statement(`SELECT ${principalColumns} ${principalFrom} WHERE tp.id=? LIMIT 2`,[principalId])]);
+    if(rows[0].results.length>1)throw new AdministrationStoreError();
+    return rows[0].results.length?principalRow(rows[0].results[0]):null;
+  }
+  function prepareRevokeAllHumanSessions(guardValue: AdminGuardInput, input: HumanVersionInput,
+    auditId?:string) {
     const guard = captureGuard(guardValue), target = targetVersion(input);
-    const claim = acquire(guard, 'human-sessions-revoked', humanTarget, [target.principalId, target.expectedAuthVersion]);
+    const claim = acquire(guard, 'human-sessions-revoked', humanTarget,
+      [target.principalId, target.expectedAuthVersion],auditId);
     const statements: SqlStatement[] = [
       claim.query,
       planned(`UPDATE ${table.principals} SET auth_version = auth_version + 1, updated_at_ms = ${NOW}
@@ -227,27 +240,32 @@ export function createD1AccountAdministrationStore(db: IdentityDatabase) {
       planned(`SELECT id AS principalId, auth_version AS authVersion FROM ${table.principals}
         WHERE id = ? AND ${claim.exists}`, [target.principalId, ...claim.args()]),
     ];
-    return Object.freeze({statements: Object.freeze(statements),
+    return Object.freeze({auditId:claim.auditId,statements: Object.freeze(statements),
       assertion: planned(`SELECT CASE WHEN ${claim.exists} THEN 1 ELSE json('creezio_access_admin_conflict') END AS accepted`, claim.args()),
       output: Object.freeze({principalId: target.principalId, authVersion: target.expectedAuthVersion + 1})});
   }
-  async function revokeAllHumanSessions(guardValue: AdminGuardInput, input: HumanVersionInput): Promise<{
+  async function commitPreparedRevokeAllHumanSessions(plan:ReturnType<typeof prepareRevokeAllHumanSessions>): Promise<{
     readonly principalId: string; readonly authVersion: number;
   } | null> {
-    const plan = prepareRevokeAllHumanSessions(guardValue, input);
     const results = await execute(plan.statements);
     if (!didAcquire(results)) return null;
     const rows = results.at(-1)!.results;
     if (rows.length !== 1 || rows[0].principalId !== plan.output.principalId || rows[0].authVersion !== plan.output.authVersion) throw new AdministrationStoreError();
     return plan.output;
   }
-  function prepareRevokeSessionById(guardValue: AdminGuardInput, input: { readonly sessionId: string }) {
+  async function revokeAllHumanSessions(guardValue: AdminGuardInput, input: HumanVersionInput): Promise<{
+    readonly principalId: string; readonly authVersion: number;
+  } | null> {
+    return commitPreparedRevokeAllHumanSessions(prepareRevokeAllHumanSessions(guardValue,input));
+  }
+  function prepareRevokeSessionById(guardValue: AdminGuardInput, input: { readonly sessionId: string },
+    auditId?:string) {
     const guard = captureGuard(guardValue);
     if (!identityInputFields(input, ['sessionId']) || !validIdentityId(input.sessionId)) throw new AdministrationStoreInputError();
     const sessionId = input.sessionId;
     const claim = acquire(guard, 'human-session-revoked', `EXISTS (SELECT 1 FROM ${table.sessions} ts
       JOIN ${table.principals} tp ON tp.id = ts.principal_id JOIN ${table.human_accounts} th ON th.principal_id = tp.id
-      WHERE ts.id = ? AND tp.kind = 'human' AND ts.revoked_at_ms IS NULL)`, [sessionId]);
+      WHERE ts.id = ? AND tp.kind = 'human' AND ts.revoked_at_ms IS NULL)`, [sessionId],auditId);
     const statements: SqlStatement[] = [
       claim.query,
       planned(`UPDATE ${table.sessions} SET revoked_at_ms = ${NOW}, revocation_nonce = ?
@@ -256,17 +274,21 @@ export function createD1AccountAdministrationStore(db: IdentityDatabase) {
         (SELECT principal_id FROM ${table.sessions} WHERE id = ?), target_session_id = ?
         WHERE id = ? AND claim_nonce = ?`, [sessionId, sessionId, claim.auditId, claim.nonce]),
     ];
-    return Object.freeze({statements: Object.freeze(statements),
+    return Object.freeze({auditId:claim.auditId,statements: Object.freeze(statements),
       assertion: planned(`SELECT CASE WHEN ${claim.exists} THEN 1 ELSE json('creezio_access_admin_conflict') END AS accepted`, claim.args()),
       output: Object.freeze({sessionId, revoked: true as const})});
   }
-  async function revokeSessionById(guardValue: AdminGuardInput, input: { readonly sessionId: string }): Promise<boolean> {
-    const plan = prepareRevokeSessionById(guardValue, input);
+  async function commitPreparedRevokeSessionById(plan:ReturnType<typeof prepareRevokeSessionById>): Promise<boolean> {
     const results = await execute(plan.statements);
     const acquired = didAcquire(results);
     if (results[1].meta.changes !== Number(acquired) || results[2].meta.changes !== Number(acquired)) throw new AdministrationStoreError();
     return acquired;
   }
+  async function revokeSessionById(guardValue: AdminGuardInput, input: { readonly sessionId: string }): Promise<boolean> {
+    return commitPreparedRevokeSessionById(prepareRevokeSessionById(guardValue,input));
+  }
   return Object.freeze({ listPrincipals, listSessions, setHumanStatus, revokeAllHumanSessions, revokeSessionById,
-    prepareSetHumanStatus, prepareRevokeAllHumanSessions, prepareRevokeSessionById });
+    prepareSetHumanStatus, prepareRevokeAllHumanSessions, prepareRevokeSessionById,
+    commitPreparedSetHumanStatus,commitPreparedRevokeAllHumanSessions,commitPreparedRevokeSessionById,
+    readPrincipal });
 }

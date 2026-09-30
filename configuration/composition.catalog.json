@@ -98,7 +98,12 @@
       },
       "enabled": true,
       "configuration": [],
-      "integrations": []
+      "integrations": [
+        {
+          "moduleId": "creezio.resend",
+          "enabled": false
+        }
+      ]
     },
     {
       "moduleId": "creezio.crm",
@@ -179,7 +184,12 @@
       },
       "enabled": true,
       "configuration": [],
-      "integrations": []
+      "integrations": [
+        {
+          "moduleId": "creezio.meili",
+          "enabled": false
+        }
+      ]
     }
   ],
   "front": {

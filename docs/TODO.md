@@ -2,7 +2,13 @@
 
 ## Mandat actif — compléments des modules, 30 septembre 2026
 
-L'utilisateur demande désormais la réalisation parallèle de T-18 à T-22, T-25 à T-29 et T-33. Cette priorité remplace leur attente derrière le test utilisateur de première app ; elle ne vaut pas validation de T-39, qui reste en attente. Branches de travail depuis main `812ebd4` : `core/native-modules-completion` et `core/external-connectors-completion`. Aucune de leurs nouvelles fonctions n'est encore déclarée livrée.
+L'utilisateur demande désormais la réalisation parallèle de T-18 à T-22, T-25 à T-29 et T-33. Cette priorité remplace leur attente derrière le test utilisateur de première app ; elle ne vaut pas validation de T-39, qui reste en attente. PR #79 est intégrée sur main `7359337`, avec CI candidate et main 1 313/1 313 : liens Support/CRM/Messagerie, diagnostics Analytics, pages publiques et contrat de configuration T33. Ces compléments n'ont pas encore leur nouvelle publication applicative. La branche `core/connectors-runtime-completion` rassemble désormais le travail restant des connecteurs et de l'autorité des données ; le checkout de travail des connecteurs a été conservé pour sa provenance.
+
+Le SDK 1.6 est candidat, non publié. Les essais D1 locaux de la messagerie/Resend, de l'indexation/recherche Meili, de Granola et de Hermes passent avec fournisseurs simulés. La revue du transport d'envoi a demandé une garde supplémentaire de la révision fournisseur entre l'intention enregistrée et le POST ; ce correctif est en cours. Hermes conserve désormais les commandes incertaines dans le journal de l'interface et les inspecte sans les rejouer, avec revue indépendante acquise. Les archives devront correspondre aux derniers contrats avant publication.
+
+Le runtime T33 sélectionne le même couple cible pour les opérations, leurs journaux, les fichiers et les fournisseurs, avec l'identité dans le D1 principal. Les tests D1 locaux et la revue indépendante couvrent deux cibles, la révocation et sa perte d'accusé, le refus d'un ancien digest de composition et les pages publiques. L'opérateur d'installation/mise à jour sur plusieurs bases et la recette Cloudflare réelle restent à terminer ; cette preuve locale ne valide pas une installation distribuée en production.
+
+L'utilisateur reporte les recettes réelles n8n, Granola, Resend et Hermes : aucun nouvel accès n'est demandé pour ces quatre recettes. Cela ne reporte pas le développement et ne transforme pas les tests locaux en preuves fournisseur. Les Sites du compte précédent sont préservés ; leur republication n'est nécessaire que pour une recette sur le nouveau compte.
 
 | Résultat attendu | Responsable | Dépendance concrète |
 |---|---|---|
@@ -455,7 +461,7 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 - Besoin : [US-28](USER-STORIES.md#US-28). Acceptation : [REQ-2801](EXIGENCES.md#REQ-2801).
 - Validation : implémenter puis exécuter les recettes liées, sur **Meili réel et recherche native** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Première tranche : module optionnel de configuration par contexte, clé scellée et contrôle borné GET `/indexes?limit=1`, avec écran de réglages original adapté. La PR #53 a passé 1 247/1 247 contrôles ; sur Linux, le code `3b2131c` a adopté uniquement deux tables Meili, confirmé les intentions de configuration et affiché « Connexion Meilisearch vérifiée » après un contrôle réel. La tranche 0.2.0 `index.list`, intégrée par PR #76 et livrée dans Core `cd2eeb2`, borne le GET à 20 métadonnées au plus et au droit admin `manage`. Une lecture Linux sur fournisseur réel a confirmé une page d'un index, métadonnées seulement, sans créer d'index, document, tâche ni recherche ; voir [T28](IMPLEMENTATION-T28.md).
-- Restent ouverts : indexation incrémentale et suppressions, tâches distantes et reconstruction reprenable, droits avant facettes/compteurs, recette Meili réel et recherche native. T05 global est reporté et exige son propre accord ; ne pas le déduire de cette connexion.
+- Candidate 0.3 : projections déclarées du Catalogue, indexation/suppressions par pages, suivi des tâches distantes et recherche avec relecture des droits sur les résultats développés et testés sur D1 avec transport simulé. Les totaux/facettes bruts du fournisseur ne sont pas exposés. Restent la CI/publication de cette candidate, la recette Meili réelle et la recherche dans les interfaces déployées. T05 global est reporté et exige son propre accord ; ne pas le déduire de cette connexion.
 
 <a id="T-29"></a>
 ## T-29 — Autres connecteurs et frontières externes
@@ -510,7 +516,7 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 - Lot : **P6** ; état : **en développement — configuration et autorité des ressources** ; responsable : agent API avec revue et intégration root.
 - Dépendances : [T-32](#T-32).
 - Travail/livrables : Résolveur de ressources autorisées, provisionnement/bindings et qualification des quotas.
-- Candidat PR #79 : mapping de contextes vers les bindings D1/R2, configuration locale/Cloudflare et refus des ressources supplémentaires sur Sites, vérifiés par 25 contrôles ciblés. Les opérations métier continuent d'utiliser le couple principal ; le protocole d'autorité entre bases est développé séparément. Aucune recette produit à plusieurs bases n'est encore qualifiée. Voir [T33](IMPLEMENTATION-T33.md).
+- PR #79 intégrée : mapping de contextes vers les bindings D1/R2, configuration locale/Cloudflare et refus des ressources supplémentaires sur Sites. La tranche suivante route les opérations métier, fichiers, fournisseurs et journaux sur deux cibles dans les tests D1 locaux, avec protocole d'autorité et refus des anciennes compositions. La revue indépendante du runtime est acquise ; l'opérateur d'installation/mise à jour sur plusieurs bases et la recette Cloudflare réelle restent ouverts. Voir [T33](IMPLEMENTATION-T33.md).
 - Besoin : [US-33](USER-STORIES.md#US-33). Acceptation : [REQ-3301](EXIGENCES.md#REQ-3301).
 - Validation : implémenter puis exécuter les recettes liées, sur **local puis Cloudflare direct** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
