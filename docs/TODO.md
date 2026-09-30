@@ -1,5 +1,21 @@
 # Backlog de réalisation
 
+## Mandat actif — compléments des modules, 30 septembre 2026
+
+L'utilisateur demande désormais la réalisation parallèle de T-18 à T-22, T-25 à T-29 et T-33. Cette priorité remplace leur attente derrière le test utilisateur de première app ; elle ne vaut pas validation de T-39, qui reste en attente. Branches de travail depuis main `812ebd4` : `core/native-modules-completion` et `core/external-connectors-completion`. Aucune de leurs nouvelles fonctions n'est encore déclarée livrée.
+
+| Résultat attendu | Responsable | Dépendance concrète |
+|---|---|---|
+| T-18/T-19/T-20 : messagerie, support, CRM et widgets | Agent Sol modules natifs | Appels de lecture entre contrats publics versionnés ; transport mail distinct T-29 |
+| T-21 : pages publiques, médias et SEO serveur | Agent Sol pages | Adaptateur de lecture publique du snapshot explicitement publié |
+| T-22 : diagnostics, instrumentation existante et exports | Agent Sol analytics | Projection autorisée du journal d'exécutions et du catalogue HTTP |
+| T-27 : actions Stripe et webhooks | Agent Sol connecteurs | Port sortant déclaré, journal commun, signature/déduplication hôte |
+| T-26/T-28 : actions n8n et indexation/recherche Meili | Agent Sol services externes | Port mutateur partagé et projection de recherche déclarée |
+| T-33 : ressources D1/R2 distinctes hors Sites | Agent Sol stockage | Bindings déployés et garanties de droits/commit entre bases explicites |
+| T-25/T-29 et intégration commune | Orchestrateur | Recettes Catalogue existantes à compléter ; PRD par fournisseur puis port/recette réels |
+
+T-17 reste dans le dernier bloc. T-23/T-24, T-34/T-35 et les reconstructions d'applications conservent leurs validations futures. Les sous-familles T-29 dépendantes de ces travaux peuvent être spécifiées, mais leur raccord n'est pas implicitement autorisé. Les nouveaux ports nécessaires sont limités aux modules retenus ; ils ne rouvrent pas tout T-04/T-05/T-06/T-10. Les critères, six suites, revues et preuves propres à chaque lot restent requis.
+
 **Révision 56 — 30 septembre 2026.** Core PR #77 est intégrée sur main `cd2eeb2` (CI main 1 286/1 286) et Lab PR #14 sur main `1bfdf0f` (1 282/1 282). Original et Lab servent chacun une version 5 du Site courant, avec sources distinctes, publication et registre synchronisés. La lecture native admin/app retrouve les témoins ; sur Lab, le navigateur a retenu, retiré puis retenu la même demande sans le conflit de v4, et l'API confirme la révision 5. La sélection après rechargement et l'usage du contexte par un tour suivant ne sont pas prouvés. Le plugin APP Lab du compte ChatGPT courant a obtenu le seul scope achats : `purchase_request_get` affiche la fiche à 12,99 € et « Relire la fiche » effectue une lecture directe sans tour IA. Sur Linux et Cloudflare, Core `cd2eeb2` et Lab `1bfdf0f` sont livrés dans leurs profils ; les lectures de conservation après arrêt du runtime local sont vérifiées, sans réimport de données. Stripe 0.2.1 affiche « 6,00 € / Chaque mois » sur Linux ; Meili 0.2.0 a relu une page d'une métadonnée d'index sur fournisseur réel, sans document ni indexation. Le refus `dependency.version` est prouvé par le service natif du fork Lab avec une candidate incompatible **en mémoire seulement** ; il ne vaut pas essai d'une release ou d'un Site distant. Les recettes globales T16/T27/T28/T38/T39 et les travaux différés restent ouverts ; la validation utilisateur attend son propre test (« Je vais le tester avant de valider ») ; voir les fiches liées.
 
 **Révision 55 — 30 septembre 2026.** Lab Sites version 4 a révélé un conflit lors d'une nouvelle retenue de sélection sur le widget historique, après un retrait exercé en version 3 : la lecture masquait la révision durable de la ligne retirée. Un correctif local T16 conserve cette révision sans exposer l'ancienne valeur ni transmettre le contexte retiré au modèle ; les tests ciblés passent. Il n'est pas encore intégré ni livré au Site Lab. La recette visuelle après livraison et les autres critères T16 restent ouverts ; voir [T16](IMPLEMENTATION-T16.md) et le reçu externe T16 du 30 septembre. La PR #76 est intégrée sur main `fd70aa0` après 1 286 tests réussis sur son candidat : Meili 0.2.0 et Stripe 0.2.1 attendent leur recette hôte ; la CI de ce nouveau main est suivie séparément. Sur le Site Original version 4 existant, la connexion native, l'historique, le brouillon et les deux onglets ont été vérifiés dans le navigateur après rechargement, puis la déconnexion confirmée, sans nouvel appel LLM. Les Sites restent en version 4 et le raccord du plugin ChatGPT du compte courant reste ouvert.
@@ -115,8 +131,8 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-26](#T-26) | P5 | Connecteur n8n | [T-10](#T-10), [T-11](#T-11), [T-16](#T-16), [T-24](#T-24) | En cours — port externe et module |
 | [T-27](#T-27) | P5 | Connecteur Stripe | [T-11](#T-11), [T-16](#T-16) | Produits/prix 0.2.0 intégrés et lus sur Linux test ; correctif 0.2.1 local, REQ-2701 ouverte |
 | [T-28](#T-28) | P5 | Connecteur Meili | [T-05](#T-05), [T-11](#T-11) | Connexion externe qualifiée ; liste d'index 0.2.0 locale, indexation/recherche ouvertes |
-| [T-29](#T-29) | P5 | Autres connecteurs et frontières externes | [T-11](#T-11), [T-16](#T-16), [T-18](#T-18), [T-23](#T-23) | À faire — après première app |
-| [T-33](#T-33) | P6 | Stockages distincts hors Sites | [T-32](#T-32) | À faire — après première app |
+| [T-29](#T-29) | P5 | Autres connecteurs et frontières externes | [T-11](#T-11), [T-16](#T-16), [T-18](#T-18), [T-23](#T-23) | En développement — Granola et Mail ; raccords différés conservés |
+| [T-33](#T-33) | P6 | Stockages distincts hors Sites | [T-32](#T-32) | En développement — mapping testé, autorité et routage métier à qualifier |
 | [T-34](#T-34) | P6 | Éditions, politiques et activation | [T-08](#T-08), [T-11](#T-11), [T-27](#T-27) | À faire — accord explicite futur préalable |
 | [T-35](#T-35) | P6 | Accompagnement avec accès consenti | [T-23](#T-23), [T-34](#T-34) | À faire — accord explicite futur préalable |
 

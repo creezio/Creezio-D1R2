@@ -316,6 +316,7 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
       catalog:options.dataCatalog,permissions:options.permissions,...options.openAiProvider,keyring}):null;
     const createHostEngine = () => createOperationEngine({db: environment.bindings.DB, registry: options.registry,
       catalog: options.dataCatalog, permissions: options.permissions, runtimeInventory: options.runtimeInventory,
+      httpBindings:options.bindings,
       approvals:createWidgetApprovalService({db:environment.bindings.DB,catalog:options.dataCatalog,permissions:options.permissions,registry:options.registry}),
       ...(options.widgetCatalog && options.widgetValidators ? {widgets:{catalog:options.widgetCatalog,validators:options.widgetValidators}} : {}),
       ...(provider ? {providerAvailability:async(request,providerId)=>providerId==='openai.responses.v1'

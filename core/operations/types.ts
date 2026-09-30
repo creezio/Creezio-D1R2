@@ -6,6 +6,8 @@ import type {OperationFilesPort} from '../../sdk/files/types.ts';
 import type {ProviderSecretsPort} from '../../sdk/providers/types.ts';
 import type {ConnectorPort} from '../../sdk/connectors/types.ts';
 import type {WidgetOperationPort} from '../widgets/host.ts';
+import type {OperationDiagnosticsPort} from './diagnostics.ts';
+import type {ModuleQueryPort} from './intermodule.ts';
 import {OperationError} from '@creezio/sdk/operations/error';
 export {OperationError};
 export type {OperationErrorCode} from '@creezio/sdk/operations/error';
@@ -67,6 +69,10 @@ export interface OperationContext {
   readonly hostInventory?: ModuleSettingsHostInventory;
   /** Trusted catalog-backed snapshot projection for the native Conversations module. */
   readonly widgets?: WidgetOperationPort;
+  /** Host-owned, scoped read projection of the existing operation journal and static routes. */
+  readonly diagnostics?: OperationDiagnosticsPort;
+  /** Declared query-only intermodule call, with host-owned traversal and authorization. */
+  readonly operations?: ModuleQueryPort;
 }
 export interface OperationHandlerResult {
   readonly output: unknown;

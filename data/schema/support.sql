@@ -16,12 +16,15 @@ CREATE TABLE "cz_637265657a696f2e737570706f7274_6d657373616765" (
 
 CREATE TABLE "cz_637265657a696f2e737570706f7274_7469636b6574" (
   "assigned_to" TEXT CHECK ("assigned_to" IS NULL OR (typeof("assigned_to") = 'text' AND instr("assigned_to", char(0)) = 0 AND length("assigned_to") >= 1 AND length("assigned_to") <= 128)),
+  "contact_id" TEXT CHECK ("contact_id" IS NULL OR (typeof("contact_id") = 'text' AND instr("contact_id", char(0)) = 0 AND length("contact_id") >= 1 AND length("contact_id") <= 128)),
   "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
   "created_at" TEXT NOT NULL CHECK ("created_at" IS NOT NULL AND (typeof("created_at") = 'text' AND length("created_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "created_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "created_at") = "created_at")),
   "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
   "last_message_at" TEXT CHECK ("last_message_at" IS NULL OR (typeof("last_message_at") = 'text' AND length("last_message_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "last_message_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "last_message_at") = "last_message_at")),
   "last_preview" TEXT CHECK ("last_preview" IS NULL OR (typeof("last_preview") = 'text' AND instr("last_preview", char(0)) = 0 AND length("last_preview") >= 0 AND length("last_preview") <= 240)),
+  "message_box_id" TEXT CHECK ("message_box_id" IS NULL OR (typeof("message_box_id") = 'text' AND instr("message_box_id", char(0)) = 0 AND length("message_box_id") >= 1 AND length("message_box_id") <= 128)),
   "message_count" INTEGER NOT NULL CHECK ("message_count" IS NOT NULL AND (typeof("message_count") = 'integer' AND "message_count" BETWEEN -9007199254740991 AND 9007199254740991 AND "message_count" >= 0 AND "message_count" <= 9007199254740991)),
+  "message_id" TEXT CHECK ("message_id" IS NULL OR (typeof("message_id") = 'text' AND instr("message_id", char(0)) = 0 AND length("message_id") >= 1 AND length("message_id") <= 128)),
   "requester_id" TEXT NOT NULL CHECK ("requester_id" IS NOT NULL AND (typeof("requester_id") = 'text' AND instr("requester_id", char(0)) = 0 AND length("requester_id") >= 1 AND length("requester_id") <= 128)),
   "revision" INTEGER NOT NULL CHECK ("revision" IS NOT NULL AND (typeof("revision") = 'integer' AND "revision" BETWEEN -9007199254740991 AND 9007199254740991 AND "revision" >= 1 AND "revision" <= 9007199254740991)),
   "status" TEXT NOT NULL CHECK ("status" IS NOT NULL AND (typeof("status") = 'text' AND instr("status", char(0)) = 0 AND "status" IN ('ouvert', 'repondu', 'resolu', 'ferme'))),

@@ -18,7 +18,7 @@
   },
   "compatibility": {
     "core": "^0.0.0",
-    "sdk": "^1.4.1",
+    "sdk": "^1.6.0",
     "requiredCapabilities": [
       "runtime.worker",
       "data.d1.shared"
@@ -51,6 +51,36 @@
       "optional": false,
       "contracts": [],
       "whenAbsent": "block",
+      "whenIncompatible": "block",
+      "autoInstall": false
+    },
+    {
+      "moduleId": "creezio.crm",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "optional": true,
+      "contracts": [
+        {
+          "id": "contact-lookup",
+          "versionRange": "^1.0.0"
+        }
+      ],
+      "whenAbsent": "disable-contributions",
+      "whenIncompatible": "block",
+      "autoInstall": false
+    },
+    {
+      "moduleId": "creezio.messaging",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "optional": true,
+      "contracts": [
+        {
+          "id": "message-lookup",
+          "versionRange": "^1.0.0"
+        }
+      ],
+      "whenAbsent": "disable-contributions",
       "whenIncompatible": "block",
       "autoInstall": false
     }
@@ -90,6 +120,42 @@
                   ]
                 },
                 "assignedTo": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "contactId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "messageBoxId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "messageId": {
                   "anyOf": [
                     {
                       "type": "string",
@@ -152,6 +218,9 @@
                 "subject",
                 "status",
                 "assignedTo",
+                "contactId",
+                "messageBoxId",
+                "messageId",
                 "createdAt",
                 "updatedAt",
                 "lastMessageAt",
@@ -214,6 +283,42 @@
                       }
                     ]
                   },
+                  "contactId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "messageBoxId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "messageId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "createdAt": {
                     "type": "string",
                     "minLength": 1,
@@ -265,6 +370,9 @@
                   "subject",
                   "status",
                   "assignedTo",
+                  "contactId",
+                  "messageBoxId",
+                  "messageId",
                   "createdAt",
                   "updatedAt",
                   "lastMessageAt",
@@ -386,6 +494,42 @@
                     }
                   ]
                 },
+                "contactId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "messageBoxId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "messageId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "createdAt": {
                   "type": "string",
                   "minLength": 1,
@@ -437,6 +581,9 @@
                 "subject",
                 "status",
                 "assignedTo",
+                "contactId",
+                "messageBoxId",
+                "messageId",
                 "createdAt",
                 "updatedAt",
                 "lastMessageAt",
@@ -577,6 +724,42 @@
                           }
                         ]
                       },
+                      "contactId": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "messageBoxId": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "messageId": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
                       "createdAt": {
                         "type": "string",
                         "minLength": 1,
@@ -628,6 +811,9 @@
                       "subject",
                       "status",
                       "assignedTo",
+                      "contactId",
+                      "messageBoxId",
+                      "messageId",
                       "createdAt",
                       "updatedAt",
                       "lastMessageAt",
@@ -700,6 +886,42 @@
                         }
                       ]
                     },
+                    "contactId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "messageBoxId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "messageId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "createdAt": {
                       "type": "string",
                       "minLength": 1,
@@ -751,6 +973,9 @@
                     "subject",
                     "status",
                     "assignedTo",
+                    "contactId",
+                    "messageBoxId",
+                    "messageId",
                     "createdAt",
                     "updatedAt",
                     "lastMessageAt",
@@ -887,6 +1112,42 @@
                         }
                       ]
                     },
+                    "contactId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "messageBoxId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "messageId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "createdAt": {
                       "type": "string",
                       "minLength": 1,
@@ -938,6 +1199,9 @@
                     "subject",
                     "status",
                     "assignedTo",
+                    "contactId",
+                    "messageBoxId",
+                    "messageId",
                     "createdAt",
                     "updatedAt",
                     "lastMessageAt",
@@ -1113,6 +1377,42 @@
                         }
                       ]
                     },
+                    "contactId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "messageBoxId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "messageId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "createdAt": {
                       "type": "string",
                       "minLength": 1,
@@ -1164,6 +1464,9 @@
                     "subject",
                     "status",
                     "assignedTo",
+                    "contactId",
+                    "messageBoxId",
+                    "messageId",
                     "createdAt",
                     "updatedAt",
                     "lastMessageAt",
@@ -1201,6 +1504,189 @@
           "required": [
             "state",
             "externalEmail"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "reference-contact-page",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 240
+                  },
+                  "email": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 320
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "companyId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "email",
+                  "companyId"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 10
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "reference-contact-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240
+                },
+                "email": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 320
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "companyId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "email",
+                "companyId"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "item"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "reference-message-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "message": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "boxId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "subject": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 240
+                },
+                "from": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 320
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 16000
+                }
+              },
+              "required": [
+                "id",
+                "boxId",
+                "subject",
+                "from",
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "message"
           ],
           "additionalProperties": false
         }
@@ -1495,6 +1981,220 @@
         }
       },
       {
+        "id": "reference-contact-search-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "ticketId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          "required": [
+            "ticketId",
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "reference-contact-read-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "ticketId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "contactId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "ticketId",
+            "contactId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "reference-message-read-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "ticketId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "boxId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "messageId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "ticketId",
+            "boxId",
+            "messageId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "reference-contact-link-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "ticketId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "contactId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "requestKey",
+            "ticketId",
+            "revision",
+            "contactId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "reference-contact-unlink-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "ticketId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "ticketId",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "reference-message-link-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "ticketId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "boxId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "messageId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "requestKey",
+            "ticketId",
+            "revision",
+            "boxId",
+            "messageId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "reference-message-unlink-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "ticketId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "ticketId",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
         "id": "support-widget-state",
         "schema": {
           "type": "object",
@@ -1686,6 +2386,39 @@
           },
           {
             "id": "assigned_to",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "contact_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "message_box_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "message_id",
             "type": "string",
             "nullable": true,
             "protected": false,
@@ -3187,6 +3920,871 @@
           ]
         },
         "public": false
+      },
+      {
+        "id": "reference.contact.search",
+        "title": "reference.contact.search",
+        "kind": "query",
+        "input": {
+          "schemaId": "reference-contact-search-input"
+        },
+        "output": {
+          "schemaId": "reference-contact-page"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.support",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "referenceContactSearch"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.support",
+              "kind": "model",
+              "id": "ticket"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.search"
+            }
+          ],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 10,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "query"
+          ]
+        },
+        "public": false,
+        "requiresModules": [
+          "creezio.crm"
+        ]
+      },
+      {
+        "id": "reference.contact.read",
+        "title": "reference.contact.read",
+        "kind": "query",
+        "input": {
+          "schemaId": "reference-contact-read-input"
+        },
+        "output": {
+          "schemaId": "reference-contact-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.support",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "referenceContactRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.support",
+              "kind": "model",
+              "id": "ticket"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.read"
+            }
+          ],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 10,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "query"
+          ]
+        },
+        "public": false,
+        "requiresModules": [
+          "creezio.crm"
+        ]
+      },
+      {
+        "id": "reference.message.read",
+        "title": "reference.message.read",
+        "kind": "query",
+        "input": {
+          "schemaId": "reference-message-read-input"
+        },
+        "output": {
+          "schemaId": "reference-message-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.support",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "referenceMessageRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.support",
+              "kind": "model",
+              "id": "ticket"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "operation",
+              "id": "message.read"
+            }
+          ],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 10,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "query"
+          ]
+        },
+        "public": false,
+        "requiresModules": [
+          "creezio.messaging"
+        ]
+      },
+      {
+        "id": "reference.contact.link",
+        "title": "reference.contact.link",
+        "kind": "command",
+        "input": {
+          "schemaId": "reference-contact-link-input"
+        },
+        "output": {
+          "schemaId": "ticket-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.support",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "referenceContactLink"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.support",
+              "kind": "model",
+              "id": "ticket"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.support",
+              "kind": "model",
+              "id": "ticket"
+            }
+          ],
+          "emits": [],
+          "calls": [
+            {
+              "moduleId": "creezio.crm",
+              "kind": "operation",
+              "id": "contact.read"
+            }
+          ],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 10,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "query"
+          ]
+        },
+        "public": false,
+        "requiresModules": [
+          "creezio.crm"
+        ]
+      },
+      {
+        "id": "reference.contact.unlink",
+        "title": "reference.contact.unlink",
+        "kind": "command",
+        "input": {
+          "schemaId": "reference-contact-unlink-input"
+        },
+        "output": {
+          "schemaId": "ticket-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.support",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "referenceContactUnlink"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.support",
+              "kind": "model",
+              "id": "ticket"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.support",
+              "kind": "model",
+              "id": "ticket"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 10,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "query"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "reference.message.link",
+        "title": "reference.message.link",
+        "kind": "command",
+        "input": {
+          "schemaId": "reference-message-link-input"
+        },
+        "output": {
+          "schemaId": "ticket-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.support",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "referenceMessageLink"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.support",
+              "kind": "model",
+              "id": "ticket"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.support",
+              "kind": "model",
+              "id": "ticket"
+            }
+          ],
+          "emits": [],
+          "calls": [
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "operation",
+              "id": "message.read"
+            }
+          ],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 10,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "query"
+          ]
+        },
+        "public": false,
+        "requiresModules": [
+          "creezio.messaging"
+        ]
+      },
+      {
+        "id": "reference.message.unlink",
+        "title": "reference.message.unlink",
+        "kind": "command",
+        "input": {
+          "schemaId": "reference-message-unlink-input"
+        },
+        "output": {
+          "schemaId": "ticket-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.support",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "referenceMessageUnlink"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.support",
+              "kind": "model",
+              "id": "ticket"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.support",
+              "kind": "model",
+              "id": "ticket"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 10,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "body",
+            "query"
+          ]
+        },
+        "public": false
       }
     ],
     "api": [
@@ -3669,6 +5267,516 @@
           "requests": 60,
           "windowSeconds": 60
         }
+      },
+      {
+        "id": "admin.reference.contact.search",
+        "method": "GET",
+        "path": "/api/admin/support/reference/contact/search",
+        "operation": {
+          "moduleId": "creezio.support",
+          "kind": "operation",
+          "id": "reference.contact.search"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "ticket-id",
+            "in": "query",
+            "inputField": "ticketId",
+            "required": true
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "reference-contact-search-input"
+        },
+        "output": {
+          "schemaId": "reference-contact-page"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        },
+        "requiresModules": [
+          "creezio.crm"
+        ]
+      },
+      {
+        "id": "app.reference.contact.search",
+        "method": "GET",
+        "path": "/api/app/support/reference/contact/search",
+        "operation": {
+          "moduleId": "creezio.support",
+          "kind": "operation",
+          "id": "reference.contact.search"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "ticket-id",
+            "in": "query",
+            "inputField": "ticketId",
+            "required": true
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "inputField": "query",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "reference-contact-search-input"
+        },
+        "output": {
+          "schemaId": "reference-contact-page"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        },
+        "requiresModules": [
+          "creezio.crm"
+        ]
+      },
+      {
+        "id": "admin.reference.contact.read",
+        "method": "GET",
+        "path": "/api/admin/support/reference/contact/read",
+        "operation": {
+          "moduleId": "creezio.support",
+          "kind": "operation",
+          "id": "reference.contact.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "ticket-id",
+            "in": "query",
+            "inputField": "ticketId",
+            "required": true
+          },
+          {
+            "name": "contact-id",
+            "in": "query",
+            "inputField": "contactId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "reference-contact-read-input"
+        },
+        "output": {
+          "schemaId": "reference-contact-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        },
+        "requiresModules": [
+          "creezio.crm"
+        ]
+      },
+      {
+        "id": "app.reference.contact.read",
+        "method": "GET",
+        "path": "/api/app/support/reference/contact/read",
+        "operation": {
+          "moduleId": "creezio.support",
+          "kind": "operation",
+          "id": "reference.contact.read"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "ticket-id",
+            "in": "query",
+            "inputField": "ticketId",
+            "required": true
+          },
+          {
+            "name": "contact-id",
+            "in": "query",
+            "inputField": "contactId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "reference-contact-read-input"
+        },
+        "output": {
+          "schemaId": "reference-contact-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        },
+        "requiresModules": [
+          "creezio.crm"
+        ]
+      },
+      {
+        "id": "admin.reference.message.read",
+        "method": "GET",
+        "path": "/api/admin/support/reference/message/read",
+        "operation": {
+          "moduleId": "creezio.support",
+          "kind": "operation",
+          "id": "reference.message.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "ticket-id",
+            "in": "query",
+            "inputField": "ticketId",
+            "required": true
+          },
+          {
+            "name": "box-id",
+            "in": "query",
+            "inputField": "boxId",
+            "required": true
+          },
+          {
+            "name": "message-id",
+            "in": "query",
+            "inputField": "messageId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "reference-message-read-input"
+        },
+        "output": {
+          "schemaId": "reference-message-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        },
+        "requiresModules": [
+          "creezio.messaging"
+        ]
+      },
+      {
+        "id": "app.reference.message.read",
+        "method": "GET",
+        "path": "/api/app/support/reference/message/read",
+        "operation": {
+          "moduleId": "creezio.support",
+          "kind": "operation",
+          "id": "reference.message.read"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "ticket-id",
+            "in": "query",
+            "inputField": "ticketId",
+            "required": true
+          },
+          {
+            "name": "box-id",
+            "in": "query",
+            "inputField": "boxId",
+            "required": true
+          },
+          {
+            "name": "message-id",
+            "in": "query",
+            "inputField": "messageId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "reference-message-read-input"
+        },
+        "output": {
+          "schemaId": "reference-message-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        },
+        "requiresModules": [
+          "creezio.messaging"
+        ]
+      },
+      {
+        "id": "admin.reference.contact.link",
+        "method": "POST",
+        "path": "/api/admin/support/reference/contact/link",
+        "operation": {
+          "moduleId": "creezio.support",
+          "kind": "operation",
+          "id": "reference.contact.link"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "reference-contact-link-input"
+        },
+        "output": {
+          "schemaId": "ticket-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        },
+        "requiresModules": [
+          "creezio.crm"
+        ]
+      },
+      {
+        "id": "app.reference.contact.link",
+        "method": "POST",
+        "path": "/api/app/support/reference/contact/link",
+        "operation": {
+          "moduleId": "creezio.support",
+          "kind": "operation",
+          "id": "reference.contact.link"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "reference-contact-link-input"
+        },
+        "output": {
+          "schemaId": "ticket-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        },
+        "requiresModules": [
+          "creezio.crm"
+        ]
+      },
+      {
+        "id": "admin.reference.contact.unlink",
+        "method": "POST",
+        "path": "/api/admin/support/reference/contact/unlink",
+        "operation": {
+          "moduleId": "creezio.support",
+          "kind": "operation",
+          "id": "reference.contact.unlink"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "reference-contact-unlink-input"
+        },
+        "output": {
+          "schemaId": "ticket-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.reference.contact.unlink",
+        "method": "POST",
+        "path": "/api/app/support/reference/contact/unlink",
+        "operation": {
+          "moduleId": "creezio.support",
+          "kind": "operation",
+          "id": "reference.contact.unlink"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "reference-contact-unlink-input"
+        },
+        "output": {
+          "schemaId": "ticket-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.reference.message.link",
+        "method": "POST",
+        "path": "/api/admin/support/reference/message/link",
+        "operation": {
+          "moduleId": "creezio.support",
+          "kind": "operation",
+          "id": "reference.message.link"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "reference-message-link-input"
+        },
+        "output": {
+          "schemaId": "ticket-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        },
+        "requiresModules": [
+          "creezio.messaging"
+        ]
+      },
+      {
+        "id": "app.reference.message.link",
+        "method": "POST",
+        "path": "/api/app/support/reference/message/link",
+        "operation": {
+          "moduleId": "creezio.support",
+          "kind": "operation",
+          "id": "reference.message.link"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "reference-message-link-input"
+        },
+        "output": {
+          "schemaId": "ticket-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        },
+        "requiresModules": [
+          "creezio.messaging"
+        ]
+      },
+      {
+        "id": "admin.reference.message.unlink",
+        "method": "POST",
+        "path": "/api/admin/support/reference/message/unlink",
+        "operation": {
+          "moduleId": "creezio.support",
+          "kind": "operation",
+          "id": "reference.message.unlink"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "reference-message-unlink-input"
+        },
+        "output": {
+          "schemaId": "ticket-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.reference.message.unlink",
+        "method": "POST",
+        "path": "/api/app/support/reference/message/unlink",
+        "operation": {
+          "moduleId": "creezio.support",
+          "kind": "operation",
+          "id": "reference.message.unlink"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "reference-message-unlink-input"
+        },
+        "output": {
+          "schemaId": "ticket-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
       }
     ],
     "mcp": {
@@ -3990,6 +6098,231 @@
             "readOnly": true,
             "destructive": false,
             "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "reference.contact.search",
+          "name": "support_reference_contact_search",
+          "operation": {
+            "moduleId": "creezio.support",
+            "kind": "operation",
+            "id": "reference.contact.search"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "reference-contact-search-input"
+          },
+          "output": {
+            "schemaId": "reference-contact-page"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true,
+          "requiresModules": [
+            "creezio.crm"
+          ]
+        },
+        {
+          "id": "reference.contact.read",
+          "name": "support_reference_contact_read",
+          "operation": {
+            "moduleId": "creezio.support",
+            "kind": "operation",
+            "id": "reference.contact.read"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "reference-contact-read-input"
+          },
+          "output": {
+            "schemaId": "reference-contact-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true,
+          "requiresModules": [
+            "creezio.crm"
+          ]
+        },
+        {
+          "id": "reference.message.read",
+          "name": "support_reference_message_read",
+          "operation": {
+            "moduleId": "creezio.support",
+            "kind": "operation",
+            "id": "reference.message.read"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "reference-message-read-input"
+          },
+          "output": {
+            "schemaId": "reference-message-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true,
+          "requiresModules": [
+            "creezio.messaging"
+          ]
+        },
+        {
+          "id": "reference.contact.link",
+          "name": "support_reference_contact_link",
+          "operation": {
+            "moduleId": "creezio.support",
+            "kind": "operation",
+            "id": "reference.contact.link"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "reference-contact-link-input"
+          },
+          "output": {
+            "schemaId": "ticket-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true,
+          "requiresModules": [
+            "creezio.crm"
+          ]
+        },
+        {
+          "id": "reference.contact.unlink",
+          "name": "support_reference_contact_unlink",
+          "operation": {
+            "moduleId": "creezio.support",
+            "kind": "operation",
+            "id": "reference.contact.unlink"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "reference-contact-unlink-input"
+          },
+          "output": {
+            "schemaId": "ticket-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "reference.message.link",
+          "name": "support_reference_message_link",
+          "operation": {
+            "moduleId": "creezio.support",
+            "kind": "operation",
+            "id": "reference.message.link"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "reference-message-link-input"
+          },
+          "output": {
+            "schemaId": "ticket-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true,
+          "requiresModules": [
+            "creezio.messaging"
+          ]
+        },
+        {
+          "id": "reference.message.unlink",
+          "name": "support_reference_message_unlink",
+          "operation": {
+            "moduleId": "creezio.support",
+            "kind": "operation",
+            "id": "reference.message.unlink"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "reference-message-unlink-input"
+          },
+          "output": {
+            "schemaId": "ticket-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
             "openWorld": false
           },
           "textFallback": true
@@ -4492,6 +6825,16 @@
               "moduleId": "creezio.support",
               "kind": "operation",
               "id": "transport.status"
+            },
+            {
+              "moduleId": "creezio.support",
+              "kind": "operation",
+              "id": "reference.contact.unlink"
+            },
+            {
+              "moduleId": "creezio.support",
+              "kind": "operation",
+              "id": "reference.message.unlink"
             }
           ],
           "input": {
@@ -4560,6 +6903,16 @@
               "moduleId": "creezio.support",
               "kind": "operation",
               "id": "transport.status"
+            },
+            {
+              "moduleId": "creezio.support",
+              "kind": "operation",
+              "id": "reference.contact.unlink"
+            },
+            {
+              "moduleId": "creezio.support",
+              "kind": "operation",
+              "id": "reference.message.unlink"
             }
           ],
           "input": {

@@ -102,6 +102,29 @@
         "ui": {
           "$ref": "urn:creezio:contracts:v1:common#/$defs/codeRef"
         },
+        "publicPage": {
+          "type": "object",
+          "properties": {
+            "renderer": {"$ref": "urn:creezio:contracts:v1:common#/$defs/codeRef"},
+            "imageIds": {"$ref": "urn:creezio:contracts:v1:common#/$defs/codeRef"},
+            "stylesheet": {"$ref": "urn:creezio:contracts:v1:common#/$defs/filePath"},
+            "models": {
+              "type": "object",
+              "properties": {
+                "page": {"$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"},
+                "pagePublication": {"$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"},
+                "publicPage": {"$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"},
+                "navigation": {"$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"},
+                "publishedPageMedia": {"$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"},
+                "fileMetadata": {"$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"}
+              },
+              "required": ["page","pagePublication","publicPage","navigation","publishedPageMedia","fileMetadata"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["renderer","imageIds","stylesheet","models"],
+          "additionalProperties": false
+        },
         "plugin": {
           "type": "object",
           "properties": {

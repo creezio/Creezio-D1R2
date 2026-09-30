@@ -221,6 +221,34 @@ test('current deployment inspection returns a stable version and target bindings
   await assert.rejects(inspectCloudflareCurrent(input),{code:'deployment_changed'});
 });
 
+test('version 1 target refuses an unexpected surviving storage route',async t=>{
+  const input=fixture(t);
+  input.settings.bindings.push({type:'plain_text',name:'CREEZIO_STORAGE_ROUTES',
+    text:'{"schemaVersion":1,"routes":[]}'});
+  await assert.rejects(inspectCloudflareCurrent(input),{code:'binding_mismatch'});
+});
+
+test('current deployment inspection requires every active resource binding and route manifest',async t=>{
+  const input=fixture(t);
+  input.target={...target,schemaVersion:2,resources:[{contextId:'tenant-a',slot:1,status:'active',
+    databaseId:'33333333-3333-4333-8333-333333333333',databaseName:'tenant-a-db',bucketName:'tenant-a-files'},
+    {contextId:'tenant-b',slot:2,status:'revoked',databaseId:'44444444-4444-4444-8444-444444444444',
+      databaseName:'tenant-b-db',bucketName:'tenant-b-files'}]};
+  const expected=cloudflareWorkerConfiguration(input.target);
+  input.settings.bindings.push(
+    {type:'d1',name:'DB_RESOURCE_01',id:input.target.resources[0].databaseId},
+    {type:'r2_bucket',name:'BUCKET_RESOURCE_01',bucket_name:input.target.resources[0].bucketName},
+    {type:'plain_text',name:'CREEZIO_STORAGE_ROUTES',text:expected.vars.CREEZIO_STORAGE_ROUTES});
+  assert.equal((await inspectCloudflareCurrent(input)).bindings.length,9);
+  input.settings.bindings=input.settings.bindings.filter(item=>item.name!=='BUCKET_RESOURCE_01');
+  await assert.rejects(inspectCloudflareCurrent(input),{code:'binding_mismatch'});
+  input.settings.bindings.push({type:'r2_bucket',name:'BUCKET_RESOURCE_01',bucket_name:'wrong-bucket'});
+  await assert.rejects(inspectCloudflareCurrent(input),{code:'binding_mismatch'});
+  input.settings.bindings.at(-1).bucket_name=input.target.resources[0].bucketName;
+  input.settings.bindings.push({type:'d1',name:'DB_RESOURCE_02',id:input.target.resources[1].databaseId});
+  await assert.rejects(inspectCloudflareCurrent(input),{code:'binding_mismatch'});
+});
+
 test('update inspection refuses a missing production vault after deployment',async t=>{
   const input=fixture(t);
   input.settings.bindings=input.settings.bindings.filter(item=>item.name!=='CREEZIO_VAULT_KEYRING');

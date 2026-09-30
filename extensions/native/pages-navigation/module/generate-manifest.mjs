@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 
 const root=new URL('../',import.meta.url);
 const template=JSON.parse(readFileSync(new URL('module/manifest.json',root),'utf8'));
-const id='creezio.pages-navigation',sourceRevision='t21-pages-navigation-v2',
+const id='creezio.pages-navigation',sourceRevision='t21-pages-navigation-v3',
   ref=(kind,name)=>({moduleId:id,kind,id:name});
 const S=(max=128,min=1)=>({minLength:min,maxLength:max});
 const I=(min=0)=>({minimum:min,maximum:Number.MAX_SAFE_INTEGER});
@@ -58,6 +58,13 @@ const models=[
     field('published_revision','integer',{constraints:I(1)})],['context_id','page_id'],[],
     [{id:'page',fields:['context_id','page_id'],target:ref('model','page'),
       targetFields:['context_id','id'],onDelete:'restrict'}],['edit','view']),
+  // A row exists only for an explicitly public revision. Existing publications stay protected.
+  model('public_page','Exposition anonyme explicite du snapshot',[
+    field('page_id','string',{constraints:S()}),
+    field('published_revision','integer',{constraints:I(1)}),
+    field('enabled_at','date-time')],['context_id','page_id'],[],
+    [{id:'publication',fields:['context_id','page_id'],target:ref('model','page_publication'),
+      targetFields:['context_id','page_id'],onDelete:'restrict'}],['edit']),
   model('published_page_media','Médias du snapshot publié',[
     field('page_id','string',{constraints:S()}),field('file_id','string',{constraints:S(67)}),
     field('filename','string',{constraints:S(255)}),field('content_type','string',{constraints:S()}),
@@ -71,6 +78,7 @@ const models=[
 ];
 models.find(x=>x.id==='page_media').deletion.mode='hard';
 models.find(x=>x.id==='published_page_media').deletion.mode='hard';
+models.find(x=>x.id==='public_page').deletion.mode='hard';
 const obj=(properties,required=Object.keys(properties))=>({type:'object',properties,required,additionalProperties:false});
 const str=(max=128,min=1)=>({type:'string',minLength:min,maxLength:max});
 const num=(min=0,max=Number.MAX_SAFE_INTEGER)=>({type:'integer',minimum:min,maximum:max});
@@ -101,6 +109,8 @@ const media=obj({pageId:str(),fileId:str(67),filename:str(255),contentType:str()
 const pageOutput=schema('page-output',obj({page:draft}));
 const publishedOutput=schema('published-page-output',obj({page:published}));
 const pageIdInput=schema('page-id-input',obj({pageId:str()}));
+const visibilityOutput=schema('page-visibility-output',obj({visibility:{type:'string',enum:['protected','public']},
+  slug:nullable(str(160))}));
 const publishedSlugInput=schema('published-slug-input',obj({slug:str(160)}));
 const publishedSlugOutput=schema('published-slug-output',obj({pageId:str(),slug:str(160)}));
 const listInput=schema('page-list-input',obj({limit:num(1,50),cursor:str(2048)},['limit']));
@@ -110,6 +120,8 @@ const createInput=schema('page-create-input',obj({requestKey:str(),id:str(),slug
 const saveInput=schema('page-save-input',obj({requestKey:str(),pageId:str(),revision:num(1),
   slug:str(160),title:str(240),sections,settings,seo}));
 const stateInput=schema('page-state-input',obj({requestKey:str(),pageId:str(),revision:num(1)}));
+const publishInput=schema('page-publish-input',obj({requestKey:str(),pageId:str(),revision:num(1),
+  visibility:{type:'string',enum:['protected','public']}},['requestKey','pageId','revision']));
 const navOutput=schema('navigation-output',obj({navigation}));
 const publishedNavOutput=schema('published-navigation-output',obj({navigation:publishedNavigation}));
 const navSaveInput=schema('navigation-save-input',obj({requestKey:str(),revision:num(),items:navItems}));
@@ -160,13 +172,15 @@ const pagination={mode:'cursor',cursorField:'cursor',limitField:'limit',maxItems
 operation('page.list','Lister les pages éditoriales','query',listInput,pageListOutput,['page'],[],{exportName:'pageList',pagination,maxItems:50});
 operation('page.create','Créer une page','command',createInput,pageOutput,[],['page'],{exportName:'pageCreate'});
 operation('page.read','Lire le brouillon de page','query',pageIdInput,pageOutput,['page'],[],{exportName:'pageRead'});
+operation('page.visibility','Lire la visibilité du snapshot','query',pageIdInput,visibilityOutput,
+  ['page','public_page'],[],{exportName:'pageVisibility',maxItems:2});
 operation('page.save','Enregistrer la page','command',saveInput,pageOutput,['page'],['page'],
   {exportName:'pageSave',concurrency:{mode:'object-version',versionField:'revision'}});
 operation('page.preview','Prévisualiser le brouillon','query',pageIdInput,pageOutput,['page'],[],{exportName:'pagePreview'});
-operation('page.publish','Publier le snapshot éditorial','command',stateInput,publishedOutput,
-  ['page','page_media','page_publication','published_page_media'],
-  ['page','page_publication','published_page_media'],
-  {exportName:'pagePublish',maxItems:25});
+operation('page.publish','Publier le snapshot éditorial','command',publishInput,publishedOutput,
+  ['page','page_media','page_publication','published_page_media','public_page'],
+  ['page','page_publication','published_page_media','public_page'],
+  {exportName:'pagePublish',maxItems:27});
 operation('page.reset','Rétablir le brouillon depuis le publié','command',stateInput,pageOutput,
   ['page','published_page_media','page_media'],['page','page_media'],
   {exportName:'pageReset',maxItems:18,concurrency:{mode:'object-version',versionField:'revision'}});
@@ -222,10 +236,15 @@ m.identity={id,title:'Pages et navigation',publisher:'creezio',origin:'https://g
   version:'0.0.0',source:{kind:'snapshot',revision:sourceRevision,
     integrity:`sha256-${createHash('sha256').update(sourceRevision).digest('hex')}`},
   license:{expression:'NOASSERTION',file:'LICENSE'}};
-m.compatibility={core:'^0.0.0',sdk:'^1.3.0',requiredCapabilities:['runtime.worker','data.d1.shared','files.r2.shared'],
+m.compatibility={core:'^0.0.0',sdk:'^1.6.0',requiredCapabilities:['runtime.worker','data.d1.shared','files.r2.shared'],
   optionalCapabilities:[]};
 m.entrypoints={server:{path:'module/entry.server.ts',export:'pagesNavigation'},
   ui:{path:'ui/index.tsx',export:'PagesNavigationAdminView'},
+  publicPage:{renderer:{path:'ui/public-document.tsx',export:'renderPublicPage'},
+    imageIds:{path:'ui/published-images.ts',export:'publishedImageIds'},stylesheet:'ui/landing.css',
+    models:{page:ref('model','page'),pagePublication:ref('model','page_publication'),
+      publicPage:ref('model','public_page'),navigation:ref('model','navigation'),
+      publishedPageMedia:ref('model','published_page_media'),fileMetadata:ref('model','file_metadata')}},
   plugin:{manifest:'plugin/plugin.json',mcp:'plugin/mcp.json',
     contributions:{path:'plugin/contributions.ts',export:'contributions'}}};
 m.dependencies=[{moduleId:'creezio.access',origin:'https://github.com/creezio/Creezio-D1R2',versionRange:'^0.0.0',
@@ -263,7 +282,7 @@ m.validation.suites.widgets.justification={reason:'Published pages render throug
   policyRule:'pages-navigation.no-widget-renderer'};
 m.packaging.runtime.files=['module/manifest.json','module/models.json','module/entry.server.ts','module/operations.ts',
   'module/service.ts','ui/contracts.ts','ui/index.tsx','ui/front-page.tsx','ui/front-nav.tsx',
-  'ui/front-link.ts','ui/seo.ts','ui/prefabs.tsx','ui/published-images.ts','ui/landing.css','ui/types.ts','ui/state.ts',
+  'ui/front-link.ts','ui/seo.ts','ui/prefabs.tsx','ui/public-document.tsx','ui/published-images.ts','ui/landing.css','ui/types.ts','ui/state.ts',
   'README.md','prd.md','CHANGELOG.md','LICENSE','plugin/plugin.json','plugin/mcp.json',
   'plugin/contributions.ts',skillPath];
 m.packaging.validation.files=['AGENTS.md','FILES.md','interview.md','TODO.md','gate.mjs','module/generate-manifest.mjs',

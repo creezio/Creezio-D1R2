@@ -20,6 +20,24 @@ async function compiled(relative){
 const view=await compiled('../../ui/presentation.tsx');
 const contracts=await compiled('../../ui/contracts.ts');
 const workspace=await compiled('../../ui/index.tsx');
+const editor=await compiled('../../ui/rich-editor.tsx');
+
+test('rich editor accepts only parsed HTTP(S) links',()=>{
+  assert.equal(editor.safeHttpUrl('https://example.test/path'),'https://example.test/path');
+  for(const value of ['javascript:alert(1)','data:text/html,x','https://','https://example.test\njavascript:alert(1)'])
+    assert.equal(editor.safeHttpUrl(value),null,value);
+});
+
+test('linking or removing an attachment advances revision without erasing unsaved composition',()=>{
+  const editor={id:'draft-one',revision:2,to:'a@example.test',cc:'',bcc:'',subject:'Unsaved subject',
+    text:'Unsaved body',html:'<p>Unsaved body</p>'};
+  const linked=contracts.attachmentRevision(editor,{id:'draft-one',revision:3});
+  assert.equal(linked.revision,3);
+  assert.equal(linked.subject,editor.subject);
+  assert.equal(linked.html,editor.html);
+  assert.strictEqual(contracts.attachmentRevision(linked,{id:'other-draft',revision:4}),linked);
+  assert.strictEqual(contracts.attachmentRevision(linked,{id:'draft-one',revision:2}),linked);
+});
 
 test('the first authenticated render hides panel data until its session scope is hydrated',()=>{
   const snapshot={phase:'authenticated',pending:false,session:{id:'session-new',principalId:'owner'}};

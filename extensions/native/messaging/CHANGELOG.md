@@ -1,5 +1,7 @@
 # Changelog
 
+- Complément T18 : une pièce jointe ne remplace plus la composition non enregistrée ; l'éditeur ne publie que du HTML nettoyé et des URL HTTP(S) analysées. Le port public `message-lookup` v1 expose `message.read` sans modèle privé. Les trois cartes refusent un résultat marqué en erreur.
+
 - T18 widgets : trois rendus de lecture boîtes, messages et brouillons, aperçus bornés, détail explicite, sans nouveau transport ni SQL.
 
 ## Source t18-messaging-v2 — partage des données entre audiences

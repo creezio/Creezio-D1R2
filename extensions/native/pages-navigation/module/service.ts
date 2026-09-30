@@ -13,6 +13,7 @@ const iso=()=>new Date().toISOString();
 const key=(v:string)=>({id:v});
 const mediaKey=(pageId:string,fileId:string)=>({page_id:pageId,file_id:fileId});
 const publicationKey=(pageId:string)=>({page_id:pageId});
+const publicKey=(pageId:string)=>({page_id:pageId});
 const navId='primary';
 const navKey={id:navId};
 const pageSummary=(r:Row)=>({id:r.id,slug:r.slug,title:r.title,revision:r.revision,
@@ -148,6 +149,12 @@ export async function pageCreate(value:JsonValue,c:OperationContext){
   return {output:{page:draftView(row)},plans:[c.data.planCreate('page',{values:row})]};
 }
 export async function pageRead(value:JsonValue,c:OperationContext){return {output:{page:draftView(await page(c,arg(value).pageId))}};}
+export async function pageVisibility(value:JsonValue,c:OperationContext){
+  const row=await page(c,arg(value).pageId);
+  const marker=await c.data.get('public_page',{key:publicKey(String(row.id))}) as Row|null;
+  const visible=!!marker&&marker.published_revision===row.published_revision;
+  return {output:{visibility:visible?'public':'protected',slug:visible?row.published_slug:null}};
+}
 export async function pageSave(value:JsonValue,c:OperationContext){
   const a=arg(value),old=await page(c,a.pageId),rev=Number(a.revision);
   if(!Number.isSafeInteger(rev)||rev!==old.revision)fail('conflict');
@@ -185,11 +192,15 @@ function publishedImageIds(row:Row):string[]{
 export async function pagePublish(value:JsonValue,c:OperationContext){
   const a=arg(value),old=await page(c,a.pageId),rev=Number(a.revision);
   if(!Number.isSafeInteger(rev)||rev!==old.revision)fail('conflict');
+  const visibility=a.visibility??'protected';
+  if(visibility!=='protected'&&visibility!=='public')fail('invalid_input');
   const ids=publishedImageIds(old),selected:Row[]=[];
   for(const fileId of ids){const row=await c.data.get('page_media',{key:mediaKey(String(a.pageId),fileId)}) as Row|null;
     if(!row||row.page_id!==a.pageId||row.file_id!==fileId)fail('not_found');selected.push(row as Row);}
   const marker=await c.data.get('page_publication',{key:publicationKey(String(a.pageId))}) as Row|null;
   if(marker&&marker.published_revision!==old.published_revision)fail('conflict');
+  const publicMarker=await c.data.get('public_page',{key:publicKey(String(a.pageId))}) as Row|null;
+  if(publicMarker&&publicMarker.published_revision!==old.published_revision)fail('conflict');
   const existing=await c.data.list('published_page_media',{limit:6,where:{page_id:a.pageId},
     order:{indexId:'by-page',direction:'asc'}}) as Page;
   if(existing.nextAfter||existing.items.length>5)fail('conflict');
@@ -204,6 +215,14 @@ export async function pagePublish(value:JsonValue,c:OperationContext){
       values:{state:'published'}}):
       c.data.planCreate('page_publication',{values:{page_id:a.pageId,state:'published',
         published_revision:changes.published_revision}})];
+  if(visibility==='public')plans.push(publicMarker?
+    c.data.planPatch('public_page',{key:publicKey(String(a.pageId)),
+      compare:{field:'published_revision',expected:Number(old.published_revision)},
+      values:{enabled_at:at}}):
+    c.data.planCreate('public_page',{values:{page_id:a.pageId,
+      published_revision:changes.published_revision,enabled_at:at}}));
+  else if(publicMarker)plans.push(c.data.planDelete('public_page',{key:publicKey(String(a.pageId)),
+    compare:{field:'published_revision',expected:Number(old.published_revision)}}));
   for(const [fileId,row] of previous){
     const wanted=selectedById.get(fileId);
     if(!wanted)

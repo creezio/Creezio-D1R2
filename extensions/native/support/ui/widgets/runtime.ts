@@ -59,7 +59,8 @@ function audienceOf(value:unknown):Audience{
   return value.instance.audience==='app'?'app':value.instance.audience==='admin'?'admin':'unknown';
 }
 function resultOf(value:unknown):unknown{
-  return record(value)&&Object.hasOwn(value,'structuredContent')?value.structuredContent:value;
+  return record(value)&&value.isError===true?null:
+    record(value)&&Object.hasOwn(value,'structuredContent')?value.structuredContent:value;
 }
 function succeeded(value:unknown):unknown{
   const body=resultOf(value);

@@ -1,5 +1,13 @@
 # Repères du dépôt
 
+`core/operations/intermodule.ts` borne les lectures publiques entre modules ; `core/operations/service.ts` leur conserve les credentials, le contexte et l'audience du serveur en réutilisant l'exécuteur commun. `tests/operations/intermodule.test.mjs` et `intermodule-d1.test.mjs` vérifient ses limites et la révocation réelle D1. Le contrat d'auteur reste dans `@creezio/sdk/operations/handler`.
+
+`core/operations/diagnostics.ts` fournit au module Analytics les métadonnées du journal et des routes compilées. `extensions/native/analytics/ui/export.ts` borne les exports ; `tests/analytics/integration.test.mjs` exerce D1/HTTP/MCP.
+
+`core/runtime/public-pages.ts` applique la visibilité anonyme des publications et des médias. La composition produit `.creezio/generated/public-pages.ts` depuis `entrypoints.publicPage` ; le rendu reste dans `extensions/native/pages-navigation/ui/public-document.tsx`. Les tests `tests/runtime/public-pages.test.mjs` couvrent les lectures réelles D1/R2.
+
+`adapters/storage/resources.ts` résout les couples de bindings statiques hors Sites ; `core/runtime/environment.ts`, les configurations locales et Cloudflare refusent les mappings incomplets. Les tests `tests/runtime/storage-resources.test.mjs` et `tests/local/storage-resources.test.mjs` distinguent cette configuration du routage métier T33 encore en préparation.
+
 Le connecteur `extensions/connectors/stripe/` conserve un seul moteur dans `module/service.ts` pour les six parcours clients, abonnements, factures, produits et prix actifs/inactifs. `module/projection.ts` valide leurs données, `module/storage.ts` décrit les modèles additifs et `ui/index.tsx` rassemble les onglets de Facturation. Le SQL généré est dans `data/schema/stripe.sql` ; les preuves et limites figurent dans [T27](docs/IMPLEMENTATION-T27.md).
 
 Le pont privé d'images déclarées dans `linkedRead.mcpImage` utilise `core/files/mcp.ts` pour réemployer le service de fichiers liés depuis MCP. `core/files/admission.ts` partage les quotas HTTP/MCP existants. `sdk/widgets/private-image.ts` forme le résultat transitoire `_meta` pour l'hôte natif, et `sdk/widgets/proxy/sandbox.js` borne son transport. `extensions/common/catalog/ui/widgets/image-view.ts` gère les images visibles et leurs URL Blob. Les tests de transport, de pont et de widgets sont séparés ; la [note T25](docs/IMPLEMENTATION-T25.md) conserve leurs limites de qualification.

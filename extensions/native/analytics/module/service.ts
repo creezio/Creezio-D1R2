@@ -159,7 +159,12 @@ export async function widgetEvents(value:JsonValue,c:OperationContext){
   if(new TextEncoder().encode(JSON.stringify(output)).length>7500)throw new OperationError('unavailable');
   return {output};
 }
-const csv=(cells:readonly unknown[])=>cells.map(value=>`"${String(value??'').replaceAll('"','""')}"`).join(',');
+const csv=(cells:readonly unknown[])=>cells.map(value=>{
+  const text=String(value??'');
+  // Spreadsheet software may evaluate even a quoted CSV cell as a formula.
+  const safe=/^[\s\uFEFF]*[=+\-@]/u.test(text)?`'${text}`:text;
+  return `"${safe.replaceAll('"','""')}"`;
+}).join(',');
 export async function eventExport(value:JsonValue,c:OperationContext){
   const input=args(value),format=input.format;
   if(format!=='csv'&&format!=='json')invalid();
@@ -172,4 +177,16 @@ export async function eventExport(value:JsonValue,c:OperationContext){
       row.reportedDurationMs,row.occurredAt]))].join('\n');
   if(new TextEncoder().encode(content).length>180_000)throw new OperationError('unavailable');
   return {output:{format,content,nextCursor:data.nextCursor,complete:data.complete,period:data.period}};
+}
+export async function diagnosticsExecutions(value:JsonValue,c:OperationContext){
+  if(!c.diagnostics)throw new OperationError('unavailable');
+  const input=args(value);
+  return {output:await c.diagnostics.listExecutions({period:period(input.period),limit:Number(input.limit),
+    ...(input.cursor===undefined?{}:{cursor:String(input.cursor)})})};
+}
+export async function diagnosticsEndpoints(value:JsonValue,c:OperationContext){
+  if(!c.diagnostics)throw new OperationError('unavailable');
+  const input=args(value);
+  return {output:await c.diagnostics.listEndpoints({limit:Number(input.limit),
+    ...(input.cursor===undefined?{}:{cursor:String(input.cursor)})})};
 }

@@ -43,6 +43,16 @@ export function checkModule(module, report) {
   unique(module.dependencies, '/dependencies', report, item => item.moduleId);
   version(module.identity.version, '/identity/version', report);
   version(module.compatibility.sdk, '/compatibility/sdk', report, true); version(module.compatibility.core, '/compatibility/core', report, true);
+  if(module.entrypoints.publicPage){
+    const entry=module.entrypoints.publicPage,path='/entrypoints/publicPage';
+    if(!semver.validRange(module.compatibility.sdk)||!semver.subset(module.compatibility.sdk,'>=1.6.0'))
+      report('public-page.sdk',path,'Public page projections require SDK 1.6 or later.');
+    for(const [name,reference] of Object.entries(entry.models)){
+      const model=get(reference,'model');
+      if(!model||model.scope!=='context'||model.contextField!=='context_id'||model.public)
+        report('public-page.model',`${path}/models/${name}`,'Public page references must name private, context-scoped models of this module.');
+    }
+  }
   for (const [i, dep] of module.dependencies.entries()) {
     version(dep.versionRange, `/dependencies/${i}/versionRange`, report, true);
     if (dep.moduleId === ownId) report('dependency.cycle', `/dependencies/${i}`, 'A module cannot depend on itself.');
@@ -375,6 +385,7 @@ function checkPackaging(module, report) {
   }
   const requireFile = (file, artifact, location) => { if (!safePackagePath(file)) report('path.invalid', location, 'Unsafe package path.'); else if (!(artifact === 'runtime' ? runtime : validation).has(file)) report('path.missing', location, 'Referenced file is absent from its artifact inventory.'); };
   walk(module.entrypoints, (node, location) => { if (node && typeof node === 'object' && typeof node.path === 'string') requireFile(node.path,'runtime',`${location}/path`); }, '/entrypoints');
+  if(module.entrypoints.publicPage)requireFile(module.entrypoints.publicPage.stylesheet,'runtime','/entrypoints/publicPage/stylesheet');
   requireFile(module.entrypoints.plugin.manifest,'runtime','/entrypoints/plugin/manifest'); requireFile(module.entrypoints.plugin.mcp,'runtime','/entrypoints/plugin/mcp'); requireFile(module.identity.license.file,'runtime','/identity/license/file');
   for (const [section, value] of Object.entries(module.contracts)) if (section !== 'schemas') walkContracts(value, (node, location) => {
     if (node && typeof node === 'object' && !Array.isArray(node)) {

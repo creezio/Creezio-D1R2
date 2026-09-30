@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {ticketCreate,ticketRead,ticketList,ticketClaim,ticketStatus,ticketResolve,
-  messageCustomer,messageReply,messageList,transportStatus} from '../../module/service.ts';
+  messageCustomer,messageReply,messageList,transportStatus,
+  referenceContactSearch,referenceContactRead,referenceMessageRead,
+  referenceContactLink,referenceContactUnlink,referenceMessageLink,referenceMessageUnlink} from '../../module/service.ts';
 import {manifest} from '../helpers.mjs';
 
 const time='2026-09-28T00:00:00.000Z';
@@ -69,4 +71,58 @@ test('message list rechecks ticket ownership; external mail stays unavailable',a
   const result=await messageList({ticketId:'ticket-a',limit:5},context());
   assert.equal(result.output.items[0].body,'Bonjour');
   assert.deepEqual(transportStatus().output,{state:'unavailable',externalEmail:false});
+});
+test('optional reference lookups authorize the ticket before delegated read and project only public fields',async()=>{
+  const app=context(),calls=[];
+  app.operations={query:async request=>{calls.push(request);
+    if(request.operationId==='contact.search')return {items:[{id:'contact-a',name:'Ada',email:'ada@example.test',
+      companyId:null,notes:'private'}],nextCursor:null};
+    if(request.operationId==='contact.read')return {item:{id:'contact-a',name:'Ada',email:'ada@example.test',
+      companyId:null,notes:'private'}};
+    return {message:{id:'message-a',boxId:'box-a',subject:'Hello',from:'ada@example.test',
+      text:'Body',html:'<script>private</script>'}};}};
+  const found=await referenceContactSearch({ticketId:'ticket-a',query:'Ada'},app);
+  assert.deepEqual(found.output.items,[{id:'contact-a',name:'Ada',email:'ada@example.test',companyId:null}]);
+  assert.deepEqual(calls[0],{moduleId:'creezio.crm',operationId:'contact.search',input:{limit:10,query:'Ada'}});
+  assert.deepEqual((await referenceContactRead({ticketId:'ticket-a',contactId:'contact-a'},app)).output.item,
+    found.output.items[0]);
+  const message=(await referenceMessageRead({ticketId:'ticket-a',boxId:'box-a',messageId:'message-a'},app)).output.message;
+  assert.deepEqual(message,{id:'message-a',boxId:'box-a',subject:'Hello',from:'ada@example.test',text:'Body'});
+  const denied=context('app','other');denied.operations=app.operations;
+  await assert.rejects(referenceContactSearch({ticketId:'ticket-a',query:'Ada'},denied),{code:'not_found'});
+  assert.equal(calls.length,3,'a foreign ticket never reaches CRM or Messaging');
+});
+test('link and unlink persist opaque references with ticket CAS, surviving a fresh read',async()=>{
+  const app=context();app.operations={query:async request=>request.moduleId==='creezio.crm'?
+    {item:{id:'contact-a',name:'Ada',email:null,companyId:null}}:
+    {message:{id:'message-a',boxId:'box-a',subject:'Hello',from:'',text:''}}};
+  const linked=await referenceContactLink({ticketId:'ticket-a',revision:1,contactId:'contact-a'},app);
+  assert.equal(linked.output.item.contactId,'contact-a');
+  assert.equal(linked.plans[0].input.compare.expected,1);
+  assert.deepEqual(linked.plans[0].input.values.contact_id,'contact-a');
+  const after={...ticket,...linked.plans[0].input.values,revision:2};
+  assert.equal((await ticketRead({id:'ticket-a'},context('app','customer',after))).output.item.contactId,'contact-a');
+  await assert.rejects(referenceContactLink({ticketId:'ticket-a',revision:1,contactId:'contact-a'},
+    context('app','customer',after)),{code:'conflict'});
+  const removed=await referenceContactUnlink({ticketId:'ticket-a',revision:2},context('app','customer',after));
+  assert.equal(removed.output.item.contactId,null);
+  assert.equal(removed.plans[0].input.values.contact_id,null);
+  const messageLink=await referenceMessageLink({ticketId:'ticket-a',revision:1,
+    boxId:'box-a',messageId:'message-a'},app);
+  assert.deepEqual([messageLink.output.item.messageBoxId,messageLink.output.item.messageId],['box-a','message-a']);
+  const afterMessage={...ticket,...messageLink.plans[0].input.values,revision:2};
+  assert.deepEqual((await ticketRead({id:'ticket-a'},context('app','customer',afterMessage))).output.item.messageId,'message-a');
+  const messageUnlink=await referenceMessageUnlink({ticketId:'ticket-a',revision:2},context('app','customer',afterMessage));
+  assert.equal(messageUnlink.output.item.messageId,null);
+  assert.equal(messageUnlink.output.item.messageBoxId,null);
+});
+test('link refuses a foreign ticket or failed child query without issuing a write plan',async()=>{
+  const forbidden=context('app','other');forbidden.operations={query:async()=>{throw new Error('must not run');}};
+  await assert.rejects(referenceMessageLink({ticketId:'ticket-a',revision:1,
+    boxId:'box-a',messageId:'message-a'},forbidden),{code:'not_found'});
+  assert.equal(forbidden.calls.some(call=>call[0]==='patch'),false);
+  const denied=context();denied.operations={query:async()=>{throw Object.assign(new Error('forbidden'),{code:'forbidden'});}};
+  await assert.rejects(referenceContactLink({ticketId:'ticket-a',revision:1,contactId:'contact-a'},denied),
+    {code:'forbidden'});
+  assert.equal(denied.calls.some(call=>call[0]==='patch'),false);
 });

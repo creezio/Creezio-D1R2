@@ -8,15 +8,15 @@ import {clearSubmittedReply,putReply,requiresSupportReset,supportPanelBelongsToS
 test('workspace and front retain the original customer/agent pathways',()=>{
   const view=manifest.contracts.ui.views[0];
   assert.equal(view.panel.inactiveEffects,'suspend');
-  assert.equal(view.operations.length,10);
+  assert.equal(view.operations.length,12);
   const front=manifest.contracts.ui.views.find(item=>item.id==='front');
   assert.equal(front.route,'/support');
   assert.deepEqual(front.surfaces,['front']);
   assert.deepEqual(front.component,view.component);
   assert.equal(front.panel.inactiveEffects,'suspend');
-  assert.equal(front.operations.length,7);
+  assert.equal(front.operations.length,9);
   assert.equal(manifest.contracts.ui.front.mode,'provided');
-  assert.equal(manifest.compatibility.sdk,'^1.4.1');
+  assert.equal(manifest.compatibility.sdk,'^1.6.0');
   const panel=manifest.contracts.schemas.find(item=>item.id===view.panel.stateSchema.schemaId).schema;
   assert.deepEqual(panel.required,[]);
   for(const key of ['sessionId','audience','contextId','ticketId'])

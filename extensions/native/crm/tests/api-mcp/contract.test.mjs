@@ -17,9 +17,14 @@ test('API and MCP use the same 21 declared operations in both audiences',()=>{
       'the module CASes child and parents with their own revisions');
   }
 });
-test('no anonymous exposure or external module relation is silently enabled',()=>{
+test('contact lookup is a scoped public read contract without private model exposure',()=>{
   for(const binding of manifest.contracts.api)assert.ok(!binding.auth.includes('anonymous'));
-  assert.deepEqual(manifest.contracts.publicContracts,[]);
+  const [lookup]=manifest.contracts.publicContracts;
+  assert.equal(lookup.id,'contact-lookup');
+  assert.equal(lookup.version,'1.0.0');
+  assert.deepEqual(lookup.models,[]);
+  assert.deepEqual(lookup.operations.map(ref=>ref.id),['contact.search','contact.read']);
+  assert.ok(lookup.operations.every(ref=>manifest.contracts.operations.find(op=>op.id===ref.id)?.kind==='query'));
   assert.ok(manifest.contracts.models.every(model=>model.relations.every(link=>link.target.moduleId==='creezio.crm')));
 });
 test('machine access uses explicit CRM permission and scoped API/MCP bearer tokens',()=>{

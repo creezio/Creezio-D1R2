@@ -22,7 +22,10 @@ import type {ConnectorDescriptor} from '../../sdk/connectors/types.ts';
 import {VaultError,type VaultKeyring} from '../vault/crypto.ts';
 import type {VaultStorage} from '../vault/service.ts';
 import {operationDigest} from './digest.ts';
+import {createModuleQueryPort,queryTraversal,type QueryTraversal} from './intermodule.ts';
 import {createWidgetOperationPort} from '../widgets/host.ts';
+import {createOperationDiagnosticsPort} from './diagnostics.ts';
+import type {OperationHttpBinding} from './http-types.ts';
 import type {CompiledWidgetCatalog,WidgetValidatorMap} from '../../sdk/widgets/catalog.ts';
 import type {WidgetApprovalService} from '../widgets/approval.ts';
 
@@ -86,6 +89,7 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
   readonly providerAvailability?: (request: OperationRequest, providerId: string) => Promise<OperationProviderAvailability>;
   readonly runtimeInventory?: ModuleSettingsHostInventory;
   readonly approvals?:WidgetApprovalService;
+  readonly httpBindings?:readonly OperationHttpBinding[];
   readonly widgets?:{readonly catalog:CompiledWidgetCatalog;readonly validators:WidgetValidatorMap} }) {
   const { registry } = options, catalog = copyJson(options.catalog, 4 * 1024 * 1024) as unknown as RuntimeDataCatalog;
   if (catalog.compositionDigest !== registry.compositionDigest) throw new OperationError('invalid_catalog');
@@ -114,13 +118,12 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
     if (['waiting', 'succeeded'].includes(value.state) && operation.validateOutput(value.output) !== true) throw new OperationError('invalid_output');
     return value;
   }
-  return Object.freeze({
-    async invoke(supplied: OperationRequest): Promise<{ readonly execution: OperationExecution; readonly replayed: boolean }> {
+  async function invoke(supplied: OperationRequest, traversal?:QueryTraversal): Promise<{ readonly execution: OperationExecution; readonly replayed: boolean }> {
       const request = capture(supplied) as OperationRequest, operation = registry.resolve(request.moduleId, request.operationId), op = operation.declaration;
       if (request.signal?.aborted) throw new OperationError('cancelled');
       if (operation.validateInput(request.input) !== true) throw new OperationError('invalid_input');
       // Unimplemented effects never silently execute as an ordinary mutation.
-      if (op.approval.mode === 'required' && !options.approvals || op.effects.calls.length || op.effects.emits.length
+      if (op.approval.mode === 'required' && !options.approvals || op.effects.emits.length
         || op.effects.reads.concat(op.effects.writes).some(ref => ref.moduleId !== operation.moduleId || !['model','file'].includes(ref.kind))
         || op.effects.reads.some(ref => ref.kind === 'file')
         || op.effects.writes.some(ref => ref.kind === 'file') && !options.files) throw new OperationError('unsupported');
@@ -244,7 +247,25 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
         const context: OperationContext = Object.freeze({ moduleId: operation.moduleId, operationId: op.id,
           executionId: start.execution.id, contextId: identity.contextId, audience: identity.audience, principalId: identity.principalId,
           actorPrincipalId: identity.actorPrincipalId, signal: controller.signal, data: operationData,
+          ...(op.effects.calls.length?{operations:createModuleQueryPort({source:operation,registry,
+            traversal:traversal??queryTraversal(operation),ensureActive:ensure,spend:()=>spend(1),
+            async invoke(child,next){
+              const result=await invoke({credential:request.credential,moduleId:child.moduleId,
+                operationId:child.operationId,input:child.input,contextId:identity.contextId,
+                audience:identity.audience,signal:controller.signal},next);
+              if(result.execution.state==='succeeded')return result.execution.output;
+              if(result.execution.state==='unknown')throw new OperationError('unknown');
+              const code=result.execution.errorCode;
+              if(code&&['invalid_catalog','not_found','invalid_input','invalid_output','unsupported','approval_required',
+                'unauthorized','forbidden','conflict','rate_limited','unavailable','unknown','cancelled','timeout'].includes(code))
+                throw new OperationError(code as OperationError['code']);
+              throw new OperationError('unavailable');
+            }})}:{}),
           ...(providerAvailability ? {providerAvailability} : {}),
+          ...(operation.moduleId==='creezio.analytics'&&identity.audience==='admin'
+            &&op.kind==='query'&&op.id.startsWith('diagnostics.')
+            ?{diagnostics:createOperationDiagnosticsPort({db:options.db,data,lease,registry,
+              httpBindings:options.httpBindings})}:{}),
           ...(secretSource && op.kind === 'command'
             && op.id.startsWith('config.key.') && secretSource.storage.moduleId === operation.moduleId
             && op.effects.writes.some(ref => ref.kind === 'model' && ref.moduleId === operation.moduleId
@@ -370,7 +391,9 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
         }
       } catch (error) { if (error instanceof OperationError) throw error; throw new OperationError(errorCode(error)); }
       finally { close(); data.dispose(lease); }
-    },
+    }
+  return Object.freeze({
+    invoke(supplied:OperationRequest){return invoke(supplied);},
     async status(supplied: OperationStatusRequest): Promise<OperationExecution | null> {
       const request = capture(supplied, 'status') as OperationStatusRequest, operation = registry.resolve(request.moduleId, request.operationId);
       const lease = await authorize(request, operation);

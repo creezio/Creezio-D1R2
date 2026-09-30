@@ -44,6 +44,16 @@ const row=(id)=>({id,boxId:'box-one',direction:'inbound',peerExcerpt:'A',peerHas
 const render=input=>({structuredContent:{kind:'creezio.widget.render.v1',input}});
 const action=output=>({structuredContent:{kind:'creezio.widget.action.v1',state:'succeeded',output}});
 
+test('a host error cannot smuggle a successful list through structured content',async()=>{
+  const h=setup();await mountMessagingWidget('messages');
+  state.app.emit('toolinput',{arguments:{boxId:'box-one',limit:5}});
+  state.app.emit('toolresult',render({items:[row('one')],nextCursor:null}));
+  h.responses.push(()=>Promise.resolve({...action({items:[row('spoofed')],nextCursor:null}),isError:true}));
+  h.elements.get('refresh').click();await tick();
+  assert.equal(h.elements.get('list').children.length,1);
+  assert.match(h.elements.get('status').textContent,/refusée/);
+});
+
 test('history is read-only without tools and never calls at mount',async()=>{
   const h=setup(false);await mountMessagingWidget('messages');
   state.app.emit('toolresult',render({items:[row('one')],nextCursor:'next'}));

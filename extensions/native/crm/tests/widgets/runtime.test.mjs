@@ -45,6 +45,13 @@ const render=input=>({structuredContent:{kind:'creezio.widget.render.v1',input}}
 const action=output=>({structuredContent:{kind:'creezio.widget.action.v1',state:'succeeded',output}});
 const names=element=>element.children.map(card=>card.children[0]?.textContent);
 
+test('an errored historical result cannot replace a valid company card',async()=>{
+  const {elements,app}=setup(false);await mountCrmWidget('company','list');
+  app().emit('toolresult',render({items:[item('real')],nextCursor:null}));
+  app().emit('toolresult',{...render({items:[item('forged')],nextCursor:null}),isError:true});
+  assert.deepEqual(names(elements.get('results')),['Entreprise real']);
+});
+
 test('historical list stays read-only without direct host tools',async()=>{
   const {elements,app,calls}=setup(false);
   await mountCrmWidget('company','list');

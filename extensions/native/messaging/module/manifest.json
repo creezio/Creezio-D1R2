@@ -4738,7 +4738,7 @@
             "address"
           ]
         },
-        "public": false
+        "public": true
       },
       {
         "id": "message.update",
@@ -8969,7 +8969,29 @@
         }
       }
     ],
-    "publicContracts": []
+    "publicContracts": [
+      {
+        "id": "message-lookup",
+        "version": "1.0.0",
+        "models": [],
+        "operations": [
+          {
+            "moduleId": "creezio.messaging",
+            "kind": "operation",
+            "id": "message.read"
+          }
+        ],
+        "events": [],
+        "schemas": [
+          {
+            "schemaId": "message-read-input"
+          },
+          {
+            "schemaId": "message-output"
+          }
+        ]
+      }
+    ]
   },
   "documentation": {
     "installed": {

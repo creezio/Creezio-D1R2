@@ -13,6 +13,12 @@ export type Message = {id:string;boxId:string;direction:string;from:string;to:st
   replyTo:string|null;inReplyTo:string|null;receivedAt:string|null;sentAt:string|null;revision:number};
 export type Draft = {id:string;boxId:string;to:string;cc:string;bcc:string;
   subject:string;text:string;html:string;updatedAt:string;revision:number};
+/** An attachment changes the saved revision, not the unsaved composition in the editor. */
+export function attachmentRevision<T extends {id:string|null;revision:number}>(editor:T,
+  draft:Pick<Draft,'id'|'revision'>):T {
+  return editor.id===draft.id&&draft.revision>editor.revision?
+    {...editor,revision:draft.revision}:editor;
+}
 export type Attachment = {fileId:string;filename:string;contentType:string;byteSize:number;
   reference:{fileId:string;intentId:string;generation:string;digest:string}};
 export type Page<T> = {items:T[];nextCursor:string|null};

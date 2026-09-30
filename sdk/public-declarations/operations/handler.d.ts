@@ -54,6 +54,17 @@ export interface OperationContext {
   readonly principalId:string;readonly actorPrincipalId:string;readonly signal:AbortSignal;
   readonly data:OperationDataPort;readonly files?:OperationFilesPort;readonly connector?:ConnectorPort;
   readonly providerSecrets?:ProviderSecretsPort;
+  readonly diagnostics?:{
+    listExecutions(input:Readonly<{period:'day'|'week'|'month'|'year';limit:number;cursor?:string}>):Promise<{
+      period:{period:string;from:string;to:string};items:readonly {id:string;moduleId:string;operationId:string;
+        audience:'admin'|'app';state:string;errorCode:string|null;createdAt:string;updatedAt:string;
+        durationMs:number|null}[];nextCursor:string|null;complete:boolean}>;
+    listEndpoints(input:Readonly<{limit:number;cursor?:string}>):Promise<{
+      items:readonly {moduleId:string;operationId:string;audience:'admin'|'app';method:string;
+        path:string;kind:'query'|'command'}[];nextCursor:string|null;complete:boolean;
+      source:'compiled-http-bindings'|'unavailable'}>;
+  };
+  readonly operations?:{query(request:{moduleId:string;operationId:string;input:JsonValue}):Promise<JsonValue>};
 }
 export interface OperationHandlerResult {readonly output:unknown;readonly plans?:readonly DataPlan[]}
 export type OperationHandler=(input:JsonValue,context:OperationContext)=>OperationHandlerResult|Promise<OperationHandlerResult>;

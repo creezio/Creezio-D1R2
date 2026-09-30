@@ -8,8 +8,8 @@
     "version": "0.0.0",
     "source": {
       "kind": "snapshot",
-      "revision": "t22-analytics-read-widgets-v1",
-      "integrity": "sha256-f6bb892c47522c87d14f1e36c5e395312280d2f0777abce8cde183298076ab43"
+      "revision": "t22-analytics-diagnostics-v2",
+      "integrity": "sha256-e2b81193ee7594c3597ba6b5c1e3165a7a341f300252e2035db49ed7e69bf13d"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -18,7 +18,7 @@
   },
   "compatibility": {
     "core": "^0.0.0",
-    "sdk": "^1.4.1",
+    "sdk": "^1.6.0",
     "requiredCapabilities": [
       "runtime.worker",
       "data.d1.shared"
@@ -1198,6 +1198,301 @@
         }
       },
       {
+        "id": "diagnostics-executions-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "period": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "year"
+              ]
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          "required": [
+            "period",
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "diagnostics-executions-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "period": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "string",
+                  "enum": [
+                    "day",
+                    "week",
+                    "month",
+                    "year"
+                  ]
+                },
+                "from": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                "to": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                }
+              },
+              "required": [
+                "period",
+                "from",
+                "to"
+              ],
+              "additionalProperties": false
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "moduleId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "operationId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "audience": {
+                    "type": "string",
+                    "enum": [
+                      "admin",
+                      "app"
+                    ]
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "running",
+                      "waiting",
+                      "succeeded",
+                      "failed",
+                      "unknown"
+                    ]
+                  },
+                  "errorCode": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  },
+                  "durationMs": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "moduleId",
+                  "operationId",
+                  "audience",
+                  "state",
+                  "errorCode",
+                  "createdAt",
+                  "updatedAt",
+                  "durationMs"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 50
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "complete": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "period",
+            "items",
+            "nextCursor",
+            "complete"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "diagnostics-endpoints-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "diagnostics-endpoints-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "moduleId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "operationId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "audience": {
+                    "type": "string",
+                    "enum": [
+                      "admin",
+                      "app"
+                    ]
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "GET",
+                      "POST",
+                      "PUT",
+                      "PATCH",
+                      "DELETE"
+                    ]
+                  },
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "query",
+                      "command"
+                    ]
+                  }
+                },
+                "required": [
+                  "moduleId",
+                  "operationId",
+                  "audience",
+                  "method",
+                  "path",
+                  "kind"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 50
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "complete": {
+              "type": "boolean"
+            },
+            "source": {
+              "type": "string",
+              "enum": [
+                "compiled-http-bindings",
+                "unavailable"
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor",
+            "complete",
+            "source"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
         "id": "analytics-view-input",
         "schema": {
           "type": "object",
@@ -2197,6 +2492,214 @@
           ]
         },
         "public": false
+      },
+      {
+        "id": "diagnostics.executions",
+        "title": "Journal technique des opérations",
+        "kind": "query",
+        "input": {
+          "schemaId": "diagnostics-executions-input"
+        },
+        "output": {
+          "schemaId": "diagnostics-executions-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "diagnosticsExecutions"
+        },
+        "effects": {
+          "reads": [],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "content"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "diagnostics.endpoints",
+        "title": "Registre des routes déclarées",
+        "kind": "query",
+        "input": {
+          "schemaId": "diagnostics-endpoints-input"
+        },
+        "output": {
+          "schemaId": "diagnostics-endpoints-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "diagnosticsEndpoints"
+        },
+        "effects": {
+          "reads": [],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "content"
+          ]
+        },
+        "public": false
       }
     ],
     "api": [
@@ -2525,6 +3028,92 @@
           "requests": 60,
           "windowSeconds": 60
         }
+      },
+      {
+        "id": "admin.diagnostics.executions",
+        "method": "GET",
+        "path": "/api/admin/analytics/diagnostics/executions",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "diagnostics.executions"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "inputField": "period",
+            "required": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "diagnostics-executions-input"
+        },
+        "output": {
+          "schemaId": "diagnostics-executions-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.diagnostics.endpoints",
+        "method": "GET",
+        "path": "/api/admin/analytics/diagnostics/endpoints",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "diagnostics.endpoints"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "diagnostics-endpoints-input"
+        },
+        "output": {
+          "schemaId": "diagnostics-endpoints-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
       }
     ],
     "mcp": {
@@ -2713,6 +3302,64 @@
             "id": "events"
           },
           "textFallback": true
+        },
+        {
+          "id": "diagnostics.executions",
+          "name": "analytics_diagnostics_executions",
+          "operation": {
+            "moduleId": "creezio.analytics",
+            "kind": "operation",
+            "id": "diagnostics.executions"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "diagnostics-executions-input"
+          },
+          "output": {
+            "schemaId": "diagnostics-executions-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "diagnostics.endpoints",
+          "name": "analytics_diagnostics_endpoints",
+          "operation": {
+            "moduleId": "creezio.analytics",
+            "kind": "operation",
+            "id": "diagnostics.endpoints"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "diagnostics-endpoints-input"
+          },
+          "output": {
+            "schemaId": "diagnostics-endpoints-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
         }
       ],
       "resources": [
@@ -2823,6 +3470,16 @@
               "moduleId": "creezio.analytics",
               "kind": "operation",
               "id": "analytics.widget.events"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "diagnostics.executions"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "diagnostics.endpoints"
             }
           ],
           "resources": [
@@ -2883,6 +3540,16 @@
               "moduleId": "creezio.analytics",
               "kind": "operation",
               "id": "analytics.widget.events"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "diagnostics.executions"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "diagnostics.endpoints"
             }
           ],
           "input": {
@@ -3108,7 +3775,7 @@
     },
     "versionBinding": {
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t22-analytics-read-widgets-v1"
+      "sourceRevision": "t22-analytics-diagnostics-v2"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -3192,6 +3859,7 @@
         "ui/index.tsx",
         "ui/contracts.ts",
         "ui/panel-state.ts",
+        "ui/export.ts",
         "ui/widgets/runtime.ts",
         "ui/widgets/summary.ts",
         "ui/widgets/summary.html",
@@ -3237,7 +3905,7 @@
     "validationBinding": {
       "moduleId": "creezio.analytics",
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t22-analytics-read-widgets-v1"
+      "sourceRevision": "t22-analytics-diagnostics-v2"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",

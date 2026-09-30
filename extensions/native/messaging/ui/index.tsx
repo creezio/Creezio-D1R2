@@ -7,7 +7,7 @@ import {createCommandJournal} from '@creezio/sdk/operations/command-journal';
 import type {PendingCommand,CommandOutcome} from '@creezio/sdk/operations/command-journal';
 import {createFileClient} from '@creezio/sdk/files/client';
 import type {WorkspaceViewProps as RuntimeViewProps} from '@creezio/sdk/workspace/types';
-import {call,readableError,folders,scopeChanged,messagingPanelData,panelMatchesScope,createLatestRequest,type Attachment,type Box,type Draft,type Folder,type Message,
+import {call,readableError,folders,scopeChanged,messagingPanelData,panelMatchesScope,createLatestRequest,attachmentRevision,type Attachment,type Box,type Draft,type Folder,type Message,
   type Outcome,type Page,type UiIdentity} from './contracts.ts';
 import {FoldersPanel,ListPanel,ReaderPanel,RecipientsInput,messagingButton,messagingField} from './presentation.tsx';
 import {RichEditor} from './rich-editor.tsx';
@@ -389,7 +389,7 @@ export function MessagingView(props:RuntimeViewProps) {
         draftId:editor.id,revision:editor.revision,fileId:item.fileId},()=>scoped(boxId),editor.id);
       if(!scoped(boxId))return;
       if(result.kind!=='ok'||!result.value.removed){setNotice(result.kind==='ok'?'Retrait non confirmé.':readableError(result.code));return;}
-      setEditor(draftFrom(result.value.draft));setAttachments(list=>list.filter(file=>file.fileId!==item.fileId));
+      setEditor(old=>attachmentRevision(old,result.value.draft));setAttachments(list=>list.filter(file=>file.fileId!==item.fileId));
     }finally{finishBusy(busyToken);}
   }
   async function createBox(){if(!current()||busy||!boxName.trim())return;
@@ -412,7 +412,7 @@ export function MessagingView(props:RuntimeViewProps) {
         revision:editor.revision,staged:uploaded.value.reference},()=>scoped(boxId),editor.id);
       if(!scoped(boxId))return;
       if(linked.kind!=='ok'){setNotice(readableError(linked.code));return;}
-      if(linked.value.draft){setEditor(draftFrom(linked.value.draft));const listed=await call<Page<Attachment>>(scope,'attachment.list',
+      if(linked.value.draft){setEditor(old=>attachmentRevision(old,linked.value.draft));const listed=await call<Page<Attachment>>(scope,'attachment.list',
         {boxId,draftId:editor.id,limit:50},()=>scoped(boxId));if(!scoped(boxId))return;
         if(listed.kind==='ok')setAttachments(page<Attachment>(listed.value).items);}
       setNotice(`${file.name} joint au brouillon.`);

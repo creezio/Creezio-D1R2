@@ -1,5 +1,13 @@
 # Registre et exécutions — T-06
 
+## Complément requis par Support/CRM/Messagerie — source en cours, 30 septembre
+
+Le port `OperationContext.operations.query({moduleId, operationId, input})` réutilise le registre, les autorisations, les validateurs et le journal D1 de l'exécuteur commun. Les références doivent figurer dans `effects.calls` et viser une opération publique de lecture active. La composition contrôle déjà leur export dans un contrat public versionné et la dépendance consommée ; l'exécuteur vérifie encore la cible au moment de l'appel.
+
+Le module ne transmet ni identité, ni audience, ni contexte, ni token. Chaque enfant utilise ceux résolus par le serveur et repasse l'autorisation native. Le signal parent, son budget d'items, une profondeur maximale de quatre opérations et seize appels imbriqués cumulés bornent l'exécution. Une commande imbriquée est refusée : aucun commit atomique entre commandes n'est prétendu. La sortie ne revient qu'après un état `succeeded`, et les sorties tardives sont refusées après fermeture du parent.
+
+Contrôles locaux : cinq cas unitaires et dix-huit tests D1/moteur passent, dont identité machine, autre contexte, permissions différentes, fournisseur privé/inactif, injection de contexte et révocation avant appel enfant. Le test D1 a utilisé le profil d'installation Access `composition.workspace-witness` inchangé pendant l'édition concurrente des modules ; le profil applicatif final et sa CI restent à qualifier. Cette tranche ne clôt ni T-06 exhaustif, ni les commandes intermodules/événements reportés.
+
 La tranche interne est intégrée par la PR #15 au main `3a4ad091` (723 tests), puis HTTP et le client par la PR #16 au main `56eb0159` (779 tests locaux et CI). Le registre, l'exécuteur et la persistance D1 sont consommables par les routes déclarées sous garde native. Le [lot T-06](TODO.md#T-06) reste partiel : approbations, événements, interopérations et autres transports restent à réaliser ; les preuves locales ne qualifient pas les hébergements.
 
 ## Répartition et contrats

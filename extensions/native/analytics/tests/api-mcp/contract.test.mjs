@@ -6,7 +6,7 @@ test('HTTP and MCP preserve operation permissions and machine access',()=>{
   const ops=manifest.contracts.operations;
   assert.deepEqual(ops.map(operation=>operation.id),
     ['event.record','event.list','analytics.snapshot','event.export',
-      'analytics.widget.summary','analytics.widget.events']);
+      'analytics.widget.summary','analytics.widget.events','diagnostics.executions','diagnostics.endpoints']);
   assert.deepEqual(ops[0].audiences,['admin','app']);
   assert.ok(ops.slice(1).every(operation=>operation.audiences.length===1&&
     operation.audiences[0]==='admin'));
@@ -14,4 +14,10 @@ test('HTTP and MCP preserve operation permissions and machine access',()=>{
   assert.ok(manifest.contracts.api.every(api=>api.auth.includes('api-token')));
   assert.ok(manifest.contracts.mcp.tools.every(tool=>tool.auth.includes('api-token')));
   assert.equal(ops[0].idempotency.mode,'required');
+  for(const operation of ops.slice(-2)){
+    assert.equal(operation.kind,'query');assert.equal(operation.permissions[0].id,'read');
+    assert.deepEqual(operation.effects.reads,[],'diagnostics use only the host-scoped port');
+    assert.ok(manifest.contracts.api.some(api=>api.operation.id===operation.id&&api.audience==='admin'));
+    assert.ok(manifest.contracts.mcp.tools.some(tool=>tool.operation.id===operation.id));
+  }
 });

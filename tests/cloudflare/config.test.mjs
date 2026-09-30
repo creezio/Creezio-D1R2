@@ -14,7 +14,8 @@ test('production build pins real bindings without provider credentials or local 
   assert.equal(worker.d1_databases[0].database_id,target.databaseId);
   assertCloudflareBuiltConfiguration(worker,target);
   for(const change of [{token:'private'},{databaseId:'00000000-0000-4000-8000-000000000000'},
-    {origin:'http://127.0.0.1:5173'},{widgetSandboxOrigin:target.origin},{workerName:'../other'}])
+    {origin:'http://127.0.0.1:5173'},{widgetSandboxOrigin:target.origin},{workerName:'../other'},
+    {workerName:123},{databaseName:{toString:()=>target.databaseName}},{bucketName:123}])
     assert.throws(()=>validateCloudflareTarget({...target,...change}));
   assert.throws(()=>assertCloudflareBuiltConfiguration({...worker,vars:{...worker.vars,CLOUDFLARE_API_TOKEN:'private'}},target));
   assert.throws(()=>assertCloudflareBuiltConfiguration({...worker,r2_buckets:[{binding:'BUCKET',bucket_name:'wrong'}]},target));
@@ -29,4 +30,22 @@ test('Cloudflare host projection keeps the application, module locks and generat
   assert.equal(result.sourcePlan.sql,result.targetPlan.sql);
   assert.deepEqual(result.sourcePlan.objects,result.targetPlan.objects);
   assert.match(result.compatibilityDigest,/^sha256-[a-f0-9]{64}$/);
+});
+
+test('version 2 target declares distinct active bindings and a revoked route without fallback',()=>{
+  const extended={...target,schemaVersion:2,resources:[
+    {contextId:'tenant-a',slot:1,status:'active',databaseName:'tenant-a-db',
+      databaseId:'22222222-2222-4222-8222-222222222222',bucketName:'tenant-a-files'},
+    {contextId:'tenant-b',slot:2,status:'revoked',databaseName:'tenant-b-db',
+      databaseId:'33333333-3333-4333-8333-333333333333',bucketName:'tenant-b-files'}]};
+  const worker=cloudflareWorkerConfiguration(extended);
+  assert.deepEqual(worker.d1_databases.map(item=>item.binding),['DB','DB_RESOURCE_01']);
+  assert.deepEqual(worker.r2_buckets.map(item=>item.binding),['BUCKET','BUCKET_RESOURCE_01']);
+  assert.deepEqual(JSON.parse(worker.vars.CREEZIO_STORAGE_ROUTES).routes.map(item=>item.status),['active','revoked']);
+  assertCloudflareBuiltConfiguration(worker,extended);
+  assert.throws(()=>assertCloudflareBuiltConfiguration({...worker,d1_databases:worker.d1_databases.slice(0,1)},extended));
+  assert.throws(()=>validateCloudflareTarget({...extended,resources:[extended.resources[0],
+    {...extended.resources[1],databaseId:extended.resources[0].databaseId}]}));
+  assert.throws(()=>validateCloudflareTarget({...extended,resources:[{...extended.resources[0],
+    bucketName:{toString:()=>extended.resources[0].bucketName}},extended.resources[1]]}));
 });

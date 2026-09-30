@@ -28,6 +28,8 @@ test('context-scoped page, navigation and private media have generated D1 relati
   assert.deepEqual(models.find(model=>model.id==='page').primaryKey,['context_id','id']);
   assert.deepEqual(models.find(model=>model.id==='page_media').relations[0].fields,['context_id','page_id']);
   assert.deepEqual(models.find(model=>model.id==='published_page_media').relations[0].target.id,'page_publication');
+  assert.deepEqual(models.find(model=>model.id==='public_page').relations[0].target.id,'page_publication');
+  assert.equal(models.find(model=>model.id==='public_page').deletion.mode,'hard');
   assert.deepEqual(manifest.contracts.files[0].linkedRead.linkModel.id,'published_page_media');
   assert.deepEqual(manifest.contracts.files[0].linkedRead.when,{field:'state',equals:'published'});
   assert.equal(manifest.contracts.files[0].public,false);
@@ -78,6 +80,25 @@ test('publication copies only cited media; reset can restore its draft link with
   assert.equal(excess.calls.some(call=>call.kind==='patch'||call.kind==='create'),false);
 });
 
+test('anonymous exposure requires an explicit publication and is revoked by a protected republish',async()=>{
+  const initial=harness({page});
+  const protectedResult=await pagePublish({pageId:'home',revision:1},initial.context);
+  assert.equal(protectedResult.plans.length,2);
+  assert.equal(initial.calls.some(call=>call.model==='public_page'),false);
+  const publicResult=await pagePublish({pageId:'home',revision:1,visibility:'public'},initial.context);
+  assert.equal(publicResult.plans.length,3);
+  assert.deepEqual(initial.calls.find(call=>call.model==='public_page'&&call.kind==='create').args.values,
+    {page_id:'home',published_revision:1,enabled_at:publicResult.output.page.publishedAt});
+  const current={...page,revision:2,published_revision:1,published_at:'2026-09-30T00:00:00.000Z'};
+  const revoking=harness({page:current,page_publication:{page_id:'home',state:'published',published_revision:1},
+    public_page:{page_id:'home',published_revision:1}});
+  await pagePublish({pageId:'home',revision:2,visibility:'protected'},revoking.context);
+  assert.deepEqual(revoking.calls.find(call=>call.model==='public_page'&&call.kind==='delete').args,
+    {key:{page_id:'home'},compare:{field:'published_revision',expected:1}});
+  await assert.rejects(pagePublish({pageId:'home',revision:1,visibility:'anonymous'},initial.context),
+    {code:'invalid_input'});
+});
+
 test('five-image replacement stays within the declared atomic publication budget',async()=>{
   const ids=Array.from({length:10},(_,i)=>`f1_${String(i).repeat(64)}`);
   const row=(fileId,position)=>({page_id:'home',file_id:fileId,filename:'image.png',
@@ -93,8 +114,8 @@ test('five-image replacement stays within the declared atomic publication budget
     model==='page'?current:model==='page_publication'?{page_id:'home',state:'published',published_revision:1}:null;
   const result=await pagePublish({pageId:'home',revision:2},h.context);
   assert.equal(result.plans.length,12);
-  assert.equal(1+5+1+6+result.plans.length,25);
-  assert.equal(manifest.contracts.operations.find(op=>op.id==='page.publish').execution.maxItems,25);
+  assert.equal(1+5+1+1+6+result.plans.length,26);
+  assert.equal(manifest.contracts.operations.find(op=>op.id==='page.publish').execution.maxItems,27);
   assert.deepEqual(h.calls.filter(call=>call.kind==='delete').map(call=>call.model),
     Array(5).fill('published_page_media'));
   assert.deepEqual(h.calls.filter(call=>call.kind==='create').map(call=>call.model),

@@ -89,7 +89,8 @@ function operation(entity,action,input,output){
     // single input revision, so the module supplies its own guarded comparisons.
     approval:{mode:'none'},concurrency:{mode:'none'},
     execution:{maxDurationMs:10000,maxItems:['list','search'].includes(action)?500:25,resumable:false},
-    audit:{required:true,redactFields:['notes','email','phone','query']},public:false});
+    audit:{required:true,redactFields:['notes','email','phone','query']},
+    public:entity==='contact'&&['search','read'].includes(action)});
 }
 for(const entity of entities){
   const view=obj({...commonView,...extras[entity]});
@@ -188,7 +189,10 @@ m.contracts={schemas,models,files:[],events:[],settings:[],search:[],permissions
       surfaces:['workspace'],order:55},{id:'crm-front',title:'CRM',view:ref('view','front'),
       permissions:[ref('permission','use')],surfaces:['front'],order:55}],slots:[],front:{mode:'provided'},
       themes:[],styles:[]},widgets:entities.flatMap(entity=>[widget(entity,'list'),widget(entity,'detail')]),
-      publicContracts:[]};
+      publicContracts:[{id:'contact-lookup',version:'1.0.0',models:[],
+        operations:[ref('operation','contact.search'),ref('operation','contact.read')],events:[],
+        schemas:[{schemaId:'contact-search'},{schemaId:'contact-id'},
+          {schemaId:'contact-page'},{schemaId:'contact-output'}]}]};
 m.documentation.versionBinding={moduleVersion:'0.0.0',sourceRevision:revision};
 for(const name of ['backend','ui','api-mcp','widgets','package','docs'])m.validation.suites[name].tests=[`tests/${name}/contract.test.mjs`];
 m.validation.suites.widgets.tests.push('tests/widgets/runtime.test.mjs');

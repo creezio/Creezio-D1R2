@@ -4,6 +4,7 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import {manifest,read} from '../helpers.mjs';
 import {analyticsPanelState,readAnalyticsPanelState,retainedSessionId,sameAnalyticsScope,
   sessionVerified} from '../../ui/panel-state.ts';
+import {collectExportPages} from '../../ui/export.ts';
 
 test('session verification suspends analytics while same scoped filters survive',()=>{
   const scope={sessionId:'session-one',audience:'admin',contextId:'application'};
@@ -52,10 +53,36 @@ test('the original analytics layout remains while unavailable measures stay expl
     'KpiCard','ActivityChart','Répartition','TopList','DataTable','Heatmap d’activité','Pauses détectées','Blocs de focus'])
     assert.ok(ui.includes(structure),structure);
   for(const missing of ['mesure de présence indisponible','suivi automatique n’est pas encore disponible',
-    'Les requêtes et opérations techniques ne figurent pas encore'])
+    'les requêtes refusées avant le moteur ne sont pas collectées'])
     assert.ok(ui.toLocaleLowerCase().includes(missing.toLocaleLowerCase()),missing);
   assert.match(ui,/value="—" hint="Mesure de présence indisponible"/u);
   assert.match(ui,/setInterval\(.*8000/u);
   assert.match(ui,/URL\.revokeObjectURL/u);
   assert.deepEqual(manifest.contracts.ui.views[0].surfaces,['workspace']);
+});
+
+test('multi-page export keeps the server period, bounds pages and rejects stale or cycling reads',async()=>{
+  const period={period:'week',from:'2026-09-23T00:00:00.000Z',to:'2026-09-30T00:00:00.000Z'};
+  const pages=[{format:'json',period,content:'[{"id":"one"}]',complete:false,nextCursor:'next'},
+    {format:'json',period,content:'[{"id":"two"}]',complete:true,nextCursor:null}];
+  const result=await collectExportPages({period:'week',format:'json',fetch:async cursor=>pages[cursor?1:0],
+    isCurrent:()=>true});
+  assert.equal(result.complete,true);assert.equal(result.pages,2);
+  assert.deepEqual(JSON.parse(result.content),[{id:'one'},{id:'two'}]);
+  await assert.rejects(collectExportPages({period:'week',format:'json',fetch:async()=>({...pages[0],
+    period:{...period,to:'2026-09-29T00:00:00.000Z'}}),isCurrent:()=>true}),/invalid_export/);
+  await assert.rejects(collectExportPages({period:'week',format:'json',fetch:async()=>pages[0],
+    isCurrent:()=>true}),/invalid_export/);
+  await assert.rejects(collectExportPages({period:'week',format:'json',fetch:async()=>pages[0],
+    isCurrent:()=>false}),/stale/);
+  let active=true;
+  await assert.rejects(collectExportPages({period:'week',format:'json',
+    fetch:async()=>{active=false;return pages[0];},isCurrent:()=>active}),/stale/);
+  const view=read('ui/index.tsx');
+  assert.match(view,/exportEpoch\.current\+\+;setExporting\(false\)/u);
+  assert.match(view,/if\(exportEpoch\.current===exportToken\)setExporting\(false\)/u);
+  const partial=await collectExportPages({period:'week',format:'json',fetch:async(_cursor)=>({
+    ...pages[0],nextCursor:crypto.randomUUID()}),isCurrent:()=>true});
+  assert.equal(partial.pages,10);assert.equal(partial.complete,false);
+  assert.equal(JSON.parse(partial.content).length,10);
 });

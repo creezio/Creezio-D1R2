@@ -64,6 +64,20 @@ const widgetEventsInput=schema('analytics-widget-events-input',obj({period,curso
 const widgetEventsOutput=schema('analytics-widget-events-output',obj({period:bounds,
   items:{type:'array',items:widgetEvent,maxItems:5},nextCursor:nullable(str(2048)),
   complete:{type:'boolean'},scanned:int(0,500)}));
+const diagnosticExecutionsInput=schema('diagnostics-executions-input',obj({period,limit:int(1,50),
+  cursor:str(2048)},['period','limit']));
+const diagnosticExecution=obj({id:str(128),moduleId:str(128),operationId:str(128),
+  audience:{type:'string',enum:['admin','app']},state:{type:'string',enum:['running','waiting','succeeded','failed','unknown']},
+  errorCode:nullable(str(128)),createdAt:str(35),updatedAt:str(35),durationMs:nullable(int())});
+const diagnosticExecutionsOutput=schema('diagnostics-executions-output',obj({period:bounds,
+  items:{type:'array',items:diagnosticExecution,maxItems:50},nextCursor:nullable(str(2048)),complete:{type:'boolean'}}));
+const diagnosticEndpointsInput=schema('diagnostics-endpoints-input',obj({limit:int(1,50),cursor:str(2048)},['limit']));
+const diagnosticEndpoint=obj({moduleId:str(128),operationId:str(128),
+  audience:{type:'string',enum:['admin','app']},method:{type:'string',enum:['GET','POST','PUT','PATCH','DELETE']},
+  path:str(512),kind:{type:'string',enum:['query','command']}});
+const diagnosticEndpointsOutput=schema('diagnostics-endpoints-output',obj({
+  items:{type:'array',items:diagnosticEndpoint,maxItems:50},nextCursor:nullable(str(2048)),
+  complete:{type:'boolean'},source:{type:'string',enum:['compiled-http-bindings','unavailable']}}));
 const viewInput=schema('analytics-view-input',obj({}));
 const panelState=schema('analytics-panel-state',obj({sessionId:str(128),
   audience:{type:'string',enum:['admin','app']},contextId:str(128),
@@ -89,11 +103,15 @@ const definitions=[
   ['analytics.widget.summary','Résumé des événements déclarés sur sept jours','query',summaryInput,summaryOutput,
     'widgetSummary','read',['admin']],
   ['analytics.widget.events','Cinq événements déclarés','query',widgetEventsInput,widgetEventsOutput,
-    'widgetEvents','read',['admin']]];
+    'widgetEvents','read',['admin']],
+  ['diagnostics.executions','Journal technique des opérations','query',diagnosticExecutionsInput,
+    diagnosticExecutionsOutput,'diagnosticsExecutions','read',['admin']],
+  ['diagnostics.endpoints','Registre des routes déclarées','query',diagnosticEndpointsInput,
+    diagnosticEndpointsOutput,'diagnosticsEndpoints','read',['admin']]];
 const operations=definitions.map(([name,title,kind,input,output,handler,permission,audiences])=>({
   id:name,title,kind,input,output,permissions:[ref('permission',permission)],audiences,
   actors:['user','delegated-user','machine'],context:'required',handler:{path:'module/operations.ts',export:handler},
-  effects:{reads:kind==='query'?[ref('model','event')]:[],writes:kind==='command'?[ref('model','event')]:[],
+  effects:{reads:kind==='query'&&!name.startsWith('diagnostics.')?[ref('model','event')]:[],writes:kind==='command'?[ref('model','event')]:[],
     emits:[],calls:[],providers:[]},errors,
   pagination:name==='event.list'||name==='event.export'?{mode:'cursor',cursorField:'cursor',
     limitField:'limit',maxItems:50}:{mode:'none'},
@@ -113,14 +131,14 @@ for(const operation of operations)for(const audience of operation.audiences){
         required:spec.required.includes(name)})),input:operation.input,output:operation.output,
     rateLimit:{requests:60,windowSeconds:60}});
 }
-const manifest=structuredClone(template),revision='t22-analytics-read-widgets-v1';
+const manifest=structuredClone(template),revision='t22-analytics-diagnostics-v2';
 const skillPath='plugin/skills/analytics.md';
 const skillIntegrity=`sha256-${createHash('sha256').update(readFileSync(new URL(skillPath,root))).digest('hex')}`;
 manifest.identity={id,title:'Analytique et diagnostics',publisher:'creezio',
   origin:'https://github.com/creezio/Creezio-D1R2',version:'0.0.0',
   source:{kind:'snapshot',revision,integrity:`sha256-${createHash('sha256').update(revision).digest('hex')}`},
   license:{expression:'NOASSERTION',file:'LICENSE'}};
-manifest.compatibility={core:'^0.0.0',sdk:'^1.4.1',
+manifest.compatibility={core:'^0.0.0',sdk:'^1.6.0',
   requiredCapabilities:['runtime.worker','data.d1.shared'],optionalCapabilities:[]};
 manifest.entrypoints={server:{path:'module/entry.server.ts',export:'analytics'},
   ui:{path:'ui/index.tsx',export:'AnalyticsAdminView'},
@@ -176,7 +194,7 @@ manifest.validation.suites.widgets.mode='required';
 manifest.validation.suites.widgets.tests=['tests/widgets/contract.test.mjs','tests/widgets/runtime.test.mjs'];
 delete manifest.validation.suites.widgets.justification;
 manifest.packaging.runtime.files=['module/manifest.json','module/models.json','module/entry.server.ts',
-  'module/operations.ts','module/service.ts','ui/index.tsx','ui/contracts.ts','ui/panel-state.ts',
+  'module/operations.ts','module/service.ts','ui/index.tsx','ui/contracts.ts','ui/panel-state.ts','ui/export.ts',
   'ui/widgets/runtime.ts',...widgetNames.flatMap(name=>[`ui/widgets/${name}.ts`,`ui/widgets/${name}.html`]),
   'README.md','prd.md',
   'CHANGELOG.md','LICENSE','plugin/plugin.json','plugin/mcp.json','plugin/contributions.ts',skillPath];

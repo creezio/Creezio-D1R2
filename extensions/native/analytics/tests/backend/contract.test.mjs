@@ -83,6 +83,11 @@ test('filter search scans without pretending a partial period is complete',async
   assert.deepEqual(found.output.items.map(item=>item.id),['two']);
   assert.equal(found.output.complete,true);
 });
+test('CSV export neutralizes formula-looking legacy identities',async()=>{
+  const {context}=harness([row('legacy',{principal_id:'=HYPERLINK("https://example.invalid")'})]);
+  const result=await eventExport({period:'week',limit:50,format:'csv'},context);
+  assert.match(result.output.content,/"'=HYPERLINK\(""https:\/\/example\.invalid""\)"/u);
+});
 test('year period spans twelve calendar months and remains cursor-compatible',async()=>{
   const rows=Array.from({length:2},(_,index)=>row(`year-${index}`));
   const {context}=harness(rows);

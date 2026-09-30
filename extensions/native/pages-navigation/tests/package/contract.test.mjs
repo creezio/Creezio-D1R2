@@ -15,8 +15,10 @@ test('package includes every declared runtime and validation file',()=>{
       assert.ok(lstatSync(new URL(file,moduleRoot)).isFile(),file);
     }
   }
-  for(const path of ['ui/index.tsx','ui/front-page.tsx','ui/prefabs.tsx','ui/landing.css'])
+  for(const path of ['ui/index.tsx','ui/front-page.tsx','ui/public-document.tsx','ui/prefabs.tsx','ui/landing.css'])
     assert.ok(manifest.packaging.runtime.files.includes(path));
+  assert.equal(manifest.entrypoints.publicPage.renderer.export,'renderPublicPage');
+  assert.equal(manifest.entrypoints.publicPage.models.publicPage.id,'public_page');
   for(const suite of ['backend','ui','api-mcp','widgets','package','docs'])
     assert.ok(manifest.packaging.validation.files.includes(`tests/${suite}/contract.test.mjs`));
 });

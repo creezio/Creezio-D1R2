@@ -4,6 +4,9 @@ import { modules, compositionDigest, nativeAccess, httpBindings, mcpCatalog, per
 import { operationCatalog, operationValidators, operationHandlers } from './.creezio/generated/operations';
 import { dataCatalog } from './.creezio/generated/data-catalog';
 import {fileCatalog} from './.creezio/generated/file-catalog';
+import {publicPageProjection} from './.creezio/generated/public-pages';
+import {createPublicPages} from './core/runtime/public-pages';
+import {frontContextId} from './application/config/front';
 import type {FileBucket} from './core/files/service';
 import {readMcpLinkedImage} from './core/files/mcp';
 import { runtimeInventory } from './.creezio/generated/module-inventory';
@@ -37,7 +40,7 @@ const mcpHttp = {async dispatch(request: Request, resolved: Parameters<typeof di
   const provider = openAiProvider ? createOpenAiProviderHost({db:resolved.bindings.DB,catalog:dataCatalog,permissions,
     ...openAiProvider,keyring}) : null;
   const approvals = createWidgetApprovalService({db:resolved.bindings.DB,catalog:dataCatalog,permissions,registry});
-  const engine = createOperationEngine({db: resolved.bindings.DB, catalog: dataCatalog, registry, permissions, runtimeInventory,
+  const engine = createOperationEngine({db: resolved.bindings.DB, catalog: dataCatalog, registry, permissions, runtimeInventory, httpBindings,
     connectors:connectors.map(descriptor=>({descriptor,keyring})),
     widgets:{catalog:widgetCatalog,validators:widgetValidators},
     approvals,
@@ -57,7 +60,9 @@ const mcpHttp = {async dispatch(request: Request, resolved: Parameters<typeof di
     approvals,
   }).dispatch(request, audience, requestId);
 }};
-const runtime = createRuntime({ modules, compositionDigest, nativeAccess, declaredHttp, oauthHttp, mcpHttp });
+const runtime = createRuntime({ modules, compositionDigest, nativeAccess, declaredHttp, oauthHttp, mcpHttp,
+  ...(publicPageProjection ? {publicPages:createPublicPages({catalog:dataCatalog,contextId:frontContextId,
+    projection:publicPageProjection})} : {}) });
 
 export default {
   async fetch(request: Request, env: unknown, ctx: ExecutionContext): Promise<Response> {

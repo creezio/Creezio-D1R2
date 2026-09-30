@@ -2,7 +2,7 @@ import {spawn} from 'node:child_process';
 import {readFileSync,lstatSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
-import {validateCloudflareTarget,assertCloudflareBuiltConfiguration} from './config.mjs';
+import {validateCloudflareTarget,assertCloudflareBuiltConfiguration,cloudflareWorkerConfiguration} from './config.mjs';
 import {measureRuntimeArtifacts} from '../quality/runtime.mjs';
 import {sourceIdentity,sameSourceIdentity} from '../quality/evidence.mjs';
 import {cloudflareArtifactRoot} from './artifact-path.mjs';
@@ -101,13 +101,22 @@ function base64Bytes(value){
   return bytes;
 }
 function bindingsMatch(bindings,target,requireVault=false){
+  const expected=cloudflareWorkerConfiguration(target);
+  const resourceNames=new Set([...expected.d1_databases,...expected.r2_buckets].map(item=>item.binding));
+  const match=(name,predicate)=>bindings.filter(b=>b.name===name).length===1
+    &&predicate(bindings.find(b=>b.name===name));
   return Array.isArray(bindings)
-    &&bindings.some(b=>b.name==='DB'&&b.type==='d1'&&b.id===target.databaseId)
-    &&bindings.some(b=>b.name==='BUCKET'&&b.type==='r2_bucket'&&b.bucket_name===target.bucketName)
+    &&bindings.every(item=>!/^DB_RESOURCE_|^BUCKET_RESOURCE_/.test(item?.name)||resourceNames.has(item.name))
+    &&expected.d1_databases.every(item=>match(item.binding,b=>b.type==='d1'&&b.id===item.database_id))
+    &&expected.r2_buckets.every(item=>match(item.binding,b=>b.type==='r2_bucket'&&b.bucket_name===item.bucket_name))
     &&bindings.some(b=>b.name==='CREEZIO_RUNTIME_PROFILE'&&b.type==='plain_text'&&b.text==='cloudflare')
     &&bindings.some(b=>b.name==='CREEZIO_APP_ORIGIN'&&b.type==='plain_text'&&b.text===target.origin)
     &&bindings.some(b=>b.name==='CREEZIO_WIDGET_SANDBOX_ORIGIN'&&b.type==='plain_text'
       &&b.text===target.widgetSandboxOrigin)
+    &&(expected.vars.CREEZIO_STORAGE_ROUTES
+      ? match('CREEZIO_STORAGE_ROUTES',b=>b.type==='plain_text'
+        &&b.text===expected.vars.CREEZIO_STORAGE_ROUTES)
+      : bindings.every(b=>b.name!=='CREEZIO_STORAGE_ROUTES'))
     &&(!requireVault||bindings.filter(b=>b.name==='CREEZIO_VAULT_KEYRING').length===1
       &&bindings.find(b=>b.name==='CREEZIO_VAULT_KEYRING').type==='secret_text');
 }

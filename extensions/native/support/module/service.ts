@@ -3,6 +3,8 @@ import {OperationError,type OperationContext,type JsonValue} from '@creezio/sdk/
 type Row=Record<string,JsonValue>;
 type Input=Record<string,unknown>;
 const arg=(v:JsonValue):Input=>v&&typeof v==='object'&&!Array.isArray(v)?v as Input:{};
+const record=(v:unknown):Record<string,unknown>|null=>v&&typeof v==='object'&&!Array.isArray(v)?
+  v as Record<string,unknown>:null;
 const fail=(code:'invalid_input'|'not_found'|'conflict'):never=>{throw new OperationError(code);};
 const idOk=(v:unknown):v is string=>typeof v==='string'&&/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(v);
 const textOk=(v:unknown,max:number,required=false):v is string=>typeof v==='string'&&v.length<=max
@@ -12,6 +14,7 @@ const key=(c:OperationContext,id:string)=>({id});
 const own=(c:OperationContext,row:Row)=>c.audience==='admin'||row.requester_id===c.principalId;
 const viewTicket=(c:OperationContext,row:Row)=>({id:row.id,requesterId:row.requester_id,subject:row.subject,
   status:row.status,assignedTo:c.audience==='admin'?row.assigned_to:null,
+  contactId:row.contact_id??null,messageBoxId:row.message_box_id??null,messageId:row.message_id??null,
   createdAt:row.created_at,updatedAt:row.updated_at,lastMessageAt:row.last_message_at,
   lastPreview:row.last_preview,messageCount:row.message_count,revision:row.revision});
 const viewMessage=(c:OperationContext,row:Row)=>({id:row.id,ticketId:row.ticket_id,origin:row.origin,
@@ -44,7 +47,8 @@ export async function ticketCreate(value:JsonValue,c:OperationContext){
   if(!textOk(a.subject,240,true)||a.body!==undefined&&!textOk(a.body,4000))fail('invalid_input');
   const time=now(),body=String(a.body??'').trim(),id=crypto.randomUUID();
   const row:Row={id,requester_id:c.principalId,subject:(a.subject as string).trim(),status:'ouvert',
-    assigned_to:null,created_at:time,updated_at:time,last_message_at:body?time:null,
+    assigned_to:null,contact_id:null,message_box_id:null,message_id:null,
+    created_at:time,updated_at:time,last_message_at:body?time:null,
     last_preview:body?body.slice(0,240).toWellFormed():null,message_count:body?1:0,revision:1};
   const plans=[c.data.planCreate('ticket',{values:row})];
   if(body)plans.push(c.data.planCreate('message',{values:{ticket_id:id,id:crypto.randomUUID(),
@@ -140,3 +144,73 @@ async function addMessage(value:JsonValue,c:OperationContext,origin:'client'|'su
 export const messageCustomer=(v:JsonValue,c:OperationContext)=>addMessage(v,c,'client');
 export const messageReply=(v:JsonValue,c:OperationContext)=>addMessage(v,c,'support');
 export const transportStatus=()=>({output:{state:'unavailable',externalEmail:false}});
+
+/** Optional public lookups remain read-only and recheck access to the selected ticket first. */
+export async function referenceContactSearch(value:JsonValue,c:OperationContext){
+  const a=arg(value);await ticket(c,a.ticketId);
+  if(!textOk(a.query,120,true)||a.cursor!==undefined&&!textOk(a.cursor,2048,true))fail('invalid_input');
+  const output=await c.operations?.query({moduleId:'creezio.crm',operationId:'contact.search',
+    input:{limit:10,query:(a.query as string).trim(),...(a.cursor?{cursor:a.cursor as string}:{})}});
+  const body=record(output);
+  if(!body||!Array.isArray(body.items))
+    throw new OperationError('unavailable');
+  const items=body.items.map((value:unknown)=>{
+    const item=record(value);
+    if(!item||!idOk(item.id)||!textOk(item.name,240,true)||
+      !(item.email===null||textOk(item.email,320))||
+      !(item.companyId===null||idOk(item.companyId)))throw new OperationError('invalid_output');
+    return {id:item.id,name:item.name,email:item.email,companyId:item.companyId};
+  });
+  if(items.length>10||!(body.nextCursor===null||textOk(body.nextCursor,2048,true)))
+    throw new OperationError('invalid_output');
+  return {output:{items,nextCursor:body.nextCursor}};
+}
+export async function referenceContactRead(value:JsonValue,c:OperationContext){
+  const a=arg(value);await ticket(c,a.ticketId);
+  if(!idOk(a.contactId))fail('invalid_input');
+  const output=await c.operations?.query({moduleId:'creezio.crm',operationId:'contact.read',input:{id:a.contactId as string}});
+  const item=record(record(output)?.item);
+  if(!item||item.id!==a.contactId||
+    !textOk(item.name,240,true)||!(item.email===null||textOk(item.email,320))||
+    !(item.companyId===null||idOk(item.companyId)))throw new OperationError('invalid_output');
+  return {output:{item:{id:item.id,name:item.name,email:item.email,companyId:item.companyId}}};
+}
+export async function referenceMessageRead(value:JsonValue,c:OperationContext){
+  const a=arg(value);await ticket(c,a.ticketId);
+  if(!idOk(a.boxId)||!idOk(a.messageId))fail('invalid_input');
+  const output=await c.operations?.query({moduleId:'creezio.messaging',operationId:'message.read',
+    input:{boxId:a.boxId as string,messageId:a.messageId as string}});
+  const message=record(record(output)?.message);
+  if(!message||message.id!==a.messageId||
+    message.boxId!==a.boxId||!textOk(message.subject,240)||!textOk(message.from,320)||
+    !textOk(message.text,16000))throw new OperationError('invalid_output');
+  return {output:{message:{id:message.id,boxId:message.boxId,subject:message.subject,
+    from:message.from,text:message.text}}};
+}
+
+async function linkReference(value:JsonValue,c:OperationContext,kind:'contact'|'message',remove:boolean){
+  const a=arg(value),row=await ticket(c,a.ticketId),revision=Number(a.revision);
+  if(!Number.isSafeInteger(revision)||revision!==row.revision)fail('conflict');
+  let changes:Row;
+  if(kind==='contact'){
+    if(!remove){
+      if(!idOk(a.contactId))fail('invalid_input');
+      await referenceContactRead({ticketId:row.id,contactId:a.contactId} as JsonValue,c);
+    }
+    changes={contact_id:remove?null:a.contactId as string,updated_at:now()};
+  }else{
+    if(!remove){
+      if(!idOk(a.boxId)||!idOk(a.messageId))fail('invalid_input');
+      await referenceMessageRead({ticketId:row.id,boxId:a.boxId,messageId:a.messageId} as JsonValue,c);
+    }
+    changes={message_box_id:remove?null:a.boxId as string,
+      message_id:remove?null:a.messageId as string,updated_at:now()};
+  }
+  return {output:{item:viewTicket(c,{...row,...changes,revision:revision+1})},
+    plans:[c.data.planPatch('ticket',{key:key(c,String(row.id)),
+      compare:{field:'revision',expected:revision},values:changes})]};
+}
+export const referenceContactLink=(v:JsonValue,c:OperationContext)=>linkReference(v,c,'contact',false);
+export const referenceContactUnlink=(v:JsonValue,c:OperationContext)=>linkReference(v,c,'contact',true);
+export const referenceMessageLink=(v:JsonValue,c:OperationContext)=>linkReference(v,c,'message',false);
+export const referenceMessageUnlink=(v:JsonValue,c:OperationContext)=>linkReference(v,c,'message',true);

@@ -14,7 +14,10 @@ const common=[field('context_id','string',{protected:true,constraints:S()}),fiel
 const ticket={id:'ticket',title:'Tickets support',scope:'context',contextField:'context_id',
   fields:[...common,field('requester_id','string',{constraints:S()}),
     field('subject','string',{constraints:S(240)}),field('status','string',{constraints:{enum:['ouvert','repondu','resolu','ferme']}}),
-    field('assigned_to','string',{nullable:true,constraints:S()}),field('updated_at','date-time'),
+    field('assigned_to','string',{nullable:true,constraints:S()}),
+    field('contact_id','string',{nullable:true,constraints:S()}),
+    field('message_box_id','string',{nullable:true,constraints:S()}),
+    field('message_id','string',{nullable:true,constraints:S()}),field('updated_at','date-time'),
     field('last_message_at','date-time',{nullable:true}),field('last_preview','string',{nullable:true,constraints:S(240,0)}),
     field('message_count','integer',{constraints:I()}),field('revision','integer',{constraints:I(1)})],
   primaryKey:['context_id','id'],indexes:[{id:'recent',fields:['context_id','updated_at','id'],unique:false}],
@@ -33,7 +36,8 @@ const integer=(min=0,max=Number.MAX_SAFE_INTEGER)=>({type:'integer',minimum:min,
 const nullable=value=>({anyOf:[value,{type:'null'}]});
 const schemas=[],schema=(name,value)=>{schemas.push({id:name,schema:value});return {schemaId:name};};
 const ticketView=obj({id:str(),requesterId:str(),subject:str(240),status:{type:'string',enum:['ouvert','repondu','resolu','ferme']},
-  assignedTo:nullable(str()),createdAt:str(35),updatedAt:str(35),lastMessageAt:nullable(str(35)),
+  assignedTo:nullable(str()),contactId:nullable(str()),messageBoxId:nullable(str()),messageId:nullable(str()),
+  createdAt:str(35),updatedAt:str(35),lastMessageAt:nullable(str(35)),
   lastPreview:nullable(str(240,0)),messageCount:integer(),revision:integer(1)});
 const messageView=obj({id:str(),ticketId:str(),origin:{type:'string',enum:['client','support']},
   authorId:str(),body:str(4000),createdAt:str(35)});
@@ -51,6 +55,12 @@ const threadWidgetOutput=schema('support-thread-widget-output',{anyOf:[
   schemas.find(item=>item.id==='message-page').schema,
   schemas.find(item=>item.id==='message-output').schema]});
 const statusOutput=schema('transport-output',obj({state:{type:'string',enum:['unavailable']},externalEmail:{type:'boolean'}}));
+const contactReference=obj({id:str(),name:str(240),email:nullable(str(320,0)),companyId:nullable(str())});
+const contactReferencePage=schema('reference-contact-page',obj({items:{type:'array',items:contactReference,maxItems:10},
+  nextCursor:nullable(str(2048))}));
+const contactReferenceOutput=schema('reference-contact-output',obj({item:contactReference}));
+const messageReferenceOutput=schema('reference-message-output',obj({message:obj({id:str(),boxId:str(),
+  subject:str(240,0),from:str(320,0),text:str(16000,0)})}));
 const requestKey=str(),revisionNumber=integer(1),status={type:'string',enum:['ouvert','repondu','resolu','ferme']};
 const inputs={
   'ticket.create':schema('ticket-create-input',obj({requestKey,subject:str(240),body:str(4000,0)},['requestKey','subject'])),
@@ -62,7 +72,14 @@ const inputs={
   'message.list':schema('message-list-input',obj({ticketId:str(),limit:integer(1,50),cursor:str(2048)},['ticketId','limit'])),
   'message.customer':schema('message-customer-input',obj({requestKey,ticketId:str(),revision:revisionNumber,body:str(4000)})),
   'message.reply':schema('message-reply-input',obj({requestKey,ticketId:str(),revision:revisionNumber,body:str(4000)})),
-  'transport.status':schema('transport-status-input',obj({},[]))};
+  'transport.status':schema('transport-status-input',obj({},[])),
+  'reference.contact.search':schema('reference-contact-search-input',obj({ticketId:str(),query:str(120),cursor:str(2048)},['ticketId','query'])),
+  'reference.contact.read':schema('reference-contact-read-input',obj({ticketId:str(),contactId:str()})),
+  'reference.message.read':schema('reference-message-read-input',obj({ticketId:str(),boxId:str(),messageId:str()})),
+  'reference.contact.link':schema('reference-contact-link-input',obj({requestKey,ticketId:str(),revision:revisionNumber,contactId:str()})),
+  'reference.contact.unlink':schema('reference-contact-unlink-input',obj({requestKey,ticketId:str(),revision:revisionNumber})),
+  'reference.message.link':schema('reference-message-link-input',obj({requestKey,ticketId:str(),revision:revisionNumber,boxId:str(),messageId:str()})),
+  'reference.message.unlink':schema('reference-message-unlink-input',obj({requestKey,ticketId:str(),revision:revisionNumber}))};
 const permissions=[{id:'use',title:'Utiliser le support',audiences:['admin','app'],
   actors:['user','delegated-user','machine'],scopes:['support.use'],context:'required',default:'deny',
   resources:[ref('model','ticket'),ref('model','message')],actions:['read','create','update','execute'],
@@ -82,19 +99,30 @@ const spec=[
   ['message.list','query',['admin','app'],['use'],['ticket','message'],[],messagePage],
   ['message.customer','command',['app'],['use'],['ticket'],['ticket','message'],messageOutput],
   ['message.reply','command',['admin'],['use','manage'],['ticket'],['ticket','message'],messageOutput],
-  ['transport.status','query',['admin','app'],['use'],[],[],statusOutput]
+  ['transport.status','query',['admin','app'],['use'],[],[],statusOutput],
+  ['reference.contact.search','query',['admin','app'],['use'],['ticket'],[],contactReferencePage],
+  ['reference.contact.read','query',['admin','app'],['use'],['ticket'],[],contactReferenceOutput],
+  ['reference.message.read','query',['admin','app'],['use'],['ticket'],[],messageReferenceOutput],
+  ['reference.contact.link','command',['admin','app'],['use'],['ticket'],['ticket'],ticketOutput],
+  ['reference.contact.unlink','command',['admin','app'],['use'],['ticket'],['ticket'],ticketOutput],
+  ['reference.message.link','command',['admin','app'],['use'],['ticket'],['ticket'],ticketOutput],
+  ['reference.message.unlink','command',['admin','app'],['use'],['ticket'],['ticket'],ticketOutput]
 ];
 const operations=spec.map(([name,kind,audiences,required,reads,writes,output])=>({
   id:name,title:name,kind,input:inputs[name],output,permissions:required.map(value=>ref('permission',value)),
   audiences,actors:['user','delegated-user','machine'],context:'required',
   handler:{path:'module/operations.ts',export:name.replace(/\.([a-z])/g,(_,letter)=>letter.toUpperCase())},
   effects:{reads:reads.map(value=>ref('model',value)),writes:writes.map(value=>ref('model',value)),
-    emits:[],calls:[],providers:[]},errors,
+    emits:[],calls:name==='reference.contact.search'?[{moduleId:'creezio.crm',kind:'operation',id:'contact.search'}]:
+      ['reference.contact.read','reference.contact.link'].includes(name)?[{moduleId:'creezio.crm',kind:'operation',id:'contact.read'}]:
+      ['reference.message.read','reference.message.link'].includes(name)?[{moduleId:'creezio.messaging',kind:'operation',id:'message.read'}]:[],providers:[]},errors,
   pagination:['ticket.list','message.list'].includes(name)?{mode:'cursor',cursorField:'cursor',limitField:'limit',maxItems:name==='ticket.list'?25:50}:{mode:'none'},
   idempotency:kind==='command'?{mode:'required',keyField:'requestKey',scope:'actor-context-operation',retentionSeconds:86400}:{mode:'none'},
   approval:{mode:'none'},concurrency:{mode:'none'},
   execution:{maxDurationMs:10000,maxItems:name==='ticket.list'?500:name==='message.list'?51:10,resumable:false},
-  audit:{required:true,redactFields:['body','query']},public:false}));
+  audit:{required:true,redactFields:['body','query']},public:false,
+  ...(name.startsWith('reference.contact.')&&!name.endsWith('.unlink')?{requiresModules:['creezio.crm']}:
+    name.startsWith('reference.message.')&&!name.endsWith('.unlink')?{requiresModules:['creezio.messaging']}:{})}));
 const api=[],tools=[];
 const widgetForTool={'ticket.list':'ticket-list-app','ticket.read':'ticket-thread-app',
   'ticket.create':'ticket-list-app','message.list':'ticket-thread-app',
@@ -104,12 +132,14 @@ for(const op of operations){const command=op.kind==='command';
     api.push({id:`${audience}.${op.id}`,method:command?'POST':'GET',path:`/api/${audience}/support/${op.id.replaceAll('.','/')}`,
       operation:ref('operation',op.id),audience,auth:['session','oauth','api-token'],
       parameters:command?[]:Object.keys(input.properties).map(name=>({name:name.replace(/[A-Z]/g,letter=>`-${letter.toLowerCase()}`),in:'query',inputField:name,
-        required:input.required.includes(name)})),input:op.input,output:op.output,rateLimit:{requests:60,windowSeconds:60}});}
+        required:input.required.includes(name)})),input:op.input,output:op.output,rateLimit:{requests:60,windowSeconds:60},
+      ...(op.requiresModules?{requiresModules:op.requiresModules}:{})});}
   tools.push({id:op.id,name:`support_${op.id.replaceAll('.','_')}`,operation:ref('operation',op.id),
     audiences:widgetForTool[op.id]&&op.audiences.length===2?['app']:op.audiences,
     auth:['oauth','api-token'],input:op.input,output:op.output,
     annotations:{readOnly:!command,destructive:false,idempotent:!command,openWorld:false},
-    ...(widgetForTool[op.id]?{widget:ref('widget',widgetForTool[op.id])}:{}),textFallback:true});}
+    ...(widgetForTool[op.id]?{widget:ref('widget',widgetForTool[op.id])}:{}),textFallback:true,
+    ...(op.requiresModules?{requiresModules:op.requiresModules}:{})});}
 // Read aliases expose the same three operations to the other audience's renderer.
 for(const [alias,operation,widget,audience] of [
   ['ticket.list.admin','ticket.list','ticket-list-admin','admin'],
@@ -159,11 +189,17 @@ const widgets=[widget('list','app'),widget('list','admin'),widget('thread','app'
 m.identity={id,title:'Support natif',publisher:'creezio',origin:'https://github.com/creezio/Creezio-D1R2',
   version:'0.0.0',source:{kind:'snapshot',revision,integrity:`sha256-${createHash('sha256').update(revision).digest('hex')}`},
   license:{expression:'NOASSERTION',file:'LICENSE'}};
-m.compatibility={core:'^0.0.0',sdk:'^1.4.1',requiredCapabilities:['runtime.worker','data.d1.shared'],optionalCapabilities:[]};
+m.compatibility={core:'^0.0.0',sdk:'^1.6.0',requiredCapabilities:['runtime.worker','data.d1.shared'],optionalCapabilities:[]};
 m.entrypoints={server:{path:'module/entry.server.ts',export:'support'},ui:{path:'ui/index.tsx',export:'SupportWorkspaceView'},
   plugin:{manifest:'plugin/plugin.json',mcp:'plugin/mcp.json',contributions:{path:'plugin/contributions.ts',export:'contributions'}}};
 m.dependencies=[{moduleId:'creezio.access',origin:m.identity.origin,versionRange:'^0.0.0',optional:false,
-  contracts:[],whenAbsent:'block',whenIncompatible:'block',autoInstall:false}];
+  contracts:[],whenAbsent:'block',whenIncompatible:'block',autoInstall:false},
+  {moduleId:'creezio.crm',origin:m.identity.origin,versionRange:'^0.0.0',optional:true,
+    contracts:[{id:'contact-lookup',versionRange:'^1.0.0'}],whenAbsent:'disable-contributions',
+    whenIncompatible:'block',autoInstall:false},
+  {moduleId:'creezio.messaging',origin:m.identity.origin,versionRange:'^0.0.0',optional:true,
+    contracts:[{id:'message-lookup',versionRange:'^1.0.0'}],whenAbsent:'disable-contributions',
+    whenIncompatible:'block',autoInstall:false}];
 const viewInput=schema('support-view-input',obj({},[]));
 const pendingState=obj({sessionId:str(),audience:{type:'string',enum:['admin','app']},contextId:str(),
   bindingId:str(257),requestKey:str(512),intent:str(64),targetId:str()},
@@ -177,11 +213,11 @@ m.contracts={schemas,models:[ticket,message],files:[],events:[],settings:[],sear
         .map(name=>ref('operation',name)),resources:widgets.map(item=>`${item.id}-ui`),integrity:skillIntegrity}]},
   ui:{views:[{id:'workspace',title:'Support',surfaces:['workspace'],
     route:'/admin/support',component:{path:'ui/index.tsx',export:'SupportWorkspaceView'},permissions:[ref('permission','use')],
-    operations:operations.map(op=>ref('operation',op.id)),input:viewInput,
+    operations:operations.filter(op=>!op.requiresModules).map(op=>ref('operation',op.id)),input:viewInput,
     panel:{identityFields:[],navigation:'sdk',retention:'preserve',inactiveEffects:'suspend',stateSchema:panelState}},
     {id:'front',title:'Support',surfaces:['front'],route:'/support',
       component:{path:'ui/index.tsx',export:'SupportWorkspaceView'},permissions:[ref('permission','use')],
-      operations:operations.filter(op=>op.audiences.includes('app')).map(op=>ref('operation',op.id)),input:viewInput,
+      operations:operations.filter(op=>op.audiences.includes('app')&&!op.requiresModules).map(op=>ref('operation',op.id)),input:viewInput,
       panel:{identityFields:[],navigation:'sdk',retention:'preserve',inactiveEffects:'suspend',stateSchema:panelState}}],
     navigation:[{id:'support',title:'Support',view:ref('view','workspace'),permissions:[ref('permission','use')],
       surfaces:['workspace'],order:60},
