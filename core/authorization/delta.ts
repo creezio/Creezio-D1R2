@@ -8,6 +8,7 @@ type Status = 'active' | 'disabled';
 type Effect = 'inherit' | 'allow' | 'deny';
 type Toggle = Readonly<{ present: boolean }>;
 export type AccessPolicyChange =
+  | Readonly<{ kind: 'context-admit'; contextId: string; status: Status }>
   | Readonly<{ kind: 'context-status'; contextId: string; status: Status }>
   | Readonly<{ kind: 'membership'; principalId: string; contextId: string; audience: AuthorizationAudience; status: Status }>
   | (Readonly<{ kind: 'role-parent'; roleId: string; parentRoleId: string }> & Toggle)
@@ -28,7 +29,7 @@ const effect = (value: unknown): value is Effect => value === 'inherit' || value
 
 function key(change: AccessPolicyChange): string {
   switch (change.kind) {
-    case 'context-status': return JSON.stringify([change.kind, change.contextId]);
+    case 'context-admit': case 'context-status': return JSON.stringify(['context', change.contextId]);
     case 'membership': return JSON.stringify([change.kind, change.principalId, change.contextId, change.audience]);
     case 'role-parent': return JSON.stringify([change.kind, change.roleId, change.parentRoleId]);
     case 'role-grant': case 'role-override': return JSON.stringify([change.kind, change.roleId, change.permissionId]);
@@ -48,6 +49,8 @@ export function parseAccessPolicyChanges(value: unknown): readonly AccessPolicyC
     const c = raw as Record<string, unknown>;
     let accepted = false;
     switch (c.kind) {
+      case 'context-admit': accepted = exactRecord(c, ['kind', 'contextId', 'status'])
+        && valid(c.contextId, opaque) && status(c.status); break;
       case 'context-status': accepted = exactRecord(c, ['kind', 'contextId', 'status'])
         && valid(c.contextId, opaque) && status(c.status); break;
       case 'membership': accepted = exactRecord(c, ['kind', 'principalId', 'contextId', 'audience', 'status'])
@@ -87,6 +90,10 @@ export function applyAccessPolicyChanges(current: AccessPolicy, changes: readonl
   for (const change of changes) {
     const role = 'roleId' in change ? next.roles.find(item => item.id === change.roleId) : null;
     switch (change.kind) {
+      case 'context-admit': {
+        if (next.contexts.some(item => item.id === change.contextId)) return null;
+        next.contexts.push({id: change.contextId, status: change.status}); break;
+      }
       case 'context-status': {
         const context = next.contexts.find(item => item.id === change.contextId);
         if (!context || context.status === change.status) return null;

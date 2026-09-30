@@ -20,6 +20,7 @@ export interface AccessAdminPolicyChange {
 export interface AccessAdminAuditChange extends AccessAdminPolicyChange { readonly index: number }
 /** UI mutation intent. The server derives before/after from its fresh policy epoch. */
 export type AccessAdminDeltaInput =
+  | Readonly<{kind: 'context-admit'; contextId: string; status: 'active' | 'disabled'}>
   | Readonly<{kind: 'context-status'; contextId: string; status: 'active' | 'disabled'}>
   | Readonly<{kind: 'membership'; principalId: string; contextId: string; audience: AccessAdminAudience;
     status: 'active' | 'disabled'}>
