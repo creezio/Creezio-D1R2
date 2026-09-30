@@ -1,5 +1,13 @@
 # Changelog
 
+## 1er octobre 2026 — recettes Linux ciblées et PR #82 en correction
+
+- Sur Core main `3d4248960f4ff56d9fdf5e956abe26d6e202f174`, le workspace a recherché et relu un contact CRM, puis l'a lié à un ticket Support (révision 3→4). Le lien a persisté après rechargement ; les trois messages Support, deux boîtes Messaging et le brouillon à la révision 6 sont conservés. Aucun message réel dans les boîtes n'a permis de qualifier la relation Support→Messaging. Preuve : `outputs/CREEZIO-T18-T20-LINKS-RECIPE-2026-09-30.json`.
+- La recette CRM sur la même image Linux a écrit puis retiré la ville du contact (révisions 2→3→4), conservé sa relation d'entreprise et les lectures Support/Messaging, et retrouvé un brouillon non enregistré après navigation entre onglets. La section Contacts est restaurée après rechargement, pas la fiche sélectionnée. Archive/suppression et pagination restent ouvertes. Preuve : `outputs/CREEZIO-T20-CRM-UI-RECIPE-2026-10-01.json`.
+- PR #82 reste en brouillon : la CI candidate échoue sur des assertions de composition périmées et un budget runtime en correction. Les correctifs ciblés des tests de schéma (8/8) et de composition runtime (31/31) passent localement ; le contrôle MCP Workerd attend un nouveau build. Aucun gain de taille du bundle n'est établi. SDK 1.8 demeure candidat non public ; aucune nouvelle publication Cloudflare n'est confirmée et l'ancien Worker `cd2eeb2` reste servi sous `delivery-unknown` révision 8.
+
+- Le correctif candidat de `scripts/build/compose-runtime.mjs` partage au build les seuls scripts HTML de widgets strictement identiques. `tests/runtime/widget-script-sharing.test.mjs` contrôle HTML, ordre, digests et UTF-8 inchangés, ainsi que la conservation sans partage des tags avec attributs ou multiples. La réduction mesurée en mémoire n'est pas une preuve de bundle Linux construit ni de passage du budget runtime.
+
 ## 30 septembre 2026 — compléments des modules et SDK 1.8 candidat
 
 - Messaging et Resend ajoutent le gel atomique des pièces sortantes, les reçus signés et la réception explicitement choisie dans une boîte. Les pièces entrantes restent refusées intégralement ; la recette Resend réelle est reportée.

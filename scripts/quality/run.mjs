@@ -5,7 +5,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inspectTap, tapFailureExcerpt, sourceIdentity, sameSourceIdentity, collectRequiredTests } from './evidence.mjs';
 import { validateDocs } from './docs.mjs';
-import { measureRuntimeArtifacts } from './runtime.mjs';
+import { assertArtifactBudgets, measureRuntimeArtifacts } from './runtime.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const started = new Date().toISOString();
@@ -14,6 +14,7 @@ mkdirSync(dirname(evidencePath), { recursive: true });
 const write = value => writeFileSync(evidencePath, JSON.stringify(value, null, 2) + '\n');
 const profile = 't32-cloudflare';
 write({ schemaVersion: 1, profile, started, state: 'running', success: false, mergeReady: false });
+let earlyArtifactFailure = null;
 try {
 const source = sourceIdentity(root);
 const docs = await validateDocs(root);
@@ -71,6 +72,24 @@ execute('theme-standard-suites', ['themes/standard/gate.mjs']);
 execute('theme-chatgpt-suites', ['themes/chatgpt-like/gate.mjs']);
 execute('typecheck', ['node_modules/typescript/bin/tsc', '--noEmit']);
 execute('build', ['scripts/run-framework.mjs', 'build']);
+// Refuse an oversized build before the long aggregate. The runtime witness below
+// still checks these same limits with its graph and timing evidence.
+const artifactStarted = performance.now();
+const builtArtifact = measureRuntimeArtifacts(root);
+earlyArtifactFailure = { source, results: { docs, commands, artifact: {
+  digest: builtArtifact.digest, worker: builtArtifact.worker, assets: builtArtifact.assets },
+  tests: { state: 'not_started', requiredFiles: tests, executed: 0 },
+  runtimeEvidenceCurrent: false } };
+try {
+  assertArtifactBudgets(builtArtifact);
+  commands.push({ label: 'artifact-budgets', command: ['internal', 'assertArtifactBudgets'],
+    exitCode: 0, durationMs: Math.round(performance.now() - artifactStarted) });
+} catch (error) {
+  commands.push({ label: 'artifact-budgets', command: ['internal', 'assertArtifactBudgets'],
+    exitCode: 1, durationMs: Math.round(performance.now() - artifactStarted) });
+  throw error;
+}
+earlyArtifactFailure = null;
 // T27's full suite passed 1,246 tests in 483s; another runner stopped at the 600s
 // ceiling after reporting its final test. Leave bounded room for host variance;
 // individual test deadlines and complete TAP counters remain mandatory.
@@ -113,6 +132,7 @@ if (!success) {
 }
 } catch (error) {
   write({ schemaVersion: 1, profile, started, finished: new Date().toISOString(),
+    ...(earlyArtifactFailure ?? {}),
     state: 'failed', success: false, mergeReady: false, error: error.message });
   console.error(error.message);
   process.exitCode = 1;

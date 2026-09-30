@@ -13,7 +13,7 @@ const read=relative=>JSON.parse(readFileSync(path.join(repository,relative),'utf
 const generated=readFileSync(path.join(repository,'.creezio/generated/provider-catalog.ts'),'utf8');
 const catalog=JSON.parse(generated.match(/export const toolCatalog: readonly ProviderOperationSchema\[\] = freeze\((\[[^\n]+\])\);/)?.[1]??'null');
 const widgetsSource=readFileSync(path.join(repository,'.creezio/generated/widget-catalog.ts'),'utf8');
-const widgets=JSON.parse(widgetsSource.match(/export const widgetCatalog: CompiledWidgetCatalog = freeze\((\{[^\n]+\})\);/)?.[1]??'null');
+const widgets=JSON.parse(widgetsSource.match(/const widgetCatalogBase: Pick<CompiledWidgetCatalog,'widgets'> = (\{[^\n]+\});/)?.[1]??'null');
 
 test('output descriptions preserve declared field meaning in read and list schemas without copying schema data',()=>{
   const request={type:'object',properties:{amountMinor:{type:'integer',minimum:0,

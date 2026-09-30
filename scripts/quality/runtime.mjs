@@ -17,12 +17,19 @@ const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 19_600_000, workerGzipBytes: 3_500_000,
   selectedGraphInputs: 32, startupMs: 15_000, routeMs: 3_000 });
 
+const check = (name, value, limit) => {
+  if (!Number.isFinite(value) || value < 0 || value > limit) throw new Error(`Local runtime budget ${name} exceeded: ${value} > ${limit}.`);
+};
+
+/** Early size gate and the exact same size gate used by the final runtime witness. */
+export function assertArtifactBudgets(artifact) {
+  check('workerBytes', artifact.worker.bytes, RUNTIME_BUDGETS.workerBytes);
+  check('workerGzipBytes', artifact.worker.gzipBytes, RUNTIME_BUDGETS.workerGzipBytes);
+  return RUNTIME_BUDGETS;
+}
+
 export function assertRuntimeBudgets(report) {
-  const check = (name, value, limit) => {
-    if (!Number.isFinite(value) || value < 0 || value > limit) throw new Error(`Local runtime budget ${name} exceeded: ${value} > ${limit}.`);
-  };
-  check('workerBytes', report.artifact.worker.bytes, RUNTIME_BUDGETS.workerBytes);
-  check('workerGzipBytes', report.artifact.worker.gzipBytes, RUNTIME_BUDGETS.workerGzipBytes);
+  assertArtifactBudgets(report.artifact);
   check('selectedGraphInputs', report.witness.boundary.inputs.length, RUNTIME_BUDGETS.selectedGraphInputs);
   for (const name of ['startup', 'restart']) check(name, report.durationsMs[name], RUNTIME_BUDGETS.startupMs);
   for (const name of ['homepage', 'staticAsset', 'health', 'witness', 'storageRoundtrip']) check(name, report.durationsMs[name], RUNTIME_BUDGETS.routeMs);
