@@ -5,7 +5,7 @@ import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,lstatSync} from 
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {loadLocalConfiguration} from '../../scripts/local/config.mjs';
-import {createStorageInstallationIdentity} from '../../scripts/local/storage-installation.mjs';
+import {createStorageInstallationIdentity,createLocalStorageInventory} from '../../scripts/local/storage-installation.mjs';
 import {openLocalStorage,openLocalStoragePair} from '../../scripts/local/database.mjs';
 
 test('explicit local pair selects only an active context and preserves the primary alias',
@@ -16,13 +16,14 @@ test('explicit local pair selects only an active context and preserves the prima
   try{
     mkdirSync(path.join(root,'.openai'));
     writeFileSync(path.join(root,'.openai','hosting.json'),JSON.stringify({d1:'DB',r2:'BUCKET'}));
-    const installationId=createStorageInstallationIdentity(root);
     const legacy=await openLocalStorage(loadLocalConfiguration({root}));opened.push(legacy);
     assert.ok(legacy.db&&legacy.bucket,'v1 primary opens without a resource inventory');
     const resources=[{contextId:'tenant-a',slot:1,status:'active',databaseId:'pair-a',
       databaseName:'pair-a',bucketName:'pair-a-files'},
     {contextId:'tenant-b',slot:2,status:'revoked',databaseId:'pair-b',
       databaseName:'pair-b',bucketName:'pair-b-files'}];
+    const installationId=createStorageInstallationIdentity(root);
+    createLocalStorageInventory(root,{schemaVersion:1,storageInstallationId:installationId,resources});
     const config=loadLocalConfiguration({root,storageResources:resources,storageAuthority:true});
     assert.equal(config.storageInstallationId,installationId);
     const primary=await openLocalStorage(config);opened.push(primary);
@@ -43,7 +44,7 @@ test('explicit local pair selects only an active context and preserves the prima
     const saved=readFileSync(identity,'utf8');
     writeFileSync(identity,JSON.stringify({schemaVersion:1,
       storageInstallationId:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'})+'\n');
-    await assert.rejects(openLocalStoragePair(config,'tenant-a'),{code:'local_path'});
+    await assert.rejects(openLocalStoragePair(config,'tenant-a'),/Invalid local storage inventory/);
     writeFileSync(identity,saved);
   }finally{
     for(const connection of opened.reverse())await connection.dispose();

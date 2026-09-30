@@ -6,7 +6,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {temporaryDirectory} from '../quality/temporary.mjs';
 import {loadLocalConfiguration} from '../../scripts/local/config.mjs';
-import {createStorageInstallationIdentity} from '../../scripts/local/storage-installation.mjs';
+import {createStorageInstallationIdentity,createLocalStorageInventory} from '../../scripts/local/storage-installation.mjs';
 import {openLocalStoragePair} from '../../scripts/local/database.mjs';
 import {loadCompositionSchema} from '../../scripts/data/composition-schema.mjs';
 import {applyCompositionSchema} from '../../scripts/data/apply-schema.mjs';
@@ -25,9 +25,11 @@ test('routed capture preserves its pair and imports only a denied route snapshot
   mkdirSync(path.join(root,'.openai'));
   writeFileSync(path.join(root,'.openai','hosting.json'),JSON.stringify({d1:'DB',r2:'BUCKET'}));
   const installationId=createStorageInstallationIdentity(root);
-  const config=loadLocalConfiguration({root,storageAuthority:true,storageResources:[{
+  const resources=[{
     contextId:'tenant-a',slot:1,status:'active',databaseId:'tenant-a-d1',
-    databaseName:'tenant-a-db',bucketName:'tenant-a-files'}]});
+    databaseName:'tenant-a-db',bucketName:'tenant-a-files'}];
+  createLocalStorageInventory(root,{schemaVersion:1,storageInstallationId:installationId,resources});
+  const config=loadLocalConfiguration({root,storageAuthority:true,storageResources:resources});
   const store=await openLocalStoragePair(config,'tenant-a');
   try{
     const applied=await applyCompositionSchema(store.db,plan,

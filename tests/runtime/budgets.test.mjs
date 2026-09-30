@@ -24,14 +24,14 @@ test('runtime ceilings reject size, import graph and latency regressions rather 
   }
 });
 
-test('PR79 public Pages and native module Worker fits both measured ceilings with under two percent headroom', () => {
-  const observed = {workerBytes: 19_056_125, workerGzipBytes: 3_436_172};
+test('PR81 module workflows Worker fits the measured ceilings with under one percent headroom', () => {
+  const observed = {workerBytes: 19_483_275, workerGzipBytes: 3_487_107};
   const report = valid();
   report.artifact.worker.bytes = observed.workerBytes;
   report.artifact.worker.gzipBytes = observed.workerGzipBytes;
   assert.deepEqual(assertRuntimeBudgets(report), RUNTIME_BUDGETS);
   for (const name of Object.keys(observed)) {
     assert(RUNTIME_BUDGETS[name] > observed[name]);
-    assert(RUNTIME_BUDGETS[name] < observed[name] * 1.02);
+    assert(RUNTIME_BUDGETS[name] < observed[name] * 1.01);
   }
 });

@@ -5,16 +5,16 @@ import { gzipSync } from 'node:zlib';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 
-// PR79 9cfbcc7 adds public Pages SSR/media, Support relations and Analytics diagnostics.
-// CI36735985594 measured 19,056,125 raw / 3,436,172 gzip bytes (86 Worker files).
-// Main812ebd4 measured 18,440,904 raw / 3,339,217 gzip bytes (also 86 files).
-// The total delta is 615,221 raw / 96,955 gzip bytes, without per-file attribution;
-// the standalone public renderer itself measures 206,959 raw bytes before Vite.
-// Keep under 2% margin; source graph and runtime duration ceilings are unchanged.
+// PR81 8eeebf5 adds Sidebar preferences, retention and routed storage integration.
+// CI36765247034 measured 19,483,275 raw / 3,487,107 gzip bytes (87 Worker files).
+// Qualified main684901c measured 19,229,916 raw / 3,461,963 gzip bytes (86 files).
+// The complete feature delta is 253,359 raw / 25,144 gzip bytes, without per-file
+// attribution or additional package dependencies. Keep under 1% raw headroom;
+// the compressed, import graph and runtime duration ceilings are unchanged.
 // Each widget remains independently consumable by MCP Apps hosts. New compositions
 // must still be measured explicitly rather than treated as arbitrarily extensible.
 // They are neither provider quotas nor production latency guarantees.
-export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 19_400_000, workerGzipBytes: 3_500_000,
+export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 19_600_000, workerGzipBytes: 3_500_000,
   selectedGraphInputs: 32, startupMs: 15_000, routeMs: 3_000 });
 
 export function assertRuntimeBudgets(report) {
