@@ -61,7 +61,7 @@ test('Meili connection uses real D1/vault/ACL and HTTP/MCP with bounded syntheti
     const runtime=new Miniflare({host:'127.0.0.1',port:0,cf:false,modules:true,
       compatibilityDate:'2026-05-15',script:'export default {fetch(){return new Response(null,{status:404})}}',
       d1Databases:{DB:'creezio-meili-integration'},d1Persist:false});
-    let mcpClient;
+    let mcpClient,manageMcpClient;
     try{
       const db=await runtime.getD1Database('DB');
       await db.batch([...access.statements,...technical.statements,...generated.statements].map(sql=>db.prepare(sql)));
@@ -82,7 +82,7 @@ test('Meili connection uses real D1/vault/ACL and HTTP/MCP with bounded syntheti
       for(const [principalId,audience,contextId,roleId] of [
         [owner.principalId,'admin','application','meili-admin'],
         [owner.principalId,'admin','other','meili-admin'],
-        [machine.id,'admin','application','meili-reader']]){
+        [machine.id,'admin','application','meili-admin']]){
         if(!policy.memberships.some(item=>item.principalId===principalId&&item.audience===audience&&item.contextId===contextId))
           policy.memberships.push({principalId,audience,contextId,status:'active'});
         policy.assignments.push({principalId,audience,contextId,roleId});
@@ -91,14 +91,28 @@ test('Meili connection uses real D1/vault/ACL and HTTP/MCP with bounded syntheti
       const apiToken=good(await machines.issueToken(admin.token,{principalId:machine.id,label:'Meili read test',
         ttlMs:60000,scopes:[{contextId:'application',audience:'admin',
           permissionIds:[`${moduleId}:read`]}]})).token;
+      const manageToken=good(await machines.issueToken(admin.token,{principalId:machine.id,label:'Meili manage test',
+        ttlMs:60000,scopes:[{contextId:'application',audience:'admin',
+          permissionIds:[`${moduleId}:read`,`${moduleId}:manage`]}]})).token;
       const keyring=createVaultKeyring({activeKeyId:'meili-test',keys:{'meili-test':new Uint8Array(32).fill(23)}});
       const secret='synthetic-meili-api-key',requests=[];
-      let providerStatus=200;
+      let providerStatus=200,rotateDuringList=false,indexCount=3;
       const fetcher=async(url,init)=>{
         requests.push({url:String(url),method:init.method,redirect:init.redirect,
           credential:init.headers.get('Authorization')});
+        const target=new URL(String(url)),limit=Number(target.searchParams.get('limit')),
+          offset=Number(target.searchParams.get('offset')??0);
+        if(rotateDuringList&&target.searchParams.has('offset')){
+          rotateDuringList=false;
+          await db.prepare(`UPDATE "${generated.tables.connector_config}" SET revision=4,enabled=0 WHERE context_id=?`)
+            .bind('application').run();
+        }
+        const indexes=Array.from({length:indexCount},(_,index)=>({uid:
+          ['private-index','other-index','last-index'][index]??`index-${index}`,
+          primaryKey:index===1?null:'id',createdAt:'2026-09-29T00:00:00.000Z',
+          updatedAt:'2026-09-30T00:00:00.000Z',documents:[{token:'never-return'}]}));
         return Response.json(providerStatus===200?
-          {results:[{uid:'private-index',primaryKey:'secret'}],limit:1,offset:0,total:17}:
+          {results:indexes.slice(offset,offset+limit),limit,offset,total:indexes.length}:
           {message:'private remote error'}, {status:providerStatus});
       };
       const registered=registry(),engine=createOperationEngine({db,catalog,registry:registered,permissions,
@@ -139,6 +153,23 @@ test('Meili connection uses real D1/vault/ACL and HTTP/MCP with bounded syntheti
       assert.deepEqual(requests[0],{url:'https://meili.example.invalid/indexes?limit=1',
         method:'GET',redirect:'manual',credential:`Bearer ${secret}`});
       assert.doesNotMatch(JSON.stringify(checked),/private-index|primaryKey|total|synthetic-meili-api-key/u);
+      await failed(invoke('index.list',{limit:2},{token:apiToken,kind:'api-token'}),'forbidden');
+      await failed(invoke('index.list',{limit:2},{token:app.token,audience:'app'}),'forbidden');
+      const listed=success(await invoke('index.list',{limit:2}));
+      assert.deepEqual(listed.items.map(item=>item.uid),['private-index','other-index']);
+      assert.equal(listed.total,3);assert.equal(listed.nextCursor,'2');
+      assert.equal(listed.items[1].primaryKey,null);
+      assert.doesNotMatch(JSON.stringify(listed),/documents|never-return|synthetic-meili-api-key/u);
+      const next=success(await invoke('index.list',{limit:2,cursor:listed.nextCursor}));
+      assert.deepEqual(next.items.map(item=>item.uid),['last-index']);assert.equal(next.nextCursor,null);
+      assert.equal(requests.at(-2).url,'https://meili.example.invalid/indexes?offset=0&limit=2');
+      assert.equal(requests.at(-1).url,'https://meili.example.invalid/indexes?offset=2&limit=2');
+      indexCount=20;
+      assert.equal(success(await invoke('index.list',{limit:20})).items.length,20,
+        'engine budget includes both D1 reads and all twenty projected indexes');
+      indexCount=3;
+      await failed(invoke('index.list',{limit:21}),'invalid_input');
+      await failed(invoke('index.list',{cursor:'02',limit:2}),'invalid_input');
       providerStatus=401;
       const refused=success(await invoke('connection.check',{}));
       assert.deepEqual({...refused},{authenticated:false,status:'key_rejected'});
@@ -156,6 +187,11 @@ test('Meili connection uses real D1/vault/ACL and HTTP/MCP with bounded syntheti
       assert.equal(httpCheck.status,200,await httpCheck.clone().text());
       assert.equal((await httpCheck.json()).execution.output.authenticated,true);
       assert.equal(await wire('/api/app/meili/connection/check'),null,'no app route is declared');
+      const deniedList=await wire('/api/admin/meili/index/list?limit=2');
+      assert.equal(deniedList.status,403);
+      const httpList=await wire('/api/admin/meili/index/list?limit=2',manageToken);
+      assert.equal(httpList.status,200,await httpList.clone().text());
+      assert.equal((await httpList.json()).execution.output.nextCursor,'2');
       const mcpBindings=compileMcpBindings({composition,modules:[manifest],operationCatalog:registered.catalog});
       const mcp=createMcpHttpTransport(mcpBindings,registered,engine,{origin,
         resourceMetadataUrl:audience=>`${origin}/.well-known/oauth-protected-resource/mcp/${audience}`,
@@ -171,8 +207,20 @@ test('Meili connection uses real D1/vault/ACL and HTTP/MCP with bounded syntheti
       await mcpClient.connect(new StreamableHTTPClientTransport(new URL(origin+'/mcp/admin'),{
         authProvider:{token:async()=>apiToken},fetch:(input,init)=>mcp.dispatch(new Request(input,init),'admin','meili-mcp')}));
       assert.ok((await mcpClient.listTools()).tools.some(tool=>tool.name==='meili_connection_check'));
+      assert.ok(!(await mcpClient.listTools()).tools.some(tool=>tool.name==='meili_index_list'));
       const mcpCheck=await mcpClient.callTool({name:'meili_connection_check',arguments:{}});
       assert.equal(mcpCheck.structuredContent.authenticated,true);
+      manageMcpClient=new Client({name:'meili-manage-integration',version:'1.0.0'});
+      await manageMcpClient.connect(new StreamableHTTPClientTransport(new URL(origin+'/mcp/admin'),{
+        authProvider:{token:async()=>manageToken},fetch:(input,init)=>mcp.dispatch(new Request(input,init),'admin','meili-manage-mcp')}));
+      assert.ok((await manageMcpClient.listTools()).tools.some(tool=>tool.name==='meili_index_list'));
+      const mcpList=await manageMcpClient.callTool({name:'meili_index_list',arguments:{limit:2}});
+      assert.equal(mcpList.structuredContent.nextCursor,'2');
+      assert.doesNotMatch(JSON.stringify(mcpList),/never-return|synthetic-meili-api-key/u);
+      rotateDuringList=true;
+      await failed(invoke('index.list',{limit:2}),'conflict');
+      await db.prepare(`UPDATE "${generated.tables.connector_config}" SET revision=3,enabled=1 WHERE context_id=?`)
+        .bind('application').run();
       const revoked=success(await invoke('config.key.revoke',{requestKey:'revoke-key',revision:3})).config;
       assert.equal(revoked.hasKey,false);assert.equal(revoked.enabled,false);
       assert.equal((await db.prepare(`SELECT state FROM "${generated.tables.connector_secret}" WHERE context_id=?`)
@@ -190,5 +238,6 @@ test('Meili connection uses real D1/vault/ACL and HTTP/MCP with bounded syntheti
       good(await acl.replacePolicy(admin.token,{expectedEpoch:latest.epoch,policy:withoutMachine}));
       assert.equal((await wire('/api/admin/meili/connection/check')).status,403);
       await assert.rejects(mcpClient.callTool({name:'meili_connection_check',arguments:{}}));
-    }finally{if(mcpClient)await mcpClient.close();await runtime.dispose();}
+    }finally{if(manageMcpClient)await manageMcpClient.close();
+      if(mcpClient)await mcpClient.close();await runtime.dispose();}
   });

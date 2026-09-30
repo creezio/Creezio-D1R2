@@ -4,7 +4,7 @@ import {stripeConnectorDescriptor} from './storage.ts';
 
 const root=new URL('../',import.meta.url);
 const template=JSON.parse(readFileSync(new URL('module/manifest.json',root),'utf8'));
-const id='creezio.stripe',connectorId='stripe.api.v1',version='0.2.0',sourceRevision='t27-stripe-products-prices-read-v2';
+const id='creezio.stripe',connectorId='stripe.api.v1',version='0.2.1',sourceRevision='t27-stripe-price-frequency-fr-v1';
 const ref=(kind,name)=>({moduleId:id,kind,id:name});
 const str=(max=128,min=1)=>({type:'string',minLength:min,maxLength:max});
 const integer=(min=0,max=Number.MAX_SAFE_INTEGER)=>({type:'integer',minimum:min,maximum:max});

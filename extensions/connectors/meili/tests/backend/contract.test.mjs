@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {manifest} from '../helpers.mjs';
-import {canonicalOrigin,configRead,configSet,configKeySet,configKeyRevoke,connectionCheck}
+import {canonicalOrigin,configRead,configSet,configKeySet,configKeyRevoke,connectionCheck,indexList}
   from '../../module/service.ts';
 import {meiliConnectorDescriptor} from '../../module/storage.ts';
 
@@ -9,9 +9,9 @@ const row={id:'meili.api.v1',origin:'https://meili.example.invalid',
   key_ref:'creezio-secret:v1:00000000-0000-4000-8000-000000000001',
   secret_version:1,enabled:true,revision:4,updated_at:'2026-09-29T00:00:00.000Z'};
 function harness(initial=row,remote={kind:'ok',status:200,body:{results:[],limit:1,offset:0,total:0}}){
-  const calls=[];
-  return {calls,context:{signal:new AbortController().signal,
-    data:{async get(name){assert.equal(name,'connector_config');return initial;},
+  const calls=[];let live=initial;
+  return {calls,setRow(value){live=value;},context:{signal:new AbortController().signal,
+    data:{async get(name){assert.equal(name,'connector_config');return live;},
       planPatch(name,args){calls.push({name,args});return {kind:'plan'};},
       planCreate(name,args){calls.push({name,args});return {kind:'plan'};}},
     providerSecrets:{async preparePut(args){calls.push({secret:args});return {plan:{kind:'secret-plan'},
@@ -19,17 +19,46 @@ function harness(initial=row,remote={kind:'ok',status:200,body:{results:[],limit
       async prepareReplace(args){calls.push({secret:args});return {plan:{kind:'secret-plan'},
         reference:args.reference,version:2};},async prepareRevoke(args){calls.push({revoke:args});
         return {plan:{kind:'secret-plan'},version:2};}},
-    connector:{async request(args){calls.push({request:args});return remote;}}}};
+    connector:{async request(args){calls.push({request:args});return typeof remote==='function'?remote(args):remote;}}}};
 }
-test('descriptor exposes only one fixed Bearer GET with no search or index write',()=>{
+test('descriptor exposes two fixed Bearer GETs with no document search or index write',()=>{
   assert.deepEqual(manifest.contracts.models.map(model=>model.primaryKey),
     [['context_id','id'],['context_id','id']]);
   assert.deepEqual(manifest.contracts.connectors,[meiliConnectorDescriptor]);
   assert.deepEqual(meiliConnectorDescriptor.auth,{kind:'bearer'});
   assert.deepEqual(meiliConnectorDescriptor.resources.map(({id,method,path,params,query})=>
     ({id,method,path,params,query})),[{id:'indexes',method:'GET',path:'/indexes',params:[],
-      query:{fixed:[{name:'limit',value:'1'}]}}]);
+      query:{fixed:[{name:'limit',value:'1'}]}},
+    {id:'index-list',method:'GET',path:'/indexes',params:['cursor','limit'],
+      query:{cursor:'offset',limit:'limit'}}]);
   assert.deepEqual(manifest.contracts.search,[]);
+});
+test('index listing projects only bounded metadata, paginates and rejects rotation during GET',async()=>{
+  const dates={createdAt:'2026-09-29T00:00:00.000Z',updatedAt:'2026-09-30T00:00:00.000Z'};
+  const first=harness(row,{kind:'ok',status:200,body:{results:[
+    {uid:'one',primaryKey:'id',...dates,documents:[{secret:'never'}]},
+    {uid:'two',primaryKey:null,...dates}],offset:0,limit:2,total:3}});
+  const page=(await indexList({limit:2},first.context)).output;
+  assert.deepEqual(page,{items:[{uid:'one',primaryKey:'id',...dates},
+    {uid:'two',primaryKey:null,...dates}],total:3,nextCursor:'2'});
+  assert.deepEqual(first.calls[0].request,{resource:'index-list',cursor:'0',limit:2,
+    signal:first.context.signal});
+  assert.doesNotMatch(JSON.stringify(page),/secret|documents/u);
+  const second=harness(row,{kind:'ok',status:200,body:{results:[{uid:'three',primaryKey:'sku',...dates}],
+    offset:2,limit:2,total:3}});
+  assert.equal((await indexList({cursor:'2',limit:2},second.context)).output.nextCursor,null);
+  for(const args of [{cursor:'02'},{cursor:'-1'},{limit:21},{limit:0},{cursor:'100001'}])
+    await assert.rejects(indexList(args,harness().context),{code:'invalid_input'});
+  const changing=harness(row,async()=>{changing.setRow({...row,revision:5,key_ref:'rotated'});
+    return {kind:'ok',status:200,body:{results:[{uid:'hidden',primaryKey:null,...dates}],
+      offset:0,limit:1,total:1}};});
+  await assert.rejects(indexList({limit:1},changing.context),{code:'conflict'});
+  assert.equal(changing.calls.length,1);
+  await assert.rejects(indexList({limit:1},harness({...row,enabled:false}).context),{code:'unavailable'});
+  for(const body of [{results:[{}],offset:0,limit:1,total:1},
+    {results:[],offset:1,limit:1,total:1},{results:[],offset:0,limit:1,total:2}])
+    await assert.rejects(indexList({limit:1},harness(row,{kind:'ok',status:200,body}).context),
+      {code:'unavailable'});
 });
 test('configuration URL/CAS and vault plans never return a key or reference',async()=>{
   assert.equal(canonicalOrigin('https://MEILI.example.invalid/'),'https://meili.example.invalid');

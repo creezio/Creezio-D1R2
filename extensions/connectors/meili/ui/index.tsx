@@ -6,8 +6,8 @@ import {useWorkspaceActivity} from '@creezio/sdk/workspace/components';
 import type {WorkspaceViewProps} from '@creezio/sdk/workspace/types';
 import {createCommandJournal,type PendingCommand} from '@creezio/sdk/operations/command-journal';
 import {Button,Card,CardContent,CardDescription,CardHeader,CardTitle} from '@creezio/sdk/ui';
-import {configRevisionChanged,panelData,preferFreshConfig,readPanel,retainedSessionId,scopeChange,sessionVerified,
-  type MeiliScope} from './panel-state.ts';
+import {configRevisionChanged,indexPageFrom,panelData,preferFreshConfig,readPanel,retainedSessionId,
+  scopeChange,sessionVerified,type IndexPage,type MeiliScope} from './panel-state.ts';
 
 type Config={origin:string|null;enabled:boolean;hasKey:boolean;
   state:'missing'|'configured'|'unverified';revision:number};
@@ -39,6 +39,8 @@ export function MeiliAdminView(props:WorkspaceViewProps){
   const [enabled,setEnabled]=useState(false),[notice,setNotice]=useState('');
   const [checking,setChecking]=useState(false),[busy,setBusy]=useState(false),[loading,setLoading]=useState(false);
   const [connection,setConnection]=useState<Check|null>(null);
+  const [indexPage,setIndexPage]=useState<IndexPage|null>(null);
+  const [indexLoading,setIndexLoading]=useState(false);
   const [pending,setPending]=useState<PendingCommand|null>(null);
   const configSnapshot=useRef<Config|null>(null);
   const originDirty=useRef(false),enabledDirty=useRef(false),keyVersion=useRef(0);
@@ -46,7 +48,7 @@ export function MeiliAdminView(props:WorkspaceViewProps){
   const editRevision=useRef<number|null>(null),keyRevision=useRef<number|null>(null);
   const journal=useRef<ReturnType<typeof createCommandJournal>|null>(null);
   const journalScope=useRef({sessionId:'',audience:props.audience,contextId:props.contextId});
-  const prior=useRef(scope),generation=useRef(0),readSerial=useRef(0),checkSerial=useRef(0);
+  const prior=useRef(scope),generation=useRef(0),readSerial=useRef(0),checkSerial=useRef(0),indexSerial=useRef(0);
   const mutationSerial=useRef(0),currentState=useRef({allowed,sessionId,client:props.client,
     access:props.access,audience:props.audience,contextId:props.contextId,panelId:props.panelId});
   const changed=currentState.current.allowed!==allowed||currentState.current.sessionId!==sessionId
@@ -74,6 +76,7 @@ export function MeiliAdminView(props:WorkspaceViewProps){
       if(preferFreshConfig(configSnapshot.current,next)===next){
         if(configRevisionChanged(configSnapshot.current,next)){
           checkSerial.current++;setChecking(false);setConnection(null);
+          indexSerial.current++;setIndexLoading(false);setIndexPage(null);
         }
         configSnapshot.current=next;setConfig(next);
         if(!originDirty.current)setOrigin(next.origin??'');
@@ -85,14 +88,15 @@ export function MeiliAdminView(props:WorkspaceViewProps){
   useEffect(()=>{
     const next:MeiliScope={sessionId,audience:props.audience,contextId:props.contextId,panelId:props.panelId};
     const transition=scopeChange(prior.current,next,access.pending?'loading':access.phase);
-    readSerial.current++;checkSerial.current++;mutationSerial.current++;
+    readSerial.current++;checkSerial.current++;indexSerial.current++;mutationSerial.current++;
     if(transition.purge){configSnapshot.current=null;setConfig(null);setOrigin('');setApiKey('');setEnabled(false);
-      setConnection(null);setNotice('');setPending(null);setBusy(false);
+      setConnection(null);setIndexPage(null);setNotice('');setPending(null);setBusy(false);
       originDirty.current=false;enabledDirty.current=false;editRevision.current=null;
       keyRevision.current=null;keyVersion.current++;pendingKeyVersion.current=null;journal.current=null;
       journalScope.current={sessionId:'',audience:props.audience,contextId:props.contextId};}
     if(!transition.transient)prior.current=next;
-    if(!allowed){setLoading(false);setChecking(false);setBusy(false);return;}
+    if(!allowed){setLoading(false);setChecking(false);setIndexLoading(false);setIndexPage(null);
+      setBusy(false);return;}
     if(!journal.current||journalScope.current.sessionId!==sessionId||
       journalScope.current.audience!==props.audience||journalScope.current.contextId!==props.contextId){
       const restored=transition.purge?null:readPanel(initial.current?.data,next);
@@ -109,14 +113,15 @@ export function MeiliAdminView(props:WorkspaceViewProps){
     if(preferFreshConfig(configSnapshot.current,next)!==next)return false;
     configSnapshot.current=next;setConfig(next);setOrigin(next.origin??'');setEnabled(next.enabled);
     originDirty.current=false;enabledDirty.current=false;editRevision.current=null;keyRevision.current=null;
-    setConnection(null);return true;};
+    setConnection(null);indexSerial.current++;setIndexLoading(false);setIndexPage(null);return true;};
   const mutate=async(name:'config.set'|'config.key.set'|'config.key.revoke',input:Record<string,unknown>)=>{
     const controller=journal.current,token=generation.current;
     if(!controller||!current(token)||controller.pending||busy||!config)return;
     const serial=++mutationSerial.current;
     const submittedKeyVersion=keyVersion.current;
     if(name==='config.key.set')pendingKeyVersion.current=submittedKeyVersion;
-    readSerial.current++;checkSerial.current++;setLoading(false);setChecking(false);
+    readSerial.current++;checkSerial.current++;indexSerial.current++;
+    setLoading(false);setChecking(false);setIndexLoading(false);setIndexPage(null);
     setConnection(null);setBusy(true);setNotice('');
     try{
       const outcome=await controller.execute(props.client,{sessionId,audience:props.audience,
@@ -170,6 +175,22 @@ export function MeiliAdminView(props:WorkspaceViewProps){
       else{setConnection(null);setNotice('Connexion indisponible.');}
     }catch{if(current(token)&&serial===checkSerial.current)setNotice('Connexion indisponible.');}
     finally{if(current(token)&&serial===checkSerial.current)setChecking(false);}
+  };
+  const listIndexes=async(cursor?:string)=>{
+    const token=generation.current,serial=++indexSerial.current;
+    if(!current(token)||!config?.enabled||!config.hasKey||busy||!!pending)return;
+    setIndexLoading(true);setNotice('');
+    try{
+      const result=await props.client.invoke({bindingId:binding('index.list'),contextId:props.contextId,
+        input:{limit:20,...(cursor?{cursor}:{})},isCurrent:()=>current(token)});
+      if(!current(token)||serial!==indexSerial.current)return;
+      const page=indexPageFrom(output(result));
+      if(page)setIndexPage(page);
+      else{setIndexPage(null);setNotice(result.kind==='rejected'&&result.code==='forbidden'
+        ?'Lecture des index refusée pour ce compte.':'Liste des index indisponible. Vérifiez la connexion.');}
+    }catch{if(current(token)&&serial===indexSerial.current){setIndexPage(null);
+      setNotice('Liste des index indisponible.');}}
+    finally{if(current(token)&&serial===indexSerial.current)setIndexLoading(false);}
   };
   const hydrated=prior.current.sessionId===sessionId&&prior.current.audience===props.audience
     &&prior.current.contextId===props.contextId&&prior.current.panelId===props.panelId;
@@ -231,7 +252,23 @@ export function MeiliAdminView(props:WorkspaceViewProps){
             Actualiser l’état</Button>
         </div>
         <p className="text-xs text-slate-500">Indexation externe indisponible pour le moment.
-          La connexion vérifie uniquement l’accès à l’instance.</p>
+          Le diagnostic ci-dessous lit les noms d’index du compte connecté, sans consulter leurs documents.</p>
+        <div className="space-y-2 rounded-md border p-3" aria-label="Diagnostic des index Meili">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-medium">Index du compte Meilisearch</h3>
+            <Button type="button" size="sm" variant="outline"
+              disabled={busy||!!pending||indexLoading||!config?.enabled||!config.hasKey}
+              onClick={()=>void listIndexes()}>Lister les index</Button>
+          </div>
+          {indexPage?<><p className="text-xs text-slate-500">{indexPage.total} index signalés par Meilisearch.</p>
+            <ul className="space-y-1 text-sm">{indexPage.items.map(item=><li key={item.uid} className="rounded border px-2 py-1">
+              <span className="font-medium">{item.uid}</span>
+              <span className="ml-2 text-xs text-slate-500">Clé primaire : {item.primaryKey??'non définie'}</span>
+              <span className="block text-xs text-slate-500">Créé : {item.createdAt} · modifié : {item.updatedAt}</span>
+            </li>)}</ul>
+            {indexPage.nextCursor?<Button type="button" size="sm" variant="outline" disabled={indexLoading||busy}
+              onClick={()=>void listIndexes(indexPage.nextCursor!)}>Page suivante</Button>:null}</>:null}
+        </div>
         {notice?<p role="status" className="text-sm">{notice}</p>:null}
       </CardContent>
     </Card>

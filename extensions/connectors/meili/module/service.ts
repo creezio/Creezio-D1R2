@@ -92,3 +92,51 @@ export async function connectionCheck(_value:JsonValue,context:OperationContext)
     throw new OperationError('unavailable');
   return {output:{authenticated:true,status:'connected'}};
 }
+
+const INDEX_PAGE_LIMIT=20,MAX_INDEX_OFFSET=100000;
+const nonnegative=(value:unknown):value is number=>Number.isSafeInteger(value)&&Number(value)>=0;
+const indexText=(value:unknown,max:number):value is string=>typeof value==='string'&&value.length>0
+  &&value.length<=max&&value.isWellFormed()&&!/[\u0000-\u001f\u007f]/u.test(value);
+const sameConnection=(before:Row,after:Row|null)=>!!after&&before.revision===after.revision
+  &&before.origin===after.origin&&before.enabled===after.enabled&&before.key_ref===after.key_ref
+  &&before.secret_version===after.secret_version;
+/** One page of account index metadata for a context manager; no hits or provider body escape. */
+export async function indexList(value:JsonValue,context:OperationContext){
+  const args=input(value);
+  const limit=args.limit===undefined?INDEX_PAGE_LIMIT:Number(args.limit);
+  const cursor=args.cursor;
+  if(!Number.isSafeInteger(limit)||limit<1||limit>INDEX_PAGE_LIMIT
+    ||cursor!==undefined&&(typeof cursor!=='string'||!/^(0|[1-9][0-9]{0,5})$/u.test(cursor)))
+    throw new OperationError('invalid_input');
+  const offset=cursor===undefined?0:Number(cursor);
+  if(offset>MAX_INDEX_OFFSET||offset+limit>MAX_INDEX_OFFSET+INDEX_PAGE_LIMIT)
+    throw new OperationError('invalid_input');
+  const before=await current(context);
+  if(!before||before.enabled!==true||!indexText(before.origin,512)
+    ||!indexText(before.key_ref,128)||!Number.isSafeInteger(before.secret_version))
+    throw new OperationError('unavailable');
+  const answer=await ready(context).request({resource:'index-list',cursor:String(offset),limit,
+    signal:context.signal});
+  if(!sameConnection(before,await current(context)))throw new OperationError('conflict');
+  if(answer.kind==='error')throw new OperationError(answer.code==='access_denied'?'forbidden':'unavailable');
+  const page=answer.body;
+  if(!page||typeof page!=='object'||Array.isArray(page))throw new OperationError('unavailable');
+  const data=page as Record<string,JsonValue>;
+  if(!Array.isArray(data.results)||data.results.length>limit||data.offset!==offset||data.limit!==limit
+    ||!nonnegative(data.total)||Number(data.total)<offset+data.results.length)
+    throw new OperationError('unavailable');
+  const items=data.results.map(raw=>{
+    if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new OperationError('unavailable');
+    const entry=raw as Record<string,JsonValue>;
+    if(!indexText(entry.uid,400)||entry.primaryKey!==null&&entry.primaryKey!==undefined
+      &&!indexText(entry.primaryKey,400)
+      ||!indexText(entry.createdAt,64)||!indexText(entry.updatedAt,64))
+      throw new OperationError('unavailable');
+    return {uid:entry.uid,primaryKey:entry.primaryKey??null,
+      createdAt:entry.createdAt,updatedAt:entry.updatedAt};
+  });
+  const next=offset+items.length;
+  if(next<Number(data.total)&&items.length!==limit)throw new OperationError('unavailable');
+  if(next<Number(data.total)&&next>MAX_INDEX_OFFSET)throw new OperationError('unavailable');
+  return {output:{items,total:Number(data.total),nextCursor:next<Number(data.total)?String(next):null}};
+}

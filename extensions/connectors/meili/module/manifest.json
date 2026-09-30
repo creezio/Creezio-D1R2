@@ -5,11 +5,11 @@
     "title": "Connecteur Meili externe",
     "publisher": "creezio",
     "origin": "https://github.com/creezio/Creezio-D1R2",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "source": {
       "kind": "snapshot",
-      "revision": "t28-meili-connection-v1",
-      "integrity": "sha256-fc708f31a711e64e823fb685b7b76fa4fe783cd5c0bfcd4d4f107deb31c35434"
+      "revision": "t28-meili-index-diagnostics-v1",
+      "integrity": "sha256-3c1dc522cd622a95306be0728a314b8f347ad2969bca8c7a385806d1649df1d3"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -226,6 +226,100 @@
           "required": [
             "authenticated",
             "status"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "index-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 6
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "index-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "maxItems": 20,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "uid": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 400
+                  },
+                  "primaryKey": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 400
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "uid",
+                  "primaryKey",
+                  "createdAt",
+                  "updatedAt"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "total": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 6
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "total",
+            "nextCursor"
           ],
           "additionalProperties": false
         }
@@ -602,6 +696,19 @@
                   "value": "1"
                 }
               ]
+            }
+          },
+          {
+            "id": "index-list",
+            "method": "GET",
+            "path": "/indexes",
+            "params": [
+              "cursor",
+              "limit"
+            ],
+            "query": {
+              "cursor": "offset",
+              "limit": "limit"
             }
           }
         ]
@@ -1352,6 +1459,126 @@
           ]
         },
         "public": false
+      },
+      {
+        "id": "index.list",
+        "title": "Lister les index du compte Meili",
+        "kind": "query",
+        "input": {
+          "schemaId": "index-list-input"
+        },
+        "output": {
+          "schemaId": "index-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.meili",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "indexList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.meili",
+              "kind": "model",
+              "id": "connector_config"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "meili.api.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 20
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 22,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey"
+          ]
+        },
+        "public": false
       }
     ],
     "api": [
@@ -1484,6 +1711,46 @@
         },
         "output": {
           "schemaId": "check-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.index.list",
+        "method": "GET",
+        "path": "/api/admin/meili/index/list",
+        "operation": {
+          "moduleId": "creezio.meili",
+          "kind": "operation",
+          "id": "index.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": false
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "index-list-input"
+        },
+        "output": {
+          "schemaId": "index-list-output"
         },
         "rateLimit": {
           "requests": 30,
@@ -1637,6 +1904,35 @@
             "openWorld": true
           },
           "textFallback": true
+        },
+        {
+          "id": "index.list",
+          "name": "meili_index_list",
+          "operation": {
+            "moduleId": "creezio.meili",
+            "kind": "operation",
+            "id": "index.list"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "index-list-input"
+          },
+          "output": {
+            "schemaId": "index-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": true
+          },
+          "textFallback": true
         }
       ],
       "resources": [],
@@ -1688,6 +1984,11 @@
               "moduleId": "creezio.meili",
               "kind": "operation",
               "id": "connection.check"
+            },
+            {
+              "moduleId": "creezio.meili",
+              "kind": "operation",
+              "id": "index.list"
             }
           ],
           "input": {
@@ -1781,8 +2082,8 @@
       }
     },
     "versionBinding": {
-      "moduleVersion": "0.1.0",
-      "sourceRevision": "t28-meili-connection-v1"
+      "moduleVersion": "0.2.0",
+      "sourceRevision": "t28-meili-index-diagnostics-v1"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -1823,7 +2124,7 @@
           "tests/widgets/contract.test.mjs"
         ],
         "justification": {
-          "reason": "This tranche verifies a connection only and exposes no searchable data or result widget.",
+          "reason": "Index metadata is an admin diagnostic, not a document result widget.",
           "policyRule": "meili.widgets-pending-qualification"
         }
       },
@@ -1906,8 +2207,8 @@
     },
     "validationBinding": {
       "moduleId": "creezio.meili",
-      "moduleVersion": "0.1.0",
-      "sourceRevision": "t28-meili-connection-v1"
+      "moduleVersion": "0.2.0",
+      "sourceRevision": "t28-meili-index-diagnostics-v1"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",
@@ -1924,7 +2225,7 @@
         "policyRule": "meili.no-files"
       },
       "widgets": {
-        "reason": "The connection probe has no search result to display in a widget.",
+        "reason": "Index diagnostics have no document result to display in a widget.",
         "policyRule": "meili.widgets-pending-qualification"
       }
     },

@@ -4,9 +4,13 @@
 
 Sur Lab Sites v4, une nouvelle sélection du widget de demandes a été refusée par `conflict` après un retrait antérieur : la lecture avait masqué la révision de la ligne retirée. Le correctif local conserve cette révision avec une valeur nulle pour permettre le remplacement contrôlé, sans réinjecter le contexte retiré dans un tour. Les vérifications locales sont distinctes d'une livraison ; le Site Lab v4 et son plugin ChatGPT restent inchangés.
 
+## En qualification — diagnostic d'index Meili 0.2.0 et lecture Stripe 0.2.1
+
+Meili ajoute une liste d'index paginée réservée à l'administration `manage`, limitée aux métadonnées du compte fournisseur et relue après rotation de configuration. Six suites et l'intégration D1/HTTP/MCP simulée passent ; aucun document, indexation, recherche globale ou appel Meili réel de cette version n'est qualifié. Stripe produits/prix 0.2.0 est intégré par PR #75 et lu sur Linux en mode test (huit produits, un prix de 6 EUR), sans perdre les parcours précédents. Le même code est livré sur Cloudflare par l'update `13ad72e9`, puis une relecture distante a vérifié les témoins conservés après arrêt de Docker ; elle ne qualifie pas de GET Stripe fournisseur distant. Un ajustement 0.2.1 des libellés de prix reste local après 19 tests. REQ-2701/2801 ne sont pas closes.
+
 ## En qualification — produits et prix Stripe (T27)
 
-Facturation ajoute les onglets Produits et Prix avec deux lectures API/MCP des projections D1. Le moteur de synchronisation existant lit les produits et les prix actifs/inactifs par trois ressources GET bornées ; deux modèles de données et un modèle de parcours sont ajoutés sans modifier les anciennes tables. Les montants et les relations gardent leur devise, leur précision et leur génération de connexion. Aucun paiement ni modification distante Stripe n'est introduit ; la recette fournisseur et navigateur de ces ajouts reste à effectuer.
+Facturation ajoute les onglets Produits et Prix avec deux lectures API/MCP des projections D1. Le moteur de synchronisation existant lit les produits et les prix actifs/inactifs par trois ressources GET bornées ; deux modèles de données et un modèle de parcours sont ajoutés sans modifier les anciennes tables. Les montants et les relations gardent leur devise, leur précision et leur génération de connexion. Aucun paiement ni modification distante Stripe n'est introduit. La recette ciblée ultérieure sur Linux a vérifié huit produits et un prix de 6 EUR via le fournisseur de test et l'interface, avec l'onglet Prix conservé après rechargement ; les synchronisations exhaustives et paiements restent ouverts.
 
 ## En qualification — liste complète des médias Pages (T21)
 

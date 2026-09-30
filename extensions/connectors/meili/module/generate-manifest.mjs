@@ -4,7 +4,7 @@ import {meiliConnectorDescriptor} from './storage.ts';
 
 const root=new URL('../',import.meta.url);
 const template=JSON.parse(readFileSync(new URL('module/manifest.json',root),'utf8'));
-const id='creezio.meili',connectorId='meili.api.v1',version='0.1.0',revision='t28-meili-connection-v1';
+const id='creezio.meili',connectorId='meili.api.v1',version='0.2.0',revision='t28-meili-index-diagnostics-v1';
 const ref=(kind,name)=>({moduleId:id,kind,id:name});
 const str=(max=128,min=1)=>({type:'string',minLength:min,maxLength:max});
 const num=(min=0,max=Number.MAX_SAFE_INTEGER)=>({type:'integer',minimum:min,maximum:max});
@@ -38,6 +38,10 @@ const keyInput=schema('config-key-set-input',obj({requestKey,apiKey:str(4096,8),
 const keyRevokeInput=schema('config-key-revoke-input',obj({requestKey,revision:revField}));
 const checkOutput=schema('check-output',obj({authenticated:{type:'boolean'},
   status:{type:'string',enum:['connected','key_rejected']}}));
+const indexListInput=schema('index-list-input',obj({limit:num(1,20),cursor:str(6)},[]));
+const indexListOutput=schema('index-list-output',obj({items:{type:'array',maxItems:20,
+  items:obj({uid:str(400),primaryKey:nullable(str(400)),createdAt:str(64),updatedAt:str(64)})},
+  total:num(),nextCursor:nullable(str(6))}));
 const panelState=schema('meili-panel-state',obj({sessionId:str(128),audience:{type:'string',enum:['admin','app']},
   contextId:str(128),
   pending:obj({sessionId:str(128),audience:{type:'string',enum:['admin','app']},
@@ -78,6 +82,9 @@ operation('config.key.revoke','Révoquer la clé API Meili','command',keyRevokeI
   ['connector_config','connector_secret'],['connector_config','connector_secret'],{exportName:'configKeyRevoke',cas:true});
 operation('connection.check','Vérifier la connexion Meili','query',empty,checkOutput,'read',
   ['connector_config'],[],{exportName:'connectionCheck',remote:true});
+operation('index.list','Lister les index du compte Meili','query',indexListInput,indexListOutput,'manage',
+  ['connector_config'],[],{exportName:'indexList',remote:true,maxItems:22,
+    pagination:{mode:'cursor',cursorField:'cursor',limitField:'limit',maxItems:20}});
 const api=[];
 for(const op of operations)for(const audience of op.audiences){
   const definition=schemas.find(item=>item.id===op.input.schemaId).schema;
@@ -118,7 +125,7 @@ m.contracts={schemas,models,files:[],events:[],connectors:[structuredClone(meili
 m.documentation.versionBinding={moduleVersion:version,sourceRevision:revision};
 for(const suite of ['backend','ui','api-mcp','widgets','package','docs'])m.validation.suites[suite].tests=[`tests/${suite}/contract.test.mjs`];
 m.validation.suites.widgets.mode='not-applicable';m.validation.suites.widgets.justification={
-  reason:'This tranche verifies a connection only and exposes no searchable data or result widget.',
+  reason:'Index metadata is an admin diagnostic, not a document result widget.',
   policyRule:'meili.widgets-pending-qualification'};
 m.packaging.runtime.files=['module/manifest.json','module/models.json','module/entry.server.ts','module/storage.ts',
   'module/operations.ts','module/service.ts','ui/index.tsx','ui/panel-state.ts','README.md','prd.md','CHANGELOG.md',
@@ -129,7 +136,7 @@ m.packaging.validation.files=['AGENTS.md','FILES.md','interview.md','TODO.md','g
     [`ci/${name}.mjs`,`tests/${name}/contract.test.mjs`])];
 m.packaging.validationBinding={moduleId:id,moduleVersion:version,sourceRevision:revision};
 m.lifecycle.absent={files:{reason:'The connection probe stores no R2 file.',policyRule:'meili.no-files'},
-  widgets:{reason:'The connection probe has no search result to display in a widget.',policyRule:'meili.widgets-pending-qualification'}};
+  widgets:{reason:'Index diagnostics have no document result to display in a widget.',policyRule:'meili.widgets-pending-qualification'}};
 m.lifecycle.configuration='explicit-state';
 writeFileSync(new URL('module/models.json',root),JSON.stringify(models,null,2)+'\n');
 writeFileSync(new URL('module/manifest.json',root),JSON.stringify(m,null,2)+'\n');

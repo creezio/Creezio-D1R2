@@ -8,7 +8,7 @@ import {panelData,readPanel,retainedSessionId,scopeChange,sessionVerified,
   type StripeScope,type StripeTab} from './panel-state.ts';
 import {externalConfigurationChanged,latestConfig,mergeRuns,reconcileRuns,sameConfiguration,
   type Collection,type Config,type Run} from './state.ts';
-import {formatStripeAmount} from './money.ts';
+import {formatStripeAmount,formatStripeFrequency} from './money.ts';
 import {Badge,Button,Card} from '@creezio/sdk/ui';
 
 type Customer={id:string;name:string|null;livemode:boolean};
@@ -52,8 +52,6 @@ const priceAmount=(price:Price)=>{
     return `${price.unit_amount_decimal} ${price.currency} (unités mineures)`;
   return formatStripeAmount(price.unit_amount_minor,price.currency);
 };
-const priceFrequency=(price:Price)=>price.type==='one_time'?'Paiement unique':
-  price.interval?`Tous les ${price.interval_count??1} ${price.interval}`:'Récurrence non disponible';
 const listForRun=(id:Collection):ListCollection=>
   id==='prices_active'||id==='prices_inactive'?'prices':id;
 
@@ -354,7 +352,7 @@ export function StripeAdminView(props:WorkspaceViewProps){
             <td className="py-2 pr-3 text-xs"><div>{price.product_id}</div>
               <div className="text-muted-foreground">Nom non rapproché ; produit potentiellement non synchronisé.</div></td>
             <td className="py-2 pr-3">{priceAmount(price)}</td>
-            <td className="py-2 pr-3">{priceFrequency(price)}</td>
+            <td className="py-2 pr-3">{formatStripeFrequency(price.type,price.interval,price.interval_count)}</td>
             <td className="py-2"><Badge variant={price.active?'default':'secondary'}>
               {price.active?'Actif':'Inactif'}</Badge></td></tr>)}</tbody></table></div>}
       {pages.prices?.nextCursor?<Button className="mt-3" size="sm" variant="outline" type="button"

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import Ajv2020 from 'ajv/dist/2020.js';
 import {createCommandJournal,readPendingCommand} from '@creezio/sdk/operations/command-journal';
 import {manifest,read} from '../helpers.mjs';
-import {retainedSessionId,scopeChange,sessionVerified,readPanel,panelData,preferFreshConfig,
+import {retainedSessionId,scopeChange,sessionVerified,readPanel,panelData,preferFreshConfig,indexPageFrom,
   configRevisionChanged}
   from '../../ui/panel-state.ts';
 
@@ -109,4 +109,17 @@ test('original settings surface exposes a connection probe while indexing/search
   assert.equal(manifest.contracts.ui.views.length,1);
   assert.equal(manifest.contracts.ui.views[0].panel.inactiveEffects,'suspend');
   assert.deepEqual(manifest.contracts.search,[]);
+  assert.match(ui,/index\.list/u);
+  assert.match(ui,/setIndexPage\(null\)/u);
+  assert.match(ui,/Page suivante/u);
+});
+test('index diagnostic accepts one bounded page and drops extra provider fields',()=>{
+  const item={uid:'products',primaryKey:'id',createdAt:'2026-09-29T00:00:00Z',
+    updatedAt:'2026-09-30T00:00:00Z',documents:[{secret:'hidden'}]};
+  assert.deepEqual(indexPageFrom({items:[item],total:2,nextCursor:'1'}),{items:[{
+    uid:'products',primaryKey:'id',createdAt:item.createdAt,updatedAt:item.updatedAt}],
+    total:2,nextCursor:'1'});
+  assert.equal(indexPageFrom({items:[item],total:2,nextCursor:'01'}),null);
+  assert.equal(indexPageFrom({items:Array.from({length:21},()=>item),total:21,nextCursor:null}),null);
+  assert.equal(indexPageFrom({items:[{uid:'bad'}],total:1,nextCursor:null}),null);
 });

@@ -1,1 +1,1 @@
-export {configRead,configSet,configKeySet,configKeyRevoke,connectionCheck} from './service.ts';
+export {configRead,configSet,configKeySet,configKeyRevoke,connectionCheck,indexList} from './service.ts';
