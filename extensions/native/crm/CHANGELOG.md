@@ -1,5 +1,9 @@
 # Changelog
 
+## Complément de source T20 — consultation de contact
+
+Le port public `contact-lookup` v1 expose seulement `contact.search` et `contact.read` pour les consommateurs autorisés, sans modèle privé. Les six widgets ignorent un résultat marqué en erreur. Le contrat de lecture ne modifie ni les 21 opérations métier existantes ni le schéma D1 CRM.
+
 ## Complément visuel T20 — candidat
 
 Six widgets de lecture liste/fiche sont prévus pour entreprises, contacts et prospects, sur `list/search/read` existants et sous `crm.use`. Les outils textuels restent utilisables sans rendu ; les listes conservent le curseur et n'exposent aucune mutation. Les limites de taille du transport et du chat interne restent effectives.

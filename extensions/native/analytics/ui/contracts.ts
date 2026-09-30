@@ -12,6 +12,13 @@ export type Snapshot={period:Bounds;source:'reported';complete:boolean;scanned:n
   activePrincipals:number;timeline:Count[];hours:Count[];pages:Count[];clicks:Count[];users:Count[]};
 export type EventPage={period:Bounds;items:Event[];nextCursor:string|null;complete:boolean;scanned:number};
 export type ExportPage={format:'csv'|'json';content:string;nextCursor:string|null;complete:boolean;period:Bounds};
+export type ExecutionDiagnostic={id:string;moduleId:string;operationId:string;audience:'admin'|'app';
+  state:string;errorCode:string|null;createdAt:string;updatedAt:string;durationMs:number|null};
+export type ExecutionDiagnosticsPage={period:Bounds;items:ExecutionDiagnostic[];nextCursor:string|null;complete:boolean};
+export type EndpointDiagnostic={moduleId:string;operationId:string;audience:'admin'|'app';method:string;
+  path:string;kind:'query'|'command'};
+export type EndpointDiagnosticsPage={items:EndpointDiagnostic[];nextCursor:string|null;complete:boolean;
+  source:'compiled-http-bindings'|'unavailable'};
 export type Scope=Pick<WorkspaceViewProps,'client'|'access'|'audience'|'contextId'>;
 export type Result<T>={kind:'ok';value:T}|{kind:'error';code:string};
 export async function call<T>(scope:Scope,operation:string,input:Record<string,unknown>,isCurrent:()=>boolean):Promise<Result<T>>{

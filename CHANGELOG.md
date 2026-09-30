@@ -1,5 +1,15 @@
 # Changelog
 
+## En développement — compléments des modules natifs et externes
+
+- Lectures entre contrats publics de modules avec la même identité et les mêmes droits serveur, contrôle de l'opération enfant, budgets et journal D1 commun ; requis pour les relations Support/CRM/Messagerie. Les commandes imbriquées restent indisponibles.
+- Support conserve les liens vers les contacts CRM et les messages sous contrôle des droits courants ; Messagerie préserve les brouillons pendant les actions sur les pièces jointes et assainit leur présentation HTML.
+- Analytics consulte les métadonnées du journal commun et les endpoints déclarés, avec exports CSV/JSON bornés. Les contenus métier et les secrets ne font pas partie de ces exports.
+- Pages ajoute une publication anonyme explicite, son document HTML et ses médias vérifiés. Le rendu provient de la contribution du module sélectionné ; les pages protégées et les brouillons restent exclus.
+- La composition isole le renderer HTML des pages dans un artefact ESM vérifié, pour conserver les mêmes composants dans un Worker compilé sous la condition `react-server`.
+- L'adaptateur de stockage accepte une configuration statique de ressources séparées hors Sites. Le routage métier et la synchronisation de l'autorité restent en préparation, sans annoncer cette configuration comme une isolation applicative complète.
+- Reprise parallèle des compléments T18–T22, T25–T29 et T33 autorisée par l'utilisateur ; les conditions des chantiers différés et le test utilisateur T39 sont conservés.
+
 ## État de livraison ciblée — 30 septembre 2026
 
 Core PR #77/main `cd2eeb2` et Lab PR #14/main `1bfdf0f` ont leurs CI main réussies. Les Sites Original et Lab v5 et leurs mises à jour Cloudflare sont publiés avec registre synchronisé ; les lectures natives vérifient les témoins conservés. Meili 0.2.0 lit une page de métadonnées d'index sur fournisseur réel, Stripe 0.2.1 affiche le prix mensuel conservé sur Linux. Sur Lab, la séquence de contexte v5 ne reproduit pas le conflit de v4 ; le plugin APP connecté dans ChatGPT rend la fiche et sa lecture directe. Les limites et preuves sont détaillées dans T16/T27/T28/T38/T39 ; la validation utilisateur attend son test et aucun lot global n'est clos ici.

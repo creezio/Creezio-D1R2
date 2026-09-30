@@ -1,5 +1,9 @@
 # Changelog
 
+## T21 — publication anonyme explicite
+
+`page.publish` accepte `visibility: public` ; le mode absent ou `protected` reste privé. Un marqueur D1 additif garde la révision exposée et est retiré par une republication protégée. L'éditeur relit la visibilité, affiche le lien public, et peut révoquer sans modifier le brouillon. La projection hôte sélectionnée rend les préfabriqués existants en HTML indexable et ne distribue que les images exactes du snapshot, après vérification de la référence, du contexte, de la taille et du SHA-256. La recette locale D1/R2 couvre les refus, la révocation pendant une lecture R2 et la navigation avec plus de cent pages publiques ; aucun hébergement réel n'est revendiqué.
+
 ## T21 — lecture complète des médias du brouillon
 
 `media.list` conserve une page maximale de 50 médias ; son budget couvre aussi la lecture de la page parente, ce qui évite un refus `invalid_input` à cette limite.

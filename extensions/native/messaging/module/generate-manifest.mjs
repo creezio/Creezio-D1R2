@@ -178,7 +178,8 @@ function operation(name,title,kind,input,output,reads=[],writes=[],options={}){
     idempotency:command?{mode:'required',keyField:'requestKey',scope:'actor-context-operation',retentionSeconds:86400}:{mode:'none'},
     approval:{mode:'none'},concurrency:options.concurrency??{mode:'none'},
     execution:{maxDurationMs:10000,maxItems:options.maxItems??100,resumable:false},
-    audit:{required:true,redactFields:['to','cc','bcc','subject','text','html','address']},public:false});
+    audit:{required:true,redactFields:['to','cc','bcc','subject','text','html','address']},
+    public:name==='message.read'});
 }
 const pagination={mode:'cursor',cursorField:'cursor',limitField:'limit',maxItems:50};
 operation('box.list','Lister ses boîtes','query',listInput,boxPage,['box'],[],{exportName:'boxList',pagination,maxItems:50});
@@ -290,7 +291,10 @@ m.contracts={schemas,models,files:[category],events:[],settings:[],search:[],per
       panel:{identityFields:[],navigation:'sdk',retention:'preserve',inactiveEffects:'suspend',stateSchema:panelState}}],
     navigation:[{id:'messaging-admin',title:'Messagerie',view:ref('view','admin'),permissions:[ref('permission','use')],surfaces:['workspace'],order:30},
       {id:'messaging-front',title:'Messagerie',view:ref('view','front'),permissions:[ref('permission','use')],surfaces:['front'],order:30}],
-    slots:[],front:{mode:'provided'},themes:[],styles:[]},widgets:widgetNames.map(widget),publicContracts:[]};
+    slots:[],front:{mode:'provided'},themes:[],styles:[]},widgets:widgetNames.map(widget),
+    publicContracts:[{id:'message-lookup',version:'1.0.0',models:[],
+      operations:[ref('operation','message.read')],events:[],
+      schemas:[{schemaId:'message-read-input'},{schemaId:'message-output'}]}]};
 m.documentation.versionBinding={moduleVersion:'0.0.0',sourceRevision:'t18-messaging-widgets-v1'};
 for(const suite of ['backend','ui','api-mcp','package','docs'])m.validation.suites[suite].tests=[`tests/${suite}/contract.test.mjs`];
 m.validation.suites.widgets.mode='required';m.validation.suites.widgets.tests=[

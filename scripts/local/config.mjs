@@ -1,14 +1,37 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync, lstatSync } from 'node:fs';
+import {resourceBindingNames,validateStorageRoutes} from '../../adapters/storage/resources.ts';
 
 export const LOCAL_REPOSITORY_ROOT = path.resolve(fileURLToPath(new URL('../../', import.meta.url)));
 export const LOCAL_BINDINGS = Object.freeze({ database: 'DB', bucket: 'BUCKET',
   databaseId: '00000000-0000-4000-8000-000000000000', databaseName: 'creezio-local', bucketName: 'creezio-local' });
 export const LOCAL_COMPATIBILITY_DATE = '2026-05-15';
 
+function localResources(value){
+  if(value===undefined)return Object.freeze([]);
+  if(!Array.isArray(value))throw new Error('Invalid local storage resources.');
+  const routes=validateStorageRoutes({schemaVersion:1,routes:value.map(item=>({
+    contextId:item?.contextId,slot:item?.slot,status:item?.status}))});
+  const identifiers=new Set([LOCAL_BINDINGS.databaseId]);
+  const names=new Set([LOCAL_BINDINGS.databaseName,LOCAL_BINDINGS.bucketName]);
+  return Object.freeze(value.map((item,index)=>{
+    if(!item||typeof item!=='object'||Array.isArray(item)
+      ||Object.keys(item).sort().join(',')!=='bucketName,contextId,databaseId,databaseName,slot,status'
+      ||typeof item.databaseName!=='string'||!/^[-a-z0-9]{3,64}$/.test(item.databaseName)
+      ||typeof item.bucketName!=='string'||!/^[-a-z0-9]{3,64}$/.test(item.bucketName)
+      ||typeof item.databaseId!=='string'||!/^[-a-z0-9]{3,64}$/.test(item.databaseId)
+      ||identifiers.has(item.databaseId)||names.has(item.databaseName)||names.has(item.bucketName)
+      ||item.contextId!==routes.routes[index].contextId||item.slot!==routes.routes[index].slot
+      ||item.status!==routes.routes[index].status)throw new Error('Invalid local storage resources.');
+    identifiers.add(item.databaseId);names.add(item.databaseName);names.add(item.bucketName);
+    return Object.freeze({...item});
+  }));
+}
+
 /** Local tools have one target. There is no remote/account/database override. */
 export function loadLocalConfiguration({ root = LOCAL_REPOSITORY_ROOT,
+  storageResources,
   origin = process.env.CREEZIO_APP_ORIGIN ?? 'http://127.0.0.1:5173',
   sandboxOrigin = process.env.CREEZIO_WIDGET_SANDBOX_ORIGIN ?? 'http://127.0.0.1:5175',
   operatorOrigin = process.env.CREEZIO_LOCAL_DELIVERY_ORIGIN ?? 'http://127.0.0.1:5176',
@@ -40,22 +63,30 @@ export function loadLocalConfiguration({ root = LOCAL_REPOSITORY_ROOT,
   }
   const hosting = JSON.parse(readFileSync(hostingPath, 'utf8'));
   if (!hosting || hosting.d1 !== LOCAL_BINDINGS.database || hosting.r2 !== LOCAL_BINDINGS.bucket) throw new Error('Local bindings differ from the hosting contract.');
+  const resources=localResources(storageResources);
   return Object.freeze({ root: canonicalRoot, origin, host: '127.0.0.1', port,
     operatorOrigin, operatorPort: Number(operatorUrl.port),
     sandboxOrigin, sandboxHost: sandboxBindHost, sandboxPort: Number(sandboxUrl.port),
     statePath, persistenceRoot: path.join(statePath, 'v3'), d1Path: path.join(statePath, 'v3', 'd1'),
     lockPath: path.join(canonicalRoot, '.wrangler', 'creezio-local.lock'),
-    bindings: LOCAL_BINDINGS, compatibilityDate: LOCAL_COMPATIBILITY_DATE });
+    bindings: LOCAL_BINDINGS, storageResources:resources, compatibilityDate: LOCAL_COMPATIBILITY_DATE });
 }
 
 export function localWorkerConfiguration(config) {
+  const resources=config.storageResources??[];
+  const active=resources.filter(item=>item.status==='active');
   return { name: 'creezio', main: 'worker.ts', compatibility_date: config.compatibilityDate,
     compatibility_flags: ['nodejs_compat'],
     vars: { CREEZIO_RUNTIME_PROFILE: 'local', CREEZIO_APP_ORIGIN: config.origin,
       CREEZIO_LOCAL_DELIVERY_ORIGIN: config.operatorOrigin,
-      CREEZIO_WIDGET_SANDBOX_ORIGIN: config.sandboxOrigin },
-    d1_databases: [{ binding: config.bindings.database, database_name: config.bindings.databaseName, database_id: config.bindings.databaseId }],
-    r2_buckets: [{ binding: config.bindings.bucket, bucket_name: config.bindings.bucketName }] };
+      CREEZIO_WIDGET_SANDBOX_ORIGIN: config.sandboxOrigin,
+      ...(resources.length?{CREEZIO_STORAGE_ROUTES:JSON.stringify({schemaVersion:1,
+        routes:resources.map(({contextId,slot,status})=>({contextId,slot,status}))})}:{}) },
+    d1_databases: [{ binding: config.bindings.database, database_name: config.bindings.databaseName, database_id: config.bindings.databaseId },
+      ...active.map(item=>({binding:resourceBindingNames(item.slot).database,
+        database_name:item.databaseName,database_id:item.databaseId}))],
+    r2_buckets: [{ binding: config.bindings.bucket, bucket_name: config.bindings.bucketName },
+      ...active.map(item=>({binding:resourceBindingNames(item.slot).bucket,bucket_name:item.bucketName}))] };
 }
 
 /** Validate the existing build before opening its storage; never silently retarget a build. */
@@ -67,6 +98,7 @@ export function assertLocalBuiltConfiguration(value, config) {
   if (!value || value.vars?.CREEZIO_RUNTIME_PROFILE !== 'local' || value.vars?.CREEZIO_APP_ORIGIN !== config.origin
     || value.vars?.CREEZIO_WIDGET_SANDBOX_ORIGIN !== config.sandboxOrigin
     || value.vars?.CREEZIO_LOCAL_DELIVERY_ORIGIN !== config.operatorOrigin
+    || value.vars?.CREEZIO_STORAGE_ROUTES !== expected.vars.CREEZIO_STORAGE_ROUTES
     || value.compatibility_date !== expected.compatibility_date
     || !sameBindings(value.d1_databases, expected.d1_databases)
     || !sameBindings(value.r2_buckets, expected.r2_buckets)) {

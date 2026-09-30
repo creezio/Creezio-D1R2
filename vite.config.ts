@@ -22,7 +22,7 @@ export default defineConfig(async () => {
   });
   if(local)await awaitLocalWidgetSandboxReady();
   await assertWorkerBoundary({ root, entryPoints: [
-    '.creezio/generated/server.ts', '.creezio/generated/client.tsx', '.creezio/generated/operations.ts', '.creezio/generated/provider-catalog.ts',
+    '.creezio/generated/server.ts', '.creezio/generated/client.tsx', '.creezio/generated/operations.ts', '.creezio/generated/provider-catalog.ts', '.creezio/generated/public-pages.ts',
     'core/runtime/dispatch.ts', 'core/operations/http.ts',
   ] });
   const { cloudflare } = await import('@cloudflare/vite-plugin');

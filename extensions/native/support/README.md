@@ -1,6 +1,6 @@
 # Support natif Creezio
 
-Les quatre widgets demandent le SDK candidat 1.4.1 et un hôte Core intégrant la validation des schémas de sortie composés. Le paquet public 1.4.0 ne contient pas encore ce correctif ; aucun widget de ce lot n'est déclaré publié.
+Les quatre widgets demandent au minimum les correctifs du SDK 1.4.1 ; les références intermodules du présent candidat demandent le port de lecture du SDK 1.6.0. Les qualifications locales ne déclarent pas une publication hébergée.
 
 Le workspace reprend les deux parcours visuels du Support original : création et suivi d'un ticket côté app, file et conversation côté équipe support. Une réponse enregistrée est un message local du même contexte, immédiatement relisible par le demandeur autorisé ; elle ne prétend pas être un e-mail envoyé. Le statut du transport externe indique explicitement `unavailable`.
 
@@ -14,6 +14,6 @@ Les vues admin et app utilisent le journal public du SDK depuis sa version 1.2.0
 
 Dans le chat natif, le pont widget reprend ce journal avant l'appel direct et bloque le rejeu d'une issue inconnue. Dans un hôte MCP Apps externe, la carte écrit une clé en mémoire de session du navigateur avant une commande ; elle refuse l'envoi si ce stockage échoue et reste bloquée après une issue incertaine, y compris après remontage dans la même session. Cet état conservateur ne remplace pas la lecture du statut de commande par l'hôte. Aucune commande ne part au montage. Les outils restent textuels si le renderer n'est pas disponible ; le chat interne refuse un résultat d'outil dépassant 8 192 octets avant le rendu du widget, donc seules des pages effectivement petites y apparaissent.
 
-La synchronisation de la flotte d'origine, son relais et ses erreurs distantes ne sont pas implémentés dans cette tranche. Les relations avec CRM, Messagerie et Work attendent des contrats publics versionnés. Aucun Worker, daemon ou fournisseur externe distinct n'est hébergé.
+La synchronisation de la flotte d'origine, son relais et ses erreurs distantes ne sont pas implémentés dans cette tranche. Un ticket peut conserver un identifiant de contact CRM et une paire boîte/message de Messagerie après une lecture publique autorisée ; le retrait reste possible si le fournisseur facultatif manque. Les relations Work attendent T17. Aucun Worker, daemon ou fournisseur externe distinct n'est hébergé.
 
 Les deux présentations reprennent les cartes de tickets, statuts, fil et composition des fichiers originaux `packages/admin/ui/tickets-admin-client.tsx` et `packages/support/ui/support-client.tsx` au commit `6bd6507`. Les classes de largeur, grille, carte, badge, accent au survol et couleurs des messages sont conservées là où elles s'appliquent ; les appels `fetch` du serveur historique sont remplacés par les opérations SDK natives. Les mentions de serveur et l'action « Synchroniser la flotte » cèdent la place à la file du contexte et à « Actualiser », puisque cette version ne possède ni flotte ni transport distant. Le rendu app conserve sa largeur de 5xl et la liste « Mes tickets » ; l'admin conserve les deux panneaux en 6xl.

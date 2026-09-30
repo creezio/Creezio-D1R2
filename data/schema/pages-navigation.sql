@@ -75,6 +75,15 @@ CREATE TABLE "cz_637265657a696f2e70616765732d6e617669676174696f6e_706167655f7075
   FOREIGN KEY ("context_id", "page_id") REFERENCES "cz_637265657a696f2e70616765732d6e617669676174696f6e_70616765" ("context_id", "id") ON DELETE RESTRICT
 ) WITHOUT ROWID;
 
+CREATE TABLE "cz_637265657a696f2e70616765732d6e617669676174696f6e_7075626c69635f70616765" (
+  "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "enabled_at" TEXT NOT NULL CHECK ("enabled_at" IS NOT NULL AND (typeof("enabled_at") = 'text' AND length("enabled_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "enabled_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "enabled_at") = "enabled_at")),
+  "page_id" TEXT NOT NULL CHECK ("page_id" IS NOT NULL AND (typeof("page_id") = 'text' AND instr("page_id", char(0)) = 0 AND length("page_id") >= 1 AND length("page_id") <= 128)),
+  "published_revision" INTEGER NOT NULL CHECK ("published_revision" IS NOT NULL AND (typeof("published_revision") = 'integer' AND "published_revision" BETWEEN -9007199254740991 AND 9007199254740991 AND "published_revision" >= 1 AND "published_revision" <= 9007199254740991)),
+  PRIMARY KEY ("context_id", "page_id"),
+  FOREIGN KEY ("context_id", "page_id") REFERENCES "cz_637265657a696f2e70616765732d6e617669676174696f6e_706167655f7075626c69636174696f6e" ("context_id", "page_id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
 CREATE TABLE "cz_637265657a696f2e70616765732d6e617669676174696f6e_7075626c69736865645f706167655f6d65646961" (
   "byte_size" INTEGER NOT NULL CHECK ("byte_size" IS NOT NULL AND (typeof("byte_size") = 'integer' AND "byte_size" BETWEEN -9007199254740991 AND 9007199254740991 AND "byte_size" >= 0 AND "byte_size" <= 9007199254740991)),
   "content_type" TEXT NOT NULL CHECK ("content_type" IS NOT NULL AND (typeof("content_type") = 'text' AND instr("content_type", char(0)) = 0 AND length("content_type") >= 1 AND length("content_type") <= 128)),

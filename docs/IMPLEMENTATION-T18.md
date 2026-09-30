@@ -55,3 +55,9 @@ La nouvelle recette navigateur admin/app a vérifié les mêmes boîtes A/B, le 
 ## Contrôle de démarrage du profil complet — 29 septembre
 
 La PR #59/main `468b101` a passé 1 258/1 258 contrôles. Son image Linux a été construite et le schéma adopté sans DDL dans le volume existant. Le démarrage a ensuite refusé le catalogue MCP statique : 18 529 969 octets dépassent la borne de 16 Mio, malgré des ressources individuelles conformes. L’application de qualification est arrêtée ; données et image sont conservées. Le correctif commun augmente uniquement la borne de cet inventaire à 24 Mio et valide le vrai catalogue dès la composition. Une nouvelle image et la recette réelle des trois cartes sont encore nécessaires ; les tests des modules ne valent pas cette preuve.
+
+## Complément de source — 30 septembre
+
+Le sélecteur natif de pièce jointe existait déjà. Le lien et le retrait d'un fichier mettent désormais à jour seulement la révision serveur du brouillon ouvert : le destinataire, l'objet et le corps en cours de rédaction ne sont plus remplacés par l'ancienne version enregistrée. L'éditeur riche publie uniquement son HTML nettoyé ; les liens sont analysés comme URL HTTP(S) complètes et les caractères de contrôle sont refusés. Les trois widgets ignorent aussi un résultat d'outil explicitement marqué en erreur, même s'il contient une sortie structurée plausible.
+
+Le port public versionné `message-lookup` exporte uniquement `message.read` et ses schémas, sans modèle privé ni transport. Il sert à une lecture intermodule contrôlée ; il ne crée aucun lien automatique avec un ticket, ni envoi ou réception. Le sélecteur de fichiers et les liens HTML restent à qualifier dans les navigateurs cibles ; la recette ChatGPT réelle et le transport T29 restent distincts des suites locales.

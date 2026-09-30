@@ -5,15 +5,16 @@ import { gzipSync } from 'node:zlib';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 
-// The selected composition includes CRM, Support, Messaging and two Analytics renderers.
-// The dbe36fa build measured 18,325,038 raw / 3,322,668 gzip bytes (84 Worker files).
-// The total increase over d01b642 is 1,384,478 raw / 278,476 gzip bytes; it includes
-// the new Analytics renderers and composition output, without per-file attribution.
-// Keep less than 3% margin for both sizes; graph and timing ceilings are unchanged.
+// PR79 9cfbcc7 adds public Pages SSR/media, Support relations and Analytics diagnostics.
+// CI36735985594 measured 19,056,125 raw / 3,436,172 gzip bytes (86 Worker files).
+// Main812ebd4 measured 18,440,904 raw / 3,339,217 gzip bytes (also 86 files).
+// The total delta is 615,221 raw / 96,955 gzip bytes, without per-file attribution;
+// the standalone public renderer itself measures 206,959 raw bytes before Vite.
+// Keep under 2% margin; source graph and runtime duration ceilings are unchanged.
 // Each widget remains independently consumable by MCP Apps hosts. New compositions
 // must still be measured explicitly rather than treated as arbitrarily extensible.
 // They are neither provider quotas nor production latency guarantees.
-export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 18_800_000, workerGzipBytes: 3_410_000,
+export const RUNTIME_BUDGETS = Object.freeze({ workerBytes: 19_400_000, workerGzipBytes: 3_500_000,
   selectedGraphInputs: 32, startupMs: 15_000, routeMs: 3_000 });
 
 export function assertRuntimeBudgets(report) {

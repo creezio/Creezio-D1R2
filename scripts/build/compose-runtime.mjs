@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync, mkdirSync, existsSync, lstatSync, realpathSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, lstatSync, realpathSync, statSync, unlinkSync } from 'node:fs';
 import { compileCompositionSchema } from '../data/composition-schema.mjs';
 import { compileOperationSchemas } from '../operations/schemas.mjs';
 import { compileHttpBindings } from '../operations/http-bindings.mjs';
@@ -24,6 +24,7 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import ts from 'typescript';
 import {buildSync} from 'esbuild';
+import {assertWorkerBoundary} from './worker-boundary.mjs';
 
 export class CompositionBuildError extends Error {
   constructor(code, message, diagnostics = []) { super(message); this.name = 'CompositionBuildError'; this.code = code; this.diagnostics = diagnostics; }
@@ -197,7 +198,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   const dataPlan = compileCompositionSchema({ composition, lock, modules: located.map(item => item.descriptor) });
   const operationPlan = compileOperationSchemas({ composition, lock, modules: located.map(item => item.descriptor) });
   const output = confined(root, outputDir, { directory: true, missing: true });
-  const destinations = Object.fromEntries(['server.ts', 'client.tsx', 'widget-catalog.ts', 'data-catalog.ts', 'file-catalog.ts', 'provider-catalog.ts', 'module-inventory.ts', 'operations.ts', 'operation-validators.mjs', 'operation-validators.d.mts', 'widget-context-validators.mjs', 'widget-context-validators.d.mts', 'composition.json'].map(name => [name, confined(root, path.join(output, name), { missing: true })]));
+  const destinations = Object.fromEntries(['server.ts', 'client.tsx', 'widget-catalog.ts', 'data-catalog.ts', 'file-catalog.ts', 'provider-catalog.ts', 'public-pages.ts', 'module-inventory.ts', 'operations.ts', 'operation-validators.mjs', 'operation-validators.d.mts', 'widget-context-validators.mjs', 'widget-context-validators.d.mts', 'composition.json'].map(name => [name, confined(root, path.join(output, name), { missing: true })]));
   if (located.some(item => contained(item.directory, output))
     || Object.values(destinations).some(destination => destination === compositionFile || destination === lockFile)) {
     fail('output.source-collision', 'Generated output must not overwrite selected module sources or composition inputs.');
@@ -207,6 +208,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   const active = (moduleId, pointer) => !inactive.some(item => item.moduleId === moduleId && (item.path === pointer || pointer.startsWith(`${item.path}/`)));
   const resolveOperation = reference => indexes.get(reference.moduleId)?.descriptor.contracts.operations.find(item => item.id === reference.id);
   const serverImports = [], clientImports = [], operationImports = [], operationHandlers = [], modules = [], views = [], navigation = [], slots = [], permissions = [];
+  const publicPageImports = [], publicPages = [];
   const permissionTitles = Object.create(null);
   let importIndex = 0;
   function importCode(destination, owner, reference, imports) {
@@ -220,10 +222,49 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     for (const entry of descriptor.packaging.runtime.files) moduleFile(root, item, entry);
     codeFile(root, item, descriptor.entrypoints.server);
     if (descriptor.entrypoints.ui) codeFile(root, item, descriptor.entrypoints.ui);
+    if (descriptor.entrypoints.publicPage) {
+      codeFile(root, item, descriptor.entrypoints.publicPage.renderer);
+      codeFile(root, item, descriptor.entrypoints.publicPage.imageIds);
+      moduleFile(root, item, descriptor.entrypoints.publicPage.stylesheet, {exported:true});
+    }
     if (!selection.enabled) continue;
     const moduleIntegrity = lock.modules.find(node => node.moduleId === selection.moduleId)?.runtime.integrity;
     if (!/^sha256-[a-f0-9]{64}$/.test(moduleIntegrity ?? ''))
       fail('build.module-integrity', 'Every active module view needs the exact locked runtime integrity.');
+    if (descriptor.entrypoints.publicPage && composition.exposure.app.moduleIds.includes(selection.moduleId)
+      && active(selection.moduleId, '/entrypoints/publicPage')) {
+      const entry=descriptor.entrypoints.publicPage;
+      const names={page:'page',pagePublication:'page_publication',publicPage:'public_page',
+        navigation:'navigation',publishedPageMedia:'published_page_media',fileMetadata:'file_metadata'};
+      const fields={page:['context_id','id','published_slug','published_title','published_sections',
+          'published_settings','published_seo','published_at','published_revision'],
+        pagePublication:['context_id','page_id','state','published_revision'],
+        publicPage:['context_id','page_id','published_revision'],
+        navigation:['context_id','id','published_items','published_at'],
+        publishedPageMedia:['context_id','page_id','file_id','content_type','byte_size','digest',
+          'intent_id','generation'],
+        fileMetadata:['context_id','file_id','object_key','state','content_type','byte_size',
+          'digest','intent_id','generation']};
+      const selected={};
+      for (const [name,target] of Object.entries(names)) {
+        const reference=entry.models[name];
+        const model=descriptor.contracts.models.find(model=>model.id===reference.id);
+        if (reference.moduleId!==selection.moduleId || reference.kind!=='model' || !model
+          || model.scope!=='context'||model.contextField!=='context_id'||model.public
+          || fields[name].some(field=>!model.fields.some(item=>item.id===field)))
+          fail('public-page.model', 'Public page model references must belong to the selected module.');
+        selected[target]=reference.id;
+      }
+      const rendererSource=codeFile(root,item,entry.renderer);
+      const renderer='public_page_renderer';
+      publicPageImports.push(`import { ${entry.renderer.export} as ${renderer} } from './public-page-renderer.mjs';`);
+      const imageIds=importCode(output,item,entry.imageIds,publicPageImports);
+      const stylesheet=readFileSync(moduleFile(root,item,entry.stylesheet,{exported:true}),'utf8');
+      if(Buffer.byteLength(stylesheet)>64*1024)fail('public-page.stylesheet','Public page stylesheet exceeds its bound.');
+      publicPages.push({moduleId:selection.moduleId,models:selected,renderer,rendererSource,
+        rendererExport:entry.renderer.export,imageIds,stylesheet});
+      if(publicPages.length>1)fail('public-page.conflict','Only one selected public page renderer may own /p.');
+    }
     for (const stylesheet of descriptor.contracts.ui.styles) {
       const file = moduleFile(root, item, stylesheet, {exported: true});
       clientImports.push(`import ${JSON.stringify(importSpecifier(output, file))};`);
@@ -487,6 +528,9 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   const contextDeclarations = [...contextValidators.names.values()]
     .map(name => `export declare const ${name}: (value:unknown)=>boolean;`).join('\n') || 'export {};';
   const rendered = {
+    'public-pages.ts': `${banner}import type {PublicPageProjection} from ${JSON.stringify(importSpecifier(output,path.join(root,'core/runtime/public-pages.ts')))};\n${publicPageImports.join('\n')}\nexport const publicPageProjection: PublicPageProjection | null = ${publicPages.length
+      ? `Object.freeze({moduleId:${JSON.stringify(publicPages[0].moduleId)},models:Object.freeze(${JSON.stringify(publicPages[0].models)}),css:${JSON.stringify(publicPages[0].stylesheet)},render:${publicPages[0].renderer} as unknown as PublicPageProjection['render'],imageIds:${publicPages[0].imageIds} as unknown as PublicPageProjection['imageIds']})`
+      : 'null'};\n`,
     'widget-catalog.ts': `${banner}import {widgetKey, type CompiledWidgetCatalog, type WidgetValidatorMap} from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/widgets/catalog.ts')))};\nimport * as compiledValidators from './operation-validators.mjs';\nimport * as contextValidators from './widget-context-validators.mjs';\n${freezeSource}export const widgetCatalog: CompiledWidgetCatalog = freeze(${JSON.stringify(widgetCatalog)});\nexport const widgetValidators: WidgetValidatorMap = new Map([${widgetValidatorEntries}]);\n`,
     'provider-catalog.ts': `${banner}import type {ProviderOperationSchema} from ${JSON.stringify(importSpecifier(output, path.join(root,'core/providers/tools.ts')))};\nimport type {ConnectorDescriptor} from ${JSON.stringify(importSpecifier(output,path.join(root,'sdk/connectors/types.ts')))};\n${providerImports.join('\n')}\n${freezeSource}export const toolCatalog: readonly ProviderOperationSchema[] = freeze(${JSON.stringify(providerToolCatalog)});\nexport const openAiProvider = ${providerDefinition};\nexport const connectors: readonly ConnectorDescriptor[] = freeze(${JSON.stringify(connectors)});\n`,
     'file-catalog.ts': `${banner}import type {RuntimeFileCatalog} from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/files/catalog.ts')))};\n${freezeSource}export const fileCatalog: RuntimeFileCatalog = freeze(${JSON.stringify(fileCatalog)});\n`,
@@ -507,6 +551,30 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
       views: views.map(({ component, ...metadata }) => metadata), navigation, frontCatalog,
       httpBindings, packageArchivesVerified: false })}\n`,
   };
+  if (publicPages.length) {
+    let bundled;
+    try {
+      await assertWorkerBoundary({root,entryPoints:[slash(path.relative(root,publicPages[0].rendererSource))]});
+      bundled=buildSync({entryPoints:[publicPages[0].rendererSource],bundle:true,write:false,
+        format:'esm',platform:'browser',conditions:['worker'],jsx:'automatic',target:'es2022',
+        define:{'process.env.NODE_ENV':'"production"'},minify:true,metafile:true,logLevel:'silent'});
+    } catch (error) { fail('public-page.renderer-build', `Public page renderer compilation failed: ${error.message}`); }
+    if (bundled.outputFiles.length!==1||Object.values(bundled.metafile.outputs)
+      .some(item=>item.imports.length>0)) fail('public-page.renderer-build','Public page renderer must bundle without external imports.');
+    const bytes=bundled.outputFiles[0].contents;
+    const source=new TextDecoder().decode(bytes);
+    if (/\b(?:eval\s*\(|new\s+Function\s*\(|import\s*\(|require\s*\(\s*['"]node:)/u.test(source))
+      fail('public-page.renderer-build','Public page renderer uses dynamic code or Node imports.');
+    rendered['public-page-renderer.mjs']=source;
+    rendered['public-page-renderer.d.mts']=`export declare const ${publicPages[0].rendererExport}: (...args: unknown[]) => string;\n`;
+    destinations['public-page-renderer.mjs']=confined(root,path.join(output,'public-page-renderer.mjs'),{missing:true});
+    destinations['public-page-renderer.d.mts']=confined(root,path.join(output,'public-page-renderer.d.mts'),{missing:true});
+  } else {
+    for(const name of ['public-page-renderer.mjs','public-page-renderer.d.mts']){
+      const stale=confined(root,path.join(output,name),{missing:true});
+      if(existsSync(stale))unlinkSync(stale);
+    }
+  }
   mkdirSync(output, { recursive: true });
   for (const [name, content] of Object.entries(rendered)) {
     const target = confined(root, destinations[name], { missing: true });

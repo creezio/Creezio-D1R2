@@ -3651,7 +3651,7 @@
             "query"
           ]
         },
-        "public": false
+        "public": true
       },
       {
         "id": "contact.list",
@@ -3885,7 +3885,7 @@
             "query"
           ]
         },
-        "public": false
+        "public": true
       },
       {
         "id": "contact.update",
@@ -8362,7 +8362,40 @@
         }
       }
     ],
-    "publicContracts": []
+    "publicContracts": [
+      {
+        "id": "contact-lookup",
+        "version": "1.0.0",
+        "models": [],
+        "operations": [
+          {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "contact.search"
+          },
+          {
+            "moduleId": "creezio.crm",
+            "kind": "operation",
+            "id": "contact.read"
+          }
+        ],
+        "events": [],
+        "schemas": [
+          {
+            "schemaId": "contact-search"
+          },
+          {
+            "schemaId": "contact-id"
+          },
+          {
+            "schemaId": "contact-page"
+          },
+          {
+            "schemaId": "contact-output"
+          }
+        ]
+      }
+    ]
   },
   "documentation": {
     "installed": {

@@ -6,8 +6,8 @@ Un administrateur autorisé consulte l’usage et les erreurs dans son contexte,
 
 ## Première tranche
 
-Six onglets hérités du produit original, alimentés par des événements déclarés et une vue de provenance. Filtres 24 h, 7 j, 30 j, 12 mois ; recherche et pagination du journal, export local d’une page CSV/JSON, actualisation à 8 s en panneau actif. Contexte D1 isolé, audience admin pour lecture et droits séparés pour émission. Les valeurs ne sont pas des mesures exhaustives tant que les hooks hôte ne sont pas raccordés.
+Six onglets hérités du produit original, alimentés par des événements déclarés et une vue de provenance. Filtres 24 h, 7 j, 30 j, 12 mois ; recherche et pagination du journal, export local CSV/JSON borné à dix pages/500 événements avec état partiel explicite, actualisation à 8 s en panneau actif. Contexte D1 isolé, audience admin pour lecture et droits séparés pour émission. Les valeurs ne sont pas des mesures exhaustives tant que les hooks hôte ne sont pas raccordés.
 
 ## Critères différés visibles
 
-Les logs requête/API/MCP, endpoints, tracking automatique et productivité complète exigent de nouveaux ports publics hôte (voir TODO). La purge du journal original exige une règle de rétention et un droit de suppression validés ; elle n’est pas simulée. L’export distant reste une option distincte.
+Les exécutions du journal technique déjà maintenu par le moteur et les routes du catalogue HTTP compilé sont projetées dans le contexte avec droit admin, sans payload, secret, texte d’erreur ni principal. Les logs des requêtes refusées avant moteur, le tracking automatique et la productivité complète restent ouverts (voir TODO). La purge du journal original exige une règle de rétention et un droit de suppression validés ; elle n’est pas simulée. L’export distant reste une option distincte.

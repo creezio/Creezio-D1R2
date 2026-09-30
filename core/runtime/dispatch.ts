@@ -154,7 +154,7 @@ export function createRuntime(definition: RuntimeDefinition): CreezioRuntime {
       // No host environment is needed to render a non-API page through the UI adapter.
       let namespace: string;
       try { namespace = decodeURIComponent(url.pathname.split('/')[1] ?? ''); } catch { return null; }
-      if (!['api','mcp','oauth','.well-known'].some(name=>namespace===name||namespace.startsWith(`${name}/`)||namespace.startsWith(`${name}\\`))) return null;
+      if (!['api','mcp','oauth','.well-known','p'].some(name=>namespace===name||namespace.startsWith(`${name}/`)||namespace.startsWith(`${name}\\`))) return null;
       const requestId = crypto.randomUUID();
       if(request.url.length>RUNTIME_LIMITS.maxUrlBytes||encoder.encode(request.url).byteLength>RUNTIME_LIMITS.maxUrlBytes)return error('request_too_large','Request URL exceeds its limit.',414,requestId,head);
       const segments = requestPath(url.pathname);
@@ -164,6 +164,11 @@ export function createRuntime(definition: RuntimeDefinition): CreezioRuntime {
       const resolved = resolveRuntimeEnvironment(environment);
       if (!resolved) return error('runtime_unavailable','Runtime unavailable.',503,requestId,head);
       const path = `/${segments.join('/')}`;
+      if (path === '/p' || path === '/api/public/pages-navigation/media') {
+        if (!definition.publicPages) return error('not_found','Public page not found.',404,requestId,head);
+        try { return await definition.publicPages.dispatch(request,resolved,environment,requestId,path); }
+        catch { return error('runtime_unavailable','Runtime unavailable.',503,requestId,head); }
+      }
       if (namespace === 'oauth' || namespace === '.well-known') {
         if (!nativeAccess.admin && !nativeAccess.app)
           return error('not_found','OAuth route not found.',404,requestId,head);

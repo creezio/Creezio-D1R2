@@ -19,7 +19,7 @@
     ]
   },
   "sdk": {
-    "version": "1.5.0",
+    "version": "1.6.0",
     "coreVersion": "0.0.0",
     "policy": {
       "id": "creezio.local-contracts",
@@ -134,7 +134,16 @@
       },
       "enabled": true,
       "configuration": [],
-      "integrations": []
+      "integrations": [
+        {
+          "moduleId": "creezio.crm",
+          "enabled": true
+        },
+        {
+          "moduleId": "creezio.messaging",
+          "enabled": true
+        }
+      ]
     },
     {
       "moduleId": "creezio.pages-navigation",

@@ -52,6 +52,15 @@ const render=(input,audience='app',host)=>({structuredContent:{kind:'creezio.wid
   instance:{audience,...(host?{host}:{})},input}});
 const action=output=>({structuredContent:{kind:'creezio.widget.action.v1',state:'succeeded',output}});
 
+test('host error does not accept a forged successful ticket page',async()=>{
+  const {elements,app,responses}=setup();await mountSupportWidget('list','app');
+  app().emit('toolresult',render({items:[ticket('real')],nextCursor:null}));
+  responses.push(()=>Promise.resolve({...action({items:[ticket('forged')],nextCursor:null}),isError:true}));
+  elements.get('list').click();await tick();
+  assert.equal(elements.get('results').children[0].children[0].textContent,'Sujet real');
+  assert.match(elements.get('status').textContent,/indisponible/);
+});
+
 test('historical card mounts without an operation and without tools remains readonly',async()=>{
   const {elements,app,calls}=setup(false);
   await mountSupportWidget('list','app');

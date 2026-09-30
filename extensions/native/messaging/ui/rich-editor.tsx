@@ -3,6 +3,12 @@
 import {useEffect,useRef,useState} from 'react';
 
 const allowed=new Set(['P','BR','STRONG','EM','B','I','UL','OL','LI','A']);
+export function safeHttpUrl(value:string):string|null {
+  if(/[\u0000-\u001f\u007f]/u.test(value))return null;
+  try {const url=new URL(value);
+    return (url.protocol==='http:'||url.protocol==='https:')&&url.hostname?url.href:null;
+  }catch{return null;}
+}
 /** Only text and a narrow formatting vocabulary may enter the editable DOM. */
 export function cleanFragment(html:string,doc:Document):DocumentFragment {
   const parsed=new DOMParser().parseFromString(html,'text/html'),out=doc.createDocumentFragment();
@@ -13,7 +19,8 @@ export function cleanFragment(html:string,doc:Document):DocumentFragment {
     const element=doc.createElement(node.tagName.toLowerCase());
     if(node.tagName==='A'){
       const href=node.getAttribute('href');
-      if(href&&/^https?:\/\//i.test(href)){element.setAttribute('href',href);element.setAttribute('rel','noopener noreferrer');}
+      const safe=href?safeHttpUrl(href):null;
+      if(safe){element.setAttribute('href',safe);element.setAttribute('rel','noopener noreferrer');}
     }
     parent.appendChild(element);
     for(const child of Array.from(node.childNodes))copy(child,element);
@@ -29,7 +36,9 @@ export function RichEditor(props:{initialHtml:string;initialText:string;onChange
     element.replaceChildren(props.initialHtml?cleanFragment(props.initialHtml,element.ownerDocument):
       element.ownerDocument.createTextNode(props.initialText));
   },[]);
-  function report(){const element=ref.current;if(element)props.onChange(element.innerHTML,element.innerText);}
+  function report(){const element=ref.current;if(element){const clean=element.ownerDocument.createElement('div');
+    clean.appendChild(cleanFragment(element.innerHTML,element.ownerDocument));
+    props.onChange(clean.innerHTML,clean.innerText);}}
   function format(command:string,value?:string){if(props.disabled)return;ref.current?.focus();
     document.execCommand(command,false,value);report();}
   function insert(fragment:DocumentFragment){const element=ref.current;if(!element)return;
@@ -52,9 +61,10 @@ export function RichEditor(props:{initialHtml:string;initialText:string;onChange
         onClick={()=>setLinkOpen(true)}>Lien</button>
     </div>
     {linkOpen&&<div className="flex gap-2 border-b border-[#e6e0d4] p-2"><input aria-label="Adresse du lien" type="url" className="min-w-0 flex-1 rounded border px-2 py-1 text-sm" value={link} onChange={e=>setLink(e.target.value)} placeholder="https://…"/>
-      <button type="button" disabled={!/^https?:\/\//i.test(link)} onClick={()=>{
+      <button type="button" disabled={!safeHttpUrl(link)} onClick={()=>{
         if(range.current){const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range.current);}
-        format('createLink',link);range.current=null;setLinkOpen(false);setLink('');}}>Insérer</button>
+        const safe=safeHttpUrl(link);if(safe)format('createLink',safe);
+        range.current=null;setLinkOpen(false);setLink('');}}>Insérer</button>
       <button type="button" onClick={()=>setLinkOpen(false)}>Annuler</button></div>}
     <div ref={ref} contentEditable={!props.disabled} suppressContentEditableWarning role="textbox" aria-label="Message"
       aria-multiline="true" onInput={report} onBlur={report}

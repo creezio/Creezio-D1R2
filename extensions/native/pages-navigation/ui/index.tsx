@@ -76,6 +76,8 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
     [navigation,setNavigation]=useState<Navigation>(blankNav),[navEdited,setNavEdited]=useState<Navigation>(blankNav),
     [media,setMedia]=useState<Media[]>([]),[notice,setNotice]=useState(''),
     [newSlug,setNewSlug]=useState('/'),[newTitle,setNewTitle]=useState(''),
+    [publicVisibility,setPublicVisibility]=useState<boolean|null>(null),
+    [publicSlug,setPublicSlug]=useState<string|null>(null),
     [newKind,setNewKind]=useState<string>('hero'),[busy,setBusy]=useState(!!journal.current?.pending),[loading,setLoading]=useState(false);
   const [pageCursor,setPageCursor]=useState<string|null>(null);
   const [invalidContent,setInvalidContent]=useState<ReadonlySet<string>>(()=>new Set());
@@ -208,7 +210,8 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
       navReadSerial.current.invalidate();selectedRef.current='';busySerial.current++;busyRef.current=false;
       busyRef.current=!!journal.current?.pending;setBusy(busyRef.current);setPages([]);setPageCursor(null);setSelected('');setSaved(null);setEdited(null);
       setPreview(null);setNavigation(blankNav);setNavEdited(blankNav);setMedia([]);setInvalidContent(new Set());
-      setNotice('');setNewTitle('');setNewSlug('/');tabRef.current='pages';setTab('pages');skipSelectionOnce.current=true;
+      setNotice('');setNewTitle('');setNewSlug('/');setPublicVisibility(null);setPublicSlug(null);
+      tabRef.current='pages';setTab('pages');skipSelectionOnce.current=true;
       pendingPanelReset.current=true;}
     if(!enabled){setLoading(false);return;}
     if(pendingPanelReset.current){persistPending(journal.current?.pending??null);
@@ -222,12 +225,16 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
     if(saved?.id===selected&&edited?.id===selected&&(dirty||hasInvalidContent))return;
     const generation=selectionEpoch.current,wanted=selected,readSerial=pageReadSerial.current.begin();
     const valid=()=>pageCurrent(wanted,generation)&&pageReadSerial.current.accepts(readSerial);
-    setSaved(null);setEdited(null);setPreview(null);setMedia([]);setInvalidContent(new Set());
+    setSaved(null);setEdited(null);setPreview(null);setMedia([]);setInvalidContent(new Set());setPublicVisibility(null);setPublicSlug(null);
     void(async()=>{
       const result=await call<{page:DraftPage}>(scope,'page.read',{pageId:wanted},valid);
       if(!valid())return;
       if(result.kind==='ok'&&asPage(result.value.page)){setSaved(result.value.page);setEdited(result.value.page);setPreview(null);}
       else setNotice(result.kind==='ok'?'Page invalide.':errorText(result.code));
+      const visibility=await call<{visibility:'protected'|'public';slug:string|null}>(scope,'page.visibility',{pageId:wanted},valid);
+      if(valid()&&visibility.kind==='ok'){
+        setPublicVisibility(visibility.value.visibility==='public');setPublicSlug(visibility.value.slug);}
+      else if(valid())setNotice('Visibilité indisponible. Actualisez la page avant de publier.');
       const files=await call<PageResult<Media>>(scope,'media.list',{pageId:wanted,limit:50},valid);
       if(valid()&&files.kind==='ok')setMedia(files.value.items);
     })();
@@ -265,13 +272,18 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
       else setNotice(errorText(result.code));
     }finally{finishBusy(serial);}
   }
-  async function publishPage(){if(!saved||dirty||hasInvalidContent)return;
+  async function publishPage(){if(!saved||dirty||hasInvalidContent||publicVisibility===null)return;
+    if(publicVisibility&&!window.confirm('Rendre ce snapshot et ses images sélectionnées accessibles sans connexion ?'))return;
     const serial=beginBusy();if(serial===null)return;setNotice('');
     const pageId=saved.id,selection=selectionEpoch.current,valid=()=>pageCurrent(pageId,selection);
     try{const result=await mutate<{page:PublishedPage}>('page.publish',
-      {requestKey:requestKey(),pageId,revision:saved.revision},valid);
+      {requestKey:requestKey(),pageId,revision:saved.revision,
+        visibility:publicVisibility?'public':'protected'},valid);
       if(!valid())return;
-      if(result.kind==='ok'){setPreview(result.value.page);setNotice('Snapshot publié dans D1. Accès public anonyme non qualifié.');
+      if(result.kind==='ok'){setPreview(result.value.page);
+        setPublicSlug(publicVisibility?result.value.page.slug:null);
+        setNotice(publicVisibility?'Snapshot public confirmé. Le lien public suit le chemin publié.':
+          'Snapshot publié pour les lecteurs connectés ; toute exposition anonyme précédente est retirée.');
         const readSerial=pageReadSerial.current.begin(),readValid=()=>valid()&&pageReadSerial.current.accepts(readSerial);
         const read=await call<{page:DraftPage}>(scope,'page.read',{pageId},readValid);
         if(readValid()&&read.kind==='ok'){setSaved(read.value.page);setEdited(read.value.page);void loadPages();}}
@@ -383,7 +395,8 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
   }
   function choosePage(pageId:string){if(pageId!==selectedRef.current&&(dirty||hasInvalidContent)&&
       !window.confirm('Changer de page et abandonner les modifications locales ?'))return;
-    if(selectedRef.current!==pageId){selectedRef.current=pageId;selectionEpoch.current++;}
+    if(selectedRef.current!==pageId){selectedRef.current=pageId;selectionEpoch.current++;
+      setPublicVisibility(false);}
     setSelected(pageId);props.navigation.savePanelState({activeSubview:'pages',data:{
       sessionId,audience:props.audience,contextId:props.contextId,pageId,tab:'pages',
       ...(journal.current?.pending?{pending:{...journal.current.pending}}:{})}});}
@@ -445,7 +458,12 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
           <p className="text-xs text-slate-500">Brouillon v{edited.revision} · publié v{edited.publishedRevision}{dirty?' · modifications locales':''}</p></div>
           <button type="button" className={button} disabled={!dirty||busy||hasInvalidContent} onClick={()=>void savePage()}><Save size={14}/> Enregistrer</button>
           <button type="button" className={button} disabled={dirty||busy||hasInvalidContent} onClick={()=>void previewPage()}><Eye size={14}/> Aperçu</button>
-          <button type="button" className={button} disabled={dirty||busy||hasInvalidContent} onClick={()=>void publishPage()}><Upload size={14}/> Publier</button>
+          <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={publicVisibility===true}
+            disabled={publicVisibility===null}
+            onChange={e=>setPublicVisibility(e.target.checked)}/> Accès public sans connexion</label>
+          {publicSlug&&<a className="text-xs underline" href={`/p?slug=${encodeURIComponent(publicSlug)}`}
+            target="_blank" rel="noreferrer">Ouvrir la page publique</a>}
+          <button type="button" className={button} disabled={dirty||busy||hasInvalidContent||publicVisibility===null} onClick={()=>void publishPage()}><Upload size={14}/> Publier</button>
           <button type="button" className={button} disabled={busy} onClick={()=>void resetPage()}><ArchiveRestore size={14}/> Reset brouillon</button></div>
         <section className={`${card} grid gap-3 md:grid-cols-2`}><h3 className="md:col-span-2 font-semibold">Réglages et SEO</h3>
           <label className="text-xs">Titre<input className={input} value={edited.title} onChange={e=>setEdited({...edited,title:e.target.value})}/></label>

@@ -77,7 +77,11 @@ test('analytics D1, paging, shared emission and admin-only read use engine ACL',
         .bind('administrator',`${moduleId}:read`).run();
       await db.prepare(`INSERT INTO "${ACCESS_TABLES.role_grants}" (role_id,permission_id) VALUES (?,?)`)
         .bind('administrator',`${moduleId}:emit`).run();
-      const engine=createOperationEngine({db,catalog,registry:registry(),permissions});
+      const diagnosticsRegistry=registry();
+      const diagnosticsBindings=compileHttpBindings({composition,modules:[manifest],
+        operationCatalog:diagnosticsRegistry.catalog});
+      const engine=createOperationEngine({db,catalog,registry:diagnosticsRegistry,permissions,
+        httpBindings:diagnosticsBindings});
       const invoke=(operationId,input,session=admin,audience='admin',contextId='application')=>engine.invoke({
         credential:{kind:'session',token:session.token},moduleId,operationId,contextId,audience,input});
       await rejected(invoke('event.list',{period:'week',limit:50},app,'app'),'forbidden');
@@ -108,6 +112,21 @@ test('analytics D1, paging, shared emission and admin-only read use engine ACL',
       assert.equal(summary.totals.events,56);
       assert.equal(summary.totals.clicks,55);
       assert.equal(summary.complete,true);
+      const diagnostics=succeeded(await invoke('diagnostics.executions',{period:'week',limit:5}));
+      assert.ok(diagnostics.items.length>0);
+      assert.ok(diagnostics.items.some(item=>item.operationId==='event.record'));
+      const diagnosticCursor=JSON.parse(Buffer.from(diagnostics.nextCursor,'base64url').toString('utf8'));
+      await rejected(invoke('diagnostics.executions',{period:'week',limit:5,cursor:Buffer.from(JSON.stringify({
+        ...diagnosticCursor,from:-1})).toString('base64url')}),'invalid_input');
+      await rejected(invoke('diagnostics.executions',{period:'week',limit:5,cursor:Buffer.from(JSON.stringify({
+        ...diagnosticCursor,afterTime:diagnosticCursor.from-1})).toString('base64url')}),'invalid_input');
+      assert.equal(diagnostics.items.every(item=>!Object.hasOwn(item,'output')
+        &&!Object.hasOwn(item,'inputHash')&&!Object.hasOwn(item,'principalId')),true);
+      const endpoints=succeeded(await invoke('diagnostics.endpoints',{limit:50}));
+      assert.equal(endpoints.source,'compiled-http-bindings');
+      assert.ok(endpoints.items.some(item=>item.operationId==='event.record'
+        &&item.method==='POST'&&item.path==='/api/app/analytics/event/record'));
+      await rejected(invoke('diagnostics.executions',{period:'week',limit:5},app,'app'),'forbidden');
       const widgetSummary=succeeded(await invoke('analytics.widget.summary',{}));
       assert.equal(widgetSummary.totals.events,56);
       assert.equal(widgetSummary.source,'reported');

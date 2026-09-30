@@ -140,7 +140,7 @@ export async function mountCrmWidget(entity:Entity,kind:'list'|'detail'):Promise
       initialRequest={mode:'search',query:args.query,archived:args.archived===true,limit:Number(args.limit)};
   });
   app.addEventListener('toolresult',result=>{
-    if(interactive)return;
+    if(interactive||result.isError===true)return;
     if(kind==='list'){
       const page=parsePage(result.structuredContent,entity);
       if(page){items=page.items;nextCursor=page.nextCursor;

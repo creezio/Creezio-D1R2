@@ -11,7 +11,8 @@ const node=(tag:string,className:string,value:string)=>{const e=document.createE
   e.className=className;e.textContent=value;return e;};
 const unwrap=(v:unknown):unknown=>record(v)&&v.kind==='creezio.widget.render.v1'?v.input:
   record(v)&&v.kind==='creezio.widget.action.v1'&&v.state==='succeeded'?v.output:v;
-const output=(v:unknown):unknown=>record(v)&&Object.hasOwn(v,'structuredContent')?unwrap(v.structuredContent):unwrap(v);
+const output=(v:unknown):unknown=>record(v)&&v.isError===true?null:
+  record(v)&&Object.hasOwn(v,'structuredContent')?unwrap(v.structuredContent):unwrap(v);
 const preview=(row:Row,key:'peer'|'subject'|'body')=>{
   const value=row[`${key}Excerpt`],more=row[`${key}HasMore`];
   return typeof value==='string'?value+(more===true?'…':''):'';};

@@ -1,5 +1,7 @@
 # Creezio-D1R2 — plan d'implémentation
 
+Priorité actualisée le 30 septembre : l'utilisateur autorise le dispatch et la réalisation parallèle des compléments T-18 à T-22, T-25 à T-29 et T-33 pendant son test de la première app. Le [backlog](TODO.md) précise les résultats et dépendances ; les autres conditions de validation et exigences sont inchangées.
+
 26 septembre 2026. Plan de construction et de qualification. **Creezio est un nouveau CMS nativement serverless ; les services externes sont des extensions, pas des composants du socle.** SQL central généré, comptes natifs, sources publiques et destination du futur fork `Creez-io/Creezio-Lab` sont acquis. Prévoir l'architecture Community/Enterprise, l'activation et l'accompagnement ; licence, tarifs, liste premium et conditions d'accès des SaaS sont expressément différés. Voir [Licences et offres](LICENCES-ET-OFFRES.md), distinct du LICENSE actuel. Les preuves hébergées sont suivies dans [Qualification Sites](QUALIFICATION-SITES.md).
 
 ## État et documents de pilotage

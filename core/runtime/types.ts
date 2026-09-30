@@ -55,6 +55,11 @@ export interface RuntimeDefinition {
     dispatch(request: Request, resolved: RuntimeEnvironment, environment: unknown, requestId: string,
       audience: 'admin' | 'app'): Promise<Response>;
   };
+  /** Dedicated anonymous published-page renderer; never a general module/data port. */
+  readonly publicPages?: {
+    dispatch(request: Request, resolved: RuntimeEnvironment, environment: unknown, requestId: string,
+      path: string): Promise<Response>;
+  };
 }
 export interface RuntimeExecutionContext {
   waitUntil(promise: Promise<unknown>): void;

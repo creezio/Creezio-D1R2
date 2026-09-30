@@ -10,8 +10,11 @@ import {clearSubmittedReply,putReply,requiresSupportReset,supportPanelBelongsToS
 
 type Ticket={id:string;requesterId:string;subject:string;status:'ouvert'|'repondu'|'resolu'|'ferme';
   assignedTo:string|null;createdAt:string;updatedAt:string;lastMessageAt:string|null;
-  lastPreview:string|null;messageCount:number;revision:number};
+  lastPreview:string|null;messageCount:number;revision:number;
+  contactId:string|null;messageBoxId:string|null;messageId:string|null};
 type Message={id:string;ticketId:string;origin:'client'|'support';authorId:string;body:string;createdAt:string};
+type ContactReference={id:string;name:string;email:string|null;companyId:string|null};
+type MessageReference={id:string;boxId:string;subject:string;from:string;text:string};
 type Page<T>={items:T[];nextCursor:string|null};
 const statusLabel:Record<Ticket['status'],string>={ouvert:'Ouvert',repondu:'Répondu',resolu:'Résolu',ferme:'Fermé'};
 const statusBadge=(status:Ticket['status'])=>`rounded-full px-2 text-xs ${status==='ouvert'?
@@ -35,6 +38,11 @@ export function SupportWorkspaceView(props:WorkspaceViewProps){
   const [loading,setLoading]=useState(false),[threadLoading,setThreadLoading]=useState(false);
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
   const [pending,setPending]=useState<PendingCommand|null>(null);
+  const [contactTerm,setContactTerm]=useState(''),[contacts,setContacts]=useState<ContactReference[]>([]);
+  const [contactReference,setContactReference]=useState<ContactReference|null>(null);
+  const [referenceBox,setReferenceBox]=useState(''),[referenceMessage,setReferenceMessage]=useState('');
+  const [messageReference,setMessageReference]=useState<MessageReference|null>(null);
+  const [referenceBusy,setReferenceBusy]=useState(false);
   const busyRef=useRef(false),busySerial=useRef(0),epoch=useRef(0),listSerial=useRef(0),selectionSerial=useRef(0);
   const initialPanel=useRef(props.navigation.readPanelState()?.data);
   const initialScope={sessionId:session?.id??'',audience,contextId:props.contextId};
@@ -121,6 +129,8 @@ export function SupportWorkspaceView(props:WorkspaceViewProps){
       pendingCreate.current=null;pendingReply.current=null;replyVersions.current.clear();
       subjectVersion.current++;bodyVersion.current++;
       journal.current=null;setPending(null);initialPanel.current=undefined;}
+    if(reset){setContacts([]);setContactReference(null);setMessageReference(null);
+      setContactTerm('');setReferenceBox('');setReferenceMessage('');setReferenceBusy(false);}
     if(!active||!session){setLoading(false);setThreadLoading(false);return;}
     if(!journal.current){
       if(!reset&&supportPanelBelongsToScope(restoredPanel,nextScope)&&!selectedIdRef.current)
@@ -137,8 +147,29 @@ export function SupportWorkspaceView(props:WorkspaceViewProps){
     if(id){const retain=selectedIdRef.current===id;savedId.current=null;void readTicket(id,token,retain);}
   },[active,session?.id,access.phase,audience,props.client,props.access,props.contextId,refresh,readTicket]);
   const choose=(id:string)=>{selectedIdRef.current=id;savedId.current=null;
+    setContacts([]);setContactReference(null);setMessageReference(null);
     if(!persistPanel(journal.current?.pending??null))setError('État du panneau indisponible. Les modifications sont bloquées.');
     void readTicket(id,epoch.current);};
+  const readReference=async(operation:'reference.contact.search'|'reference.contact.read'|'reference.message.read',
+    input:Record<string,unknown>)=>{
+    if(!selected||referenceBusy||!current(epoch.current))return;
+    const token=epoch.current,ticketId=selected.id,serial=selectionSerial.current;
+    setReferenceBusy(true);
+    try{const output=await invoke(operation,{ticketId,...input},token);
+      if(!current(token)||selectionSerial.current!==serial||selectedIdRef.current!==ticketId)return;
+      if(!output){setError('Lien indisponible ou accès refusé. Vérifiez les droits du module lié.');return;}
+      if(operation==='reference.contact.search'){
+        if(!Array.isArray(output.items)){setError('Réponse CRM invalide.');return;}
+        setContacts(output.items as ContactReference[]);setContactReference(null);
+      }else if(operation==='reference.contact.read'){
+        if(!output.item){setError('Contact introuvable.');return;}
+        setContactReference(output.item as ContactReference);
+      }else{
+        if(!output.message){setError('Message introuvable.');return;}
+        setMessageReference(output.message as MessageReference);
+      }
+    }finally{if(current(token))setReferenceBusy(false);}
+  };
   const loadMoreTickets=()=>{if(ticketCursor&&!loading)void refresh(epoch.current,appliedQuery,true,ticketCursor);};
   const loadMoreMessages=async()=>{if(!selected||!messageCursor||threadLoading)return;
     const token=epoch.current,id=selected.id,serial=selectionSerial.current;setThreadLoading(true);
@@ -177,7 +208,8 @@ export function SupportWorkspaceView(props:WorkspaceViewProps){
     }
     if(output&&issued.targetId&&selectedIdRef.current===issued.targetId){
       if(output.ticket)setSelected(output.ticket as Ticket);
-      else if(output.item&&issued.intent?.startsWith('ticket.'))setSelected(output.item as Ticket);
+      else if(output.item&&(issued.intent?.startsWith('ticket.')||issued.intent?.startsWith('reference.')))
+        setSelected(output.item as Ticket);
       if(output.item&&issued.intent?.startsWith('message.')){
         const message=output.item as Message;
         setMessages(rows=>rows.some(row=>row.id===message.id)?rows:[...rows,message]);
@@ -245,6 +277,14 @@ export function SupportWorkspaceView(props:WorkspaceViewProps){
   const claim=async()=>{if(!selected||!admin)return;
     await command('ticket.claim',{id:selected.id,revision:selected.revision,claim:!selected.assignedTo});
   };
+  const changeReference=async(kind:'contact'|'message',remove:boolean)=>{
+    if(!selected||busy||pending)return;
+    const operation=`reference.${kind}.${remove?'unlink':'link'}`;
+    const details=remove?{}:kind==='contact'?{contactId:contactReference?.id}:
+      {boxId:messageReference?.boxId,messageId:messageReference?.id};
+    if(!remove&&Object.values(details).some(value=>!validId(value)))return;
+    await command(operation,{ticketId:selected.id,revision:selected.revision,...details});
+  };
   const ownScope=scope.current.sessionId===session?.id&&scope.current.audience===audience&&
     scope.current.contextId===props.contextId;
   if(!active||!session||!ownScope)return <div className="p-6 text-sm">Support indisponible pour cette session.</div>;
@@ -310,6 +350,39 @@ export function SupportWorkspaceView(props:WorkspaceViewProps){
         <button type="button" className={`${button} mt-2`} disabled={busy||!!pending||threadLoading||!reply.trim()}
           onClick={()=>void send()}>{admin?'Enregistrer la réponse':'Envoyer le message'}</button>
         <p className="mt-2 text-xs text-muted-foreground">Fil local partagé. Aucun e-mail externe n’est envoyé.</p>
+        <section aria-label="Liens avec les modules" className="mt-4 space-y-3 border-t pt-4 text-sm">
+          <h3 className="font-medium">Consulter une référence autorisée</h3>
+          <p className="text-xs text-muted-foreground">Références explicites dans le même contexte. Leur lecture dépend des droits CRM ou Messagerie actuels.</p>
+          {selected.contactId?<div className="flex items-center gap-2"><span>Contact lié : {selected.contactId}</span>
+            <button type="button" className={button} disabled={referenceBusy} onClick={()=>void readReference('reference.contact.read',{contactId:selected.contactId})}>Relire</button>
+            <button type="button" className={button} disabled={busy||!!pending} onClick={()=>void changeReference('contact',true)}>Retirer le lien</button></div>:null}
+          {selected.messageBoxId&&selected.messageId?<div className="flex items-center gap-2"><span>Message lié : {selected.messageBoxId} / {selected.messageId}</span>
+            <button type="button" className={button} disabled={referenceBusy} onClick={()=>void readReference('reference.message.read',
+              {boxId:selected.messageBoxId,messageId:selected.messageId})}>Relire</button>
+            <button type="button" className={button} disabled={busy||!!pending} onClick={()=>void changeReference('message',true)}>Retirer le lien</button></div>:null}
+          <form className="flex gap-2" onSubmit={event=>{event.preventDefault();if(contactTerm.trim())void readReference('reference.contact.search',{query:contactTerm.trim()});}}>
+            <input className={`${field} min-w-0 flex-1`} aria-label="Rechercher un contact CRM" maxLength={120}
+              value={contactTerm} onChange={event=>setContactTerm(event.target.value)} placeholder="Nom du contact"/>
+            <button type="submit" className={button} disabled={referenceBusy||!contactTerm.trim()}>Chercher</button>
+          </form>
+          {contacts.length>0?<div className="flex flex-wrap gap-2">{contacts.map(item=><button key={item.id} type="button"
+            className={button} disabled={referenceBusy} onClick={()=>void readReference('reference.contact.read',{contactId:item.id})}>
+            {item.name}{item.email?` · ${item.email}`:''}</button>)}</div>:null}
+          {contactReference?<div role="status" className="flex items-center gap-2"><span>Contact : {contactReference.name}{contactReference.email?` · ${contactReference.email}`:''}</span>
+            <button type="button" className={button} disabled={busy||!!pending} onClick={()=>void changeReference('contact',false)}>Lier au ticket</button></div>:null}
+          <form className="flex flex-wrap gap-2" onSubmit={event=>{event.preventDefault();
+            if(validId(referenceBox)&&validId(referenceMessage))void readReference('reference.message.read',
+              {boxId:referenceBox,messageId:referenceMessage});}}>
+            <input className={`${field} min-w-0 flex-1`} aria-label="Identifiant de boîte" maxLength={128}
+              value={referenceBox} onChange={event=>setReferenceBox(event.target.value)} placeholder="ID de boîte"/>
+            <input className={`${field} min-w-0 flex-1`} aria-label="Identifiant de message" maxLength={128}
+              value={referenceMessage} onChange={event=>setReferenceMessage(event.target.value)} placeholder="ID de message"/>
+            <button type="submit" className={button} disabled={referenceBusy||!validId(referenceBox)||!validId(referenceMessage)}>Lire</button>
+          </form>
+          {messageReference?<div role="status" className="rounded-md border p-2"><strong>{messageReference.subject||'(sans objet)'}</strong>
+            <p>De {messageReference.from}</p><p className="whitespace-pre-wrap">{messageReference.text}</p>
+            <button type="button" className={button} disabled={busy||!!pending} onClick={()=>void changeReference('message',false)}>Lier au ticket</button></div>:null}
+        </section>
       </>:<p className="text-sm text-muted-foreground">Sélectionnez un ticket pour voir la conversation.</p>}
     </section></div>
   </div>;

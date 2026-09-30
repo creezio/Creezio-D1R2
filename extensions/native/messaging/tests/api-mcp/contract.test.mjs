@@ -2,6 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {manifest} from '../helpers.mjs';
 
+test('message lookup exports only authorized read, not storage or transport',()=>{
+  const [lookup]=manifest.contracts.publicContracts;
+  assert.equal(lookup.id,'message-lookup');
+  assert.equal(lookup.version,'1.0.0');
+  assert.deepEqual(lookup.models,[]);
+  assert.deepEqual(lookup.operations.map(ref=>ref.id),['message.read']);
+  assert.equal(manifest.contracts.operations.find(op=>op.id==='message.read').kind,'query');
+});
+
 test('every native operation has separate admin/app HTTP and MCP bindings',()=>{
   const operations=manifest.contracts.operations;
   assert.equal(operations.length,18);

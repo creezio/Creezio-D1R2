@@ -8,8 +8,8 @@
     "version": "0.0.0",
     "source": {
       "kind": "snapshot",
-      "revision": "t21-pages-navigation-v2",
-      "integrity": "sha256-c51904baf31a815c8e38e711668e353b4877bb68df147e2ef701da6465c061cc"
+      "revision": "t21-pages-navigation-v3",
+      "integrity": "sha256-f1b2fd5ddcd1bc049daff99cddbc8dd7d388e9e45d2fbe2ec41456c60893fff0"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -18,7 +18,7 @@
   },
   "compatibility": {
     "core": "^0.0.0",
-    "sdk": "^1.3.0",
+    "sdk": "^1.6.0",
     "requiredCapabilities": [
       "runtime.worker",
       "data.d1.shared",
@@ -34,6 +34,49 @@
     "ui": {
       "path": "ui/index.tsx",
       "export": "PagesNavigationAdminView"
+    },
+    "publicPage": {
+      "renderer": {
+        "path": "ui/public-document.tsx",
+        "export": "renderPublicPage"
+      },
+      "imageIds": {
+        "path": "ui/published-images.ts",
+        "export": "publishedImageIds"
+      },
+      "stylesheet": "ui/landing.css",
+      "models": {
+        "page": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "model",
+          "id": "page"
+        },
+        "pagePublication": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "model",
+          "id": "page_publication"
+        },
+        "publicPage": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "model",
+          "id": "public_page"
+        },
+        "navigation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "model",
+          "id": "navigation"
+        },
+        "publishedPageMedia": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "model",
+          "id": "published_page_media"
+        },
+        "fileMetadata": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "model",
+          "id": "file_metadata"
+        }
+      }
     },
     "plugin": {
       "manifest": "plugin/plugin.json",
@@ -402,6 +445,38 @@
           },
           "required": [
             "pageId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "page-visibility-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "visibility": {
+              "type": "string",
+              "enum": [
+                "protected",
+                "public"
+              ]
+            },
+            "slug": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "visibility",
+            "slug"
           ],
           "additionalProperties": false
         }
@@ -822,6 +897,42 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "pageId",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "page-publish-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "pageId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "visibility": {
+              "type": "string",
+              "enum": [
+                "protected",
+                "public"
+              ]
             }
           },
           "required": [
@@ -2567,6 +2678,90 @@
         "public": false
       },
       {
+        "id": "public_page",
+        "title": "Exposition anonyme explicite du snapshot",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "page_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "published_revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "enabled_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "page_id"
+        ],
+        "indexes": [],
+        "relations": [
+          {
+            "id": "publication",
+            "fields": [
+              "context_id",
+              "page_id"
+            ],
+            "target": {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page_publication"
+            },
+            "targetFields": [
+              "context_id",
+              "page_id"
+            ],
+            "onDelete": "restrict"
+          }
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
         "id": "published_page_media",
         "title": "Médias du snapshot publié",
         "scope": "context",
@@ -2859,6 +3054,11 @@
             "moduleId": "creezio.pages-navigation",
             "kind": "model",
             "id": "page_publication"
+          },
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "model",
+            "id": "public_page"
           },
           {
             "moduleId": "creezio.pages-navigation",
@@ -3291,6 +3491,124 @@
         "public": false
       },
       {
+        "id": "page.visibility",
+        "title": "Lire la visibilité du snapshot",
+        "kind": "query",
+        "input": {
+          "schemaId": "page-id-input"
+        },
+        "output": {
+          "schemaId": "page-visibility-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "edit"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "pageVisibility"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "page"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "public_page"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 2,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
         "id": "page.save",
         "title": "Enregistrer la page",
         "kind": "command",
@@ -3531,7 +3849,7 @@
         "title": "Publier le snapshot éditorial",
         "kind": "command",
         "input": {
-          "schemaId": "page-state-input"
+          "schemaId": "page-publish-input"
         },
         "output": {
           "schemaId": "published-page-output"
@@ -3577,6 +3895,11 @@
               "moduleId": "creezio.pages-navigation",
               "kind": "model",
               "id": "published_page_media"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "public_page"
             }
           ],
           "writes": [
@@ -3594,6 +3917,11 @@
               "moduleId": "creezio.pages-navigation",
               "kind": "model",
               "id": "published_page_media"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "public_page"
             }
           ],
           "emits": [],
@@ -3659,7 +3987,7 @@
         },
         "execution": {
           "maxDurationMs": 10000,
-          "maxItems": 25,
+          "maxItems": 27,
           "resumable": false
         },
         "audit": {
@@ -5370,6 +5698,40 @@
         }
       },
       {
+        "id": "admin.page.visibility",
+        "method": "GET",
+        "path": "/api/admin/pages-navigation/page/visibility",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "page.visibility"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "page_id",
+            "in": "query",
+            "inputField": "pageId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "page-id-input"
+        },
+        "output": {
+          "schemaId": "page-visibility-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
         "id": "admin.page.save",
         "method": "POST",
         "path": "/api/admin/pages-navigation/page/save",
@@ -5447,7 +5809,7 @@
         ],
         "parameters": [],
         "input": {
-          "schemaId": "page-state-input"
+          "schemaId": "page-publish-input"
         },
         "output": {
           "schemaId": "published-page-output"
@@ -6121,6 +6483,35 @@
           "textFallback": true
         },
         {
+          "id": "page.visibility",
+          "name": "pages_page_visibility",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "page.visibility"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "page-id-input"
+          },
+          "output": {
+            "schemaId": "page-visibility-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
           "id": "page.save",
           "name": "pages_page_save",
           "operation": {
@@ -6194,7 +6585,7 @@
             "api-token"
           ],
           "input": {
-            "schemaId": "page-state-input"
+            "schemaId": "page-publish-input"
           },
           "output": {
             "schemaId": "published-page-output"
@@ -6618,6 +7009,11 @@
             {
               "moduleId": "creezio.pages-navigation",
               "kind": "operation",
+              "id": "page.visibility"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
               "id": "page.save"
             },
             {
@@ -6711,6 +7107,11 @@
               "moduleId": "creezio.pages-navigation",
               "kind": "operation",
               "id": "page.read"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "page.visibility"
             },
             {
               "moduleId": "creezio.pages-navigation",
@@ -7019,7 +7420,7 @@
     },
     "versionBinding": {
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t21-pages-navigation-v2"
+      "sourceRevision": "t21-pages-navigation-v3"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -7110,6 +7511,7 @@
         "ui/front-link.ts",
         "ui/seo.ts",
         "ui/prefabs.tsx",
+        "ui/public-document.tsx",
         "ui/published-images.ts",
         "ui/landing.css",
         "ui/types.ts",
@@ -7153,7 +7555,7 @@
     "validationBinding": {
       "moduleId": "creezio.pages-navigation",
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t21-pages-navigation-v2"
+      "sourceRevision": "t21-pages-navigation-v3"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",

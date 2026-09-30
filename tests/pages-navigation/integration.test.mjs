@@ -100,6 +100,9 @@ test('D1 operation engine keeps drafts, published snapshots and access boundarie
     await rejected(invoke('page.published.read',{pageId:'home'},'app'),'not_found');
     const published=output(await invoke('page.publish',{requestKey:'page-publish',pageId:'home',revision:2})).page;
     assert.equal(published.title,'Accueil V1');
+    assert.equal(output(await invoke('page.visibility',{pageId:'home'})).visibility,'protected');
+    assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM "${generated.tables.public_page}"`).first()).n,0,
+      'the existing protected publish must not expose an anonymous page');
     assert.equal(output(await invoke('page.published.read',{pageId:'home'},'app')).page.title,'Accueil V1');
     const resolved=output(await invoke('page.published.resolve',{slug:'/'},'app'));
     assert.equal(resolved.pageId,'home');assert.equal(resolved.slug,'/');
@@ -190,8 +193,12 @@ test('D1 operation engine keeps drafts, published snapshots and access boundarie
     const edited=output(await invoke('page.save',{requestKey:'image-draft',pageId:'home',revision:6,
       slug:'/',title:'Accueil V1',...withImage})).page;
     const snapshot=output(await invoke('page.publish',{requestKey:'image-publish',pageId:'home',
-      revision:edited.revision})).page;
+      revision:edited.revision,visibility:'public'})).page;
     assert.equal(snapshot.sections[0].content.imageFileId,staged.fileId);
+    const publicMarker=await db.prepare(`SELECT published_revision FROM "${generated.tables.public_page}"
+      WHERE context_id=? AND page_id=?`).bind('application','home').first();
+    assert.equal(publicMarker.published_revision,snapshot.publishedRevision);
+    assert.equal(output(await invoke('page.visibility',{pageId:'home'})).slug,'/');
     assert.deepEqual(output(await invoke('media.published.list',{pageId:'home'},'app'))
       .items.map(item=>item.fileId),[staged.fileId]);
     const imageRequest=(reference,recordId='home',contextId='application')=>{
@@ -239,6 +246,10 @@ test('D1 operation engine keeps drafts, published snapshots and access boundarie
         contextId:'application',audience:'admin',requestKey})));
     assert.equal(receipts.filter(result=>result?.state==='succeeded').length,1,
       'unknown acknowledgements must be read by key, never replayed');
+    assert.equal(await db.prepare(`SELECT page_id FROM "${generated.tables.public_page}"
+      WHERE context_id=? AND page_id=?`).bind('application','home').first(),null,
+      'a protected republish revokes the previous anonymous revision atomically');
+    assert.equal(output(await invoke('page.visibility',{pageId:'home'})).visibility,'protected');
     assert.deepEqual(output(await invoke('media.published.list',{pageId:'home'},'app'))
       .items.map(item=>item.fileId),[newer.fileId]);
     assert.equal((await imageRequest(staged)).status,404,'replaced snapshot refuses the old reference');

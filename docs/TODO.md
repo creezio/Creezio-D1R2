@@ -1,5 +1,21 @@
 # Backlog de réalisation
 
+## Mandat actif — compléments des modules, 30 septembre 2026
+
+L'utilisateur demande désormais la réalisation parallèle de T-18 à T-22, T-25 à T-29 et T-33. Cette priorité remplace leur attente derrière le test utilisateur de première app ; elle ne vaut pas validation de T-39, qui reste en attente. Branches de travail depuis main `812ebd4` : `core/native-modules-completion` et `core/external-connectors-completion`. Aucune de leurs nouvelles fonctions n'est encore déclarée livrée.
+
+| Résultat attendu | Responsable | Dépendance concrète |
+|---|---|---|
+| T-18/T-19/T-20 : messagerie, support, CRM et widgets | Agent Sol modules natifs | Appels de lecture entre contrats publics versionnés ; transport mail distinct T-29 |
+| T-21 : pages publiques, médias et SEO serveur | Agent Sol pages | Adaptateur de lecture publique du snapshot explicitement publié |
+| T-22 : diagnostics, instrumentation existante et exports | Agent Sol analytics | Projection autorisée du journal d'exécutions et du catalogue HTTP |
+| T-27 : actions Stripe et webhooks | Agent Sol connecteurs | Port sortant déclaré, journal commun, signature/déduplication hôte |
+| T-26/T-28 : actions n8n et indexation/recherche Meili | Agent Sol services externes | Port mutateur partagé et projection de recherche déclarée |
+| T-33 : ressources D1/R2 distinctes hors Sites | Agent Sol stockage | Bindings déployés et garanties de droits/commit entre bases explicites |
+| T-25/T-29 et intégration commune | Orchestrateur | Recettes Catalogue existantes à compléter ; PRD par fournisseur puis port/recette réels |
+
+T-17 reste dans le dernier bloc. T-23/T-24, T-34/T-35 et les reconstructions d'applications conservent leurs validations futures. Les sous-familles T-29 dépendantes de ces travaux peuvent être spécifiées, mais leur raccord n'est pas implicitement autorisé. Les nouveaux ports nécessaires sont limités aux modules retenus ; ils ne rouvrent pas tout T-04/T-05/T-06/T-10. Les critères, six suites, revues et preuves propres à chaque lot restent requis.
+
 **Révision 56 — 30 septembre 2026.** Core PR #77 est intégrée sur main `cd2eeb2` (CI main 1 286/1 286) et Lab PR #14 sur main `1bfdf0f` (1 282/1 282). Original et Lab servent chacun une version 5 du Site courant, avec sources distinctes, publication et registre synchronisés. La lecture native admin/app retrouve les témoins ; sur Lab, le navigateur a retenu, retiré puis retenu la même demande sans le conflit de v4, et l'API confirme la révision 5. La sélection après rechargement et l'usage du contexte par un tour suivant ne sont pas prouvés. Le plugin APP Lab du compte ChatGPT courant a obtenu le seul scope achats : `purchase_request_get` affiche la fiche à 12,99 € et « Relire la fiche » effectue une lecture directe sans tour IA. Sur Linux et Cloudflare, Core `cd2eeb2` et Lab `1bfdf0f` sont livrés dans leurs profils ; les lectures de conservation après arrêt du runtime local sont vérifiées, sans réimport de données. Stripe 0.2.1 affiche « 6,00 € / Chaque mois » sur Linux ; Meili 0.2.0 a relu une page d'une métadonnée d'index sur fournisseur réel, sans document ni indexation. Le refus `dependency.version` est prouvé par le service natif du fork Lab avec une candidate incompatible **en mémoire seulement** ; il ne vaut pas essai d'une release ou d'un Site distant. Les recettes globales T16/T27/T28/T38/T39 et les travaux différés restent ouverts ; la validation utilisateur attend son propre test (« Je vais le tester avant de valider ») ; voir les fiches liées.
 
 **Révision 55 — 30 septembre 2026.** Lab Sites version 4 a révélé un conflit lors d'une nouvelle retenue de sélection sur le widget historique, après un retrait exercé en version 3 : la lecture masquait la révision durable de la ligne retirée. Un correctif local T16 conserve cette révision sans exposer l'ancienne valeur ni transmettre le contexte retiré au modèle ; les tests ciblés passent. Il n'est pas encore intégré ni livré au Site Lab. La recette visuelle après livraison et les autres critères T16 restent ouverts ; voir [T16](IMPLEMENTATION-T16.md) et le reçu externe T16 du 30 septembre. La PR #76 est intégrée sur main `fd70aa0` après 1 286 tests réussis sur son candidat : Meili 0.2.0 et Stripe 0.2.1 attendent leur recette hôte ; la CI de ce nouveau main est suivie séparément. Sur le Site Original version 4 existant, la connexion native, l'historique, le brouillon et les deux onglets ont été vérifiés dans le navigateur après rechargement, puis la déconnexion confirmée, sans nouvel appel LLM. Les Sites restent en version 4 et le raccord du plugin ChatGPT du compte courant reste ouvert.
@@ -115,8 +131,8 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-26](#T-26) | P5 | Connecteur n8n | [T-10](#T-10), [T-11](#T-11), [T-16](#T-16), [T-24](#T-24) | En cours — port externe et module |
 | [T-27](#T-27) | P5 | Connecteur Stripe | [T-11](#T-11), [T-16](#T-16) | Produits/prix 0.2.0 intégrés et lus sur Linux test ; correctif 0.2.1 local, REQ-2701 ouverte |
 | [T-28](#T-28) | P5 | Connecteur Meili | [T-05](#T-05), [T-11](#T-11) | Connexion externe qualifiée ; liste d'index 0.2.0 locale, indexation/recherche ouvertes |
-| [T-29](#T-29) | P5 | Autres connecteurs et frontières externes | [T-11](#T-11), [T-16](#T-16), [T-18](#T-18), [T-23](#T-23) | À faire — après première app |
-| [T-33](#T-33) | P6 | Stockages distincts hors Sites | [T-32](#T-32) | À faire — après première app |
+| [T-29](#T-29) | P5 | Autres connecteurs et frontières externes | [T-11](#T-11), [T-16](#T-16), [T-18](#T-18), [T-23](#T-23) | En développement — Granola et Mail ; raccords différés conservés |
+| [T-33](#T-33) | P6 | Stockages distincts hors Sites | [T-32](#T-32) | En développement — mapping testé, autorité et routage métier à qualifier |
 | [T-34](#T-34) | P6 | Éditions, politiques et activation | [T-08](#T-08), [T-11](#T-11), [T-27](#T-27) | À faire — accord explicite futur préalable |
 | [T-35](#T-35) | P6 | Accompagnement avec accès consenti | [T-23](#T-23), [T-34](#T-34) | À faire — accord explicite futur préalable |
 
@@ -357,6 +373,7 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 - Lot : **P5** ; état : **en cours — intégration de la première tranche** ; responsable : root avec les agents Sol.
 - Dépendances : [T-11](#T-11), [T-13](#T-13).
 - Travail/livrables : Module pages-navigation, médias/SEO/édition et reset contrôlé.
+- Complément PR #79 : choix explicite de publication publique, HTML serveur utilisant les mêmes préfabriqués et accès aux seules images du snapshot publié. Les tests D1/R2 et refus de révocation passent localement ; la compilation de la projection serveur et les recettes sur hébergement restent à qualifier avant livraison.
 - Besoin : [US-21](USER-STORIES.md#US-21). Acceptation : [REQ-2101](EXIGENCES.md#REQ-2101).
 - Validation : implémenter puis exécuter les recettes liées, sur **front, workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Candidat médias privés : images des préfabriqués existants et aperçu admin, deux modèles D1 additifs, publication/reset atomiques ; six suites et intégration D1/R2 réussies. Recette Linux puis hébergements encore à qualifier, sans ouverture anonyme des fichiers.
@@ -368,6 +385,7 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 - Lot : **P5** ; état : **en cours — intégration de la première tranche** ; responsable : root avec les agents Sol.
 - Dépendances : [T-11](#T-11), [T-17](#T-17).
 - Travail/livrables : Module analytics, consultation de l’audit, productivité/usage et exports limités.
+- Complément PR #79 : lecture protégée du journal d'exécutions et du catalogue HTTP dans le sixième onglet original, exports bornés CSV/JSON. Les 21 contrôles du module et la recette D1/HTTP/MCP ciblée passent localement. Cela ne clôture pas l'instrumentation automatique, la rétention/purge, les logs avant le moteur ni la productivité liée à Work ; le déploiement reste distinct.
 - Besoin : [US-22](USER-STORIES.md#US-22). Acceptation : [REQ-2201](EXIGENCES.md#REQ-2201).
 - Validation : implémenter puis exécuter les recettes liées, sur **workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Acquis ciblés : six suites fermées 18/18 avec SDK public 1.4.1, intégration D1/HTTP/MCP réelle sur 520 événements et deux widgets admin de lecture à la demande (sept jours/cinq lignes). Un curseur historique sans arguments d'outil fiables n'est pas rejoué ; la liste filtrée doit être relancée. Sur Linux au code UI `589a827`, un événement `activity` déclaré par API a été confirmé et affiché dans la vue admin ; cette recette précède les widgets. Instrumentation automatique, logs hôte, registre d'endpoints et productivité mesurée restent ouverts. Voir [Analytics](IMPLEMENTATION-T22.md). Aucune publication hébergée de cette tranche n'est attestée.
@@ -442,7 +460,7 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 <a id="T-29"></a>
 ## T-29 — Autres connecteurs et frontières externes
 
-- Lot : **P5** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P5** ; état : **en développement — Granola, mail et Hermes** ; responsables : agents Sol coordonnés par root.
 - Dépendances : [T-11](#T-11), [T-16](#T-16), [T-18](#T-18), [T-23](#T-23).
 - Travail/livrables : PRD et tâches par fournisseur : Hermes, mail, navigateur distant/relais, Granola, agents/exécution de développement, observabilité, desktop/infrastructure et autres IA/voix selon les capacités de la matrice.
 - Besoin : [US-29](USER-STORIES.md#US-29). Acceptation : [REQ-2901](EXIGENCES.md#REQ-2901), [REQ-2902](EXIGENCES.md#REQ-2902).
@@ -489,9 +507,10 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 <a id="T-33"></a>
 ## T-33 — Stockages distincts hors Sites
 
-- Lot : **P6** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P6** ; état : **en développement — configuration et autorité des ressources** ; responsable : agent API avec revue et intégration root.
 - Dépendances : [T-32](#T-32).
 - Travail/livrables : Résolveur de ressources autorisées, provisionnement/bindings et qualification des quotas.
+- Candidat PR #79 : mapping de contextes vers les bindings D1/R2, configuration locale/Cloudflare et refus des ressources supplémentaires sur Sites, vérifiés par 25 contrôles ciblés. Les opérations métier continuent d'utiliser le couple principal ; le protocole d'autorité entre bases est développé séparément. Aucune recette produit à plusieurs bases n'est encore qualifiée. Voir [T33](IMPLEMENTATION-T33.md).
 - Besoin : [US-33](USER-STORIES.md#US-33). Acceptation : [REQ-3301](EXIGENCES.md#REQ-3301).
 - Validation : implémenter puis exécuter les recettes liées, sur **local puis Cloudflare direct** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.
