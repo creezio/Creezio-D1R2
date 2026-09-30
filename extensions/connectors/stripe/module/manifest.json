@@ -5,11 +5,11 @@
     "title": "Connecteur Stripe",
     "publisher": "creezio",
     "origin": "https://github.com/creezio/Creezio-D1R2",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "source": {
       "kind": "snapshot",
-      "revision": "t27-stripe-products-prices-read-v2",
-      "integrity": "sha256-dc5fd255119a4512d8e738485fa2869067ec7e26d4eec43c3fc25f93c0a7fa7d"
+      "revision": "t27-stripe-price-frequency-fr-v1",
+      "integrity": "sha256-98533e010dc9d896c1dfb30ad3b899f462791cfc06462e7cb47de1a6f78c88a6"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -5684,8 +5684,8 @@
       }
     },
     "versionBinding": {
-      "moduleVersion": "0.2.0",
-      "sourceRevision": "t27-stripe-products-prices-read-v2"
+      "moduleVersion": "0.2.1",
+      "sourceRevision": "t27-stripe-price-frequency-fr-v1"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -5811,8 +5811,8 @@
     },
     "validationBinding": {
       "moduleId": "creezio.stripe",
-      "moduleVersion": "0.2.0",
-      "sourceRevision": "t27-stripe-products-prices-read-v2"
+      "moduleVersion": "0.2.1",
+      "sourceRevision": "t27-stripe-price-frequency-fr-v1"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",

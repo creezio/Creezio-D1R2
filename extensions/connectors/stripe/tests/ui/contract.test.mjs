@@ -4,7 +4,7 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import {manifest,read} from '../helpers.mjs';
 import {panelData,readPanel,retainedSessionId,sessionVerified,scopeChange} from '../../ui/panel-state.ts';
 import {externalConfigurationChanged,latestConfig,mergeRuns,reconcileRuns,sameConfiguration} from '../../ui/state.ts';
-import {formatStripeAmount} from '../../ui/money.ts';
+import {formatStripeAmount,formatStripeFrequency} from '../../ui/money.ts';
 import {createCommandJournal,readPendingCommand} from '@creezio/sdk/operations/command-journal';
 
 test('verified identity retains a pending key through temporary loading and purges a true scope change',()=>{
@@ -69,6 +69,19 @@ test('Stripe charge units render as customer-facing amounts across currency exce
   assert.match(formatStripeAmount(Number.MAX_SAFE_INTEGER,'EUR'),/,91\s*€/u,
     'a safe integer must not lose its last cent through floating-point division');
   assert.equal(formatStripeAmount(null,'EUR'),'—');
+});
+test('Stripe price intervals use French singular and plural without guessing unknown values',()=>{
+  for(const [interval,one,many] of [
+    ['day','Chaque jour','Tous les 2 jours'],
+    ['week','Chaque semaine','Toutes les 2 semaines'],
+    ['month','Chaque mois','Tous les 2 mois'],
+    ['year','Chaque année','Tous les 2 ans']]){
+    assert.equal(formatStripeFrequency('recurring',interval,1),one);
+    assert.equal(formatStripeFrequency('recurring',interval,2),many);
+  }
+  assert.equal(formatStripeFrequency('one_time',null,null),'Paiement unique');
+  assert.equal(formatStripeFrequency('recurring','quarter',1),'Périodicité non reconnue');
+  assert.equal(formatStripeFrequency('recurring','month',null),'Périodicité non disponible');
 });
 test('original billing cards/tables remain, unavailable numbers and events are explicit',()=>{
   const ui=read('ui/index.tsx');

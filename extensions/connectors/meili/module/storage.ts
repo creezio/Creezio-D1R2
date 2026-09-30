@@ -14,12 +14,15 @@ export const meiliVaultStorage:ConnectorVaultStorage=Object.freeze({
     version:'version',state:'state'})
 });
 
-/** The module can request only this build-owned authenticated probe. */
+/** Build-owned, read-only resources; callers cannot supply a URL or method. */
 export const meiliConnectorDescriptor:ConnectorDescriptor=Object.freeze({
   id:MEILI_CONNECTOR_ID,moduleId:MEILI_MODULE_ID,config:meiliConfigStorage,vault:meiliVaultStorage,
   auth:Object.freeze({kind:'bearer'}),
   resources:Object.freeze([
     Object.freeze({id:'indexes',method:'GET' as const,path:'/indexes',params:Object.freeze([] as const),
-      query:Object.freeze({fixed:Object.freeze([{name:'limit',value:'1'}])})})
+      query:Object.freeze({fixed:Object.freeze([{name:'limit',value:'1'}])})}),
+    Object.freeze({id:'index-list',method:'GET' as const,path:'/indexes',
+      params:Object.freeze(['cursor','limit'] as const),
+      query:Object.freeze({cursor:'offset',limit:'limit'})})
   ])
 });

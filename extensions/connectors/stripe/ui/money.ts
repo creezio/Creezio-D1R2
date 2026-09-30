@@ -22,3 +22,19 @@ export function formatStripeAmount(minor:number|null|undefined,currency:string|n
   }
   catch{return '—';}
 }
+
+/** Describes Stripe's recurring interval without guessing when the projection is incomplete. */
+export function formatStripeFrequency(kind:string,interval:string|null,count:number|null):string{
+  if(kind==='one_time')return 'Paiement unique';
+  if(kind!=='recurring')return 'Périodicité non reconnue';
+  if(!Number.isSafeInteger(count)||count===null||count<1)return 'Périodicité non disponible';
+  const labels:Record<string,{once:string;prefix:string;plural:string}>={
+    day:{once:'Chaque jour',prefix:'Tous les',plural:'jours'},
+    week:{once:'Chaque semaine',prefix:'Toutes les',plural:'semaines'},
+    month:{once:'Chaque mois',prefix:'Tous les',plural:'mois'},
+    year:{once:'Chaque année',prefix:'Tous les',plural:'ans'},
+  };
+  const label=interval?labels[interval]:undefined;
+  if(!label)return interval?'Périodicité non reconnue':'Récurrence non disponible';
+  return count===1?label.once:`${label.prefix} ${count} ${label.plural}`;
+}
