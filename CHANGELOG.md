@@ -1,5 +1,9 @@
 # Changelog
 
+## En qualification — images privées des pages (T21)
+
+L'éditeur et le front authentifié affichent les images R2 dans les sections existantes. La publication fige jusqu'à cinq références sélectionnées ; modifier ou détacher un média du brouillon laisse la page publiée intacte. Le reset restaure les liens sans recopier les fichiers. Deux modèles D1 et un index sont ajoutés par le générateur central, sans modifier les anciennes tables. Les contrôles locaux couvrent permissions, publication concurrente, aperçu, références exactes et nettoyage des URL Blob ; la recette sur Linux reste à effectuer.
+
 ## En qualification — identifiants des outils Catalogue (T25)
 
 Les outils et le guide conversationnel indiquent qu'une recherche accepte un nom ou SKU, puis que la fiche attend l'identifiant interne renvoyé dans `items[].id`. Le test vérifie ces descriptions dans la projection fournisseur, sans modifier les opérations, droits ou données. Les verrous des deux compositions Catalogue et Connecteurs sont régénérés après le dernier changement du module.

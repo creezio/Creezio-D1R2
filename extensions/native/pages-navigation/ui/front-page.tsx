@@ -2,10 +2,12 @@
 
 import {useCallback,useEffect,useRef,useState,useSyncExternalStore} from 'react';
 import type {WorkspaceViewProps as RuntimeViewProps} from '@creezio/sdk/workspace/types';
+import {createFileClient} from '@creezio/sdk/files/client';
 import {LANDING_PREFAB_COMPONENTS} from './prefabs.tsx';
-import {call,type PublishedPage,type PublishedPageSummary,type PageResult,type Result} from './contracts.ts';
+import {call,type Media,type PublishedPage,type PublishedPageSummary,type PageResult,type Result} from './contracts.ts';
 import {pageScopeAfter,requiresPageReset} from './state.ts';
 import {activatePublishedSeo} from './seo.ts';
+import {createPublishedImageLoad,publishedImageIds,type ImageStates} from './published-images.ts';
 import './landing.css';
 
 /** Authenticated front projection of the published D1 snapshot. Anonymous HTTP awaits a host port. */
@@ -17,7 +19,8 @@ export function PagesNavigationFrontView(props:RuntimeViewProps){
   const routePageId=typeof props.input.pageId==='string'?props.input.pageId:'';
   const [pages,setPages]=useState<PublishedPageSummary[]>([]),[page,setPage]=useState<PublishedPage|null>(null),
     [selected,setSelected]=useState<string>(''),
-    [cursor,setCursor]=useState<string|null>(null),[loading,setLoading]=useState(false),[notice,setNotice]=useState('');
+    [cursor,setCursor]=useState<string|null>(null),[loading,setLoading]=useState(false),[notice,setNotice]=useState(''),
+    [images,setImages]=useState<{key:string;states:ImageStates}>({key:'',states:{}});
   const epoch=useRef(0),listSerial=useRef(0),readSerial=useRef(0),resolveSerial=useRef(0),
     selectedRef=useRef(selected),routeRef=useRef({slug:routeSlug,pageId:routePageId});
   selectedRef.current=selected;
@@ -89,6 +92,26 @@ export function PagesNavigationFrontView(props:RuntimeViewProps){
     scopeIdentity.current.audience===props.audience&&scopeIdentity.current.contextId===props.contextId;
   const displayed=enabled&&ownScope&&page?.id===selected&&
     (!routeSlug||page.slug===routeSlug)&&(!routePageId||page.id===routePageId)?page:null;
+  const imageKey=displayed?JSON.stringify([sessionId,props.audience,props.contextId,
+    displayed.id,displayed.publishedRevision]):'';
+  useEffect(()=>{
+    if(!displayed||!imageKey){setImages({key:'',states:{}});return;}
+    const pageId=displayed.id,ids=publishedImageIds(displayed);
+    const valid=()=>current()&&selectedRef.current===pageId&&
+      live.current.contextId===props.contextId;
+    let files:ReturnType<typeof createFileClient>|null=null;
+    try{files=createFileClient({access:props.access,moduleId:'creezio.pages-navigation',
+      categoryId:'media',contextId:props.contextId});}catch{ /* The loader reports unavailable. */ }
+    const load=createPublishedImageLoad({ids,isCurrent:valid,
+      list:()=>call<{items:Media[] }>(scope,'media.published.list',{pageId},valid),
+      download:media=>files?files.downloadLinked(media.reference,pageId,valid):
+        Promise.resolve({kind:'rejected'}),
+      createUrl:(bytes,mime)=>URL.createObjectURL(new Blob([bytes],{type:mime})),
+      revokeUrl:url=>URL.revokeObjectURL(url),
+      update:states=>{if(valid())setImages({key:imageKey,states});}});
+    void load.run();
+    return()=>load.dispose();
+  },[imageKey,enabled,sessionId,props.client,props.access,props.audience,props.contextId]);
   useEffect(()=>{
     if(!displayed)return;
     return activatePublishedSeo(document,displayed);
@@ -101,7 +124,8 @@ export function PagesNavigationFrontView(props:RuntimeViewProps){
     {!displayed?<p className="lnd-empty">Cette page n’est pas encore publiée.</p>:
       displayed.sections.filter(section=>section.enabled).sort((a,b)=>a.position-b.position)
         .map(section=>{const Component=LANDING_PREFAB_COMPONENTS[section.kind];return Component?
-          <Component key={section.id} content={section.content} settings={displayed.settings}/>:null;})}
+          <Component key={section.id} content={section.content} settings={displayed.settings}
+            images={images.key===imageKey?images.states:{}}/>:null;})}
     <div className="flex flex-wrap gap-2 px-6 py-3" aria-label="Pages publiées">
       {pages.map(item=><button type="button" key={item.id}
         onClick={()=>{if(!props.navigation.open('creezio.pages-navigation:front',{slug:item.slug}))

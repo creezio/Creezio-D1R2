@@ -249,22 +249,22 @@
       "version": "0.0.0",
       "source": {
         "kind": "snapshot",
-        "revision": "t21-pages-navigation-v1",
-        "integrity": "sha256-9ca825a0828741ea46801c300ed65c8f67655ac505632bd0e81f0baa0e96c5f1"
+        "revision": "t21-pages-navigation-v2",
+        "integrity": "sha256-c51904baf31a815c8e38e711668e353b4877bb68df147e2ef701da6465c061cc"
       },
-      "contractIntegrity": "sha256-b67675f6835afa6e3aa38345a0e435a164ecc067e1218559693c9ba429b06e69",
+      "contractIntegrity": "sha256-255e77d5c2cd6d8c06f17f0c302804d5d69a363382f64b89ff3c13e940fa97c4",
       "runtime": {
-        "integrity": "sha256-e94f4c058cda26888e23a679416159fbea3c7ead0bf21dd630c0417fe40b0ff2",
+        "integrity": "sha256-e72baa68ee3ca52a2e0d185967f3e6d726e0672cc47eeba6d91d57e1e47a6511",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.pages-navigation/runtime-e94f4c058cda26888e23a679416159fbea3c7ead0bf21dd630c0417fe40b0ff2.tgz"
+          "path": ".creezio/module-artifacts/creezio.pages-navigation/runtime-e72baa68ee3ca52a2e0d185967f3e6d726e0672cc47eeba6d91d57e1e47a6511.tgz"
         }
       },
       "validation": {
-        "integrity": "sha256-16e0d4b6020851dc6b9735eaa7d73e2523944877bd7ffe8679430a0ded22a6b9",
+        "integrity": "sha256-7c1cc5b362fe429c41eee8cc1afb1a02e0e7de07497864073df34f280171f006",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.pages-navigation/validation-16e0d4b6020851dc6b9735eaa7d73e2523944877bd7ffe8679430a0ded22a6b9.tgz"
+          "path": ".creezio/module-artifacts/creezio.pages-navigation/validation-7c1cc5b362fe429c41eee8cc1afb1a02e0e7de07497864073df34f280171f006.tgz"
         }
       },
       "dependencies": [

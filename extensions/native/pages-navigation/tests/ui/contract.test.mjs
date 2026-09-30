@@ -6,6 +6,7 @@ import {createCommandJournal} from '@creezio/sdk/operations/command-journal';
 import {operationResult} from '../../ui/contracts.ts';
 import {activatePublishedSeo} from '../../ui/seo.ts';
 import {editorialHref,editorialLinkActive} from '../../ui/front-link.ts';
+import {createPublishedImageLoad,publishedImageIds,referencedMedia} from '../../ui/published-images.ts';
 
 function fakeDocument(){
   const elements=[];
@@ -91,7 +92,8 @@ test('front only reads published snapshots under authenticated app permission',(
     'old published content must be hidden before the new scope reset effect runs');
   const view=manifest.contracts.ui.views.find(item=>item.id==='front');
   assert.deepEqual(view.permissions.map(item=>item.id),['view']);
-  assert.ok(view.operations.every(item=>['page.published.list','page.published.read','page.published.resolve','navigation.published']
+  assert.ok(view.operations.every(item=>['page.published.list','page.published.read','page.published.resolve',
+    'navigation.published','media.published.list']
     .includes(item.id)));
   const slot=manifest.contracts.ui.slots.find(item=>item.id==='published-navigation');
   assert.equal(slot.slot,'front.header');
@@ -125,7 +127,7 @@ test('inactive pages retain their draft, while identity and context changes inva
 });
 
 test('saved selection and pending status are restored only for the verified panel scope',()=>{
-  assert.equal(manifest.compatibility.sdk,'^1.2.0');
+  assert.equal(manifest.compatibility.sdk,'^1.3.0');
   const state=manifest.contracts.schemas.find(item=>item.id==='editor-panel-state');
   for(const key of ['sessionId','audience','contextId','pageId','pending'])
     assert.ok(state?.schema?.properties?.[key],`panel state must permit ${key}`);
@@ -165,6 +167,55 @@ test('a later same-page read or write prevents an earlier response from replacin
   assert.equal(visible,'revision 2');
   generation.invalidate();
   assert.equal(generation.accepts(second),false,'a confirmed write invalidates in-flight reads');
+});
+
+test('published image selection follows visible prefabs, while an old response cannot create a Blob URL',async()=>{
+  const first=`f1_${'a'.repeat(64)}`,second=`f1_${'b'.repeat(64)}`;
+  const page={settings:{logoFileId:second},sections:[
+    {kind:'hero',enabled:true,content:{imageFileId:first,logoFileId:second}},
+    {kind:'features',enabled:false,content:{items:[{imageFileId:`f1_${'c'.repeat(64)}`}]}}]};
+  assert.deepEqual(publishedImageIds(page),[second,first]);
+  let release,created=0,revoked=[],updates=[];
+  const media={pageId:'home',fileId:first,contentType:'image/png',reference:{fileId:first,
+    intentId:'i',generation:'g',digest:'d'.repeat(64)}};
+  const pending=new Promise(resolve=>{release=resolve;});
+  const loader=createPublishedImageLoad({ids:[first],isCurrent:()=>true,
+    list:async()=>({kind:'ok',value:{items:[media]}}),download:()=>pending,
+    createUrl:()=>{created++;return 'blob:one';},revokeUrl:url=>revoked.push(url),
+    update:states=>updates.push(states)});
+  const running=loader.run();await new Promise(resolve=>setImmediate(resolve));loader.dispose();
+  release({kind:'ready',value:new Blob(['image'],{type:'image/png'})});await running;
+  assert.equal(created,0,'a late linked read must never create a Blob URL');
+  assert.deepEqual(revoked,[]);
+  const accepted=createPublishedImageLoad({ids:[first],isCurrent:()=>true,
+    list:async()=>({kind:'ok',value:{items:[media]}}),
+    download:async()=>({kind:'ready',value:new Blob(['image'],{type:'image/png'})}),
+    createUrl:()=>{created++;return 'blob:two';},revokeUrl:url=>revoked.push(url),
+    update:states=>updates.push(states)});
+  await accepted.run();assert.equal(updates.at(-1)[first].url,'blob:two');
+  accepted.dispose();assert.deepEqual(revoked,['blob:two']);
+  const refused=createPublishedImageLoad({ids:[first],isCurrent:()=>true,
+    list:async()=>({kind:'rejected',code:'forbidden'}),download:async()=>{throw Error('must not read');},
+    createUrl:()=>{throw Error('must not create');},revokeUrl:()=>{},
+    update:states=>updates.push(states)});
+  await refused.run();assert.equal(updates.at(-1)[first].status,'unavailable');refused.dispose();
+});
+
+test('draft preview loads its selected image when the page has more than five uploads',async()=>{
+  const uploads=Array.from({length:6},(_,index)=>{
+    const fileId=`f1_${String(index).repeat(64)}`;
+    return {pageId:'home',fileId,contentType:'image/png',reference:{fileId,
+      intentId:`intent-${index}`,generation:'1',digest:'d'.repeat(64)}};
+  });
+  const selected=uploads[5].fileId,read=[];let state;
+  const loader=createPublishedImageLoad({ids:[selected],isCurrent:()=>true,
+    list:async()=>({kind:'ok',value:{items:referencedMedia(uploads,[selected])}}),
+    download:async media=>{read.push(media.fileId);return {kind:'ready',value:new Blob(['png'])};},
+    createUrl:()=> 'blob:selected',revokeUrl:()=>{},update:images=>{state=images;}});
+  await loader.run();
+  assert.deepEqual(read,[selected]);
+  assert.deepEqual(state[selected],{status:'ready',url:'blob:selected'});
+  loader.dispose();
 });
 
 test('invalid structured content cannot replace the last valid value',()=>{

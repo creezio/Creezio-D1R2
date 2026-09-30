@@ -33,7 +33,7 @@ test('composed compiler includes every selected native module and freezes the ru
     [['creezio.access', 28], ['creezio.analytics', 1], ['creezio.conversations', 8],
       ['creezio.crm', 3], ['creezio.delivery', 0], ['creezio.messaging', 5],
       ['creezio.modules-settings', 4], ['creezio.openai', 2],
-      ['creezio.pages-navigation', 4], ['creezio.support', 2]]);
+      ['creezio.pages-navigation', 6], ['creezio.support', 2]]);
   assert.deepEqual(plan.runtimeCatalog.modules.find(module => module.moduleId === 'creezio.modules-settings')
     .models.map(model => model.modelId), ['head', 'journal', 'plan-outcomes', 'plans']);
   const conversations = input.modules.find(module => module.identity.id === 'creezio.conversations').contracts.models;

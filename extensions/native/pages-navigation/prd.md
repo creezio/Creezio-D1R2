@@ -4,6 +4,8 @@ Un administrateur éditorial crée une page, organise des sections préfabriqué
 
 Une pièce jointe R2 est liée à la page par un plan gardé ; l'objet reste privé. L'éditeur peut le télécharger ou le détacher sans purge implicite. Les liens externes de sections/navigation acceptent uniquement chemins locaux ou URL HTTP(S) sans identifiants ; le contenu est borné.
 
+L'éditeur peut sélectionner jusqu'à cinq images distinctes déjà liées au brouillon pour le héros, ses logos et les éléments « features ». La publication fige dans D1 les références des seules images citées, avec la révision du snapshot ; ces liens restent privés et lisibles par le front authentifié. Une image ajoutée ou détachée dans le brouillon ne modifie pas la page publiée. La restauration du brouillon rétablit les liens encore cités par le snapshot, sans dupliquer les octets R2. L'aperçu admin et le front libèrent leurs URL Blob quand la sélection ou l'accès change. Les anciennes pages et leurs URL externes restent lisibles.
+
 Avant chaque mutation, l'éditeur conserve sa clé de suivi avec la session, l'audience et le contexte, sans copier le contenu de la page. Une réponse incertaine suspend les nouvelles mutations ; « Vérifier le résultat » lit l'exécution d'origine sans renvoyer l'action. Un refus de lecture ne prouve pas un échec d'écriture. Les sélections et changements d'onglet conservent le suivi ; une nouvelle identité ne le reprend pas.
 
 L'expérience visuelle conserve la structure et les composants du landing original. La route HTTP anonyme des pages publiées, les médias publics, le SEO serveur et les overrides du catalogue sidebar attendent des ports hôte distincts. Aucun de ces effets n'est inféré d'un snapshot D1 ni du site public.
