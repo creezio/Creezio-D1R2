@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {manifest} from '../helpers.mjs';
 import {stripeConnectorDescriptor} from '../../module/storage.ts';
 import {projectStripePage} from '../../module/projection.ts';
-import {configSet,configKeySet,configKeyRevoke,syncStart,syncPage,connectionCheck} from '../../module/service.ts';
+import {configSet,configKeySet,configKeyRevoke,syncStart,syncPage,syncState,connectionCheck} from '../../module/service.ts';
 
 const config={id:'stripe.api.v1',origin:'https://api.stripe.com',key_ref:'secret-reference',
   secret_version:1,connection_id:'connection-a',enabled:true,revision:3,updated_at:'2026-09-29T00:00:00.000Z'};
@@ -15,7 +15,7 @@ function harness({configuration=config,state=run,projection={},body={object:'lis
   const calls=[],plans=[];
   const context={signal:new AbortController().signal,data:{
     async get(model,{key}){calls.push({get:model,key});return model==='connector_config'?configuration:
-      model==='sync_state'?state:projection[key.id]??null;},
+      model==='sync_state'||model==='stripe_catalog_sync_state'?state:projection[key.id]??null;},
     planCreate(model,args){calls.push({create:model,args});const plan={plan:plans.length};plans.push(plan);return plan;},
     planPatch(model,args){calls.push({patch:model,args});const plan={plan:plans.length};plans.push(plan);return plan;},
     planGet(model,args){calls.push({guard:model,args});const plan={plan:plans.length};plans.push(plan);return plan;},
@@ -31,12 +31,38 @@ test('fixed Stripe GET contract and admin deny-default permissions',()=>{
   assert.deepEqual(stripeConnectorDescriptor.staticHeaders,[{name:'Stripe-Version',value:'2026-08-26.dahlia'}]);
   assert.deepEqual(stripeConnectorDescriptor.resources.map(row=>[row.id,row.method,row.path]),[
     ['customers','GET','/v1/customers'],['subscriptions','GET','/v1/subscriptions'],
-    ['invoices','GET','/v1/invoices']]);
+    ['invoices','GET','/v1/invoices'],['products','GET','/v1/products'],
+    ['prices_active','GET','/v1/prices'],['prices_inactive','GET','/v1/prices']]);
   assert.deepEqual(stripeConnectorDescriptor.resources[1].query.fixed,[{name:'status',value:'all'}]);
+  assert.deepEqual(stripeConnectorDescriptor.resources[4].query.fixed,[{name:'active',value:'true'}]);
+  assert.deepEqual(stripeConnectorDescriptor.resources[5].query.fixed,[{name:'active',value:'false'}]);
   assert.deepEqual(manifest.contracts.connectors,[stripeConnectorDescriptor]);
   assert.ok(manifest.contracts.permissions.every(row=>row.default==='deny'&&
     JSON.stringify(row.audiences)==='["admin"]'&&row.context==='required'));
   assert.equal(manifest.contracts.operations.find(row=>row.id==='sync.page').concurrency.mode,'none');
+});
+test('product and price projection validates the relation and preserves non-simple money',()=>{
+  const product={id:'prod_1',object:'product',name:'Plan test',active:true,livemode:false,
+    default_price:'price_1',metadata:{secret:'excluded'}};
+  const projected=projectStripePage({object:'list',data:[product],has_more:false},'products',8);
+  assert.deepEqual(projected.rows[0].values,{name:'Plan test',active:true,
+    default_price_id:'price_1',livemode:false});
+  const price={id:'price_1',object:'price',product:'prod_1',active:true,livemode:false,
+    currency:'eur',type:'recurring',billing_scheme:'per_unit',unit_amount:1299,
+    unit_amount_decimal:'1299',recurring:{interval:'month',interval_count:1,usage_type:'licensed'},
+    tiers_mode:null,custom_unit_amount:null,metadata:{secret:'excluded'}};
+  const row=projectStripePage({object:'list',data:[price],has_more:false},'prices_active',8).rows[0];
+  assert.equal(row.values.product_id,'prod_1');assert.equal(row.values.unit_amount_minor,1299);
+  assert.doesNotMatch(JSON.stringify(row),/secret|metadata/u);
+  assert.equal(projectStripePage({object:'list',data:[{...price,id:'price_2',unit_amount:null,
+    unit_amount_decimal:'1299.125'}],has_more:false},'prices_active',8)
+    .rows[0].values.unit_amount_decimal,'1299.125');
+  for(const bad of [{...price,product:'cus_1'}, {...price,active:false},
+    {...price,recurring:null}, {...price,unit_amount_decimal:'1299.1234567890123'}])
+    assert.throws(()=>projectStripePage({object:'list',data:[bad],has_more:false},'prices_active',8),
+      {code:'unavailable'});
+  assert.throws(()=>projectStripePage({object:'list',data:[product,product],has_more:false},'products',8),
+    {code:'unavailable'});
 });
 test('projection rejects malformed whole pages and never stores raw supplier objects',()=>{
   const page=projectStripePage({object:'list',data:[customer('cus_1')],has_more:true},'customers',8);
@@ -116,4 +142,24 @@ test('remote connection check reads only one bounded customer page',async()=>{
   assert.deepEqual((await connectionCheck({},h.context)).output,{reachable:true});
   assert.deepEqual(h.calls.find(row=>row.request).request.resource,'customers');
   assert.equal(h.calls.find(row=>row.request).request.limit,1);
+});
+test('catalog sync reuses the same run engine with an additive state table and one fixed GET',async()=>{
+  const first=harness({state:null});
+  const started=await syncStart({requestKey:'catalog-start',collection:'prices_inactive',
+    runId:'run-price',revision:0},first.context);
+  assert.equal(started.output.state.collection,'prices_inactive');
+  assert.equal(first.calls.find(row=>row.create)?.create,'stripe_catalog_sync_state');
+  const price={id:'price_1',object:'price',product:'prod_1',active:false,livemode:false,
+    currency:'eur',type:'one_time',billing_scheme:'tiered',unit_amount:null,unit_amount_decimal:null,
+    recurring:null,tiers_mode:'graduated',custom_unit_amount:null};
+  const h=harness({state:{...run,id:'prices_inactive',run_id:'run-price'},
+    body:{object:'list',data:[price],has_more:false}});
+  const page=await syncPage({requestKey:'catalog-page',collection:'prices_inactive',
+    runId:'run-price',cursor:null,expectedRevision:4,limit:8},h.context);
+  assert.equal(page.output.processed,1);
+  assert.equal(h.calls.find(row=>row.request).request.resource,'prices_inactive');
+  assert.equal(h.calls.find(row=>row.create)?.create,'stripe_price');
+  assert.equal(h.calls.find(row=>row.patch==='stripe_catalog_sync_state')?.args.compare.expected,4);
+  const states=await syncState({},h.context);
+  assert.equal(states.output.states.length,6);
 });

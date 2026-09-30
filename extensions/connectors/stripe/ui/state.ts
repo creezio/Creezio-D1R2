@@ -1,4 +1,4 @@
-export type Collection='customers'|'subscriptions'|'invoices';
+export type Collection='customers'|'subscriptions'|'invoices'|'products'|'prices_active'|'prices_inactive';
 export type Run={collection:Collection;runId:string|null;cursor:string|null;
   status:'partial'|'pages_exhausted';revision:number;updatedAt:string|null};
 export type Config={origin:string;enabled:boolean;hasKey:boolean;revision:number;state:string};

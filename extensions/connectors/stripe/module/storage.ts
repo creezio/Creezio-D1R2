@@ -28,6 +28,12 @@ const descriptor=Object.freeze({
       query:Object.freeze({cursor:'starting_after',limit:'limit',fixed:Object.freeze([{name:'status',value:'all'}])})}),
     Object.freeze({id:'invoices',method:'GET' as const,path:'/v1/invoices',params:Object.freeze(['cursor','limit'] as const),
       query:Object.freeze({cursor:'starting_after',limit:'limit'})}),
+    Object.freeze({id:'products',method:'GET' as const,path:'/v1/products',params:Object.freeze(['cursor','limit'] as const),
+      query:Object.freeze({cursor:'starting_after',limit:'limit'})}),
+    Object.freeze({id:'prices_active',method:'GET' as const,path:'/v1/prices',params:Object.freeze(['cursor','limit'] as const),
+      query:Object.freeze({cursor:'starting_after',limit:'limit',fixed:Object.freeze([{name:'active',value:'true'}])})}),
+    Object.freeze({id:'prices_inactive',method:'GET' as const,path:'/v1/prices',params:Object.freeze(['cursor','limit'] as const),
+      query:Object.freeze({cursor:'starting_after',limit:'limit',fixed:Object.freeze([{name:'active',value:'false'}])})}),
   ])
 });
 export const stripeConnectorDescriptor:ConnectorDescriptor=descriptor;

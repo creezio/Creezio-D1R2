@@ -187,7 +187,7 @@
     {
       "moduleId": "creezio.stripe",
       "origin": "https://github.com/creezio/Creezio-D1R2",
-      "versionRange": "^0.1.0",
+      "versionRange": "^0.2.0",
       "source": {
         "kind": "workspace",
         "path": "extensions/connectors/stripe"

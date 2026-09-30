@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {manifest,moduleRoot} from '../helpers.mjs';
 
 test('runtime and validation inventories are closed and versioned to SDK 1.4',()=>{
-  assert.equal(manifest.identity.version,'0.1.0');
+  assert.equal(manifest.identity.version,'0.2.0');
   assert.equal(manifest.compatibility.sdk,'^1.4.0');
   const files=[...manifest.packaging.runtime.files,...manifest.packaging.validation.files];
   assert.equal(new Set(files).size,files.length);

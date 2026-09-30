@@ -1,8 +1,10 @@
 import {App,PostMessageTransport} from '@modelcontextprotocol/ext-apps';
 
-type State={collection:'customers'|'subscriptions'|'invoices';status:'partial'|'pages_exhausted';
+type State={collection:'customers'|'subscriptions'|'invoices'|'products'|'prices_active'|'prices_inactive';
+  status:'partial'|'pages_exhausted';
   runId:string|null;cursor:string|null;revision:number;updatedAt:string|null};
-const label:Record<State['collection'],string>={customers:'Clients',subscriptions:'Abonnements',invoices:'Factures'};
+const label:Record<State['collection'],string>={customers:'Clients',subscriptions:'Abonnements',
+  invoices:'Factures',products:'Produits',prices_active:'Prix actifs',prices_inactive:'Prix inactifs'};
 const unwrap=(value:unknown):unknown=>{
   if(!value||typeof value!=='object'||Array.isArray(value))return value;
   const envelope=value as Record<string,unknown>;
@@ -14,12 +16,13 @@ const parse=(value:unknown):State[]|null=>{
   const body=unwrap(value);
   if(!body||typeof body!=='object'||Array.isArray(body))return null;
   const states=(body as Record<string,unknown>).states;
-  if(!Array.isArray(states)||states.length!==3)return null;
+  // Historical 0.1.0 results contain only the original three collections.
+  if(!Array.isArray(states)||![3,6].includes(states.length))return null;
   const seen=new Set<string>();
   for(const state of states){
     if(!state||typeof state!=='object'||Array.isArray(state))return null;
     const row=state as Record<string,unknown>;
-    if(!['customers','subscriptions','invoices'].includes(String(row.collection))
+    if(!['customers','subscriptions','invoices','products','prices_active','prices_inactive'].includes(String(row.collection))
       ||!['partial','pages_exhausted'].includes(String(row.status))
       ||!Number.isSafeInteger(row.revision)||seen.has(String(row.collection)))return null;
     seen.add(String(row.collection));
@@ -32,7 +35,7 @@ export async function startSyncStatus():Promise<void>{
   const root=element('stripe-widget'),button=element('refresh') as HTMLButtonElement|null,
     output=element('status'),list=element('states');
   if(!root||!button||!output||!list)return;
-  const app=new App({name:'Creezio Stripe status',version:'0.1.0'},{});
+  const app=new App({name:'Creezio Stripe status',version:'0.2.0'},{});
   let states:State[]|null=null,interactive=false,busy=false;
   const render=()=>{
     list.replaceChildren();
