@@ -16,6 +16,7 @@ import {captureFileCategory} from '../../core/files/mapping.ts';
 import {captureConnectorDescriptor} from '../../core/connectors/host.ts';
 import {compileSearchProjectionSources} from '../../core/search/projection.ts';
 import path from 'node:path';
+import {createHash} from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { loadJson } from '../../sdk/contracts/load.mjs';
 import { validateComposition, contractIntegrity } from '../../sdk/contracts/validate.mjs';
@@ -32,7 +33,7 @@ export class CompositionBuildError extends Error {
 }
 const fail = (code, message) => { throw new CompositionBuildError(code, message); };
 const slash = value => value.split(path.sep).join('/');
-/** Share only identical, single, plain script tags; every HTML resource is reassembled byte for byte. */
+/** Share one verified central script segment per module; every HTML resource stays byte exact. */
 export function sharedWidgetScriptSources(resources) {
   const scriptOf = text => {
     const open = '<script>', close = '</script>', start = text.indexOf(open);
@@ -40,23 +41,58 @@ export function sharedWidgetScriptSources(resources) {
       || text.indexOf('<script', start + open.length) !== -1) return null;
     const end = text.indexOf(close, start + open.length);
     if (end < 0 || text.indexOf(close, end + close.length) !== -1) return null;
-    return text.slice(start, end + close.length);
+    return {start,text:text.slice(start, end + close.length)};
   };
-  const scripts = resources.map(resource => scriptOf(resource.text));
-  const counts = new Map();
-  for (const script of scripts) if (script !== null) counts.set(script, (counts.get(script) ?? 0) + 1);
-  const sharedScripts = [...counts].filter(([,count]) => count > 1).map(([script]) => script);
-  const indexes = new Map(sharedScripts.map((script,index) => [script,index]));
+  const scripts = resources.map(resource => scriptOf(resource.text)), groups = new Map();
+  resources.forEach((resource,index) => groups.set(resource.moduleId,
+    [...(groups.get(resource.moduleId) ?? []),index]));
+  const sharedParts = [], assigned = new Map();
+  for (const indexes of groups.values()) {
+    if (indexes.length < 2 || indexes.some(index => !scripts[index])) continue;
+    const anchor = scripts[indexes[0]].text, offset = 4096, witnessLength = 8192;
+    if (anchor.length < offset + witnessLength) continue;
+    const witness = anchor.slice(offset, offset + witnessLength);
+    if (anchor.indexOf(witness) !== offset || anchor.indexOf(witness,offset+1) !== -1) continue;
+    const matches = [{delta:0,left:0,right:anchor.length}];
+    let valid = true;
+    for (const index of indexes.slice(1)) {
+      const other = scripts[index].text, found = other.indexOf(witness);
+      if (found < 0 || other.indexOf(witness,found+1) !== -1) { valid = false; break; }
+      let left = 0, right = witnessLength;
+      while (offset-left>0 && found-left>0 && anchor[offset-left-1]===other[found-left-1]) left++;
+      while (offset+right<anchor.length && found+right<other.length
+        && anchor[offset+right]===other[found+right]) right++;
+      matches.push({delta:found-offset,left:offset-left,right:offset+right});
+    }
+    if (!valid) continue;
+    const left = Math.max(...matches.map(match=>match.left));
+    const right = Math.min(...matches.map(match=>match.right));
+    if (right-left < 64*1024) continue;
+    const part = anchor.slice(left,right);
+    const positions = indexes.map((index,i)=>scripts[index].start+left+matches[i].delta);
+    if (indexes.some((index,i)=>resources[index].text.slice(positions[i],positions[i]+part.length)!==part)) continue;
+    const partIndex = sharedParts.length;
+    sharedParts.push(part);
+    indexes.forEach((index,i)=>assigned.set(index,{partIndex,position:positions[i]}));
+  }
   const resourceSources = resources.map((resource,index) => {
-    const script = scripts[index], sharedIndex = indexes.get(script);
-    if (sharedIndex === undefined) return JSON.stringify(resource);
-    const start = resource.text.indexOf(script);
-    const before = resource.text.slice(0,start), after = resource.text.slice(start + script.length);
-    const textSource = `${JSON.stringify(before)}+widgetSharedScripts[${sharedIndex}]+${JSON.stringify(after)}`;
+    const shared = assigned.get(index);
+    if (!shared) {
+      if (`sha256-${createHash('sha256').update(resource.text).digest('hex')}` !== resource.digest)
+        fail('widget.resource-digest','Compiled widget resource digest differs from its HTML.');
+      return JSON.stringify(resource);
+    }
+    const before = resource.text.slice(0,shared.position);
+    const after = resource.text.slice(shared.position + sharedParts[shared.partIndex].length);
+    const rebuilt = before + sharedParts[shared.partIndex] + after;
+    if (rebuilt !== resource.text
+      || `sha256-${createHash('sha256').update(rebuilt).digest('hex')}` !== resource.digest)
+      fail('widget.resource-digest','Shared widget resource differs from its compiled HTML.');
+    const textSource = `${JSON.stringify(before)}+widgetSharedParts[${shared.partIndex}]+${JSON.stringify(after)}`;
     return `{${Object.entries(resource).map(([key,value])=>
       `${JSON.stringify(key)}:${key==='text'?textSource:JSON.stringify(value)}`).join(',')}}`;
   });
-  return {sharedScripts,resourceSources};
+  return {sharedParts,resourceSources};
 }
 const contained = (root, target) => { const rel = path.relative(root, target); return rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel); };
 const exactKeys=(value,keys)=>value&&typeof value==='object'&&!Array.isArray(value)
@@ -619,13 +655,13 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   const contextDeclarations = [...contextValidators.names.values()]
     .map(name => `export declare const ${name}: (value:unknown)=>boolean;`).join('\n') || 'export {};';
   const widgetCatalogBase = {widgets:widgetCatalog.widgets};
-  const {sharedScripts:widgetSharedScripts,resourceSources:widgetResourceSources} =
+  const {sharedParts:widgetSharedParts,resourceSources:widgetResourceSources} =
     sharedWidgetScriptSources(widgetCatalog.resources);
   const rendered = {
     'public-pages.ts': `${banner}import type {PublicPageProjection} from ${JSON.stringify(importSpecifier(output,path.join(root,'core/runtime/public-pages.ts')))};\n${publicPageImports.join('\n')}\nexport const publicPageProjection: PublicPageProjection | null = ${publicPages.length
       ? `Object.freeze({moduleId:${JSON.stringify(publicPages[0].moduleId)},models:Object.freeze(${JSON.stringify(publicPages[0].models)}),css:${JSON.stringify(publicPages[0].stylesheet)},render:${publicPages[0].renderer} as unknown as PublicPageProjection['render'],imageIds:${publicPages[0].imageIds} as unknown as PublicPageProjection['imageIds']})`
       : 'null'};\n`,
-    'widget-catalog.ts': `${banner}import {widgetKey, type CompiledWidgetCatalog, type WidgetValidatorMap} from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/widgets/catalog.ts')))};\nimport * as compiledValidators from './operation-validators.mjs';\nimport * as contextValidators from './widget-context-validators.mjs';\n${freezeSource}const widgetSharedScripts = ${JSON.stringify(widgetSharedScripts)};\nconst widgetResources: CompiledWidgetCatalog['resources'] = [${widgetResourceSources.join(',')}];\nconst widgetCatalogBase: Pick<CompiledWidgetCatalog,'widgets'> = ${JSON.stringify(widgetCatalogBase)};\nexport const widgetCatalog: CompiledWidgetCatalog = freeze({...widgetCatalogBase,resources:widgetResources});\nexport const widgetValidators: WidgetValidatorMap = new Map([${widgetValidatorEntries}]);\n`,
+    'widget-catalog.ts': `${banner}import {widgetKey, type CompiledWidgetCatalog, type WidgetValidatorMap} from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/widgets/catalog.ts')))};\nimport * as compiledValidators from './operation-validators.mjs';\nimport * as contextValidators from './widget-context-validators.mjs';\n${freezeSource}const widgetSharedParts = ${JSON.stringify(widgetSharedParts)};\nconst widgetResources: CompiledWidgetCatalog['resources'] = [${widgetResourceSources.join(',')}];\nconst widgetCatalogBase: Pick<CompiledWidgetCatalog,'widgets'> = ${JSON.stringify(widgetCatalogBase)};\nexport const widgetCatalog: CompiledWidgetCatalog = freeze({...widgetCatalogBase,resources:widgetResources});\nexport const widgetValidators: WidgetValidatorMap = new Map([${widgetValidatorEntries}]);\n`,
     'provider-catalog.ts': `${banner}import type {ProviderOperationSchema} from ${JSON.stringify(importSpecifier(output, path.join(root,'core/providers/tools.ts')))};\nimport type {ConnectorDescriptor} from ${JSON.stringify(importSpecifier(output,path.join(root,'sdk/connectors/types.ts')))};\nimport * as compiledValidators from './operation-validators.mjs';\n${providerImports.join('\n')}\n${freezeSource}export const toolCatalog: readonly ProviderOperationSchema[] = freeze(${JSON.stringify(providerToolCatalog)});\nexport const openAiProvider = ${providerDefinition};\nexport const connectors: readonly ConnectorDescriptor[] = freeze(${JSON.stringify(connectors)});\nexport const searchProjections = freeze(${JSON.stringify(searchProjections)});\nexport const webhookMappings = Object.freeze([${webhookMappings.map(item=>`Object.freeze({moduleId:${JSON.stringify(item.moduleId)},operationId:${JSON.stringify(item.operationId)},path:${JSON.stringify(item.path)},map:${item.mapper}})`).join(',')}]);\nexport const deliveryMappings = Object.freeze([${deliveryMappings.map(item=>`Object.freeze({id:${JSON.stringify(item.id)},moduleId:${JSON.stringify(item.moduleId)},commandId:${JSON.stringify(item.commandId)},prepareId:${JSON.stringify(item.prepareId)},providerModuleId:${JSON.stringify(item.providerModuleId)},connectorId:${JSON.stringify(item.connectorId)},resourceId:${JSON.stringify(item.resourceId)},readinessId:${JSON.stringify(item.readinessId)},configRevisionField:${JSON.stringify(item.configRevisionField)},prepareInput:freeze(${JSON.stringify(item.prepareInput)}),matchFields:freeze(${JSON.stringify(item.matchFields)}),envelopeField:${JSON.stringify(item.envelopeField)},projectorInput:freeze(${JSON.stringify(item.projectorInput)}),acceptance:freeze(${JSON.stringify(item.acceptance)}),modelIds:freeze(${JSON.stringify(item.modelIds)}),validateReceipt:compiledValidators.${item.receiptValidator},projector:${item.projector}})`).join(',')}]);\n`,
     'file-catalog.ts': `${banner}import type {RuntimeFileCatalog} from ${JSON.stringify(importSpecifier(output, path.join(root, 'core/files/catalog.ts')))};\n${freezeSource}export const fileCatalog: RuntimeFileCatalog = freeze(${JSON.stringify(fileCatalog)});\n`,
     'module-inventory.ts': `${banner}import type { ModuleSettingsHostInventory } from ${JSON.stringify(importSpecifier(output, path.join(root, 'sdk/module-settings/types.ts')))};\n${freezeSource}${runtimeInventory

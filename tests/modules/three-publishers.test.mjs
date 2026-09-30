@@ -254,9 +254,9 @@ test('three test publishers install once from npm archives and enforce their dep
   await t.test('widgets: compiler bundles one read-only resource per publisher',()=>{
     const source=readFileSync(path.join(host.root,'.creezio/generated/widget-catalog.ts'),'utf8');
     const catalog=JSON.parse(source.match(/const widgetCatalogBase: Pick<CompiledWidgetCatalog,'widgets'> = (\{[^\n]+\});/)?.[1]??'null');
-    const widgetSharedScripts=JSON.parse(source.match(/const widgetSharedScripts = (\[[^\n]+\]);/)?.[1]??'null');
+    const widgetSharedParts=JSON.parse(source.match(/const widgetSharedParts = (\[[^\n]+\]);/)?.[1]??'null');
     const resources=runInNewContext(source.match(/const widgetResources: CompiledWidgetCatalog\['resources'\] = (\[[^\n]+\]);/)?.[1]??'null',
-      {widgetSharedScripts});
+      {widgetSharedParts});
     assert.equal(catalog.widgets.length,3);
     assert.equal(new Set(catalog.widgets.map(item=>item.moduleId)).size,3);
     assert.equal(resources.length,catalog.widgets.length);
