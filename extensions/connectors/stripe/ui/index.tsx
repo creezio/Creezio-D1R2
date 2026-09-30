@@ -17,9 +17,18 @@ type Subscription={id:string;customer_id:string;status:string;currency:string|nu
   period_end_at:string|null;livemode:boolean};
 type Invoice={id:string;customer_id:string|null;status:string|null;currency:string;
   amount_due_minor:number;period_start_at:string|null;period_end_at:string|null;livemode:boolean};
-type Page={items:(Customer|Subscription|Invoice)[];nextCursor:string|null};
-const collections:Collection[]=['customers','subscriptions','invoices'];
-const titles:Record<Collection,string>={customers:'Clients',subscriptions:'Abonnements',invoices:'Factures'};
+type Product={id:string;name:string;active:boolean;default_price_id:string|null;livemode:boolean};
+type Price={id:string;product_id:string;active:boolean;livemode:boolean;currency:string;
+  type:'one_time'|'recurring';billing_scheme:'per_unit'|'tiered';unit_amount_minor:number|null;
+  unit_amount_decimal:string|null;interval:string|null;interval_count:number|null;
+  usage_type:string|null;tiers_mode:string|null;custom_amount:boolean};
+type ListCollection='customers'|'subscriptions'|'invoices'|'products'|'prices';
+type Page={items:(Customer|Subscription|Invoice|Product|Price)[];nextCursor:string|null};
+const collections:Collection[]=['customers','subscriptions','invoices','products','prices_active','prices_inactive'];
+const listCollections:ListCollection[]=['customers','subscriptions','invoices','products','prices'];
+const overviewCollections:ListCollection[]=['customers','subscriptions','invoices'];
+const titles:Record<Collection|string,string>={customers:'Clients',subscriptions:'Abonnements',invoices:'Factures',
+  products:'Produits',prices:'Prix',prices_active:'Prix actifs',prices_inactive:'Prix inactifs'};
 const SUB_STATUT_LABEL:Record<string,string>={active:'Actif',trialing:'Essai',past_due:'Impayé',
   canceled:'Résilié',unpaid:'Impayé',incomplete:'Incomplet'};
 const INVOICE_STATUT_LABEL:Record<string,string>={paid:'Payée',open:'En attente',payment_failed:'Échouée',
@@ -35,6 +44,18 @@ const output=(result:Awaited<ReturnType<WorkspaceViewProps['client']['invoke']>>
     ?result.execution.output as Record<string,unknown>:null;
 const date=(value:string|null|undefined)=>value?new Date(value).toLocaleDateString('fr-FR'):'—';
 const status=(value:string|null|undefined)=>value??'—';
+const priceAmount=(price:Price)=>{
+  if(price.billing_scheme==='tiered')return 'Tarif à paliers';
+  if(price.custom_amount)return 'Montant libre';
+  if(price.usage_type==='metered')return 'Tarif à l’usage';
+  if(price.unit_amount_decimal!==null&&price.unit_amount_decimal!==String(price.unit_amount_minor))
+    return `${price.unit_amount_decimal} ${price.currency} (unités mineures)`;
+  return formatStripeAmount(price.unit_amount_minor,price.currency);
+};
+const priceFrequency=(price:Price)=>price.type==='one_time'?'Paiement unique':
+  price.interval?`Tous les ${price.interval_count??1} ${price.interval}`:'Récurrence non disponible';
+const listForRun=(id:Collection):ListCollection=>
+  id==='prices_active'||id==='prices_inactive'?'prices':id;
 
 /** Original billing cards and tables, fed only by bounded local Stripe projections. */
 export function StripeAdminView(props:WorkspaceViewProps){
@@ -49,9 +70,10 @@ export function StripeAdminView(props:WorkspaceViewProps){
   const [tab,setTab]=useState<StripeTab>(restored?.tab??'overview');
   const [config,setConfig]=useState<Config|null>(null),[apiKey,setApiKey]=useState('');
   const [enabled,setEnabled]=useState(false),[enableRevision,setEnableRevision]=useState<number|null>(null);
-  const [runs,setRuns]=useState<Run[]>([]),[pages,setPages]=useState<Partial<Record<Collection,Page>>>({});
+  const [runs,setRuns]=useState<Run[]>([]),[pages,setPages]=useState<Partial<Record<ListCollection,Page>>>({});
   const [busy,setBusy]=useState(false),[checking,setChecking]=useState(false);
-  const [loading,setLoading]=useState<Record<Collection,boolean>>({customers:false,subscriptions:false,invoices:false});
+  const [loading,setLoading]=useState<Record<ListCollection,boolean>>({customers:false,subscriptions:false,
+    invoices:false,products:false,prices:false});
   const [showSync,setShowSync]=useState(false);
   const [notice,setNotice]=useState('');
   const journal=useRef<ReturnType<typeof createCommandJournal>|null>(verified?createCommandJournal(
@@ -60,7 +82,8 @@ export function StripeAdminView(props:WorkspaceViewProps){
   const journalScope=useRef({sessionId:verified?sessionId:'',audience:props.audience,contextId:props.contextId});
   const [pending,setPending]=useState<PendingCommand|null>(journal.current?.pending??null);
   const prior=useRef(scope),generation=useRef(0),
-    listSerial=useRef<Record<Collection,number>>({customers:0,subscriptions:0,invoices:0}),overviewSerial=useRef(0),
+    listSerial=useRef<Record<ListCollection,number>>({customers:0,subscriptions:0,invoices:0,
+      products:0,prices:0}),overviewSerial=useRef(0),
     inFlight=useRef(false),configVersion=useRef(0);
   const tabRef=useRef(tab);tabRef.current=tab;
   const last=useRef({active,sessionId,client:props.client,access:props.access,audience:props.audience,
@@ -73,7 +96,7 @@ export function StripeAdminView(props:WorkspaceViewProps){
   const current=(token:number)=>active&&generation.current===token&&
     props.access.getSnapshot().phase==='authenticated'&&!props.access.getSnapshot().pending&&
     props.access.getSnapshot().session?.id===sessionId;
-  const invalidateLists=()=>{for(const id of collections)listSerial.current[id]++;};
+  const invalidateLists=()=>{for(const id of listCollections)listSerial.current[id]++;};
   const persist=(value:PendingCommand|null,token:number)=>{
     if(!current(token))return false;
     const saved=props.navigation.savePanelState({activeSubview:tabRef.current,
@@ -110,13 +133,13 @@ export function StripeAdminView(props:WorkspaceViewProps){
     const rotated=!!next&&externalConfigurationChanged(configVersion.current,next);
     if(next&&next.revision>=configVersion.current){
       if(rotated){invalidateLists();setPages({});
-        if(tabRef.current==='overview')for(const id of collections)void loadPage(id,token);
-        else if(collections.includes(tabRef.current as Collection))void loadPage(tabRef.current as Collection,token);}
+        if(tabRef.current==='overview')for(const id of overviewCollections)void loadPage(id,token);
+        else if(listCollections.includes(tabRef.current as ListCollection))void loadPage(tabRef.current as ListCollection,token);}
       configVersion.current=next.revision;
       setConfig(old=>latestConfig(old,next));if(enableRevision===null)setEnabled(next.enabled);}
     setRuns(old=>reconcileRuns(old,Array.isArray(states?.states)?states.states as Run[]:[],rotated));
   };
-  const loadPage=async(collection:Collection,token:number,cursor:string|null=null,append=false)=>{
+  const loadPage=async(collection:ListCollection,token:number,cursor:string|null=null,append=false)=>{
     const serial=++listSerial.current[collection];
     setLoading(old=>({...old,[collection]:true}));
     const value=await read(`${collection.slice(0,-1)}.list`,{limit:25,...(cursor?{cursor}:{})},token);
@@ -139,7 +162,7 @@ export function StripeAdminView(props:WorkspaceViewProps){
       setShowSync(false);invalidateLists();
       journal.current=null;journalScope.current={sessionId:'',audience:props.audience,contextId:props.contextId};}
     if(!transition.transient)prior.current=scope;
-    if(!active){setLoading({customers:false,subscriptions:false,invoices:false});
+    if(!active){setLoading({customers:false,subscriptions:false,invoices:false,products:false,prices:false});
       setBusy(false);setChecking(false);inFlight.current=false;return;}
     if(!journal.current||journalScope.current.sessionId!==sessionId||
       journalScope.current.audience!==props.audience||journalScope.current.contextId!==props.contextId){
@@ -153,14 +176,14 @@ export function StripeAdminView(props:WorkspaceViewProps){
     setPending(journal.current.pending);
     const token=generation.current;
     void loadOverview(token);
-    if(tabRef.current==='overview')for(const id of collections)void loadPage(id,token);
-    else if(collections.includes(tabRef.current as Collection))void loadPage(tabRef.current as Collection,token);
+    if(tabRef.current==='overview')for(const id of overviewCollections)void loadPage(id,token);
+    else if(listCollections.includes(tabRef.current as ListCollection))void loadPage(tabRef.current as ListCollection,token);
   },[active,sessionId,access.phase,access.pending,props.client,props.access,props.audience,props.contextId,props.panelId]);
   const changeTab=(next:StripeTab)=>{
     setTab(next);tabRef.current=next;
     if(journal.current)persist(journal.current.pending,generation.current);
-    if(next==='overview')for(const id of collections)void loadPage(id,generation.current);
-    else if(collections.includes(next as Collection))void loadPage(next as Collection,generation.current);
+    if(next==='overview')for(const id of overviewCollections)void loadPage(id,generation.current);
+    else if(listCollections.includes(next as ListCollection))void loadPage(next as ListCollection,generation.current);
   };
   const mutate=async(operation:string,input:Record<string,unknown>)=>{
     const controller=journal.current,token=generation.current;
@@ -179,7 +202,8 @@ export function StripeAdminView(props:WorkspaceViewProps){
         setEnableRevision(null);if(operation.startsWith('config.key.'))setApiKey('');}
       if(operation.startsWith('config.key.')){invalidateLists();setRuns([]);setPages({});}
       if(value.state){const next=value.state as Run;setRuns(old=>mergeRuns(old,[next]));}
-      if(operation==='sync.page'&&value.state)void loadPage((value.state as Run).collection,token);
+      if(operation==='sync.page'&&value.state)
+        void loadPage(listForRun((value.state as Run).collection),token);
       if(operation.startsWith('sync.')||operation.startsWith('config.key.'))void loadOverview(token);
       setNotice(operation==='sync.page'?`Page enregistrée (${value.processed??0} objet(s)).`:'Modification confirmée.');
     }else setNotice(outcome.pending?'Résultat incertain. Vérifiez son statut avant toute nouvelle commande.':
@@ -200,7 +224,8 @@ export function StripeAdminView(props:WorkspaceViewProps){
       setEnableRevision(null);setApiKey('');}
     if(pending.intent?.startsWith('config.key.')&&value){invalidateLists();setRuns([]);setPages({});}
     if(value?.state){const next=value.state as Run;setRuns(old=>mergeRuns(old,[next]));}
-    if(pending.intent==='sync.page'&&value?.state)void loadPage((value.state as Run).collection,token);
+    if(pending.intent==='sync.page'&&value?.state)
+      void loadPage(listForRun((value.state as Run).collection),token);
     if((pending.intent?.startsWith('sync.')||pending.intent?.startsWith('config.key.'))&&value)
       void loadOverview(token);
     setNotice(value?'Modification confirmée.':result?.pending?'Résultat toujours incertain ; aucun nouvel envoi.':
@@ -212,6 +237,8 @@ export function StripeAdminView(props:WorkspaceViewProps){
   const customers=(pages.customers?.items??[]) as Customer[];
   const subscriptions=(pages.subscriptions?.items??[]) as Subscription[];
   const invoices=(pages.invoices?.items??[]) as Invoice[];
+  const products=(pages.products?.items??[]) as Product[];
+  const prices=(pages.prices?.items??[]) as Price[];
   const rows=[...customers.flatMap<{customer:Customer|null;subscription:Subscription|null}>(customer=>{
     const linked=subscriptions.filter(subscription=>subscription.customer_id===customer.id);
     return linked.length?linked.map(subscription=>({customer,subscription})):[{customer,subscription:null}];
@@ -224,7 +251,7 @@ export function StripeAdminView(props:WorkspaceViewProps){
       <p className="text-sm text-muted-foreground">Abonnements et factures Stripe.</p></div>
       <div className="flex items-center gap-2"><Button size="sm" onClick={()=>setShowSync(value=>!value)}>
         Resynchroniser Stripe</Button></div></div>
-    <nav className="flex flex-wrap gap-2" aria-label="Sections facturation">{(['overview',...collections,'settings'] as StripeTab[]).map(value=>
+    <nav className="flex flex-wrap gap-2" aria-label="Sections facturation">{(['overview',...listCollections,'settings'] as StripeTab[]).map(value=>
       <Button key={value} type="button" size="sm" variant={tab===value?'default':'outline'}
         aria-current={tab===value?'page':undefined} onClick={()=>changeTab(value)}>
         {value==='overview'?'Vue générale':value==='settings'?'Connexion':titles[value]}</Button>)}</nav>
@@ -291,6 +318,50 @@ export function StripeAdminView(props:WorkspaceViewProps){
       {pages.invoices?.nextCursor?<Button className="mt-3" size="sm" variant="outline" type="button"
         disabled={loading.invoices} onClick={()=>void loadPage('invoices',generation.current,pages.invoices!.nextCursor,true)}>
         Suite factures</Button>:null}</Card>:null}
+    {tab==='products'?<Card className="p-4"><div className="mb-3 flex items-center justify-between gap-2">
+      <h2 className="text-base font-semibold">Produits</h2>
+      <Button size="sm" variant="outline" type="button" onClick={()=>void loadPage('products',generation.current)}>
+        Actualiser</Button></div>
+      {loading.products?<div className="text-sm text-muted-foreground">Chargement…</div>:null}
+      {products.length===0?<div className="text-sm text-muted-foreground">Aucun produit projeté.</div>:
+        <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left text-xs uppercase text-muted-foreground">
+          <th className="py-2 pr-3">Produit</th><th className="py-2 pr-3">État</th>
+          <th className="py-2">Prix par défaut</th></tr></thead><tbody>
+          {products.map(product=><tr key={product.id} className="border-b last:border-0">
+            <td className="py-2 pr-3"><div className="font-medium">{product.name}</div>
+              <div className="text-xs text-muted-foreground">{product.id}</div></td>
+            <td className="py-2 pr-3"><Badge variant={product.active?'default':'secondary'}>
+              {product.active?'Actif':'Inactif'}</Badge></td>
+            <td className="py-2 text-xs text-muted-foreground">{product.default_price_id??'—'}</td>
+          </tr>)}</tbody></table></div>}
+      {pages.products?.nextCursor?<Button className="mt-3" size="sm" variant="outline" type="button"
+        disabled={loading.products} onClick={()=>void loadPage('products',generation.current,pages.products!.nextCursor,true)}>
+        Suite produits</Button>:null}
+      <p className="mt-2 text-xs text-muted-foreground">Les produits affichés suivent les pages Stripe déjà lues.</p>
+    </Card>:null}
+    {tab==='prices'?<Card className="p-4"><div className="mb-3 flex items-center justify-between gap-2">
+      <h2 className="text-base font-semibold">Prix</h2>
+      <Button size="sm" variant="outline" type="button" onClick={()=>void loadPage('prices',generation.current)}>
+        Actualiser</Button></div>
+      {loading.prices?<div className="text-sm text-muted-foreground">Chargement…</div>:null}
+      {prices.length===0?<div className="text-sm text-muted-foreground">Aucun prix projeté.</div>:
+        <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left text-xs uppercase text-muted-foreground">
+          <th className="py-2 pr-3">Prix Stripe</th><th className="py-2 pr-3">Produit</th>
+          <th className="py-2 pr-3">Montant</th><th className="py-2 pr-3">Périodicité</th>
+          <th className="py-2">État</th></tr></thead><tbody>
+          {prices.map(price=><tr key={price.id} className="border-b last:border-0">
+            <td className="py-2 pr-3 text-xs">{price.id}</td>
+            <td className="py-2 pr-3 text-xs"><div>{price.product_id}</div>
+              <div className="text-muted-foreground">Nom non rapproché ; produit potentiellement non synchronisé.</div></td>
+            <td className="py-2 pr-3">{priceAmount(price)}</td>
+            <td className="py-2 pr-3">{priceFrequency(price)}</td>
+            <td className="py-2"><Badge variant={price.active?'default':'secondary'}>
+              {price.active?'Actif':'Inactif'}</Badge></td></tr>)}</tbody></table></div>}
+      {pages.prices?.nextCursor?<Button className="mt-3" size="sm" variant="outline" type="button"
+        disabled={loading.prices} onClick={()=>void loadPage('prices',generation.current,pages.prices!.nextCursor,true)}>
+        Suite prix</Button>:null}
+      <p className="mt-2 text-xs text-muted-foreground">Prix actifs et inactifs ont deux parcours Stripe distincts ; cette liste peut rester partielle. Le produit indiqué est son identifiant Stripe, sans rapprochement supposé.</p>
+    </Card>:null}
     {tab==='overview'?<Card className="p-4"><h2 className="mb-3 text-base font-semibold">Événements Stripe reçus</h2>
       <div className="text-sm text-muted-foreground">Aucun webhook n’est raccordé dans ce module.</div></Card>:null}
     {tab==='settings'?<Card className="p-4"><h2 className="mb-3 text-base font-semibold">Connexion Stripe</h2>

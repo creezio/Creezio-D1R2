@@ -20,6 +20,14 @@ La recette API Linux du module, sur clé Stripe en mode test, a confirmé quatre
 
 La recette navigateur du candidat 4148c60 a repris l’interface originale, affiché quatre abonnements et quatre factures et comparé les montants EUR aux projections locales. La section Connexion et son état sont restés visibles après rechargement. L’inspection visuelle n’a fait aucun nouveau GET Stripe ni testé d’autre action de facturation ; aucune capture n’a été conservée. Les sessions ont été déconnectées et le runtime arrêté, données préservées. Voir le reçu hors dépôt CREEZIO-T27-LINUX-UI-RECIPE-4148C60-2026-09-29.json.
 
-REQ-2701 reste ouverte : produits/prix, Checkout, paiements, création et évolution des abonnements, événements signés, déduplication et recettes de ces effets nécessitent leurs propres tranches. La publication du module, les profils hébergés et l’adoption par une application restent à qualifier séparément. Les preuves API, MCP, widget, D1 et navigateur de cette première tranche ne les remplacent pas.
+REQ-2701 reste ouverte : Checkout, paiements, création et évolution des abonnements, événements signés, déduplication et recettes de ces effets nécessitent leurs propres tranches. La publication du module, les profils hébergés et l’adoption par une application restent à qualifier séparément. Les preuves API, MCP, widget, D1 et navigateur de cette première tranche ne les remplacent pas.
+
+## Produits et prix — tranche en qualification
+
+L'écran Facturation conserve ses sections et ajoute deux onglets Produits et Prix. Les opérations `product.list` et `price.list` consultent les projections locales sous le droit de lecture Stripe ; le parcours de synchronisation existant ajoute trois ressources GET fixes : produits, prix actifs et prix inactifs. Chaque commande traite au plus huit objets, avec les mêmes gardes de droits, de génération de connexion, de révision et le même journal des commandes incertaines.
+
+Deux modèles de projection et un modèle d'état de parcours sont ajoutés. La contrainte du modèle historique `sync_state` et les anciennes tables restent inchangées. Le prix conserve son identifiant produit Stripe, sans rapprochement de nom entre deux listes dont la génération commune ne serait pas prouvée. Montants entiers, décimaux, libres ou à paliers conservent leurs distinctions, sans calcul de MRR implicite. Les deux parcours de prix ont des états séparés et ne promettent pas un instantané atomique du fournisseur.
+
+Les six suites du module, l'intégration D1 réelle, la projection du schéma de composition et le SQL généré sont contrôlés localement. La revue, la CI et la recette fournisseur/UI de ces nouveaux onglets restent distinctes et ne sont pas acquises par les preuves historiques des clients et factures. Cette tranche n'exécute aucun paiement et ne modifie aucun objet Stripe.
 
 Références du fournisseur : [versionnement](https://docs.stripe.com/api/versioning), [pagination](https://docs.stripe.com/api/pagination), [devises](https://docs.stripe.com/currencies). Le PRD et les exigences approuvées restent inchangés ; cette tranche en réalise une partie sans clôturer le lot.

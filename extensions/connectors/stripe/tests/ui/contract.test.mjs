@@ -34,6 +34,7 @@ test('panel persists metadata only and restores under the exact scope',()=>{
   assert.equal(readPanel(data,{...scope,contextId:'other'}),null);
   assert.deepEqual(readPendingCommand(data.pending,scope),pending);
   assert.deepEqual(createCommandJournal(scope,pending).pending,pending);
+  assert.equal(readPanel(panelData(scope,'prices',null),scope).tab,'prices');
   assert.doesNotMatch(JSON.stringify(data),/apiKey|runId|cursor|amountMinor|secret-reference/u);
 });
 test('late reads cannot roll back a confirmed configuration or run',()=>{
@@ -73,13 +74,16 @@ test('original billing cards/tables remain, unavailable numbers and events are e
   const ui=read('ui/index.tsx');
   for(const label of ['Facturation','Revenu mensuel (MRR)','Abonnements actifs',
     'Factures impayées','Clients &amp; abonnements','Factures','Événements Stripe reçus',
-    'Resynchroniser Stripe','SUB_STATUT_LABEL','INVOICE_STATUT_LABEL'])
+    'Resynchroniser Stripe','SUB_STATUT_LABEL','INVOICE_STATUT_LABEL','Produits','Prix','Suite produits','Suite prix'])
     assert.ok(ui.includes(label),label);
   assert.ok(ui.includes("import {Badge,Button,Card} from '@creezio/sdk/ui'"));
   assert.match(ui,/subVariant\(/u);assert.match(ui,/invoiceVariant\(/u);
   assert.match(ui,/Calcul non disponible sur ce parcours partiel/u);
   assert.match(ui,/Aucun webhook n’est raccordé/u);
   assert.match(ui,/createCommandJournal/u);
+  assert.match(ui,/Nom non rapproché/u);
+  assert.doesNotMatch(ui,/products\.find\(/u,
+    'a price must not inherit a product name from a separately loaded generation');
   assert.match(ui,/readPendingCommand/u);
   assert.match(ui,/controller\.inspect/u);
   assert.match(ui,/inFlight\.current=false;return/u);

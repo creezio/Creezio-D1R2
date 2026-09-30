@@ -1,5 +1,9 @@
 # Changelog
 
+## En qualification — produits et prix Stripe (T27)
+
+Facturation ajoute les onglets Produits et Prix avec deux lectures API/MCP des projections D1. Le moteur de synchronisation existant lit les produits et les prix actifs/inactifs par trois ressources GET bornées ; deux modèles de données et un modèle de parcours sont ajoutés sans modifier les anciennes tables. Les montants et les relations gardent leur devise, leur précision et leur génération de connexion. Aucun paiement ni modification distante Stripe n'est introduit ; la recette fournisseur et navigateur de ces ajouts reste à effectuer.
+
 ## En qualification — liste complète des médias Pages (T21)
 
 La lecture d'une page de 50 médias doit compter aussi la lecture préalable de la page propriétaire : le budget du seul traitement `media.list` passe de 50 à 51 unités. La pagination reste limitée à 50 et les contrôles centraux restent inchangés. Ce refus a été détecté pendant la recette Linux de PR #73, après son intégration et sa CI ; aucune page n'a été modifiée par ces lectures refusées.

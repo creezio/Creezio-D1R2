@@ -9,7 +9,13 @@ const args=(value:JsonValue):Record<string,unknown>=>value&&typeof value==='obje
 const configKey=()=>({id:STRIPE_CONNECTOR_ID});
 const config=async(context:OperationContext)=>await context.data.get('connector_config',{key:configKey()}) as Row|null;
 const connectionId=(row:Row|null):string|null=>typeof row?.connection_id==='string'?row.connection_id:null;
-const run=async(context:OperationContext,collection:Collection)=>await context.data.get('sync_state',
+const collections:Collection[]=['customers','subscriptions','invoices','products','prices_active','prices_inactive'];
+const runModel=(id:Collection)=>id==='products'||id.startsWith('prices_')
+  ?'stripe_catalog_sync_state':'sync_state';
+const projectionModel=(id:Collection)=>id==='customers'?'stripe_customer':
+  id==='subscriptions'?'stripe_subscription':id==='invoices'?'stripe_invoice':
+    id==='products'?'stripe_product':'stripe_price';
+const run=async(context:OperationContext,collection:Collection)=>await context.data.get(runModel(collection),
   {key:{id:collection}}) as Row|null;
 const rev=(value:unknown,current:Row|null):number=>{
   if(!Number.isSafeInteger(value)||Number(value)<0||value!==(current?.revision??0))
@@ -17,8 +23,8 @@ const rev=(value:unknown,current:Row|null):number=>{
   return Number(value);
 };
 const collection=(value:unknown):Collection=>{
-  if(value!=='customers'&&value!=='subscriptions'&&value!=='invoices')throw new OperationError('invalid_input');
-  return value;
+  if(!collections.includes(value as Collection))throw new OperationError('invalid_input');
+  return value as Collection;
 };
 const identifier=(value:unknown,max=128):string=>{
   if(typeof value!=='string'||!value||value.length>max||!value.isWellFormed()
@@ -94,10 +100,9 @@ export async function connectionCheck(_value:JsonValue,context:OperationContext)
   return {output:{reachable:true}};
 }
 export async function syncState(_value:JsonValue,context:OperationContext){
-  const ids:Collection[]=['customers','subscriptions','invoices'];
-  const [configuration,...rows]=await Promise.all([config(context),...ids.map(id=>run(context,id))]);
+  const [configuration,...rows]=await Promise.all([config(context),...collections.map(id=>run(context,id))]);
   const generation=connectionId(configuration);
-  return {output:{states:ids.map((id,index)=>{
+  return {output:{states:collections.map((id,index)=>{
     const row=rows[index]??null;
     return runView(generation&&row?.connection_id===generation?row:
       row?{revision:row.revision}:null,id);
@@ -113,8 +118,9 @@ export async function syncStart(value:JsonValue,context:OperationContext){
   const changes={run_id:runId,connection_id:generation,cursor:null,status:'partial',updated_at:now()};
   const connectionGuard=context.data.planGet('connector_config',{key:configKey(),
     where:{connection_id:generation,enabled:true},required:true});
-  const plan=prior?context.data.planPatch('sync_state',{key:{id},compare:{field:'revision',expected:revision},
-    values:changes}):context.data.planCreate('sync_state',{values:{id,...changes,revision:1}});
+  const model=runModel(id);
+  const plan=prior?context.data.planPatch(model,{key:{id},compare:{field:'revision',expected:revision},
+    values:changes}):context.data.planCreate(model,{values:{id,...changes,revision:1}});
   return {output:{state:runView({...prior,...changes,revision:revision+1},id)},plans:[connectionGuard,plan]};
 }
 export async function syncPage(value:JsonValue,context:OperationContext){
@@ -128,7 +134,7 @@ export async function syncPage(value:JsonValue,context:OperationContext){
     throw new OperationError('conflict');
   const body=await remote(context,{resource:id,cursor:expectedCursor??undefined,limit:Number(limit)});
   const page=projectStripePage(body,id,Number(limit));
-  const model=id==='customers'?'stripe_customer':id==='subscriptions'?'stripe_subscription':'stripe_invoice';
+  const model=projectionModel(id);
   const plans=[context.data.planGet('connector_config',{key:configKey(),
     where:{connection_id:generation,enabled:true},required:true})];
   for(const item of page.rows){
@@ -140,7 +146,7 @@ export async function syncPage(value:JsonValue,context:OperationContext){
         revision:1,updated_at:now()}}));
   }
   const changes={cursor:page.nextCursor,status:page.status,updated_at:now()};
-  plans.push(context.data.planPatch('sync_state',{key:{id},compare:{field:'revision',expected:revision},
+  plans.push(context.data.planPatch(runModel(id),{key:{id},compare:{field:'revision',expected:revision},
     values:changes}));
   const state=runView({...prior,...changes,revision:revision+1},id);
   return {output:{state,processed:page.rows.length},plans};
@@ -176,4 +182,13 @@ export async function invoiceList(value:JsonValue,context:OperationContext){
   return localPage(context,'stripe_invoice',value,
     ['id','customer_id','status','currency','amount_due_minor','period_start_at','period_end_at',
       'livemode','updated_at']);
+}
+export async function productList(value:JsonValue,context:OperationContext){
+  return localPage(context,'stripe_product',value,
+    ['id','name','active','default_price_id','livemode','updated_at']);
+}
+export async function priceList(value:JsonValue,context:OperationContext){
+  return localPage(context,'stripe_price',value,
+    ['id','product_id','active','livemode','currency','type','billing_scheme','unit_amount_minor',
+      'unit_amount_decimal','interval','interval_count','usage_type','tiers_mode','custom_amount','updated_at']);
 }

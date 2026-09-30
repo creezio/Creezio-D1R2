@@ -6,7 +6,7 @@ test('every Stripe operation has explicit admin API and MCP exposure with machin
   const operations=manifest.contracts.operations;
   assert.deepEqual(operations.map(row=>row.id),['config.read','config.set','config.key.set',
     'config.key.revoke','connection.check','sync.state','sync.start','sync.page',
-    'customer.list','subscription.list','invoice.list']);
+    'customer.list','subscription.list','invoice.list','product.list','price.list']);
   for(const operation of operations){
     assert.deepEqual(operation.audiences,['admin']);
     assert.ok(operation.actors.includes('machine'));
@@ -22,7 +22,7 @@ test('every Stripe operation has explicit admin API and MCP exposure with machin
 });
 test('GET projections and commands have matching auth, pagination and no arbitrary remote input',()=>{
   const operation=id=>manifest.contracts.operations.find(row=>row.id===id);
-  for(const id of ['customer.list','subscription.list','invoice.list']){
+  for(const id of ['customer.list','subscription.list','invoice.list','product.list','price.list']){
     const row=operation(id);assert.equal(row.kind,'query');
     assert.equal(row.pagination.mode,'cursor');assert.equal(row.pagination.maxItems,25);
     assert.deepEqual(row.effects.providers,[]);

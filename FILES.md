@@ -1,5 +1,7 @@
 # Repères du dépôt
 
+Le connecteur `extensions/connectors/stripe/` conserve un seul moteur dans `module/service.ts` pour les six parcours clients, abonnements, factures, produits et prix actifs/inactifs. `module/projection.ts` valide leurs données, `module/storage.ts` décrit les modèles additifs et `ui/index.tsx` rassemble les onglets de Facturation. Le SQL généré est dans `data/schema/stripe.sql` ; les preuves et limites figurent dans [T27](docs/IMPLEMENTATION-T27.md).
+
 Le pont privé d'images déclarées dans `linkedRead.mcpImage` utilise `core/files/mcp.ts` pour réemployer le service de fichiers liés depuis MCP. `core/files/admission.ts` partage les quotas HTTP/MCP existants. `sdk/widgets/private-image.ts` forme le résultat transitoire `_meta` pour l'hôte natif, et `sdk/widgets/proxy/sandbox.js` borne son transport. `extensions/common/catalog/ui/widgets/image-view.ts` gère les images visibles et leurs URL Blob. Les tests de transport, de pont et de widgets sont séparés ; la [note T25](docs/IMPLEMENTATION-T25.md) conserve leurs limites de qualification.
 
 `sdk/widgets/proxy/profile-policy.mjs` définit les en-têtes CSP du sandbox commun, dont les images Blob ; les tests HTTP du sandbox vérifient que cette autorisation ne s'étend pas aux scripts, connexions ou cadres.

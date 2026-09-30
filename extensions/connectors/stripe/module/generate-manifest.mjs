@@ -4,7 +4,7 @@ import {stripeConnectorDescriptor} from './storage.ts';
 
 const root=new URL('../',import.meta.url);
 const template=JSON.parse(readFileSync(new URL('module/manifest.json',root),'utf8'));
-const id='creezio.stripe',connectorId='stripe.api.v1',version='0.1.0',sourceRevision='t27-stripe-read-projection-v1';
+const id='creezio.stripe',connectorId='stripe.api.v1',version='0.2.0',sourceRevision='t27-stripe-products-prices-read-v2';
 const ref=(kind,name)=>({moduleId:id,kind,id:name});
 const str=(max=128,min=1)=>({type:'string',minLength:min,maxLength:max});
 const integer=(min=0,max=Number.MAX_SAFE_INTEGER)=>({type:'integer',minimum:min,maximum:max});
@@ -37,7 +37,16 @@ model('connector_secret','Clé Stripe scellée',[
   field('version','integer',{protected:true,constraints:{minimum:1}}),
   field('state','string',{protected:true,constraints:{enum:['active','revoked']}})],['manage']);
 const collections=['customers','subscriptions','invoices'];
+const catalogCollections=['products','prices_active','prices_inactive'];
+const allCollections=[...collections,...catalogCollections];
 model('sync_state','Parcours de lecture Stripe',[field('id','string',{constraints:{enum:collections}}),
+  field('run_id','string',{constraints:{minLength:1,maxLength:128}}),
+  field('connection_id','string',{constraints:{minLength:1,maxLength:128}}),
+  field('cursor','string',{nullable:true,constraints:{minLength:1,maxLength:128}}),
+  field('status','string',{constraints:{enum:['partial','pages_exhausted']}}),revisionField,updatedField],
+['manage','read']);
+model('stripe_catalog_sync_state','Parcours de lecture du catalogue Stripe',[
+  field('id','string',{constraints:{enum:catalogCollections}}),
   field('run_id','string',{constraints:{minLength:1,maxLength:128}}),
   field('connection_id','string',{constraints:{minLength:1,maxLength:128}}),
   field('cursor','string',{nullable:true,constraints:{minLength:1,maxLength:128}}),
@@ -71,10 +80,32 @@ model('stripe_invoice','Facture Stripe projetée',[idField,
   field('period_end_at','date-time',{nullable:true}),
   field('livemode','boolean'),revisionField,updatedField],['manage','read'],
   [{id:'by-connection',fields:['context_id','connection_id','id'],unique:false}]);
+model('stripe_product','Produit Stripe projeté',[idField,
+  field('connection_id','string',{constraints:{minLength:1,maxLength:128}}),
+  field('name','string',{constraints:{minLength:1,maxLength:500}}),
+  field('active','boolean'),
+  field('default_price_id','string',{nullable:true,constraints:{minLength:1,maxLength:128}}),
+  field('livemode','boolean'),revisionField,updatedField],['manage','read'],
+  [{id:'by-connection',fields:['context_id','connection_id','id'],unique:false}]);
+model('stripe_price','Prix Stripe projeté',[idField,
+  field('connection_id','string',{constraints:{minLength:1,maxLength:128}}),
+  field('product_id','string',{constraints:{minLength:1,maxLength:128}}),
+  field('active','boolean'),field('livemode','boolean'),
+  field('currency','string',{constraints:{minLength:3,maxLength:3}}),
+  field('type','string',{constraints:{enum:['one_time','recurring']}}),
+  field('billing_scheme','string',{constraints:{enum:['per_unit','tiered']}}),
+  field('unit_amount_minor','integer',{nullable:true,constraints:{minimum:0}}),
+  field('unit_amount_decimal','string',{nullable:true,constraints:{minLength:1,maxLength:64}}),
+  field('interval','string',{nullable:true,constraints:{minLength:1,maxLength:16}}),
+  field('interval_count','integer',{nullable:true,constraints:{minimum:1}}),
+  field('usage_type','string',{nullable:true,constraints:{minLength:1,maxLength:16}}),
+  field('tiers_mode','string',{nullable:true,constraints:{minLength:1,maxLength:16}}),
+  field('custom_amount','boolean'),revisionField,updatedField],['manage','read'],
+  [{id:'by-connection',fields:['context_id','connection_id','id'],unique:false}]);
 
 const schemas=[],schema=(name,value)=>{schemas.push({id:name,schema:value});return {schemaId:name};};
 const requestKey=str(128),revision=integer(0),stripeId=str(128),cursor=nullable(str(128));
-const collection={type:'string',enum:collections},status={type:'string',enum:['partial','pages_exhausted']};
+const collection={type:'string',enum:allCollections},status={type:'string',enum:['partial','pages_exhausted']};
 const configView=obj({origin:{const:'https://api.stripe.com'},enabled:{type:'boolean'},hasKey:{type:'boolean'},
   revision,state:{type:'string',enum:['missing','configured','unverified']}});
 const runView=obj({collection,runId:nullable(str(128)),cursor,status,revision,updatedAt:nullable(str(64))});
@@ -84,7 +115,7 @@ const configSetInput=schema('config-set-input',obj({requestKey,enabled:{type:'bo
 const keySetInput=schema('config-key-set-input',obj({requestKey,apiKey:str(4096,8),revision}));
 const keyRevokeInput=schema('config-key-revoke-input',obj({requestKey,revision}));
 const checkOutput=schema('connection-check-output',obj({reachable:{const:true}}));
-const statesOutput=schema('sync-states-output',obj({states:array(runView,3)}));
+const statesOutput=schema('sync-states-output',obj({states:array(runView,6)}));
 const startInput=schema('sync-start-input',obj({requestKey,collection,runId:str(128),revision}));
 const startOutput=schema('sync-start-output',obj({state:runView}));
 const pageInput=schema('sync-page-input',obj({requestKey,collection,runId:str(128),cursor,
@@ -104,8 +135,18 @@ const invoice=obj({id:stripeId,customer_id:nullable(stripeId),status:nullable(st
 const customerOutput=schema('customer-list-output',obj({items:array(customer,25),nextCursor:cursor}));
 const subscriptionOutput=schema('subscription-list-output',obj({items:array(subscription,25),nextCursor:cursor}));
 const invoiceOutput=schema('invoice-list-output',obj({items:array(invoice,25),nextCursor:cursor}));
+const product=obj({id:stripeId,name:str(500),active:{type:'boolean'},default_price_id:nullable(stripeId),
+  livemode:{type:'boolean'},updated_at:str(64)});
+const price=obj({id:stripeId,product_id:stripeId,active:{type:'boolean'},livemode:{type:'boolean'},
+  currency:str(3),type:{type:'string',enum:['one_time','recurring']},
+  billing_scheme:{type:'string',enum:['per_unit','tiered']},unit_amount_minor:nullable(integer(0)),
+  unit_amount_decimal:nullable(str(64)),interval:nullable(str(16)),
+  interval_count:nullable(integer(1)),usage_type:nullable(str(16)),tiers_mode:nullable(str(16)),
+  custom_amount:{type:'boolean'},updated_at:str(64)});
+const productOutput=schema('product-list-output',obj({items:array(product,25),nextCursor:cursor}));
+const priceOutput=schema('price-list-output',obj({items:array(price,25),nextCursor:cursor}));
 const panelState=schema('stripe-panel-state',obj({sessionId:str(128),audience:{const:'admin'},contextId:str(128),
-  tab:{type:'string',enum:['overview','customers','subscriptions','invoices','settings']},
+  tab:{type:'string',enum:['overview','customers','subscriptions','invoices','products','prices','settings']},
   pending:obj({sessionId:str(128),audience:{const:'admin'},contextId:str(128),bindingId:str(257),
     requestKey:str(512),intent:str(128)},['sessionId','audience','contextId','bindingId','requestKey'])},
   ['sessionId','audience','contextId','tab']));
@@ -117,7 +158,8 @@ const permissions=[{id:'manage',title:'Configurer et synchroniser Stripe',audien
   enforcement:{request:true,commit:true},public:false},
 {id:'read',title:'Lire la facturation projetée',audiences:['admin'],
   actors:['user','delegated-user','machine'],scopes:['stripe.read'],context:'required',default:'deny',
-  resources:['connector_config','sync_state','stripe_customer','stripe_subscription','stripe_invoice'].map(name=>ref('model',name)),
+  resources:['connector_config','sync_state','stripe_catalog_sync_state','stripe_customer','stripe_subscription',
+    'stripe_invoice','stripe_product','stripe_price'].map(name=>ref('model',name)),
   actions:['read','execute'],enforcement:{request:true,commit:true},public:false}];
 const errors=['invalid_input','unauthorized','forbidden','not_found','conflict','rate_limited','unsupported','unavailable','unknown']
   .map(code=>({code,retryable:['rate_limited','unavailable','unknown'].includes(code),
@@ -149,19 +191,28 @@ operation('config.key.revoke','Révoquer la clé Stripe','command',keyRevokeInpu
 operation('connection.check','Vérifier la connexion Stripe','query',empty,checkOutput,'manage',
   ['connector_config','connector_secret'],[],{exportName:'connectionCheck',remote:true});
 operation('sync.state','Lire l’état des parcours Stripe','query',empty,statesOutput,'read',
-  ['connector_config','sync_state'],[],{exportName:'syncState',maxItems:5});
+  ['connector_config','sync_state','stripe_catalog_sync_state'],[],{exportName:'syncState',maxItems:8});
 operation('sync.start','Démarrer un parcours de lecture Stripe','command',startInput,startOutput,'manage',
-  ['connector_config','sync_state'],['sync_state'],{exportName:'syncStart',maxItems:6});
+  ['connector_config','sync_state','stripe_catalog_sync_state'],['sync_state','stripe_catalog_sync_state'],
+  {exportName:'syncStart',maxItems:8});
 // Each projection has its own revision; sync.page uses explicit per-row and run CAS in one batch.
 operation('sync.page','Lire et projeter une page Stripe','command',pageInput,pageOutput,'manage',
-  ['connector_config','connector_secret','sync_state','stripe_customer','stripe_subscription','stripe_invoice'],
-  ['sync_state','stripe_customer','stripe_subscription','stripe_invoice'],
+  ['connector_config','connector_secret','sync_state','stripe_catalog_sync_state','stripe_customer',
+    'stripe_subscription','stripe_invoice','stripe_product','stripe_price'],
+  ['sync_state','stripe_catalog_sync_state','stripe_customer','stripe_subscription','stripe_invoice',
+    'stripe_product','stripe_price'],
   {exportName:'syncPage',remote:true,maxItems:32});
 for(const [name,output,model,exportName] of [
   ['customer.list',customerOutput,'stripe_customer','customerList'],
   ['subscription.list',subscriptionOutput,'stripe_subscription','subscriptionList'],
   ['invoice.list',invoiceOutput,'stripe_invoice','invoiceList']])
   operation(name,`Lire les ${model.slice(7)}s projetés`, 'query',listInput,output,'read',
+    ['connector_config',model],[],
+    {exportName,pagination:{mode:'cursor',cursorField:'cursor',limitField:'limit',maxItems:25},maxItems:27});
+for(const [name,output,model,exportName] of [
+  ['product.list',productOutput,'stripe_product','productList'],
+  ['price.list',priceOutput,'stripe_price','priceList']])
+  operation(name,`Lire les ${model.slice(7)}s projetés`,'query',listInput,output,'read',
     ['connector_config',model],[],
     {exportName,pagination:{mode:'cursor',cursorField:'cursor',limitField:'limit',maxItems:25},maxItems:27});
 const api=[];
@@ -212,7 +263,8 @@ m.contracts={schemas,models,files:[],events:[],connectors:[structuredClone(strip
     visibility:'secret-reference',required:false,permissions:[ref('permission','manage')],provider:connectorId,redact:true}],
   search:[],permissions,operations,api,mcp:{tools:mcpTools,resources:[widgetResource],prompts:[],
     skills:[{id:'stripe',path:skillPath,audiences:['admin'],operations:[ref('operation','sync.state'),
-      ref('operation','customer.list'),ref('operation','subscription.list'),ref('operation','invoice.list')],
+      ref('operation','customer.list'),ref('operation','subscription.list'),ref('operation','invoice.list'),
+      ref('operation','product.list'),ref('operation','price.list')],
       resources:['sync-status-ui'],integrity:skillIntegrity}]},
   ui:{views:[{id:'admin',title:'Facturation',surfaces:['workspace'],route:'/admin/billing',
     component:{path:'ui/index.tsx',export:'StripeAdminView'},permissions:[ref('permission','manage')],

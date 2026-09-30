@@ -117,6 +117,18 @@ test('Stripe GET-only connector commits pages atomically in D1 and scopes API/MC
         }
         if(parsed.pathname==='/v1/subscriptions')return Response.json({object:'list',data:[],has_more:false});
         if(parsed.pathname==='/v1/invoices')return Response.json({object:'list',data:[],has_more:false});
+        if(parsed.pathname==='/v1/products')return Response.json({object:'list',data:[{
+          id:'prod_catalog',object:'product',name:'Catalogue témoin',active:true,livemode:false,
+          default_price:'price_active',metadata:{secret:'excluded'}}],has_more:false});
+        if(parsed.pathname==='/v1/prices'){
+          const active=parsed.searchParams.get('active');
+          if(active!=='true'&&active!=='false')return new Response(null,{status:400});
+          return Response.json({object:'list',data:[{id:active==='true'?'price_active':'price_inactive',
+            object:'price',product:'prod_catalog',active:active==='true',livemode:false,
+            currency:'eur',type:'recurring',billing_scheme:'per_unit',unit_amount:1299,
+            unit_amount_decimal:'1299',recurring:{interval:'month',interval_count:1,usage_type:'licensed'},
+            tiers_mode:null,custom_unit_amount:null,metadata:{secret:'excluded'}}],has_more:false});
+        }
         return new Response(null,{status:404});
       };
       const registered=registry(),engine=createOperationEngine({db,catalog,registry:registered,permissions,
@@ -168,6 +180,24 @@ test('Stripe GET-only connector commits pages atomically in D1 and scopes API/MC
       assert.doesNotMatch(JSON.stringify(listed),/not-projected|never-expose|metadata|email/u);
       const other=success(await invoke('customer.list',{limit:25},{contextId:'other'}));
       assert.deepEqual(other.items,[]);
+      for(const collection of ['products','prices_active','prices_inactive']){
+        const state=success(await invoke('sync.start',{requestKey:`start-${collection}`,
+          collection,runId:`run-${collection}`,revision:0})).state;
+        const pageResult=await invoke('sync.page',{requestKey:`page-${collection}`,collection,
+          runId:state.runId,cursor:null,expectedRevision:state.revision,limit:8});
+        assert.equal(pageResult.execution?.state,'succeeded',
+          `${collection}: ${pageResult.execution?.errorCode}; ${requests.at(-1)?.url}`);
+        const page=success(pageResult);
+        assert.equal(page.processed,1);assert.equal(page.state.status,'pages_exhausted');
+      }
+      const productRows=success(await invoke('product.list',{limit:25})).items;
+      const priceRows=success(await invoke('price.list',{limit:25})).items;
+      assert.deepEqual(productRows.map(row=>row.id),['prod_catalog']);
+      assert.deepEqual(priceRows.map(row=>[row.id,row.product_id,row.active]),[
+        ['price_active','prod_catalog',true],['price_inactive','prod_catalog',false]]);
+      assert.doesNotMatch(JSON.stringify({productRows,priceRows}),/excluded|metadata/u);
+      assert.deepEqual(success(await invoke('product.list',{limit:25},{contextId:'other'})).items,[]);
+      assert.equal(success(await invoke('sync.state',{})).states.length,6);
       await failed(invoke('customer.list',{limit:25},{token:app.token,audience:'app'}),'forbidden');
       await failed(invoke('config.set',{requestKey:'machine-write',enabled:false,revision:3},
         {token:apiToken,kind:'api-token'}),'forbidden');
@@ -182,6 +212,9 @@ test('Stripe GET-only connector commits pages atomically in D1 and scopes API/MC
       const httpRead=await wire('/api/admin/stripe/customer/list?limit=25');
       assert.equal(httpRead.status,200,await httpRead.clone().text());
       assert.equal((await httpRead.json()).execution.output.items.length,3);
+      const productHttp=await wire('/api/admin/stripe/product/list?limit=25');
+      assert.equal(productHttp.status,200,await productHttp.clone().text());
+      assert.equal((await productHttp.json()).execution.output.items[0].id,'prod_catalog');
       assert.equal((await wire('/api/admin/stripe/config/read')).status,403);
       const widgetCatalog=compileWidgetCatalog({composition,modules:[manifest],
         operationCatalog:registered.catalog,
@@ -209,6 +242,9 @@ test('Stripe GET-only connector commits pages atomically in D1 and scopes API/MC
       assert.ok((await mcpClient.listTools()).tools.some(tool=>tool.name==='stripe_customer_list'));
       const mcpRead=await mcpClient.callTool({name:'stripe_customer_list',arguments:{limit:25}});
       assert.equal(mcpRead.structuredContent.items.length,3);
+      assert.ok((await mcpClient.listTools()).tools.some(tool=>tool.name==='stripe_price_list'));
+      const mcpPrice=await mcpClient.callTool({name:'stripe_price_list',arguments:{limit:25}});
+      assert.equal(mcpPrice.structuredContent.items.length,2);
       success(await invoke('sync.start',{requestKey:'race-start',collection:'customers',
         runId:'race-run',revision:3}));
       let enter,release;
@@ -232,6 +268,8 @@ test('Stripe GET-only connector commits pages atomically in D1 and scopes API/MC
       assert.equal(rotated.enabled,false);
       assert.deepEqual(success(await invoke('customer.list',{limit:25})).items,[],
         'old-account projections are hidden immediately after rotation');
+      assert.deepEqual(success(await invoke('product.list',{limit:25})).items,[]);
+      assert.deepEqual(success(await invoke('price.list',{limit:25})).items,[]);
       assert.equal(success(await invoke('sync.state',{})).states[0].runId,null);
       await failed(invoke('sync.page',{requestKey:'old-page',collection:'customers',runId:'race-run',
         cursor:null,expectedRevision:4,limit:8}),'conflict');

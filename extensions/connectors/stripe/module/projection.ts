@@ -1,8 +1,9 @@
 import {OperationError,type JsonValue} from '@creezio/sdk/operations/handler';
 
-export type Collection='customers'|'subscriptions'|'invoices';
+export type Collection='customers'|'subscriptions'|'invoices'|'products'|'prices_active'|'prices_inactive';
 export type Projection=Readonly<{id:string;values:Readonly<Record<string,JsonValue>>}>;
-const prefix:Record<Collection,string>={customers:'cus_',subscriptions:'sub_',invoices:'in_'};
+const prefix:Record<Collection,string>={customers:'cus_',subscriptions:'sub_',invoices:'in_',
+  products:'prod_',prices_active:'price_',prices_inactive:'price_'};
 const fail=():never=>{throw new OperationError('unavailable');};
 const object=(value:unknown):Record<string,unknown>=>
   value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:fail();
@@ -82,6 +83,40 @@ function invoice(raw:Record<string,unknown>):Record<string,JsonValue>{
   put(result,raw,'period_end','period_end_at',timestamp);
   return result;
 }
+function product(raw:Record<string,unknown>):Record<string,JsonValue>{
+  if(typeof raw.active!=='boolean'||typeof raw.livemode!=='boolean')return fail();
+  const name=bounded(raw.name,500);
+  if(!name)return fail();
+  const defaultPrice=raw.default_price===null?null:id(raw.default_price,'price_');
+  return {name,active:raw.active,default_price_id:defaultPrice,livemode:raw.livemode};
+}
+function price(raw:Record<string,unknown>,collection:'prices_active'|'prices_inactive'):
+    Record<string,JsonValue>{
+  if(typeof raw.active!=='boolean'||raw.active!==(collection==='prices_active')||
+    typeof raw.livemode!=='boolean')return fail();
+  const kind=bounded(raw.type,32),scheme=bounded(raw.billing_scheme,32);
+  if(!['one_time','recurring'].includes(kind)||!['per_unit','tiered'].includes(scheme))return fail();
+  const recurring=raw.recurring===null?null:object(raw.recurring);
+  if((kind==='recurring')!==!!recurring)return fail();
+  const interval=recurring?bounded(recurring.interval,16):null;
+  const intervalCount=recurring?amount(recurring.interval_count):null;
+  const usageType=recurring?bounded(recurring.usage_type,16):null;
+  if(interval&&!['day','week','month','year'].includes(interval)||
+    intervalCount!==null&&intervalCount<1||usageType&&!['licensed','metered'].includes(usageType))return fail();
+  const minor=raw.unit_amount===null?null:amount(raw.unit_amount);
+  if(minor!==null&&minor<0)return fail();
+  const decimal=raw.unit_amount_decimal===null?null:bounded(raw.unit_amount_decimal,64);
+  if(decimal!==null&&!/^(?:0|[1-9]\d*)(?:\.\d{1,12})?$/u.test(decimal))return fail();
+  const tiers=raw.tiers_mode===null?null:bounded(raw.tiers_mode,16);
+  if(tiers!==null&&!['graduated','volume'].includes(tiers))return fail();
+  const custom=raw.custom_unit_amount!==null;
+  if(custom&&(!raw.custom_unit_amount||typeof raw.custom_unit_amount!=='object'||
+    Array.isArray(raw.custom_unit_amount)))return fail();
+  return {product_id:id(raw.product,'prod_'),active:raw.active,livemode:raw.livemode,
+    currency:currency(raw.currency),type:kind,billing_scheme:scheme,
+    unit_amount_minor:minor,unit_amount_decimal:decimal,interval,
+    interval_count:intervalCount,usage_type:usageType,tiers_mode:tiers,custom_amount:custom};
+}
 
 /** Rejects the whole remote page before any D1 projection plan is issued. */
 export function projectStripePage(body:JsonValue,collection:Collection,limit:number){
@@ -91,10 +126,12 @@ export function projectStripePage(body:JsonValue,collection:Collection,limit:num
   const seen=new Set<string>(),rows:Projection[]=[];
   for(const value of response.data){
     const item=object(value),stripeId=id(item.id,prefix[collection]);
-    if(item.object!==collection.slice(0,-1)||seen.has(stripeId))return fail();
+    const expected=collection.startsWith('prices_')?'price':collection.slice(0,-1);
+    if(item.object!==expected||seen.has(stripeId))return fail();
     seen.add(stripeId);
     const values=collection==='customers'?customer(item):
-      collection==='subscriptions'?subscription(item):invoice(item);
+      collection==='subscriptions'?subscription(item):collection==='invoices'?invoice(item):
+        collection==='products'?product(item):price(item,collection);
     const row={id:stripeId,values};
     if(new TextEncoder().encode(JSON.stringify(row)).length>16_384)return fail();
     rows.push(row);

@@ -8,8 +8,10 @@ test('billing status widget is a read-only view with one explicit refresh action
   assert.deepEqual(widget.audiences,['admin']);
   assert.deepEqual(widget.actions.map(row=>row.target.operation.id),['sync.state']);
   assert.equal(manifest.contracts.mcp.tools.find(row=>row.id==='sync.state').widget.id,'sync-status');
+  assert.equal(manifest.contracts.schemas.find(row=>row.id==='sync-states-output').schema.properties.states.maxItems,6);
   const source=read('ui/widgets/sync-status.ts');
   assert.match(source,/stripe_sync_state/u);
   assert.doesNotMatch(source,/stripe_sync_page|stripe_sync_start|fetch\(/u);
   assert.match(source,/pages partielles|Lecture partielle/u);
+  assert.match(source,/prices_inactive/u);
 });

@@ -1,2 +1,2 @@
 export {configRead,configSet,configKeySet,configKeyRevoke,connectionCheck,
-  syncState,syncStart,syncPage,customerList,subscriptionList,invoiceList} from './service.ts';
+  syncState,syncStart,syncPage,customerList,subscriptionList,invoiceList,productList,priceList} from './service.ts';
