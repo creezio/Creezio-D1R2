@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync, mkdirSync, existsSync, lstatSync, realpathSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, lstatSync, realpathSync, statSync, unlinkSync } from 'node:fs';
 import { compileCompositionSchema } from '../data/composition-schema.mjs';
 import { compileOperationSchemas } from '../operations/schemas.mjs';
 import { compileHttpBindings } from '../operations/http-bindings.mjs';
@@ -24,6 +24,7 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import ts from 'typescript';
 import {buildSync} from 'esbuild';
+import {assertWorkerBoundary} from './worker-boundary.mjs';
 
 export class CompositionBuildError extends Error {
   constructor(code, message, diagnostics = []) { super(message); this.name = 'CompositionBuildError'; this.code = code; this.diagnostics = diagnostics; }
@@ -254,11 +255,14 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
           fail('public-page.model', 'Public page model references must belong to the selected module.');
         selected[target]=reference.id;
       }
-      const renderer=importCode(output,item,entry.renderer,publicPageImports);
+      const rendererSource=codeFile(root,item,entry.renderer);
+      const renderer='public_page_renderer';
+      publicPageImports.push(`import { ${entry.renderer.export} as ${renderer} } from './public-page-renderer.mjs';`);
       const imageIds=importCode(output,item,entry.imageIds,publicPageImports);
       const stylesheet=readFileSync(moduleFile(root,item,entry.stylesheet,{exported:true}),'utf8');
       if(Buffer.byteLength(stylesheet)>64*1024)fail('public-page.stylesheet','Public page stylesheet exceeds its bound.');
-      publicPages.push({moduleId:selection.moduleId,models:selected,renderer,imageIds,stylesheet});
+      publicPages.push({moduleId:selection.moduleId,models:selected,renderer,rendererSource,
+        rendererExport:entry.renderer.export,imageIds,stylesheet});
       if(publicPages.length>1)fail('public-page.conflict','Only one selected public page renderer may own /p.');
     }
     for (const stylesheet of descriptor.contracts.ui.styles) {
@@ -547,6 +551,30 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
       views: views.map(({ component, ...metadata }) => metadata), navigation, frontCatalog,
       httpBindings, packageArchivesVerified: false })}\n`,
   };
+  if (publicPages.length) {
+    let bundled;
+    try {
+      await assertWorkerBoundary({root,entryPoints:[slash(path.relative(root,publicPages[0].rendererSource))]});
+      bundled=buildSync({entryPoints:[publicPages[0].rendererSource],bundle:true,write:false,
+        format:'esm',platform:'browser',conditions:['worker'],jsx:'automatic',target:'es2022',
+        define:{'process.env.NODE_ENV':'"production"'},minify:true,metafile:true,logLevel:'silent'});
+    } catch (error) { fail('public-page.renderer-build', `Public page renderer compilation failed: ${error.message}`); }
+    if (bundled.outputFiles.length!==1||Object.values(bundled.metafile.outputs)
+      .some(item=>item.imports.length>0)) fail('public-page.renderer-build','Public page renderer must bundle without external imports.');
+    const bytes=bundled.outputFiles[0].contents;
+    const source=new TextDecoder().decode(bytes);
+    if (/\b(?:eval\s*\(|new\s+Function\s*\(|import\s*\(|require\s*\(\s*['"]node:)/u.test(source))
+      fail('public-page.renderer-build','Public page renderer uses dynamic code or Node imports.');
+    rendered['public-page-renderer.mjs']=source;
+    rendered['public-page-renderer.d.mts']=`export declare const ${publicPages[0].rendererExport}: (...args: unknown[]) => string;\n`;
+    destinations['public-page-renderer.mjs']=confined(root,path.join(output,'public-page-renderer.mjs'),{missing:true});
+    destinations['public-page-renderer.d.mts']=confined(root,path.join(output,'public-page-renderer.d.mts'),{missing:true});
+  } else {
+    for(const name of ['public-page-renderer.mjs','public-page-renderer.d.mts']){
+      const stale=confined(root,path.join(output,name),{missing:true});
+      if(existsSync(stale))unlinkSync(stale);
+    }
+  }
   mkdirSync(output, { recursive: true });
   for (const [name, content] of Object.entries(rendered)) {
     const target = confined(root, destinations[name], { missing: true });

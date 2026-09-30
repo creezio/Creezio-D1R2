@@ -373,6 +373,7 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 - Lot : **P5** ; état : **en cours — intégration de la première tranche** ; responsable : root avec les agents Sol.
 - Dépendances : [T-11](#T-11), [T-13](#T-13).
 - Travail/livrables : Module pages-navigation, médias/SEO/édition et reset contrôlé.
+- Complément PR #79 : choix explicite de publication publique, HTML serveur utilisant les mêmes préfabriqués et accès aux seules images du snapshot publié. Les tests D1/R2 et refus de révocation passent localement ; la compilation de la projection serveur et les recettes sur hébergement restent à qualifier avant livraison.
 - Besoin : [US-21](USER-STORIES.md#US-21). Acceptation : [REQ-2101](EXIGENCES.md#REQ-2101).
 - Validation : implémenter puis exécuter les recettes liées, sur **front, workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Candidat médias privés : images des préfabriqués existants et aperçu admin, deux modèles D1 additifs, publication/reset atomiques ; six suites et intégration D1/R2 réussies. Recette Linux puis hébergements encore à qualifier, sans ouverture anonyme des fichiers.
@@ -384,6 +385,7 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 - Lot : **P5** ; état : **en cours — intégration de la première tranche** ; responsable : root avec les agents Sol.
 - Dépendances : [T-11](#T-11), [T-17](#T-17).
 - Travail/livrables : Module analytics, consultation de l’audit, productivité/usage et exports limités.
+- Complément PR #79 : lecture protégée du journal d'exécutions et du catalogue HTTP dans le sixième onglet original, exports bornés CSV/JSON. Les 21 contrôles du module et la recette D1/HTTP/MCP ciblée passent localement. Cela ne clôture pas l'instrumentation automatique, la rétention/purge, les logs avant le moteur ni la productivité liée à Work ; le déploiement reste distinct.
 - Besoin : [US-22](USER-STORIES.md#US-22). Acceptation : [REQ-2201](EXIGENCES.md#REQ-2201).
 - Validation : implémenter puis exécuter les recettes liées, sur **workspace et API/MCP** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Acquis ciblés : six suites fermées 18/18 avec SDK public 1.4.1, intégration D1/HTTP/MCP réelle sur 520 événements et deux widgets admin de lecture à la demande (sept jours/cinq lignes). Un curseur historique sans arguments d'outil fiables n'est pas rejoué ; la liste filtrée doit être relancée. Sur Linux au code UI `589a827`, un événement `activity` déclaré par API a été confirmé et affiché dans la vue admin ; cette recette précède les widgets. Instrumentation automatique, logs hôte, registre d'endpoints et productivité mesurée restent ouverts. Voir [Analytics](IMPLEMENTATION-T22.md). Aucune publication hébergée de cette tranche n'est attestée.
@@ -458,7 +460,7 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 <a id="T-29"></a>
 ## T-29 — Autres connecteurs et frontières externes
 
-- Lot : **P5** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P5** ; état : **en développement — Granola, mail et Hermes** ; responsables : agents Sol coordonnés par root.
 - Dépendances : [T-11](#T-11), [T-16](#T-16), [T-18](#T-18), [T-23](#T-23).
 - Travail/livrables : PRD et tâches par fournisseur : Hermes, mail, navigateur distant/relais, Granola, agents/exécution de développement, observabilité, desktop/infrastructure et autres IA/voix selon les capacités de la matrice.
 - Besoin : [US-29](USER-STORIES.md#US-29). Acceptation : [REQ-2901](EXIGENCES.md#REQ-2901), [REQ-2902](EXIGENCES.md#REQ-2902).
@@ -505,9 +507,10 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 <a id="T-33"></a>
 ## T-33 — Stockages distincts hors Sites
 
-- Lot : **P6** ; état : **à faire** ; responsable nominatif : à attribuer au démarrage.
+- Lot : **P6** ; état : **en développement — configuration et autorité des ressources** ; responsable : agent API avec revue et intégration root.
 - Dépendances : [T-32](#T-32).
 - Travail/livrables : Résolveur de ressources autorisées, provisionnement/bindings et qualification des quotas.
+- Candidat PR #79 : mapping de contextes vers les bindings D1/R2, configuration locale/Cloudflare et refus des ressources supplémentaires sur Sites, vérifiés par 25 contrôles ciblés. Les opérations métier continuent d'utiliser le couple principal ; le protocole d'autorité entre bases est développé séparément. Aucune recette produit à plusieurs bases n'est encore qualifiée. Voir [T33](IMPLEMENTATION-T33.md).
 - Besoin : [US-33](USER-STORIES.md#US-33). Acceptation : [REQ-3301](EXIGENCES.md#REQ-3301).
 - Validation : implémenter puis exécuter les recettes liées, sur **local puis Cloudflare direct** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : aucune preuve produit acquise ; renseigner PR/commit, version, profil, résultats et limites avant changement d’état.

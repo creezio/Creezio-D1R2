@@ -4,7 +4,7 @@
 
 `core/operations/diagnostics.ts` fournit au module Analytics les métadonnées du journal et des routes compilées. `extensions/native/analytics/ui/export.ts` borne les exports ; `tests/analytics/integration.test.mjs` exerce D1/HTTP/MCP.
 
-`core/runtime/public-pages.ts` applique la visibilité anonyme des publications et des médias. La composition produit `.creezio/generated/public-pages.ts` depuis `entrypoints.publicPage` ; le rendu reste dans `extensions/native/pages-navigation/ui/public-document.tsx`. Les tests `tests/runtime/public-pages.test.mjs` couvrent les lectures réelles D1/R2.
+`core/runtime/public-pages.ts` applique la visibilité anonyme des publications et des médias. La composition produit `.creezio/generated/public-pages.ts` et son renderer ESM autonome avec déclaration TypeScript depuis `entrypoints.publicPage` ; le rendu source reste dans `extensions/native/pages-navigation/ui/public-document.tsx`. Les tests `tests/runtime/public-pages.test.mjs` couvrent les lectures réelles D1/R2 et `tests/modules/pages-navigation-public.test.mjs` vérifie le rendu sous la condition RSC ainsi que le retrait des artefacts sans Pages.
 
 `adapters/storage/resources.ts` résout les couples de bindings statiques hors Sites ; `core/runtime/environment.ts`, les configurations locales et Cloudflare refusent les mappings incomplets. Les tests `tests/runtime/storage-resources.test.mjs` et `tests/local/storage-resources.test.mjs` distinguent cette configuration du routage métier T33 encore en préparation.
 

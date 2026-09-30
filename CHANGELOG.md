@@ -6,6 +6,7 @@
 - Support conserve les liens vers les contacts CRM et les messages sous contrôle des droits courants ; Messagerie préserve les brouillons pendant les actions sur les pièces jointes et assainit leur présentation HTML.
 - Analytics consulte les métadonnées du journal commun et les endpoints déclarés, avec exports CSV/JSON bornés. Les contenus métier et les secrets ne font pas partie de ces exports.
 - Pages ajoute une publication anonyme explicite, son document HTML et ses médias vérifiés. Le rendu provient de la contribution du module sélectionné ; les pages protégées et les brouillons restent exclus.
+- La composition isole le renderer HTML des pages dans un artefact ESM vérifié, pour conserver les mêmes composants dans un Worker compilé sous la condition `react-server`.
 - L'adaptateur de stockage accepte une configuration statique de ressources séparées hors Sites. Le routage métier et la synchronisation de l'autorité restent en préparation, sans annoncer cette configuration comme une isolation applicative complète.
 - Reprise parallèle des compléments T18–T22, T25–T29 et T33 autorisée par l'utilisateur ; les conditions des chantiers différés et le test utilisateur T39 sont conservés.
 
