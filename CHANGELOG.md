@@ -6,7 +6,7 @@ Meili ajoute une liste d'index paginée réservée à l'administration `manage`,
 
 ## En qualification — produits et prix Stripe (T27)
 
-Facturation ajoute les onglets Produits et Prix avec deux lectures API/MCP des projections D1. Le moteur de synchronisation existant lit les produits et les prix actifs/inactifs par trois ressources GET bornées ; deux modèles de données et un modèle de parcours sont ajoutés sans modifier les anciennes tables. Les montants et les relations gardent leur devise, leur précision et leur génération de connexion. Aucun paiement ni modification distante Stripe n'est introduit ; la recette fournisseur et navigateur de ces ajouts reste à effectuer.
+Facturation ajoute les onglets Produits et Prix avec deux lectures API/MCP des projections D1. Le moteur de synchronisation existant lit les produits et les prix actifs/inactifs par trois ressources GET bornées ; deux modèles de données et un modèle de parcours sont ajoutés sans modifier les anciennes tables. Les montants et les relations gardent leur devise, leur précision et leur génération de connexion. Aucun paiement ni modification distante Stripe n'est introduit. La recette ciblée ultérieure sur Linux a vérifié huit produits et un prix de 6 EUR via le fournisseur de test et l'interface, avec l'onglet Prix conservé après rechargement ; les synchronisations exhaustives et paiements restent ouverts.
 
 ## En qualification — liste complète des médias Pages (T21)
 
