@@ -1,5 +1,9 @@
 # Changelog
 
+## État de livraison ciblée — 30 septembre 2026
+
+Core PR #77/main `cd2eeb2` et Lab PR #14/main `1bfdf0f` ont leurs CI main réussies. Les Sites Original et Lab v5 et leurs mises à jour Cloudflare sont publiés avec registre synchronisé ; les lectures natives vérifient les témoins conservés. Meili 0.2.0 lit une page de métadonnées d'index sur fournisseur réel, Stripe 0.2.1 affiche le prix mensuel conservé sur Linux. Sur Lab, la séquence de contexte v5 ne reproduit pas le conflit de v4 ; le plugin APP connecté dans ChatGPT rend la fiche et sa lecture directe. Les limites et preuves sont détaillées dans T16/T27/T28/T38/T39 ; la validation utilisateur attend son test et aucun lot global n'est clos ici.
+
 ## Correctif local à livrer — révision d'un contexte widget retiré (T16)
 
 Sur Lab Sites v4, une nouvelle sélection du widget de demandes a été refusée par `conflict` après un retrait antérieur : la lecture avait masqué la révision de la ligne retirée. Le correctif local conserve cette révision avec une valeur nulle pour permettre le remplacement contrôlé, sans réinjecter le contexte retiré dans un tour. Les vérifications locales sont distinctes d'une livraison ; le Site Lab v4 et son plugin ChatGPT restent inchangés.
