@@ -61,6 +61,11 @@ test('workspace retains the three original discovery surfaces with explicit exte
     'Vérifier la connexion','Révoquer la clé'])assert.ok(ui.includes(text),text);
   assert.ok(!ui.includes('ensureN8nRuntime'));
   assert.match(ui,/invoke\(`\$\{kind\}\.read`,\{id\}/u);
-  assert.equal(manifest.contracts.ui.views.length,1);
+  assert.equal(manifest.contracts.ui.views.length,2);
   assert.equal(manifest.contracts.ui.views[0].panel.inactiveEffects,'suspend');
+  assert.equal(manifest.contracts.ui.views[1].panel.inactiveEffects,'suspend');
+  const run=read('ui/runs.tsx');
+  assert.match(run,/createCommandJournal\(/u);
+  assert.match(run,/controller\.inspect\(/u);
+  assert.match(run,/run\.trigger/u);
 });

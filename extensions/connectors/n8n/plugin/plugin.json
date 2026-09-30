@@ -1,1 +1,1 @@
-{"name":"creezio-n8n","version":"0.1.0","description":"Connexion à une instance n8n externe autorisée.","mcpServers":{}}
+{"name":"creezio-n8n","version":"0.2.0","description":"Connexion et déclenchement corrélé sur une instance n8n externe autorisée.","mcpServers":{}}

@@ -9,6 +9,8 @@ import {panelData,preferFreshConfig,providerChanged,readPanel,retainedSessionId,
 
 type Config={origin:string|null;enabled:boolean;hasKey:boolean;
   state:'missing'|'configured'|'unavailable'|'unverified';revision:number};
+type WebhookConfig={origin:string|null;pathId:string|null;workflowId:string|null;
+  enabled:boolean;hasKey:boolean;revision:number};
 type Workflow={id:string;name:string;active:boolean;isArchived:boolean;updatedAt:string|null;versionId:string|null};
 type Execution={id:string;workflowId:string|null;status:string;startedAt:string|null;stoppedAt:string|null};
 type Page<T>={items:T[];nextCursor:string|null};
@@ -35,6 +37,9 @@ export function N8nAdminView(props:WorkspaceViewProps){
   const restored=verified?readPanel(initial.current?.data,scope):null;
   const [tab,setTab]=useState<N8nTab>(restored?.tab??'settings');
   const [config,setConfig]=useState<Config|null>(null),[origin,setOrigin]=useState(''),[apiKey,setApiKey]=useState('');
+  const [webhook,setWebhook]=useState<WebhookConfig|null>(null),[webhookOrigin,setWebhookOrigin]=useState('');
+  const [pathId,setPathId]=useState(''),[workflowId,setWorkflowId]=useState('');
+  const [webhookKey,setWebhookKey]=useState(''),[webhookEnabled,setWebhookEnabled]=useState(false);
   const [enableInput,setEnableInput]=useState(false),originDirty=useRef(false),enableDirty=useRef(false);
   const editRevision=useRef<number|null>(null),keyEditRevision=useRef<number|null>(null);
   const [workflows,setWorkflows]=useState<Workflow[]>([]),[workflowCursor,setWorkflowCursor]=useState<string|null>(null);
@@ -89,6 +94,10 @@ export function N8nAdminView(props:WorkspaceViewProps){
     const value=await invoke('config.read',{},token),next=value?.config as Config|undefined;
     if(current(token)&&next&&acceptConfig(next)){if(!enableDirty.current)setEnableInput(next.enabled);
       if(!originDirty.current)setOrigin(next.origin??'');}
+    const hook=await invoke('config.webhook.read',{},token),item=hook?.config as WebhookConfig|undefined;
+    if(current(token)&&item){setWebhook(previous=>previous&&previous.revision>item.revision?previous:item);
+      setWebhookOrigin(item.origin??'');setPathId(item.pathId??'');setWorkflowId(item.workflowId??'');
+      setWebhookEnabled(item.enabled);}
   };
   const loadList=async(kind:'workflow'|'execution',token:number,cursor?:string,append=false)=>{
     const serial=++listSerial.current;
@@ -115,6 +124,7 @@ export function N8nAdminView(props:WorkspaceViewProps){
     const phase=access.pending?'loading':access.phase;
     const transition=scopeChange(prior.current,next,phase);
     if(transition.purge){setTab('settings');setConfig(null);configSnapshot.current=null;setOrigin('');setApiKey('');
+      setWebhook(null);setWebhookOrigin('');setPathId('');setWorkflowId('');setWebhookKey('');setWebhookEnabled(false);
       setEnableInput(false);originDirty.current=false;enableDirty.current=false;
       editRevision.current=null;keyEditRevision.current=null;
       setWorkflows([]);setExecutions([]);setWorkflowCursor(null);setExecutionCursor(null);
@@ -154,11 +164,16 @@ export function N8nAdminView(props:WorkspaceViewProps){
     if(!current(token))return;
     setPending(result.pending);setBusy(!!result.pending);
     const value=output(result.result);
-    if(value?.config){const next=value.config as Config;if(!acceptConfig(next))return;
-      setOrigin(next.origin??'');
-      setEnableInput(next.enabled);originDirty.current=false;enableDirty.current=false;
-      editRevision.current=null;keyEditRevision.current=null;
-      if(operation.startsWith('config.key.'))setApiKey('');setNotice('Configuration enregistrée.');}
+    if(value?.config){
+      if(operation.includes('webhook')){const next=value.config as WebhookConfig;
+        setWebhook(next);setWebhookOrigin(next.origin??'');setPathId(next.pathId??'');
+        setWorkflowId(next.workflowId??'');setWebhookEnabled(next.enabled);setWebhookKey('');
+      }else{const next=value.config as Config;if(!acceptConfig(next))return;
+        setOrigin(next.origin??'');setEnableInput(next.enabled);
+        originDirty.current=false;enableDirty.current=false;
+        editRevision.current=null;keyEditRevision.current=null;
+        if(operation.startsWith('config.key.'))setApiKey('');}
+      setNotice('Configuration enregistrée.');}
     else setNotice(result.result.kind==='rejected'&&result.result.code==='client_state_unavailable'
       ?'Le suivi local est indisponible. Aucune modification envoyée.'
       :result.pending?'Résultat incertain. Vérifiez le statut ; aucun second envoi.':'Modification refusée.');
@@ -171,8 +186,12 @@ export function N8nAdminView(props:WorkspaceViewProps){
     if(!current(token))return;
     setChecking(false);setPending(result?.pending??null);setBusy(!!result?.pending);
     if(result?.result.kind==='execution'&&result.result.execution.state==='succeeded'){
-      const next=(result.result.execution.output as Record<string,unknown>).config as Config|undefined;
-      if(next&&acceptConfig(next)){setOrigin(next.origin??'');setEnableInput(next.enabled);
+      const next=(result.result.execution.output as Record<string,unknown>).config as Config|WebhookConfig|undefined;
+      if(next&&pending.bindingId.includes('webhook')){const hook=next as WebhookConfig;
+        setWebhook(hook);setWebhookOrigin(hook.origin??'');setPathId(hook.pathId??'');
+        setWorkflowId(hook.workflowId??'');setWebhookEnabled(hook.enabled);setWebhookKey('');}
+      else if(next&&acceptConfig(next as Config)){const api=next as Config;
+        setOrigin(api.origin??'');setEnableInput(api.enabled);
         originDirty.current=false;enableDirty.current=false;editRevision.current=null;
         keyEditRevision.current=null;setApiKey('');}
       setNotice('Modification confirmée.');
@@ -230,6 +249,39 @@ export function N8nAdminView(props:WorkspaceViewProps){
           revision:keyEditRevision.current??config!.revision})}>Enregistrer la clé</button>
         <button className={button} disabled={busy||!config?.hasKey} type="button"
           onClick={()=>void mutate('config.key.revoke',{revision:config!.revision})}>Révoquer la clé</button></div>
+      <div className="mt-6 border-t pt-5"><h2 className="text-lg font-medium">Webhook de production</h2>
+        <p className="mb-3 text-sm text-slate-600">Configurez dans n8n un Webhook publié avec authentification
+          Header distincte et une réponse JSON contenant exactement intentId et executionId. L’URL de test ne convient pas.</p>
+        <div className="mb-3 text-sm">{webhook?.enabled?'Actif':'Inactif'} · {webhook?.hasKey?'clé dédiée enregistrée':'clé dédiée absente'}</div>
+        <label className="grid gap-1 text-sm">Origine HTTPS du webhook
+          <input className={input} value={webhookOrigin} maxLength={512} disabled={busy}
+            onChange={event=>setWebhookOrigin(event.target.value)} placeholder="https://mon-instance.app.n8n.cloud"/></label>
+        <label className="mt-3 grid gap-1 text-sm">Segment du chemin /webhook/{'{id}'}
+          <input className={input} value={pathId} maxLength={128} disabled={busy}
+            onChange={event=>setPathId(event.target.value)}/></label>
+        <label className="mt-3 grid gap-1 text-sm">ID du workflow n8n
+          <input className={input} value={workflowId} maxLength={128} disabled={busy}
+            onChange={event=>setWorkflowId(event.target.value)}/></label>
+        <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={webhookEnabled}
+          disabled={busy||!webhook?.hasKey} onChange={event=>setWebhookEnabled(event.target.checked)}/>
+          Déclenchement actif</label>
+        <button className={`${button} mt-3`} type="button" disabled={busy||!webhookOrigin||!pathId||!workflowId}
+          onClick={()=>void mutate('config.webhook.set',{origin:webhookOrigin.trim(),pathId:pathId.trim(),
+            workflowId:workflowId.trim(),enabled:webhookEnabled,revision:webhook?.revision??0})}>
+          Enregistrer le webhook</button>
+        <label className="mt-5 grid gap-1 text-sm">Clé dédiée au Header du Webhook node
+          <input className={input} type="password" autoComplete="off" value={webhookKey}
+            maxLength={4096} disabled={busy||!webhook}
+            onChange={event=>setWebhookKey(event.target.value)}/></label>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button className={button} type="button" disabled={busy||!webhook||webhookKey.length<8}
+            onClick={()=>void mutate('config.key.webhook.set',{webhookKey,revision:webhook!.revision})}>
+            Enregistrer la clé webhook</button>
+          <button className={button} type="button" disabled={busy||!webhook?.hasKey}
+            onClick={()=>void mutate('config.key.webhook.revoke',{revision:webhook!.revision})}>
+            Révoquer la clé webhook</button>
+        </div>
+      </div>
     </section>:null}
     {tab==='workflows'?<section className={card}><div className="mb-3 flex justify-between gap-2">
       <h2 className="text-lg font-medium">Workflows</h2><button className={button} type="button"

@@ -7,7 +7,7 @@ import {schemaDigest} from '../../data/composition-schema.mjs';
 import {loadLocalConfiguration} from '../../local/config.mjs';
 import {loadCapturedTransfer,readCapturedObjects,readCapturedTable} from './source.ts';
 import type {CapturedObject,CapturedRow,CapturedTable,SqlCell,TransferCheckpoint,TransferJournal,
-  TransferDigest,TransferManifest,TransferObjectPort} from './types.ts';
+  TransferDigest,TransferManifest,TransferObjectPort,TransferTarget} from './types.ts';
 
 const PAGE_ROWS=16;
 const VERIFY_ROWS=100;
@@ -17,7 +17,8 @@ type Config=ReturnType<typeof loadLocalConfiguration>;
 type TargetPlan=Readonly<{applicationId:string;modelDigest:string;objects:readonly unknown[];
   planDigest:string}>;
 type Args=Readonly<{config:Config;directory:string;manifest:TransferManifest;targetPlan:TargetPlan;
-  db:D1Database;objects:TransferObjectPort}>;
+  db:D1Database;objects:TransferObjectPort;expectedTarget?:TransferTarget;
+  expectedContextId?:string}>;
 export class TransferDestinationError extends Error {
   readonly code:'invalid_input'|'schema_mismatch'|'conflict'|'outcome_unknown'|'integrity_error'|'unavailable';
   constructor(code:TransferDestinationError['code']){super(`Transfer destination refused (${code}).`);
@@ -103,6 +104,10 @@ async function writeRows(db:D1Database,table:CapturedTable,rows:readonly Capture
     if(state==='conflict')return fail('conflict');if(state==='absent')return fail('outcome_unknown');}
 }
 async function checkedSchema(args:Args){
+  if(args.expectedTarget&&JSON.stringify(args.manifest.identity.target)!==JSON.stringify(args.expectedTarget)
+    ||args.expectedContextId!==undefined
+      &&(args.manifest.identity.sourceContextId??'application')!==args.expectedContextId)
+    return fail('conflict');
   if(args.manifest.identity.applicationId!==args.targetPlan.applicationId
     ||args.manifest.identity.modelDigest!==args.targetPlan.modelDigest
     ||args.manifest.identity.schemaObjectsDigest!==schemaDigest(args.targetPlan.objects))return fail('schema_mismatch');

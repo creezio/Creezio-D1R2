@@ -3,14 +3,15 @@ import assert from 'node:assert/strict';
 import {manifest} from '../helpers.mjs';
 import {canonicalOrigin,configRead,configSet,configKeySet,configKeyRevoke,
   workflowList,workflowRead,executionList,connectionCheck} from '../../module/service.ts';
-import {n8nConnectorDescriptor} from '../../module/storage.ts';
+import {n8nConnectorDescriptor,n8nWebhookDescriptor} from '../../module/storage.ts';
 
 const row={id:'n8n.api.v1',origin:'https://example.n8n.cloud',key_ref:'creezio-secret:v1:00000000-0000-4000-8000-000000000001',
   secret_version:1,enabled:true,revision:4,updated_at:'2026-09-28T00:00:00.000Z'};
-function harness(initial=row,response={data:[],nextCursor:null}){
+function harness(initial=row,response={data:[],nextCursor:null},webhook=null){
   const calls=[],plans=[];
   return {calls,plans,context:{signal:new AbortController().signal,
-    data:{async get(name){assert.equal(name,'connector_config');return initial;},
+    data:{async get(name){assert.ok(['connector_config','webhook_config'].includes(name));
+      return name==='connector_config'?initial:webhook;},
       planPatch(name,args){calls.push({name,args});const plan={kind:'plan',id:plans.length};plans.push(plan);return plan;},
       planCreate(name,args){calls.push({name,args});const plan={kind:'plan',id:plans.length};plans.push(plan);return plan;}},
     providerSecrets:{async preparePut(args){calls.push({secret:args});return {plan:{kind:'secret-plan'},
@@ -21,13 +22,13 @@ function harness(initial=row,response={data:[],nextCursor:null}){
     connector:{async request(args){calls.push({request:args});return {kind:'ok',status:200,body:response};}}}};
 }
 test('context models and fixed n8n resources use no arbitrary method or URL',()=>{
-  assert.deepEqual(manifest.contracts.models.map(model=>model.primaryKey),
-    [['context_id','id'],['context_id','id']]);
+  assert.ok(manifest.contracts.models.every(model=>
+    JSON.stringify(model.primaryKey)===JSON.stringify(['context_id','id'])));
   assert.deepEqual(n8nConnectorDescriptor.resources.map(resource=>[resource.id,resource.method,resource.path]),[
     ['workflows','GET','/api/v1/workflows'],['workflow','GET','/api/v1/workflows/{id}'],
     ['executions','GET','/api/v1/executions'],['execution','GET','/api/v1/executions/{id}']]);
   assert.deepEqual(n8nConnectorDescriptor.auth,{kind:'api-key-header',name:'X-N8N-API-KEY'});
-  assert.deepEqual(manifest.contracts.connectors,[n8nConnectorDescriptor]);
+  assert.deepEqual(manifest.contracts.connectors,[n8nConnectorDescriptor,n8nWebhookDescriptor]);
 });
 test('config origin is canonical HTTPS and forbids local or credential URLs',()=>{
   assert.equal(canonicalOrigin('https://EXAMPLE.n8n.cloud/'),'https://example.n8n.cloud');
@@ -66,6 +67,23 @@ test('configuration and key changes use revision CAS, atomic vault plans, no sec
   assert.deepEqual(revoked.calls[0].revoke,{providerId:'n8n.api.v1',reference:row.key_ref,expectedVersion:1});
   assert.equal(revoked.calls[1].args.compare.expected,4);
   assert.doesNotMatch(JSON.stringify(await configRead({},harness(row).context)),/creezio-secret/u);
+});
+test('disabling or revoking API atomically disarms an enabled webhook by revision CAS',async()=>{
+  const hook={id:'n8n.webhook.v1',enabled:true,revision:7};
+  const disabled=harness(row,undefined,hook);
+  const changed=await configSet({requestKey:'disable',origin:row.origin,enabled:false,revision:4},
+    disabled.context);
+  assert.equal(changed.plans.length,2);
+  assert.deepEqual(disabled.calls.map(call=>call.name),['connector_config','webhook_config']);
+  assert.equal(disabled.calls[1].args.compare.expected,7);
+  assert.equal(disabled.calls[1].args.values.enabled,false);
+  const revoked=harness(row,undefined,hook);
+  const result=await configKeyRevoke({requestKey:'revoke',revision:4},revoked.context);
+  assert.equal(result.plans.length,3);
+  assert.deepEqual(revoked.calls.filter(call=>call.name).map(call=>call.name),
+    ['connector_config','webhook_config']);
+  assert.equal(revoked.calls.at(-1).args.compare.expected,7);
+  assert.equal(revoked.calls.at(-1).args.values.enabled,false);
 });
 test('workflows and executions project metadata only and preserve opaque cursors without loss',async()=>{
   const full=Array.from({length:521},(_,i)=>({id:String(i+1),name:`Workflow ${i} <script>`,active:i%2===0,

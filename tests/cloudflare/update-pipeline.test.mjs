@@ -6,6 +6,12 @@ import {fileURLToPath} from 'node:url';
 import {createCloudflareDeliveryPipeline} from '../../scripts/cloudflare/pipeline.mjs';
 import {cloudflareWorkerConfiguration} from '../../scripts/cloudflare/config.mjs';
 import {createPublicationGate} from '../../core/registry/publication.ts';
+import {Miniflare,Log,LogLevel} from 'miniflare';
+import {describeD1Schema} from '../../scripts/data/d1-schema.mjs';
+import {createStorageFixture} from '../data/fixtures/storage.mjs';
+import {STORAGE_AUTHORITY_MODELS,STORAGE_AUTHORITY_MODULE_ID,STORAGE_AUTHORITY_TABLES}
+  from '../../core/storage-authority/models.ts';
+import {ACCESS_TABLES} from '../../core/identity/d1-store.ts';
 
 const root=fileURLToPath(new URL('../../',import.meta.url));
 const accountId='a'.repeat(32),token='synthetic-cloudflare-token-value',tokenId='b'.repeat(32);
@@ -51,7 +57,7 @@ function publicationJournal(){
       records.set(record.requestKey,record);}};
 }
 function fixture({unknownUpload=false,declarationFailsOnce=false,driftAfterBuild=false,
-  lostSchemaReplyOnce=false,routedTarget=false}={}){
+  lostSchemaReplyOnce=false,routedTarget=false,cutoverFactory=null}={}){
   const events=[],planJournal=journal('transferId'),updateJournal=journal('updateId'),
     gateJournal=publicationJournal();
   const initial={schemaVersion:1,revision:1,transferId:'transfer-one',owner:context.principalId,
@@ -59,7 +65,8 @@ function fixture({unknownUpload=false,declarationFailsOnce=false,driftAfterBuild
     registryProjectId:'project-one',registryInstallationId:'installation-one'};
   planJournal.records.set(initial.transferId,initial);
   gateJournal.records.set(initial.transferId,{state:'synchronized',declaration:{
-    deploymentId:'deployment-original',artifact:originalArtifact}});
+    deploymentId:'deployment-original',url:new URL(initial.target.origin).href,
+    publishedSha:originalArtifact.sourceSha,artifact:originalArtifact}});
   const deployed=cloudflareWorkerConfiguration(initial.target);
   const installedBindings=[...deployed.d1_databases.map(item=>({name:item.binding,type:'d1',
     id:item.database_id})),...deployed.r2_buckets.map(item=>({name:item.binding,
@@ -72,12 +79,14 @@ function fixture({unknownUpload=false,declarationFailsOnce=false,driftAfterBuild
   let schemaState='additive',schemaReceiptId=`sha256-${'7'.repeat(64)}`;
   let uploadCount=0,schemaEffects=0,declareCount=0;
   const targetPlan={applicationId:'application',planDigest:`sha256-${'8'.repeat(64)}`,
-    compositionDigest,modelDigest:`sha256-${'9'.repeat(64)}`,sqlDigest:`sha256-${'a'.repeat(64)}`,
+    compositionDigest,lockDigest:`sha256-${'2'.repeat(64)}`,
+    modelDigest:`sha256-${'9'.repeat(64)}`,sqlDigest:`sha256-${'a'.repeat(64)}`,
     objects:[]};
   const projection={targetPlan,sourcePlan:{applicationId:'application',
     modelDigest:`sha256-${'b'.repeat(64)}`},compatibilityDigest:`sha256-${'e'.repeat(64)}`,
     composition:{schemaVersion:'1.0.0',sdk:{coreVersion:'1.0.1'}},lock:{}};
-  const receipt={deploymentId:'deployment-updated',url:origin,artifact};
+  const receipt={deploymentId:'deployment-updated',url:origin,
+    publishedSha:sourceSha,artifact};
   const client={async preflight(request){events.push('preflight');return {
     preflightId:'preflight-'+events.length,projectId:request.projectId,
     installationId:request.installationId,checkedAt:new Date().toISOString(),
@@ -87,7 +96,7 @@ function fixture({unknownUpload=false,declarationFailsOnce=false,driftAfterBuild
     return {projectId:request.projectId,installationId:request.installationId,
       deploymentId:request.deploymentId,declaredAt:new Date().toISOString(),replayed:false};}};
   const gate=createPublicationGate({client,journal:gateJournal});
-  const control={async inspectConnection(){events.push('connection');return {accountId,tokenId,
+  const control={accountId,async inspectConnection(){events.push('connection');return {accountId,tokenId,
     workersSubdomain:'example'};},
   async deployments(){return {deployments:[{id:current.deploymentId,
     versions:[{percentage:100,version_id:current.versionId}]}]};},
@@ -95,13 +104,22 @@ function fixture({unknownUpload=false,declarationFailsOnce=false,driftAfterBuild
     'workers/message':current.message},bindings:current.bindings};},
   async version(_name,id){return {id};},
   async bucket(){events.push('bucket');return {private:true};}};
-  const options={config:{root},planJournal,updateJournal,provisionJournal:journal('transferId'),
+  const options={config:{root,...(routedTarget?{
+    storageInstallationId:routed.storageInstallationId,
+    storageResources:[{contextId:'tenant-a',slot:1,status:'active',
+      databaseId:'local-tenant-a',databaseName:'local-tenant-a',
+      bucketName:'local-tenant-a'}]}:{})},
+    planJournal,updateJournal,provisionJournal:journal('transferId'),
     transferJournal:{load:async()=>null},publicationJournal:gateJournal,
     registryClient:client,publicationGate:gate,
     registryIdentity:{projectId:'project-one',installationId:'installation-one'},
+    ...(cutoverFactory?{storageCutoverFactory:cutoverFactory}:{}),
     sourceIdentity:()=>({head:sourceSha,tree:'f'.repeat(40),sha256:'1'.repeat(64),dirty:false}),
     project:()=>projection,updateIdFactory:()=> 'update-one',
     controlFactory:()=>control,secretConnections:async()=>[],sourceKeyring:async()=>null,
+    provisionerFactory:()=>({async provision(request){events.push('provision');return {
+      state:'ready',target:{accountId,workerName,origin,bucketName:request.bucketName,
+        databaseId:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'}};}}),
     targetVault:{loadOrCreate(){assert.fail('update must not create a vault');}},
     stopRuntime(){assert.fail('update must not stop runtime through transfer');},
     buildTarget(){assert.fail('update must use its own build port');},
@@ -114,7 +132,7 @@ function fixture({unknownUpload=false,declarationFailsOnce=false,driftAfterBuild
     loadCapture(){assert.fail('update must not load local data');},
     importTransfer(){assert.fail('update must not import local data');},
     verifyTransfer(){assert.fail('update must not verify a local transfer');},
-    d1Factory:()=>({metadata:async()=>({uuid:databaseId})}),d1BindingFactory:()=>({}),
+    d1Factory:({databaseId:id})=>({metadata:async()=>({uuid:id})}),d1BindingFactory:()=>({}),
     r2Factory(){assert.fail('update must not open R2 object transport');},
     inspectSchema:async()=>({state:schemaState,receiptId:schemaState==='ready'?schemaReceiptId:null}),
     applySchema:async()=>{events.push('schema');if(schemaState==='additive'){
@@ -134,7 +152,9 @@ function fixture({unknownUpload=false,declarationFailsOnce=false,driftAfterBuild
         current.message=`Creezio ${artifact.artifactDigest} ${artifact.sourceSha}`;
         if(unknownUpload)throw new Error('response lost');
         return receipt;},
-      async inspect(){events.push('inspect-worker');return receipt;}}),
+      async inspect(){events.push('inspect-worker');return receipt;},
+      async inspectCurrent(){return {deploymentId:current.deploymentId,
+        versionId:current.versionId,bindings:current.bindings};}}),
   };
   const pipeline=createCloudflareDeliveryPipeline(options);
   const configure=()=>pipeline.configure({target:{accountId,workerName},
@@ -143,12 +163,147 @@ function fixture({unknownUpload=false,declarationFailsOnce=false,driftAfterBuild
     get uploadCount(){return uploadCount;},get schemaEffects(){return schemaEffects;}};
 }
 
-test('routed Cloudflare update refuses before build, schema, or upload',async()=>{
+test('routed update without local inventory stops before build, schema, or upload',async()=>{
   const f=fixture({routedTarget:true});await f.configure();
+  f.options.config.storageResources=[];
   await assert.rejects(f.pipeline.prepareUpdate({},context),
-    error=>error.code==='storage_authority_cutover_unavailable');
-  assert.equal(f.updateJournal.records.size,0);
+    error=>error.code==='storage_inventory_changed');
+  assert.equal(f.updateJournal.records.get('update-one').stage,'intent');
   assert.equal(f.schemaEffects,0);assert.equal(f.uploadCount,0);
+  assert.equal(f.events.includes('build'),false);
+});
+
+test('routed update hands exact previous and next targets to the cutover publication port',async()=>{
+  let called=0,f;
+  const cutoverFactory=input=>({async advance(){
+    called++;
+    assert.deepEqual(input.previousTarget,routed);
+    assert.deepEqual(input.nextTarget,routed);
+    assert.equal(input.plan.planDigest,`sha256-${'8'.repeat(64)}`);
+    const previous=await input.publication.inspectPrevious();
+    assert.equal(previous.deploymentId,'deployment-original');
+    await input.publication.deliver();
+    const published=await input.publication.inspect();
+    assert.ok(published,JSON.stringify(f.gateJournal.records.get('update-one')));
+    assert.equal(published.deploymentId,'deployment-updated');
+    assert.equal(published.versionId,updatedVersion);
+    assert.deepEqual(published.target,routed);
+    return {state:'ready',phase:'open'};
+  }});
+  f=fixture({routedTarget:true,cutoverFactory});await f.configure();
+  const prepared=await f.pipeline.prepareUpdate({},context);
+  assert.equal(prepared.kind,'update');
+  assert.deepEqual(f.updateJournal.records.get('update-one').nextTarget,routed);
+  const result=await f.pipeline.startUpdate(prepared,context);
+  assert.equal(result.phase,'delivered');
+  assert.equal(result.registryStatus,'effective');
+  assert.equal(called,1);assert.equal(f.uploadCount,1);
+  assert.equal(f.schemaEffects,0,'cutover owns additive schema effects');
+});
+
+for(const [field,value] of [
+  ['url','https://wrong.example/'],['publishedSha','f'.repeat(40)]])
+  test(`routed update refuses a divergent previous declaration ${field} before fencing`,async()=>{
+    const f=fixture({routedTarget:true});await f.configure();
+    const prior=f.gateJournal.records.get('transfer-one');
+    f.gateJournal.records.set('transfer-one',{...prior,
+      declaration:{...prior.declaration,[field]:value}});
+    await assert.rejects(f.pipeline.prepareUpdate({},context),{code:'deployment_changed'});
+    assert.equal(f.updateJournal.records.size,0);
+    assert.equal(f.events.includes('build'),false);
+    assert.equal(f.uploadCount,0);
+  });
+
+for(const [field,value] of [
+  ['url','https://wrong.example/'],['publishedSha','f'.repeat(40)]])
+  test(`routed update never accepts a divergent synchronized declaration ${field}`,async()=>{
+    let f;
+    const cutoverFactory=input=>({async advance(){
+      assert.equal((await input.publication.inspectPrevious()).deploymentId,
+        'deployment-original');
+      await input.publication.deliver();
+      const gate=f.gateJournal.records.get('update-one');
+      f.gateJournal.records.set('update-one',{...gate,
+        declaration:{...gate.declaration,[field]:value}});
+      assert.equal(await input.publication.inspect(),null);
+      return {state:'pending',phase:'publishing'};
+    }});
+    f=fixture({routedTarget:true,cutoverFactory});await f.configure();
+    const prepared=await f.pipeline.prepareUpdate({},context);
+    const result=await f.pipeline.startUpdate(prepared,context);
+    assert.notEqual(result.phase,'delivered');
+    assert.equal(f.updateJournal.records.get('update-one').stage,'preflight');
+    assert.equal(f.uploadCount,1);
+  });
+
+for(const [field,value] of [
+  ['url','https://wrong.example/'],['publishedSha','f'.repeat(40)]])
+  test(`divergent update declaration ${field} leaves the real target D1 route denied`,
+    {timeout:60000},async()=>{
+      const f=fixture({routedTarget:true});
+      const local=await createStorageFixture();
+      const runtime=new Miniflare({host:'127.0.0.1',port:0,cf:false,modules:true,
+        script:'export default {fetch(){return new Response(null,{status:404})}}',
+        compatibilityDate:'2026-05-15',d1Databases:{TARGET:'update-declaration-target'},
+        d1Persist:false,telemetry:{enabled:false},logRequests:false,
+        log:new Log(LogLevel.NONE)});
+      try{
+        const primary=local.db,targetDb=await runtime.getD1Database('TARGET');
+        const ddl=describeD1Schema(STORAGE_AUTHORITY_MODULE_ID,STORAGE_AUTHORITY_MODELS);
+        for(const db of [primary,targetDb])
+          await db.batch(ddl.statements.map(sql=>db.prepare(sql)));
+        const epoch=(await primary.prepare(`SELECT epoch FROM
+          "${ACCESS_TABLES.authorization_state}" WHERE id='application'`).first()).epoch;
+        const route=`"${STORAGE_AUTHORITY_TABLES.storage_routes}"`;
+        await targetDb.prepare(`INSERT INTO ${route}
+          (id,installation_id,slot,generation,state,mutation_id,source_epoch,updated_at_ms)
+          VALUES ('tenant-a',?,1,1,'active',NULL,?,0)`)
+          .bind(routed.storageInstallationId,epoch).run();
+        f.options.d1Factory=({databaseId:id})=>({databaseId:id,
+          metadata:async()=>({uuid:id})});
+        f.options.d1BindingFactory=client=>client.databaseId===databaseId
+          ?primary:targetDb;
+        const plan=f.options.project().targetPlan;
+        f.options.storageCutoverSchema={
+          async inspect(){return {state:'ready'};},
+          async apply(){assert.fail('exact schema receipts need no DDL');},
+          async managed(db){return {ok:true,
+            receiptId:`sha256-${(db===primary?'1':'2').repeat(64)}`,
+            receipt:{...plan}};}};
+        const gate=f.options.publicationGate;
+        f.options.publicationGate={...gate,
+          async publish(...args){const result=await gate.publish(...args);
+            const stored=f.gateJournal.records.get('update-one');
+            f.gateJournal.records.set('update-one',{...stored,
+              declaration:{...stored.declaration,[field]:value}});
+            return result;}};
+        const pipeline=createCloudflareDeliveryPipeline(f.options);
+        await pipeline.configure({target:{accountId,workerName},
+          credentials:{apiToken:token}},context);
+        const prepared=await pipeline.prepareUpdate({},context);
+        const result=await pipeline.startUpdate(prepared,context);
+        assert.notEqual(result.phase,'delivered');
+        assert.equal((await targetDb.prepare(`SELECT state FROM ${route}`).first()).state,
+          'deny');
+        assert.equal(f.uploadCount,1);
+      }finally{await runtime.dispose();await local.dispose();}
+    });
+
+test('routed preparation journals added and retired pairs before any build',async()=>{
+  const f=fixture({routedTarget:true,cutoverFactory:()=>({advance:async()=>({state:'pending'})})});
+  await f.configure();
+  f.options.config.storageResources=[
+    {...f.options.config.storageResources[0],status:'revoked'},
+    {contextId:'tenant-b',slot:2,status:'active',databaseId:'local-tenant-b',
+      databaseName:'local-tenant-b',bucketName:'local-tenant-b'}];
+  const prepared=await f.pipeline.prepareUpdate({},context);
+  const next=f.updateJournal.records.get(prepared.updateId).nextTarget;
+  assert.equal(next.resources[0].status,'revoked');
+  assert.equal(next.resources[0].databaseId,routed.resources[0].databaseId);
+  assert.deepEqual(next.resources[1],{contextId:'tenant-b',slot:2,status:'active',
+    databaseId:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    databaseName:'creezio-test-s2-db',bucketName:'creezio-test-s2-files'});
+  assert.equal(f.events.filter(item=>item==='provision').length,1);
   assert.equal(f.events.includes('build'),false);
 });
 
@@ -165,7 +320,7 @@ test('previous routed publication requires its complete D1/R2 inventory and rout
   assert.equal(f.updateJournal.records.size,0);
 });
 
-test('an existing routed update journal cannot bypass the cutover guard',async()=>{
+test('a routed update journal without next inventory cannot build or upload',async()=>{
   const f=fixture();await f.configure();
   const prepared=await f.pipeline.prepareUpdate({},context);
   const stored=f.updateJournal.records.get(prepared.updateId);
@@ -173,11 +328,11 @@ test('an existing routed update journal cannot bypass the cutover guard',async()
   const input={updateId:prepared.updateId,planDigest:prepared.planDigest};
   const unchanged=structuredClone(stored);
   await assert.rejects(f.pipeline.prepareUpdate({},context),
-    error=>error.code==='storage_authority_cutover_unavailable');
+    error=>error.code==='storage_inventory_changed');
   await assert.rejects(f.pipeline.startUpdate(input,context),
-    error=>error.code==='storage_authority_cutover_unavailable');
+    error=>error.code==='storage_inventory_changed');
   await assert.rejects(f.pipeline.reconcileUpdate(input,context),
-    error=>error.code==='storage_authority_cutover_unavailable');
+    error=>error.code==='storage_inventory_changed');
   assert.deepEqual(f.updateJournal.records.get(prepared.updateId),unchanged,
     'cutover refusals must not advance the durable journal stage or revision');
   assert.equal(f.schemaEffects,0);assert.equal(f.uploadCount,0);
@@ -186,7 +341,7 @@ test('an existing routed update journal cannot bypass the cutover guard',async()
     stored.stage=stage;
     const terminal=structuredClone(stored);
     await assert.rejects(f.pipeline.startUpdate(input,context),
-      error=>error.code==='storage_authority_cutover_unavailable');
+      error=>error.code==='storage_inventory_changed');
     assert.deepEqual(f.updateJournal.records.get(prepared.updateId),terminal);
     assert.equal((await f.pipeline.statusUpdate(prepared.updateId,context)).phase,stage,
       'read-only status remains available for an old routed record');

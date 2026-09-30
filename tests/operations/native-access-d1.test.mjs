@@ -109,6 +109,28 @@ test('native Access effects, audit detail and T06 result commit together in real
       operationId:'policy.apply-delta',contextId:'application',audience:'admin',requestKey:failedBody.requestKey});
     assert.notEqual(execution?.state,'succeeded');
     await db.prepare('DROP TRIGGER access_test_late_audit').run();
+    const admission={requestKey:'access-admit-t33-context-a',expectedEpoch:initial+1,
+      changes:[{kind:'context-admit',contextId:'t33-context-a',status:'disabled'}]};
+    const admitted=await invoke('policy.apply-delta',admission);
+    assert.equal(admitted.execution.state,'succeeded',JSON.stringify(admitted.execution));
+    const admittedPolicy=(await invoke('policy.read',{})).execution.output.policy;
+    assert.deepEqual({...admittedPolicy.contexts.find(item=>item.id==='t33-context-a')},
+      {id:'t33-context-a',status:'disabled'});
+    assert.equal(admittedPolicy.memberships.some(item=>item.contextId==='t33-context-a'),false);
+    assert.equal(admittedPolicy.assignments.some(item=>item.contextId==='t33-context-a'),false);
+    const admittedAudit=await invoke('audit.detail',{auditId:admitted.execution.output.auditId,limit:32});
+    assert.equal(admittedAudit.execution.state,'succeeded');
+    assert.deepEqual(admittedAudit.execution.output.changes.map(({kind,contextId,before,after})=>
+      ({kind,contextId,before,after})),
+    [{kind:'context-status',contextId:'t33-context-a',before:'absent',after:'disabled'}]);
+    const duplicate=await invoke('policy.apply-delta',{...admission,requestKey:'access-admit-t33-duplicate',
+      expectedEpoch:initial+2});
+    assert.equal(duplicate.execution.state,'failed');
+    assert.equal(duplicate.execution.errorCode,'invalid_input');
+    const stale=await invoke('policy.apply-delta',{requestKey:'access-admit-t33-stale',expectedEpoch:initial+1,
+      changes:[{kind:'context-admit',contextId:'t33-context-b',status:'active'}]});
+    assert.equal(stale.execution.state,'failed');
+    assert.equal(stale.execution.errorCode,'conflict');
     const ownSessions=await invoke('sessions.list',{principalId:owner.principalId,limit:50});
     assert.equal(ownSessions.execution.state,'succeeded');
     assert.ok(ownSessions.execution.output.items.some(item=>item.id===session.session.id));
@@ -161,6 +183,19 @@ test('native Access effects, audit detail and T06 result commit together in real
       {CREEZIO_APP_ORIGIN:'https://access-operations.example.invalid'},'oauth-http-read');
     assert.equal(httpResponse.status,200,await httpResponse.clone().text());
     assert.equal((await httpResponse.json()).execution.state,'succeeded');
+    const deltaBinding=compileHttpBindings({composition,modules:[manifest],operationCatalog:compiled.catalog})
+      .find(item=>item.id==='policy.apply-delta' && item.audience==='admin');
+    assert.ok(deltaBinding);
+    const deltaHttp=createOperationHttpTransport([deltaBinding],engine);
+    const deltaRequest=new Request('https://access-operations.example.invalid/api/admin/access/policy/delta',{
+      method:'POST',headers:{authorization:`Bearer ${oauth.token}`,'content-type':'application/json',
+        'x-creezio-request':'1'},body:JSON.stringify({requestKey:'oauth-http-admit-t33-context-b',
+        expectedEpoch:delegatedRead.execution.output.epoch,
+        changes:[{kind:'context-admit',contextId:'t33-context-b',status:'disabled'}]})});
+    const deltaResponse=await deltaHttp.dispatch(deltaRequest,{profile:'sites',bindings:{DB:db}},
+      {CREEZIO_APP_ORIGIN:'https://access-operations.example.invalid'},'oauth-http-admit');
+    assert.equal(deltaResponse.status,200,await deltaResponse.clone().text());
+    assert.equal((await deltaResponse.json()).execution.state,'succeeded');
     await assert.rejects(engine.invoke({credential:{kind:'oauth',token:oauth.token,
       resource:'https://access-operations.example.invalid/mcp/app'},moduleId,operationId:'policy.read',
       contextId:'application',audience:'admin',input:{}}),{code:'unauthorized'});
@@ -172,13 +207,13 @@ test('native Access effects, audit detail and T06 result commit together in real
     assert.equal((await delegated('audit.list',{limit:50})).execution.state,'succeeded');
     assert.equal((await delegated('audit.detail',{auditId,limit:32})).execution.state,'succeeded');
     const lockout=await delegated('policy.apply-delta',{requestKey:'oauth-self-lockout',
-      expectedEpoch:delegatedRead.execution.output.epoch,
+      expectedEpoch:delegatedRead.execution.output.epoch+1,
       changes:[{kind:'principal-override',principalId:owner.principalId,contextId:'application',audience:'admin',
         permissionId:'creezio.access:manage',effect:'deny'}]});
     assert.equal(lockout.execution.state,'failed');
     assert.equal(lockout.execution.errorCode,'forbidden');
     const changed=await delegated('policy.apply-delta',{requestKey:'oauth-policy-1',
-      expectedEpoch:delegatedRead.execution.output.epoch,
+      expectedEpoch:delegatedRead.execution.output.epoch+1,
       changes:[{kind:'role-override',roleId:'administrator',permissionId:'creezio.access:impersonate',effect:'deny'}]});
     assert.equal(changed.execution.state,'succeeded',JSON.stringify(changed.execution));
     const oauthAudit=await db.prepare(`SELECT session_id AS sessionId,principal_id AS principalId,
@@ -203,7 +238,7 @@ test('native Access effects, audit detail and T06 result commit together in real
     const auditRows=(await db.prepare(`SELECT action,session_id AS sessionId,credential_id AS credentialId,
       context_id AS contextId,audience FROM ${quote(ACCESS_TABLES.access_audit)} WHERE credential_id=? ORDER BY action`)
       .bind(tokenId).all()).results;
-    assert.deepEqual(auditRows.map(row=>row.action),['authorization-updated','human-session-revoked',
+    assert.deepEqual(auditRows.map(row=>row.action),['authorization-updated','authorization-updated','human-session-revoked',
       'human-sessions-revoked','human-status-updated']);
     for(const row of auditRows){
       assert.equal(row.sessionId,null);

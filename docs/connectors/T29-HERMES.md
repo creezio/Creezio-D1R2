@@ -23,8 +23,9 @@ Les références originales sont `packages/assistant/src/runtime/hermes-client.t
 - [x] Contrat de configuration, capacités, runs, permissions, modèles et API/MCP en source.
 - [x] Port mutateur commun, journal durable, projection et transitions de connexion vérifiés sur D1 local.
 - [x] Vues workspace admin et app adaptées des cartes originales, sans chat parallèle.
-- [x] Six suites de validation source (dont widgets explicitement non applicables) et recette D1/hôte : perte d'accusé sans rejeu, révocation, idempotence, run étranger et champs secrets protégés.
-- [ ] Widgets de suivi et approbation : le POST d'approbation attend une fixture de la version Hermes réellement exploitée.
+- [x] Six suites de validation source et recette D1/hôte : perte d'accusé sans rejeu, révocation, idempotence, run étranger et champs secrets protégés.
+- [x] Widgets MCP Apps de capacités, modèles et suivi d’un run local, avec lectures directes sous les droits courants et sans réémission de POST.
+- [ ] Approbation : le POST d'approbation attend une fixture de la version Hermes réellement exploitée.
 - [ ] Recette externe sur l'instance et la version réellement disponibles, avec soumission témoin autorisée, relecture et arrêt si nécessaire.
 
 Les capacités encore absentes du fournisseur restent indisponibles avec un écart consigné. La présence du module, d'un mock ou d'une clé ne qualifie pas cette recette.

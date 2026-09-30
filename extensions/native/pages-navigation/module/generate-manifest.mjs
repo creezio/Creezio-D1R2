@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 
 const root=new URL('../',import.meta.url);
 const template=JSON.parse(readFileSync(new URL('module/manifest.json',root),'utf8'));
-const id='creezio.pages-navigation',sourceRevision='t21-pages-navigation-v3',
+const id='creezio.pages-navigation',sourceRevision='t21-pages-navigation-v4',
   ref=(kind,name)=>({moduleId:id,kind,id:name});
 const S=(max=128,min=1)=>({minLength:min,maxLength:max});
 const I=(min=0)=>({minimum:min,maximum:Number.MAX_SAFE_INTEGER});
@@ -74,7 +74,11 @@ const models=[
     field('position','integer',{constraints:I(0,4)})],['context_id','page_id','file_id'],
     [{id:'by-page',fields:['context_id','page_id','position','file_id'],unique:false}],
     [{id:'publication',fields:['context_id','page_id'],target:ref('model','page_publication'),
-      targetFields:['context_id','page_id'],onDelete:'restrict'}],['edit','view'])
+      targetFields:['context_id','page_id'],onDelete:'restrict'}],['edit','view']),
+  model('sidebar_overrides','Présentation de la barre latérale du workspace',[
+    field('id','string',{constraints:{enum:['workspace']}}),field('overrides','json'),
+    field('revision','integer',{constraints:I(1)}),field('updated_at','date-time'),
+    field('updated_by','string',{constraints:S()})],['context_id','id'],[],[],['sidebar.manage','sidebar.read'])
 ];
 models.find(x=>x.id==='page_media').deletion.mode='hard';
 models.find(x=>x.id==='published_page_media').deletion.mode='hard';
@@ -136,12 +140,29 @@ const mediaLinkInput=schema('media-link-input',obj({requestKey:str(),pageId:str(
 const mediaLinkOutput=schema('media-link-output',obj({media,page:pageSummary}));
 const mediaUnlinkInput=schema('media-unlink-input',obj({requestKey:str(),pageId:str(),revision:num(1),fileId:str(67)}));
 const mediaUnlinkOutput=schema('media-unlink-output',obj({removed:{const:true},page:pageSummary}));
+const sidebarOverride=obj({id:str(),hidden:{type:'boolean'},title:str(120),order:num(0,10000)},['id']);
+const sidebarEdits={type:'array',items:sidebarOverride,maxItems:100};
+const sidebarResetIds={type:'array',items:str(),maxItems:100};
+const sidebarEntry=obj({id:str(),moduleId:str(),viewId:str(),title:str(240),order:num(0,10000),
+  route:str(512),audiences:{type:'array',items:{type:'string',enum:['admin','app']},maxItems:2},
+  permissionIds:{type:'array',items:str(257),maxItems:64},available:{type:'boolean'},
+  hidden:{type:'boolean'},displayTitle:str(240),displayOrder:num(0,10000)});
+const sidebarItem=obj({id:str(),viewId:str(),title:str(240),order:num(0,10000)});
+const sidebarMeta={compositionDigest:str(128),contextId:str(),audience:{type:'string',enum:['admin','app']},
+  sessionId:nullable(str()),epoch:nullable(num()),revision:num()};
+const sidebarCatalogOutput=schema('sidebar-catalog-output',obj({...sidebarMeta,
+  entries:{type:'array',items:sidebarEntry,maxItems:1000}}));
+const sidebarResolvedOutput=schema('sidebar-resolved-output',obj({...sidebarMeta,
+  items:{type:'array',items:sidebarItem,maxItems:1000}}));
+const sidebarSaveInput=schema('sidebar-save-input',obj({requestKey:str(128),expectedRevision:num(),
+  edits:sidebarEdits,resetIds:sidebarResetIds}));
+const sidebarSaveOutput=schema('sidebar-save-output',obj({revision:num(1),updatedAt:str(35),updatedBy:str()}));
 const viewInput=schema('editor-view-input',obj({pageId:str(),slug:str(160)},[]));
 const pendingCommand=obj({sessionId:str(),audience:{type:'string',enum:['admin','app']},contextId:str(),
   bindingId:str(257),requestKey:str(512),intent:str(64),targetId:str()},
   ['sessionId','audience','contextId','bindingId','requestKey']);
 const panelState=schema('editor-panel-state',obj({sessionId:str(),audience:{type:'string',enum:['admin','app']},
-  contextId:str(),pageId:str(),tab:{type:'string',enum:['pages','navigation']},
+  contextId:str(),pageId:str(),tab:{type:'string',enum:['pages','navigation','sidebar']},
   pending:pendingCommand},[]));
 const permissions=[
   {id:'edit',title:'Éditer et publier les pages',audiences:['admin'],actors:['user','delegated-user','machine'],
@@ -150,16 +171,24 @@ const permissions=[
   {id:'view',title:'Lire les contenus publiés',audiences:['admin','app'],actors:['user','delegated-user','machine'],
     scopes:['pages.view'],context:'required',default:'deny',resources:[ref('model','page'),ref('model','navigation'),
       ref('model','page_publication'),ref('model','published_page_media'),ref('model','file_metadata'),ref('file','media')],
-    actions:['read','execute'],enforcement:{request:true,commit:true},public:false}
+    actions:['read','execute'],enforcement:{request:true,commit:true},public:false},
+  {id:'sidebar.manage',title:'Gérer la présentation de la barre latérale',audiences:['admin'],
+    actors:['user','delegated-user','machine'],scopes:['pages.sidebar.manage'],context:'required',default:'deny',
+    resources:[ref('model','sidebar_overrides')],actions:['read','create','update','execute'],
+    enforcement:{request:true,commit:true},public:false},
+  {id:'sidebar.read',title:'Lire la présentation de la barre latérale',audiences:['admin','app'],
+    actors:['user','delegated-user','machine'],scopes:['pages.sidebar.read'],context:'required',default:'deny',
+    resources:[ref('model','sidebar_overrides')],actions:['read','execute'],
+    enforcement:{request:true,commit:true},public:false}
 ];
 const errors=['invalid_input','unauthorized','forbidden','not_found','conflict','rate_limited','unavailable','unknown']
   .map(code=>({code,retryable:['rate_limited','unavailable','unknown'].includes(code),
     outcome:code==='unknown'?'unknown':'rejected'}));
 const operations=[];
 function operation(name,title,kind,input,output,reads=[],writes=[],options={}){
-  const command=kind==='command',view=options.view===true;
-  operations.push({id:name,title,kind,input,output,permissions:[ref('permission',view?'view':'edit')],
-    audiences:view?['admin','app']:['admin'],actors:['user','delegated-user','machine'],context:'required',
+  const command=kind==='command',view=options.view===true,permission=options.permission??(view?'view':'edit');
+  operations.push({id:name,title,kind,input,output,permissions:[ref('permission',permission)],
+    audiences:view||permission==='sidebar.read'?['admin','app']:['admin'],actors:['user','delegated-user','machine'],context:'required',
     handler:{path:'module/operations.ts',export:options.exportName},
     effects:{reads:reads.map(x=>ref('model',x)),writes:writes.map(x=>ref('model',x)),emits:[],calls:[],providers:[]},
     errors,pagination:options.pagination??{mode:'none'},
@@ -210,6 +239,12 @@ operation('media.link','Lier un média privé','command',mediaLinkInput,mediaLin
 operations.at(-1).effects.writes.push(ref('file','media'));
 operation('media.unlink','Détacher un média privé','command',mediaUnlinkInput,mediaUnlinkOutput,
   ['page','page_media'],['page','page_media'],{exportName:'mediaUnlink'});
+operation('sidebar.catalog','Lire le catalogue de la barre latérale','query',empty,sidebarCatalogOutput,
+  ['sidebar_overrides'],[],{exportName:'sidebarCatalog',permission:'sidebar.manage',maxItems:1});
+operation('sidebar.resolved','Lire la barre latérale autorisée','query',empty,sidebarResolvedOutput,
+  ['sidebar_overrides'],[],{exportName:'sidebarResolved',permission:'sidebar.read',maxItems:1});
+operation('sidebar.save','Adapter la barre latérale','command',sidebarSaveInput,sidebarSaveOutput,
+  ['sidebar_overrides'],['sidebar_overrides'],{exportName:'sidebarSave',permission:'sidebar.manage',maxItems:2});
 const category={id:'media',metadataModel:ref('model','file_metadata'),contextField:'context_id',ownerField:'file_owner',
   storageFields:{id:'file_id',objectKey:'object_key',digest:'digest',byteSize:'byte_size',contentType:'content_type',
     filename:'filename',version:'version',state:'state',intentId:'intent_id',generation:'generation'},
@@ -236,7 +271,7 @@ m.identity={id,title:'Pages et navigation',publisher:'creezio',origin:'https://g
   version:'0.0.0',source:{kind:'snapshot',revision:sourceRevision,
     integrity:`sha256-${createHash('sha256').update(sourceRevision).digest('hex')}`},
   license:{expression:'NOASSERTION',file:'LICENSE'}};
-m.compatibility={core:'^0.0.0',sdk:'^1.6.0',requiredCapabilities:['runtime.worker','data.d1.shared','files.r2.shared'],
+m.compatibility={core:'^0.0.0',sdk:'^1.7.0',requiredCapabilities:['runtime.worker','data.d1.shared','files.r2.shared'],
   optionalCapabilities:[]};
 m.entrypoints={server:{path:'module/entry.server.ts',export:'pagesNavigation'},
   ui:{path:'ui/index.tsx',export:'PagesNavigationAdminView'},
@@ -277,16 +312,17 @@ m.contracts={schemas,models,files:[category],events:[],settings:[],search:[],per
     front:{mode:'provided'},themes:[],styles:[]},widgets:[],publicContracts:[]};
 m.documentation.versionBinding={moduleVersion:'0.0.0',sourceRevision};
 for(const suite of ['backend','ui','api-mcp','package','docs'])m.validation.suites[suite].tests=[`tests/${suite}/contract.test.mjs`];
+m.validation.suites.backend.tests.push('tests/backend/sidebar.test.mjs');
 m.validation.suites.widgets.mode='not-applicable';m.validation.suites.widgets.tests=['tests/widgets/contract.test.mjs'];
 m.validation.suites.widgets.justification={reason:'Published pages render through the front view, not an MCP widget.',
   policyRule:'pages-navigation.no-widget-renderer'};
 m.packaging.runtime.files=['module/manifest.json','module/models.json','module/entry.server.ts','module/operations.ts',
-  'module/service.ts','ui/contracts.ts','ui/index.tsx','ui/front-page.tsx','ui/front-nav.tsx',
+  'module/service.ts','module/sidebar.ts','ui/contracts.ts','ui/index.tsx','ui/sidebar.tsx','ui/front-page.tsx','ui/front-nav.tsx',
   'ui/front-link.ts','ui/seo.ts','ui/prefabs.tsx','ui/public-document.tsx','ui/published-images.ts','ui/landing.css','ui/types.ts','ui/state.ts',
   'README.md','prd.md','CHANGELOG.md','LICENSE','plugin/plugin.json','plugin/mcp.json',
   'plugin/contributions.ts',skillPath];
 m.packaging.validation.files=['AGENTS.md','FILES.md','interview.md','TODO.md','gate.mjs','module/generate-manifest.mjs',
-  'ci/run-suite.mjs','tests/helpers.mjs',...['backend','ui','api-mcp','widgets','package','docs']
+  'ci/run-suite.mjs','tests/helpers.mjs','tests/backend/sidebar.test.mjs',...['backend','ui','api-mcp','widgets','package','docs']
     .flatMap(name=>[`ci/${name}.mjs`,`tests/${name}/contract.test.mjs`])];
 m.packaging.validationBinding={moduleId:id,moduleVersion:'0.0.0',sourceRevision};
 m.lifecycle.absent={widgets:{reason:'No MCP widget renderer is used for editorial pages.',

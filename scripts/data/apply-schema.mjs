@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { canonicalJson } from '../../sdk/contracts/validate.mjs';
 import { inspectJson } from '../../sdk/contracts/load.mjs';
 import { isCompositionSchemaPlan, SCHEMA_LIMITS, schemaDigest, normalizeSchemaSql, freezeSchemaValue } from './composition-schema.mjs';
+import { fieldSQL, modelTableSQL } from './d1-schema.mjs';
 
 // Host-owned receipt storage, never a module script or a runtime startup side effect.
 export const SCHEMA_RECEIPT_TABLE = 'cz_schema_receipts';
@@ -36,8 +37,11 @@ function checkedBatch(results, count) {
 function exactKeys(value, names) {
   return value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === names.length && names.every(name => Object.hasOwn(value, name));
 }
-const publicState = (state, code, plan, additions = [], receiptId = null) => freezeSchemaValue({ state, code,
-  planDigest: isCompositionSchemaPlan(plan) ? plan.planDigest : null, additions: additions.map(object => ({ type: object.type, name: object.name })), receiptId });
+const publicState = (state, code, plan, additions = [], receiptId = null, migrations = []) => freezeSchemaValue({ state, code,
+  planDigest: isCompositionSchemaPlan(plan) ? plan.planDigest : null,
+  additions: additions.map(object => ({ type: object.type, name: object.name })),
+  columnAdditions: migrations.map(migration => ({ table: migration.physical.name,
+    columns: migration.columns.map(name => ({ name, nullable: true })) })), receiptId });
 
 /** Exact schema guard in the mutation batch. Receipt SQL from the database is never executed.
  * A mismatch raises a SQLite error, so D1 rolls back every statement in the batch. */
@@ -71,6 +75,65 @@ function validObjects(objects) {
     names.add(object.name);
   }
   return true;
+}
+
+function validLogicalTables(entries, objects) {
+  if (!Array.isArray(entries) || entries.length > objects.length) return false;
+  const tables = new Set(objects.filter(object => object.type === 'table').map(object => object.name));
+  let last = '';
+  for (const entry of entries) {
+    if (!exactKeys(entry, ['name', 'logicalDigest']) || typeof entry.name !== 'string'
+      || !tables.has(entry.name) || entry.name <= last || typeof entry.logicalDigest !== 'string'
+      || !HASH.test(entry.logicalDigest)) return false;
+    last = entry.name;
+  }
+  return true;
+}
+
+function modelForTable(plan, table) {
+  for (const owner of [plan.host, ...plan.runtimeCatalog.modules]) {
+    const item = owner.models.find(model => model.table === table);
+    if (item) return { moduleId: owner.moduleId, model: item.model };
+  }
+  return null;
+}
+
+/** SQLite appends an ADD COLUMN immediately after the last column clause, before PRIMARY KEY.
+ * The exact predicted physical SQL is checked inside the same D1 batch as every ALTER. */
+function appendedColumnSQL(sql, column) {
+  const marker = ',\n  PRIMARY KEY (';
+  const at = sql.indexOf(marker);
+  if (at < 0 || sql.indexOf(marker, at + marker.length) !== -1) return null;
+  return `${sql.slice(0, at)}, ${column}${sql.slice(at)}`;
+}
+
+async function qualifyAddedColumns(db, plan, old, wanted, logicalDigest) {
+  const owner = modelForTable(plan, old.name);
+  if (!owner) return null;
+  const { moduleId, model } = owner;
+  const columns = checkedRows(await db.prepare(`PRAGMA table_xinfo(${quote(old.name)})`).all());
+  if (!columns.length || columns.length > 100 || columns.some((column, index) =>
+    column.cid !== index || typeof column.name !== 'string' || column.hidden !== 0)
+    || new Set(columns.map(column => column.name)).size !== columns.length) return null;
+  const existing = new Set(columns.map(column => column.name));
+  const fields = new Map(model.fields.map(field => [field.id, field]));
+  if ([...existing].some(name => !fields.has(name))) return null;
+  const projected = { ...model, fields: model.fields.filter(field => existing.has(field.id)) };
+  if (schemaDigest(normalizeSchemaSql(modelTableSQL(moduleId, projected))) !== logicalDigest) return null;
+  const added = model.fields.filter(field => !existing.has(field.id)).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  if (!added.length || added.some(field => !field.nullable || Object.hasOwn(field, 'default')
+    || (Object.hasOwn(field.constraints ?? {}, 'enum') && !field.constraints.enum.includes(null))
+    || model.primaryKey.includes(field.id) || model.contextField === field.id)) return null;
+  let sql = old.sql;
+  const statements = [];
+  for (const field of added) {
+    const column = fieldSQL(field);
+    sql = appendedColumnSQL(sql, column);
+    if (!sql || Buffer.byteLength(sql) > 100000) return null;
+    statements.push(`ALTER TABLE ${quote(old.name)} ADD COLUMN ${column}`);
+  }
+  if (schemaDigest(wanted.sql) === logicalDigest || sql === old.sql) return null;
+  return { physical: { ...old, sql }, statements, columns: added.map(field => field.id), logicalDigest: schemaDigest(wanted.sql) };
 }
 
 async function readManaged(db) {
@@ -110,14 +173,17 @@ async function readManaged(db) {
   try { receipt = JSON.parse(payload); } catch { return { ok: false, code: 'schema.receipt-invalid' }; }
   if (inspectJson(receipt, { maxBytes: SCHEMA_LIMITS.bytes + 4096, maxNodes: 30000, maxDepth: 12 }).errors.length
     || !exactKeys(receipt, ['schemaVersion', 'applicationId', 'sequence', 'previousId', 'nonce', 'compositionDigest', 'modelDigest', 'sqlDigest', 'planDigest', 'objects',
-      ...(receipt&&Object.hasOwn(receipt,'lockDigest')?['lockDigest']:[])])
+      ...(receipt&&Object.hasOwn(receipt,'lockDigest')?['lockDigest']:[]),
+      ...(receipt&&Object.hasOwn(receipt,'logicalTables')?['logicalTables']:[])])
     || receipt.schemaVersion !== 1 || typeof receipt.applicationId !== 'string' || receipt.applicationId.length > 128
     || !/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(receipt.applicationId)
     || receipt.sequence !== headers.length || receipt.previousId !== headers.at(-1).previousId
     || typeof receipt.nonce !== 'string' || !/^[a-f0-9-]{36}$/.test(receipt.nonce)
     || ['compositionDigest', 'modelDigest', 'sqlDigest', 'planDigest',...(Object.hasOwn(receipt,'lockDigest')?['lockDigest']:[])]
       .some(field => typeof receipt[field] !== 'string' || !HASH.test(receipt[field]))
-    || !validObjects(receipt.objects) || payload !== canonicalJson(receipt) || schemaDigest(payload) !== headers.at(-1).id)
+    || !validObjects(receipt.objects)
+    || (Object.hasOwn(receipt, 'logicalTables') && !validLogicalTables(receipt.logicalTables, receipt.objects))
+    || payload !== canonicalJson(receipt) || schemaDigest(payload) !== headers.at(-1).id)
     return { ok: false, code: 'schema.receipt-invalid' };
   const expected = [...receipt.objects, SCHEMA_RECEIPT_OBJECT];
   if (expected.length !== actual.length || actual.some(object => !expected.some(wanted => same(object, wanted)))) return { ok: false, code: 'schema.drift' };
@@ -140,6 +206,7 @@ async function inspect(db, plan) {
     const previous = current.receipt?.objects ?? current.objects;
     const byName = new Map(previous.map(object => [object.name, object]));
     const wanted = new Map(plan.objects.map(object => [object.name, object]));
+    const logicalTables = new Map((current.receipt?.logicalTables ?? []).map(entry => [entry.name, entry.logicalDigest]));
     if (!current.receipt) {
       // Initial adoption accepts only whole, exact currently approved module schemas. A partial
       // namespace is never silently repaired; unrecognized objects are never adopted by name.
@@ -152,18 +219,37 @@ async function inspect(db, plan) {
           return { public: publicState('blocked', 'schema.partial', plan) };
       }
     }
-    const additions = [];
+    // A selected model may gain indexes, but cannot silently forget an existing one.
+    // Objects from models absent from the composition remain retained in the receipt.
+    for (const object of previous) if (object.type === 'index' && wanted.has(object.table)
+      && !wanted.has(object.name)) return { public: publicState('blocked', 'schema.incompatible', plan) };
+    const additions = [], migrations = [], physical = new Map();
     for (const object of plan.objects) {
       const old = byName.get(object.name);
-      if (old && !same(old, object)) return { public: publicState('blocked', 'schema.incompatible', plan) };
-      if (!old) additions.push(object);
+      if (!old) { additions.push(object); continue; }
+      if (old.type !== object.type || old.table !== object.table) return { public: publicState('blocked', 'schema.incompatible', plan) };
+      if (old.type === 'index') {
+        if (!same(old, object)) return { public: publicState('blocked', 'schema.incompatible', plan) };
+        continue;
+      }
+      const priorLogical = logicalTables.get(old.name) ?? schemaDigest(old.sql);
+      if (schemaDigest(object.sql) === priorLogical) continue;
+      if (!current.receipt) return { public: publicState('blocked', 'schema.incompatible', plan) };
+      const migration = await qualifyAddedColumns(db, plan, old, object, priorLogical);
+      if (!migration) return { public: publicState('blocked', 'schema.incompatible', plan) };
+      migrations.push(migration); physical.set(old.name, migration.physical);
+      logicalTables.set(old.name, migration.logicalDigest);
     }
-    const objects = [...previous, ...additions].sort((a, b) => a.type === b.type ? a.name < b.name ? -1 : a.name > b.name ? 1 : 0 : a.type === 'table' ? -1 : 1);
+    const objects = [...previous.map(object => physical.get(object.name) ?? object), ...additions]
+      .sort((a, b) => a.type === b.type ? a.name < b.name ? -1 : a.name > b.name ? 1 : 0 : a.type === 'table' ? -1 : 1);
     if (!validObjects(objects)) return { public: publicState('blocked', 'schema.limit', plan) };
     const ready = current.receipt?.planDigest === plan.planDigest
-      && current.receipt?.lockDigest === plan.lockDigest && additions.length === 0;
+      && current.receipt?.lockDigest === plan.lockDigest && additions.length === 0 && migrations.length === 0;
     if (!ready && current.headers.length >= SCHEMA_LIMITS.receipts) return { public: publicState('blocked', 'schema.receipt-limit', plan) };
-    return { public: publicState(ready ? 'ready' : 'additive', ready ? 'schema.current' : 'schema.approval-required', plan, additions, current.receiptId), current, objects, additions };
+    const logicalEntries = [...logicalTables].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
+      .map(([name, logicalDigest]) => ({ name, logicalDigest }));
+    return { public: publicState(ready ? 'ready' : 'additive', ready ? 'schema.current' : 'schema.approval-required', plan, additions, current.receiptId, migrations),
+      current, objects, additions, migrations, logicalTables: logicalEntries };
   } catch { return { public: publicState('unavailable', 'schema.unavailable', plan) }; }
 }
 
@@ -191,12 +277,16 @@ export async function applyCompositionSchema(db, plan, options) {
   const receipt = { schemaVersion: 1, applicationId: plan.applicationId, sequence: before.current.headers.length + 1,
     previousId: before.current.receiptId, nonce: randomUUID(), compositionDigest: plan.compositionDigest,
     lockDigest: plan.lockDigest, modelDigest: plan.modelDigest, sqlDigest: plan.sqlDigest, planDigest: plan.planDigest, objects: before.objects };
+  if (before.logicalTables.length) receipt.logicalTables = before.logicalTables;
   const payload = canonicalJson(receipt), id = schemaDigest(payload);
+  if (Buffer.byteLength(payload) > SCHEMA_LIMITS.bytes + 4096)
+    return outcome(false, 'schema.receipt-limit', 'none', before.public.state, before.public.receiptId);
   try {
     const statements = [managedSchemaGuard(db, before.current.objects)];
     if (!before.current.receipt) statements.push(db.prepare(RECEIPT_SQL));
     statements.push(receiptGuard(db, before.current));
     // Source of executable SQL is exclusively the branded, validated current plan, not receipts.
+    statements.push(...before.migrations.flatMap(migration => migration.statements.map(sql => db.prepare(sql))));
     statements.push(...before.additions.map(object => db.prepare(object.sql)));
     statements.push(db.prepare(`INSERT INTO ${quote(SCHEMA_RECEIPT_TABLE)} (sequence, id, previous_id, payload) VALUES (?, ?, ?, ?)`)
       .bind(receipt.sequence, id, receipt.previousId, payload));

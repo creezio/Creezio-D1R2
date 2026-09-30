@@ -6,9 +6,12 @@ test('admin editing and authenticated published reads have distinct permissions'
   const operations=manifest.contracts.operations;
   const published=new Set(['page.published.list','page.published.read','page.published.resolve',
     'navigation.published','media.published.list']);
+  const sidebarRead=new Set(['sidebar.resolved']);
+  const sidebarManage=new Set(['sidebar.catalog','sidebar.save']);
   for(const op of operations){
-    assert.deepEqual(op.audiences,published.has(op.id)?['admin','app']:['admin']);
-    assert.equal(op.permissions[0].id,published.has(op.id)?'view':'edit');
+    assert.deepEqual(op.audiences,published.has(op.id)||sidebarRead.has(op.id)?['admin','app']:['admin']);
+    assert.equal(op.permissions[0].id,published.has(op.id)?'view':sidebarRead.has(op.id)?'sidebar.read':
+      sidebarManage.has(op.id)?'sidebar.manage':'edit');
     assert.deepEqual(op.actors,['user','delegated-user','machine']);
     assert.equal(op.public,false);
     assert.equal(op.effects.providers.length,0);
@@ -18,6 +21,8 @@ test('admin editing and authenticated published reads have distinct permissions'
     assert.ok(routes.every(route=>route.auth.includes('api-token')&&route.auth.includes('session')));
   }
   assert.equal(manifest.contracts.publicContracts.length,0);
+  assert.ok(manifest.contracts.permissions.find(permission=>permission.id==='sidebar.manage')
+    .resources.some(resource=>resource.id==='sidebar_overrides'));
 });
 
 test('MCP exposes the same protected operations and private media',()=>{

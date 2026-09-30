@@ -11,6 +11,10 @@ export interface TransferTarget {
 }
 export interface TransferIdentity {
   readonly transferId:string;
+  /** Absent for the historical single-pair transfer. */
+  readonly sourceContextId?:string;
+  readonly routeFence?:Readonly<{installationId:string;contextId:string;slot:number;
+    mutationId:string;commandDigest:TransferDigest;expectedGeneration:number}>;
   readonly applicationId:string;
   readonly sourceSha:string;
   readonly compositionDigest:TransferDigest;

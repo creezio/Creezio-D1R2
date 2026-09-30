@@ -910,6 +910,7 @@
                   "kind": {
                     "type": "string",
                     "enum": [
+                      "context-admit",
                       "context-status",
                       "membership",
                       "role-parent",

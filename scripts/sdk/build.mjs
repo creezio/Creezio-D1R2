@@ -20,6 +20,7 @@ const entries={
   'files/types':'files/types.ts',
   'files/client':'files/client.ts',
   'workspace/types':'workspace/types.ts',
+  'workspace/navigation-catalog':'workspace/navigation-catalog.ts',
   'workspace/components':'workspace/components-impl.tsx',
   'workspace/metadata':'workspace/metadata-impl.tsx',
   'workspace/toolbar':'workspace/toolbar-impl.tsx',

@@ -127,7 +127,7 @@ test('inactive pages retain their draft, while identity and context changes inva
 });
 
 test('saved selection and pending status are restored only for the verified panel scope',()=>{
-  assert.equal(manifest.compatibility.sdk,'^1.6.0');
+  assert.equal(manifest.compatibility.sdk,'^1.7.0');
   const state=manifest.contracts.schemas.find(item=>item.id==='editor-panel-state');
   for(const key of ['sessionId','audience','contextId','pageId','pending'])
     assert.ok(state?.schema?.properties?.[key],`panel state must permit ${key}`);

@@ -5,7 +5,9 @@ import {manifest} from '../helpers.mjs';
 test('native API and MCP expose the same bounded authorized operations',()=>{
   const operations=manifest.contracts.operations;
   assert.deepEqual(operations.map(op=>op.id),['config.read','config.set','config.key.set','config.key.revoke',
-    'connection.check','workflow.list','workflow.read','execution.list','execution.read']);
+    'connection.check','workflow.list','workflow.read','execution.list','execution.read',
+    'config.webhook.read','config.webhook.set','config.key.webhook.set','config.key.webhook.revoke',
+    'run.prepare','run.read','run.trigger','run.refresh']);
   assert.equal(manifest.contracts.mcp.tools.length,operations.length);
   for(const op of operations){
     assert.ok(op.actors.includes('machine'));
@@ -21,15 +23,18 @@ test('native API and MCP expose the same bounded authorized operations',()=>{
   }
   for(const op of operations.filter(op=>op.id.startsWith('config.')||op.id==='connection.check'))
     assert.deepEqual(op.audiences,['admin']);
-  for(const op of operations.filter(op=>op.id.startsWith('workflow.')||op.id.startsWith('execution.')))
+  for(const op of operations.filter(op=>op.id.startsWith('workflow.')||op.id.startsWith('execution.')||
+    op.id.startsWith('run.')))
     assert.deepEqual(op.audiences,['admin','app']);
 });
 test('remote operations declare only the exact connector provider, never execute or provider secrets',()=>{
   const remote=manifest.contracts.operations.filter(op=>op.effects.providers.length);
   assert.deepEqual(remote.map(op=>op.id),['connection.check','workflow.list','workflow.read',
-    'execution.list','execution.read']);
-  assert.ok(remote.every(op=>op.effects.providers[0]==='n8n.api.v1'&&op.kind==='query'));
-  assert.ok(manifest.contracts.operations.every(op=>!op.id.includes('execute')&&!op.id.includes('publish')));
+    'execution.list','execution.read','run.trigger','run.refresh']);
+  assert.ok(remote.filter(op=>op.kind==='query').every(op=>op.effects.providers[0]==='n8n.api.v1'));
+  assert.equal(remote.find(op=>op.id==='run.trigger').effects.providers[0],'n8n.webhook.v1');
+  assert.equal(remote.find(op=>op.id==='run.refresh').effects.providers[0],'n8n.api.v1');
+  assert.ok(manifest.contracts.operations.every(op=>!op.id.includes('publish')));
   const outputs=manifest.contracts.schemas.filter(item=>item.id.endsWith('output'));
   assert.ok(outputs.every(item=>!JSON.stringify(item.schema).includes('apiKey')));
 });

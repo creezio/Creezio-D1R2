@@ -10,4 +10,8 @@ Six onglets hérités du produit original, alimentés par des événements décl
 
 ## Critères différés visibles
 
-Les exécutions du journal technique déjà maintenu par le moteur et les routes du catalogue HTTP compilé sont projetées dans le contexte avec droit admin, sans payload, secret, texte d’erreur ni principal. Les logs des requêtes refusées avant moteur, le tracking automatique et la productivité complète restent ouverts (voir TODO). La purge du journal original exige une règle de rétention et un droit de suppression validés ; elle n’est pas simulée. L’export distant reste une option distincte.
+Les exécutions du journal technique déjà maintenu par le moteur et les routes du catalogue HTTP compilé sont projetées dans le contexte avec droit admin, sans payload, secret, texte d’erreur ni principal. Les logs des requêtes refusées avant moteur, le tracking automatique et la productivité complète restent ouverts (voir TODO). L’export distant reste une option distincte.
+
+## Rétention contrôlée des événements déclarés
+
+Par défaut, aucune politique et aucune purge automatique. Un administrateur titulaire du droit distinct `analytics.purge` définit 1 à 3 650 jours de conservation pour son contexte, puis lit un aperçu des dix plus anciens événements admissibles avant de confirmer un lot. Chaque commande porte une clé de requête ; le moteur revalide la révision de politique, l'ordre du lot et chaque ligne au commit. Une politique ou une ligne changée fait refuser la commande. Le panneau conserve seulement les identifiants nécessaires pour inspecter une issue incertaine, sans rejouer la suppression. La suppression ne porte que sur `event`, jamais sur le journal technique ou les logs de transport.

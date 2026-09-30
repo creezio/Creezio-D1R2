@@ -10,4 +10,7 @@ test('docs bind the version and state external protocol and pending qualificatio
     assert.ok(read('README.md').includes(phrase),phrase);
   assert.match(read('TODO.md'),/issue inconnue/u);
   assert.match(read('TODO.md'),/approval/u);
+  assert.match(read('README.md'),/Trois widgets MCP Apps/u);
+  assert.match(read('README.md'),/aucun POST n’est renvoyé/u);
+  assert.equal(manifest.validation.suites.widgets.mode,'required');
 });

@@ -7,3 +7,5 @@ Six onglets analytics du Creezio original adaptés au SDK natif ; ingestion expl
 - Journal d'exécutions existant et routes du catalogue compilé exposés au droit admin du contexte, sans payload ni nouveau journal ; export CSV/JSON filtré jusqu'à dix pages et neutralisation des formules CSV.
 
 - Deux widgets de lecture administrateur : synthèse sept jours et événements paginés par cinq, sans nouvelle collecte.
+
+- Rétention manuelle des événements déclarés : politique par contexte, permission `analytics.purge`, aperçu de dix lignes, suppression conditionnelle dans D1 et journal de commande SDK pour les issues incertaines. Aucune purge programmée ni suppression des journaux techniques.

@@ -305,7 +305,7 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
           if (outputBytes > entry.transport.maxPayloadBytes) throw new Error('render_output_too_large');
         } catch {setStatus('Résultat du widget indisponible.'); return;}
         initialResult = {content: [{type: 'text', text: 'Données du widget prêtes.'}],
-          structuredContent: {kind: 'creezio.widget.render.v1', input: output}};
+          structuredContent: {kind: 'creezio.widget.render.v1', instance: instanceRef, input: output}};
       }
       try {
         const mounted = await createMcpAppsBridge({iframe: node,

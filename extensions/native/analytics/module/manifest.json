@@ -8,8 +8,8 @@
     "version": "0.0.0",
     "source": {
       "kind": "snapshot",
-      "revision": "t22-analytics-diagnostics-v2",
-      "integrity": "sha256-e2b81193ee7594c3597ba6b5c1e3165a7a341f300252e2035db49ed7e69bf13d"
+      "revision": "t22-analytics-retention-v3",
+      "integrity": "sha256-233f7efaa4e01d8763307d809d6606c533a47a035fe7aca3c4839ad947df047c"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -1493,6 +1493,259 @@
         }
       },
       {
+        "id": "retention-policy-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "configured": {
+              "type": "boolean"
+            },
+            "retentionDays": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3650
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "manualOnly": {
+              "const": true
+            }
+          },
+          "required": [
+            "configured",
+            "retentionDays",
+            "revision",
+            "manualOnly"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "retention-policy-input",
+        "schema": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "retention-configure-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "retentionDays": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3650
+            },
+            "expectedRevision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "retentionDays",
+            "expectedRevision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "retention-preview-input",
+        "schema": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "retention-preview-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "configured": {
+              "type": "boolean"
+            },
+            "retentionDays": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3650
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "manualOnly": {
+              "const": true
+            },
+            "cutoff": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 35
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "occurredAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  }
+                },
+                "required": [
+                  "id",
+                  "occurredAt"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 10
+            },
+            "hasMore": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "configured",
+            "retentionDays",
+            "revision",
+            "manualOnly",
+            "cutoff",
+            "items",
+            "hasMore"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "retention-purge-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "cutoff": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 35
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "occurredAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  }
+                },
+                "required": [
+                  "id",
+                  "occurredAt"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "maxItems": 10
+            }
+          },
+          "required": [
+            "requestKey",
+            "revision",
+            "cutoff",
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "retention-purge-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "deleted": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "hasMore": {
+              "type": "boolean"
+            },
+            "cutoff": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 35
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "deleted",
+            "hasMore",
+            "cutoff",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
         "id": "analytics-view-input",
         "schema": {
           "type": "object",
@@ -1546,6 +1799,51 @@
               "type": "string",
               "minLength": 0,
               "maxLength": 128
+            },
+            "pending": {
+              "type": "object",
+              "properties": {
+                "sessionId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "audience": {
+                  "type": "string",
+                  "enum": [
+                    "admin",
+                    "app"
+                  ]
+                },
+                "contextId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "bindingId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 257
+                },
+                "requestKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                "intent": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                }
+              },
+              "required": [
+                "sessionId",
+                "audience",
+                "contextId",
+                "bindingId",
+                "requestKey"
+              ],
+              "additionalProperties": false
             }
           },
           "required": [
@@ -1740,6 +2038,88 @@
             "moduleId": "creezio.analytics",
             "kind": "permission",
             "id": "read"
+          },
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "manage-retention"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "retention_policy",
+        "title": "Politique de rétention manuelle",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 36
+            }
+          },
+          {
+            "id": "retention_days",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 3650
+            }
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "manage-retention"
           }
         ],
         "deletion": {
@@ -1813,6 +2193,46 @@
         ],
         "actions": [
           "read",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      },
+      {
+        "id": "manage-retention",
+        "title": "Configurer et exécuter la purge manuelle",
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "scopes": [
+          "analytics.purge"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "model",
+            "id": "event"
+          },
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "model",
+            "id": "retention_policy"
+          }
+        ],
+        "actions": [
+          "read",
+          "create",
+          "update",
+          "delete",
           "execute"
         ],
         "enforcement": {
@@ -2700,6 +3120,470 @@
           ]
         },
         "public": false
+      },
+      {
+        "id": "retention.policy",
+        "title": "Politique de rétention",
+        "kind": "query",
+        "input": {
+          "schemaId": "retention-policy-input"
+        },
+        "output": {
+          "schemaId": "retention-policy-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "manage-retention"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "retentionPolicy"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "retention_policy"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "content"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "retention.configure",
+        "title": "Configurer la rétention manuelle",
+        "kind": "command",
+        "input": {
+          "schemaId": "retention-configure-input"
+        },
+        "output": {
+          "schemaId": "retention-policy-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "manage-retention"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "retentionConfigure"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "retention_policy"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "retention_policy"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 2,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "content"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "retention.preview",
+        "title": "Prévisualiser les événements admissibles",
+        "kind": "query",
+        "input": {
+          "schemaId": "retention-preview-input"
+        },
+        "output": {
+          "schemaId": "retention-preview-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "manage-retention"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "retentionPreview"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "retention_policy"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "event"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 12,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "content"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "retention.purge",
+        "title": "Purger le lot prévisualisé",
+        "kind": "command",
+        "input": {
+          "schemaId": "retention-purge-input"
+        },
+        "output": {
+          "schemaId": "retention-purge-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "manage-retention"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "retentionPurge"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "retention_policy"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "event"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "event"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 23,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "content"
+          ]
+        },
+        "public": false
       }
     ],
     "api": [
@@ -3114,6 +3998,110 @@
           "requests": 60,
           "windowSeconds": 60
         }
+      },
+      {
+        "id": "admin.retention.policy",
+        "method": "GET",
+        "path": "/api/admin/analytics/retention/policy",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "retention.policy"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "retention-policy-input"
+        },
+        "output": {
+          "schemaId": "retention-policy-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.retention.configure",
+        "method": "POST",
+        "path": "/api/admin/analytics/retention/configure",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "retention.configure"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "retention-configure-input"
+        },
+        "output": {
+          "schemaId": "retention-policy-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.retention.preview",
+        "method": "GET",
+        "path": "/api/admin/analytics/retention/preview",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "retention.preview"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "retention-preview-input"
+        },
+        "output": {
+          "schemaId": "retention-preview-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.retention.purge",
+        "method": "POST",
+        "path": "/api/admin/analytics/retention/purge",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "retention.purge"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "retention-purge-input"
+        },
+        "output": {
+          "schemaId": "retention-purge-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
       }
     ],
     "mcp": {
@@ -3360,6 +4348,118 @@
             "openWorld": false
           },
           "textFallback": true
+        },
+        {
+          "id": "retention.policy",
+          "name": "analytics_retention_policy",
+          "operation": {
+            "moduleId": "creezio.analytics",
+            "kind": "operation",
+            "id": "retention.policy"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "retention-policy-input"
+          },
+          "output": {
+            "schemaId": "retention-policy-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "retention.configure",
+          "name": "analytics_retention_configure",
+          "operation": {
+            "moduleId": "creezio.analytics",
+            "kind": "operation",
+            "id": "retention.configure"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "retention-configure-input"
+          },
+          "output": {
+            "schemaId": "retention-policy-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "retention.preview",
+          "name": "analytics_retention_preview",
+          "operation": {
+            "moduleId": "creezio.analytics",
+            "kind": "operation",
+            "id": "retention.preview"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "retention-preview-input"
+          },
+          "output": {
+            "schemaId": "retention-preview-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "retention.purge",
+          "name": "analytics_retention_purge",
+          "operation": {
+            "moduleId": "creezio.analytics",
+            "kind": "operation",
+            "id": "retention.purge"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "retention-purge-input"
+          },
+          "output": {
+            "schemaId": "retention-purge-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
         }
       ],
       "resources": [
@@ -3480,13 +4580,33 @@
               "moduleId": "creezio.analytics",
               "kind": "operation",
               "id": "diagnostics.endpoints"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "retention.policy"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "retention.configure"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "retention.preview"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "retention.purge"
             }
           ],
           "resources": [
             "summary-ui",
             "events-ui"
           ],
-          "integrity": "sha256-f8a715f289ca46710d7ed943f840c7412827fef3bff0eb05f8b2df658bc10591"
+          "integrity": "sha256-66b2ded677acb26929e6be2fadb3c0df24a1f8ea3129bc848499eccf3c891dda"
         }
       ]
     },
@@ -3550,6 +4670,26 @@
               "moduleId": "creezio.analytics",
               "kind": "operation",
               "id": "diagnostics.endpoints"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "retention.policy"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "retention.configure"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "retention.preview"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "retention.purge"
             }
           ],
           "input": {
@@ -3775,7 +4915,7 @@
     },
     "versionBinding": {
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t22-analytics-diagnostics-v2"
+      "sourceRevision": "t22-analytics-retention-v3"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -3860,6 +5000,7 @@
         "ui/contracts.ts",
         "ui/panel-state.ts",
         "ui/export.ts",
+        "ui/retention.tsx",
         "ui/widgets/runtime.ts",
         "ui/widgets/summary.ts",
         "ui/widgets/summary.html",
@@ -3905,7 +5046,7 @@
     "validationBinding": {
       "moduleId": "creezio.analytics",
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t22-analytics-diagnostics-v2"
+      "sourceRevision": "t22-analytics-retention-v3"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",

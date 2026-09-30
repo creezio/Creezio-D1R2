@@ -5,11 +5,11 @@
     "title": "Connecteur n8n externe",
     "publisher": "creezio",
     "origin": "https://github.com/creezio/Creezio-D1R2",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "source": {
       "kind": "snapshot",
-      "revision": "t26-n8n-read-v1",
-      "integrity": "sha256-de9f3702fee8db4199387ea2031952c5f9c5040a01ab42b00d4cf3bd327c57dc"
+      "revision": "t26-n8n-production-webhook-v1",
+      "integrity": "sha256-9911adb5134446cff5c05314da60ad11262eccbe91a6690534364a9c6acdd592"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -18,7 +18,7 @@
   },
   "compatibility": {
     "core": "^0.0.0",
-    "sdk": "^1.2.0",
+    "sdk": "^1.6.0",
     "requiredCapabilities": [
       "runtime.worker",
       "data.d1.shared"
@@ -623,6 +623,335 @@
         }
       },
       {
+        "id": "webhook-config-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "config": {
+              "type": "object",
+              "properties": {
+                "origin": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 512
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "pathId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "workflowId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "hasKey": {
+                  "type": "boolean"
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "origin",
+                "pathId",
+                "workflowId",
+                "enabled",
+                "hasKey",
+                "revision"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "config"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "webhook-config-set-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "origin": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "pathId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "workflowId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "origin",
+            "pathId",
+            "workflowId",
+            "enabled",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "webhook-key-set-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "webhookKey": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 4096
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "webhookKey",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "run-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "run": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "workflowId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "prepared",
+                    "accepted"
+                  ]
+                },
+                "remoteExecutionId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "remoteStatus": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "createdAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                }
+              },
+              "required": [
+                "id",
+                "workflowId",
+                "status",
+                "remoteExecutionId",
+                "remoteStatus",
+                "revision",
+                "createdAt",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "run"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "run-prepare-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "input": {
+              "type": "object",
+              "maxProperties": 32,
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "requestKey",
+            "input"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "run-id-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "run-action-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "id",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "run-refresh-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "id",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
         "id": "n8n-panel-state",
         "schema": {
           "type": "object",
@@ -691,6 +1020,16 @@
                   "type": "string",
                   "minLength": 1,
                   "maxLength": 512
+                },
+                "intent": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "targetId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
                 }
               },
               "required": [
@@ -704,6 +1043,92 @@
             }
           },
           "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "n8n-run-panel-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "audience": {
+              "type": "string",
+              "enum": [
+                "admin",
+                "app"
+              ]
+            },
+            "contextId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "runId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "pending": {
+              "type": "object",
+              "properties": {
+                "sessionId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "audience": {
+                  "type": "string",
+                  "enum": [
+                    "admin",
+                    "app"
+                  ]
+                },
+                "contextId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "bindingId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 257
+                },
+                "requestKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                "intent": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "targetId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "required": [
+                "sessionId",
+                "audience",
+                "contextId",
+                "bindingId",
+                "requestKey"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "sessionId",
+            "audience",
+            "contextId"
+          ],
           "additionalProperties": false
         }
       },
@@ -730,6 +1155,14 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 512
+        }
+      },
+      {
+        "id": "webhook-key-reference-setting",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
         }
       }
     ],
@@ -835,6 +1268,11 @@
             "moduleId": "creezio.n8n",
             "kind": "permission",
             "id": "read"
+          },
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "trigger"
           }
         ],
         "deletion": {
@@ -944,6 +1382,437 @@
             "moduleId": "creezio.n8n",
             "kind": "permission",
             "id": "read"
+          },
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "trigger"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "webhook_config",
+        "title": "Configuration du webhook de production n8n",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "origin",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 8,
+              "maxLength": 512
+            }
+          },
+          {
+            "id": "path_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "workflow_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "key_ref",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "secret_version",
+            "type": "integer",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "enabled",
+            "type": "boolean",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "trigger"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "webhook_secret",
+        "title": "Secret webhook scellé",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "binding_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "ciphertext",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 32768
+            }
+          },
+          {
+            "id": "key_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "state",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "active",
+                "revoked"
+              ]
+            }
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "trigger"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "run",
+        "title": "Intention et suivi n8n",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "principal_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "audience",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "admin",
+                "app"
+              ]
+            }
+          },
+          {
+            "id": "workflow_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "path_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "webhook_origin",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 8,
+              "maxLength": 512
+            }
+          },
+          {
+            "id": "webhook_revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "input",
+            "type": "json",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "status",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "prepared",
+                "accepted"
+              ]
+            }
+          },
+          {
+            "id": "remote_execution_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "remote_status",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "created_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "trigger"
           }
         ],
         "deletion": {
@@ -1026,6 +1895,83 @@
             ]
           }
         ]
+      },
+      {
+        "id": "n8n.webhook.v1",
+        "moduleId": "creezio.n8n",
+        "config": {
+          "moduleId": "creezio.n8n",
+          "modelId": "webhook_config",
+          "contextField": "context_id",
+          "fields": {
+            "id": "id",
+            "origin": "origin",
+            "keyRef": "key_ref",
+            "secretVersion": "secret_version",
+            "enabled": "enabled",
+            "revision": "revision",
+            "updatedAt": "updated_at"
+          }
+        },
+        "vault": {
+          "moduleId": "creezio.n8n",
+          "modelId": "webhook_secret",
+          "contextField": "context_id",
+          "fields": {
+            "id": "id",
+            "bindingId": "binding_id",
+            "ciphertext": "ciphertext",
+            "keyId": "key_id",
+            "version": "version",
+            "state": "state"
+          }
+        },
+        "auth": {
+          "kind": "api-key-header",
+          "name": "X-Creezio-Webhook-Key"
+        },
+        "resources": [
+          {
+            "id": "trigger",
+            "method": "POST",
+            "path": "/webhook/{id}",
+            "params": [
+              "id"
+            ],
+            "successStatuses": [
+              200,
+              201,
+              202
+            ],
+            "responseBody": "json",
+            "body": {
+              "encoding": "json",
+              "fields": [
+                {
+                  "name": "intentId",
+                  "wireName": "intentId",
+                  "kind": "string",
+                  "required": true,
+                  "maxBytes": 128
+                },
+                {
+                  "name": "workflowId",
+                  "wireName": "workflowId",
+                  "kind": "string",
+                  "required": true,
+                  "maxBytes": 128
+                },
+                {
+                  "name": "input",
+                  "wireName": "input",
+                  "kind": "json",
+                  "required": true,
+                  "maxBytes": 8192
+                }
+              ]
+            }
+          }
+        ]
       }
     ],
     "settings": [
@@ -1064,6 +2010,24 @@
         ],
         "provider": "n8n.api.v1",
         "redact": true
+      },
+      {
+        "id": "webhook-key-ref",
+        "title": "Référence de clé webhook",
+        "schema": {
+          "schemaId": "webhook-key-reference-setting"
+        },
+        "visibility": "secret-reference",
+        "required": false,
+        "permissions": [
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "provider": "n8n.webhook.v1",
+        "redact": true
       }
     ],
     "search": [],
@@ -1094,6 +2058,21 @@
             "moduleId": "creezio.n8n",
             "kind": "model",
             "id": "connector_secret"
+          },
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "model",
+            "id": "webhook_config"
+          },
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "model",
+            "id": "webhook_secret"
+          },
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "model",
+            "id": "run"
           }
         ],
         "actions": [
@@ -1139,6 +2118,62 @@
         ],
         "actions": [
           "read",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      },
+      {
+        "id": "trigger",
+        "title": "Déclencher et suivre un workflow n8n",
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "scopes": [
+          "n8n.trigger"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "model",
+            "id": "webhook_config"
+          },
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "model",
+            "id": "webhook_secret"
+          },
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "model",
+            "id": "run"
+          },
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "model",
+            "id": "connector_config"
+          },
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "model",
+            "id": "connector_secret"
+          }
+        ],
+        "actions": [
+          "read",
+          "create",
+          "update",
           "execute"
         ],
         "enforcement": {
@@ -1259,7 +2294,9 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookKey",
+            "input"
           ]
         },
         "public": false
@@ -1300,6 +2337,11 @@
               "moduleId": "creezio.n8n",
               "kind": "model",
               "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "webhook_config"
             }
           ],
           "writes": [
@@ -1307,6 +2349,11 @@
               "moduleId": "creezio.n8n",
               "kind": "model",
               "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "webhook_config"
             }
           ],
           "emits": [],
@@ -1383,7 +2430,9 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookKey",
+            "input"
           ]
         },
         "public": false
@@ -1518,7 +2567,9 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookKey",
+            "input"
           ]
         },
         "public": false
@@ -1564,6 +2615,11 @@
               "moduleId": "creezio.n8n",
               "kind": "model",
               "id": "connector_secret"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "webhook_config"
             }
           ],
           "writes": [
@@ -1576,6 +2632,11 @@
               "moduleId": "creezio.n8n",
               "kind": "model",
               "id": "connector_secret"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "webhook_config"
             }
           ],
           "emits": [],
@@ -1642,18 +2703,19 @@
           "mode": "none"
         },
         "concurrency": {
-          "mode": "object-version",
-          "versionField": "revision"
+          "mode": "none"
         },
         "execution": {
           "maxDurationMs": 10000,
-          "maxItems": 4,
+          "maxItems": 5,
           "resumable": false
         },
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookKey",
+            "input"
           ]
         },
         "public": false
@@ -1770,7 +2832,9 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookKey",
+            "input"
           ]
         },
         "public": false
@@ -1891,7 +2955,9 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookKey",
+            "input"
           ]
         },
         "public": false
@@ -2009,7 +3075,9 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookKey",
+            "input"
           ]
         },
         "public": false
@@ -2130,7 +3198,9 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookKey",
+            "input"
           ]
         },
         "public": false
@@ -2248,7 +3318,1061 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookKey",
+            "input"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.webhook.read",
+        "title": "Lire la configuration webhook",
+        "kind": "query",
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "webhook-config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "webhookConfigRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "webhook_config"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 4,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookKey",
+            "input"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.webhook.set",
+        "title": "Configurer le webhook de production",
+        "kind": "command",
+        "input": {
+          "schemaId": "webhook-config-set-input"
+        },
+        "output": {
+          "schemaId": "webhook-config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "webhookConfigSet"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "webhook_config"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "webhook_config"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 4,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookKey",
+            "input"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.key.webhook.set",
+        "title": "Enregistrer la clé webhook",
+        "kind": "command",
+        "input": {
+          "schemaId": "webhook-key-set-input"
+        },
+        "output": {
+          "schemaId": "webhook-config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "webhookKeySet"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "webhook_config"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "webhook_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "webhook_config"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "webhook_secret"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 4,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookKey",
+            "input"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.key.webhook.revoke",
+        "title": "Révoquer la clé webhook",
+        "kind": "command",
+        "input": {
+          "schemaId": "config-key-revoke-input"
+        },
+        "output": {
+          "schemaId": "webhook-config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "webhookKeyRevoke"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "webhook_config"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "webhook_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "webhook_config"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "webhook_secret"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 4,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookKey",
+            "input"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "run.prepare",
+        "title": "Préparer une intention n8n",
+        "kind": "command",
+        "input": {
+          "schemaId": "run-prepare-input"
+        },
+        "output": {
+          "schemaId": "run-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "trigger"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "runPrepare"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "webhook_config"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "connector_config"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "run"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 4,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookKey",
+            "input"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "run.read",
+        "title": "Lire une intention n8n",
+        "kind": "query",
+        "input": {
+          "schemaId": "run-id-input"
+        },
+        "output": {
+          "schemaId": "run-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "trigger"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "runRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "run"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 4,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookKey",
+            "input"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "run.trigger",
+        "title": "Déclencher le webhook de production",
+        "kind": "command",
+        "input": {
+          "schemaId": "run-action-input"
+        },
+        "output": {
+          "schemaId": "run-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "trigger"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "runTrigger"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "run"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "webhook_config"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "webhook_secret"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "connector_config"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "run"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "n8n.webhook.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 9,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookKey",
+            "input"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "run.refresh",
+        "title": "Actualiser le statut de l’exécution",
+        "kind": "command",
+        "input": {
+          "schemaId": "run-refresh-input"
+        },
+        "output": {
+          "schemaId": "run-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "trigger"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "runRefresh"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "run"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "model",
+              "id": "run"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "n8n.api.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 7,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookKey",
+            "input"
           ]
         },
         "public": false
@@ -2685,6 +4809,344 @@
           "requests": 30,
           "windowSeconds": 60
         }
+      },
+      {
+        "id": "admin.config.webhook.read",
+        "method": "GET",
+        "path": "/api/admin/n8n/config/webhook/read",
+        "operation": {
+          "moduleId": "creezio.n8n",
+          "kind": "operation",
+          "id": "config.webhook.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "webhook-config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.webhook.set",
+        "method": "POST",
+        "path": "/api/admin/n8n/config/webhook/set",
+        "operation": {
+          "moduleId": "creezio.n8n",
+          "kind": "operation",
+          "id": "config.webhook.set"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "webhook-config-set-input"
+        },
+        "output": {
+          "schemaId": "webhook-config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.key.webhook.set",
+        "method": "POST",
+        "path": "/api/admin/n8n/config/key/webhook/set",
+        "operation": {
+          "moduleId": "creezio.n8n",
+          "kind": "operation",
+          "id": "config.key.webhook.set"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "webhook-key-set-input"
+        },
+        "output": {
+          "schemaId": "webhook-config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.key.webhook.revoke",
+        "method": "POST",
+        "path": "/api/admin/n8n/config/key/webhook/revoke",
+        "operation": {
+          "moduleId": "creezio.n8n",
+          "kind": "operation",
+          "id": "config.key.webhook.revoke"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "config-key-revoke-input"
+        },
+        "output": {
+          "schemaId": "webhook-config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.run.prepare",
+        "method": "POST",
+        "path": "/api/admin/n8n/run/prepare",
+        "operation": {
+          "moduleId": "creezio.n8n",
+          "kind": "operation",
+          "id": "run.prepare"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "run-prepare-input"
+        },
+        "output": {
+          "schemaId": "run-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.run.prepare",
+        "method": "POST",
+        "path": "/api/app/n8n/run/prepare",
+        "operation": {
+          "moduleId": "creezio.n8n",
+          "kind": "operation",
+          "id": "run.prepare"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "run-prepare-input"
+        },
+        "output": {
+          "schemaId": "run-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.run.read",
+        "method": "GET",
+        "path": "/api/admin/n8n/run/read",
+        "operation": {
+          "moduleId": "creezio.n8n",
+          "kind": "operation",
+          "id": "run.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "run-id-input"
+        },
+        "output": {
+          "schemaId": "run-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.run.read",
+        "method": "GET",
+        "path": "/api/app/n8n/run/read",
+        "operation": {
+          "moduleId": "creezio.n8n",
+          "kind": "operation",
+          "id": "run.read"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "run-id-input"
+        },
+        "output": {
+          "schemaId": "run-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.run.trigger",
+        "method": "POST",
+        "path": "/api/admin/n8n/run/trigger",
+        "operation": {
+          "moduleId": "creezio.n8n",
+          "kind": "operation",
+          "id": "run.trigger"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "run-action-input"
+        },
+        "output": {
+          "schemaId": "run-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.run.trigger",
+        "method": "POST",
+        "path": "/api/app/n8n/run/trigger",
+        "operation": {
+          "moduleId": "creezio.n8n",
+          "kind": "operation",
+          "id": "run.trigger"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "run-action-input"
+        },
+        "output": {
+          "schemaId": "run-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.run.refresh",
+        "method": "POST",
+        "path": "/api/admin/n8n/run/refresh",
+        "operation": {
+          "moduleId": "creezio.n8n",
+          "kind": "operation",
+          "id": "run.refresh"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "run-refresh-input"
+        },
+        "output": {
+          "schemaId": "run-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.run.refresh",
+        "method": "POST",
+        "path": "/api/app/n8n/run/refresh",
+        "operation": {
+          "moduleId": "creezio.n8n",
+          "kind": "operation",
+          "id": "run.refresh"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "run-refresh-input"
+        },
+        "output": {
+          "schemaId": "run-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
       }
     ],
     "mcp": {
@@ -2856,6 +5318,11 @@
           "output": {
             "schemaId": "workflow-list-output"
           },
+          "widget": {
+            "moduleId": "creezio.n8n",
+            "kind": "widget",
+            "id": "workflows"
+          },
           "annotations": {
             "readOnly": true,
             "destructive": false,
@@ -2953,9 +5420,321 @@
             "openWorld": true
           },
           "textFallback": true
+        },
+        {
+          "id": "config.webhook.read",
+          "name": "n8n_config_webhook_read",
+          "operation": {
+            "moduleId": "creezio.n8n",
+            "kind": "operation",
+            "id": "config.webhook.read"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "empty-input"
+          },
+          "output": {
+            "schemaId": "webhook-config-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.webhook.set",
+          "name": "n8n_config_webhook_set",
+          "operation": {
+            "moduleId": "creezio.n8n",
+            "kind": "operation",
+            "id": "config.webhook.set"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "webhook-config-set-input"
+          },
+          "output": {
+            "schemaId": "webhook-config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.key.webhook.set",
+          "name": "n8n_config_key_webhook_set",
+          "operation": {
+            "moduleId": "creezio.n8n",
+            "kind": "operation",
+            "id": "config.key.webhook.set"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "webhook-key-set-input"
+          },
+          "output": {
+            "schemaId": "webhook-config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.key.webhook.revoke",
+          "name": "n8n_config_key_webhook_revoke",
+          "operation": {
+            "moduleId": "creezio.n8n",
+            "kind": "operation",
+            "id": "config.key.webhook.revoke"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "config-key-revoke-input"
+          },
+          "output": {
+            "schemaId": "webhook-config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "run.prepare",
+          "name": "n8n_run_prepare",
+          "operation": {
+            "moduleId": "creezio.n8n",
+            "kind": "operation",
+            "id": "run.prepare"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "run-prepare-input"
+          },
+          "output": {
+            "schemaId": "run-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "run.read",
+          "name": "n8n_run_read",
+          "operation": {
+            "moduleId": "creezio.n8n",
+            "kind": "operation",
+            "id": "run.read"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "run-id-input"
+          },
+          "output": {
+            "schemaId": "run-output"
+          },
+          "widget": {
+            "moduleId": "creezio.n8n",
+            "kind": "widget",
+            "id": "run"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "run.trigger",
+          "name": "n8n_run_trigger",
+          "operation": {
+            "moduleId": "creezio.n8n",
+            "kind": "operation",
+            "id": "run.trigger"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "run-action-input"
+          },
+          "output": {
+            "schemaId": "run-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": true
+          },
+          "textFallback": true
+        },
+        {
+          "id": "run.refresh",
+          "name": "n8n_run_refresh",
+          "operation": {
+            "moduleId": "creezio.n8n",
+            "kind": "operation",
+            "id": "run.refresh"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "run-refresh-input"
+          },
+          "output": {
+            "schemaId": "run-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": true
+          },
+          "textFallback": true
         }
       ],
-      "resources": [],
+      "resources": [
+        {
+          "id": "workflows-ui",
+          "uri": "ui://creezio.n8n/workflows",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/workflows.html"
+          },
+          "widget": {
+            "moduleId": "creezio.n8n",
+            "kind": "widget",
+            "id": "workflows"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        },
+        {
+          "id": "run-ui",
+          "uri": "ui://creezio.n8n/run",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "permission",
+              "id": "trigger"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/run.html"
+          },
+          "widget": {
+            "moduleId": "creezio.n8n",
+            "kind": "widget",
+            "id": "run"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        }
+      ],
       "prompts": [],
       "skills": []
     },
@@ -3024,6 +5803,46 @@
               "moduleId": "creezio.n8n",
               "kind": "operation",
               "id": "execution.read"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "operation",
+              "id": "config.webhook.read"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "operation",
+              "id": "config.webhook.set"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "operation",
+              "id": "config.key.webhook.set"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "operation",
+              "id": "config.key.webhook.revoke"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "operation",
+              "id": "run.prepare"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "operation",
+              "id": "run.read"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "operation",
+              "id": "run.trigger"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "operation",
+              "id": "run.refresh"
             }
           ],
           "input": {
@@ -3036,6 +5855,59 @@
             "inactiveEffects": "suspend",
             "stateSchema": {
               "schemaId": "n8n-panel-state"
+            }
+          }
+        },
+        {
+          "id": "runs",
+          "title": "Déclenchement n8n",
+          "surfaces": [
+            "workspace"
+          ],
+          "route": "/n8n/runs",
+          "component": {
+            "path": "ui/runs.tsx",
+            "export": "N8nRunView"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "permission",
+              "id": "trigger"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "operation",
+              "id": "run.prepare"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "operation",
+              "id": "run.read"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "operation",
+              "id": "run.trigger"
+            },
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "operation",
+              "id": "run.refresh"
+            }
+          ],
+          "input": {
+            "schemaId": "n8n-view-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend",
+            "stateSchema": {
+              "schemaId": "n8n-run-panel-state"
             }
           }
         }
@@ -3060,20 +5932,173 @@
             "workspace"
           ],
           "order": 78
+        },
+        {
+          "id": "n8n-runs",
+          "title": "Déclencher n8n",
+          "view": {
+            "moduleId": "creezio.n8n",
+            "kind": "view",
+            "id": "runs"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.n8n",
+              "kind": "permission",
+              "id": "trigger"
+            }
+          ],
+          "surfaces": [
+            "workspace"
+          ],
+          "order": 79
         }
       ],
       "slots": [],
       "front": {
         "mode": "absent",
         "justification": {
-          "reason": "n8n settings belong to workspace; API and MCP serve other clients.",
+          "reason": "n8n settings and runs belong to workspace; API and MCP serve other clients.",
           "policyRule": "n8n.workspace-only"
         }
       },
       "themes": [],
       "styles": []
     },
-    "widgets": [],
+    "widgets": [
+      {
+        "id": "workflows",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "workflows-ui",
+        "renderer": {
+          "path": "ui/widgets/panels.ts",
+          "export": "startN8nWidget"
+        },
+        "input": {
+          "schemaId": "workflow-list-output"
+        },
+        "state": {
+          "schemaId": "empty-input"
+        },
+        "result": {
+          "schemaId": "workflow-list-output"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "refresh",
+            "label": "Relire",
+            "input": {
+              "schemaId": "page-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.n8n",
+                "kind": "operation",
+                "id": "workflow.list"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 65536,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      },
+      {
+        "id": "run",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "run-ui",
+        "renderer": {
+          "path": "ui/widgets/panels.ts",
+          "export": "startN8nWidget"
+        },
+        "input": {
+          "schemaId": "run-output"
+        },
+        "state": {
+          "schemaId": "empty-input"
+        },
+        "result": {
+          "schemaId": "run-output"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.n8n",
+            "kind": "permission",
+            "id": "trigger"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "refresh",
+            "label": "Relire",
+            "input": {
+              "schemaId": "run-id-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.n8n",
+                "kind": "operation",
+                "id": "run.read"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 65536,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      }
+    ],
     "publicContracts": []
   },
   "documentation": {
@@ -3117,8 +6142,8 @@
       }
     },
     "versionBinding": {
-      "moduleVersion": "0.1.0",
-      "sourceRevision": "t26-n8n-read-v1"
+      "moduleVersion": "0.2.0",
+      "sourceRevision": "t26-n8n-production-webhook-v1"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -3135,7 +6160,8 @@
         "mode": "required",
         "script": "ci/backend.mjs",
         "tests": [
-          "tests/backend/contract.test.mjs"
+          "tests/backend/contract.test.mjs",
+          "tests/backend/webhook.test.mjs"
         ]
       },
       "ui": {
@@ -3153,15 +6179,11 @@
         ]
       },
       "widgets": {
-        "mode": "not-applicable",
+        "mode": "required",
         "script": "ci/widgets.mjs",
         "tests": [
           "tests/widgets/contract.test.mjs"
-        ],
-        "justification": {
-          "reason": "The read-only connector has no safe native widget until the external session and widget data boundaries are qualified.",
-          "policyRule": "n8n.widgets-pending-qualification"
-        }
+        ]
       },
       "package": {
         "mode": "required",
@@ -3203,8 +6225,15 @@
         "module/storage.ts",
         "module/operations.ts",
         "module/service.ts",
+        "module/webhook.ts",
+        "module/runs.ts",
         "ui/index.tsx",
         "ui/panel-state.ts",
+        "ui/runs.tsx",
+        "ui/widgets/panels.ts",
+        "ui/widgets/model.ts",
+        "ui/widgets/workflows.html",
+        "ui/widgets/run.html",
         "README.md",
         "prd.md",
         "CHANGELOG.md",
@@ -3225,6 +6254,7 @@
         "module/generate-manifest.mjs",
         "ci/run-suite.mjs",
         "tests/helpers.mjs",
+        "tests/backend/webhook.test.mjs",
         "ci/backend.mjs",
         "tests/backend/contract.test.mjs",
         "ci/ui.mjs",
@@ -3242,8 +6272,8 @@
     },
     "validationBinding": {
       "moduleId": "creezio.n8n",
-      "moduleVersion": "0.1.0",
-      "sourceRevision": "t26-n8n-read-v1"
+      "moduleVersion": "0.2.0",
+      "sourceRevision": "t26-n8n-production-webhook-v1"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",
@@ -3258,10 +6288,6 @@
       "files": {
         "reason": "n8n stores its own workflow assets; this connector has no R2 category.",
         "policyRule": "n8n.no-files"
-      },
-      "widgets": {
-        "reason": "No widget yet for unqualified remote data.",
-        "policyRule": "n8n.widgets-pending-qualification"
       }
     },
     "dependencyChanges": {

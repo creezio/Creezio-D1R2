@@ -34,7 +34,8 @@ function registryJournal(){
     async saveSynchronized(record){assert.equal(records.get(record.requestKey).state,'delivered');
       records.set(record.requestKey,record);}};
 }
-function fixture({unknownPublish=false,failImportOnce=false,provisionUnknownOnce=false}={}){
+function fixture({unknownPublish=false,failImportOnce=false,provisionUnknownOnce=false,
+  routed=false}={}){
   const events=[],planJournal=journal(),provisionJournal=journal(),transferJournal={load:async()=>null},
     publicationJournal=registryJournal();
   const origin=`https://${workerName}.example.workers.dev`,sandboxOrigin=
@@ -56,7 +57,11 @@ function fixture({unknownPublish=false,failImportOnce=false,provisionUnknownOnce
       deploymentId:'deployment-one',declaredAt:new Date().toISOString(),replayed:false};}};
   const gate=createPublicationGate({client,journal:publicationJournal});
   let delivers=0,imports=0;
-  const options={config:{root},planJournal,provisionJournal,transferJournal,publicationJournal,
+  const localResources=routed?[{contextId:'tenant-a',slot:1,status:'active',
+    databaseId:'local-tenant-a',databaseName:'local-tenant-a',bucketName:'local-tenant-a'}]:[];
+  const options={config:{root,...(routed?{storageInstallationId:
+    '11111111-1111-4111-8111-111111111111',storageResources:localResources}:{})},
+    planJournal,provisionJournal,transferJournal,publicationJournal,
     registryClient:client,publicationGate:gate,
     registryIdentity:{projectId:'project-one',installationId:'installation-one'},
     sourceIdentity:()=>({head:sourceSha,tree:'e'.repeat(40),sha256:sourceFingerprint,dirty:false}),
@@ -67,10 +72,12 @@ function fixture({unknownPublish=false,failImportOnce=false,provisionUnknownOnce
       return {accountId,async inspectConnection(){events.push('connection');return {accountId,tokenId,
         workersSubdomain:'example'};},
       async bucket(){events.push('bucket');return {private:true};}};},
-    provisionerFactory:()=>({async provision(){events.push('provision');
+    provisionerFactory:()=>({async provision(plan){events.push('provision');
       if(provisionUnknownOnce&&events.filter(item=>item==='provision').length===1)return {state:'unknown'};
       return {state:'ready',
-      target:{accountId,workerName,databaseId,bucketName:`${workerName}-files`,origin}};}}),
+      target:{accountId,workerName,
+        databaseId:plan.transferId=== 'transfer-one'?databaseId:
+          '22222222-2222-4222-8222-222222222222',bucketName:plan.bucketName,origin}};}}),
     targetVault:{async loadOrCreate(){events.push('vault');return {keyring:{seal(){},open(){}},
       secretsPath:'.wrangler/delivery/vaults/transfer-one-secrets.json'};}},
     stopRuntime:async()=>{events.push('stop');},
@@ -230,4 +237,17 @@ test('an interrupted intent keeps exact secret choices and refuses a changed ret
   assert.equal(prepared.transferId,'transfer-one');
   assert.equal(f.planJournal.records.size,1);
   assert.equal(f.events.filter(item=>item==='provision').length,2);
+});
+
+test('routed preparation provisions every active pair before stopping the local runtime',async()=>{
+  const f=fixture({routed:true}),pipeline=f.create();
+  await pipeline.configure({target:{accountId,workerName},credentials:{apiToken:token}},context);
+  const prepared=await pipeline.prepare({secretSelections:[]},context);
+  const record=f.planJournal.records.get(prepared.transferId);
+  assert.equal(record.target.schemaVersion,3);
+  assert.equal(record.target.storageInstallationId,'11111111-1111-4111-8111-111111111111');
+  assert.deepEqual(record.target.resources.map(item=>[item.contextId,item.slot,item.databaseId]),
+    [['tenant-a',1,'22222222-2222-4222-8222-222222222222']]);
+  assert.equal(f.events.filter(item=>item==='provision').length,2);
+  assert.equal(f.events.includes('stop'),false);
 });

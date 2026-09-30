@@ -11,6 +11,10 @@ test('hermes source manifest is valid and declares every runtime/validation arti
   }
   assert.ok(manifest.packaging.runtime.files.includes('module/storage.ts'));
   assert.ok(manifest.packaging.runtime.files.includes('ui/index.tsx'));
+  for(const name of ['capabilities','models','run'])
+    assert.ok(manifest.packaging.runtime.files.includes(`ui/widgets/${name}.html`));
+  assert.ok(manifest.packaging.runtime.files.includes('ui/widgets/runtime.ts'));
+  assert.ok(manifest.packaging.runtime.files.includes('ui/widgets/model.ts'));
   assert.equal(manifest.compatibility.sdk,'^1.6.0');
   assert.ok(read('module/storage.ts').includes('hermesConnectorDescriptor'));
   const panel=manifest.contracts.schemas.find(item=>item.id==='hermes-panel-state').schema;

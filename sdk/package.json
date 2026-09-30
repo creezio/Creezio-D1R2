@@ -1,6 +1,6 @@
 {
   "name": "@creezio/sdk",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "private": false,
   "type": "module",
   "description": "Creezio module authoring SDK",
@@ -112,6 +112,10 @@
     "./contracts/node": {
       "types": "./dist/types/sdk/contracts/node.d.mts",
       "import": "./dist/esm/contracts/validate.js"
+    },
+    "./workspace/navigation-catalog": {
+      "types": "./dist/types/sdk/workspace/navigation-catalog.d.ts",
+      "import": "./dist/esm/workspace/navigation-catalog.js"
     }
   },
   "scripts": {

@@ -46,3 +46,24 @@ test('delta rejects duplicate tuple keys, extra fields and unbounded input befor
   const unchanged=parseAccessPolicyChanges([{kind:'role-grant',roleId:'editor',permissionId:'example.notes:read',present:true}]);
   assert.equal(applyAccessPolicyChanges(policy(),unchanged),null,'no-op edits cannot create an audit event');
 });
+
+test('context admission is explicit, one-time, and grants no membership or role', () => {
+  const before=policy(); assert.ok(before);
+  const admit={kind:'context-admit',contextId:'t33-context-a',status:'disabled'};
+  const changes=parseAccessPolicyChanges([admit]); assert.ok(changes);
+  const after=applyAccessPolicyChanges(before,changes); assert.ok(after);
+  assert.deepEqual(after.contexts,[{id:'application',status:'active'},
+    {id:'t33-context-a',status:'disabled'},{id:'team',status:'active'}]);
+  assert.deepEqual(after.memberships,before.memberships);
+  assert.deepEqual(after.assignments,before.assignments);
+  assert.deepEqual(after.roles,before.roles);
+  assert.equal(applyAccessPolicyChanges(after,changes),null,'an existing context cannot be readmitted');
+  assert.equal(applyAccessPolicyChanges(before,parseAccessPolicyChanges([
+    {kind:'context-status',contextId:'t33-context-a',status:'active'}])),null,
+  'status changes cannot create contexts');
+  assert.equal(parseAccessPolicyChanges([admit,{kind:'context-status',contextId:'t33-context-a',status:'active'}]),null);
+  assert.equal(parseAccessPolicyChanges([{...admit,roleId:'administrator'}]),null);
+  assert.equal(parseAccessPolicyChanges([{...admit,contextId:'bad/context'}]),null);
+  assert.equal(applyAccessPolicyChanges(before,parseAccessPolicyChanges([
+    {kind:'context-admit',contextId:'application',status:'disabled'}])),null);
+});

@@ -26,3 +26,18 @@ test('remote reads declare only Hermes provider and no generic outbound URL',()=
     ['run-create','run-stop']);
   assert.ok(!JSON.stringify(manifest.contracts.schemas.filter(x=>x.id.endsWith('output'))).includes('apiKey'));
 });
+test('three read tools render the same MCP Apps resources for chat and GPT hosts',()=>{
+  const expected={'capabilities.read':'capabilities','models.list':'models','run.read':'run'};
+  for(const [operationId,widgetId] of Object.entries(expected)){
+    const tool=manifest.contracts.mcp.tools.find(item=>item.operation.id===operationId);
+    const widget=manifest.contracts.widgets.find(item=>item.id===widgetId);
+    const resource=manifest.contracts.mcp.resources.find(item=>item.widget?.id===widgetId);
+    assert.equal(tool.widget?.id,widgetId);
+    assert.equal(widget.resource,resource.id);
+    assert.deepEqual(widget.audiences,tool.audiences);
+    assert.equal(resource.mimeType,'text/html;profile=mcp-app');
+    assert.deepEqual(resource.audiences,tool.audiences);
+  }
+  assert.ok(manifest.contracts.mcp.tools.filter(item=>item.operation.kind==='operation'
+    &&['run.submit','run.stop'].includes(item.operation.id)).every(item=>!item.widget));
+});

@@ -32,11 +32,16 @@ test('composed compiler includes every selected native module and freezes the ru
   assert.equal(plan.runtimeCatalog.lockDigest,plan.lockDigest);
   assert.equal(plan.lockDigest,contractIntegrity(input.lock));
   assert.deepEqual(plan.runtimeCatalog.modules.map(module => [module.moduleId, module.models.length]),
-    [['creezio.access', 28], ['creezio.analytics', 1], ['creezio.conversations', 8],
+    [['creezio.access', 28], ['creezio.analytics', 2], ['creezio.conversations', 8],
       ['creezio.crm', 3], ['creezio.delivery', 0], ['creezio.messaging', 6],
       ['creezio.modules-settings', 4], ['creezio.openai', 2],
-      ['creezio.pages-navigation', 7], ['creezio.support', 2]]);
+      ['creezio.pages-navigation', 8], ['creezio.support', 2]]);
+  assert.deepEqual(plan.runtimeCatalog.modules.find(module=>module.moduleId==='creezio.analytics')
+    .models.map(model=>model.modelId), ['event','retention_policy']);
   const publicPages=plan.runtimeCatalog.modules.find(module=>module.moduleId==='creezio.pages-navigation');
+  assert.deepEqual(publicPages.models.map(model=>model.modelId),
+    ['file_metadata','navigation','page','page_media','page_publication','public_page',
+      'published_page_media','sidebar_overrides']);
   assert.ok(publicPages.models.some(model=>model.modelId==='public_page'));
   assert.ok(plan.runtimeCatalog.modules.find(module=>module.moduleId==='creezio.messaging')
     .models.some(model=>model.modelId==='send_snapshot'));

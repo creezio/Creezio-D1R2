@@ -5,6 +5,7 @@ import {manifest,read} from '../helpers.mjs';
 import {analyticsPanelState,readAnalyticsPanelState,retainedSessionId,sameAnalyticsScope,
   sessionVerified} from '../../ui/panel-state.ts';
 import {collectExportPages} from '../../ui/export.ts';
+import {createCommandJournal} from '@creezio/sdk/operations/command-journal';
 
 test('session verification suspends analytics while same scoped filters survive',()=>{
   const scope={sessionId:'session-one',audience:'admin',contextId:'application'};
@@ -43,6 +44,44 @@ test('analytics hides a previous session or context before its reset effect runs
   assert.equal(sameAnalyticsScope(previous,{...previous,sessionId:'session-two'}),false);
   assert.equal(sameAnalyticsScope(previous,{...previous,audience:'app'}),false);
   assert.equal(sameAnalyticsScope(previous,{...previous,contextId:'other'}),false);
+});
+
+test('retention command journal persists only scoped metadata and inspects unknown without replay',async()=>{
+  const scope={sessionId:'session-one',audience:'admin',contextId:'application'};
+  const filters={tab:'logs',period:'month',query:'',type:'',principalId:''};
+  const issued={...scope,bindingId:'creezio.analytics:admin.retention.purge',
+    requestKey:'retention-request-one',intent:'retention.purge'};
+  let panel=analyticsPanelState(scope,filters),allowSave=false,invocations=0,statusReads=0;
+  const persist=value=>{if(!allowSave)return false;
+    panel=analyticsPanelState(scope,filters,value);return true;};
+  const client={audience:'admin',async invoke(){invocations++;return {kind:'unknown',code:'outcome_unknown'};},
+    async status(){statusReads++;return {kind:'rejected',code:'unavailable',status:503};}};
+  let journal=createCommandJournal(scope);
+  const input={revision:2,cutoff:'2025-01-01T00:00:00.000Z',
+    items:[{id:'event-one',occurredAt:'2024-01-01T00:00:00.000Z'}]};
+  const blocked=await journal.execute(client,issued,input,()=>true,persist);
+  assert.equal(blocked.result.code,'client_state_unavailable');assert.equal(invocations,0);
+  allowSave=true;
+  const unknown=await journal.execute(client,issued,input,()=>true,persist);
+  assert.equal(unknown.result.kind,'unknown');assert.equal(invocations,1);
+  const schema=manifest.contracts.schemas.find(item=>item.id==='analytics-panel-state').schema;
+  const valid=new Ajv2020({strict:true}).compile(schema);
+  assert.equal(valid(panel.data),true,JSON.stringify(valid.errors));
+  assert.deepEqual(Object.keys(panel.data.pending).sort(),Object.keys(issued).sort());
+  assert.equal(JSON.stringify(panel).includes('event-one'),false);
+  assert.deepEqual(readAnalyticsPanelState(panel,scope),filters);
+  journal=createCommandJournal(scope,JSON.parse(JSON.stringify(panel.data.pending)));
+  assert.equal(journal.pending.requestKey,issued.requestKey);
+  const refused=await journal.execute(client,{...issued,requestKey:'another-request'},input,()=>true,persist);
+  assert.equal(refused.result.code,'in_progress');assert.equal(invocations,1);
+  const inspected=await journal.inspect(client,()=>true,persist);
+  assert.equal(inspected.result.code,'unavailable');assert.equal(statusReads,1);
+  assert.equal(journal.pending.requestKey,issued.requestKey);
+  for(const changed of [{sessionId:'another-session'},{audience:'app'},{contextId:'other'}]){
+    const foreign={...scope,...changed};
+    assert.equal(readAnalyticsPanelState(panel,foreign),null);
+    assert.equal(createCommandJournal(foreign,panel.data.pending).pending,null);
+  }
 });
 
 test('the original analytics layout remains while unavailable measures stay explicit',()=>{

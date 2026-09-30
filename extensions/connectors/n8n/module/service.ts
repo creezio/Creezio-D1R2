@@ -1,12 +1,21 @@
 import {OperationError,type OperationContext,type JsonValue,type ProviderSecretsPort} from '@creezio/sdk/operations/handler';
 import type {ConnectorPort} from '@creezio/sdk/connectors/types';
-import {N8N_CONNECTOR_ID} from './storage.ts';
+import {N8N_CONNECTOR_ID,N8N_WEBHOOK_CONNECTOR_ID} from './storage.ts';
 
 type Row=Record<string,JsonValue>;
 type Input=Record<string,unknown>;
 const input=(value:JsonValue):Input=>value&&typeof value==='object'&&!Array.isArray(value)?value as Input:{};
 const key=()=>({id:N8N_CONNECTOR_ID});
 const current=async(context:OperationContext)=>await context.data.get('connector_config',{key:key()}) as Row|null;
+const disarmWebhook=async(context:OperationContext,now:string)=>{
+  const hook=await context.data.get('webhook_config',{key:{id:N8N_WEBHOOK_CONNECTOR_ID}}) as Row|null;
+  if(!hook||hook.enabled!==true)return null;
+  if(!Number.isSafeInteger(hook.revision)||Number(hook.revision)<1)
+    throw new OperationError('unavailable');
+  return context.data.planPatch('webhook_config',{key:{id:N8N_WEBHOOK_CONNECTOR_ID},
+    compare:{field:'revision',expected:Number(hook.revision)},
+    values:{enabled:false,updated_at:now}});
+};
 const revision=(value:unknown,row:Row|null):number=>{
   if(!Number.isSafeInteger(value)||Number(value)<0||value!==(row?.revision??0))throw new OperationError('conflict');
   return Number(value);
@@ -116,7 +125,9 @@ export async function configSet(value:JsonValue,context:OperationContext){
   const plan=prior?context.data.planPatch('connector_config',{key:key(),compare:{field:'revision',expected:old},values:changes}):
     context.data.planCreate('connector_config',{values:{id:N8N_CONNECTOR_ID,...changes,key_ref:null,
       secret_version:null,revision:1}});
-  return {output:{config:view({...prior,...changes,revision:old+1})},plans:[plan]};
+  const hookPlan=args.enabled===false?await disarmWebhook(context,now):null;
+  return {output:{config:view({...prior,...changes,revision:old+1})},
+    plans:hookPlan?[plan,hookPlan]:[plan]};
 }
 export async function configKeySet(value:JsonValue,context:OperationContext){
   const args=input(value),prior=await current(context),old=revision(args.revision,prior);
@@ -139,9 +150,12 @@ export async function configKeyRevoke(value:JsonValue,context:OperationContext){
   if(!port)throw new OperationError('unsupported');
   const sealed=await port.prepareRevoke({providerId:N8N_CONNECTOR_ID,reference:prior.key_ref,
     expectedVersion:Number(prior.secret_version)});
-  const changes={key_ref:null,secret_version:null,enabled:false,updated_at:new Date().toISOString()};
+  const now=new Date().toISOString();
+  const changes={key_ref:null,secret_version:null,enabled:false,updated_at:now};
   const plan=context.data.planPatch('connector_config',{key:key(),compare:{field:'revision',expected:old},values:changes});
-  return {output:{config:view({...prior,...changes,revision:old+1})},plans:[sealed.plan,plan]};
+  const hookPlan=await disarmWebhook(context,now);
+  return {output:{config:view({...prior,...changes,revision:old+1})},
+    plans:hookPlan?[sealed.plan,plan,hookPlan]:[sealed.plan,plan]};
 }
 export async function connectionCheck(_value:JsonValue,context:OperationContext){
   await remote(context,{resource:'workflows',limit:1});
