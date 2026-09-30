@@ -6,6 +6,10 @@ Un résultat `unknown` interdit une relance automatique. L'utilisateur peut repr
 
 Dans le handler d'un module, `context.files.preparePublication(categoryId, reference)` fournit un plan opaque et les métadonnées relues du stockage. Déclarer la catégorie dans `effects.writes`, puis rendre le plan avec la référence métier et ses gardes dans `result.plans`. Omettre la preuve ou ne rendre qu'elle est refusé. Le commit D1 publie simultanément les métadonnées et le lien ; aucune transaction interressources R2/D1 n'est prétendue. Les lectures et abandons restent liés au propriétaire et aux droits courants.
 
+## Instantané de liens — SDK 1.8 candidat
+
+`context.files.freezeLinks` copie un ensemble explicite de liens existants vers une entité métier créée par la même opération. Les modèles source et destination, leurs champs et la catégorie privée doivent être déclarés par le module et couverts par les effets de l'opération. L'hôte vérifie le propriétaire, le contexte, la liste exacte, les tailles et les métadonnées des fichiers. Une opération ne peut réserver qu'un instantané, y compris en cas d'appels concurrents. Les écritures privées de liens, les plans métier, le résultat et l'outbox sont validés dans le même batch D1 sous les gardes fraîches. Cette réservation n'effectue aucun envoi fournisseur et ne copie pas les octets R2.
+
 ## Lecture liée à une entité — SDK 1.3
 
 `downloadLinked(reference, recordId, isCurrent?)` utilise le même GET binaire natif, avec `recordId` explicite. Une catégorie doit déclarer `linkedRead` : audiences, permission, modèle de lien, relation vers le parent, colonnes de référence et état requis du parent. Les modèles sont privés, contextuels et possédés par le module ; l'hôte valide ces références et les droits à la composition. Aucune permission ne découle de la possession d'une référence ou d'un identifiant.

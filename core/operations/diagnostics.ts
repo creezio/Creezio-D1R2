@@ -1,12 +1,16 @@
-import {createDataTransactionExecutor} from '../data/service.ts';
-import type {DataAccess,DataLease} from '../data/types.ts';
+import {createDataAccess,createDataTransactionExecutor} from '../data/service.ts';
+import {DataAccessError,type DataAccess, type DataCredential,type DataLease,type RuntimeDataCatalog,
+  type PermissionDefinition} from '../data/types.ts';
+import type {AuthorizationActor} from '../authorization/types.ts';
 import type {IdentityDatabase} from '../identity/d1-store.ts';
 import {OPERATION_TABLES} from './models.ts';
 import type {OperationRegistry} from './registry.ts';
 import type {OperationHttpBinding} from './http-types.ts';
 import {OperationError} from './types.ts';
+import {ANALYTICS_COLLECTION_POLICY_TABLE} from './transport-diagnostics.ts';
 
 export interface OperationDiagnosticsPort {
+  collectionFlags():Promise<{navigation:boolean;clicks:boolean}>;
   listExecutions(input:Readonly<{period:'day'|'week'|'month'|'year';limit:number;cursor?:string}>):Promise<{
     period:{period:string;from:string;to:string};items:readonly {
       id:string;moduleId:string;operationId:string;audience:'admin'|'app';state:string;
@@ -40,10 +44,13 @@ const start=(period:'day'|'week'|'month'|'year',to:number)=>period==='year'
 
 /** Host-owned projections of the existing operation journal and build-owned HTTP catalog.
  * No payload, output, credential, request body, outbox receipt or private SQL reaches a module. */
-export function createOperationDiagnosticsPort(input:{db:IdentityDatabase;data:DataAccess;lease:DataLease;
+export function createOperationDiagnosticsPort(input:{db:IdentityDatabase;authorityDb:IdentityDatabase;
+  data:DataAccess;lease:DataLease;catalog:RuntimeDataCatalog;permissions:readonly PermissionDefinition[];
+  credential:DataCredential;actors:readonly AuthorizationActor[];requiredPermissionIds:readonly string[];
   registry:OperationRegistry;httpBindings?:readonly OperationHttpBinding[]}):OperationDiagnosticsPort{
   const identity=input.data.describeLease(input.lease);
-  if(identity.moduleId!=='creezio.analytics'||identity.audience!=='admin')throw new OperationError('forbidden');
+  if(identity.moduleId!=='creezio.analytics')throw new OperationError('forbidden');
+  const admin=()=>{if(identity.audience!=='admin')throw new OperationError('forbidden');};
   const transaction=createDataTransactionExecutor(input.data,input.db);
   const endpoints=(input.httpBindings??[]).filter(binding=>{
     try{return input.registry.resolve(binding.moduleId,binding.operationId).declaration.audiences.includes(binding.audience);}
@@ -53,7 +60,44 @@ export function createOperationDiagnosticsPort(input:{db:IdentityDatabase;data:D
     .sort((a,b)=>[a.moduleId,a.operationId,a.audience,a.method,a.path].join('\0')
       .localeCompare([b.moduleId,b.operationId,b.audience,b.method,b.path].join('\0')));
   const port:OperationDiagnosticsPort={
+    async collectionFlags(){
+      let result;
+      try{
+        const query={write:false as const,before:[{sql:
+          `SELECT navigation_enabled,clicks_enabled FROM ${ANALYTICS_COLLECTION_POLICY_TABLE}
+            WHERE id='application' LIMIT 1`,bindings:[]}]};
+        if(input.authorityDb===input.db)result=await transaction.execute(input.lease,query);
+        else{
+          // Recheck the routed lease, then independently authorize the same actor
+          // on primary D1. The fixed projection never reads a tenant business row.
+          await transaction.execute(input.lease,{write:false});
+          const authorityData=createDataAccess(input.authorityDb,{catalog:input.catalog,
+            permissions:input.permissions});
+          const primaryLease=await authorityData.authorize(input.credential,{contextId:identity.contextId,
+            audience:identity.audience,actors:input.actors,
+            requiredPermissionIds:input.requiredPermissionIds,purpose:'operation'},
+            {moduleId:'creezio.analytics'});
+          try{
+            const primary=authorityData.describeLease(primaryLease);
+            if(primary.moduleId!==identity.moduleId||primary.contextId!==identity.contextId
+              ||primary.audience!==identity.audience||primary.principalId!==identity.principalId
+              ||primary.actorPrincipalId!==identity.actorPrincipalId
+              ||primary.credentialKind!==identity.credentialKind)throw new OperationError('forbidden');
+            result=await createDataTransactionExecutor(authorityData,input.authorityDb)
+              .execute(primaryLease,query);
+          }finally{authorityData.dispose(primaryLease);}
+        }
+      }catch(error){
+        if(error instanceof OperationError)throw error;
+        if(error instanceof DataAccessError&&['forbidden','unauthorized'].includes(error.code))
+          throw new OperationError(error.code as 'forbidden'|'unauthorized');
+        throw new OperationError('unavailable');
+      }
+      const row=result.before[0]?.results?.[0];
+      return {navigation:row?.navigation_enabled===1,clicks:row?.clicks_enabled===1};
+    },
     async listExecutions(raw){
+      admin();
       const limit=checkedLimit(raw.limit),period=raw.period;
       if(period!=='day'&&period!=='week'&&period!=='month'&&period!=='year')return fail();
       let to=Date.now(),from=start(period,to),afterTime=Number.MAX_SAFE_INTEGER,afterId='';
@@ -89,6 +133,7 @@ export function createOperationDiagnosticsPort(input:{db:IdentityDatabase;data:D
           afterTime:last.created_at_ms,afterId:last.id}):null,complete:!more};
     },
     async listEndpoints(raw){
+      admin();
       const limit=checkedLimit(raw.limit);
       let offset=0;
       if(raw.cursor!==undefined){const cursor=decode(raw.cursor);

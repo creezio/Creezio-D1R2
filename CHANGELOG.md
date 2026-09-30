@@ -1,5 +1,19 @@
 # Changelog
 
+## 30 septembre 2026 — compléments des modules et SDK 1.8 candidat
+
+- Messaging et Resend ajoutent le gel atomique des pièces sortantes, les reçus signés et la réception explicitement choisie dans une boîte. Les pièces entrantes restent refusées intégralement ; la recette Resend réelle est reportée.
+- Analytics collecte les navigations, clics déclarés et refus lorsque l'administrateur active ces catégories. Les réglages sont lus dans la base principale, même lorsque les données métier utilisent un contexte isolé.
+- Access expose les commandes natives minimales de service et un jeton HTTP réservé à une session administrateur. Stripe reçoit une permission de webhook dédiée à la machine, avec signature obligatoire. Meili indique explicitement `primaryKey=id` après le refus réel de sa première tâche d'indexation.
+- L'opérateur Cloudflare peut proposer une nouvelle tentative explicite sur l'artefact préservé d'une mise à jour principale, après vérification des versions distantes et du reçu D1. Aucune reprise des mises à jour isolées T33 n'est ajoutée.
+- Les dix compositions utilisent SDK 1.8 candidat ; SDK 1.7 reste la version publique. Les revues et tests locaux ne constituent pas une recette hébergée ni une publication de ces changements.
+
+## 30 septembre 2026 — PR #81 intégrée, Sidebar et rétention vérifiées sur Linux
+
+- Core main `3d4248960f4ff56d9fdf5e956abe26d6e202f174` passe la CI main 1 428/1 428. L'image Linux `sha256:caff5af853c3670c43cc9d64f4955af10d7b456c79e28bf9dd2fc286864cf523` a adopté le schéma additif sur le volume existant. La Sidebar T21 conserve titre et ordre après rechargement puis confirme le retour aux valeurs d'origine ; la rétention T22 est configurée à 3 650 jours, avec aperçu vide et aucune purge. Le reçu Linux distingue ces deux parcours de toute preuve CRUD T18–T20 ou Cloudflare.
+- [SDK 1.7.0 est public](https://github.com/creezio/Creezio-D1R2/releases/download/sdk-v1.7.0/creezio-sdk-1.7.0.tgz) depuis ce main : SHA-256 `469287af6d3c81a9d6a71c003cc950dab2be160b0ee97fdd823ee323c501c403`, 78 537 octets et 84 fichiers. Son archive exacte passe dix consommateurs Linux, 60 suites dont 58 réussies et deux non applicables, 234 tests ; l'asset public a été téléchargé et comparé après publication.
+- La mise à jour Cloudflare Core `cc8a33af-84a9-46a7-b927-050348ced5b1` est en `delivery-unknown` révision 8 : ajouts D1 attestés, ancien Worker `cd2eeb2` toujours servi et aucune nouvelle publication confirmée. La recette isolée T33 sur au moins deux couples réels reste ouverte. Les travaux Access/Stripe, Messaging/Resend et Analytics du checkout courant ne font pas partie de PR #81 ; les essais fournisseurs différés et la validation T39 restent ouverts.
+
 ## 30 septembre 2026 — PR #80 intégrée, SDK 1.6.0 publié
 
 - Core main `684901c46cff026dc0209f3e2deabbf894826af9` intègre PR #80 après CI candidate et main 1 360/1 360 : ports communs des connecteurs et runtime de stockage isolé. Le Worker Cloudflare applicatif sert toujours la source `cd2eeb2` ; cette intégration n'est pas une publication de l'app.

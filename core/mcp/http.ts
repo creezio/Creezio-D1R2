@@ -7,6 +7,8 @@ import type {WidgetApprovalService} from '../widgets/approval.ts';
 import {linkedImageToolResult} from '../../sdk/widgets/private-image.ts';
 import type {StagedFile, PrivateFile} from '../files/service.ts';
 import {createMcpCatalog} from './catalog.ts';
+import type {IdentityDatabase} from '../identity/d1-store.ts';
+import {recordPreEngineRefusal} from '../operations/transport-diagnostics.ts';
 import type {McpCatalog, McpCredential, McpResourceBinding, McpToolBinding, McpLinkedImageToolBinding, McpOperationToolBinding} from './types.ts';
 
 type Engine = ReturnType<typeof createOperationEngine>;
@@ -35,6 +37,8 @@ export interface McpHttpOptions {
     recordId: string, reference: StagedFile) => Promise<PrivateFile>;
   /** Existing host approval service; OAuth commands may request a native human decision. */
   readonly approvals?: Pick<WidgetApprovalService, 'request' | 'resolveApproved'>;
+  /** Installation-primary binding, supplied only when Analytics is compiled in. */
+  readonly diagnosticsDb?:IdentityDatabase;
 }
 
 const encoder = new TextEncoder();
@@ -152,29 +156,36 @@ function createTransportWithIndex(index: ReturnType<typeof createMcpCatalog>, en
       permissionIds: binding.permissions});
   return Object.freeze({
     async dispatch(request: Request, audience: AuthorizationAudience, requestId: string): Promise<Response> {
-      if (audience !== 'admin' && audience !== 'app') return reply(404, 'not_found', requestId);
+      const startedAtMs=Date.now();
+      const refusal=async(status:number,code:string,extra?:HeadersInit)=>{
+        if(options.diagnosticsDb)await recordPreEngineRefusal({db:options.diagnosticsDb,transport:'mcp',
+          method:request.method,routeTemplate:audience==='admin'?'/mcp/admin':'/mcp/app',
+          status,code,startedAtMs});
+        return reply(status,code,requestId,extra);
+      };
+      if (audience !== 'admin' && audience !== 'app') return refusal(404, 'not_found');
       const resource = resources[audience];
-      if (request.url.split('?')[0] !== resource || new URL(request.url).search) return reply(404, 'not_found', requestId);
-      if (!admittedHeaders(request)) return reply(431, 'headers_too_large', requestId);
+      if (request.url.split('?')[0] !== resource || new URL(request.url).search) return refusal(404, 'not_found');
+      if (!admittedHeaders(request)) return refusal(431, 'headers_too_large');
       if (request.headers.get('origin') !== null && request.headers.get('origin') !== origin.origin)
-        return reply(403, 'origin_denied', requestId);
+        return refusal(403, 'origin_denied');
       const host = request.headers.get('host');
-      if (host !== null && host !== origin.host) return reply(403, 'host_denied', requestId);
-      if (request.method !== 'POST') return reply(405, 'method_not_allowed', requestId, {allow: 'POST'});
+      if (host !== null && host !== origin.host) return refusal(403, 'host_denied');
+      if (request.method !== 'POST') return refusal(405, 'method_not_allowed', {allow: 'POST'});
       const challenge = `Bearer resource_metadata="${options.resourceMetadataUrl(audience)}"`;
       const reauthChallenge = `${challenge}, error="invalid_token", error_description="Access token is no longer valid"`;
-      if (!request.headers.has('authorization')) return reply(401, 'authentication_required', requestId,
+      if (!request.headers.has('authorization')) return refusal(401, 'authentication_required',
         {'www-authenticate': challenge});
       let identity: McpAuthenticatedRequest | null;
       try { identity = await options.authenticate(request, audience, resource); }
-      catch { return reply(503, 'authentication_unavailable', requestId); }
+      catch { return refusal(503, 'authentication_unavailable'); }
       if (!identity || !['oauth', 'api-token'].includes(identity.credential?.kind)
         || typeof identity.credential.token !== 'string' || !identity.credential.token
         || identity.credential.kind === 'oauth' && identity.credential.resource !== resource
         || typeof identity.contextId !== 'string' || !identity.contextId)
-        return reply(401, 'authentication_required', requestId, {'www-authenticate': challenge});
+        return refusal(401, 'authentication_required', {'www-authenticate': challenge});
       const principal = identity;
-      let linkedImageCall=false;
+      let linkedImageCall=false,engineCalled=false;
       const hasWidgetUi = index.resources(audience).some(binding => binding.source.kind === 'compiled-widget');
       const server = new Server({name: `creezio-${audience}`, version: '1.0.0'},
         {capabilities: {tools: {listChanged: false}, resources: {listChanged: false},
@@ -191,24 +202,28 @@ function createTransportWithIndex(index: ReturnType<typeof createMcpCatalog>, en
       server.setRequestHandler('tools/call', async message => {
         const binding = index.tool(audience, message.params.name);
         if (!binding || !binding.auth.some(auth=>auth===principal.credential.kind)
-          || !await permitted(principal, audience, binding)) throw new ProtocolError(METHOD_NOT_FOUND, 'Tool not found.');
+          || !await permitted(principal, audience, binding)) {
+          await refusal(403,'tool_unavailable');throw new ProtocolError(METHOD_NOT_FOUND, 'Tool not found.');
+        }
         if (binding.kind === 'linked-image') {
           linkedImageCall=true;
           const input=linkedImageInput(message.params.arguments);
-          if (!input || !options.readLinkedImage) return toolFailure('invalid_input');
+          if (!input || !options.readLinkedImage){await refusal(400,'invalid_input');return toolFailure('invalid_input');}
           try {
             const file=await options.readLinkedImage(binding,principal,input.recordId,input.reference);
             if (file.byteSize!==file.bytes.byteLength) return toolFailure('unavailable');
             const result=await linkedImageToolResult(new Blob([new Uint8Array(file.bytes)],{type:file.contentType}));
             return result??toolFailure('unavailable');
-          } catch { return toolFailure('unavailable'); }
+          } catch { await refusal(503,'unavailable');return toolFailure('unavailable'); }
         }
         const rawApproval = (message.params as { _meta?: Record<string, unknown> })._meta?.['creezio/approvalId'];
         if (rawApproval !== undefined && (typeof rawApproval !== 'string'
-          || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(rawApproval))) return toolFailure('invalid_input');
+          || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(rawApproval))){
+          await refusal(400,'invalid_input');return toolFailure('invalid_input');}
         const contextId = binding.context === 'application' ? 'application' : principal.contextId;
         const input = message.params.arguments ?? {};
         try {
+          engineCalled=true;
           const result = await engine.invoke({credential: principal.credential, moduleId: binding.moduleId,
             operationId: binding.operationId, audience, contextId,
             input, ...(rawApproval ? {approvalId: rawApproval} : {}), signal: request.signal});
@@ -222,6 +237,7 @@ function createTransportWithIndex(index: ReturnType<typeof createMcpCatalog>, en
                 audience, contextId, moduleId: binding.moduleId, operationId: binding.operationId, input};
               const approved = await options.approvals.resolveApproved(approvalRequest);
               if (approved) {
+                engineCalled=true;
                 const resumed = await engine.invoke({credential: principal.credential,
                   moduleId: binding.moduleId, operationId: binding.operationId, audience, contextId,
                   input, approvalId: approved.approvalId, signal: request.signal});
@@ -256,7 +272,9 @@ function createTransportWithIndex(index: ReturnType<typeof createMcpCatalog>, en
         const binding = index.resource(audience, message.params.uri);
         if (!binding || binding.source.kind !== 'compiled-widget' && !options.loadResource
           || !binding.actors.includes(principal.credential.kind === 'oauth' ? 'delegated-user' : 'machine')
-          || !await permitted(principal, audience, binding)) throw new ProtocolError(METHOD_NOT_FOUND, 'Resource not found.');
+          || !await permitted(principal, audience, binding)) {
+          await refusal(403,'resource_unavailable');throw new ProtocolError(METHOD_NOT_FOUND, 'Resource not found.');
+        }
         const result = binding.source.kind === 'compiled-widget'
           ? {text: binding.source.text, _meta: {ui: binding.source.uiMeta}}
           : await options.loadResource!(binding, principal);
@@ -264,6 +282,8 @@ function createTransportWithIndex(index: ReturnType<typeof createMcpCatalog>, en
       });
       const handler = createMcpHandler(() => server, {maxRequestBodySize: MAX_BODY});
       const response = await handler.fetch(request);
+      if(!engineCalled&&response.status>=400&&response.status<=599)
+        await refusal(response.status,'protocol_error');
       // Count the complete serialized JSON-RPC/SSE response, including its protocol envelope.
       const boundedBody=linkedImageCall?await response.arrayBuffer():null;
       if (boundedBody && boundedBody.byteLength>MAX_LINKED_IMAGE_RESULT_BYTES)

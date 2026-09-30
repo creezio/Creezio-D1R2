@@ -12,7 +12,7 @@ const args=(value:JsonValue):Args=>value&&typeof value==='object'&&!Array.isArra
 const identifier=(value:unknown,max=128):value is string=>typeof value==='string'&&value.length<=max
   &&/^[A-Za-z0-9][A-Za-z0-9._:-]*$/u.test(value);
 const path=(value:unknown):value is string=>typeof value==='string'&&value.length<=256
-  &&/^\/[A-Za-z0-9/_-]*$/u.test(value)&&!value.includes('//');
+  &&/^\/[A-Za-z0-9/._:{}-]*$/u.test(value)&&!value.includes('//');
 const eventView=(row:Row)=>({id:row.id,principalId:row.principal_id,actorPrincipalId:row.actor_principal_id,
   type:row.event_type,actionId:row.action_id,surface:row.surface,path:row.path,errorCode:row.error_code,
   reportedDurationMs:row.duration_ms,occurredAt:row.created_at,source:'reported'});
@@ -189,6 +189,92 @@ export async function diagnosticsEndpoints(value:JsonValue,c:OperationContext){
   const input=args(value);
   return {output:await c.diagnostics.listEndpoints({limit:Number(input.limit),
     ...(input.cursor===undefined?{}:{cursor:String(input.cursor)})})};
+}
+
+const installationAdmin=(c:OperationContext)=>{
+  if(c.audience!=='admin'||c.contextId!=='application')throw new OperationError('forbidden');
+};
+const collectionRow=(c:OperationContext)=>c.data.get('collection_policy',{key:{id:'application'}}) as Promise<Row|null>;
+const collectionView=(row:Row|null)=>({configured:!!row,revision:Number(row?.revision??0),
+  navigation:row?.navigation_enabled===true,clicks:row?.clicks_enabled===true,
+  refusals:row?.refusals_enabled===true,refusalRetentionDays:Number(row?.refusal_retention_days??7),manualOnly:true});
+const collectionDays=(value:unknown)=>Number.isSafeInteger(value)&&Number(value)>=1&&Number(value)<=365
+  ?Number(value):invalid();
+const refusalCutoff=(days:number)=>Date.now()-days*86_400_000;
+const refusalPageItem=(row:Row)=>({id:String(row.id),transport:row.transport,method:row.method,
+  routeTemplate:row.route_template,status:Number(row.status),errorCode:row.error_code,
+  occurredAt:new Date(Number(row.created_at_ms)).toISOString(),durationMs:Number(row.duration_ms)});
+const refusalCursor=(value:unknown)=>{
+  if(value===undefined)return null;
+  if(typeof value!=='string'||value.length>2048||!(/^[A-Za-z0-9_-]+$/u.test(value)))invalid();
+  try{const encoded=String(value),parsed=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Uint8Array.from(
+    atob(encoded.replaceAll('-','+').replaceAll('_','/')),character=>character.charCodeAt(0))));
+    if(!parsed||parsed.v!==1||parsed.kind!=='refusals'||parsed.context!=='application'
+      ||!Number.isSafeInteger(parsed.after?.created_at_ms)||parsed.after.created_at_ms<0
+      ||!identifier(parsed.after?.id,36))invalid();
+    return {created_at_ms:parsed.after.created_at_ms,id:parsed.after.id};
+  }catch{return invalid();}
+};
+const encodeRefusalCursor=(after:Row|null)=>after?btoa(String.fromCharCode(...new TextEncoder().encode(
+  JSON.stringify({v:1,kind:'refusals',context:'application',after:{created_at_ms:after.created_at_ms,id:after.id}}))))
+  .replaceAll('+','-').replaceAll('/','_').replace(/=+$/u,''):null;
+export async function collectionPolicy(_value:JsonValue,c:OperationContext){
+  installationAdmin(c);return {output:collectionView(await collectionRow(c))};
+}
+export async function collectionEffective(_value:JsonValue,c:OperationContext){
+  if(!c.diagnostics)throw new OperationError('unavailable');
+  return {output:await c.diagnostics.collectionFlags()};
+}
+export async function collectionConfigure(value:JsonValue,c:OperationContext){
+  installationAdmin(c);const input=args(value),expected=revision(input.expectedRevision),
+    days=collectionDays(input.refusalRetentionDays);
+  if(typeof input.navigation!=='boolean'||typeof input.clicks!=='boolean'||typeof input.refusals!=='boolean')invalid();
+  const existing=await collectionRow(c);
+  if(Number(existing?.revision??0)!==expected)throw new OperationError('conflict');
+  const next=expected+1,values={revision:next,navigation_enabled:Boolean(input.navigation),
+    clicks_enabled:Boolean(input.clicks),refusals_enabled:Boolean(input.refusals),
+    refusal_retention_days:days,updated_at:now()};
+  const plan=existing?c.data.planPatch('collection_policy',{key:{id:'application'},
+    compare:{field:'revision',expected},values:{navigation_enabled:values.navigation_enabled,
+      clicks_enabled:values.clicks_enabled,refusals_enabled:values.refusals_enabled,
+      refusal_retention_days:values.refusal_retention_days,updated_at:values.updated_at}})
+    :c.data.planCreate('collection_policy',{values:{id:'application',...values}});
+  return {output:{configured:true,revision:next,navigation:input.navigation,clicks:input.clicks,
+    refusals:input.refusals,refusalRetentionDays:days,manualOnly:true},plans:[plan]};
+}
+export async function refusalsList(value:JsonValue,c:OperationContext){
+  installationAdmin(c);const input=args(value),limit=Number(input.limit);
+  if(!Number.isSafeInteger(limit)||limit<1||limit>50)invalid();
+  const result=await c.data.list('transport_refusal',{limit,after:refusalCursor(input.cursor),
+    order:{indexId:'by-time',direction:'desc'}}) as Page;
+  return {output:{items:result.items.map(refusalPageItem),
+    nextCursor:encodeRefusalCursor(result.nextAfter),complete:!result.nextAfter}};
+}
+async function eligibleRefusals(c:OperationContext,cutoff:number){
+  const page=await c.data.list('transport_refusal',{limit:11,order:{indexId:'by-time',direction:'asc'},
+    fields:['id','created_at_ms']}) as Page;
+  const old=page.items.filter(row=>Number(row.created_at_ms)<cutoff);
+  return {items:old.slice(0,10).map(row=>({id:String(row.id),occurredAt:new Date(Number(row.created_at_ms)).toISOString()})),
+    hasMore:old.length>10};
+}
+export async function refusalsPreview(_value:JsonValue,c:OperationContext){
+  installationAdmin(c);const policy=collectionView(await collectionRow(c));
+  const cutoff=refusalCutoff(policy.refusalRetentionDays),selected=await eligibleRefusals(c,cutoff);
+  return {output:{revision:policy.revision,cutoff:new Date(cutoff).toISOString(),...selected,manualOnly:true}};
+}
+export async function refusalsPurge(value:JsonValue,c:OperationContext){
+  installationAdmin(c);const input=args(value),expected=revision(input.revision);
+  if(!isoDate(input.cutoff)||!Array.isArray(input.items)||input.items.length<1||input.items.length>10)invalid();
+  const policy=collectionView(await collectionRow(c));
+  if(!policy.configured||policy.revision!==expected)throw new OperationError('conflict');
+  const cutoff=Date.parse(String(input.cutoff));
+  if(cutoff>refusalCutoff(policy.refusalRetentionDays))invalid();
+  const selected=await eligibleRefusals(c,cutoff);
+  if(JSON.stringify(selected.items)!==JSON.stringify(input.items))throw new OperationError('conflict');
+  const plans=[c.data.planGet('collection_policy',{key:{id:'application'},where:{revision:expected},
+    fields:['id'],required:true}),...selected.items.map(item=>c.data.planDelete('transport_refusal',
+    {key:{id:item.id},where:{created_at_ms:Date.parse(item.occurredAt)}}))];
+  return {output:{deleted:selected.items.length,hasMore:selected.hasMore,cutoff:String(input.cutoff),revision:expected},plans};
 }
 
 const policyId='retention';

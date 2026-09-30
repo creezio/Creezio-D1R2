@@ -1,5 +1,6 @@
 import {OperationError} from '@creezio/sdk/operations/error';
 import type {OperationContext,JsonValue} from '@creezio/sdk/operations/handler';
+import {projectDeliveryReceipt} from './delivery.ts';
 
 type Row=Record<string,JsonValue>;
 type Input=Record<string,any>;
@@ -197,6 +198,81 @@ export async function messageRead(value:JsonValue,c:OperationContext){
   if(!row)throw new OperationError('not_found');
   return {output:{message:viewMessage(row)}};
 }
+export async function messageDeliveryReconcile(value:JsonValue,c:OperationContext){
+  const a=input(value);await box(c,a.boxId);
+  if(!validId(a.messageId)||!Number.isSafeInteger(a.revision))fail('invalid_input');
+  const operations=c.operations;
+  if(!operations)fail('unavailable');
+  const row=await c.data.get('message',{key:messageKey(c,a.boxId,a.messageId)}) as Row|null;
+  if(!row)throw new OperationError('not_found');
+  if(row.revision!==a.revision)fail('conflict');
+  if(row.direction!=='outbound'||typeof row.provider_message_id!=='string'
+    ||!['sent','unknown','delivered','bounced','failed'].includes(String(row.state)))fail('invalid_input');
+  const answer=await operations!.query({moduleId:'creezio.resend',operationId:'event.status',
+    input:{emailId:row.provider_message_id}});
+  if(!answer||typeof answer!=='object'||Array.isArray(answer))fail('unavailable');
+  const receipt=answer as Record<string,JsonValue>;
+  if(receipt.kind==='none')return {output:{message:viewMessage(row)}};
+  if(receipt.kind!=='delivered'&&receipt.kind!=='bounced'&&receipt.kind!=='failed')fail('unavailable');
+  const kind=receipt.kind as 'delivered'|'bounced'|'failed';
+  const providerMessageId=String(row.provider_message_id);
+  if(kind==='failed'){
+    // A signed provider failure follows a known accepted message. A local HTTP
+    // rejection remains failed/outbox with no provider id and never reaches here.
+    if(row.state==='failed'||row.state==='delivered'||row.state==='bounced')
+      return {output:{message:viewMessage(row)}};
+    const plan=c.data.planPatch('message',{key:messageKey(c,a.boxId,a.messageId),
+      compare:{field:'revision',expected:Number(row.revision)},values:{state:'failed',folder:'sent'}});
+    return {output:{message:viewMessage({...row,state:'failed',folder:'sent',
+      revision:Number(row.revision)+1})},plans:[plan]};
+  }
+  if(row.state==='failed')return {output:{message:viewMessage(row)}};
+  const plans=await projectDeliveryReceipt({boxId:a.boxId,intentId:a.messageId,
+    receipt:{kind,providerMessageId}},
+  {principalId:c.principalId,data:c.data,receivedAt:now()});
+  const next=plans.length?{...row,state:kind,folder:'sent',revision:Number(row.revision)+1}:row;
+  return {output:{message:viewMessage(next)},plans};
+}
+/** An operator selects a box; a signed provider event alone never routes an inbound email. */
+export async function messageInboundImport(value:JsonValue,c:OperationContext){
+  const a=input(value),selected=await box(c,a.boxId),operations=c.operations;
+  if(typeof a.emailId!=='string'||!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u.test(a.emailId)
+    ||!validText(selected.address,320)||!address.test(String(selected.address)))
+    fail('invalid_input');
+  if(!operations)fail('unavailable');
+  const id=`in-${await digest([a.emailId])}`;
+  const key=messageKey(c,String(a.boxId),id);
+  const existing=await c.data.get('message',{key}) as Row|null;
+  if(existing){
+    if(existing.direction!=='inbound'||existing.provider_message_id!==a.emailId)fail('conflict');
+    return {output:{message:viewMessage(existing)}};
+  }
+  const answer=await operations!.query({moduleId:'creezio.resend',operationId:'received.read',
+    input:{emailId:a.emailId}});
+  if(!answer||typeof answer!=='object'||Array.isArray(answer))fail('unavailable');
+  const mail=answer as Record<string,unknown>;
+  if(mail.emailId!==a.emailId||!Array.isArray(mail.to)||mail.to.length<1
+    ||mail.to.some(item=>typeof item!=='string'||!address.test(item))
+    ||!mail.to.includes(selected.address)||!validText(mail.from,320)
+    ||!validText(mail.subject,240)||!validText(mail.text,16000)||!validText(mail.html,32000)
+    ||typeof mail.receivedAt!=='string'||!Number.isFinite(Date.parse(mail.receivedAt))
+    ||!Number.isSafeInteger(mail.attachmentCount)||Number(mail.attachmentCount)<0)fail('unavailable');
+  // Received binaries need an R2 ingest port bound to a fixed provider attachment resource.
+  // Refuse the whole import until that port exists; never silently drop attachments.
+  if(mail.attachmentCount!==0)fail('unavailable');
+  const received=mail as {to:string[];from:string;subject:string;text:string;html:string;
+    receivedAt:string};
+  const to=received.to.join(', ');
+  if(to.length>2048)fail('unavailable');
+  const at=now(),row={...scope(c),box_id:selected.id,id,direction:'inbound',
+    from_addr:received.from,to_addr:to,cc_addr:'',subject:received.subject,text_body:received.text,
+    html_body:safeHtml(received.html),state:'received',folder:'inbox',read_at:null,
+    thread_id:null,reply_to:null,in_reply_to:null,provider_message_id:a.emailId,
+    received_at:new Date(received.receivedAt).toISOString(),sent_at:null,created_at:at,revision:1};
+  return {output:{message:viewMessage(row)},plans:[
+    c.data.planGet('box',{key:boxKey(c,String(selected.id)),where:{address:selected.address},required:true}),
+    c.data.planCreate('message',{values:row})]};
+}
 export async function messageUpdate(value:JsonValue,c:OperationContext){
   const a=input(value);await box(c,a.boxId);
   if(!validId(a.messageId)||a.folder===undefined&&a.read===undefined
@@ -319,6 +395,10 @@ export async function transportStatus(_value:JsonValue,c:OperationContext){
   return {output:{state:state.state,send:state.state==='ready',receive:false,from:state.from}};
 }
 const splitRecipients=(value:string)=>value?value.split(',').map(part=>part.trim()):[];
+const MAX_SEND_ATTACHMENTS=50,MAX_SEND_ATTACHMENT_BYTES=10*1024*1024;
+const frozenAttachment=(row:Row)=>({fileId:String(row.file_id),intentId:String(row.intent_id),
+  generation:String(row.generation),digest:String(row.digest),filename:String(row.filename),
+  contentType:String(row.content_type),byteSize:Number(row.byte_size)});
 const digest=async(parts:readonly unknown[])=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',
   new TextEncoder().encode(JSON.stringify(parts))))).map(byte=>byte.toString(16).padStart(2,'0')).join('');
 /** Commit the immutable message, private Bcc snapshot and outbox intent in one host transaction. */
@@ -331,18 +411,27 @@ export async function messageSend(value:JsonValue,c:OperationContext){
   if(c.providerAvailability?.providerId!=='resend.api.v1'||c.providerAvailability.state!=='ready')fail('unavailable');
   const ready=await readiness(c);
   if(ready.state!=='ready'||ready.from!==b.address||ready.configRevision<1)fail('unavailable');
-  const refs=await c.data.list('draft_attachment',{limit:1,where:{...scope(c),box_id:a.boxId,draft_id:a.draftId}}) as Page;
-  if(refs.items.length)fail('unavailable');
+  const refs=await c.data.list('draft_attachment',{limit:MAX_SEND_ATTACHMENTS,
+    where:{...scope(c),box_id:a.boxId,draft_id:a.draftId},order:{indexId:'by-draft',direction:'asc'}}) as Page;
+  if(refs.items.length>MAX_SEND_ATTACHMENTS||refs.nextAfter)fail('invalid_input');
+  const attachments=refs.items.map(frozenAttachment).sort((left,right)=>left.fileId.localeCompare(right.fileId));
+  if(attachments.some(item=>!Number.isSafeInteger(item.byteSize)||item.byteSize<=0||item.byteSize>MAX_SEND_ATTACHMENT_BYTES)
+    ||attachments.reduce((sum,item)=>sum+item.byteSize,0)>MAX_SEND_ATTACHMENT_BYTES)fail('invalid_input');
+  if(attachments.length&&!c.files)fail('unavailable');
+  if(attachments.length)await c.files!.freezeLinks('attachments',{
+    sourceModel:'draft_attachment',destinationModel:'message_attachment',
+    sourceScope:{box_id:String(a.boxId),draft_id:String(a.draftId)},
+    destinationScope:{box_id:String(a.boxId),message_id:c.executionId},attachments});
   const to=recipients(old.to_addr),cc=recipients(old.cc_addr),bcc=recipients(old.bcc_addr),
     subject=String(old.subject),text=String(old.text_body),html=safeHtml(String(old.html_body));
   if(!to||!subject.trim()||!text.trim()&&!html.trim())fail('invalid_input');
   const envelope={from:String(b.address),to:splitRecipients(to),cc:splitRecipients(cc),bcc:splitRecipients(bcc),
-    subject,text,html};
+    subject,text,html,attachments};
   if(new TextEncoder().encode(JSON.stringify(envelope)).length>60_000)fail('invalid_input');
   const at=now(),intentId=c.executionId;
   if(!validId(intentId))fail('unavailable');
   const payloadDigest=await digest([intentId,a.boxId,a.draftId,rev,ready.configRevision,
-    envelope.from,to,cc,bcc,subject,text,html]);
+    envelope.from,to,cc,bcc,subject,text,html,attachments]);
   const snapshot={...scope(c),box_id:a.boxId,id:intentId,draft_id:a.draftId,draft_revision:rev,
     from_addr:envelope.from,to_addr:to,cc_addr:cc,bcc_addr:bcc,subject,text_body:text,html_body:html,
     config_revision:ready.configRevision,payload_digest:payloadDigest,created_at:at};
@@ -375,12 +464,18 @@ export async function messageDeliveryPrepare(value:JsonValue,c:OperationContext)
   const frozen=snapshot as Row;
   const to=recipients(frozen.to_addr),cc=recipients(frozen.cc_addr),bcc=recipients(frozen.bcc_addr);
   if(!to||!Number.isSafeInteger(frozen.config_revision)||Number(frozen.config_revision)<1)fail('unavailable');
+  const rows=await c.data.list('message_attachment',{limit:MAX_SEND_ATTACHMENTS,
+    where:{...scope(c),box_id:a.boxId,message_id:a.intentId},order:{indexId:'by-message',direction:'asc'}}) as Page;
+  if(rows.items.length>MAX_SEND_ATTACHMENTS||rows.nextAfter)fail('unavailable');
+  const attachments=rows.items.map(frozenAttachment).sort((left,right)=>left.fileId.localeCompare(right.fileId));
+  if(attachments.some(item=>!Number.isSafeInteger(item.byteSize)||item.byteSize<0||item.byteSize>MAX_SEND_ATTACHMENT_BYTES)
+    ||attachments.reduce((sum,item)=>sum+item.byteSize,0)>MAX_SEND_ATTACHMENT_BYTES)fail('unavailable');
   const envelope={from:String(frozen.from_addr),to:splitRecipients(to),cc:splitRecipients(cc),
     bcc:splitRecipients(bcc),subject:String(frozen.subject),text:String(frozen.text_body),
-    html:safeHtml(String(frozen.html_body))};
+    html:safeHtml(String(frozen.html_body)),attachments};
   if(new TextEncoder().encode(JSON.stringify(envelope)).length>60_000)fail('unavailable');
   const check=await digest([a.intentId,a.boxId,frozen.draft_id,frozen.draft_revision,
-    frozen.config_revision,envelope.from,to,cc,bcc,envelope.subject,envelope.text,envelope.html]);
+    frozen.config_revision,envelope.from,to,cc,bcc,envelope.subject,envelope.text,envelope.html,attachments]);
   if(check!==a.snapshotDigest)fail('unavailable');
   return {output:{intentId:a.intentId,boxId:a.boxId,snapshotDigest:check,
     configRevision:frozen.config_revision,envelope}};

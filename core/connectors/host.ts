@@ -11,6 +11,7 @@ const identifier=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const segment=/^[A-Za-z0-9_~-][A-Za-z0-9._~-]*$/;
 const MAX_BODY=1_048_576;
 const MAX_WRITE_BODY=65_536;
+const MAX_ATTACHMENT_BODY=14_500_000;
 const MAX_CALLS=1;
 const TIMEOUT_MS=10_000;
 const queryName=(value:string)=>typeof value==='string'&&value.length<=64
@@ -78,6 +79,12 @@ function checkedResource(value:ConnectorResource):ConnectorResource{
     if(new Set(names).size!==names.length)throw new VaultError('invalid_input');
   }
   const write=value.method!=='GET',body=value.body,success=value.successStatuses;
+  const attachments=value.attachments;
+  if(attachments!==undefined&&(!write||body?.encoding!=='json'
+    ||!wireName.test(attachments.wireName)||body.fields.some(field=>field.wireName===attachments.wireName)
+    ||!Number.isSafeInteger(attachments.maxItems)||attachments.maxItems<1||attachments.maxItems>50
+    ||!Number.isSafeInteger(attachments.maxBytes)||attachments.maxBytes<1
+    ||attachments.maxBytes>10*1024*1024))throw new VaultError('invalid_input');
   if(write&&value.params.some(item=>item!=='id')||!write&&(body!==undefined||value.idempotencyHeader!==undefined)
     ||write&&query!==undefined&&('cursor' in query||'limit' in query)
     ||write&&query?.fields?.length
@@ -111,6 +118,7 @@ function checkedResource(value:ConnectorResource):ConnectorResource{
     ...(body===undefined?{}:{body:Object.freeze({encoding:body.encoding,
       fields:Object.freeze(body.fields.map(item=>Object.freeze({...item}))),
       ...(body.fixed===undefined?{}:{fixed:Object.freeze(body.fixed.map(item=>Object.freeze({...item})))})})}),
+    ...(attachments===undefined?{}:{attachments:Object.freeze({...attachments})}),
     ...(value.idempotencyHeader===undefined?{}:{idempotencyHeader:value.idempotencyHeader}),
     ...(success===undefined?{}:{successStatuses:Object.freeze([...success])}),
     ...(value.responseBody===undefined?{}:{responseBody:value.responseBody})});
@@ -134,7 +142,7 @@ export function captureConnectorDescriptor(value:ConnectorDescriptor):ConnectorD
     throw new VaultError('invalid_input');
   const webhook=value.webhook;
   if(webhook!==undefined&&(!/^\/api\/webhooks\/[a-z][a-z0-9-]{0,63}$/u.test(webhook.path)
-    ||!identifier.test(webhook.operationId)||!['stripe','standard'].includes(webhook.scheme)
+    ||!identifier.test(webhook.operationId)||!['stripe','standard','resend'].includes(webhook.scheme)
     ||!/^module\/[A-Za-z0-9._/-]+\.ts$/u.test(webhook.mapper.path)
     ||webhook.mapper.path.includes('..')||!identifier.test(webhook.mapper.export)
     ||Object.values(webhook.fields).length!==7
@@ -262,6 +270,23 @@ function mutationBody(resource:ConnectorResource,input:ConnectorMutationRequest)
     if(new TextEncoder().encode(encoded).length>field.maxBytes)return null;
     values[field.wireName]=value;
   }
+  const binary=input.attachments??[];
+  if(binary.length){
+    const policy=resource.attachments;
+    if(!policy||binary.length>policy.maxItems||body.encoding!=='json')return null;
+    let total=0;
+    const encoded:JsonValue[]=[];
+    for(const item of binary){
+      if(!item||!(item.bytes instanceof Uint8Array)||!item.bytes.length
+        ||!printable(item.filename,255)||!printable(item.contentType,128)
+        ||(total+=item.bytes.length)>policy.maxBytes)return null;
+      let content='';
+      for(let offset=0;offset<item.bytes.length;offset+=6144)
+        content+=btoa(String.fromCharCode(...item.bytes.subarray(offset,offset+6144)));
+      encoded.push({filename:item.filename,content:content});
+    }
+    values[policy.wireName]=encoded;
+  }
   if(body.encoding==='json-root'){
     const field=body.fields[0];
     if(!(field.name in fieldValues))return null;
@@ -271,7 +296,7 @@ function mutationBody(resource:ConnectorResource,input:ConnectorMutationRequest)
   const encoded=body.encoding==='form'
     ?new URLSearchParams(Object.entries(values).map(([key,value])=>[key,String(value)])).toString()
     :JSON.stringify(values);
-  return new TextEncoder().encode(encoded).length<=MAX_WRITE_BODY?encoded:null;
+  return new TextEncoder().encode(encoded).length<=(binary.length?MAX_ATTACHMENT_BODY:MAX_WRITE_BODY)?encoded:null;
 }
 
 /** Separate from the OpenAI transport: one declared GET, scoped config and vault, no module credential. */
@@ -407,7 +432,7 @@ export function createConnectorHost(options:ConnectorHostOptions){
           ||scope.expectedConfigRevision!==undefined&&(!Number.isSafeInteger(scope.expectedConfigRevision)
             ||scope.expectedConfigRevision<1)
           ||!scope.registerCommitGuards||!input
-          ||Object.keys(input).some(key=>!['resource','id','fields','signal'].includes(key)))
+          ||Object.keys(input).some(key=>!['resource','id','fields','attachments','signal'].includes(key)))
           return error('invalid_request');
         const resource=descriptor.resources.find(item=>item.id===input.resource);
         if(!resource||resource.method==='GET')return error('invalid_request');

@@ -9,7 +9,7 @@ export interface SignedWebhookBinding {
   readonly auth:readonly string[];readonly path?:string;
 }
 export interface SignedWebhookConfiguration {
-  readonly scheme:'stripe'|'standard';readonly contextId:string;
+  readonly scheme:'stripe'|'standard'|'resend';readonly contextId:string;
   readonly serviceToken:string;readonly secrets:readonly string[];
   readonly guards:readonly WebhookCommitGuard[];
   /** Converts a verified provider event into the declared operation schema. */
@@ -32,15 +32,17 @@ export function createSignedWebhookBridge(options:Readonly<{
     if(!body)return new Response(null,{status:400});
     const event=parseWebhookJson(body);
     if(!event)return new Response(null,{status:400});
-    const eventId=configuration.scheme==='stripe'?event.id:request.headers.get('webhook-id');
+    const eventId=configuration.scheme==='stripe'?event.id:request.headers.get(
+      configuration.scheme==='resend'?'svix-id':'webhook-id');
     if(typeof eventId!=='string'||!(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u.test(eventId)))
       return new Response(null,{status:400});
     const valid=configuration.scheme==='stripe'
       ?await verifyStripeWebhook({body,signature:request.headers.get('stripe-signature'),
         secrets:configuration.secrets})
       :await verifyStandardWebhook({body,id:eventId,
-        timestamp:request.headers.get('webhook-timestamp'),
-        signature:request.headers.get('webhook-signature'),secrets:configuration.secrets});
+        timestamp:request.headers.get(configuration.scheme==='resend'?'svix-timestamp':'webhook-timestamp'),
+        signature:request.headers.get(configuration.scheme==='resend'?'svix-signature':'webhook-signature'),
+        secrets:configuration.secrets});
     if(!valid)return new Response(null,{status:401});
     const bodyDigest=await webhookBodyDigest(body);
     let input:unknown;

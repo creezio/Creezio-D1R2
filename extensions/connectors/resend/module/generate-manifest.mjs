@@ -22,6 +22,13 @@ const models=[model('connector_config','Configuration Resend',[
   field('from_address','string',{constraints:{minLength:3,maxLength:320}}),
   field('key_ref','string',{nullable:true,constraints:{minLength:1,maxLength:128}}),
   field('secret_version','integer',{nullable:true,constraints:{minimum:1}}),
+  field('connection_id','string',{nullable:true,constraints:{minLength:1,maxLength:128}}),
+  field('webhook_key_ref','string',{nullable:true,constraints:{minLength:1,maxLength:128}}),
+  field('webhook_secret_version','integer',{nullable:true,constraints:{minimum:1}}),
+  field('webhook_previous_key_ref','string',{nullable:true,constraints:{minLength:1,maxLength:128}}),
+  field('webhook_previous_secret_version','integer',{nullable:true,constraints:{minimum:1}}),
+  field('webhook_service_token_ref','string',{nullable:true,constraints:{minLength:1,maxLength:128}}),
+  field('webhook_service_token_version','integer',{nullable:true,constraints:{minimum:1}}),
   field('enabled','boolean'),field('revision','integer',{constraints:{minimum:1}}),
   field('updated_at','date-time')],['manage','use']),
   model('connector_secret','Secret Resend scellé',[
@@ -30,16 +37,43 @@ const models=[model('connector_config','Configuration Resend',[
     field('ciphertext','string',{protected:true,constraints:{minLength:1,maxLength:32768}}),
     field('key_id','string',{protected:true,constraints:{minLength:1,maxLength:128}}),
     field('version','integer',{protected:true,constraints:{minimum:1}}),
-  field('state','string',{protected:true,constraints:{enum:['active','revoked']}})],['manage','use'])];
+  field('state','string',{protected:true,constraints:{enum:['active','revoked']}})],['manage','use']),
+  model('webhook_event','Événement Resend signé',[
+    field('id','string',{constraints:{minLength:1,maxLength:128}}),
+    field('connection_id','string',{constraints:{minLength:1,maxLength:128}}),
+    field('event_type','string',{constraints:{enum:['email.sent','email.delivered','email.bounced','email.failed','email.received']}}),
+    field('email_id','string',{constraints:{minLength:1,maxLength:256}}),
+    field('body_digest','string',{constraints:{minLength:64,maxLength:64}}),
+    field('occurred_at','date-time'),field('received_at','date-time')],['manage'])];
+models.find(item=>item.id==='webhook_event').indexes=[{id:'by-email',
+  fields:['context_id','connection_id','email_id','occurred_at','id'],unique:false}];
+models.find(item=>item.id==='webhook_event').permissions.push(ref('permission','use'));
+models.find(item=>item.id==='webhook_event').permissions.push(ref('permission','webhook.receive'));
+models.find(item=>item.id==='connector_config').permissions.push(ref('permission','webhook.receive'));
 const schemas=[],schema=(name,value)=>{schemas.push({id:name,schema:value});return {schemaId:name};};
 const requestKey=str(128),rev=num(0);
 const configView=obj({origin:nullable(str(512)),from:nullable(str(320)),enabled:{type:'boolean'},
-  hasKey:{type:'boolean'},state:{type:'string',enum:['missing','configured','disabled']},revision:rev});
+  hasKey:{type:'boolean'},hasWebhookSecret:{type:'boolean'},hasWebhookService:{type:'boolean'},
+  state:{type:'string',enum:['missing','configured','disabled']},revision:rev});
 const configOutput=schema('config-output',obj({config:configView}));
 const empty=schema('empty-input',obj({}));
 const configInput=schema('config-set-input',obj({requestKey,from:str(320,3),enabled:{type:'boolean'},revision:rev}));
 const keyInput=schema('config-key-set-input',obj({requestKey,apiKey:str(4096,8),revision:rev}));
 const keyRevokeInput=schema('config-key-revoke-input',obj({requestKey,revision:rev}));
+const webhookInput=schema('config-webhook-secret-input',obj({requestKey,webhookSecret:str(512,16),revision:rev}));
+const webhookServiceInput=schema('config-webhook-service-input',obj({requestKey,serviceToken:str(256,32),revision:rev}));
+const eventInput=schema('webhook-event-input',obj({requestKey,eventId:str(),bodyDigest:str(64,64),
+  eventType:{type:'string',enum:['email.sent','email.delivered','email.bounced','email.failed','email.received']},
+  emailId:str(256),occurredAt:str(40)}));
+const eventOutput=schema('webhook-event-output',obj({eventId:str(),recorded:{const:true}}));
+const statusInput=schema('delivery-event-status-input',obj({emailId:str(256)}));
+const statusOutput=schema('delivery-event-status-output',obj({kind:{enum:['none','delivered','bounced','failed']},
+  eventId:nullable(str()),occurredAt:nullable(str(40))}));
+const receivedInput=schema('received-email-read-input',obj({emailId:str(256)}));
+const receivedOutput=schema('received-email-read-output',obj({emailId:str(256),
+  to:{type:'array',items:str(320),minItems:1,maxItems:20},from:str(320),
+  subject:str(240,0),text:str(16000,0),html:str(32000,0),receivedAt:str(40),
+  attachmentCount:num(0,50)}));
 const domain=obj({id:str(),name:str(320),status:str(64)});
 const domainOutput=schema('domain-list-output',obj({domains:{type:'array',items:domain,maxItems:100}}));
 const readinessOutput=schema('delivery-readiness-output',obj({state:{type:'string',enum:['ready','missing','unavailable']},
@@ -54,8 +88,12 @@ const permissions=[{id:'manage',title:'Configurer Resend',audiences:['admin'],
   enforcement:{request:true,commit:true},public:false},
   {id:'use',title:'Utiliser le transport Resend',audiences:['admin','app'],
     actors:['user','delegated-user','machine'],scopes:['resend.use'],context:'required',default:'deny',
-    resources:[ref('model','connector_config'),ref('model','connector_secret')],actions:['read','execute'],
-    enforcement:{request:true,commit:true},public:false}];
+    resources:[ref('model','connector_config'),ref('model','connector_secret'),ref('model','webhook_event')],actions:['read','execute'],
+    enforcement:{request:true,commit:true},public:false},
+  {id:'webhook.receive',title:'Recevoir les événements Resend signés',audiences:['admin'],
+    actors:['machine'],scopes:['resend.webhook.receive'],context:'required',default:'deny',
+    resources:[ref('model','connector_config'),ref('model','webhook_event')],
+    actions:['read','create','execute'],enforcement:{request:true,commit:true},public:false}];
 const errors=['invalid_input','unauthorized','forbidden','not_found','conflict','rate_limited','unsupported','unavailable','unknown']
   .map(code=>({code,retryable:['rate_limited','unavailable','unknown'].includes(code),
     outcome:code==='unknown'?'unknown':'rejected'}));
@@ -71,27 +109,45 @@ function operation(name,title,kind,input,output,reads,writes,options={}){
     idempotency:command?{mode:'required',keyField:'requestKey',scope:'actor-context-operation',retentionSeconds:86400}:{mode:'none'},
     approval:{mode:'none'},concurrency:options.cas?{mode:'object-version',versionField:'revision'}:{mode:'none'},
     execution:{maxDurationMs:10000,maxItems:options.maxItems??4,resumable:false},
-    audit:{required:true,redactFields:['apiKey']},public:options.public===true});
+    audit:{required:true,redactFields:['apiKey','webhookSecret','serviceToken']},public:options.public===true});
 }
 operation('config.read','Lire la configuration Resend','query',empty,configOutput,['connector_config'],[],{exportName:'configRead'});
 operation('config.set','Configurer l’expéditeur Resend','command',configInput,configOutput,
   ['connector_config'],['connector_config'],{exportName:'configSet',cas:true});
 operation('config.key.set','Enregistrer la clé API Resend','command',keyInput,configOutput,
-  ['connector_config','connector_secret'],['connector_config','connector_secret'],{exportName:'configKeySet',cas:true});
+  ['connector_config','connector_secret'],['connector_config','connector_secret'],{exportName:'configKeySet',cas:true,maxItems:8});
 operation('config.key.revoke','Révoquer la clé API Resend','command',keyRevokeInput,configOutput,
-  ['connector_config','connector_secret'],['connector_config','connector_secret'],{exportName:'configKeyRevoke',cas:true});
+  ['connector_config','connector_secret'],['connector_config','connector_secret'],{exportName:'configKeyRevoke',cas:true,maxItems:8});
+operation('config.key.webhook.set','Sceller le secret webhook Resend','command',webhookInput,configOutput,
+  ['connector_config','connector_secret'],['connector_config','connector_secret'],{exportName:'configWebhookSet',cas:true,maxItems:6});
+operation('config.key.webhook.revoke','Révoquer le secret webhook Resend','command',keyRevokeInput,configOutput,
+  ['connector_config','connector_secret'],['connector_config','connector_secret'],{exportName:'configWebhookRevoke',cas:true,maxItems:6});
+operation('config.key.webhook.service.set','Sceller le jeton webhook Resend','command',webhookServiceInput,configOutput,
+  ['connector_config','connector_secret'],['connector_config','connector_secret'],{exportName:'configWebhookServiceSet',cas:true,maxItems:6});
+operation('config.key.webhook.service.revoke','Révoquer le jeton webhook Resend','command',keyRevokeInput,configOutput,
+  ['connector_config','connector_secret'],['connector_config','connector_secret'],{exportName:'configWebhookServiceRevoke',cas:true,maxItems:6});
+operation('event.receive','Enregistrer un événement Resend signé','command',eventInput,eventOutput,
+  ['connector_config','webhook_event'],['webhook_event'],{exportName:'eventReceive',permission:'webhook.receive'});
+operations.at(-1).actors=['machine','signed-webhook'];
+operation('event.status','Lire un accusé signé pour un envoi connu','query',statusInput,statusOutput,
+  ['connector_config','webhook_event'],[],{exportName:'eventStatus',permission:'use',public:true,maxItems:52});
+operation('received.read','Lire un courriel reçu confirmé par webhook','query',receivedInput,receivedOutput,
+  ['connector_config','webhook_event'],[],{exportName:'receivedRead',permission:'use',public:true,remote:true,maxItems:52});
 operation('domain.list','Lire les domaines Resend','query',empty,domainOutput,
   ['connector_config'],[],{exportName:'domainList',remote:true,maxItems:100});
 operation('delivery.readiness','Vérifier l’éligibilité locale du transport','query',empty,readinessOutput,
   ['connector_config'],[],{exportName:'deliveryReadiness',permission:'use',public:true});
 const api=[];
-for(const op of operations){
+for(const op of operations.filter(op=>!['event.receive','event.status','received.read'].includes(op.id))){
   for(const audience of op.audiences)api.push({id:`${audience}.${op.id}`,method:op.kind==='command'?'POST':'GET',
     path:`/api/${audience}/resend/${op.id.replaceAll('.','/')}`,operation:ref('operation',op.id),audience,
     auth:['session','oauth','api-token'],parameters:[],input:op.input,output:op.output,
     rateLimit:{requests:30,windowSeconds:60}});
 }
-const mcpTools=operations.map(op=>({id:op.id,name:`resend_${op.id.replaceAll('.','_')}`,
+api.push({id:'webhook.event.receive',method:'POST',path:'/api/webhooks/resend',
+  operation:ref('operation','event.receive'),audience:'admin',auth:['webhook-signature'],parameters:[],
+  input:eventInput,output:eventOutput,rateLimit:{requests:120,windowSeconds:60}});
+const mcpTools=operations.filter(op=>!['event.receive','event.status','received.read'].includes(op.id)).map(op=>({id:op.id,name:`resend_${op.id.replaceAll('.','_')}`,
   operation:ref('operation',op.id),audiences:op.audiences,auth:['oauth','api-token'],input:op.input,output:op.output,
   annotations:{readOnly:op.kind==='query',destructive:op.id==='config.key.revoke',
     idempotent:op.kind==='query',openWorld:op.effects.providers.length>0},textFallback:true}));
@@ -99,7 +155,7 @@ const m=structuredClone(template);
 m.identity={id,title:'Connecteur Resend',publisher:'creezio',origin:'https://github.com/creezio/Creezio-D1R2',
   version,source:{kind:'snapshot',revision,integrity:`sha256-${createHash('sha256').update(revision).digest('hex')}`},
   license:{expression:'NOASSERTION',file:'LICENSE'}};
-m.compatibility={core:'^0.0.0',sdk:'^1.6.0',requiredCapabilities:['runtime.worker','data.d1.shared'],optionalCapabilities:[]};
+m.compatibility={core:'^0.0.0',sdk:'^1.8.0',requiredCapabilities:['runtime.worker','data.d1.shared'],optionalCapabilities:[]};
 m.entrypoints={server:{path:'module/entry.server.ts',export:'resend'},ui:{path:'ui/index.tsx',export:'ResendAdminView'},
   plugin:{manifest:'plugin/plugin.json',mcp:'plugin/mcp.json',
     contributions:{path:'plugin/contributions.ts',export:'contributions'}}};
@@ -113,19 +169,23 @@ m.contracts={schemas,models,files:[],events:[],connectors:[structuredClone(resen
   search:[],permissions,operations,api,mcp:{tools:mcpTools,resources:[],prompts:[],skills:[]},
   ui:{views:[{id:'admin',title:'Resend',surfaces:['workspace'],route:'/admin/resend',
     component:{path:'ui/index.tsx',export:'ResendAdminView'},permissions:[ref('permission','manage')],
-    operations:operations.filter(op=>op.id!=='delivery.readiness').map(op=>ref('operation',op.id)),input:viewInput,
+    operations:operations.filter(op=>!['delivery.readiness','event.receive','event.status','received.read'].includes(op.id)).map(op=>ref('operation',op.id)),input:viewInput,
     panel:{identityFields:[],navigation:'sdk',retention:'preserve',inactiveEffects:'suspend',stateSchema:panelState}}],
     navigation:[{id:'resend-admin',title:'Resend',view:ref('view','admin'),permissions:[ref('permission','manage')],
       surfaces:['workspace'],order:79}],slots:[],front:{mode:'absent',justification:{reason:'Resend settings belong to workspace.',
       policyRule:'resend.workspace-only'}},themes:[],styles:[]},widgets:[],publicContracts:[
     {id:'delivery-readiness',version:'1.0.0',models:[],operations:[ref('operation','delivery.readiness')],events:[],
-      schemas:[{schemaId:'empty-input'},{schemaId:'delivery-readiness-output'}]}]};
+      schemas:[{schemaId:'empty-input'},{schemaId:'delivery-readiness-output'}]},
+    {id:'delivery-events',version:'1.0.0',models:[],operations:[ref('operation','event.status')],events:[],
+      schemas:[{schemaId:'delivery-event-status-input'},{schemaId:'delivery-event-status-output'}]},
+    {id:'received-email',version:'1.0.0',models:[],operations:[ref('operation','received.read')],events:[],
+      schemas:[{schemaId:'received-email-read-input'},{schemaId:'received-email-read-output'}]}]};
 m.documentation.versionBinding={moduleVersion:version,sourceRevision:revision};
 for(const suite of ['backend','ui','api-mcp','widgets','package','docs'])m.validation.suites[suite].tests=[`tests/${suite}/contract.test.mjs`];
 m.validation.suites.widgets.mode='not-applicable';m.validation.suites.widgets.justification={
   reason:'No provider widget is shown until Messaging owns a durable delivery projection.',
   policyRule:'resend.no-premature-send-widget'};
-m.packaging.runtime.files=['module/manifest.json','module/models.json','module/entry.server.ts','module/storage.ts',
+m.packaging.runtime.files=['module/manifest.json','module/models.json','module/entry.server.ts','module/storage.ts','module/webhook.ts',
   'module/operations.ts','module/service.ts','ui/index.tsx','ui/panel-state.ts','README.md','prd.md','CHANGELOG.md',
   'LICENSE','plugin/plugin.json','plugin/mcp.json','plugin/contributions.ts'];
 m.packaging.validation.files=['AGENTS.md','FILES.md','interview.md','TODO.md','gate.mjs',

@@ -13,7 +13,7 @@ test('message lookup exports only authorized read, not storage or transport',()=
 
 test('every native operation has separate admin/app HTTP and MCP bindings',()=>{
   const operations=manifest.contracts.operations;
-  assert.equal(operations.length,19);
+  assert.equal(operations.length,21);
   for(const op of operations){
     assert.deepEqual(op.audiences,['admin','app']);
     assert.deepEqual(op.actors,['user','delegated-user','machine']);
@@ -32,7 +32,8 @@ test('every native operation has separate admin/app HTTP and MCP bindings',()=>{
 
 test('send declares durable snapshot, optional Resend readiness and provider intent',()=>{
   const send=manifest.contracts.operations.find(x=>x.id==='message.send');
-  assert.deepEqual(send.effects.writes.map(x=>x.id),['message','draft','send_snapshot']);
+  assert.deepEqual(send.effects.writes.map(x=>x.id),
+    ['message','draft','send_snapshot','message_attachment','attachments']);
   assert.deepEqual(send.effects.providers,['resend.api.v1']);
   assert.deepEqual(send.effects.calls.map(x=>x.id),['delivery.readiness']);
   assert.deepEqual(send.effects.emits,[]);

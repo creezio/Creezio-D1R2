@@ -8,3 +8,4 @@
 - Une préparation interrompue retrouve sa cible après rechargement et reprend le même projet avec le jeton correspondant.
 - Un changement de compte efface la cible affichée avant de relire celle du nouvel utilisateur autorisé.
 - Un parcours séparé prépare, confirme et suit une mise à jour du Worker sans recopier D1/R2 ni remplacer ses secrets.
+- La mise à jour incertaine propose une nouvelle tentative explicite du même artefact après preuve négative sur la version Worker ; les tentatives restent journalisées et le diagnostic exposé est borné.

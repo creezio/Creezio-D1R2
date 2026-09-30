@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {manifest} from '../helpers.mjs';
-import {configRead,configSet,configKeySet,configKeyRevoke,domainList,deliveryReadiness} from '../../module/service.ts';
+import {configRead,configSet,configKeySet,configKeyRevoke,domainList,deliveryReadiness,
+  eventStatus,receivedRead} from '../../module/service.ts';
 import {resendConnectorDescriptor,RESEND_ORIGIN} from '../../module/storage.ts';
 
 const row={id:'resend.api.v1',origin:RESEND_ORIGIN,from_address:'sender@example.test',
@@ -22,17 +23,20 @@ function harness(initial=row,response={data:[]}){
 }
 test('Resend descriptor pins GET/POST routes, payload size and host-generated idempotency',()=>{
   assert.deepEqual(manifest.contracts.models.map(model=>model.primaryKey),
-    [['context_id','id'],['context_id','id']]);
+    [['context_id','id'],['context_id','id'],['context_id','id']]);
   assert.equal(resendConnectorDescriptor.fixedOrigin,RESEND_ORIGIN);
   assert.deepEqual(resendConnectorDescriptor.auth,{kind:'bearer'});
   assert.deepEqual(resendConnectorDescriptor.resources.map(item=>[item.id,item.method,item.path]),[
-    ['domains','GET','/domains'],['email.send','POST','/emails']]);
-  const send=resendConnectorDescriptor.resources[1];
+    ['domains','GET','/domains'],['email.received','GET','/emails/receiving/{id}'],
+    ['email.send','POST','/emails']]);
+  const send=resendConnectorDescriptor.resources[2];
   assert.equal(send.idempotencyHeader,'Idempotency-Key');
   assert.equal(send.body.encoding,'json');
   assert.deepEqual(send.body.fields.map(item=>item.wireName),
     ['from','to','cc','bcc','reply_to','subject','text','html']);
   assert.ok(send.body.fields.every(item=>item.maxBytes<=65_536));
+  assert.deepEqual(send.attachments,{wireName:'attachments',maxItems:50,maxBytes:10*1024*1024});
+  assert.equal(resendConnectorDescriptor.webhook.scheme,'resend');
   assert.deepEqual(manifest.contracts.connectors,[resendConnectorDescriptor]);
 });
 test('configuration fixes origin, validates sender, and stores key only through vault plans',async()=>{
@@ -77,4 +81,35 @@ test('readiness is scoped, non-secret, and revocation removes eligibility',async
   assert.deepEqual(revoked,{state:'unavailable',from:null,configRevision:4});
   assert.deepEqual((await deliveryReadiness({},harness(null).context)).output,
     {state:'missing',from:null,configRevision:0});
+});
+test('signed event status and received fetch stay within the active connection',async()=>{
+  const active={...row,connection_id:'connection-one'};
+  const h=harness(active,{id:'mail-one',to:['sender@example.test'],from:'peer@example.test',
+    subject:'Hello',text:'Line one\nLine two',html:'<p>Hello</p>',
+    created_at:'2026-09-30T10:00:00.000Z',attachments:[]});
+  h.context.data.list=async(_model,args)=>{
+    assert.equal(args.where.connection_id,'connection-one');
+    return {items:[{id:'evt-one',event_type:'email.delivered',occurred_at:'2026-09-30T10:01:00.000Z'},
+      {id:'evt-two',event_type:'email.received',occurred_at:'2026-09-30T10:00:00.000Z'}],
+      nextAfter:null};
+  };
+  assert.equal((await eventStatus({emailId:'mail-one'},h.context)).output.kind,'delivered');
+  const failed=harness(active);
+  failed.context.data.list=async(_model,args)=>{
+    assert.equal(args.where.connection_id,'connection-one');
+    return {items:[{id:'evt-sent',event_type:'email.sent',occurred_at:'2026-09-30T10:03:00.000Z'},
+      {id:'evt-failed',event_type:'email.failed',occurred_at:'2026-09-30T10:02:00.000Z'},
+      {id:'evt-old',event_type:'email.delivered',occurred_at:'2026-09-30T10:01:00.000Z'}],
+      nextAfter:null};
+  };
+  assert.deepEqual((await eventStatus({emailId:'mail-one'},failed.context)).output,
+    {kind:'failed',eventId:'evt-failed',occurredAt:'2026-09-30T10:02:00.000Z'});
+  const received=(await receivedRead({emailId:'mail-one'},h.context)).output;
+  assert.equal(received.text,'Line one\nLine two');
+  assert.equal(received.attachmentCount,0);
+  assert.deepEqual(h.calls.at(-1).request,{resource:'email.received',id:'mail-one',signal:h.context.signal});
+  const missing=harness(active);
+  missing.context.data.list=async()=>({items:[],nextAfter:null});
+  await assert.rejects(receivedRead({emailId:'mail-one'},missing.context),{code:'not_found'});
+  assert.equal(missing.calls.some(call=>call.request),false);
 });

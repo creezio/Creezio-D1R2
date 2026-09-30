@@ -424,7 +424,9 @@ export function MessagingView(props:RuntimeViewProps) {
       ||editor.subject!==draft.subject||editor.text!==draft.text||editor.html!==draft.html){
       setNotice('Enregistrez les modifications du brouillon avant de l’envoyer.');return;
     }
-    if(attachments.length){setNotice('Les pièces jointes ne sont pas encore prises en charge par le transport ; le brouillon est conservé.');return;}
+    if(attachments.length>50||attachments.reduce((total,item)=>total+item.byteSize,0)>10*1024*1024){
+      setNotice('L’envoi accepte au plus 50 pièces jointes et 10 Mio au total. Le brouillon est conservé.');return;
+    }
     const selected=editor.id,busyToken=beginBusy();setNotice('');
     try{
       const result=await executeMutation<{message:Message;draft:Draft}>('message.send',
@@ -448,6 +450,19 @@ export function MessagingView(props:RuntimeViewProps) {
       if(!result.value.message){setNotice('Modification non confirmée.');return;}
       setMessage(result.value.message);setMessages(rows=>rows.map(row=>row.id===prior.id?result.value.message:row));
       if(change.folder&&change.folder!==folder){setSelectedId(null);void loadList();}
+    }finally{finishBusy(busyToken);}
+  }
+  async function reconcileDelivery(){
+    if(!message||message.direction!=='outbound'||busy||!scoped())return;
+    const prior=message,busyToken=beginBusy();
+    try{const result=await executeMutation<{message:Message}>('message.delivery.reconcile',{
+      boxId,messageId:prior.id,revision:prior.revision},()=>scoped(boxId),prior.id);
+      if(!scoped(boxId))return;
+      if(result.kind!=='ok'||!result.value.message){setNotice(result.kind==='unknown'
+        ?'Statut incertain ; vérifiez la dernière modification.':'Rapprochement refusé ou indisponible.');return;}
+      setMessage(result.value.message);
+      setMessages(rows=>rows.map(row=>row.id===prior.id?result.value.message:row));
+      setNotice(result.value.message.state===prior.state?'Aucun nouvel accusé signé.':'Livraison rapprochée.');
     }finally{finishBusy(busyToken);}
   }
   async function deleteDraft(){if(!draft||busy||!scoped())return;const busyToken=beginBusy();
@@ -522,7 +537,7 @@ export function MessagingView(props:RuntimeViewProps) {
       <div role="separator" aria-orientation="vertical" onPointerDown={event=>beginResize(event,0)} className="w-1 cursor-col-resize bg-[#ebe4d8] hover:bg-sky-300"/>
       <div style={{width:`${widths[1]}%`}} className="min-w-0"><ListPanel folder={folder} messages={messages} drafts={drafts} selectedId={selectedId} query={query} onQuery={setQuery} unreadOnly={unreadOnly} onUnreadOnly={setUnreadOnly} onSelect={chooseItem} onRefresh={()=>void loadList()} loading={loading} hasMore={!!cursor} onMore={()=>void loadList(true)}/></div>
       <div role="separator" aria-orientation="vertical" onPointerDown={event=>beginResize(event,1)} className="w-1 cursor-col-resize bg-[#ebe4d8] hover:bg-sky-300"/>
-      <div className="min-w-0 flex-1"><ReaderPanel message={message} draft={draft} thread={thread} threadHasMore={!!threadCursor} threadLoading={threadLoading} onThreadMore={()=>void loadMoreThread()} onThreadSelect={chooseItem} attachments={attachments} loading={loading} busy={busy||!!pending} onReply={reply} onEdit={()=>draft&&openCompose(draftFrom(draft))} onDownload={item=>void downloadFile(item)} onUpdate={change=>void updateMessage(change)} onDeleteDraft={()=>void deleteDraft()}/></div>
+      <div className="min-w-0 flex-1"><ReaderPanel message={message} draft={draft} thread={thread} threadHasMore={!!threadCursor} threadLoading={threadLoading} onThreadMore={()=>void loadMoreThread()} onThreadSelect={chooseItem} attachments={attachments} loading={loading} busy={busy||!!pending} onReply={reply} onEdit={()=>draft&&openCompose(draftFrom(draft))} onDownload={item=>void downloadFile(item)} onUpdate={change=>void updateMessage(change)} onReconcile={()=>void reconcileDelivery()} onDeleteDraft={()=>void deleteDraft()}/></div>
     </div>
     {newBox&&<div role="dialog" aria-modal="true" aria-label="Nouvelle boîte" className="absolute inset-0 z-30 flex items-center justify-center bg-black/35 p-4"><div className="w-full max-w-md space-y-3 rounded-xl bg-white p-5 shadow-xl">
       <div className="flex justify-between"><h2 className="font-semibold">Nouvelle boîte locale</h2><button type="button" onClick={()=>setNewBox(false)} aria-label="Fermer"><X size={18}/></button></div>
@@ -545,10 +560,10 @@ export function MessagingView(props:RuntimeViewProps) {
           <button type="button" disabled={busy||!!pending} aria-label={`Retirer ${item.filename}`} onClick={()=>void unlinkFile(item)}><X size={13}/></button></span>)}</div>}
         {!editor.id&&<p className="text-xs text-[#5c6478]">Enregistrez d’abord le brouillon pour y joindre des fichiers.</p>}
       </div><footer className="flex flex-wrap items-center justify-between gap-2 border-t border-[#ebe4d8] p-4">
-        <span className="text-xs text-amber-900">Le transport vérifie les droits et l’expéditeur au moment de l’envoi. Les pièces jointes restent indisponibles.</span>
+        <span className="text-xs text-amber-900">Le transport vérifie les droits et l’expéditeur au moment de l’envoi. Jusqu’à 50 pièces jointes et 10 Mio au total.</span>
         <div className="flex gap-2"><button type="button" disabled={busy||!!pending} onClick={()=>void saveDraft()} className={`${messagingButton} inline-flex items-center gap-2`}><Save size={15}/>Enregistrer le brouillon</button>
-          <button type="button" disabled={busy||!!pending||!!sendFollowup||!editor.id||!!draft?.sendIntentId||attachments.length>0}
-            title={attachments.length?'Pièces jointes non prises en charge par le transport':undefined}
+          <button type="button" disabled={busy||!!pending||!!sendFollowup||!editor.id||!!draft?.sendIntentId||attachments.length>50||attachments.reduce((total,item)=>total+item.byteSize,0)>10*1024*1024}
+            title={attachments.length>50||attachments.reduce((total,item)=>total+item.byteSize,0)>10*1024*1024?'Limite : 50 fichiers et 10 Mio cumulés':undefined}
             onClick={()=>void sendDraft()} className={`${messagingButton} inline-flex items-center gap-2`}><Send size={15}/>Envoyer</button></div>
       </footer></div></div>}
   </div>;

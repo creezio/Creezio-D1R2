@@ -31,6 +31,7 @@ import {createWebhookProofAuthority} from '../connectors/webhook-proof.ts';
 import {createSignedWebhookBridge,type SignedWebhookBridge,
   } from '../connectors/webhook-http.ts';
 import {createVaultedWebhookResolver,type CompiledWebhookMapping} from '../connectors/webhook-resolver.ts';
+import {recordPreEngineRefusal} from './transport-diagnostics.ts';
 
 type Engine = ReturnType<typeof createOperationEngine>;
 const encoder = new TextEncoder();
@@ -226,11 +227,12 @@ async function bounded<T>(request: Request, action: () => Promise<T>, command: b
 
 /** Host-only adapter. Bindings are compiled at build time; this does no module discovery. */
 export function createOperationHttpTransport(bindings: readonly OperationHttpBinding[], engine: Engine,
-  webhooks?:SignedWebhookBridge) {
+  webhooks?:SignedWebhookBridge,diagnosticsEnabled=false) {
   const selected = Object.freeze([...bindings]);
   if (selected.length > 1000 || selected.some(binding => !binding || typeof binding.path !== 'string')) throw new Error('Invalid HTTP bindings.');
   return Object.freeze({
     async dispatch(request: Request, environment: RuntimeEnvironment, rawEnvironment: unknown, requestId: string): Promise<Response | null> {
+      const startedAtMs=Date.now();let engineCalled=false;
       const url = new URL(request.url);
       const statusMatch = /^\/api\/operations\/status\/([^/]+)\/([^/]+)\/([^/]+)$/.exec(url.pathname);
       const lookupMatch = /^\/api\/operations\/lookup\/([^/]+)\/([^/]+)$/.exec(url.pathname);
@@ -241,21 +243,30 @@ export function createOperationHttpTransport(bindings: readonly OperationHttpBin
       if (!statusRead && !matches.length) return null;
       const methods = statusRead ? ['GET'] : matches.map(item => item.binding.method);
       const selectedRoute = statusRead ? null : matches.find(item => item.binding.method === request.method);
+      const routeTemplate=(statusMatch?statusBinding:lookupMatch?lookupBinding:selectedRoute?.binding
+        ??matches[0]?.binding)?.path??'/api/unmatched';
+      const refused=async(code:string,status:number,response:Response)=>{
+        if(diagnosticsEnabled&&!engineCalled)await recordPreEngineRefusal({db:environment.bindings.DB,
+          transport:'api',method:request.method,routeTemplate,status,code,startedAtMs});
+        return response;
+      };
       if (!selectedRoute && !statusRead || statusRead && request.method !== 'GET')
-        return failure('method_not_allowed', 405, requestId, { allow: [...new Set(methods)].join(', ') }, request.method === 'HEAD');
+        return refused('method_not_allowed',405,failure('method_not_allowed', 405, requestId,
+          { allow: [...new Set(methods)].join(', ') }, request.method === 'HEAD'));
       const binding = statusMatch ? statusBinding : lookupMatch ? lookupBinding : selectedRoute?.binding;
-      if (!binding) return failure('not_found', 404, requestId);
-      if(binding.auth.includes('webhook-signature'))return statusRead
+      if (!binding) return refused('not_found',404,failure('not_found', 404, requestId));
+      if(binding.auth.includes('webhook-signature')){engineCalled=true;return statusRead
         ?failure('not_found',404,requestId)
-        :webhooks?webhooks.dispatch(request,binding):failure('runtime_unavailable',503,requestId);
+        :webhooks?webhooks.dispatch(request,binding):failure('runtime_unavailable',503,requestId);}
       const configuration = resolveAccessHttpConfiguration(rawEnvironment, environment.profile);
-      if (!configuration) return failure('runtime_unavailable', 503, requestId);
+      if (!configuration) return refused('runtime_unavailable',503,failure('runtime_unavailable', 503, requestId));
       try {
         transportChecks(request, binding, configuration, statusRead);
         const approvalId = approvalPointer(request, statusRead);
         const issued = credential(request, binding, configuration), contextId = context(request, binding);
         if (statusMatch) {
           await admit(environment, binding, issued.token, true);
+          engineCalled=true;
           const execution = await bounded(request, () => engine.status({ credential: issued, moduleId: binding.moduleId,
             operationId: binding.operationId, audience: binding.audience, contextId, executionId: statusMatch[3] }), false);
           return json({ execution: projected(execution) }, 200, requestId);
@@ -263,6 +274,7 @@ export function createOperationHttpTransport(bindings: readonly OperationHttpBin
         if (lookupMatch) {
           const requestKey = decodedRequestKey(request);
           await admit(environment, binding, issued.token, true);
+          engineCalled=true;
           const execution = await bounded(request, () => engine.lookup({ credential: issued, moduleId: binding.moduleId,
             operationId: binding.operationId, audience: binding.audience, contextId, requestKey }), false);
           return json({ execution: projected(execution) }, execution?.state === 'running' || execution?.state === 'unknown' ? 202 : 200, requestId);
@@ -270,16 +282,17 @@ export function createOperationHttpTransport(bindings: readonly OperationHttpBin
         const input = mappedInput(request, binding, selectedRoute!.params,
           binding.method === 'GET' ? undefined : await readAccessJson(request));
         await admit(environment, binding, issued.token);
+        engineCalled=true;
         const result = await bounded(request, () => engine.invoke({ credential: issued, moduleId: binding.moduleId, operationId: binding.operationId,
           audience: binding.audience, contextId, input, signal: request.signal,
           ...(approvalId === undefined ? {} : {approvalId}) }), binding.kind === 'command');
         return json({ execution: projected(result.execution, result.replayed) }, result.execution.state === 'running' || result.execution.state === 'unknown' ? 202 : 200,
           requestId);
       } catch (error) {
-        if (error instanceof AccessHttpError) return failure(error.code, error.status, requestId,
-          error.status === 429 ? { 'retry-after': String(binding.rateLimit.windowSeconds) } : undefined);
-        if (error instanceof OperationError) return failure(error.code, errorStatus(error), requestId);
-        return failure('service_unavailable', 503, requestId);
+        if (error instanceof AccessHttpError) return refused(error.code,error.status,failure(error.code, error.status, requestId,
+          error.status === 429 ? { 'retry-after': String(binding.rateLimit.windowSeconds) } : undefined));
+        if (error instanceof OperationError) return refused(error.code,errorStatus(error),failure(error.code, errorStatus(error), requestId));
+        return refused('service_unavailable',503,failure('service_unavailable', 503, requestId));
       }
     },
   });
@@ -388,6 +401,8 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
           mappings:options.webhooks!.mappings})(binding);}
         catch{return null;}
       }}):undefined;
-    return createOperationHttpTransport(options.bindings,engine,bridge).dispatch(request, environment, rawEnvironment, requestId);
+    return createOperationHttpTransport(options.bindings,engine,bridge,
+      options.dataCatalog.modules.some(item=>item.moduleId==='creezio.analytics'&&item.enabled))
+      .dispatch(request, environment, rawEnvironment, requestId);
   }});
 }

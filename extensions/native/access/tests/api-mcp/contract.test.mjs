@@ -5,24 +5,25 @@ import {hostOnly} from '../../module/operations.ts';
 import {validNativeAccessDeclaration} from '../../../../../core/operations/native-access.ts';
 
 const ids = ['policy.read','permissions.list','principals.list','sessions.list','audit.list','audit.detail',
-  'policy.apply-delta','principals.set-human-status','principals.revoke-sessions','sessions.revoke'];
+  'policy.apply-delta','principals.set-human-status','principals.revoke-sessions','sessions.revoke',
+  'service.create','service.status','service.token.issue','service.token.revoke','service.token.read'];
 const refs = manifest.contracts.operations;
 
-test('native Access exposes the same ten reviewed operation IDs through API and MCP declarations', () => {
+test('native Access exposes service admission while token issuance stays HTTP session only', () => {
   assert.deepEqual(refs.map(item=>item.id),ids);
   assert.deepEqual(manifest.contracts.api.map(item=>item.operation.id),ids);
-  assert.deepEqual(manifest.contracts.mcp.tools.map(item=>item.operation.id),ids);
+  assert.deepEqual(manifest.contracts.mcp.tools.map(item=>item.operation.id),ids.filter(id=>id!=='service.token.issue'));
   for (const operation of refs) {
     assert.equal(validNativeAccessDeclaration(operation),true,operation.id);
     assert.deepEqual(operation.permissions,[{moduleId:'creezio.access',kind:'permission',id:'manage'}]);
     assert.deepEqual(operation.audiences,['admin']);
-    assert.deepEqual(operation.actors,['user','delegated-user']);
+    assert.deepEqual(operation.actors,operation.id==='service.token.issue'?['user']:['user','delegated-user']);
     assert.equal(operation.context,'application');
     assert.equal(operation.public,false);
   }
   for (const binding of manifest.contracts.api) {
     assert.match(binding.path,/^\/api\/admin\/access\//);
-    assert.deepEqual(binding.auth,['session','oauth']);
+    assert.deepEqual(binding.auth,binding.id==='service.token.issue'?['session']:['session','oauth']);
     assert.equal(binding.audience,'admin');
     assert.equal(binding.input.schemaId,refs.find(item=>item.id===binding.operation.id).input.schemaId);
   }
@@ -33,7 +34,9 @@ test('native Access exposes the same ten reviewed operation IDs through API and 
 
 test('native commands carry explicit idempotency and the expected T04 version guard', () => {
   const expected = {'policy.apply-delta':'expectedEpoch','principals.set-human-status':'expectedAuthVersion',
-    'principals.revoke-sessions':'expectedAuthVersion','sessions.revoke':null};
+    'principals.revoke-sessions':'expectedAuthVersion','sessions.revoke':null,
+    'service.create':null,'service.status':'expectedAuthVersion','service.token.issue':null,
+    'service.token.revoke':null};
   for (const [id, field] of Object.entries(expected)) {
     const operation = refs.find(item=>item.id===id);
     assert.equal(operation.kind,'command');

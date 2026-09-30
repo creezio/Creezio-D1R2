@@ -14,7 +14,7 @@ m.identity = {id: moduleId, title: 'Livraison Cloudflare locale', publisher: 'cr
   source: {kind: 'snapshot', revision,
     integrity: `sha256-${createHash('sha256').update(revision).digest('hex')}`},
   license: {expression: 'NOASSERTION', file: 'LICENSE'}};
-m.compatibility = {core: '^0.0.0', sdk: '^1.1.0', requiredCapabilities: ['runtime.worker'], optionalCapabilities: []};
+m.compatibility = {core: '^0.0.0', sdk: '^1.8.0', requiredCapabilities: ['runtime.worker'], optionalCapabilities: []};
 m.entrypoints = {server: {path: 'module/entry.server.ts', export: 'delivery'},
   ui: {path: 'ui/index.tsx', export: 'DeliveryAdminView'},
   plugin: {manifest: 'plugin/plugin.json', mcp: 'plugin/mcp.json',

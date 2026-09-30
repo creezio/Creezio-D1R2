@@ -1,6 +1,6 @@
 # Changelog
 
-- T29 candidat : snapshot d’envoi texte/HTML et Cci figé, message `queued` et outbox atomique, refus explicite des pièces jointes, query interne de préparation et projecteur de reçu CAS. Aucun appel fournisseur sans bridge hôte ; `waiting` reste visible et suivi par clé persistée.
+- T29 local : snapshot texte/HTML, Cci et jusqu’à 50 références R2 privées (10 Mio) figés avec message et outbox ; octets transmis uniquement par le port hôte Resend. Accusés signés rapprochés par projection CAS ; import entrant explicite sans pièce jointe, refus intégral avec pièce jointe. Aucun fournisseur réel qualifié.
 
 - Complément T18 : une pièce jointe ne remplace plus la composition non enregistrée ; l'éditeur ne publie que du HTML nettoyé et des URL HTTP(S) analysées. Le port public `message-lookup` v1 expose `message.read` sans modèle privé. Les trois cartes refusent un résultat marqué en erreur.
 

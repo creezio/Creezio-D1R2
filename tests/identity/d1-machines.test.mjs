@@ -89,8 +89,9 @@ test('machine credentials intersect exact scopes with fresh D1 rights and rotate
     });
   }
   async function assertTokenAudit(action, item) {
-    const matches = await rows('access_audit', 'WHERE action=? AND credential_id=?', [action, item.credential.id]);
+    const matches = await rows('access_audit', 'WHERE action=? AND target_credential_id=?', [action, item.credential.id]);
     assert.equal(matches.length, 1); assert.equal(matches[0].target_principal_id, item.credential.principalId);
+    assert.equal(matches[0].credential_id,null,'a browser session has no OAuth actor credential');
     assert.equal(JSON.stringify(matches).includes(item.token), false); assert.equal(JSON.stringify(matches).includes(digest(item.token)), false);
   }
   try {

@@ -3,6 +3,7 @@ import { NATIVE_ACCESS_PERMISSIONS, MANAGE_ACCESS, IMPERSONATE_ACCESS } from '..
 import type { PermissionDefinition } from '../authorization/types.ts';
 import { createAccountAdministrationService, createAccountAdministrationPlanService } from '../identity/administration.ts';
 import { createAccessAuditService } from '../identity/audit.ts';
+import {createMachineAccountPlanService} from '../identity/machines.ts';
 import type { IdentityDatabase } from '../identity/d1-store.ts';
 import type { SqlStatement } from '../data/authorization.ts';
 import type { RuntimeDataCatalog } from '../data/types.ts';
@@ -13,19 +14,23 @@ export interface NativeAccessResult { readonly output: unknown; readonly nativeS
   readonly compared?: boolean; readonly storageRevocation?: NativeStorageRevocation }
 /** Host-only receipt specification; the operation runner owns route inventory and fencing. */
 export interface NativeStorageRevocation {
-  readonly kind:'policy.apply-delta'|'principals.set-human-status'|'principals.revoke-sessions'|'sessions.revoke';
+  readonly kind:'policy.apply-delta'|'principals.set-human-status'|'principals.revoke-sessions'|'sessions.revoke'
+    |'service.create'|'service.status'|'service.token.issue'|'service.token.revoke';
   readonly requestKey:string;readonly auditId:string;readonly action:string;
   readonly targetPrincipalId?:string;readonly targetSessionId?:string;readonly expectedEpoch?:number;
 }
 const revocation=(value:NativeStorageRevocation):NativeStorageRevocation=>Object.freeze(value);
 
-const nativeQueries = new Set(['policy.read', 'permissions.list', 'principals.list', 'sessions.list', 'audit.list', 'audit.detail']);
+const nativeQueries = new Set(['policy.read', 'permissions.list', 'principals.list', 'sessions.list', 'audit.list',
+  'audit.detail','service.token.read']);
 const nativeCommands = new Set(['policy.apply-delta', 'principals.set-human-status',
-  'principals.revoke-sessions', 'sessions.revoke']);
+  'principals.revoke-sessions', 'sessions.revoke','service.create','service.status',
+  'service.token.issue','service.token.revoke']);
 const identityReads = ['principals', 'human_accounts', 'password_credentials', 'sessions',
   'authorization_state', 'contexts', 'memberships', 'oauth_access_tokens', 'oauth_grants', 'oauth_clients'];
 const policyReads = [...identityReads, 'roles', 'role_parents', 'role_grants', 'role_overrides',
   'role_assignments', 'principal_overrides'];
+const machineReads=[...policyReads,'api_credentials','api_credential_scopes','access_audit'];
 const readModels: Readonly<Record<string, readonly string[]>> = Object.freeze({
   'policy.read': policyReads,
   'permissions.list': policyReads,
@@ -37,6 +42,11 @@ const readModels: Readonly<Record<string, readonly string[]>> = Object.freeze({
   'principals.set-human-status': [...identityReads, 'account_capabilities'],
   'principals.revoke-sessions': [...identityReads, 'account_capabilities'],
   'sessions.revoke': identityReads,
+  'service.create':machineReads,
+  'service.status':machineReads,
+  'service.token.issue':machineReads,
+  'service.token.revoke':machineReads,
+  'service.token.read':machineReads,
 });
 const writeModels: Readonly<Record<string, readonly string[]>> = Object.freeze({
   'policy.apply-delta': ['access_audit', 'access_policy_audit_details', 'authorization_state', 'contexts',
@@ -44,6 +54,10 @@ const writeModels: Readonly<Record<string, readonly string[]>> = Object.freeze({
   'principals.set-human-status': ['access_audit', 'principals', 'sessions', 'account_capabilities'],
   'principals.revoke-sessions': ['access_audit', 'principals', 'sessions', 'account_capabilities'],
   'sessions.revoke': ['access_audit', 'sessions'],
+  'service.create':['access_audit','principals'],
+  'service.status':['access_audit','principals','api_credentials'],
+  'service.token.issue':['access_audit','api_credentials','api_credential_scopes'],
+  'service.token.revoke':['access_audit','api_credentials'],
 });
 const exactModels = (references: OperationDeclaration['effects']['reads'], expected: readonly string[]) =>
   references.length === expected.length && new Set(references.map(item => item.id)).size === expected.length
@@ -52,10 +66,14 @@ const exactModels = (references: OperationDeclaration['effects']['reads'], expec
 export function validNativeAccessDeclaration(op: OperationDeclaration): boolean {
   const query = nativeQueries.has(op.id), command = nativeCommands.has(op.id);
   const expectedVersion = op.id === 'policy.apply-delta' ? 'expectedEpoch'
-    : op.id === 'principals.set-human-status' || op.id === 'principals.revoke-sessions' ? 'expectedAuthVersion' : null;
+    : ['principals.set-human-status','principals.revoke-sessions','service.status'].includes(op.id)
+      ? 'expectedAuthVersion' : null;
+  const directHuman=op.id==='service.token.issue';
   return (query || command) && op.kind === (query ? 'query' : 'command')
     && op.audiences.length === 1 && op.audiences[0] === 'admin'
-    && op.actors.length === 2 && op.actors[0] === 'user' && op.actors[1] === 'delegated-user' && op.context === 'application'
+    && (directHuman?op.actors.length===1&&op.actors[0]==='user'
+      :op.actors.length===2&&op.actors[0]==='user'&&op.actors[1]==='delegated-user')
+    && op.context === 'application'
     && op.permissions.length === 1 && op.permissions[0].moduleId === 'creezio.access'
     && op.permissions[0].kind === 'permission' && op.permissions[0].id === 'manage'
     && op.approval.mode === 'none'
@@ -99,6 +117,7 @@ export function createNativeAccessOperationAdapter(db: IdentityDatabase, supplie
   const accounts = createAccountAdministrationService(db, {permissions: ordinaryPermissions});
   const accountPlans = createAccountAdministrationPlanService(db, {permissions: ordinaryPermissions});
   const audit = createAccessAuditService(db, {permissions: ordinaryPermissions});
+  const machines=createMachineAccountPlanService(db,{permissions:ordinaryPermissions});
   async function execute(operationId: string, credential: {readonly kind: 'session' | 'oauth'; readonly token: unknown; readonly resource?: string},
     inputValue: unknown,sourceAuditId?:string): Promise<NativeAccessResult> {
     const token: unknown = credential.kind === 'session' ? credential.token : credential;
@@ -174,6 +193,43 @@ export function createNativeAccessOperationAdapter(db: IdentityDatabase, supplie
         return {output: result.output, nativeStatements: [...result.statements, result.assertion],
           storageRevocation:revocation({kind:'sessions.revoke',requestKey:String(input.requestKey),
             auditId:result.auditId,action:'human-session-revoked',targetSessionId:String(input.sessionId)})};
+      }
+      case 'service.create': {
+        const result=await machines.prepareCreateService(token,{displayName:input.displayName},sourceAuditId);
+        if(!result.ok)return failure(result);
+        return {output:result.output,nativeStatements:result.statements,
+          storageRevocation:revocation({kind:'service.create',requestKey:String(input.requestKey),
+            auditId:result.auditId,action:'service-created',
+            targetPrincipalId:result.output.principal.id})};
+      }
+      case 'service.status': {
+        const result=await machines.prepareSetServiceStatus(token,{principalId:input.principalId,
+          expectedAuthVersion:input.expectedAuthVersion,status:input.status},sourceAuditId);
+        if(!result.ok)return failure(result);
+        return {output:result.output,nativeStatements:result.statements,compared:true,
+          storageRevocation:revocation({kind:'service.status',requestKey:String(input.requestKey),
+            auditId:result.auditId,action:'service-status-updated',targetPrincipalId:String(input.principalId)})};
+      }
+      case 'service.token.issue': {
+        if(credential.kind!=='session')throw new OperationError('forbidden');
+        const result=await machines.prepareIssueToken(token,{principalId:input.principalId,
+          label:input.label,ttlMs:input.ttlMs,scopes:input.scopes,apiToken:input.apiToken},sourceAuditId);
+        if(!result.ok)return failure(result);
+        return {output:result.output,nativeStatements:result.statements,
+          storageRevocation:revocation({kind:'service.token.issue',requestKey:String(input.requestKey),
+            auditId:result.auditId,action:'api-token-issued',targetPrincipalId:String(input.principalId)})};
+      }
+      case 'service.token.revoke': {
+        const result=await machines.prepareRevokeToken(token,{credentialId:input.credentialId},sourceAuditId);
+        if(!result.ok)return failure(result);
+        return {output:result.output,nativeStatements:result.statements,
+          storageRevocation:revocation({kind:'service.token.revoke',requestKey:String(input.requestKey),
+            auditId:result.auditId,action:'api-token-revoked'})};
+      }
+      case 'service.token.read': {
+        const result=await machines.readTokenMetadata(token,{credentialId:input.credentialId});
+        if(!result.ok)return failure(result);
+        return {output:{credential:result.credential}};
       }
       default: throw new OperationError('not_found');
     }

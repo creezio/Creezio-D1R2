@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {captureConnectorDescriptor,connectorOrigin,createConnectorHost} from '../../core/connectors/host.ts';
 import {createVaultKeyring,createVaultReference} from '../../core/vault/crypto.ts';
+import {meiliConnectorDescriptor} from '../../extensions/connectors/meili/module/storage.ts';
 
 const moduleId='test.connector',connectorId='test.api.v1';
 const config={moduleId,modelId:'connector_config',contextField:'context_id',
@@ -275,20 +276,21 @@ test('mutation rejects undeclared fields before egress and never retries an unkn
   assert.equal(calls,1);
 });
 
-test('Meili task writes accept a declared JSON array and a 202 response',async()=>{
-  const meili={...descriptor,resources:[{id:'documents',method:'POST',path:'/indexes/{id}/documents',
-    params:['id'],body:{encoding:'json-root',fields:[
-      {name:'documents',wireName:'documents',kind:'json',required:true,maxBytes:4096}]},
-    successStatuses:[202]}]};
+test('Meili document POST fixes primaryKey=id for ambiguous document fields',async()=>{
+  const meili={...descriptor,resources:[meiliConnectorDescriptor.resources.find(
+    item=>item.id==='document-upsert')]};
   const sent=[];
   const ready=await fixture(async(url,init)=>{sent.push({url:String(url),init});
     return new Response(JSON.stringify({taskUid:7,status:'enqueued'}),
       {status:202,headers:{'content-type':'application/json'}});},meili);
-  assert.deepEqual(await ready.port({registerCommitGuards:()=>{}}).mutate({resource:'documents',
-    id:'products',fields:{documents:[{id:'p1',title:'Book'}]}}),
+  const documents=[{id:'p1',productId:'sku1',category_id:'c1',title:'Book'},
+    {id:'p2',productId:'sku2',category_id:'c2',title:'Desk'}];
+  assert.deepEqual(await ready.port({registerCommitGuards:()=>{}}).mutate({resource:'document-upsert',
+    id:'products',fields:{documents}}),
     {kind:'ok',status:202,body:{taskUid:7,status:'enqueued'}});
-  assert.equal(sent[0].url,'https://n8n.example.invalid/indexes/products/documents');
-  assert.equal(sent[0].init.body,JSON.stringify([{id:'p1',title:'Book'}]));
+  assert.equal(sent.length,1);
+  assert.equal(sent[0].url,'https://n8n.example.invalid/indexes/products/documents?primaryKey=id');
+  assert.equal(sent[0].init.body,JSON.stringify(documents));
 });
 
 test('GET query fields are declared and bounded before network egress',async()=>{

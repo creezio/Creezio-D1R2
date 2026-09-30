@@ -5,7 +5,8 @@ import {mkdtempSync,mkdirSync,writeFileSync,rmSync,readFileSync,renameSync} from
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {measureRuntimeArtifacts} from '../../scripts/quality/runtime.mjs';
-import {inspectCloudflareDelivery,inspectCloudflareCurrent,createCloudflarePublisher} from '../../scripts/cloudflare/publisher.mjs';
+import {inspectCloudflareDelivery,inspectCloudflareCurrent,createCloudflarePublisher,
+  CloudflarePublicationError,publicationFailure} from '../../scripts/cloudflare/publisher.mjs';
 import {cloudflareArtifactRoot} from '../../scripts/cloudflare/artifact-path.mjs';
 import {cloudflareWorkerConfiguration} from '../../scripts/cloudflare/config.mjs';
 import {sourceIdentity} from '../../scripts/quality/evidence.mjs';
@@ -15,6 +16,15 @@ const target={schemaVersion:1,accountId:'a'.repeat(32),workerName:'first-app',da
   origin:'https://first-app.example.workers.dev',widgetSandboxOrigin:'https://sandbox.example.workers.dev'};
 const versionId='22222222-2222-4222-8222-222222222222';
 const delivery={id:'deployment-1',versions:[{percentage:100,version_id:versionId}]};
+test('publication diagnostics expose only bounded scalars',()=>{
+  const failure=new CloudflarePublicationError('outcome_unknown',{phase:'wrangler',
+    reason:'exit_nonzero',exitCode:1,apiCodes:[10001,10002,10003,10004,10005],
+    stderr:'Bearer very-secret-token'});
+  assert.deepEqual(publicationFailure(failure),{phase:'wrangler',reason:'exit_nonzero',
+    exitCode:1,apiCodes:[10001,10002,10003,10004]});
+  assert.deepEqual(publicationFailure(new Error('Bearer very-secret-token')),
+    {phase:'unknown',reason:'unavailable',exitCode:null,apiCodes:[]});
+});
 function fixture(t){
   const root=mkdtempSync(path.join(tmpdir(),'creezio-publisher-'));
   const artifactRoot=path.join(root,'.wrangler','delivery','build','artifact');
@@ -306,4 +316,46 @@ test('update publisher refuses a changed base before any upload and preserves in
   assert.throws(()=>createCloudflarePublisher({...input,
     artifactRoot:path.join(input.root,'.wrangler/delivery/updates/invalid!/artifact')}),
   {code:'invalid_configuration'});
+});
+
+test('preserved update checks its old receipt and remote head with a newer operator source',async t=>{
+  const input=fixture(t),updateId='33333333-3333-4333-8333-333333333333';
+  writeFileSync(path.join(input.root,'.gitignore'),'.wrangler/\n.quality/\n');
+  const git=(...args)=>execFileSync('git',args,{cwd:input.root,stdio:'ignore'});
+  git('init','-q');git('config','user.email','test@example.invalid');
+  git('config','user.name','Synthetic Fixture');git('add','.gitignore');git('commit','-qm','artifact source');
+  const updateRoot=cloudflareArtifactRoot(input.root,updateId);
+  mkdirSync(path.dirname(updateRoot),{recursive:true});renameSync(input.artifactRoot,updateRoot);
+  writeFileSync(path.join(updateRoot,'dist/server/wrangler.json'),
+    JSON.stringify(cloudflareWorkerConfiguration(input.target)));
+  const source=sourceIdentity(input.root);
+  input.artifact.sourceSha=source.head;
+  input.artifact.artifactDigest=measureRuntimeArtifacts(updateRoot).digest;
+  mkdirSync(path.join(updateRoot,'.quality'),{recursive:true});
+  writeFileSync(path.join(updateRoot,'.quality/cloudflare-build.json'),JSON.stringify({
+    source,artifact:{digest:input.artifact.artifactDigest},
+    compositionDigest:input.artifact.compositionDigest}));
+  writeFileSync(path.join(updateRoot,'receipt.json'),JSON.stringify({selected:{updateId,
+    target:input.target,sourceSha:source.head,sourceFingerprint:source.sha256,
+    compositionDigest:input.artifact.compositionDigest},
+    artifactDigest:input.artifact.artifactDigest}));
+  writeFileSync(path.join(input.root,'operator.txt'),'new operator source\n');
+  git('add','operator.txt');git('commit','-qm','operator source');
+  assert.notEqual(sourceIdentity(input.root).head,source.head);
+  let latest=versionId,uploads=0;
+  input.controlPlane.latestVersion=async()=>({id:latest});
+  const publisher=createCloudflarePublisher({...input,artifactRoot:updateRoot,
+    upload:async()=>{uploads++;throw new Error('synthetic upload stop');}});
+  latest='44444444-4444-4444-8444-444444444444';
+  await assert.rejects(publisher.deliverPreservedUpdate({transferId:updateId,
+    artifact:input.artifact,sourceFingerprint:source.sha256,
+    expectedPreviousVersionId:versionId,expectedPreviousDeploymentId:'deployment-1'}),
+  {code:'not_confirmed'});
+  assert.equal(uploads,0);
+  latest=versionId;
+  await assert.rejects(publisher.deliverPreservedUpdate({transferId:updateId,
+    artifact:input.artifact,sourceFingerprint:source.sha256,
+    expectedPreviousVersionId:versionId,expectedPreviousDeploymentId:'deployment-1'}),
+  /synthetic upload stop/);
+  assert.equal(uploads,1);
 });

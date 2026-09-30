@@ -19,6 +19,7 @@ import {currentProtectedSlot,protectedSlotNavigation} from './slot-navigation';
 import {FrontAccessRefused, readFrontProjection} from './projection-client';
 import styles from './host.module.css';
 import {WidgetHostProvider} from '../../sdk/widgets/provider';
+import {startAnalyticsCollection} from '../analytics/collection';
 
 const contextId = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(frontContextId) ? frontContextId : '';
 const emptyInput: WorkspaceInput = Object.freeze({});
@@ -97,6 +98,7 @@ function BoundFront({access, initialUrl}: {access: AccessController; initialUrl?
   const [activePanelUrl, setActivePanelUrl] = useState<string | null>(null);
   const activePanelUrlRef = useRef<string | null>(null);
   const controllerRef = useRef<WorkspaceController | null>(null);
+  const analyticsCollector=useRef<ReturnType<typeof startAnalyticsCollection>|null>(null);
   const currentProjection = useRef(projection); currentProjection.current = projection;
   const lastRevocation = useRef(revocationVersion);
 
@@ -165,6 +167,21 @@ function BoundFront({access, initialUrl}: {access: AccessController; initialUrl?
   const allLocation = resolveWorkspaceLocation(currentUrl, appViews, appViewIds, 'front');
   const currentView = allLocation && appViews.find(view => view.id === allLocation.viewId);
   const currentPermitted = !!(currentView && visibleIds.has(currentView.id));
+  useEffect(()=>{
+    if(!authorized||!httpBindings.some(binding=>binding.moduleId==='creezio.analytics'
+      &&binding.operationId==='collection.effective'&&binding.audience==='app'))return;
+    const collector=startAnalyticsCollection({client,contextId,audience:'app',surface:'front',target:document});
+    analyticsCollector.current=collector;
+    const refresh=()=>{void collector.refresh();};
+    window.addEventListener('creezio:analytics-policy-updated',refresh);
+    return()=>{window.removeEventListener('creezio:analytics-policy-updated',refresh);
+      if(analyticsCollector.current===collector)analyticsCollector.current=null;collector.dispose();};
+  },[authorized,client]);
+  useEffect(()=>{
+    const collector=analyticsCollector.current;if(!collector)return;
+    collector.location(currentPermitted&&currentView?{viewId:currentView.id,route:currentView.route}:null);
+    void collector.refresh();
+  },[authorized,currentPermitted,currentView?.id,currentUrl,client]);
   const workspaceViews = useMemo(() => appViews.map(workspaceAdapter), []);
   const routeTo = useCallback((location: WorkspaceLocation, replace = false) => {
     if (browserUrl() !== location.url) window.history[replace ? 'replaceState' : 'pushState'](null, '', location.url);

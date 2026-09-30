@@ -14,6 +14,7 @@ CREATE TABLE "cz_637265657a696f2e616363657373_6163636573735f6175646974" (
   "impersonation_id" TEXT CHECK ("impersonation_id" IS NULL OR (typeof("impersonation_id") = 'text' AND instr("impersonation_id", char(0)) = 0 AND length("impersonation_id") >= 1 AND length("impersonation_id") <= 128)),
   "principal_id" TEXT NOT NULL CHECK ("principal_id" IS NOT NULL AND (typeof("principal_id") = 'text' AND instr("principal_id", char(0)) = 0 AND length("principal_id") >= 1 AND length("principal_id") <= 128)),
   "session_id" TEXT CHECK ("session_id" IS NULL OR (typeof("session_id") = 'text' AND instr("session_id", char(0)) = 0 AND length("session_id") >= 1 AND length("session_id") <= 128)),
+  "target_credential_id" TEXT CHECK ("target_credential_id" IS NULL OR (typeof("target_credential_id") = 'text' AND instr("target_credential_id", char(0)) = 0 AND length("target_credential_id") >= 1 AND length("target_credential_id") <= 128)),
   "target_principal_id" TEXT CHECK ("target_principal_id" IS NULL OR (typeof("target_principal_id") = 'text' AND instr("target_principal_id", char(0)) = 0 AND length("target_principal_id") >= 1 AND length("target_principal_id") <= 128)),
   "target_session_id" TEXT CHECK ("target_session_id" IS NULL OR (typeof("target_session_id") = 'text' AND instr("target_session_id", char(0)) = 0 AND length("target_session_id") >= 1 AND length("target_session_id") <= 128)),
   PRIMARY KEY ("id"),

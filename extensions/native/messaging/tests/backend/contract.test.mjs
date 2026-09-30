@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {manifest,read} from '../helpers.mjs';
 import {safeHtml,boxCreate,draftCreate,draftSave,draftDelete,messageList,messageUpdate,
   attachmentLink,attachmentUnlink,transportStatus,messageSend,messageDeliveryPrepare,
-  boxPreviewList,messagePreviewList,draftPreviewList} from '../../module/service.ts';
+  boxPreviewList,messagePreviewList,draftPreviewList,messageInboundImport,
+  messageDeliveryReconcile} from '../../module/service.ts';
 
 const box={id:'box-one',name:'Personnel',address:'',kind:'local',revision:1};
 const draft={id:'draft-one',box_id:'box-one',to_addr:'',cc_addr:'',bcc_addr:'',subject:'',text_body:'',
@@ -141,6 +142,33 @@ test('message search can return empty page with continuation; mutations are CAS'
   await assert.rejects(messageUpdate({requestKey:'fake-send',boxId:'box-one',messageId:'message-one',
     revision:1,folder:'sent'},h.context),{code:'invalid_input'});
 });
+test('explicit inbound import requires selected box recipient and refuses dropped attachments',async()=>{
+  const selected={...box,address:'sender@example.test'};
+  const mail={emailId:'mail-one',to:['sender@example.test'],from:'peer@example.test',
+    subject:'Hello',text:'Line one\nLine two',html:'<p>Hello</p>',
+    receivedAt:'2026-09-30T10:00:00.000Z',attachmentCount:0};
+  const h=harness({box:selected});
+  h.context.operations.query=async args=>{
+    assert.deepEqual(args,{moduleId:'creezio.resend',operationId:'received.read',
+      input:{emailId:'mail-one'}});
+    return mail;
+  };
+  const answer=await messageInboundImport({requestKey:'import-one',boxId:'box-one',emailId:'mail-one'},h.context);
+  assert.equal(answer.output.message.folder,'inbox');
+  assert.equal(answer.output.message.direction,'inbound');
+  assert.deepEqual(h.calls.find(call=>call.kind==='planGet').args.where,{address:selected.address});
+  assert.equal(h.calls.find(call=>call.kind==='planCreate').args.values.provider_message_id,'mail-one');
+  const wrong=harness({box:{...selected,address:'other@example.test'}});
+  wrong.context.operations.query=async()=>mail;
+  await assert.rejects(messageInboundImport({requestKey:'import-two',boxId:'box-one',emailId:'mail-one'},
+    wrong.context),{code:'unavailable'});
+  assert.equal(wrong.calls.some(call=>call.kind==='planCreate'),false);
+  const attached=harness({box:selected});
+  attached.context.operations.query=async()=>({...mail,attachmentCount:1});
+  await assert.rejects(messageInboundImport({requestKey:'import-three',boxId:'box-one',emailId:'mail-one'},
+    attached.context),{code:'unavailable'});
+  assert.equal(attached.calls.some(call=>call.kind==='planCreate'),false);
+});
 
 test('absent transport cannot imply queued or sent',async()=>{
   const missing=harness();missing.context.operations=undefined;
@@ -177,7 +205,69 @@ test('send freezes text/HTML and Bcc in one durable outbox intent, never claims 
     snapshotDigest:'0'.repeat(64)},reread.context),{code:'unavailable'});
   const duplicate=harness({box:from,draft:{...saved,send_intent_id:'intent-one'}});
   await assert.rejects(messageSend({boxId:'box-one',draftId:'draft-one',revision:1},duplicate.context),{code:'conflict'});
-  const attached=harness({box:from,draft:saved,draft_attachmentPage:{items:[{file_id:'file-1'}],nextAfter:null}});
+  const file={file_id:'f1_'+'a'.repeat(64),filename:'a.pdf',content_type:'application/pdf',byte_size:8,
+    digest:'b'.repeat(64),intent_id:'upload-one',generation:'one'};
+  const attached=harness({box:from,draft:saved,draft_attachmentPage:{items:[file],nextAfter:null}});
   await assert.rejects(messageSend({boxId:'box-one',draftId:'draft-one',revision:1},attached.context),{code:'unavailable'});
   assert.equal(attached.calls.some(x=>x.kind==='planCreate'),false);
+  let freezeInput;
+  attached.context.files={freezeLinks:async(_category,input)=>{freezeInput=input;}};
+  const withFile=await messageSend({boxId:'box-one',draftId:'draft-one',revision:1},attached.context);
+  assert.equal(withFile.plans.length,4);
+  assert.equal(freezeInput.attachments[0].fileId,file.file_id);
+  const frozen=attached.calls.find(x=>x.kind==='planCreate'&&x.model==='send_snapshot').args.values;
+  const linked=harness({box:from,message:attached.calls.find(x=>x.kind==='planCreate'&&x.model==='message').args.values,
+    send_snapshot:frozen,message_attachmentPage:{items:[file],nextAfter:null}});
+  const preparedFile=await messageDeliveryPrepare({intentId:'intent-one',boxId:'box-one',
+    snapshotDigest:frozen.payload_digest},linked.context);
+  assert.equal(preparedFile.output.envelope.attachments[0].digest,file.digest);
+});
+test('send freezes 50 private references and refuses a 51st before mutation',async()=>{
+  const rows=Array.from({length:50},(_,index)=>({file_id:`f1_${index.toString(16).padStart(64,'0')}`,
+    filename:`${index}.txt`,content_type:'text/plain',byte_size:1,digest:'a'.repeat(64),
+    intent_id:`upload-${index}`,generation:'1'}));
+  const saved={...draft,to_addr:'to@example.test',subject:'50',text_body:'Test',send_intent_id:null};
+  const h=harness({box:{...box,address:'sender@example.test'},draft:saved,
+    draft_attachmentPage:{items:rows,nextAfter:null}});
+  let frozen;
+  h.context.files={freezeLinks:async(_category,input)=>{frozen=input;}};
+  const result=await messageSend({boxId:'box-one',draftId:'draft-one',revision:1},h.context);
+  assert.equal(frozen.attachments.length,50);
+  assert.equal(result.plans.length,4);
+  assert.doesNotMatch(JSON.stringify(result.outbox),/upload-|\.txt/u);
+  const tooMany=harness({box:{...box,address:'sender@example.test'},draft:saved,
+    draft_attachmentPage:{items:rows,nextAfter:{file_id:'extra'}}});
+  tooMany.context.files=h.context.files;
+  await assert.rejects(messageSend({boxId:'box-one',draftId:'draft-one',revision:1},tooMany.context),
+    {code:'invalid_input'});
+  assert.equal(tooMany.calls.some(call=>call.kind==='planCreate'),false);
+});
+test('signed provider failure uses revision CAS and cannot downgrade a terminal receipt',async()=>{
+  const base={id:'message-one',box_id:'box-one',direction:'outbound',from_addr:'sender@example.test',
+    to_addr:'to@example.test',cc_addr:'',subject:'Bonjour',text_body:'Texte',html_body:'',
+    state:'sent',folder:'sent',read_at:null,thread_id:null,reply_to:null,in_reply_to:null,
+    provider_message_id:'mail-one',received_at:null,sent_at:'2026-09-30T10:00:00.000Z',revision:4};
+  const failed=harness({box,message:base});
+  failed.context.operations.query=async()=>({kind:'failed',eventId:'evt-failed',
+    occurredAt:'2026-09-30T10:01:00.000Z'});
+  const changed=await messageDeliveryReconcile({boxId:'box-one',messageId:'message-one',revision:4},
+    failed.context);
+  assert.equal(changed.output.message.state,'failed');
+  assert.equal(changed.output.message.folder,'sent');
+  assert.equal(changed.output.message.revision,5);
+  assert.equal(changed.plans.length,1);
+  assert.deepEqual(failed.calls.find(call=>call.kind==='planPatch').args.compare,
+    {field:'revision',expected:4});
+  const terminal=harness({box,message:{...base,state:'delivered',revision:5}});
+  terminal.context.operations.query=failed.context.operations.query;
+  const unchanged=await messageDeliveryReconcile({boxId:'box-one',messageId:'message-one',revision:5},
+    terminal.context);
+  assert.equal(unchanged.output.message.state,'delivered');
+  assert.equal(unchanged.plans,undefined);
+  const localFailure=harness({box,message:{...base,state:'failed',folder:'outbox',
+    provider_message_id:null}});
+  localFailure.context.operations.query=failed.context.operations.query;
+  await assert.rejects(messageDeliveryReconcile({boxId:'box-one',messageId:'message-one',revision:4},
+    localFailure.context),{code:'invalid_input'});
+  assert.equal(localFailure.calls.some(call=>call.kind==='planPatch'),false);
 });

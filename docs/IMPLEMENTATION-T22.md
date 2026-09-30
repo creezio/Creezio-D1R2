@@ -1,5 +1,9 @@
 # T22 — Analytics et diagnostics
 
+## Intégration PR #81 et recette Linux du 30 septembre
+
+La rétention est intégrée sur Core main `3d4248960f4ff56d9fdf5e956abe26d6e202f174`, CI main 1 428/1 428, puis dans l'image Linux `sha256:caff5af853c3670c43cc9d64f4955af10d7b456c79e28bf9dd2fc286864cf523` avec schéma additif adopté sans remplacer le volume. La vue originale a enregistré une politique de 3 650 jours, révision 1 ; l'aperçu a retourné zéro événement admissible. Aucune purge n'a été exécutée. Le reçu `CREEZIO-T21-T22-LINUX-UI-RECIPE-3D42489-2026-09-30.json` et la capture `CREEZIO-T22-LINUX-RETENTION-CONFIRMED-2026-09-30.png` distinguent ce réglage de la purge et des mesures de productivité. Le navigateur et l'API ont été déconnectés. Instrumentation automatique, refus avant moteur, données anciennes à purger, recette Sites/Cloudflare et Work T17 restent ouverts.
+
 `creezio.analytics` conserve les six onglets, indicateurs, graphiques et listes de l'interface originale. Cette tranche exploite uniquement les événements explicitement enregistrés par les opérations Creezio. Elle ne présente pas de mesures fictives en l'absence d'événements.
 
 Un modèle D1 partagé par contexte alimente enregistrement, liste, agrégats et export. L'émission peut être autorisée à une identité applicative ou machine ; lecture et export restent réservés au droit de consultation admin. Pagination, intervalle et taille sont bornés. Un agrégat partiel indique sa borne au lieu de présenter un total exhaustif. Un changement de filtre invalide les réponses de liste et d'export précédentes ; les filtres survivent à une vérification transitoire de la même session.

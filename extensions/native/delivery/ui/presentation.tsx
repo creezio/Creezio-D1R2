@@ -65,8 +65,9 @@ export function DeliveryOverview({model, busy = false, onConfigure, onPrepare, o
 }
 
 export function DeliveryUpdateOverview({model, busy = false, onPrepare, onStart,
-  onRefresh, onReconcile, onConfigure}: Omit<DeliveryOverviewProps, 'model'> & {
+  onRefresh, onReconcile, onConfigure, onRetry}: Omit<DeliveryOverviewProps, 'model'> & {
     readonly model: DeliveryUpdateViewModel;
+    readonly onRetry: () => void;
   }) {
   return <div className="space-y-4 p-6">
     <div className="flex flex-wrap items-center gap-2">
@@ -84,6 +85,8 @@ export function DeliveryUpdateOverview({model, busy = false, onPrepare, onStart,
           onClick={onConfigure}>Ressaisir le jeton de cette cible</Button>}
         {model.canReconcile && <Button size="sm" variant="outline" disabled={busy}
           onClick={onReconcile}>Vérifier cette mise à jour</Button>}
+        {model.canRetry && <Button size="sm" variant="outline" disabled={busy}
+          onClick={onRetry}>Nouvelle tentative explicite</Button>}
       </CardContent></Card>
     <Card><CardHeader><CardTitle className="text-base">Plan explicite</CardTitle>
       <CardDescription>La mise à jour conserve les données D1/R2 et les secrets de la cible.</CardDescription></CardHeader>

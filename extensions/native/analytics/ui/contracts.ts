@@ -19,6 +19,14 @@ export type EndpointDiagnostic={moduleId:string;operationId:string;audience:'adm
   path:string;kind:'query'|'command'};
 export type EndpointDiagnosticsPage={items:EndpointDiagnostic[];nextCursor:string|null;complete:boolean;
   source:'compiled-http-bindings'|'unavailable'};
+export type CollectionPolicy={configured:boolean;revision:number;navigation:boolean;clicks:boolean;
+  refusals:boolean;refusalRetentionDays:number;manualOnly:true};
+export type RefusalItem={id:string;transport:'api'|'mcp';method:string;routeTemplate:string;
+  status:number;errorCode:string;occurredAt:string;durationMs:number};
+export type RefusalPage={items:RefusalItem[];nextCursor:string|null;complete:boolean};
+export type RefusalPreview={revision:number;cutoff:string;items:{id:string;occurredAt:string}[];
+  hasMore:boolean;manualOnly:true};
+export type RefusalPurgeResult={deleted:number;hasMore:boolean;cutoff:string;revision:number};
 export type RetentionPreview={configured:boolean;retentionDays:number|null;revision:number;
   manualOnly:true;cutoff:string|null;items:{id:string;occurredAt:string}[];hasMore:boolean};
 export type RetentionPolicy=Pick<RetentionPreview,'configured'|'retentionDays'|'revision'|'manualOnly'>;

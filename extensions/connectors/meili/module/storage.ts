@@ -26,6 +26,7 @@ export const meiliConnectorDescriptor:ConnectorDescriptor=Object.freeze({
       query:Object.freeze({cursor:'offset',limit:'limit'})}),
     Object.freeze({id:'document-upsert',method:'POST' as const,path:'/indexes/{id}/documents',
       params:Object.freeze(['id'] as const),successStatuses:Object.freeze([202]),
+      query:Object.freeze({fixed:Object.freeze([{name:'primaryKey',value:'id'}])}),
       body:Object.freeze({encoding:'json-root' as const,fields:Object.freeze([
         Object.freeze({name:'documents',wireName:'documents',kind:'json' as const,required:true,maxBytes:64_000})])})}),
     Object.freeze({id:'document-delete',method:'POST' as const,path:'/indexes/{id}/documents/delete-batch',

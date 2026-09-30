@@ -4,6 +4,8 @@
 
 Déclaration `catalog-products` facultative, index contextuel à générations, lots durables de 13 documents, émissions 202 et réconciliation de tâches, synchronisation incrémentale, abandon explicite d’une émission incertaine, relecture autorisée des hits avant restitution. Port public `meili.index@1.0.0`, commandes d’administration et recherche API/MCP. Recette fournisseur des nouveaux chemins et composition finale à qualifier.
 
+Correction du POST de documents : `primaryKey=id` est fixé dans le descripteur et l’URL construite par le port hôte. La première tâche fournisseur réelle, 165, avait échoué avec `index_primary_key_multiple_candidates_found` et n’avait indexé aucun des deux documents reçus. La correction dispose d’un test local du corps et de l’URL ; une nouvelle recette fournisseur reste nécessaire.
+
 ## 0.2.0 — candidat source, diagnostic des index
 
 Lecture admin paginée des métadonnées d’index via le port GET déclaré, 20 entrées par page, droit `meili.manage`, vérification de configuration après l’appel, projection expurgée et section de diagnostic dans la carte de réglages originale. Aucune recherche de documents, indexation, écriture fournisseur ou recherche globale T05. La recette fournisseur de cette nouvelle lecture reste à qualifier séparément.

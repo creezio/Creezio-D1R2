@@ -211,7 +211,11 @@ const permissions=[{id:'manage',title:'Configurer et synchroniser Stripe',audien
   actors:['user','delegated-user','machine'],scopes:['stripe.read'],context:'required',default:'deny',
   resources:['connector_config','sync_state','stripe_catalog_sync_state','stripe_customer','stripe_subscription',
     'stripe_invoice','stripe_product','stripe_price','stripe_checkout','stripe_event'].map(name=>ref('model',name)),
-  actions:['read','execute'],enforcement:{request:true,commit:true},public:false}];
+  actions:['read','execute'],enforcement:{request:true,commit:true},public:false},
+{id:'webhook.receive',title:'Recevoir les événements Stripe signés',audiences:['admin'],
+  actors:['machine'],scopes:['stripe.webhook.receive'],context:'required',default:'deny',
+  resources:['connector_config','stripe_event','stripe_checkout'].map(name=>ref('model',name)),
+  actions:['read','create','update','execute'],enforcement:{request:true,commit:true},public:false}];
 const errors=['invalid_input','unauthorized','forbidden','not_found','conflict','rate_limited','unsupported','unavailable','unknown']
   .map(code=>({code,retryable:['rate_limited','unavailable','unknown'].includes(code),
     outcome:code==='unknown'?'unknown':'rejected'}));
@@ -227,7 +231,7 @@ function operation(name,title,kind,input,output,permission,reads,writes,options=
     idempotency:command?{mode:'required',keyField:'requestKey',scope:'actor-context-operation',retentionSeconds:86400}:{mode:'none'},
     approval:{mode:'none'},concurrency:options.cas?{mode:'object-version',versionField:'revision'}:{mode:'none'},
     execution:{maxDurationMs:options.remote?15000:10000,maxItems:options.maxItems??8,resumable:false},
-    audit:{required:true,redactFields:['apiKey','webhookSecret']},public:false});
+    audit:{required:true,redactFields:['apiKey','webhookSecret','serviceToken']},public:false});
 }
 operation('config.read','Lire la configuration Stripe','query',empty,configOutput,'manage',
   ['connector_config'],[],{exportName:'configRead'});
@@ -266,9 +270,9 @@ operation('subscription.cancel.schedule','Programmer l’arrêt d’un abonnemen
   cancelOutput,'manage',['connector_config','connector_secret','stripe_subscription'],['stripe_subscription'],
   {exportName:'subscriptionCancelSchedule',remote:true,cas:true,maxItems:12});
 operation('event.receive','Enregistrer un événement Stripe signé','command',eventInput,eventOutput,
-  'manage',['connector_config','stripe_event','stripe_checkout'],['stripe_event','stripe_checkout'],
+  'webhook.receive',['connector_config','stripe_event','stripe_checkout'],['stripe_event','stripe_checkout'],
   {exportName:'eventReceive',maxItems:12});
-operations.at(-1).actors.push('signed-webhook');
+operations.at(-1).actors=['machine','signed-webhook'];
 operation('event.list','Lire les événements Stripe rapprochés','query',listInput,eventListOutput,
   'read',['connector_config','stripe_event'],[],{exportName:'eventList',
     pagination:{mode:'cursor',cursorField:'cursor',limitField:'limit',maxItems:25},maxItems:27});

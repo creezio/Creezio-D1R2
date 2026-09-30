@@ -18,6 +18,8 @@ const boxLink={id:'box',fields:[...common,'box_id'],target:ref('model','box'),
 const resendRef=(kind,name)=>({moduleId:'creezio.resend',kind,id:name});
 const draftLink={id:'draft',fields:[...common,'box_id','draft_id'],target:ref('model','draft'),
   targetFields:[...common,'box_id','id'],onDelete:'restrict'};
+const messageLink={id:'message',fields:[...common,'box_id','message_id'],target:ref('model','message'),
+  targetFields:[...common,'box_id','id'],onDelete:'restrict'};
 const models=[
   model('box','Boîtes locales',[
     field('id','string',{constraints:S()}),field('name','string',{constraints:S(120)}),
@@ -69,6 +71,15 @@ const models=[
     [...common,'box_id','draft_id','file_id'],
     [{id:'by-draft',fields:[...common,'box_id','draft_id','created_at','file_id'],unique:false}],
     [boxLink,draftLink]),
+  model('message_attachment','Pièces jointes figées des messages',[
+    field('box_id','string',{constraints:S()}),field('message_id','string',{constraints:S()}),
+    field('file_id','string',{constraints:S(67)}),field('filename','string',{constraints:S(255)}),
+    field('content_type','string',{constraints:S()}),field('byte_size','integer',{constraints:I()}),
+    field('digest','string',{constraints:{minLength:64,maxLength:64}}),field('intent_id','string',{constraints:S()}),
+    field('generation','string',{constraints:S()}),field('created_at','date-time')],
+    [...common,'box_id','message_id','file_id'],
+    [{id:'by-message',fields:[...common,'box_id','message_id','created_at','file_id'],unique:false}],
+    [boxLink,messageLink]),
   model('send_snapshot','Intention d’envoi figée',[field('box_id','string',{constraints:S()}),
     field('id','string',{constraints:S()}),field('draft_id','string',{constraints:S()}),
     field('draft_revision','integer',{constraints:I(1)}),
@@ -115,6 +126,9 @@ const messageOutput=schema('message-output',obj({message}));
 const messageUpdateInput=schema('message-update-input',obj({requestKey:str(),boxId:str(),messageId:str(),
   revision:num(1),folder:{type:'string',enum:['inbox','sent','outbox','archive','trash']},read:{type:'boolean'}},
   ['requestKey','boxId','messageId','revision']));
+const reconcileInput=schema('message-delivery-reconcile-input',obj({requestKey:str(),boxId:str(),
+  messageId:str(),revision:num(1)}));
+const importInput=schema('message-inbound-import-input',obj({requestKey:str(),boxId:str(),emailId:str(256)}));
 const draftListInput=schema('draft-list-input',obj({boxId:str(),limit:num(1,50),cursor:str(2048),query:str(240)},['boxId','limit']));
 const draftPage=schema('draft-page-output',page(draft));
 const draftCreateInput=schema('draft-create-input',obj({requestKey:str(),boxId:str()}));
@@ -143,7 +157,9 @@ const deliveryPrepareInput=schema('message-delivery-prepare-input',obj({intentId
   snapshotDigest:str(64,64)}));
 const deliveryEnvelope=obj({from:str(320),to:{type:'array',items:str(320),minItems:1,maxItems:20},
   cc:{type:'array',items:str(320),maxItems:20},bcc:{type:'array',items:str(320),maxItems:20},
-  subject:str(240,0),text:str(16000,0),html:str(32000,0)});
+  subject:str(240,0),text:str(16000,0),html:str(32000,0),
+  attachments:{type:'array',maxItems:50,items:obj({fileId:str(67),intentId:str(),
+    generation:str(),digest:str(64,64),filename:str(255),contentType:str(),byteSize:num()})}});
 const deliveryPrepareOutput=schema('message-delivery-prepare-output',obj({intentId:str(),boxId:str(),
   snapshotDigest:str(64,64),configRevision:num(1),envelope:deliveryEnvelope}));
 const deliveryReceipt=schema('message-delivery-receipt',{
@@ -198,14 +214,17 @@ function operation(name,title,kind,input,output,reads=[],writes=[],options={}){
     audiences:['admin','app'],actors:['user','delegated-user','machine'],context:'required',
     handler:{path:'module/operations.ts',export:options.exportName},
     effects:{reads:reads.map(x=>ref('model',x)),writes:writes.map(x=>ref('model',x)),emits:[],
-      calls:options.readiness?[resendRef('operation','delivery.readiness')]:[],
+      calls:options.readiness?[resendRef('operation','delivery.readiness')]
+        :options.eventStatus?[resendRef('operation','event.status')]
+        :options.receivedRead?[resendRef('operation','received.read')]:[],
       providers:options.provider?['resend.api.v1']:[]},
     errors,pagination:options.pagination??{mode:'none'},
     idempotency:command?{mode:'required',keyField:'requestKey',scope:'actor-context-operation',retentionSeconds:86400}:{mode:'none'},
     approval:{mode:'none'},concurrency:options.concurrency??{mode:'none'},
-    execution:{maxDurationMs:10000,maxItems:options.maxItems??100,resumable:false},
+    execution:{maxDurationMs:options.maxDurationMs??10000,maxItems:options.maxItems??100,resumable:false},
     audit:{required:true,redactFields:['to','cc','bcc','subject','text','html','address']},
-    public:name==='message.read',...(options.readiness?{requiresModules:['creezio.resend']}:{})});
+    public:name==='message.read',...(options.readiness||options.eventStatus||options.receivedRead
+      ?{requiresModules:['creezio.resend']}: {})});
 }
 const pagination={mode:'cursor',cursorField:'cursor',limitField:'limit',maxItems:50};
 operation('box.list','Lister ses boîtes','query',listInput,boxPage,['box'],[],{exportName:'boxList',pagination,maxItems:50});
@@ -218,6 +237,10 @@ operation('message.preview.list','Aperçu des messages pour le chat','query',mes
 operation('message.read','Lire un message','query',messageReadInput,messageOutput,['box','message'],[],{exportName:'messageRead'});
 operation('message.update','Classer ou marquer un message','command',messageUpdateInput,messageOutput,
   ['box','message'],['message'],{exportName:'messageUpdate',concurrency:{mode:'object-version',versionField:'revision'}});
+operation('message.delivery.reconcile','Rapprocher un accusé Resend signé','command',reconcileInput,messageOutput,
+  ['box','message'],['message'],{exportName:'messageDeliveryReconcile',eventStatus:true});
+operation('message.inbound.import','Importer un courriel reçu dans une boîte choisie','command',importInput,messageOutput,
+  ['box','message'],['message'],{exportName:'messageInboundImport',receivedRead:true,maxDurationMs:30000});
 operation('draft.list','Lister les brouillons','query',draftListInput,draftPage,['box','draft'],[],{exportName:'draftList',pagination,maxItems:50});
 operation('draft.preview.list','Aperçu des brouillons pour le chat','query',draftPreviewInput,draftPreviewPage,
   ['box','draft'],[],{exportName:'draftPreviewList',pagination:{...pagination,maxItems:5},maxItems:6});
@@ -238,10 +261,12 @@ operation('attachment.unlink','Détacher une pièce jointe','command',attachment
 operation('transport.status','Lire le statut du transport','query',empty,transportOutput,[],[],
   {exportName:'transportStatus',readiness:true});
 operation('message.send','Enregistrer une intention d’envoi','command',sendInput,sendOutput,
-  ['box','draft','draft_attachment'],['message','draft','send_snapshot'],
-  {exportName:'messageSend',concurrency:{mode:'object-version',versionField:'revision'},readiness:true,provider:true});
+  ['box','draft','draft_attachment'],['message','draft','send_snapshot','message_attachment'],
+  {exportName:'messageSend',concurrency:{mode:'object-version',versionField:'revision'},readiness:true,provider:true,
+    maxDurationMs:30000});
+operations.at(-1).effects.writes.push(ref('file','attachments'));
 operation('message.delivery.prepare','Préparer un envoi figé','query',deliveryPrepareInput,deliveryPrepareOutput,
-  ['box','message','send_snapshot'],[],{exportName:'messageDeliveryPrepare'});
+  ['box','message','send_snapshot','message_attachment'],[],{exportName:'messageDeliveryPrepare'});
 const category={id:'attachments',metadataModel:ref('model','file_metadata'),contextField:'context_id',ownerField:'file_owner',
   ownerScope:'principal',
   storageFields:{id:'file_id',objectKey:'object_key',digest:'digest',byteSize:'byte_size',contentType:'content_type',
@@ -291,7 +316,7 @@ m.identity={id,title:'Messagerie native',publisher:'creezio',origin:'https://git
   version:'0.0.0',source:{kind:'snapshot',revision:'t18-messaging-widgets-v1',
     integrity:`sha256-${createHash('sha256').update('t18-messaging-widgets-v1').digest('hex')}`},
   license:{expression:'NOASSERTION',file:'LICENSE'}};
-m.compatibility={core:'^0.0.0',sdk:'^1.6.0',requiredCapabilities:['runtime.worker','data.d1.shared','files.r2.shared'],
+m.compatibility={core:'^0.0.0',sdk:'^1.8.0',requiredCapabilities:['runtime.worker','data.d1.shared','files.r2.shared'],
   optionalCapabilities:[]};
 m.entrypoints={server:{path:'module/entry.server.ts',export:'messaging'},
   ui:{path:'ui/index.tsx',export:'MessagingView'},plugin:{manifest:'plugin/plugin.json',mcp:'plugin/mcp.json',
@@ -299,7 +324,9 @@ m.entrypoints={server:{path:'module/entry.server.ts',export:'messaging'},
 m.dependencies=[{moduleId:'creezio.access',origin:'https://github.com/creezio/Creezio-D1R2',versionRange:'^0.0.0',
   optional:false,contracts:[],whenAbsent:'block',whenIncompatible:'block',autoInstall:false},
   {moduleId:'creezio.resend',origin:m.identity.origin,versionRange:'^0.1.0',optional:true,
-    contracts:[{id:'delivery-readiness',versionRange:'^1.0.0'}],whenAbsent:'disable-contributions',
+    contracts:[{id:'delivery-readiness',versionRange:'^1.0.0'},
+      {id:'delivery-events',versionRange:'^1.0.0'},
+      {id:'received-email',versionRange:'^1.0.0'}],whenAbsent:'disable-contributions',
     whenIncompatible:'block',autoInstall:false}];
 m.contracts={schemas,models,files:[category],events:[],settings:[],search:[],permissions:[permission],operations,api,
   deliveries:[{id:'message-send',trigger:'on-invoke',intentIdSource:'execution-id',
@@ -313,7 +340,8 @@ m.contracts={schemas,models,files:[category],events:[],settings:[],search:[],per
     projector:{path:'module/delivery.ts',export:'projectDeliveryReceipt'},
     projectorInput:{boxId:'boxId',intentId:'$intentId',receipt:'$receipt'},
     acceptance:{responseIdField:'id',receiptIdField:'providerMessageId'},
-    models:[ref('model','box'),ref('model','message'),ref('model','send_snapshot')],
+    models:[ref('model','box'),ref('model','message'),ref('model','send_snapshot'),
+      ref('model','message_attachment')],
     receipt:deliveryReceipt,requiresModules:['creezio.resend']}],
   mcp:{tools:operations.filter(op=>op.id!=='message.delivery.prepare').map(op=>({id:op.id,name:`messaging_${op.id.replaceAll('.','_')}`,
     operation:ref('operation',op.id),audiences:['admin','app'],auth:['oauth','api-token'],input:op.input,output:op.output,

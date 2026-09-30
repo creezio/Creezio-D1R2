@@ -43,6 +43,7 @@ function errorMessage(code: string | null) {
     'artifact_changed','schema_unavailable'].includes(code))
     return 'Le plan ne correspond plus à la source ou à la cible. Actualisez avant de continuer.';
   if (code === 'delivery_unknown') return 'La publication doit être vérifiée pour cette même mise à jour.';
+  if (code === 'retry_limit') return 'La limite de tentatives est atteinte pour cette mise à jour.';
   return 'Le service local est indisponible. Réessayez ou vérifiez le transfert identifié.';
 }
 
@@ -161,7 +162,15 @@ export function DeliveryAdminView(props: RuntimeViewProps) {
       onPrepare={() => {void updateController?.prepare();}}
       onStart={() => {void updateController?.start();}}
       onRefresh={() => {void refreshUpdate();}}
-      onReconcile={() => {void updateController?.reconcile();}} />
+      onReconcile={() => {void updateController?.reconcile();}}
+      onRetry={() => {void updateController?.retry();}} />
+    {updateSnapshot.update?.diagnostic && <p role="status" className="mx-6 mb-4 text-sm text-amber-900">
+      Diagnostic de la tentative : {updateSnapshot.update.diagnostic.reason}
+      {updateSnapshot.update.diagnostic.exitCode !== null
+        ? ` (sortie ${updateSnapshot.update.diagnostic.exitCode})` : ''}
+      {updateSnapshot.update.diagnostic.apiCodes.length
+        ? ` · codes Cloudflare ${updateSnapshot.update.diagnostic.apiCodes.join(', ')}` : ''}.
+    </p>}
     {updateSnapshot.error && <p role="alert" className="mx-6 mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
       {errorMessage(updateSnapshot.error)}</p>}
     {notice && <p role="status" className="mx-6 mb-4 text-sm text-emerald-800">{notice}</p>}

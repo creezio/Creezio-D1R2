@@ -56,7 +56,7 @@ function publicationJournal(){
     async saveSynchronized(record){assert.equal(records.get(record.requestKey).state,'delivered');
       records.set(record.requestKey,record);}};
 }
-function fixture({unknownUpload=false,declarationFailsOnce=false,driftAfterBuild=false,
+function fixture({unknownUpload=false,failedUploadNoRemote=false,declarationFailsOnce=false,driftAfterBuild=false,
   lostSchemaReplyOnce=false,routedTarget=false,cutoverFactory=null}={}){
   const events=[],planJournal=journal('transferId'),updateJournal=journal('updateId'),
     gateJournal=publicationJournal();
@@ -103,6 +103,7 @@ function fixture({unknownUpload=false,declarationFailsOnce=false,driftAfterBuild
   async workerSettings(){return {annotations:{'workers/tag':current.tag,
     'workers/message':current.message},bindings:current.bindings};},
   async version(_name,id){return {id};},
+  async latestVersion(){events.push('latest-version');return {id:current.versionId};},
   async bucket(){events.push('bucket');return {private:true};}};
   const options={config:{root,...(routedTarget?{
     storageInstallationId:routed.storageInstallationId,
@@ -135,6 +136,8 @@ function fixture({unknownUpload=false,declarationFailsOnce=false,driftAfterBuild
     d1Factory:({databaseId:id})=>({metadata:async()=>({uuid:id})}),d1BindingFactory:()=>({}),
     r2Factory(){assert.fail('update must not open R2 object transport');},
     inspectSchema:async()=>({state:schemaState,receiptId:schemaState==='ready'?schemaReceiptId:null}),
+    inspectManagedSchema:async()=>({ok:true,receiptId:schemaReceiptId,
+      receipt:{planDigest:targetPlan.planDigest,compositionDigest:targetPlan.compositionDigest}}),
     applySchema:async()=>{events.push('schema');if(schemaState==='additive'){
       schemaState='ready';schemaEffects++;}
       if(lostSchemaReplyOnce&&schemaEffects===1&&events.filter(item=>item==='schema').length===1)
@@ -147,19 +150,29 @@ function fixture({unknownUpload=false,declarationFailsOnce=false,driftAfterBuild
         assert.equal(input.expectedPreviousDeploymentId,'deployment-original');
         assert.equal(input.expectedPreviousVersionId,originalVersion);
         assert.equal(Object.hasOwn(input,'secretsPath'),false);
+        if(failedUploadNoRemote)throw new Error('upload failed before remote effect');
         current.deploymentId=receipt.deploymentId;current.versionId=updatedVersion;
         current.tag='cz-update-one';
         current.message=`Creezio ${artifact.artifactDigest} ${artifact.sourceSha}`;
         if(unknownUpload)throw new Error('response lost');
         return receipt;},
       async inspect(){events.push('inspect-worker');return receipt;},
+      verifyPreservedUpdate(input){events.push('preserved-artifact');
+        assert.equal(input.transferId,'update-one');assert.deepEqual(input.artifact,artifact);},
+      async deliverPreservedUpdate(input){events.push('retry-publish');uploadCount++;
+        assert.equal(input.expectedPreviousVersionId,originalVersion);
+        assert.equal(input.expectedPreviousDeploymentId,'deployment-original');
+        current.deploymentId=receipt.deploymentId;current.versionId=updatedVersion;
+        current.tag='cz-update-one';
+        current.message=`Creezio ${artifact.artifactDigest} ${artifact.sourceSha}`;
+        return receipt;},
       async inspectCurrent(){return {deploymentId:current.deploymentId,
         versionId:current.versionId,bindings:current.bindings};}}),
   };
   const pipeline=createCloudflareDeliveryPipeline(options);
   const configure=()=>pipeline.configure({target:{accountId,workerName},
     credentials:{apiToken:token}},context);
-  return {pipeline,configure,events,current,options,updateJournal,gateJournal,
+  return {pipeline,configure,events,current,control,options,updateJournal,gateJournal,
     get uploadCount(){return uploadCount;},get schemaEffects(){return schemaEffects;}};
 }
 
@@ -345,6 +358,7 @@ test('a routed update journal without next inventory cannot build or upload',asy
     assert.deepEqual(f.updateJournal.records.get(prepared.updateId),terminal);
     assert.equal((await f.pipeline.statusUpdate(prepared.updateId,context)).phase,stage,
       'read-only status remains available for an old routed record');
+    assert.equal((await f.pipeline.statusUpdate(prepared.updateId,context)).retryEligible,false);
   }
 });
 
@@ -369,11 +383,67 @@ test('lost upload response is inspected under the same update ID without a secon
   const f=fixture({unknownUpload:true});await f.configure();
   const prepared=await f.pipeline.prepareUpdate({},context);
   const input={updateId:prepared.updateId,planDigest:prepared.planDigest};
-  assert.equal((await f.pipeline.startUpdate(input,context)).phase,'delivery-unknown');
+  const unknown=await f.pipeline.startUpdate(input,context);
+  assert.equal(unknown.phase,'delivery-unknown');
+  assert.equal(unknown.retryEligible,true);
+  assert.deepEqual(unknown.diagnostic,{phase:'unknown',reason:'unavailable',exitCode:null,apiCodes:[]});
   assert.equal(f.gateJournal.records.get('update-one').state,'prepared');
-  assert.equal((await f.pipeline.reconcileUpdate(input,context)).phase,'delivered');
+  const delivered=await f.pipeline.reconcileUpdate(input,context);
+  assert.equal(delivered.phase,'delivered');
+  assert.equal(delivered.retryEligible,false);
+  assert.equal(Object.hasOwn(delivered,'diagnostic'),false);
   assert.equal(f.uploadCount,1);
   assert.equal(f.events.filter(item=>item==='inspect-worker').length,1);
+});
+
+test('explicit retry preserves the artifact and requires a negative remote version proof',async()=>{
+  const f=fixture({failedUploadNoRemote:true});await f.configure();
+  const prepared=await f.pipeline.prepareUpdate({},context);
+  const input={updateId:prepared.updateId,planDigest:prepared.planDigest};
+  assert.equal((await f.pipeline.startUpdate(input,context)).phase,'delivery-unknown');
+  assert.equal(f.gateJournal.records.get('update-one').state,'prepared');
+  assert.equal(f.uploadCount,1);
+  const delivered=await f.pipeline.retryUpdate(input,context);
+  assert.equal(delivered.phase,'delivered');
+  assert.equal(f.uploadCount,2);
+  assert.equal(f.gateJournal.records.get('update-one').state,'prepared');
+  assert.equal(f.gateJournal.records.get('update-one.retry.1').state,'synchronized');
+  assert.equal(f.updateJournal.records.get('update-one').publicationAttemptKey,'update-one.retry.1');
+  assert.equal(f.schemaEffects,1);
+  assert.equal(f.events.filter(item=>item==='build').length,1);
+  assert.equal(f.events.filter(item=>item==='schema').length,1);
+  assert.equal(f.events.filter(item=>item==='retry-publish').length,1);
+});
+
+test('explicit retry refuses newer remote version without an upload',async()=>{
+  const f=fixture({failedUploadNoRemote:true});await f.configure();
+  const prepared=await f.pipeline.prepareUpdate({},context);
+  const input={updateId:prepared.updateId,planDigest:prepared.planDigest};
+  assert.equal((await f.pipeline.startUpdate(input,context)).phase,'delivery-unknown');
+  f.control.latestVersion=async()=>({id:updatedVersion});
+  await assert.rejects(f.pipeline.retryUpdate(input,context),{code:'delivery_unknown'});
+  assert.equal(f.uploadCount,1);
+  assert.equal(f.gateJournal.records.has('update-one.retry.1'),false);
+});
+
+test('preflight failure leaves a durable retry key that can resume without allocating another',async()=>{
+  const f=fixture({failedUploadNoRemote:true});await f.configure();
+  const prepared=await f.pipeline.prepareUpdate({},context);
+  const input={updateId:prepared.updateId,planDigest:prepared.planDigest};
+  assert.equal((await f.pipeline.startUpdate(input,context)).phase,'delivery-unknown');
+  const preflight=f.options.registryClient.preflight;
+  let failOnce=true;
+  f.options.registryClient.preflight=async request=>{
+    if(failOnce){failOnce=false;throw new Error('synthetic registry outage');}
+    return preflight(request);
+  };
+  assert.equal((await f.pipeline.retryUpdate(input,context)).phase,'delivery-unknown');
+  assert.equal(f.updateJournal.records.get('update-one').publicationAttemptKey,'update-one.retry.1');
+  assert.equal(f.gateJournal.records.has('update-one.retry.1'),false);
+  assert.equal(f.uploadCount,1);
+  assert.equal((await f.pipeline.retryUpdate(input,context)).phase,'delivered');
+  assert.equal(f.updateJournal.records.get('update-one').publicationRetryCount,1);
+  assert.equal(f.uploadCount,2);
 });
 
 test('changed Worker version blocks update before schema or upload',async()=>{

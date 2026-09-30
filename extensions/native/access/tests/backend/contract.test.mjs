@@ -103,6 +103,11 @@ test('machine credentials persist hashes and exact scope tuples without implicit
  const audit=models.find(model=>model.id==='access_audit');
  assert.equal(audit.fields.find(field=>field.id==='credential_id').nullable,true);
  assert.equal(audit.relations.some(relation=>relation.fields.includes('credential_id')),false,'credential reference is retained independently of token retention');
+ const targetCredential=audit.fields.find(field=>field.id==='target_credential_id');
+ assert.equal(targetCredential.nullable,true);assert.equal(targetCredential.protected,true);
+ assert.deepEqual(targetCredential.constraints,{minLength:1,maxLength:128});
+ assert.equal(audit.relations.some(relation=>relation.fields.includes('target_credential_id')),false,
+  'the machine token target remains historical and distinct from the actor OAuth credential');
  for(const action of ['service-created','service-status-updated','api-token-issued','api-token-rotated','api-token-revoked'])
   assert.ok(audit.fields.find(field=>field.id==='action').constraints.enum.includes(action));
 });

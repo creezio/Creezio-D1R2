@@ -23,9 +23,11 @@ test('D1 event data and permissions are context scoped',()=>{
   assert.deepEqual(manifest.contracts.models[0].primaryKey,['context_id','id']);
   assert.deepEqual(manifest.contracts.models[0].indexes[0].fields,['context_id','created_at','id']);
   assert.deepEqual(manifest.contracts.permissions.map(permission=>permission.scopes[0]),
-    ['analytics.emit','analytics.read','analytics.purge']);
+    ['analytics.emit','analytics.read','analytics.purge','analytics.configure']);
   assert.equal(manifest.contracts.models.find(model=>model.id==='event').deletion.mode,'hard');
   assert.ok(manifest.contracts.models.some(model=>model.id==='retention_policy'));
+  for(const name of ['collection_policy','transport_refusal'])
+    assert.equal(manifest.contracts.models.find(model=>model.id===name)?.scope,'application');
 });
 test('record fixes principal and time on server and rejects arbitrary content',async()=>{
   const {context}=harness();

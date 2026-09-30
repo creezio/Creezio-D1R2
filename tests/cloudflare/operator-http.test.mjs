@@ -314,7 +314,7 @@ test('update routes bind an exact plan and recover ownership through status',
       summary:{title:'Update',details:['Schema only'],warnings:[]}};
     const updateStatus={kind:'update',updateId,planDigest:digest,phase:'delivered',summary:null,
       finalUrl:'https://example.workers.dev',registryStatus:'effective'};
-    let starts=0,reconciles=0,prepares=0,online=true,phase='prepared';
+    let starts=0,reconciles=0,retries=0,prepares=0,online=true,phase='prepared';
     const fetcher=async url=>{if(url.endsWith('/connections'))return Response.json({secretConnections:[]});
       if(!online)throw new Error('local runtime stopped');
       return Response.json({principalId:'principal-one',sessionId:'session-one',epoch:1,
@@ -332,7 +332,9 @@ test('update routes bind an exact plan and recover ownership through status',
         assert.equal(context.principalId,'principal-one');return phase==='prepared'
           ?{...updateStatus,phase,summary:updatePrepared.summary,finalUrl:null,registryStatus:'pending'}
           :updateStatus;},
-      reconcileUpdate:async()=>{reconciles++;return updateStatus;}};
+      reconcileUpdate:async()=>{reconciles++;return updateStatus;},
+      retryUpdate:async input=>{retries++;assert.deepEqual(input,{updateId,planDigest:digest});
+        return updateStatus;}};
     const server=createLocalDeliveryServer({config:{origin:appOrigin},port,operations,fetcher});
     await server.listen();t.after(()=>server.close());
     let result=await post(server.origin,'session',`creezio-local-admin=${native}`);
@@ -367,6 +369,13 @@ test('update routes bind an exact plan and recover ownership through status',
     result=await post(server.origin,'update/reconcile',cookies,{updateId,planDigest:digest});
     assert.equal(result.response.status,202);
     await new Promise(resolve=>setImmediate(resolve));assert.equal(reconciles,1);
+    result=await post(server.origin,'update/retry',cookies,{updateId:'other',planDigest:digest});
+    assert.equal(result.response.status,403);assert.equal(retries,0);
+    result=await post(server.origin,'update/retry',cookies,{updateId,planDigest:digest});
+    assert.equal(result.response.status,202);
+    await new Promise(resolve=>setImmediate(resolve));assert.equal(retries,1);
+    result=await get(server.origin,`jobs/${result.body.jobId}`,cookies);
+    assert.deepEqual(result.body.value,updateStatus);
     result=await post(server.origin,'update/prepare',cookies,{});
     assert.equal(result.response.status,202);
     await new Promise(resolve=>setImmediate(resolve));

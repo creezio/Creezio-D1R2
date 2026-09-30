@@ -889,6 +889,17 @@
         }
       },
       {
+        "id": "target_credential_id",
+        "type": "string",
+        "nullable": true,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
         "id": "target_session_id",
         "type": "string",
         "nullable": true,
