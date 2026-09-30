@@ -11,6 +11,7 @@ export interface WidgetOperationPort {
   projectSnapshot(value:unknown):WidgetMessageContentV1|null;
   projectHistory(value:unknown):WidgetMessageContentV1|null;
   readHistory(value:unknown,instanceId:string):Promise<Readonly<{output:JsonValue}>|null>;
+  contextActionAvailable(instance:WidgetMessageInstanceV1,actionId:string):boolean;
   contextValue(instance:WidgetMessageInstanceV1,actionId:string,value:unknown):JsonValue|null;
   contextAction(instance:WidgetMessageInstanceV1,actionId:string,input:unknown):Readonly<{
     namespace:'module-instance';expiresAfterSeconds:number;value:JsonValue}>;
@@ -49,6 +50,19 @@ export function createWidgetOperationPort(options:{catalog:CompiledWidgetCatalog
         const key=`${widget.moduleId}\u0000${widget.widgetId}\u0000${widget.version}` as const;
         return options.validators.get(key)?.input(copied)===true?{output:copied}:null;
       }catch{return null;}
+    },
+    contextActionAvailable(instance:WidgetMessageInstanceV1,actionId:string){
+      const widget=options.catalog.widgets.find(item=>item.moduleId===instance.moduleId
+        &&item.widgetId===instance.widgetId&&item.version===instance.widgetVersion
+        &&item.resourceUri===instance.resourceUri&&item.resourceDigest===instance.resourceDigest
+        &&item.audiences.includes(options.audience));
+      if(!widget||!authorized(widget))return false;
+      const action=widget.actions.find(item=>item.id===actionId);
+      if(!action||action.mode!=='context'||action.target.namespace!=='module-instance')return false;
+      const key=`${widget.moduleId}\u0000${widget.widgetId}\u0000${widget.version}` as const;
+      const validators=options.validators.get(key);
+      return validators?.actionInputs.has(actionId)===true
+        &&validators.contextValues?.has(actionId)===true;
     },
     contextValue(instance:WidgetMessageInstanceV1,actionId:string,input:unknown){
       const widget=options.catalog.widgets.find(item=>item.moduleId===instance.moduleId

@@ -245,6 +245,11 @@ export async function widgetContextRead(value:JsonValue,context:OperationContext
     instance_id:instance.instanceId,namespace:'module-instance'};
   const row=await context.data.get('widget_context',{key:k}) as Row|null;
   if(!row||row.action_id!==args.actionId||row.message_id!==messageId)return {output:{context:null}};
+  if(row.value===null&&row.removed_at!==null){
+    if(!context.widgets.contextActionAvailable(instance,String(args.actionId)))return {output:{context:null}};
+    return {output:{context:{instanceId:instance.instanceId,namespace:'module-instance',revision:row.revision,
+      value:null,expiresAt:row.expires_at,removed:true}}};
+  }
   const storedValue=context.widgets.contextValue(instance,String(args.actionId),row.value);
   if(storedValue===null)return {output:{context:null}};
   return {output:{context:{instanceId:instance.instanceId,namespace:'module-instance',revision:row.revision,
