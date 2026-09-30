@@ -180,6 +180,8 @@ test('D1 operation engine keeps drafts, published snapshots and access boundarie
     const linked=output(await invoke('media.link',{requestKey:'media-link',pageId:'home',revision:5,staged}));
     assert.equal(linked.media.fileId,staged.fileId);
     assert.equal(output(await invoke('media.list',{pageId:'home',limit:10})).items[0].fileId,staged.fileId);
+    assert.deepEqual(output(await invoke('media.list',{pageId:'home',limit:50})).items.map(item=>item.fileId),
+      [staged.fileId],'the declared page limit reserves one parent read plus 50 media reads');
     await rejected(invoke('media.list',{pageId:'home',limit:10},'app'),'forbidden');
     assert.deepEqual(output(await invoke('media.published.list',{pageId:'home'},'app')).items,[],
       'a draft upload is not part of the previous publication');
