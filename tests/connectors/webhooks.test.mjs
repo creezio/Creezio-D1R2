@@ -30,6 +30,26 @@ test('Standard Webhooks binds ID, timestamp and exact payload across rotated sig
   assert.equal(await verifyStandardWebhook({body,id:'msg_other',timestamp:stamp,signature,
     secrets:[secret],nowMs:now}),false);
 });
+test('Resend bridge reads Svix headers and rejects altered bytes before invocation',async()=>{
+  const proof=createWebhookProofAuthority(),stamp=String(Math.floor(Date.now()/1000)),id='msg_resend_1';
+  const raw=randomBytes(32),secret=`whsec_${raw.toString('base64')}`;
+  const body=bytes(JSON.stringify({type:'email.delivered',data:{email_id:'email-1'}}));
+  const signature=`v1,${createHmac('sha256',raw).update(Buffer.concat([
+    Buffer.from(`${id}.${stamp}.`),body])).digest('base64')}`;
+  let calls=0;
+  const bridge=createSignedWebhookBridge({proof,resolve:async()=>({scheme:'resend',
+    contextId:'application',serviceToken:'synthetic-service',secrets:[secret],guards:[],
+    map:(_event,eventId)=>({requestKey:eventId})}),engine:{async invoke(){calls++;
+      return {execution:{state:'succeeded'}};}}});
+  const binding={moduleId:'creezio.resend',operationId:'event.receive',audience:'admin',
+    auth:['webhook-signature']};
+  const deliver=payload=>bridge.dispatch(new Request('https://example.test/api/webhooks/resend',{
+    method:'POST',headers:{'content-type':'application/json','svix-id':id,
+      'svix-timestamp':stamp,'svix-signature':signature},body:payload}),binding);
+  assert.equal((await deliver(body)).status,204);
+  assert.equal((await deliver(bytes(JSON.stringify({type:'email.bounced',data:{email_id:'email-1'}})))).status,401);
+  assert.equal(calls,1);
+});
 test('webhook body reader rejects oversized chunked streams without Content-Length and aborts a stalled stream',async()=>{
   let cancelled=false;
   const oversized=new ReadableStream({start(controller){controller.enqueue(new Uint8Array(200_000));

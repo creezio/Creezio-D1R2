@@ -72,7 +72,8 @@ export function ReaderPanel(props:{message:Message|null;draft:Draft|null;thread:
   threadLoading:boolean;onThreadMore:()=>void;onThreadSelect:(id:string)=>void;
   attachments:Attachment[];loading:boolean;busy:boolean;
   onReply:()=>void;onEdit:()=>void;onDownload:(item:Attachment)=>void;
-  onUpdate:(change:{folder?:Folder;read?:boolean})=>void;onDeleteDraft:()=>void}) {
+  onUpdate:(change:{folder?:Folder;read?:boolean})=>void;onReconcile:()=>void;
+  onDeleteDraft:()=>void}) {
   if(!props.message&&!props.draft)return <section aria-label="Lecture du message" className="flex h-full flex-col items-center justify-center gap-2 bg-[#fcfbf8] p-8 text-center">
     <MailOpen size={40} className="text-[#d5cec0]"/><p className="text-sm text-[#5c6478]">{props.loading?'Ouverture…':'Sélectionnez un message'}</p></section>;
   const item=props.message??props.draft!;
@@ -84,6 +85,9 @@ export function ReaderPanel(props:{message:Message|null;draft:Draft|null;thread:
     </div><div className="flex flex-wrap gap-1">{props.draft?<><button type="button" className={button} onClick={props.onEdit}>Reprendre le brouillon</button>
       <button type="button" disabled={props.busy} className={button} onClick={props.onDeleteDraft}>Supprimer</button></>:
       props.message?<>
+        {props.message.direction==='outbound'&&['sent','delivered','bounced'].includes(props.message.state)
+          &&<button type="button" disabled={props.busy} className={button}
+            onClick={props.onReconcile}>Rapprocher la livraison</button>}
         {props.message.direction==='inbound'&&<button type="button" className={button} onClick={props.onReply}>Répondre</button>}
         {props.message.direction==='inbound'&&<button type="button" disabled={props.busy} className={button} onClick={()=>props.onUpdate({read:!props.message!.read})}>{props.message.read?'Marquer non lu':'Marquer lu'}</button>}
         {props.message.folder==='archive'||props.message.folder==='trash'?<button type="button" disabled={props.busy} className={button} onClick={()=>props.onUpdate({folder:props.message!.direction==='inbound'?'inbox':'sent'})}><ArchiveRestore size={14}/> Restaurer</button>:

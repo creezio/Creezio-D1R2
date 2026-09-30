@@ -7,6 +7,7 @@ import {createCommandJournal,readPendingCommand,type PendingCommand} from '@cree
 import {panelData,readPanel,retainedSessionId,scopeChange,sessionVerified,type ResendScope} from './panel-state.ts';
 
 type Config={origin:string|null;from:string|null;enabled:boolean;hasKey:boolean;
+  hasWebhookSecret:boolean;hasWebhookService:boolean;
   state:'missing'|'configured'|'disabled';revision:number};
 type Domain={id:string;name:string;status:string};
 const field='rounded-md border border-slate-300 bg-white px-3 py-2 text-sm disabled:opacity-50';
@@ -27,6 +28,7 @@ export function ResendAdminView(props:WorkspaceViewProps){
   const initial=useRef(props.navigation.readPanelState());
   const restored=verified?readPanel(initial.current?.data,scope):null;
   const [config,setConfig]=useState<Config|null>(null),[from,setFrom]=useState(''),[apiKey,setApiKey]=useState('');
+  const [webhookSecret,setWebhookSecret]=useState(''),[serviceToken,setServiceToken]=useState('');
   const [enabled,setEnabled]=useState(false),[domains,setDomains]=useState<Domain[]>([]);
   const [notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[checking,setChecking]=useState(false);
   const [loading,setLoading]=useState(false);
@@ -67,7 +69,8 @@ export function ResendAdminView(props:WorkspaceViewProps){
   useEffect(()=>{
     const next:ResendScope={sessionId,audience:props.audience,contextId:props.contextId,panelId:props.panelId};
     const phase=access.pending?'loading':access.phase,transition=scopeChange(prior.current,next,phase);
-    if(transition.purge){setConfig(null);setFrom('');setApiKey('');setEnabled(false);setDomains([]);
+    if(transition.purge){setConfig(null);setFrom('');setApiKey('');setWebhookSecret('');
+      setServiceToken('');setEnabled(false);setDomains([]);
       setNotice('');setPending(null);setBusy(false);journal.current=null;fromDirty.current=false;
       enableDirty.current=false;editRevision.current=null;keyRevision.current=null;}
     if(!transition.transient)prior.current=next;
@@ -88,6 +91,7 @@ export function ResendAdminView(props:WorkspaceViewProps){
     setPending(result.pending);setBusy(!!result.pending);
     const next=output(result.result)?.config as Config|undefined;
     if(next){setConfig(next);setFrom(next.from??'');setEnabled(next.enabled);setApiKey('');
+      setWebhookSecret('');setServiceToken('');
       fromDirty.current=false;enableDirty.current=false;editRevision.current=null;keyRevision.current=null;
       setNotice('Configuration enregistrée.');}
     else setNotice(result.pending?'Résultat incertain ; aucun second envoi automatique.':'Modification refusée.');
@@ -97,7 +101,8 @@ export function ResendAdminView(props:WorkspaceViewProps){
     setChecking(true);const result=await controller.inspect(props.client,()=>current(token),persist);
     if(!current(token))return;setChecking(false);setPending(result?.pending??null);setBusy(!!result?.pending);
     if(result?.result.kind==='execution'&&result.result.execution.state==='succeeded'){
-      setApiKey('');setNotice('Modification confirmée.');void load(token);
+      setApiKey('');setWebhookSecret('');setServiceToken('');
+      setNotice('Modification confirmée.');void load(token);
     }else setNotice(result?.pending?'Résultat toujours incertain ; aucune action rejouée.':'Modification refusée.');
   };
   const readDomains=async()=>{
@@ -138,6 +143,25 @@ export function ResendAdminView(props:WorkspaceViewProps){
           {apiKey,revision:keyRevision.current??config!.revision})}>Enregistrer la clé</button>
         <button className={button} type="button" disabled={busy||!config?.hasKey}
           onClick={()=>void mutate('config.key.revoke',{revision:config!.revision})}>Révoquer la clé</button></div>
+    </section>
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 className="text-lg font-medium">Événements signés</h2>
+      <p className="text-slate-600">Point de réception : /api/webhooks/resend. Le jeton de service doit porter le droit resend.webhook.receive.</p>
+      <p>Secret de signature : {config?.hasWebhookSecret?'enregistré':'absent'} · Jeton de service : {config?.hasWebhookService?'enregistré':'absent'}</p>
+      <label className="mt-3 grid gap-1">Secret Svix Resend
+        <input className={field} type="password" autoComplete="off" maxLength={512}
+          value={webhookSecret} onChange={event=>setWebhookSecret(event.target.value)} disabled={busy||!config?.enabled}/></label>
+      <div className="mt-2 flex gap-2"><button className={button} type="button" disabled={busy||!config?.enabled||webhookSecret.length<16}
+        onClick={()=>void mutate('config.key.webhook.set',{webhookSecret,revision:config!.revision})}>Enregistrer le secret</button>
+        <button className={button} type="button" disabled={busy||!config?.hasWebhookSecret}
+          onClick={()=>void mutate('config.key.webhook.revoke',{revision:config!.revision})}>Révoquer le secret</button></div>
+      <label className="mt-3 grid gap-1">Jeton API du service webhook
+        <input className={field} type="password" autoComplete="off" maxLength={256}
+          value={serviceToken} onChange={event=>setServiceToken(event.target.value)} disabled={busy||!config?.enabled}/></label>
+      <div className="mt-2 flex gap-2"><button className={button} type="button" disabled={busy||!config?.enabled||serviceToken.length<32}
+        onClick={()=>void mutate('config.key.webhook.service.set',{serviceToken,revision:config!.revision})}>Enregistrer le jeton</button>
+        <button className={button} type="button" disabled={busy||!config?.hasWebhookService}
+          onClick={()=>void mutate('config.key.webhook.service.revoke',{revision:config!.revision})}>Révoquer le jeton</button></div>
     </section>
     <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between gap-2"><h2 className="text-lg font-medium">Domaines</h2>

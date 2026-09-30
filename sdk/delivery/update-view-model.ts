@@ -12,6 +12,7 @@ export interface DeliveryUpdateViewModel {
   readonly canStart: boolean;
   readonly canRefresh: boolean;
   readonly canReconcile: boolean;
+  readonly canRetry: boolean;
 }
 const steps = Object.freeze([
   {id: 'build', label: 'Construire la nouvelle version'},
@@ -39,7 +40,9 @@ export function deliveryUpdateViewModel(input: DeliveryUpdateSnapshot): Delivery
       : 'Reconnectez le service local pour examiner la publication courante.';
   } else if (phase === 'delivery-unknown') {
     headline = 'Publication à vérifier';
-    detail = 'Le résultat est incertain. Vérifiez cette même mise à jour avant toute nouvelle tentative.';
+    detail = input.update?.retryEligible === true
+      ? 'Le résultat est incertain. Vérifiez la publication avant de demander une nouvelle tentative explicite du même artefact.'
+      : 'Le résultat est incertain. Vérifiez cette même mise à jour.';
   } else if (phase === 'delivered') {
     headline = 'Mise à jour confirmée';
     detail = 'La nouvelle version du Worker a été publiée et vérifiée.';
@@ -66,5 +69,7 @@ export function deliveryUpdateViewModel(input: DeliveryUpdateSnapshot): Delivery
     canStart: connected && input.inspection?.readiness === 'ready' && prepared,
     canRefresh: true,
     canReconcile: connected && !!input.saved?.started && phase !== 'delivered',
+    canRetry: connected && !!input.saved?.started && phase === 'delivery-unknown'
+      && input.update?.retryEligible === true,
   });
 }

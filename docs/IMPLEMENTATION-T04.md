@@ -14,6 +14,8 @@ Cette tranche est intégrée par la PR #18, main `a2f6081f` : 837 tests locaux e
 
 ## Fondations intégrées
 
+Le raccord limité aux webhooks expose maintenant la création, le statut et la révocation d'un principal de service via les opérations natives Access, avec les mêmes droits humains `access.manage`, journal, idempotence et commit D1 que les commandes existantes. L'émission d'un jeton API est réservée à la route HTTP administrateur sous session : le client génère 256 bits avec Web Crypto, présente le jeton une seule fois sur HTTPS et conserve lui-même le secret ; le serveur valide son format, persiste seulement son empreinte liée à l'usage et renvoie un identifiant et des métadonnées sans secret. Aucun outil MCP ne peut émettre un jeton. La politique doit ajouter explicitement membership et droits au service avant usage ; la création seule ne les attribue pas. Cette interface bornée permet le service webhook sans prétendre livrer l'administration complète des comptes, la rotation ou la remise de liens encore différées.
+
 Fondations, comptes, droits D1, cycle de comptes, machines, administration humaine, impersonation, transport HTTP et entrée navigateur sont intégrés jusqu’à la PR #13, main qualifié `db9dd50` (613 tests), avec l’installation opérateur locale explicite. Le lot [T-04](TODO.md#T-04) reste **en cours**. Le parcours opérateur local est qualifié par terminal et navigateur sur données synthétiques ; les autres transports, la livraison des liens et l'administration visuelle restent à construire. [REQ-0401](EXIGENCES.md#REQ-0401), [REQ-0402](EXIGENCES.md#REQ-0402) et [REQ-0403](EXIGENCES.md#REQ-0403) restent partiellement ou non qualifiées selon leurs parcours.
 
 ## Tranches et critères

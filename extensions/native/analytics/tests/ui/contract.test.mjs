@@ -91,8 +91,8 @@ test('the original analytics layout remains while unavailable measures stay expl
   for(const structure of ['bg-gradient-to-r from-slate-50 via-white to-sky-50/60',
     'KpiCard','ActivityChart','Répartition','TopList','DataTable','Heatmap d’activité','Pauses détectées','Blocs de focus'])
     assert.ok(ui.includes(structure),structure);
-  for(const missing of ['mesure de présence indisponible','suivi automatique n’est pas encore disponible',
-    'les requêtes refusées avant le moteur ne sont pas collectées'])
+  for(const missing of ['mesure de présence indisponible','data-creezio-analytics-id',
+    'les exécutions et les refus avant moteur sont présentés séparément'])
     assert.ok(ui.toLocaleLowerCase().includes(missing.toLocaleLowerCase()),missing);
   assert.match(ui,/value="—" hint="Mesure de présence indisponible"/u);
   assert.match(ui,/setInterval\(.*8000/u);

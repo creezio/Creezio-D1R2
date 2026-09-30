@@ -23,7 +23,7 @@ compiled.filename = bundlePath;
 compiled.paths = Module._nodeModulePaths(dirname(bundlePath));
 compiled._compile(bundle.outputFiles[0].text, bundlePath);
 const {DeliveryOverview,DeliveryUpdateOverview} = compiled.exports;
-const actions = {onConfigure() {}, onPrepare() {}, onStart() {}, onRefresh() {}, onReconcile() {}};
+const actions = {onConfigure() {}, onPrepare() {}, onStart() {}, onRefresh() {}, onReconcile() {}, onRetry() {}};
 
 test('prepared screen explains local interruption and never displays a credential field', () => {
   const model = deliveryViewModel({profile: 'docker-local', connection: 'connected',
@@ -69,10 +69,16 @@ test('update screen requires an explicit reviewed plan and offers exact reconcil
     /\sdisabled(?:=|[ >])/);
   const uncertain={...reviewed,saved:{...reviewed.saved,started:true},
     update:{kind:'update',updateId:'update-1',planDigest:reviewed.saved.planDigest,
-      phase:'delivery-unknown',summary:null,finalUrl:null,registryStatus:'unknown'}};
+      phase:'delivery-unknown',summary:null,finalUrl:null,registryStatus:'unknown',retryEligible:true}};
   html=renderToStaticMarkup(createElement(DeliveryUpdateOverview,
     {model:deliveryUpdateViewModel(uncertain),...actions}));
   assert.match(html,/Vérifier cette mise à jour/);
+  assert.match(html,/Nouvelle tentative explicite/);
   assert.match(html,/À vérifier/);
   assert.match(html,/<button\b[^>]*\sdisabled=""[^>]*>Lancer la mise à jour<\/button>/);
+  const routed={...uncertain,update:{...uncertain.update,retryEligible:false}};
+  html=renderToStaticMarkup(createElement(DeliveryUpdateOverview,
+    {model:deliveryUpdateViewModel(routed),...actions}));
+  assert.doesNotMatch(html,/Nouvelle tentative explicite/);
+  assert.match(html,/Vérifier cette mise à jour/);
 });

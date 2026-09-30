@@ -174,14 +174,15 @@ test('update review persists its exact identity before start and resumes without
   const updateInspection={kind:'update',readiness:'ready',currentPublicationId:'publication-1',
     activeUpdateId:null,target:inspection.target};
   const prepared={kind:'update',updateId:'update-1',planDigest:digest,summary};
-  const status={kind:'update',updateId:'update-1',planDigest:digest,phase:'building',summary:null,
-    finalUrl:null,registryStatus:'pending'};
+  const status={kind:'update',updateId:'update-1',planDigest:digest,phase:'delivery-unknown',summary:null,
+    finalUrl:null,registryStatus:'unknown',retryEligible:true};
   const transport={
     async inspectUpdate(){return {ok:true,value:updateInspection};},
     async prepareUpdate(){calls.push('prepare');return {ok:true,value:prepared};},
     async startUpdate(input){calls.push(['start',input]);return {ok:false,code:'outcome_unknown'};},
     async statusUpdate(id){calls.push(['status',id]);return {ok:true,value:status};},
     async reconcileUpdate(input){calls.push(['reconcile',input]);return {ok:true,value:status};},
+    async retryUpdate(input){calls.push(['retry',input]);return {ok:true,value:status};},
   };
   const persistence={read:()=>stored.value,save(value){stored.value=value;return true;}};
   let controller=createDeliveryUpdateController({access,transport,persistence});
@@ -197,8 +198,11 @@ test('update review persists its exact identity before start and resumes without
   controller.dispose();
   controller=createDeliveryUpdateController({access,transport,persistence});
   await controller.inspect();await controller.status();await controller.reconcile();
+  assert.equal(deliveryUpdateViewModel(controller.getSnapshot()).canRetry,true);
+  await controller.retry();
   assert.deepEqual(calls.slice(2),[['status','update-1'],
-    ['reconcile',{updateId:'update-1',planDigest:digest}]]);
+    ['reconcile',{updateId:'update-1',planDigest:digest}],
+    ['retry',{updateId:'update-1',planDigest:digest}]]);
   assert.equal(calls.filter(call=>call==='prepare').length,1);
   controller.dispose();
 });

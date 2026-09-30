@@ -67,6 +67,7 @@ export interface OperationContext {
   readonly search?:SearchProjectionPort;
   readonly providerAvailability?:OperationProviderAvailability;
   readonly diagnostics?:{
+    collectionFlags():Promise<{navigation:boolean;clicks:boolean}>;
     listExecutions(input:Readonly<{period:'day'|'week'|'month'|'year';limit:number;cursor?:string}>):Promise<{
       period:{period:string;from:string;to:string};items:readonly {id:string;moduleId:string;operationId:string;
         audience:'admin'|'app';state:string;errorCode:string|null;createdAt:string;updatedAt:string;

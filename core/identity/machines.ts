@@ -6,7 +6,7 @@ import { digestOpaqueToken, issueOpaqueToken } from './tokens.ts';
 import { ACCESS_MANAGEMENT, createNativeAuthorizationResolver } from '../authorization/resolver.ts';
 import { createD1AuthorizationStore } from '../authorization/d1-store.ts';
 import { authorize, copyAuthorizationTarget } from '../authorization/authorize.ts';
-import { MANAGE_ACCESS, policySnapshot, validPolicyCatalog, type AccessPolicy } from '../authorization/policy.ts';
+import { MANAGE_ACCESS, validPolicyCatalog, type AccessPolicy } from '../authorization/policy.ts';
 import type { AuthorizationDecision, AuthorizationSnapshot, AuthorizationTarget, PermissionDefinition } from '../authorization/types.ts';
 import type {StorageMutationPort} from '../storage-authority/native-mutation.ts';
 
@@ -24,10 +24,10 @@ export function createMachineAccountService(db: IdentityDatabase, options: {
   permissions: readonly PermissionDefinition[];storageMutation?:StorageMutationPort }) {
   const store = createD1MachineStore(db), identity = createD1IdentityStore(db);
   const authorizationStore = createD1AuthorizationStore(db);
-  const { resolve, permissions } = createNativeAuthorizationResolver(db, options);
+  const { resolveAdminAuthority, permissions } = createNativeAuthorizationResolver(db, options);
   const catalog = new Map(permissions.map(permission => [permission.id, permission]));
   const auditReceipt=async(auditId:string,action:string,column:string,targetId?:string)=>{
-    const field=column==='principal'?'target_principal_id':'credential_id';
+    const field=column==='principal'?'target_principal_id':'target_credential_id';
     const row=await db.prepare(`SELECT 1 AS ok FROM "${ACCESS_TABLES.access_audit}"
       WHERE id=? AND action=? ${targetId?`AND ${field}=?`:''} LIMIT 2`)
       .bind(...(targetId?[auditId,action,targetId]:[auditId,action])).first();
@@ -43,17 +43,16 @@ export function createMachineAccountService(db: IdentityDatabase, options: {
     return scopes.every(scope => policy.contexts.some(context => context.id === scope.contextId && context.status === 'active'));
   }
   async function administration(token: unknown) {
-    const current = await resolve(token, 'admin');
+    const current = await resolveAdminAuthority(token);
     if (!current) return fail('unauthorized');
-    if (!authorize(policySnapshot(current.policy, permissions, current.session), ACCESS_MANAGEMENT, current.nowMs).allowed)
+    if (!authorize(current.snapshot, ACCESS_MANAGEMENT, current.nowMs).allowed)
       return fail('forbidden');
     const windowMs = MACHINE_ACCOUNT_POLICY.admissionWindowMs;
     if (!(await identity.consumeThrottle({ key: await identityAdmissionKey('machine-administration-global'),
       limit: MACHINE_ACCOUNT_POLICY.administrationGlobalLimit, windowMs })).allowed
-      || !(await identity.consumeThrottle({ key: await identityAdmissionKey('machine-administration-actor', current.session.principalId),
+      || !(await identity.consumeThrottle({ key: await identityAdmissionKey('machine-administration-actor', current.principalId),
         limit: MACHINE_ACCOUNT_POLICY.administrationActorLimit, windowMs })).allowed) return fail('rate_limited');
-    return { ok: true as const, policy: current.policy, guard: Object.freeze({ sessionDigest: current.digest,
-      sessionId: current.session.id, principalId: current.session.principalId, epoch: current.epoch }) };
+    return { ok: true as const, policy: current.policy, guard: current.guard };
   }
   async function createService(token: unknown, input: unknown) {
     if (!identityInputFields(input, ['displayName'])) return fail('invalid_input');
@@ -145,6 +144,57 @@ export function createMachineAccountService(db: IdentityDatabase, options: {
       return await store.revokeToken(current.guard, credentialId) ? Object.freeze({ ok: true as const }) : fail('conflict');
     } catch { return fail('storage_error'); }
   }
+  async function prepareCreateService(token:unknown,input:unknown,sourceAuditId?:string){
+    if(!identityInputFields(input,['displayName']))return fail('invalid_input');
+    const displayName=normalizeDisplayName(input.displayName);
+    if(!displayName)return fail('invalid_input');
+    try{
+      const current=await administration(token);if(!current.ok)return current;
+      return Object.freeze({ok:true as const,...store.prepareCreateService(current.guard,{displayName},sourceAuditId)});
+    }catch{return fail('storage_error');}
+  }
+  async function prepareSetServiceStatus(token:unknown,input:unknown,sourceAuditId?:string){
+    if(!identityInputFields(input,['principalId','expectedAuthVersion','status'])
+      ||!validIdentityId(input.principalId)||!Number.isSafeInteger(input.expectedAuthVersion)
+      ||Number(input.expectedAuthVersion)<1||Number(input.expectedAuthVersion)>=Number.MAX_SAFE_INTEGER
+      ||!['active','disabled'].includes(String(input.status)))return fail('invalid_input');
+    try{
+      const current=await administration(token);if(!current.ok)return current;
+      return Object.freeze({ok:true as const,...store.prepareSetServiceStatus(current.guard,
+        {principalId:input.principalId,expectedAuthVersion:Number(input.expectedAuthVersion),
+          status:input.status as 'active'|'disabled'},sourceAuditId)});
+    }catch{return fail('storage_error');}
+  }
+  async function prepareIssueToken(token:unknown,input:unknown,sourceAuditId?:string){
+    if(!identityInputFields(input,['principalId','label','ttlMs','scopes','apiToken'])
+      ||!validIdentityId(input.principalId)||!validTtl(input.ttlMs))return fail('invalid_input');
+    const label=normalizeDisplayName(input.label),scopes=parseMachineScopes(input.scopes);
+    if(!label||!scopes||!knownScopes(scopes))return fail('invalid_input');
+    const digest=await digestOpaqueToken(input.apiToken,'api-token');
+    if(!digest)return fail('invalid_input');
+    try{
+      const current=await administration(token);if(!current.ok)return current;
+      if(!activeContexts(scopes,current.policy))return fail('invalid_input');
+      return Object.freeze({ok:true as const,...store.prepareIssueToken(current.guard,
+        {principalId:input.principalId,label,ttlMs:Number(input.ttlMs),scopes,digest},sourceAuditId)});
+    }catch{return fail('storage_error');}
+  }
+  async function prepareRevokeToken(token:unknown,input:unknown,sourceAuditId?:string){
+    if(!identityInputFields(input,['credentialId'])||!validIdentityId(input.credentialId))return fail('invalid_input');
+    try{
+      const current=await administration(token);if(!current.ok)return current;
+      return Object.freeze({ok:true as const,...store.prepareRevokeToken(current.guard,
+        input.credentialId,sourceAuditId)});
+    }catch{return fail('storage_error');}
+  }
+  async function readTokenMetadata(token:unknown,input:unknown){
+    if(!identityInputFields(input,['credentialId'])||!validIdentityId(input.credentialId))return fail('invalid_input');
+    try{
+      const current=await administration(token);if(!current.ok)return current;
+      const credential=await store.readTokenForAdmin(current.guard,input.credentialId);
+      return credential?Object.freeze({ok:true as const,credential}):fail('conflict');
+    }catch{return fail('storage_error');}
+  }
   async function check(token: unknown, target: AuthorizationTarget): Promise<AuthorizationDecision> {
     try {
       const captured = copyAuthorizationTarget(target);
@@ -175,5 +225,13 @@ export function createMachineAccountService(db: IdentityDatabase, options: {
       return authorize(snapshot, captured, current.nowMs);
     } catch { return Object.freeze({ allowed: false, reason: 'invalid_snapshot' }); }
   }
-  return Object.freeze({ createService, setServiceStatus, issueToken, rotateToken, revokeToken, check });
+  return Object.freeze({createService,setServiceStatus,issueToken,rotateToken,revokeToken,check,
+    hostPlans:Object.freeze({prepareCreateService,prepareSetServiceStatus,prepareIssueToken,
+      prepareRevokeToken,readTokenMetadata})});
+}
+
+/** Native operation adapter only; every mutation remains an inert plan until the operation commit. */
+export function createMachineAccountPlanService(db:IdentityDatabase,options:{
+  permissions:readonly PermissionDefinition[];storageMutation?:StorageMutationPort}){
+  return createMachineAccountService(db,options).hostPlans;
 }

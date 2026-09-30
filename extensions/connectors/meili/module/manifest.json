@@ -1557,6 +1557,14 @@
             "successStatuses": [
               202
             ],
+            "query": {
+              "fixed": [
+                {
+                  "name": "primaryKey",
+                  "value": "id"
+                }
+              ]
+            },
             "body": {
               "encoding": "json-root",
               "fields": [

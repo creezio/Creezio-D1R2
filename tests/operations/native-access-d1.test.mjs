@@ -15,12 +15,17 @@ import {ACCESS_TABLES} from '../../core/identity/d1-store.ts';
 import {createAccountService, provisionBootstrapCapability} from '../../core/identity/accounts.ts';
 import {createAccountLifecycleService} from '../../core/identity/lifecycle.ts';
 import {issueOpaqueToken} from '../../core/identity/tokens.ts';
+import {createMachineAccountService} from '../../core/identity/machines.ts';
+import {resolveAccessHttpConfiguration,serializeAccessCookie} from '../../core/identity/http-policy.ts';
 import {hostOnly} from '../../extensions/native/access/module/operations.ts';
 
 const json = path => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
 const quote = value => `"${value.replaceAll('"','""')}"`;
 const moduleId = 'creezio.access';
 const manifest = json('../../extensions/native/access/module/manifest.json');
+const stripeManifest=json('../../extensions/connectors/stripe/module/manifest.json');
+const stripePermission=stripeManifest.contracts.permissions.filter(item=>item.id==='webhook.receive').map(item=>({
+  id:'creezio.stripe:webhook.receive',audiences:item.audiences,actors:item.actors}));
 const composition = json('../../configuration/composition.json');
 const lock = json('../../configuration/composition.lock.json');
 // This test qualifies the native Access adapter in isolation. Project the current
@@ -61,7 +66,7 @@ test('native Access effects, audit detail and T06 result commit together in real
     assert.equal(target.ok,true,JSON.stringify(target));
     const targetSession=await accounts.login({loginIdentifier:'access-operations-user@example.invalid',password,audience:'app'});
     assert.equal(targetSession.ok,true,JSON.stringify(targetSession));
-    const engine=createOperationEngine({db,registry,catalog:schema.runtimeCatalog,permissions:[]});
+    const engine=createOperationEngine({db,registry,catalog:schema.runtimeCatalog,permissions:stripePermission});
     const invoke=(operationId, value) => engine.invoke({credential:{kind:'session',token:session.token},
       moduleId,operationId,contextId:'application',audience:'admin',input:value});
     const read=await invoke('policy.read',{});
@@ -131,6 +136,95 @@ test('native Access effects, audit detail and T06 result commit together in real
       changes:[{kind:'context-admit',contextId:'t33-context-b',status:'active'}]});
     assert.equal(stale.execution.state,'failed');
     assert.equal(stale.execution.errorCode,'conflict');
+    const created=await invoke('service.create',{requestKey:'webhook-service-create',displayName:'Stripe webhook fixture'});
+    assert.equal(created.execution.state,'succeeded',JSON.stringify(created.execution));
+    const serviceId=created.execution.output.principal.id;
+    const policyBeforeService=(await invoke('policy.read',{})).execution.output;
+    assert.equal(policyBeforeService.policy.memberships.some(item=>item.principalId===serviceId),false);
+    assert.equal(policyBeforeService.policy.assignments.some(item=>item.principalId===serviceId),false);
+    const admittedService=await invoke('policy.apply-delta',{requestKey:'webhook-service-grant',
+      expectedEpoch:policyBeforeService.epoch,changes:[
+        {kind:'membership',principalId:serviceId,contextId:'application',audience:'admin',status:'active'},
+        {kind:'principal-override',principalId:serviceId,contextId:'application',audience:'admin',
+          permissionId:'creezio.stripe:webhook.receive',effect:'allow'}]});
+    assert.equal(admittedService.execution.state,'succeeded',JSON.stringify(admittedService.execution));
+    const machineToken=await issueOpaqueToken('api-token');
+    const issueInput={requestKey:'webhook-token-issue',label:'Signed Stripe webhook fixture',ttlMs:60000,
+      scopes:[{contextId:'application',audience:'admin',permissionIds:['creezio.stripe:webhook.receive']}],
+      apiToken:machineToken.token};
+    const issueBinding=compileHttpBindings({composition,modules:[manifest],operationCatalog:compiled.catalog})
+      .find(item=>item.id==='service.token.issue'&&item.audience==='admin');
+    assert.ok(issueBinding);
+    const issueHttp=createOperationHttpTransport([issueBinding],engine);
+    const origin='https://access-operations.example.invalid';
+    const cookie=serializeAccessCookie(resolveAccessHttpConfiguration({CREEZIO_APP_ORIGIN:origin},'sites'),
+      'admin',session.token,session.session.expiresAtMs).split(';')[0];
+    const issueRequest=()=>new Request(`${origin}/api/admin/access/services/${serviceId}/tokens/issue`,{
+      method:'POST',headers:{cookie,origin,'content-type':'application/json','x-creezio-request':'1'},
+      body:JSON.stringify(issueInput)});
+    const issuedResponse=await issueHttp.dispatch(issueRequest(),{profile:'sites',bindings:{DB:db}},
+      {CREEZIO_APP_ORIGIN:origin},'machine-issue-http');
+    assert.equal(issuedResponse.status,200,await issuedResponse.clone().text());
+    const issued=await issuedResponse.json();
+    assert.equal(issued.execution.state,'succeeded',JSON.stringify(issued));
+    const credentialId=issued.execution.output.credential.id;
+    assert.equal(JSON.stringify(issued).includes(machineToken.token),false);
+    const replayResponse=await issueHttp.dispatch(issueRequest(),{profile:'cloudflare',bindings:{DB:db}},
+      {CREEZIO_APP_ORIGIN:origin},'machine-issue-replay');
+    assert.equal(replayResponse.status,200);
+    const replayIssue=await replayResponse.json();
+    assert.equal(replayIssue.execution.id,issued.execution.id);
+    assert.equal(replayIssue.execution.output.credential.id,credentialId);
+    const credential=await db.prepare(`SELECT secret_hash FROM ${quote(ACCESS_TABLES.api_credentials)} WHERE id=?`)
+      .bind(credentialId).first();
+    assert.equal(credential.secret_hash,machineToken.digest);
+    const machines=createMachineAccountService(db,{permissions:stripePermission});
+    assert.equal((await machines.check(machineToken.token,{contextId:'application',audience:'admin',
+      actors:['machine'],requiredPermissionIds:['creezio.stripe:webhook.receive'],purpose:'operation'})).allowed,true);
+    assert.equal((await machines.check(machineToken.token,{contextId:'application',audience:'admin',
+      actors:['machine'],requiredPermissionIds:['creezio.access:manage'],purpose:'operation'})).allowed,false);
+    const readToken=await invoke('service.token.read',{credentialId});
+    assert.equal(readToken.execution.state,'succeeded');
+    assert.equal(readToken.execution.output.credential.id,credentialId);
+    assert.equal(JSON.stringify(readToken).includes(machineToken.token),false);
+    const persisted=await db.prepare(`SELECT input_hash,output FROM ${quote(OPERATION_TABLES.executions)} WHERE id=?`)
+      .bind(issued.execution.id).first();
+    assert.equal(JSON.stringify(persisted).includes(machineToken.token),false);
+    const operationAuditRows=(await db.prepare(`SELECT * FROM ${quote(OPERATION_TABLES.audit)}
+      WHERE execution_id=?`).bind(issued.execution.id).all()).results;
+    const accessAuditRows=(await db.prepare(`SELECT * FROM ${quote(ACCESS_TABLES.access_audit)}
+      WHERE action='api-token-issued'`).all()).results;
+    assert.ok(accessAuditRows.length>0);
+    assert.equal(JSON.stringify({operationAuditRows,accessAuditRows}).includes(machineToken.token),false);
+    const forbiddenScopeToken=await issueOpaqueToken('api-token');
+    await assert.rejects(invoke('service.token.issue',{...issueInput,
+      requestKey:'webhook-token-broad-scope',apiToken:forbiddenScopeToken.token,
+      scopes:[{contextId:'application',audience:'admin',permissionIds:['creezio.stripe:manage']}]}),
+    {code:'invalid_input'});
+    assert.equal((await db.prepare(`SELECT count(*) AS n FROM ${quote(ACCESS_TABLES.api_credentials)}`).first()).n,1);
+    const revokedToken=await invoke('service.token.revoke',{requestKey:'webhook-token-revoke',credentialId});
+    assert.equal(revokedToken.execution.state,'succeeded');
+    assert.equal((await machines.check(machineToken.token,{contextId:'application',audience:'admin',
+      actors:['machine'],requiredPermissionIds:['creezio.stripe:webhook.receive'],purpose:'operation'})).allowed,false);
+    const delegatedRevokeFixture=await issueOpaqueToken('api-token');
+    const delegatedRevokeResponse=await issueHttp.dispatch(new Request(`${origin}/api/admin/access/services/${serviceId}/tokens/issue`,{
+      method:'POST',headers:{cookie,origin,'content-type':'application/json','x-creezio-request':'1'},
+      body:JSON.stringify({...issueInput,requestKey:'webhook-token-delegated-revoke',
+        apiToken:delegatedRevokeFixture.token})}),{profile:'sites',bindings:{DB:db}},
+    {CREEZIO_APP_ORIGIN:origin},'machine-issue-for-delegated-revoke');
+    assert.equal(delegatedRevokeResponse.status,200);
+    const delegatedRevokeCredentialId=(await delegatedRevokeResponse.json()).execution.output.credential.id;
+    const serviceCountBefore=(await db.prepare(`SELECT count(*) AS n FROM ${quote(ACCESS_TABLES.principals)}
+      WHERE kind='service'`).first()).n;
+    await db.prepare(`CREATE TRIGGER machine_test_late_audit BEFORE INSERT ON ${quote(OPERATION_TABLES.audit)}
+      WHEN NEW.event='committed' BEGIN SELECT RAISE(ABORT,'forced machine audit failure'); END`).run();
+    await assert.rejects(invoke('service.create',{requestKey:'webhook-service-rollback',
+      displayName:'Must not persist'}),{code:'unknown'});
+    assert.equal((await db.prepare(`SELECT count(*) AS n FROM ${quote(ACCESS_TABLES.principals)}
+      WHERE kind='service'`).first()).n,serviceCountBefore);
+    assert.equal((await db.prepare(`SELECT count(*) AS n FROM ${quote(ACCESS_TABLES.access_audit)}
+      WHERE action='service-created'`).first()).n,1);
+    await db.prepare('DROP TRIGGER machine_test_late_audit').run();
     const ownSessions=await invoke('sessions.list',{principalId:owner.principalId,limit:50});
     assert.equal(ownSessions.execution.state,'succeeded');
     assert.ok(ownSessions.execution.output.items.some(item=>item.id===session.session.id));
@@ -173,6 +267,40 @@ test('native Access effects, audit detail and T06 result commit together in real
       moduleId,operationId,contextId:'application',audience:'admin',input:value});
     const delegatedRead=await delegated('policy.read',{});
     assert.equal(delegatedRead.execution.state,'succeeded');
+    const oauthIssueResponse=await issueHttp.dispatch(new Request(`${origin}/api/admin/access/services/${serviceId}/tokens/issue`,{
+      method:'POST',headers:{authorization:`Bearer ${oauth.token}`,'content-type':'application/json',
+        'x-creezio-request':'1'},body:JSON.stringify({...issueInput,requestKey:'oauth-http-issue-denied'})}),
+    {profile:'sites',bindings:{DB:db}},{CREEZIO_APP_ORIGIN:origin},'oauth-machine-issue-refused');
+    assert.equal(oauthIssueResponse.status,401);
+    assert.equal((await delegated('service.token.read',{credentialId})).execution.state,'succeeded');
+    const delegatedService=await delegated('service.create',{requestKey:'oauth-service-create',
+      displayName:'Delegated metadata fixture'});
+    assert.equal(delegatedService.execution.state,'succeeded',JSON.stringify(delegatedService.execution));
+    const delegatedServiceId=delegatedService.execution.output.principal.id;
+    const delegatedStatus=await delegated('service.status',{requestKey:'oauth-service-disable',
+      principalId:delegatedServiceId,expectedAuthVersion:1,status:'disabled'});
+    assert.equal(delegatedStatus.execution.state,'succeeded',JSON.stringify(delegatedStatus.execution));
+    assert.equal(delegatedStatus.execution.output.principal.authVersion,2);
+    const delegatedRevoke=await delegated('service.token.revoke',{requestKey:'oauth-machine-token-revoke',
+      credentialId:delegatedRevokeCredentialId});
+    assert.equal(delegatedRevoke.execution.state,'succeeded',JSON.stringify(delegatedRevoke.execution));
+    const machineAudits=(await db.prepare(`SELECT action,principal_id AS principalId,
+      credential_id AS actorCredentialId,target_principal_id AS targetPrincipalId,
+      target_credential_id AS targetCredentialId FROM ${quote(ACCESS_TABLES.access_audit)}
+      WHERE credential_id=? AND action IN ('service-created','service-status-updated','api-token-revoked')
+      ORDER BY action`).bind(tokenId).all()).results;
+    assert.deepEqual(machineAudits.map(row=>row.action),
+      ['api-token-revoked','service-created','service-status-updated']);
+    for(const row of machineAudits){
+      assert.equal(row.principalId,owner.principalId);
+      assert.equal(row.actorCredentialId,tokenId);
+      assert.equal(row.targetPrincipalId,row.action==='api-token-revoked'?serviceId:delegatedServiceId);
+      assert.equal(row.targetCredentialId,row.action==='api-token-revoked'?delegatedRevokeCredentialId:null);
+    }
+    await assert.rejects(delegated('service.token.issue',{requestKey:'oauth-token-denied',
+      principalId:delegatedServiceId,label:'Denied',ttlMs:60000,
+      scopes:[{contextId:'application',audience:'admin',permissionIds:['creezio.stripe:webhook.receive']}],
+      apiToken:(await issueOpaqueToken('api-token')).token}),{code:'forbidden'});
     const httpBinding=compileHttpBindings({composition,modules:[manifest],operationCatalog:compiled.catalog})
       .find(item=>item.id==='policy.read' && item.audience==='admin');
     assert.ok(httpBinding);
@@ -238,8 +366,9 @@ test('native Access effects, audit detail and T06 result commit together in real
     const auditRows=(await db.prepare(`SELECT action,session_id AS sessionId,credential_id AS credentialId,
       context_id AS contextId,audience FROM ${quote(ACCESS_TABLES.access_audit)} WHERE credential_id=? ORDER BY action`)
       .bind(tokenId).all()).results;
-    assert.deepEqual(auditRows.map(row=>row.action),['authorization-updated','authorization-updated','human-session-revoked',
-      'human-sessions-revoked','human-status-updated']);
+    assert.deepEqual(auditRows.map(row=>row.action),['api-token-revoked','authorization-updated',
+      'authorization-updated','human-session-revoked','human-sessions-revoked','human-status-updated',
+      'service-created','service-status-updated']);
     for(const row of auditRows){
       assert.equal(row.sessionId,null);
       assert.equal(row.credentialId,tokenId);

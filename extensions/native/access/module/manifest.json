@@ -9,7 +9,7 @@
     "source": {
       "kind": "snapshot",
       "revision": "t04-access-models-v1",
-      "integrity": "sha256-1199c369429ab962f7603928d3eb2ff38149b9a63f08b155812a54d67660759f"
+      "integrity": "sha256-d4f4508231a8db2e7fc9d399786754bb7c1eba25dcc89632405a7f0f1966151d"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -1209,6 +1209,476 @@
           },
           "additionalProperties": false
         }
+      },
+      {
+        "id": "access-service-create-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "displayName": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "required": [
+            "requestKey",
+            "displayName"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "access-service-create-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "principal": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "displayName": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "disabled"
+                  ]
+                },
+                "authVersion": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "id",
+                "displayName",
+                "status",
+                "authVersion"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "principal"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "access-service-status-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "principalId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "expectedAuthVersion": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "active",
+                "disabled"
+              ]
+            }
+          },
+          "required": [
+            "requestKey",
+            "principalId",
+            "expectedAuthVersion",
+            "status"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "access-service-status-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "principal": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "disabled"
+                  ]
+                },
+                "authVersion": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "id",
+                "status",
+                "authVersion"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "principal"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "access-service-token-issue-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "principalId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "ttlMs": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 31536000000
+            },
+            "scopes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "contextId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "audience": {
+                    "type": "string",
+                    "enum": [
+                      "admin",
+                      "app"
+                    ]
+                  },
+                  "permissionIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256
+                    },
+                    "minItems": 1,
+                    "maxItems": 256
+                  }
+                },
+                "required": [
+                  "contextId",
+                  "audience",
+                  "permissionIds"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "maxItems": 64
+            },
+            "apiToken": {
+              "type": "string",
+              "pattern": "^cz1a_[A-Za-z0-9_-]{43}$"
+            }
+          },
+          "required": [
+            "requestKey",
+            "principalId",
+            "label",
+            "ttlMs",
+            "scopes",
+            "apiToken"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "access-service-token-issue-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "credential": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "principalId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "scopes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "contextId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "audience": {
+                        "type": "string",
+                        "enum": [
+                          "admin",
+                          "app"
+                        ]
+                      },
+                      "permissionIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256
+                        },
+                        "minItems": 1,
+                        "maxItems": 256
+                      }
+                    },
+                    "required": [
+                      "contextId",
+                      "audience",
+                      "permissionIds"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "minItems": 1,
+                  "maxItems": 64
+                },
+                "ttlMs": {
+                  "type": "integer",
+                  "minimum": 1000,
+                  "maximum": 31536000000
+                }
+              },
+              "required": [
+                "id",
+                "principalId",
+                "label",
+                "scopes",
+                "ttlMs"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "credential"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "access-service-token-revoke-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "credentialId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "requestKey",
+            "credentialId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "access-service-token-revoke-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "credentialId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revoked": {
+              "const": true
+            }
+          },
+          "required": [
+            "credentialId",
+            "revoked"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "access-service-token-read-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "credentialId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "credentialId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "access-service-token-read-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "credential": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "principalId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "scopes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "contextId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "audience": {
+                        "type": "string",
+                        "enum": [
+                          "admin",
+                          "app"
+                        ]
+                      },
+                      "permissionIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256
+                        },
+                        "minItems": 1,
+                        "maxItems": 256
+                      }
+                    },
+                    "required": [
+                      "contextId",
+                      "audience",
+                      "permissionIds"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "minItems": 1,
+                  "maxItems": 64
+                },
+                "createdAtMs": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "expiresAtMs": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "authVersion": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "revokedAtMs": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "id",
+                "principalId",
+                "label",
+                "scopes",
+                "createdAtMs",
+                "expiresAtMs",
+                "authVersion",
+                "revokedAtMs"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "credential"
+          ],
+          "additionalProperties": false
+        }
       }
     ],
     "models": [
@@ -2092,6 +2562,17 @@
           },
           {
             "id": "credential_id",
+            "type": "string",
+            "nullable": true,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "target_credential_id",
             "type": "string",
             "nullable": true,
             "protected": true,
@@ -5120,6 +5601,16 @@
             "moduleId": "creezio.access",
             "kind": "model",
             "id": "oauth_refresh_tokens"
+          },
+          {
+            "moduleId": "creezio.access",
+            "kind": "model",
+            "id": "api_credentials"
+          },
+          {
+            "moduleId": "creezio.access",
+            "kind": "model",
+            "id": "api_credential_scopes"
           }
         ],
         "actions": [
@@ -6906,6 +7397,1043 @@
           ]
         },
         "public": false
+      },
+      {
+        "id": "service.create",
+        "title": "Create one service principal",
+        "kind": "command",
+        "input": {
+          "schemaId": "access-service-create-input"
+        },
+        "output": {
+          "schemaId": "access-service-create-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "application",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "hostOnly"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principals"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "human_accounts"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "password_credentials"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "sessions"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "authorization_state"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "contexts"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "memberships"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_access_tokens"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_clients"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "roles"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_parents"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_overrides"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_assignments"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principal_overrides"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "api_credentials"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "api_credential_scopes"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "access_audit"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "access_audit"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principals"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 30000,
+          "maxItems": 50,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "requestKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "service.status",
+        "title": "Set service principal status",
+        "kind": "command",
+        "input": {
+          "schemaId": "access-service-status-input"
+        },
+        "output": {
+          "schemaId": "access-service-status-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "application",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "hostOnly"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principals"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "human_accounts"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "password_credentials"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "sessions"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "authorization_state"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "contexts"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "memberships"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_access_tokens"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_clients"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "roles"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_parents"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_overrides"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_assignments"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principal_overrides"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "api_credentials"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "api_credential_scopes"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "access_audit"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "access_audit"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principals"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "api_credentials"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "expectedAuthVersion"
+        },
+        "execution": {
+          "maxDurationMs": 30000,
+          "maxItems": 50,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "requestKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "service.token.issue",
+        "title": "Issue one scoped service token",
+        "kind": "command",
+        "input": {
+          "schemaId": "access-service-token-issue-input"
+        },
+        "output": {
+          "schemaId": "access-service-token-issue-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user"
+        ],
+        "context": "application",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "hostOnly"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principals"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "human_accounts"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "password_credentials"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "sessions"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "authorization_state"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "contexts"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "memberships"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_access_tokens"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_clients"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "roles"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_parents"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_overrides"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_assignments"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principal_overrides"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "api_credentials"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "api_credential_scopes"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "access_audit"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "access_audit"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "api_credentials"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "api_credential_scopes"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 30000,
+          "maxItems": 50,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "requestKey",
+            "apiToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "service.token.revoke",
+        "title": "Revoke one service token",
+        "kind": "command",
+        "input": {
+          "schemaId": "access-service-token-revoke-input"
+        },
+        "output": {
+          "schemaId": "access-service-token-revoke-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "application",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "hostOnly"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principals"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "human_accounts"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "password_credentials"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "sessions"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "authorization_state"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "contexts"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "memberships"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_access_tokens"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_clients"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "roles"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_parents"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_overrides"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_assignments"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principal_overrides"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "api_credentials"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "api_credential_scopes"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "access_audit"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "access_audit"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "api_credentials"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 30000,
+          "maxItems": 50,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "requestKey"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "service.token.read",
+        "title": "Read service token metadata",
+        "kind": "query",
+        "input": {
+          "schemaId": "access-service-token-read-input"
+        },
+        "output": {
+          "schemaId": "access-service-token-read-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.access",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "application",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "hostOnly"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principals"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "human_accounts"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "password_credentials"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "sessions"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "authorization_state"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "contexts"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "memberships"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_access_tokens"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "oauth_clients"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "roles"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_parents"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_grants"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_overrides"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "role_assignments"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "principal_overrides"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "api_credentials"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "api_credential_scopes"
+            },
+            {
+              "moduleId": "creezio.access",
+              "kind": "model",
+              "id": "access_audit"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 30000,
+          "maxItems": 50,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "requestKey"
+          ]
+        },
+        "public": false
       }
     ],
     "api": [
@@ -7278,6 +8806,163 @@
           "requests": 60,
           "windowSeconds": 60
         }
+      },
+      {
+        "id": "service.create",
+        "method": "POST",
+        "path": "/api/admin/access/services/create",
+        "operation": {
+          "moduleId": "creezio.access",
+          "kind": "operation",
+          "id": "service.create"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "access-service-create-input"
+        },
+        "output": {
+          "schemaId": "access-service-create-output"
+        },
+        "rateLimit": {
+          "requests": 20,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "service.status",
+        "method": "POST",
+        "path": "/api/admin/access/services/{principal_id}/status",
+        "operation": {
+          "moduleId": "creezio.access",
+          "kind": "operation",
+          "id": "service.status"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "principal_id",
+            "in": "path",
+            "inputField": "principalId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "access-service-status-input"
+        },
+        "output": {
+          "schemaId": "access-service-status-output"
+        },
+        "rateLimit": {
+          "requests": 20,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "service.token.issue",
+        "method": "POST",
+        "path": "/api/admin/access/services/{principal_id}/tokens/issue",
+        "operation": {
+          "moduleId": "creezio.access",
+          "kind": "operation",
+          "id": "service.token.issue"
+        },
+        "audience": "admin",
+        "auth": [
+          "session"
+        ],
+        "parameters": [
+          {
+            "name": "principal_id",
+            "in": "path",
+            "inputField": "principalId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "access-service-token-issue-input"
+        },
+        "output": {
+          "schemaId": "access-service-token-issue-output"
+        },
+        "rateLimit": {
+          "requests": 20,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "service.token.revoke",
+        "method": "POST",
+        "path": "/api/admin/access/tokens/{credential_id}/revoke",
+        "operation": {
+          "moduleId": "creezio.access",
+          "kind": "operation",
+          "id": "service.token.revoke"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "credential_id",
+            "in": "path",
+            "inputField": "credentialId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "access-service-token-revoke-input"
+        },
+        "output": {
+          "schemaId": "access-service-token-revoke-output"
+        },
+        "rateLimit": {
+          "requests": 20,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "service.token.read",
+        "method": "GET",
+        "path": "/api/admin/access/tokens/{credential_id}",
+        "operation": {
+          "moduleId": "creezio.access",
+          "kind": "operation",
+          "id": "service.token.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "credential_id",
+            "in": "path",
+            "inputField": "credentialId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "access-service-token-read-input"
+        },
+        "output": {
+          "schemaId": "access-service-token-read-output"
+        },
+        "rateLimit": {
+          "requests": 20,
+          "windowSeconds": 60
+        }
       }
     ],
     "mcp": {
@@ -7557,6 +9242,118 @@
           "annotations": {
             "readOnly": false,
             "destructive": true,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "service.create",
+          "name": "access_service_create",
+          "operation": {
+            "moduleId": "creezio.access",
+            "kind": "operation",
+            "id": "service.create"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "access-service-create-input"
+          },
+          "output": {
+            "schemaId": "access-service-create-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "service.status",
+          "name": "access_service_status",
+          "operation": {
+            "moduleId": "creezio.access",
+            "kind": "operation",
+            "id": "service.status"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "access-service-status-input"
+          },
+          "output": {
+            "schemaId": "access-service-status-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "service.token.revoke",
+          "name": "access_service_token_revoke",
+          "operation": {
+            "moduleId": "creezio.access",
+            "kind": "operation",
+            "id": "service.token.revoke"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "access-service-token-revoke-input"
+          },
+          "output": {
+            "schemaId": "access-service-token-revoke-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "service.token.read",
+          "name": "access_service_token_read",
+          "operation": {
+            "moduleId": "creezio.access",
+            "kind": "operation",
+            "id": "service.token.read"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "access-service-token-read-input"
+          },
+          "output": {
+            "schemaId": "access-service-token-read-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
             "idempotent": true,
             "openWorld": false
           },

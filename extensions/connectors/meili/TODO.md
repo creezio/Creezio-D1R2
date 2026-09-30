@@ -2,6 +2,8 @@
 
 - [x] Candidat source 0.3.0 : lots durables, tâches Meili, synchronisation, issue inconnue bloquée, recherche relue sur le Catalogue et déclaration facultative `catalog-products`.
 - [ ] Valider le paquet et la composition après rafraîchissement unique du dist SDK 1.6.0, puis recettes D1 et fournisseur externe sur les nouveaux chemins.
+- [x] Fixer `primaryKey=id` sur le POST de documents et vérifier l’URL hôte avec deux documents comportant plusieurs champs en `id`.
+- [ ] Qualifier une nouvelle tâche fournisseur après l’échec lu en tâche 165 (`index_primary_key_multiple_candidates_found`, deux reçus, zéro indexé) ; ne pas rejouer la tâche 165 ni effacer l’index client.
 
 - [x] Accès externe Meili autorisé : un GET `/indexes?limit=1` a répondu HTTP 200 avec enveloppe conforme ; reçu sans données d’index.
 - [x] Module de connexion 0.1.0 composé et qualifié localement : D1/coffre, droits, API/MCP, UI originale et six suites.

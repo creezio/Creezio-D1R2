@@ -1,5 +1,9 @@
 # T21 — Pages et navigation
 
+## Intégration PR #81 et recette Linux du 30 septembre
+
+La Sidebar est intégrée sur Core main `3d4248960f4ff56d9fdf5e956abe26d6e202f174`, CI main 1 428/1 428, puis dans l'image Linux `sha256:caff5af853c3670c43cc9d64f4955af10d7b456c79e28bf9dd2fc286864cf523` avec adoption du schéma sur le volume conservé. Dans l'interface originale, le titre a été changé, puis l'ordre, puis le bouton Défaut a restauré les valeurs initiales : révisions 0 → 1 → 2 → 3, persistance après rechargement. Les entrées Messaging, CRM et Support sont restées présentes. Le reçu `CREEZIO-T21-T22-LINUX-UI-RECIPE-3D42489-2026-09-30.json` et la capture `CREEZIO-T21-LINUX-SIDEBAR-PERSISTED-2026-09-30.png` portent cette preuve ; logout navigateur/API confirmé. Le test d'une identité distincte à droits restreints n'a pas été rejoué dans ce navigateur, et cette recette ne qualifie ni le CRUD des autres modules, ni Sites, ni Cloudflare, ni l'ensemble de REQ-2101.
+
 ## Sidebar du workspace — candidat du 30 septembre
 
 Le troisième onglet de l'éditeur reprend les contrôles du `packages/nav` original : Source, Lien et Permission sont en lecture seule ; Visible, Libellé, Ordre, monter, descendre et Défaut changent uniquement la présentation. La navigation éditoriale publiée du front reste un objet séparé. Le modèle privé `sidebar_overrides` est un singleton `workspace` par contexte D1 avec JSON borné `navId → {hidden,title,order}`, révision CAS et trace de mise à jour. Aucun `href`, route, view ou droit n'est persistant dans les overrides.

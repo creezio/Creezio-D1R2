@@ -21,6 +21,10 @@ import {createOperationRegistry} from '../../core/operations/registry.ts';
 import {createOperationEngine} from '../../core/operations/service.ts';
 import {createOperationHttpTransport} from '../../core/operations/http.ts';
 import {createMcpHttpTransport} from '../../core/mcp/http.ts';
+import {recordPreEngineRefusal} from '../../core/operations/transport-diagnostics.ts';
+import {STORAGE_AUTHORITY_MODELS,STORAGE_AUTHORITY_MODULE_ID,STORAGE_AUTHORITY_TABLES}
+  from '../../core/storage-authority/models.ts';
+import {appendStorageCompositionReceipt} from '../storage-authority/fixtures/schema-receipt.mjs';
 import * as handlers from '../../extensions/native/analytics/module/operations.ts';
 
 const json=path=>JSON.parse(readFileSync(new URL(path,import.meta.url),'utf8'));
@@ -77,6 +81,9 @@ test('analytics D1, paging, shared emission and admin-only read use engine ACL',
         .bind('administrator',`${moduleId}:read`).run();
       await db.prepare(`INSERT INTO "${ACCESS_TABLES.role_grants}" (role_id,permission_id) VALUES (?,?)`)
         .bind('administrator',`${moduleId}:emit`).run();
+      for(const right of ['manage-collection','manage-retention'])await db.prepare(
+        `INSERT INTO "${ACCESS_TABLES.role_grants}" (role_id,permission_id) VALUES (?,?)`)
+        .bind('administrator',`${moduleId}:${right}`).run();
       const diagnosticsRegistry=registry();
       const diagnosticsBindings=compileHttpBindings({composition,modules:[manifest],
         operationCatalog:diagnosticsRegistry.catalog});
@@ -88,12 +95,54 @@ test('analytics D1, paging, shared emission and admin-only read use engine ACL',
       const acl=createAuthorizationService(db,{permissions}),before=await acl.readPolicy(admin.token);
       assert.equal(before.ok,true);
       const policy=structuredClone(before.policy);
+      policy.contexts.push({id:'analytics-space',status:'active'});
       policy.roles.push({id:'analytics-app',inherits:[],permissionIds:[`${moduleId}:emit`],permissionOverrides:[]});
       if(!policy.memberships.some(row=>row.principalId===owner.principalId&&row.audience==='app'
         &&row.contextId==='application'))policy.memberships.push({principalId:owner.principalId,
           audience:'app',contextId:'application',status:'active'});
       policy.assignments.push({principalId:owner.principalId,audience:'app',contextId:'application',roleId:'analytics-app'});
+      policy.memberships.push({principalId:owner.principalId,audience:'app',contextId:'analytics-space',status:'active'});
+      policy.assignments.push({principalId:owner.principalId,audience:'app',contextId:'analytics-space',roleId:'analytics-app'});
+      policy.memberships.push({principalId:owner.principalId,audience:'admin',contextId:'analytics-space',status:'active'});
+      policy.assignments.push({principalId:owner.principalId,audience:'admin',contextId:'analytics-space',roleId:'administrator'});
       assert.equal((await acl.replacePolicy(admin.token,{expectedEpoch:before.epoch,policy})).ok,true);
+      assert.equal(succeeded(await invoke('collection.effective',{},app,'app')).navigation,false);
+      await recordPreEngineRefusal({db,transport:'api',method:'POST',routeTemplate:'/api/app/analytics/event/record',
+        status:401,code:'authentication_required',startedAtMs:Date.now()});
+      assert.equal((await db.prepare(`SELECT COUNT(*) AS total FROM "${generated.tables.transport_refusal}"`).first()).total,0);
+      const collection=succeeded(await invoke('collection.configure',{requestKey:'enable-collection',expectedRevision:0,
+        navigation:true,clicks:true,refusals:true,refusalRetentionDays:7}));
+      assert.equal(collection.revision,1);
+      assert.equal(succeeded(await invoke('collection.effective',{},app,'app')).navigation,true);
+      assert.equal(succeeded(await invoke('collection.effective',{},app,'app')).clicks,true);
+      assert.equal(succeeded(await invoke('collection.effective',{},app,'app','analytics-space')).navigation,true);
+      const disabled=succeeded(await invoke('collection.configure',{requestKey:'disable-collection',
+        expectedRevision:1,navigation:false,clicks:false,refusals:false,refusalRetentionDays:7}));
+      assert.equal(disabled.revision,2);
+      assert.equal(succeeded(await invoke('collection.effective',{},app,'app')).navigation,false);
+      await recordPreEngineRefusal({db,transport:'api',method:'POST',routeTemplate:'/api/app/analytics/event/record',
+        status:401,code:'authentication_required',startedAtMs:Date.now()});
+      assert.equal((await db.prepare(`SELECT COUNT(*) AS total FROM "${generated.tables.transport_refusal}"`).first()).total,0);
+      assert.equal(succeeded(await invoke('collection.configure',{requestKey:'reenable-collection',
+        expectedRevision:2,navigation:true,clicks:true,refusals:true,refusalRetentionDays:7})).revision,3);
+      await rejected(invoke('collection.configure',{requestKey:'stale-collection',expectedRevision:0,
+        navigation:false,clicks:false,refusals:false,refusalRetentionDays:7}),'conflict');
+      await recordPreEngineRefusal({db,transport:'api',method:'POST',routeTemplate:'/api/app/analytics/event/record',
+        status:401,code:'authentication_required',startedAtMs:Date.now()-10});
+      const refusal=succeeded(await invoke('refusals.list',{limit:50}));
+      assert.equal(refusal.items.length,1);
+      await rejected(invoke('refusals.list',{limit:50},admin,'admin','analytics-space'),'forbidden');
+      assert.deepEqual(Object.keys(refusal.items[0]).sort(),['durationMs','errorCode','id','method','occurredAt',
+        'routeTemplate','status','transport']);
+      const oldId=crypto.randomUUID(),oldAt=Date.now()-8*86_400_000;
+      await db.prepare(`INSERT INTO "${generated.tables.transport_refusal}"
+        (id,transport,method,route_template,status,error_code,created_at_ms,duration_ms)
+        VALUES (?,?,?,?,?,?,?,?)`).bind(oldId,'mcp','POST','/mcp/admin',403,'tool_unavailable',oldAt,2).run();
+      const refusalPreview=succeeded(await invoke('refusals.preview',{}));
+      assert.deepEqual(refusalPreview.items.map(item=>item.id),[oldId]);
+      assert.equal(succeeded(await invoke('refusals.purge',{requestKey:'purge-old-refusal',
+        revision:refusalPreview.revision,cutoff:refusalPreview.cutoff,items:refusalPreview.items})).deleted,1);
+      assert.equal(succeeded(await invoke('refusals.list',{limit:50})).items.length,1);
       const recorded=succeeded(await invoke('event.record',{requestKey:'app-page',type:'page_view',
         surface:'front',path:'/home'},app,'app'));
       assert.equal(recorded.event.principalId,owner.principalId);
@@ -197,7 +246,7 @@ test('analytics D1, paging, shared emission and admin-only read use engine ACL',
       const token=issued.token,registered=registry();
       const origin='https://analytics.example.invalid';
       const http=createOperationHttpTransport(compileHttpBindings({composition,modules:[manifest],
-        operationCatalog:registered.catalog}),engine);
+        operationCatalog:registered.catalog}),engine,undefined,true);
       const wire=(path,body,credential=token)=>http.dispatch(new Request(origin+path,{
         method:body?'POST':'GET',headers:{authorization:`Bearer ${credential}`,
           'x-creezio-context':'application',...(body?{'content-type':'application/json','x-creezio-request':'1'}:{})},
@@ -215,6 +264,13 @@ test('analytics D1, paging, shared emission and admin-only read use engine ACL',
       assert.equal(succeeded(await widgetHttp.json()).items.length,5);
       assert.equal(await wire('/api/app/analytics/event/list?period=week&limit=50'),null,
         'app read is not exposed by HTTP bindings');
+      const refusedHttp=await http.dispatch(new Request(origin+'/api/app/analytics/event/record',{
+        method:'POST',headers:{authorization:'Bearer invalid', 'content-type':'application/json',
+          'x-creezio-context':'application','x-creezio-request':'1'},body:'{}'}),
+        {profile:'sites',bindings:{DB:db}},{CREEZIO_APP_ORIGIN:origin},'analytics-http-refusal');
+      assert.equal(refusedHttp.status,401);
+      assert.ok(succeeded(await invoke('refusals.list',{limit:50})).items.some(item=>
+        item.transport==='api'&&item.routeTemplate==='/api/app/analytics/event/record'&&item.status===401));
       const widgetCatalog=compileWidgetCatalog({composition,modules:[manifest],
         operationCatalog:registered.catalog,
         readAsset:(_id,relative)=>readFileSync(new URL(`../../extensions/native/analytics/${relative}`,
@@ -234,7 +290,12 @@ test('analytics D1, paging, shared emission and admin-only read use engine ACL',
           return checked.allowed?{credential:{kind:'api-token',token:bearer},contextId:'application'}:null;
         },canDiscover:async(identity,target)=>(await machines.check(identity.credential.token,{
           contextId:target.contextId,audience:target.audience,actors:target.actors,
-          requiredPermissionIds:target.permissionIds,purpose:'operation'})).allowed});
+          requiredPermissionIds:target.permissionIds,purpose:'operation'})).allowed,diagnosticsDb:db});
+      const refusedMcp=await mcp.dispatch(new Request(origin+'/mcp/admin',{method:'GET'}),
+        'admin','analytics-mcp-refusal');
+      assert.equal(refusedMcp.status,405);
+      assert.ok(succeeded(await invoke('refusals.list',{limit:50})).items.some(item=>
+        item.transport==='mcp'&&item.routeTemplate==='/mcp/admin'&&item.status===405));
       client=new Client({name:'analytics-native-transport',version:'1.0.0'});
       await client.connect(new StreamableHTTPClientTransport(new URL(origin+'/mcp/admin'),{
         authProvider:{token:async()=>token},fetch:(input,init)=>mcp.dispatch(new Request(input,init),
@@ -260,6 +321,84 @@ test('analytics D1, paging, shared emission and admin-only read use engine ACL',
       await assert.rejects(client.callTool({name:'analytics_analytics_snapshot',arguments:{period:'week'}}));
       await assert.rejects(client.readResource({uri:summaryTool._meta.ui.resourceUri}));
     }finally{if(client)await client.close();await runtime.dispose();}
+  });
+
+test('routed A and B read only installation collection flags from guarded primary D1',
+  {timeout:60000},async()=>{
+    const runtime=new Miniflare({host:'127.0.0.1',port:0,cf:false,modules:true,
+      compatibilityDate:'2026-05-15',script:'export default {fetch(){return new Response(null,{status:404})}}',
+      d1Databases:{SOURCE:'analytics-routing-source',A:'analytics-routing-a',B:'analytics-routing-b'},
+      d1Persist:false});
+    try{
+      const source=await runtime.getD1Database('SOURCE'),a=await runtime.getD1Database('A'),
+        b=await runtime.getD1Database('B');
+      const authority=generateD1Schema(STORAGE_AUTHORITY_MODULE_ID,STORAGE_AUTHORITY_MODELS);
+      await source.batch([...access.statements,...technical.statements,...generated.statements]
+        .map(sql=>source.prepare(sql)));
+      const accounts=createAccountService(source),bootstrap=await provisionBootstrapCapability(source);
+      const password='Synthetic routed analytics password';
+      const owner=await accounts.bootstrap({token:bootstrap.token,loginIdentifier:'routed-analytics@example.invalid',
+        displayName:'Routed analytics owner',password});
+      assert.equal(owner.ok,true);
+      const admin=await accounts.login({loginIdentifier:'routed-analytics@example.invalid',password,audience:'admin'});
+      const app=await accounts.login({loginIdentifier:'routed-analytics@example.invalid',password,audience:'app'});
+      assert.equal(admin.ok,true);assert.equal(app.ok,true);
+      const acl=createAuthorizationService(source,{permissions}),before=await acl.readPolicy(admin.token);
+      assert.equal(before.ok,true);
+      const policy=structuredClone(before.policy);
+      policy.contexts.push({id:'analytics-a',status:'active'},{id:'analytics-b',status:'active'});
+      policy.roles.push({id:'analytics-routed-app',inherits:[],permissionIds:[`${moduleId}:emit`],
+        permissionOverrides:[]});
+      for(const contextId of ['analytics-a','analytics-b']){
+        policy.memberships.push({principalId:owner.principalId,contextId,audience:'app',status:'active'});
+        policy.assignments.push({principalId:owner.principalId,contextId,audience:'app',roleId:'analytics-routed-app'});
+      }
+      assert.equal((await acl.replacePolicy(admin.token,{expectedEpoch:before.epoch,policy})).ok,true);
+      const at=new Date().toISOString(),policyTable=`"${generated.tables.collection_policy}"`;
+      const putPolicy=(db,navigation,clicks)=>db.prepare(`INSERT INTO ${policyTable}
+        (id,revision,navigation_enabled,clicks_enabled,refusals_enabled,refusal_retention_days,updated_at)
+        VALUES ('application',1,?,?,0,7,?)`).bind(navigation,clicks,at).run();
+      await putPolicy(source,1,1);
+      const epoch=(await source.prepare(`SELECT epoch FROM "${ACCESS_TABLES.authorization_state}"
+        WHERE id='application'`).first()).epoch;
+      const lockDigest=`sha256-${'b'.repeat(64)}`,routedCatalog={...catalog,lockDigest};
+      const routeTable=`"${STORAGE_AUTHORITY_TABLES.storage_routes}"`;
+      const identities=[{installationId:'analytics-routed',contextId:'analytics-a',slot:1},
+        {installationId:'analytics-routed',contextId:'analytics-b',slot:2}];
+      for(const [db,identity] of [[a,identities[0]],[b,identities[1]]]){
+        await db.batch([...technical.statements,...generated.statements,...authority.statements]
+          .map(sql=>db.prepare(sql)));
+        await appendStorageCompositionReceipt(db,digest,lockDigest);
+        await db.prepare(`INSERT INTO ${routeTable}
+          (id,installation_id,slot,generation,state,mutation_id,source_epoch,updated_at_ms)
+          VALUES (?,?,?,1,'active',NULL,?,0)`)
+          .bind(identity.contextId,identity.installationId,identity.slot,epoch).run();
+        await putPolicy(db,0,0);
+      }
+      const blocked=[`"${generated.tables.collection_policy}"`,`"${generated.tables.event}"`];
+      const target=db=>({prepare(sql){
+        if(blocked.some(table=>sql.includes(table)))throw new Error('unexpected target business/policy read');
+        return db.prepare(sql);
+      },batch(statements){return db.batch(statements)}});
+      const registered=registry();
+      for(const [db,identity] of [[a,identities[0]],[b,identities[1]]]){
+        const engine=createOperationEngine({db:target(db),authorityDb:source,storageRoute:identity,
+          catalog:routedCatalog,registry:registered,permissions});
+        const result=succeeded(await engine.invoke({credential:{kind:'session',token:app.token},
+          moduleId,operationId:'collection.effective',contextId:identity.contextId,
+          audience:'app',input:{}}));
+        assert.equal(result.navigation,true);assert.equal(result.clicks,true);
+      }
+      await source.prepare(`UPDATE ${policyTable} SET revision=2,navigation_enabled=0,clicks_enabled=0
+        WHERE id='application'`).run();
+      const engine=createOperationEngine({db:target(a),authorityDb:source,storageRoute:identities[0],
+        catalog:routedCatalog,registry:registered,permissions});
+      const after=succeeded(await engine.invoke({credential:{kind:'session',token:app.token},
+        moduleId,operationId:'collection.effective',contextId:'analytics-a',audience:'app',input:{}}));
+      assert.equal(after.navigation,false);assert.equal(after.clicks,false);
+      for(const db of [a,b])assert.equal((await db.prepare(`SELECT navigation_enabled
+        FROM ${policyTable} WHERE id='application'`).first()).navigation_enabled,0);
+    }finally{await runtime.dispose();}
   });
 
 test('manual retention previews and deletes bounded D1 batches with policy and event guards',

@@ -3,7 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Miniflare } from 'miniflare';
-import { compileOperationSchemas } from '../../scripts/operations/schemas.mjs';
+import { compileOperationSchemas, OPERATION_SCHEMA_LIMITS } from '../../scripts/operations/schemas.mjs';
+import {loadRuntimeComposition} from '../../scripts/build/compose-runtime.mjs';
 import { contractIntegrity } from '../../sdk/contracts/validate.mjs';
 
 const read = file => JSON.parse(readFileSync(new URL(file, import.meta.url), 'utf8'));
@@ -19,6 +20,18 @@ function locked(input) {
 const loadValidators = compiled => import(`data:text/javascript;base64,${Buffer.from(compiled.validatorsCode).toString('base64')}`);
 function addSchema(input, id, schema) { input.modules[0].contracts.schemas.push({ id, schema }); return locked(input); }
 const validatorName = (compiled, id, moduleId = 'example.witness') => compiled.catalog.modules.find(item => item.moduleId === moduleId).schemas.find(item => item.schemaId === id).validator;
+
+test('connectors profile compiles below the unchanged generated validator limit', () => {
+  const loaded=loadRuntimeComposition({compositionPath:'configuration/composition.connectors.json'});
+  const compiled=compileOperationSchemas({composition:loaded.composition,lock:loaded.lock,
+    modules:loaded.located.map(item=>item.descriptor)});
+  assert.equal(OPERATION_SCHEMA_LIMITS.generatedBytes,8*1024*1024);
+  assert.equal(compiled.metrics.moduleCount,18);
+  assert.equal(compiled.metrics.schemaCount,435);
+  assert.equal(compiled.metrics.operationCount,263);
+  assert.ok(compiled.metrics.generatedBytes>7*1024*1024);
+  assert.ok(compiled.metrics.generatedBytes<OPERATION_SCHEMA_LIMITS.generatedBytes);
+});
 
 test('compiler validates the locked composition and preserves immutable operation policy without loading handlers', async () => {
   const input = fixture(), compiled = compileOperationSchemas(input);

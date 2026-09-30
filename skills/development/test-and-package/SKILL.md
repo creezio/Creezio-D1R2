@@ -11,6 +11,8 @@ Lire les [règles communes et le mandat courant](../../README.md), le [standard 
 
 Pour une opération paginée qui effectue des lectures supplémentaires, exercer la taille maximale autorisée avec le moteur réel : son budget d'exécution cumule aussi ces lectures. Un test direct du handler avec un port simulé ne vérifie pas cette limite. Pour un ajout de modèles, inclure la projection du schéma de composition dans les contrôles ciblés avant push, en plus du SQL généré et de l'intégration du module.
 
+Après tout changement de modèle, d'opération ou de manifeste composé, régénérer les sorties/verrous affectés puis lancer avant push `node --test tests/data/composition-schema.test.mjs tests/runtime/composition-build.test.mjs`. Le premier détecte les écarts de schéma central et le second les sorties et bornes de composition ; les six suites du module ne les remplacent pas. Réutiliser ces deux tests existants, sans créer un second contrôleur.
+
 Si un modèle déjà distribué change, qualifier aussi la mise à jour depuis son ancien schéma avec des lignes existantes, par le moteur central et ses reçus. Une installation sur base vide ne couvre pas ce parcours. Vérifier la conservation des données, contraintes et index, le refus des changements non pris en charge et la reprise d'un accusé perdu. Réutiliser une fixture bornée du schéma précédent et les tests centraux existants ; ne pas ajouter de script de transformation au module ni contourner un refus d'inspection sur une base réelle.
 
 2. Réutiliser installations, espaces et builds. Exécuter les vérifications adaptées au changement ; ne pas refaire une recette coûteuse inchangée sans motif. Pour un changement documentaire, contrôler cohérence et liens sans prétendre valider le runtime.

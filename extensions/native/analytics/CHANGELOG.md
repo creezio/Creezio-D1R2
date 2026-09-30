@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.0 — T22 collecte optionnelle et refus avant moteur
+
+- Politique d’installation désactivée par défaut, avec interrupteurs indépendants navigation, clics et refus ; configuration administrateur protégée par `analytics.configure` et révision D1.
+- Hooks workspace/front bornés aux routes déclarées et aux seuls clics portant un `data-creezio-analytics-id` stable. Émission `event.record` sous le contexte courant ; aucune capture de texte, requête, argument, en-tête ou jeton.
+- Refus HTTP/MCP avant moteur dans une table D1 distincte, sans principal ni contexte métier. Consultation admin/application, aperçu et purge manuelle sous `analytics.purge` après sept jours par défaut ; cap de 10 000 lignes, aucune tâche de fond.
+- Les écritures administratives restent dans les plans du moteur et son journal de commande ; la purge des événements déclarés conserve sa politique par contexte indépendante.
+
 ## 0.0.0 — T22 tranche indépendante
 
 Six onglets analytics du Creezio original adaptés au SDK natif ; ingestion explicite, événements et agrégats paginés/ bornés dans D1, lecture admin et API/MCP à permissions distinctes. Les fonctions demandant des hooks hôte absents sont signalées sans valeur simulée.

@@ -44,11 +44,13 @@ export function compileOperationSchemas(input) {
   const schemaDocuments = ordered.flatMap(module => [...module.contracts.schemas].sort((a, b) => compare(a.id, b.id))
     .map(schema => ({ moduleId: module.identity.id, schemaId: schema.id, schema: schema.schema })));
   const serialized = canonicalJson(schemaDocuments);
-  if (schemaCount > OPERATION_SCHEMA_LIMITS.schemas || Buffer.byteLength(serialized) > OPERATION_SCHEMA_LIMITS.schemaBytes)
-    fail('operation.schemas-limit');
+  const schemaBytes = Buffer.byteLength(serialized);
+  if (schemaCount > OPERATION_SCHEMA_LIMITS.schemas || schemaBytes > OPERATION_SCHEMA_LIMITS.schemaBytes)
+    fail('operation.schemas-limit', [{kind:'source',schemaCount,schemaBytes,
+      schemaCountLimit:OPERATION_SCHEMA_LIMITS.schemas,schemaBytesLimit:OPERATION_SCHEMA_LIMITS.schemaBytes}]);
   const ajv = addFormats(new Ajv2020({ strict: true, strictRequired: true, allErrors: false, ownProperties: true,
     coerceTypes: false, useDefaults: false, removeAdditional: false, inlineRefs: false, loopRequired: 100, loopEnum: 100,
-    code: { source: true, esm: true, optimize: 0 } }));
+    code: { source: true, esm: true, optimize: 1 } }));
   const exports = Object.create(null), names = new Map();
   try {
     for (const entry of schemaDocuments) {
@@ -100,7 +102,10 @@ export function compileOperationSchemas(input) {
     if (Object.keys(result.metafile.inputs).some(name => !allowed.test(name.replaceAll('\\', '/')))
       || Object.values(result.metafile.outputs).some(output => output.imports.length)) fail('operation.schemas-bundle');
     validatorsCode = result.outputFiles[0].text;
-    if (Buffer.byteLength(validatorsCode) > OPERATION_SCHEMA_LIMITS.generatedBytes) fail('operation.schemas-limit');
+    const generatedBytes = Buffer.byteLength(validatorsCode);
+    if (generatedBytes > OPERATION_SCHEMA_LIMITS.generatedBytes)
+      fail('operation.schemas-limit', [{kind:'generated',generatedBytes,
+        generatedBytesLimit:OPERATION_SCHEMA_LIMITS.generatedBytes}]);
   } catch (error) {
     if (error instanceof OperationSchemaError) throw error;
     fail('operation.schemas-bundle');

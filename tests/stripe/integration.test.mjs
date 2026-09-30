@@ -85,10 +85,11 @@ test('Stripe GET-only connector commits pages atomically in D1 and scopes API/MC
       const before=good(await acl.readPolicy(admin.token)),policy=structuredClone(before.policy);
       policy.roles.push({id:'stripe-admin',inherits:[],permissionIds:[`${moduleId}:manage`,`${moduleId}:read`],
         permissionOverrides:[]},{id:'stripe-reader',inherits:[],permissionIds:[`${moduleId}:read`],
-        permissionOverrides:[]});
+        permissionOverrides:[]},{id:'stripe-webhook',inherits:[],
+        permissionIds:[`${moduleId}:read`,`${moduleId}:webhook.receive`],permissionOverrides:[]});
       policy.contexts.push({id:'other',status:'active'});
       for(const [principalId,audience,contextId,roleId] of [[owner.principalId,'admin','application','stripe-admin'],
-        [owner.principalId,'admin','other','stripe-reader'],[machine.id,'admin','application','stripe-admin']]){
+        [owner.principalId,'admin','other','stripe-reader'],[machine.id,'admin','application','stripe-webhook']]){
         if(!policy.memberships.some(item=>item.principalId===principalId&&item.audience===audience&&item.contextId===contextId))
           policy.memberships.push({principalId,audience,contextId,status:'active'});
         policy.assignments.push({principalId,audience,contextId,roleId});
@@ -97,7 +98,8 @@ test('Stripe GET-only connector commits pages atomically in D1 and scopes API/MC
       const apiToken=good(await machines.issueToken(admin.token,{principalId:machine.id,label:'stripe read test',
         ttlMs:60000,scopes:[{contextId:'application',audience:'admin',permissionIds:[`${moduleId}:read`]}]})).token;
       const serviceToken=good(await machines.issueToken(admin.token,{principalId:machine.id,label:'stripe webhook test',
-        ttlMs:60000,scopes:[{contextId:'application',audience:'admin',permissionIds:[`${moduleId}:manage`]}]})).token;
+        ttlMs:60000,scopes:[{contextId:'application',audience:'admin',
+          permissionIds:[`${moduleId}:webhook.receive`]}]})).token;
       const keyring=createVaultKeyring({activeKeyId:'stripe-test',keys:{'stripe-test':new Uint8Array(32).fill(23)}});
       const requests=[];
       let pauseCustomer=null,checkoutCount=0,rotateOnCheckout=false,rotateCheckout;
@@ -366,6 +368,10 @@ test('Stripe GET-only connector commits pages atomically in D1 and scopes API/MC
       await assert.rejects(engine.invoke({credential:{kind:'api-token',token:serviceToken},
         moduleId,operationId:'event.receive',contextId:'application',audience:'admin',
         input:eventInput}),{code:'forbidden'},'the service token alone cannot invoke signed ingress');
+      await assert.rejects(engine.invoke({credential:{kind:'api-token',token:serviceToken},
+        moduleId,operationId:'checkout.payment.create',contextId:'application',audience:'admin',
+        input:{requestKey:'webhook-must-not-checkout',priceId:'price_active',quantity:1}}),
+      {code:'forbidden'},'webhook scope cannot create Checkout sessions');
       success(await invoke('config.key.webhook.revoke',{requestKey:'webhook-revoke',
         revision:serviced.revision}));
       const racedEvent=await engine.invoke({credential:{kind:'api-token',token:serviceToken},

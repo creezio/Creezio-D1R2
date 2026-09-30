@@ -1,11 +1,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assertRuntimeBudgets, RUNTIME_BUDGETS } from '../../scripts/quality/runtime.mjs';
+import { assertArtifactBudgets, assertRuntimeBudgets, RUNTIME_BUDGETS } from '../../scripts/quality/runtime.mjs';
 
 const valid = () => ({
   artifact: { worker: { bytes: 700_000, gzipBytes: 220_000 } },
   witness: { boundary: { inputs: ['core.ts', 'module.ts'] } },
   durationsMs: { startup: 500, restart: 500, homepage: 100, staticAsset: 100, health: 10, witness: 10, storageRoundtrip: 100 },
+});
+
+test('post-build artifact gate shares the final runtime size ceilings', () => {
+  const artifact = valid().artifact;
+  artifact.worker.bytes = RUNTIME_BUDGETS.workerBytes;
+  artifact.worker.gzipBytes = RUNTIME_BUDGETS.workerGzipBytes;
+  assert.deepEqual(assertArtifactBudgets(artifact), RUNTIME_BUDGETS);
+  assert.deepEqual(assertRuntimeBudgets({...valid(), artifact}), RUNTIME_BUDGETS);
+  artifact.worker.bytes++;
+  assert.throws(() => assertArtifactBudgets(artifact), /workerBytes/);
+  assert.throws(() => assertRuntimeBudgets({...valid(), artifact}), /workerBytes/);
+  artifact.worker.bytes--;
+  artifact.worker.gzipBytes++;
+  assert.throws(() => assertArtifactBudgets(artifact), /workerGzipBytes/);
+  assert.throws(() => assertRuntimeBudgets({...valid(), artifact}), /workerGzipBytes/);
 });
 
 test('runtime ceilings reject size, import graph and latency regressions rather than only reporting them', () => {

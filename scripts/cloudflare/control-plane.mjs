@@ -132,6 +132,17 @@ export function createCloudflareControlPlane({accountId, token, fetcher = fetch}
   async function workerDeployment(name) {
     return (await deployments(name)).deployments[0] ?? null;
   }
+  /** The API orders Worker versions newest first; one item proves the current head. */
+  async function latestVersion(name) {
+    if (!nameOK(name)) fail('invalid_request');
+    const value = await request(`/workers/scripts/${name}/versions?page=1&per_page=1`);
+    const items = value?.result?.items;
+    if (!Array.isArray(items) || items.length !== 1 || !UUID.test(items[0]?.id ?? '')
+        || items[0].number !== undefined
+          && (!Number.isSafeInteger(items[0].number) || items[0].number < 1))
+      fail('invalid_response');
+    return Object.freeze({id: items[0].id, number: items[0].number});
+  }
   async function workerVersion(name, id) {
     if (!nameOK(name) || !UUID.test(id ?? '')) fail('invalid_request');
     const value = await request(`/workers/scripts/${name}/versions/${id}`, {missing: true});
@@ -141,5 +152,5 @@ export function createCloudflareControlPlane({accountId, token, fetcher = fetch}
   }
   return Object.freeze({accountId, verifyToken, workerSubdomain, inspectConnection,
     findD1, database: findD1, createD1, bucket, createBucket, workerSettings,
-    deployments, workerDeployment, version: workerVersion, workerVersion});
+    deployments, workerDeployment, latestVersion, version: workerVersion, workerVersion});
 }

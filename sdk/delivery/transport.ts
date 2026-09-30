@@ -74,6 +74,12 @@ export interface DeliveryUpdateStatus {
   readonly summary: DeliveryPlanSummary | null;
   readonly finalUrl: string | null;
   readonly registryStatus: 'pending' | 'unknown' | 'effective';
+  /** Native local scope signal. Remote proof is checked only when retry is requested. */
+  readonly retryEligible?: boolean;
+  /** Sanitized publisher failure; absence leaves the outcome unknown. */
+  readonly diagnostic?: Readonly<{phase:'wrangler'|'post-upload'|'unknown';
+    reason:'spawn_error'|'exit_nonzero'|'output_limit'|'timeout'|'inspection_failed'|'unavailable';
+    exitCode:number|null;apiCodes:readonly number[]}>;
 }
 
 /** Host-owned local operator boundary. Implementations validate the HTTP DTO and reuse admin session/CSRF/ACL. */
@@ -89,4 +95,5 @@ export interface DeliveryTransport {
   startUpdate(input: Readonly<{updateId: string; planDigest: string}>): Promise<DeliveryResult<DeliveryUpdateStatus>>;
   statusUpdate(updateId: string): Promise<DeliveryResult<DeliveryUpdateStatus>>;
   reconcileUpdate(input: Readonly<{updateId: string; planDigest: string}>): Promise<DeliveryResult<DeliveryUpdateStatus>>;
+  retryUpdate(input: Readonly<{updateId: string; planDigest: string}>): Promise<DeliveryResult<DeliveryUpdateStatus>>;
 }

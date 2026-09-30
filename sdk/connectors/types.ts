@@ -37,6 +37,8 @@ export interface ConnectorResource {
   /** A write can only send declared fields using the declared encoding. */
   readonly body?:Readonly<{encoding:'form'|'json'|'json-root';fields:readonly ConnectorBodyField[];
     fixed?:readonly Readonly<{name:string;value:string}>[]}>;
+  /** Host-only binary insertion into a declared JSON request; handlers cannot supply it. */
+  readonly attachments?:Readonly<{wireName:string;maxItems:number;maxBytes:number}>;
   /** Optional provider replay guard, for example Stripe's Idempotency-Key. */
   readonly idempotencyHeader?:string;
   readonly successStatuses?:readonly number[];
@@ -55,7 +57,7 @@ export interface ConnectorDescriptor {
   /** Optional test credential constraint for outbound mutations. */
   readonly mutationSecretPrefix?:string;
   /** Build-selected signed ingress, resolved by the host from context-scoped vault references. */
-  readonly webhook?:Readonly<{path:string;operationId:string;scheme:'stripe'|'standard';
+  readonly webhook?:Readonly<{path:string;operationId:string;scheme:'stripe'|'standard'|'resend';
     mapper:Readonly<{path:string;export:string}>;
     fields:Readonly<{connectionId:string;signingRef:string;signingVersion:string;
       previousRef:string;previousVersion:string;serviceTokenRef:string;serviceTokenVersion:string}>}>;
@@ -73,6 +75,7 @@ export interface ConnectorMutationRequest {
   readonly resource:string;
   readonly id?:string;
   readonly fields:Readonly<Record<string,JsonValue>>;
+  readonly attachments?:readonly Readonly<{filename:string;contentType:string;bytes:Uint8Array}>[];
   readonly signal?:AbortSignal;
 }
 export type ConnectorErrorCode='invalid_request'|'not_configured'|'access_denied'|'remote_auth'|

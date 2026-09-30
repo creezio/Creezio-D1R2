@@ -18,7 +18,7 @@
   },
   "compatibility": {
     "core": "^0.0.0",
-    "sdk": "^1.6.0",
+    "sdk": "^1.8.0",
     "requiredCapabilities": [
       "runtime.worker",
       "data.d1.shared"
@@ -95,6 +95,12 @@
                 "hasKey": {
                   "type": "boolean"
                 },
+                "hasWebhookSecret": {
+                  "type": "boolean"
+                },
+                "hasWebhookService": {
+                  "type": "boolean"
+                },
                 "state": {
                   "type": "string",
                   "enum": [
@@ -114,6 +120,8 @@
                 "from",
                 "enabled",
                 "hasKey",
+                "hasWebhookSecret",
+                "hasWebhookService",
                 "state",
                 "revision"
               ],
@@ -216,6 +224,281 @@
           "required": [
             "requestKey",
             "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "config-webhook-secret-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "webhookSecret": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 512
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "webhookSecret",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "config-webhook-service-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "serviceToken": {
+              "type": "string",
+              "minLength": 32,
+              "maxLength": 256
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "serviceToken",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "webhook-event-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "eventId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "bodyDigest": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64
+            },
+            "eventType": {
+              "type": "string",
+              "enum": [
+                "email.sent",
+                "email.delivered",
+                "email.bounced",
+                "email.failed",
+                "email.received"
+              ]
+            },
+            "emailId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "occurredAt": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            }
+          },
+          "required": [
+            "requestKey",
+            "eventId",
+            "bodyDigest",
+            "eventType",
+            "emailId",
+            "occurredAt"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "webhook-event-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "eventId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "recorded": {
+              "const": true
+            }
+          },
+          "required": [
+            "eventId",
+            "recorded"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "delivery-event-status-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "emailId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          "required": [
+            "emailId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "delivery-event-status-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "enum": [
+                "none",
+                "delivered",
+                "bounced",
+                "failed"
+              ]
+            },
+            "eventId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "occurredAt": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "eventId",
+            "occurredAt"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "received-email-read-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "emailId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          "required": [
+            "emailId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "received-email-read-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "emailId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "to": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 320
+              },
+              "minItems": 1,
+              "maxItems": 20
+            },
+            "from": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 320
+            },
+            "subject": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 240
+            },
+            "text": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 16000
+            },
+            "html": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 32000
+            },
+            "receivedAt": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            },
+            "attachmentCount": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50
+            }
+          },
+          "required": [
+            "emailId",
+            "to",
+            "from",
+            "subject",
+            "text",
+            "html",
+            "receivedAt",
+            "attachmentCount"
           ],
           "additionalProperties": false
         }
@@ -467,6 +750,80 @@
             }
           },
           {
+            "id": "connection_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "webhook_key_ref",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "webhook_secret_version",
+            "type": "integer",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "webhook_previous_key_ref",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "webhook_previous_secret_version",
+            "type": "integer",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "webhook_service_token_ref",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "webhook_service_token_version",
+            "type": "integer",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
             "id": "enabled",
             "type": "boolean",
             "nullable": false,
@@ -507,6 +864,11 @@
             "moduleId": "creezio.resend",
             "kind": "permission",
             "id": "use"
+          },
+          {
+            "moduleId": "creezio.resend",
+            "kind": "permission",
+            "id": "webhook.receive"
           }
         ],
         "deletion": {
@@ -623,6 +985,139 @@
           "requiresApproval": false
         },
         "public": false
+      },
+      {
+        "id": "webhook_event",
+        "title": "Événement Resend signé",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "connection_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "event_type",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "email.sent",
+                "email.delivered",
+                "email.bounced",
+                "email.failed",
+                "email.received"
+              ]
+            }
+          },
+          {
+            "id": "email_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          {
+            "id": "body_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 64,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "occurred_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "received_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "by-email",
+            "fields": [
+              "context_id",
+              "connection_id",
+              "email_id",
+              "occurred_at",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.resend",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.resend",
+            "kind": "permission",
+            "id": "use"
+          },
+          {
+            "moduleId": "creezio.resend",
+            "kind": "permission",
+            "id": "webhook.receive"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
       }
     ],
     "files": [],
@@ -662,12 +1157,38 @@
           "kind": "bearer"
         },
         "fixedOrigin": "https://api.resend.com",
+        "webhook": {
+          "path": "/api/webhooks/resend",
+          "operationId": "event.receive",
+          "scheme": "resend",
+          "mapper": {
+            "path": "module/webhook.ts",
+            "export": "resendWebhookInput"
+          },
+          "fields": {
+            "connectionId": "connection_id",
+            "signingRef": "webhook_key_ref",
+            "signingVersion": "webhook_secret_version",
+            "previousRef": "webhook_previous_key_ref",
+            "previousVersion": "webhook_previous_secret_version",
+            "serviceTokenRef": "webhook_service_token_ref",
+            "serviceTokenVersion": "webhook_service_token_version"
+          }
+        },
         "resources": [
           {
             "id": "domains",
             "method": "GET",
             "path": "/domains",
             "params": []
+          },
+          {
+            "id": "email.received",
+            "method": "GET",
+            "path": "/emails/receiving/{id}",
+            "params": [
+              "id"
+            ]
           },
           {
             "id": "email.send",
@@ -679,6 +1200,11 @@
               200,
               201
             ],
+            "attachments": {
+              "wireName": "attachments",
+              "maxItems": 50,
+              "maxBytes": 10485760
+            },
             "body": {
               "encoding": "json",
               "fields": [
@@ -805,6 +1331,11 @@
             "moduleId": "creezio.resend",
             "kind": "model",
             "id": "connector_secret"
+          },
+          {
+            "moduleId": "creezio.resend",
+            "kind": "model",
+            "id": "webhook_event"
           }
         ],
         "actions": [
@@ -846,10 +1377,52 @@
             "moduleId": "creezio.resend",
             "kind": "model",
             "id": "connector_secret"
+          },
+          {
+            "moduleId": "creezio.resend",
+            "kind": "model",
+            "id": "webhook_event"
           }
         ],
         "actions": [
           "read",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      },
+      {
+        "id": "webhook.receive",
+        "title": "Recevoir les événements Resend signés",
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "machine"
+        ],
+        "scopes": [
+          "resend.webhook.receive"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.resend",
+            "kind": "model",
+            "id": "connector_config"
+          },
+          {
+            "moduleId": "creezio.resend",
+            "kind": "model",
+            "id": "webhook_event"
+          }
+        ],
+        "actions": [
+          "read",
+          "create",
           "execute"
         ],
         "enforcement": {
@@ -970,7 +1543,9 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
           ]
         },
         "public": false
@@ -1095,7 +1670,9 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
           ]
         },
         "public": false
@@ -1224,13 +1801,15 @@
         },
         "execution": {
           "maxDurationMs": 10000,
-          "maxItems": 4,
+          "maxItems": 8,
           "resumable": false
         },
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
           ]
         },
         "public": false
@@ -1359,16 +1938,944 @@
         },
         "execution": {
           "maxDurationMs": 10000,
+          "maxItems": 8,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.key.webhook.set",
+        "title": "Sceller le secret webhook Resend",
+        "kind": "command",
+        "input": {
+          "schemaId": "config-webhook-secret-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.resend",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configWebhookSet"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 6,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.key.webhook.revoke",
+        "title": "Révoquer le secret webhook Resend",
+        "kind": "command",
+        "input": {
+          "schemaId": "config-key-revoke-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.resend",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configWebhookRevoke"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 6,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.key.webhook.service.set",
+        "title": "Sceller le jeton webhook Resend",
+        "kind": "command",
+        "input": {
+          "schemaId": "config-webhook-service-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.resend",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configWebhookServiceSet"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 6,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.key.webhook.service.revoke",
+        "title": "Révoquer le jeton webhook Resend",
+        "kind": "command",
+        "input": {
+          "schemaId": "config-key-revoke-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.resend",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configWebhookServiceRevoke"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 6,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "event.receive",
+        "title": "Enregistrer un événement Resend signé",
+        "kind": "command",
+        "input": {
+          "schemaId": "webhook-event-input"
+        },
+        "output": {
+          "schemaId": "webhook-event-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.resend",
+            "kind": "permission",
+            "id": "webhook.receive"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "machine",
+          "signed-webhook"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "eventReceive"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "webhook_event"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "webhook_event"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
           "maxItems": 4,
           "resumable": false
         },
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
           ]
         },
         "public": false
+      },
+      {
+        "id": "event.status",
+        "title": "Lire un accusé signé pour un envoi connu",
+        "kind": "query",
+        "input": {
+          "schemaId": "delivery-event-status-input"
+        },
+        "output": {
+          "schemaId": "delivery-event-status-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.resend",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "eventStatus"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "webhook_event"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 52,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": true
+      },
+      {
+        "id": "received.read",
+        "title": "Lire un courriel reçu confirmé par webhook",
+        "kind": "query",
+        "input": {
+          "schemaId": "received-email-read-input"
+        },
+        "output": {
+          "schemaId": "received-email-read-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.resend",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "receivedRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.resend",
+              "kind": "model",
+              "id": "webhook_event"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "resend.api.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 52,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": true
       },
       {
         "id": "domain.list",
@@ -1482,7 +2989,9 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
           ]
         },
         "public": false
@@ -1598,7 +3107,9 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
           ]
         },
         "public": true
@@ -1714,6 +3225,114 @@
         }
       },
       {
+        "id": "admin.config.key.webhook.set",
+        "method": "POST",
+        "path": "/api/admin/resend/config/key/webhook/set",
+        "operation": {
+          "moduleId": "creezio.resend",
+          "kind": "operation",
+          "id": "config.key.webhook.set"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "config-webhook-secret-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.key.webhook.revoke",
+        "method": "POST",
+        "path": "/api/admin/resend/config/key/webhook/revoke",
+        "operation": {
+          "moduleId": "creezio.resend",
+          "kind": "operation",
+          "id": "config.key.webhook.revoke"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "config-key-revoke-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.key.webhook.service.set",
+        "method": "POST",
+        "path": "/api/admin/resend/config/key/webhook/service/set",
+        "operation": {
+          "moduleId": "creezio.resend",
+          "kind": "operation",
+          "id": "config.key.webhook.service.set"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "config-webhook-service-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.key.webhook.service.revoke",
+        "method": "POST",
+        "path": "/api/admin/resend/config/key/webhook/service/revoke",
+        "operation": {
+          "moduleId": "creezio.resend",
+          "kind": "operation",
+          "id": "config.key.webhook.service.revoke"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "config-key-revoke-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
         "id": "admin.domain.list",
         "method": "GET",
         "path": "/api/admin/resend/domain/list",
@@ -1791,6 +3410,31 @@
         },
         "rateLimit": {
           "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "webhook.event.receive",
+        "method": "POST",
+        "path": "/api/webhooks/resend",
+        "operation": {
+          "moduleId": "creezio.resend",
+          "kind": "operation",
+          "id": "event.receive"
+        },
+        "audience": "admin",
+        "auth": [
+          "webhook-signature"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "webhook-event-input"
+        },
+        "output": {
+          "schemaId": "webhook-event-output"
+        },
+        "rateLimit": {
+          "requests": 120,
           "windowSeconds": 60
         }
       }
@@ -1914,6 +3558,122 @@
           "textFallback": true
         },
         {
+          "id": "config.key.webhook.set",
+          "name": "resend_config_key_webhook_set",
+          "operation": {
+            "moduleId": "creezio.resend",
+            "kind": "operation",
+            "id": "config.key.webhook.set"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "config-webhook-secret-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.key.webhook.revoke",
+          "name": "resend_config_key_webhook_revoke",
+          "operation": {
+            "moduleId": "creezio.resend",
+            "kind": "operation",
+            "id": "config.key.webhook.revoke"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "config-key-revoke-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.key.webhook.service.set",
+          "name": "resend_config_key_webhook_service_set",
+          "operation": {
+            "moduleId": "creezio.resend",
+            "kind": "operation",
+            "id": "config.key.webhook.service.set"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "config-webhook-service-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.key.webhook.service.revoke",
+          "name": "resend_config_key_webhook_service_revoke",
+          "operation": {
+            "moduleId": "creezio.resend",
+            "kind": "operation",
+            "id": "config.key.webhook.service.revoke"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "config-key-revoke-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
           "id": "domain.list",
           "name": "resend_domain_list",
           "operation": {
@@ -2021,6 +3781,26 @@
             {
               "moduleId": "creezio.resend",
               "kind": "operation",
+              "id": "config.key.webhook.set"
+            },
+            {
+              "moduleId": "creezio.resend",
+              "kind": "operation",
+              "id": "config.key.webhook.revoke"
+            },
+            {
+              "moduleId": "creezio.resend",
+              "kind": "operation",
+              "id": "config.key.webhook.service.set"
+            },
+            {
+              "moduleId": "creezio.resend",
+              "kind": "operation",
+              "id": "config.key.webhook.service.revoke"
+            },
+            {
+              "moduleId": "creezio.resend",
+              "kind": "operation",
               "id": "domain.list"
             }
           ],
@@ -2091,6 +3871,48 @@
           },
           {
             "schemaId": "delivery-readiness-output"
+          }
+        ]
+      },
+      {
+        "id": "delivery-events",
+        "version": "1.0.0",
+        "models": [],
+        "operations": [
+          {
+            "moduleId": "creezio.resend",
+            "kind": "operation",
+            "id": "event.status"
+          }
+        ],
+        "events": [],
+        "schemas": [
+          {
+            "schemaId": "delivery-event-status-input"
+          },
+          {
+            "schemaId": "delivery-event-status-output"
+          }
+        ]
+      },
+      {
+        "id": "received-email",
+        "version": "1.0.0",
+        "models": [],
+        "operations": [
+          {
+            "moduleId": "creezio.resend",
+            "kind": "operation",
+            "id": "received.read"
+          }
+        ],
+        "events": [],
+        "schemas": [
+          {
+            "schemaId": "received-email-read-input"
+          },
+          {
+            "schemaId": "received-email-read-output"
           }
         ]
       }
@@ -2221,6 +4043,7 @@
         "module/models.json",
         "module/entry.server.ts",
         "module/storage.ts",
+        "module/webhook.ts",
         "module/operations.ts",
         "module/service.ts",
         "ui/index.tsx",

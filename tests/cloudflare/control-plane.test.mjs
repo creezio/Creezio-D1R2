@@ -56,6 +56,13 @@ test('publisher reads exact deployment and version envelopes without mutating th
     `https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/scripts/creezio-worker/`)));
 });
 
+test('latest Worker version reads the documented first version only', async () => {
+  let requested='';
+  const control=client(async url=>{requested=url;return ok({items:[{id:uuid}]});});
+  assert.deepEqual(await control.latestVersion('creezio-worker'),{id:uuid,number:undefined});
+  assert.ok(requested.endsWith('/workers/scripts/creezio-worker/versions?page=1&per_page=1'));
+});
+
 test('control plane checks bucket public domains and never confuses name with ownership', async () => {
   const control = client(async url => {
     if (url.endsWith('/domains/managed')) return ok({enabled: false});

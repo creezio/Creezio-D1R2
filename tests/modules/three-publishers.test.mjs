@@ -4,6 +4,7 @@ import {createHash} from 'node:crypto';
 import {existsSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {runInNewContext} from 'node:vm';
 import {pathToFileURL} from 'node:url';
 import {build,transform} from 'esbuild';
 import {namedModule,dependsOn,compositionCase,lockFor} from '../contracts/helpers.mjs';
@@ -252,10 +253,15 @@ test('three test publishers install once from npm archives and enforce their dep
   });
   await t.test('widgets: compiler bundles one read-only resource per publisher',()=>{
     const source=readFileSync(path.join(host.root,'.creezio/generated/widget-catalog.ts'),'utf8');
-    const catalog=JSON.parse(source.match(/export const widgetCatalog: CompiledWidgetCatalog = freeze\(([^\n]+)\);/)?.[1]??'null');
+    const catalog=JSON.parse(source.match(/const widgetCatalogBase: Pick<CompiledWidgetCatalog,'widgets'> = (\{[^\n]+\});/)?.[1]??'null');
+    const widgetSharedParts=JSON.parse(source.match(/const widgetSharedParts = (\[[^\n]+\]);/)?.[1]??'null');
+    const resources=runInNewContext(source.match(/const widgetResources: CompiledWidgetCatalog\['resources'\] = (\[[^\n]+\]);/)?.[1]??'null',
+      {widgetSharedParts});
     assert.equal(catalog.widgets.length,3);
     assert.equal(new Set(catalog.widgets.map(item=>item.moduleId)).size,3);
-    assert.ok(catalog.resources.every(item=>item.text?.includes('<!doctype html>')));
+    assert.equal(resources.length,catalog.widgets.length);
+    assert.ok(resources.every(item=>item.text.includes('<!doctype html>')));
+    for(const item of resources)assert.equal(sha(item.text),item.digest);
   });
   await t.test('package: each installed runtime and detached validation retain receipt bytes',()=>{
     for(const item of host.packed)assert.doesNotThrow(()=>verifyPackageReceipt({root:host.root,

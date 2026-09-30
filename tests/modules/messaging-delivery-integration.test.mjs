@@ -11,6 +11,9 @@ import {createAccountService,provisionBootstrapCapability} from '../../core/iden
 import {createAuthorizationService} from '../../core/authorization/service.ts';
 import {createOperationRegistry} from '../../core/operations/registry.ts';
 import {createOperationEngine} from '../../core/operations/service.ts';
+import {createDataAccess} from '../../core/data/service.ts';
+import {createFileService} from '../../core/files/service.ts';
+import {fileOwnerId} from '../../core/files/catalog.ts';
 import {createVaultKeyring,createVaultReference} from '../../core/vault/crypto.ts';
 import * as messagingHandlers from '../../extensions/native/messaging/module/operations.ts';
 import * as resendHandlers from '../../extensions/connectors/resend/module/operations.ts';
@@ -32,10 +35,12 @@ const catalog={schemaVersion:1,compositionDigest:digest,modules:modules.map(({ma
   moduleId:manifest.identity.id,version:manifest.identity.version,enabled:true,
   permissions:manifest.contracts.permissions,models:manifest.contracts.models.map(model=>({modelId:model.id,
     table:schemas[manifest.identity.id].tables[model.id],model}))}))};
+const fileCatalog={compositionDigest:digest,categories:modules[0].manifest.contracts.files.map(category=>({
+  moduleId:'creezio.messaging',category,audiences:['admin','app']}))};
 const good=value=>{assert.equal(value.ok,true,JSON.stringify(value));return value;};
 const success=value=>{assert.equal(value.execution.state,'succeeded',JSON.stringify(value));return value.execution.output;};
 
-function registry(){
+function registry(overrides={}){
   const ajv=addFormats(new Ajv2020({strict:true,allErrors:false,coerceTypes:false,removeAdditional:false}));
   const validators={},handlers={},catalogModules=[];
   for(const {manifest,handlers:source} of modules){
@@ -43,7 +48,8 @@ function registry(){
     for(const [index,item] of manifest.contracts.schemas.entries()){
       const name=`${moduleId}_schema_${index}`;names.set(item.id,name);validators[name]=ajv.compile(item.schema);
     }
-    for(const op of manifest.contracts.operations)handlers[`${moduleId}:${op.id}`]=source[op.handler.export];
+    for(const op of manifest.contracts.operations)handlers[`${moduleId}:${op.id}`]=
+      overrides[`${moduleId}:${op.id}`]??source[op.handler.export];
     catalogModules.push({moduleId,version:manifest.identity.version,enabled:true,
       schemas:[...names].map(([schemaId,validator])=>({schemaId,validator})),
       operations:manifest.contracts.operations.map(operation=>({operation,active:true,contractDigest:digest,
@@ -54,12 +60,14 @@ function registry(){
 }
 
 test('Messaging commits one immutable snapshot and canonical outbox intent against Resend readiness in real D1',
-  {timeout:40000},async()=>{
+  {timeout:120000},async()=>{
     const runtime=new Miniflare({host:'127.0.0.1',port:0,cf:false,modules:true,
       compatibilityDate:'2026-05-15',script:'export default {fetch(){return new Response(null,{status:404})}}',
-      d1Databases:{DB:'creezio-messaging-delivery-proof'},d1Persist:false});
+      d1Databases:{DB:'creezio-messaging-delivery-proof'},r2Buckets:['BUCKET'],
+      d1Persist:false,r2Persist:false});
     try{
       const db=await runtime.getD1Database('DB');
+      const bucket=await runtime.getR2Bucket('BUCKET');
       await db.batch([...access.statements,...technical.statements,
         ...modules.flatMap(({manifest})=>schemas[manifest.identity.id].statements)].map(sql=>db.prepare(sql)));
       const accounts=createAccountService(db),bootstrap=await provisionBootstrapCapability(db);
@@ -82,9 +90,9 @@ test('Messaging commits one immutable snapshot and canonical outbox intent again
       const ciphertext=await keyring.seal({moduleId:'creezio.resend',contextId:'application',
         bindingId:'resend.api.v1',reference,version:1},'synthetic-resend-key');
       await db.prepare(`INSERT INTO "${resendTable}"
-        (context_id,id,origin,from_address,key_ref,secret_version,enabled,revision,updated_at)
-        VALUES(?,?,?,?,?,?,?,?,?)`).bind('application','resend.api.v1','https://api.resend.com',
-        'sender@example.invalid',reference,1,1,4,'2026-09-30T00:00:00.000Z').run();
+        (context_id,id,origin,from_address,key_ref,secret_version,connection_id,enabled,revision,updated_at)
+        VALUES(?,?,?,?,?,?,?,?,?,?)`).bind('application','resend.api.v1','https://api.resend.com',
+        'sender@example.invalid',reference,1,'connection-proof',1,4,'2026-09-30T00:00:00.000Z').run();
       await db.prepare(`INSERT INTO "${secretTable}"
         (context_id,id,binding_id,ciphertext,key_id,version,state)
         VALUES(?,?,?,?,?,?,?)`).bind('application',reference,'resend.api.v1',ciphertext,
@@ -93,13 +101,21 @@ test('Messaging commits one immutable snapshot and canonical outbox intent again
       const receiptSchema=modules[0].manifest.contracts.schemas.find(item=>item.id===declaration.receipt.schemaId).schema;
       const validateReceipt=addFormats(new Ajv2020({strict:true})).compile(receiptSchema);
       let calls=0,revokeOnCall=false,loseAck=false;
-      const providerKeys=[];
+      const providerKeys=[],providerBodies=[];
       const engineOptions={db,catalog,registry:registry(),permissions,
+        files:{catalog:fileCatalog,bucket},
         providerAvailability:async(_request,providerId)=>({providerId,state:'ready',modelIds:[]}),
         connectors:[{descriptor:modules[1].manifest.contracts.connectors[0],keyring,
-          fetcher:async(_url,init)=>{calls++;
+          fetcher:async(url,init)=>{
+            if(init.method==='GET'&&String(url).endsWith('/emails/receiving/received-proof-1'))
+              return Response.json({id:'received-proof-1',to:['sender@example.invalid'],
+                from:'peer@example.invalid',subject:'Courriel reçu',text:'Bonjour\nCreezio',
+                html:'<p>Bonjour</p><script>bad()</script>',
+                created_at:'2026-09-30T02:00:00.000Z',attachments:[]});
+            calls++;
             assert.equal(init.method,'POST');
             providerKeys.push(init.headers.get('Idempotency-Key'));
+            providerBodies.push(JSON.parse(init.body));
             if(revokeOnCall)await db.prepare(`UPDATE "${resendTable}" SET enabled=0,revision=revision+1
               WHERE context_id='application' AND id='resend.api.v1'`).run();
             if(loseAck)throw new Error('Synthetic transport failure after POST attempt');
@@ -155,6 +171,29 @@ test('Messaging commits one immutable snapshot and canonical outbox intent again
       const projected=await db.prepare(`SELECT state,folder,provider_message_id FROM "${messageTable}" WHERE id=?`)
         .bind(intentId).first();
       assert.deepEqual({...projected},{state:'sent',folder:'sent',provider_message_id:'email-proof-1'});
+      const eventTable=schemas['creezio.resend'].tables.webhook_event;
+      await db.prepare(`INSERT INTO "${eventTable}" (context_id,id,connection_id,event_type,email_id,
+        body_digest,occurred_at,received_at) VALUES(?,?,?,?,?,?,?,?)`).bind('application','evt-delivered',
+        'connection-proof','email.delivered','email-proof-1','a'.repeat(64),
+        '2026-09-30T01:00:00.000Z','2026-09-30T01:00:01.000Z').run();
+      const beforeReconcile=await db.prepare(`SELECT revision FROM "${messageTable}" WHERE id=?`)
+        .bind(intentId).first();
+      const reconciled=success(await invoke('message.delivery.reconcile',{
+        requestKey:'delivery-reconcile-one',boxId:box.id,messageId:intentId,
+        revision:beforeReconcile.revision})).message;
+      assert.equal(reconciled.state,'delivered');
+      assert.equal(calls,1,'signed receipt projection must not resend');
+      await db.prepare(`INSERT INTO "${eventTable}" (context_id,id,connection_id,event_type,email_id,
+        body_digest,occurred_at,received_at) VALUES(?,?,?,?,?,?,?,?)`).bind('application','evt-received',
+        'connection-proof','email.received','received-proof-1','b'.repeat(64),
+        '2026-09-30T02:00:00.000Z','2026-09-30T02:00:01.000Z').run();
+      const imported=success(await invoke('message.inbound.import',{
+        requestKey:'delivery-import-one',boxId:box.id,emailId:'received-proof-1'})).message;
+      assert.equal(imported.direction,'inbound');
+      assert.equal(imported.folder,'inbox');
+      assert.equal(imported.text,'Bonjour\nCreezio');
+      assert.doesNotMatch(imported.html,/<script>/u);
+      assert.equal(calls,1,'inbound GET must not issue a send POST');
       const deliveryReplay=await dispatch();
       assert.equal(deliveryReplay.replayed,true);assert.equal(calls,1);
       const secondDraft=success(await invoke('draft.create',{requestKey:'delivery-draft-two',boxId:box.id})).draft;
@@ -246,5 +285,146 @@ test('Messaging commits one immutable snapshot and canonical outbox intent again
       const denied=await invoke('message.send',{requestKey:'delivery-send-again',boxId:box.id,draftId:draft.id,
         revision:saved.revision}).catch(error=>error);
       assert.equal(denied.code??denied.execution?.errorCode,'conflict');
+      const attachedDraft=success(await invoke('draft.create',
+        {requestKey:'delivery-draft-attached',boxId:box.id})).draft;
+      const attachedSaved=success(await invoke('draft.save',{requestKey:'delivery-save-attached',
+        boxId:box.id,draftId:attachedDraft.id,revision:attachedDraft.revision,
+        to:'file-recipient@example.invalid',cc:'',bcc:'',subject:'Pièce privée',
+        text:'Binaire seulement dans le POST',html:''})).draft;
+      const data=createDataAccess(db,{catalog,permissions});
+      const lease=await data.authorize({kind:'session',token:admin.token},{contextId:'application',
+        audience:'admin',actors:['user'],requiredPermissionIds:['creezio.messaging:use'],
+        purpose:'operation'},{moduleId:'creezio.messaging'});
+      const category=modules[0].manifest.contracts.files[0];
+      const ownerId=await fileOwnerId(owner.principalId,'admin',category.ownerScope);
+      const emptyDraft=success(await invoke('draft.create',
+        {requestKey:'delivery-draft-empty-file',boxId:box.id})).draft;
+      const emptySaved=success(await invoke('draft.save',{requestKey:'delivery-save-empty-file',
+        boxId:box.id,draftId:emptyDraft.id,revision:emptyDraft.revision,
+        to:'empty@example.invalid',cc:'',bcc:'',subject:'Pièce vide',
+        text:'Envoi refusé avant intention',html:''})).draft;
+      const bytes=new Uint8Array([0,1,2,42,127,128,254,255]);
+      let staged,emptyStaged;
+      try{
+        const files=createFileService({data,catalog,moduleId:'creezio.messaging',
+          category,bucket,ownerId});
+        emptyStaged=await files.stage(lease,{ownerId,intentId:'delivery-empty-file',generation:'one',
+          filename:'empty.txt',contentType:'text/plain',bytes:new Uint8Array(0)});
+        staged=await files.stage(lease,{ownerId,intentId:'delivery-binary',generation:'one',
+          filename:'preuve.bin',contentType:'application/pdf',bytes});
+      }
+      finally{data.dispose(lease);}
+      const emptyLinked=success(await invoke('attachment.link',{requestKey:'delivery-link-empty-file',
+        boxId:box.id,draftId:emptyDraft.id,revision:emptySaved.revision,staged:emptyStaged})).draft;
+      const beforeEmpty=calls;
+      const emptySend=await invoke('message.send',{requestKey:'delivery-send-empty-file',
+        boxId:box.id,draftId:emptyDraft.id,revision:emptyLinked.revision});
+      assert.equal(emptySend.execution.state,'failed');
+      assert.equal(emptySend.execution.errorCode,'invalid_input');
+      assert.equal(calls,beforeEmpty,'zero-byte attachment must fail before provider POST');
+      assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM "${OPERATION_TABLES.outbox}"
+        WHERE execution_id=?`).bind(emptySend.execution.id).first()).n,0);
+      assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM "${messageTable}"
+        WHERE id=?`).bind(emptySend.execution.id).first()).n,0);
+      const draftTable=schemas['creezio.messaging'].tables.draft;
+      const preserved=await db.prepare(`SELECT revision,send_intent_id FROM "${draftTable}"
+        WHERE id=?`).bind(emptyDraft.id).first();
+      assert.equal(preserved.revision,emptyLinked.revision);
+      assert.equal(preserved.send_intent_id,null);
+      let attachedLinked=success(await invoke('attachment.link',{requestKey:'delivery-link-attached',
+        boxId:box.id,draftId:attachedDraft.id,revision:attachedSaved.revision,staged})).draft;
+      const stagedFiles=[staged];
+      for(let index=1;index<50;index++){
+        const nextLease=await data.authorize({kind:'session',token:admin.token},{contextId:'application',
+          audience:'admin',actors:['user'],requiredPermissionIds:['creezio.messaging:use'],
+          purpose:'operation'},{moduleId:'creezio.messaging'});
+        let next;
+        try{next=await createFileService({data,catalog,moduleId:'creezio.messaging',category,
+          bucket,ownerId}).stage(nextLease,{ownerId,intentId:`delivery-binary-${index}`,generation:'one',
+          filename:`preuve-${index}.bin`,contentType:'application/pdf',bytes:new Uint8Array([index])});}
+        finally{data.dispose(nextLease);}
+        stagedFiles.push(next);
+        attachedLinked=success(await invoke('attachment.link',{requestKey:`delivery-link-${index}`,
+          boxId:box.id,draftId:attachedDraft.id,revision:attachedLinked.revision,staged:next})).draft;
+      }
+      const attachedSend=await invoke('message.send',{requestKey:'delivery-send-attached',
+        boxId:box.id,draftId:attachedDraft.id,revision:attachedLinked.revision});
+      assert.equal(attachedSend.execution.state,'succeeded',JSON.stringify(attachedSend));
+      assert.equal(providerBodies.at(-1).attachments.length,50);
+      assert.deepEqual(providerBodies.at(-1).attachments.find(item=>item.filename==='preuve.bin'),
+        {filename:'preuve.bin',content:Buffer.from(bytes).toString('base64')});
+      const linkTable=schemas['creezio.messaging'].tables.message_attachment;
+      const links=await db.prepare(`SELECT file_id,digest FROM "${linkTable}" WHERE message_id=?`)
+        .bind(attachedSend.execution.id).all();
+      assert.deepEqual(new Set(links.results.map(row=>row.file_id)),
+        new Set(stagedFiles.map(file=>file.fileId)));
+      assert.equal(links.results.find(row=>row.file_id===staged.fileId).digest,staged.digest);
+      const attachmentOutbox=await db.prepare(`SELECT payload FROM "${OPERATION_TABLES.outbox}"
+        WHERE execution_id=?`).bind(attachedSend.execution.id).first();
+      assert.doesNotMatch(attachmentOutbox.payload,/preuve\.bin|AAECKn\+A\/v8=/u);
+      const attachedCurrent=await db.prepare(`SELECT state,revision,provider_message_id FROM "${messageTable}"
+        WHERE id=?`).bind(attachedSend.execution.id).first();
+      assert.equal(attachedCurrent.state,'sent');
+      await db.prepare(`INSERT INTO "${eventTable}" (context_id,id,connection_id,event_type,email_id,
+        body_digest,occurred_at,received_at) VALUES(?,?,?,?,?,?,?,?)`).bind('application','evt-failed',
+        'connection-proof','email.failed',attachedCurrent.provider_message_id,'c'.repeat(64),
+        '2026-09-30T03:00:00.000Z','2026-09-30T03:00:01.000Z').run();
+      const beforeFailed=calls;
+      const failed=success(await invoke('message.delivery.reconcile',{
+        requestKey:'delivery-reconcile-failed',boxId:box.id,messageId:attachedSend.execution.id,
+        revision:attachedCurrent.revision})).message;
+      assert.equal(failed.state,'failed');
+      assert.equal(failed.folder,'sent','provider failure follows a known accepted send');
+      assert.equal(failed.revision,attachedCurrent.revision+1);
+      assert.equal(calls,beforeFailed,'webhook failure must not resend');
+      await db.prepare(`INSERT INTO "${eventTable}" (context_id,id,connection_id,event_type,email_id,
+        body_digest,occurred_at,received_at) VALUES(?,?,?,?,?,?,?,?)`).bind('application','evt-late-delivered',
+        'connection-proof','email.delivered',attachedCurrent.provider_message_id,'d'.repeat(64),
+        '2026-09-30T02:59:00.000Z','2026-09-30T03:01:00.000Z').run();
+      const repeated=success(await invoke('message.delivery.reconcile',{
+        requestKey:'delivery-reconcile-failed-repeat',boxId:box.id,messageId:attachedSend.execution.id,
+        revision:failed.revision})).message;
+      assert.equal(repeated.state,'failed');
+      assert.equal(repeated.revision,failed.revision,'older late arrival cannot revise a terminal failure');
+      const raceDraft=success(await invoke('draft.create',
+        {requestKey:'delivery-draft-race',boxId:box.id})).draft;
+      const raceLinked=success(await invoke('attachment.link',{requestKey:'delivery-link-race',
+        boxId:box.id,draftId:raceDraft.id,revision:raceDraft.revision,staged})).draft;
+      const raceEngine=createOperationEngine({...engineOptions,registry:registry({
+        'creezio.messaging:message.send':async(_input,context)=>{
+          const frozen={sourceModel:'draft_attachment',destinationModel:'message_attachment',
+            sourceScope:{box_id:box.id,draft_id:raceDraft.id},
+            destinationScope:{box_id:box.id,message_id:context.executionId},
+            attachments:[{...staged,filename:'preuve.bin',contentType:'application/pdf',byteSize:8}]};
+          await Promise.all([context.files.freezeLinks('attachments',frozen),
+            context.files.freezeLinks('attachments',frozen)]);
+          return {output:{}};
+        }})});
+      const race=await invoke('message.send',{requestKey:'delivery-send-race',boxId:box.id,
+        draftId:raceDraft.id,revision:raceLinked.revision},raceEngine);
+      assert.equal(race.execution.state,'failed');
+      assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM "${OPERATION_TABLES.outbox}"
+        WHERE execution_id=?`).bind(race.execution.id).first()).n,0);
+      assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM "${messageTable}"
+        WHERE id=?`).bind(race.execution.id).first()).n,0);
+      const revokedDraft=success(await invoke('draft.create',
+        {requestKey:'delivery-draft-revoked',boxId:box.id},queueEngine)).draft;
+      const revokedSaved=success(await invoke('draft.save',{requestKey:'delivery-save-revoked',
+        boxId:box.id,draftId:revokedDraft.id,revision:revokedDraft.revision,
+        to:'revoked@example.invalid',cc:'',bcc:'',subject:'Droits révoqués',text:'Privé',html:''},queueEngine)).draft;
+      const revokedLinked=success(await invoke('attachment.link',{requestKey:'delivery-link-revoked',
+        boxId:box.id,draftId:revokedDraft.id,revision:revokedSaved.revision,staged},queueEngine)).draft;
+      const revokedSend=await invoke('message.send',{requestKey:'delivery-send-revoked',boxId:box.id,
+        draftId:revokedDraft.id,revision:revokedLinked.revision},queueEngine);
+      assert.equal(revokedSend.execution.state,'waiting');
+      const currentPolicy=good(await acl.readPolicy(admin.token)),withoutGrant=structuredClone(currentPolicy.policy);
+      withoutGrant.assignments=withoutGrant.assignments.filter(item=>item.roleId!=='mail-delivery');
+      good(await acl.replacePolicy(admin.token,{expectedEpoch:currentPolicy.epoch,policy:withoutGrant}));
+      const beforeRevoked=calls;
+      const revokedDelivery=await engine.deliver({credential:{kind:'session',token:admin.token},
+        moduleId:'creezio.messaging',deliveryId:'message-send',contextId:'application',audience:'admin',
+        executionId:revokedSend.execution.id,intentId:revokedSend.execution.id}).catch(error=>error);
+      assert.equal(revokedDelivery.code,'forbidden');
+      assert.equal(calls,beforeRevoked,'revoked delivery rights must stop before R2 and Resend');
     }finally{await runtime.dispose();}
   });

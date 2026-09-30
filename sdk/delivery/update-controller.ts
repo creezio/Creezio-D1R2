@@ -33,6 +33,7 @@ export interface DeliveryUpdateController {
   start(): Promise<DeliveryResult<DeliveryUpdateStatus>>;
   status(): Promise<DeliveryResult<DeliveryUpdateStatus>>;
   reconcile(): Promise<DeliveryResult<DeliveryUpdateStatus>>;
+  retry(): Promise<DeliveryResult<DeliveryUpdateStatus>>;
   dispose(): void;
 }
 const fail = <T>(code: string): DeliveryResult<T> => ({ok: false, code});
@@ -169,6 +170,14 @@ export function createDeliveryUpdateController(options: {access: AccessControlle
       const current = pending;
       return current?.started && update?.phase !== 'delivered'
         ? execute(() => transport.reconcileUpdate({updateId: current.updateId,
+          planDigest: current.planDigest}), value => exactUpdate(value, current.updateId))
+        : Promise.resolve(fail<DeliveryUpdateStatus>('update_not_ready'));
+    },
+    retry: () => {
+      const current = pending;
+      return current?.started && update?.phase === 'delivery-unknown'
+        && update.retryEligible === true
+        ? execute(() => transport.retryUpdate({updateId: current.updateId,
           planDigest: current.planDigest}), value => exactUpdate(value, current.updateId))
         : Promise.resolve(fail<DeliveryUpdateStatus>('update_not_ready'));
     },

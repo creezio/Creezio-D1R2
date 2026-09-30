@@ -32,12 +32,13 @@ test('composed compiler includes every selected native module and freezes the ru
   assert.equal(plan.runtimeCatalog.lockDigest,plan.lockDigest);
   assert.equal(plan.lockDigest,contractIntegrity(input.lock));
   assert.deepEqual(plan.runtimeCatalog.modules.map(module => [module.moduleId, module.models.length]),
-    [['creezio.access', 28], ['creezio.analytics', 2], ['creezio.conversations', 8],
-      ['creezio.crm', 3], ['creezio.delivery', 0], ['creezio.messaging', 6],
+    [['creezio.access', 28], ['creezio.analytics', 4], ['creezio.conversations', 8],
+      ['creezio.crm', 3], ['creezio.delivery', 0], ['creezio.messaging', 7],
       ['creezio.modules-settings', 4], ['creezio.openai', 2],
       ['creezio.pages-navigation', 8], ['creezio.support', 2]]);
   assert.deepEqual(plan.runtimeCatalog.modules.find(module=>module.moduleId==='creezio.analytics')
-    .models.map(model=>model.modelId), ['event','retention_policy']);
+    .models.map(model=>model.modelId),
+    ['collection_policy','event','retention_policy','transport_refusal']);
   const publicPages=plan.runtimeCatalog.modules.find(module=>module.moduleId==='creezio.pages-navigation');
   assert.deepEqual(publicPages.models.map(model=>model.modelId),
     ['file_metadata','navigation','page','page_media','page_publication','public_page',
@@ -55,7 +56,8 @@ test('composed compiler includes every selected native module and freezes the ru
     .filter(field => field.id === 'widget_context_snapshot').map(field => [field.type, field.nullable]), [['json', true]]);
   assert.equal(describeD1Schema('creezio.conversations',conversations).objects.length,17);
   const messaging = input.modules.find(module => module.identity.id === 'creezio.messaging').contracts.models;
-  assert.deepEqual(messaging.map(model => model.id).sort(), ['box', 'draft', 'draft_attachment', 'file_metadata', 'message', 'send_snapshot']);
+  assert.deepEqual(messaging.map(model => model.id).sort(),
+    ['box', 'draft', 'draft_attachment', 'file_metadata', 'message', 'message_attachment', 'send_snapshot']);
   const crm=input.modules.find(module=>module.identity.id==='creezio.crm').contracts.models;
   const added=['creezio.support','creezio.pages-navigation','creezio.analytics']
     .map(id=>input.modules.find(module=>module.identity.id===id))

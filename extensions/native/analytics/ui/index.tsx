@@ -10,6 +10,7 @@ import {call,errorText,type Count,type Event,type EventPage,type ExportPage,
 import {collectExportPages} from './export.ts';
 import {analyticsPanelState,readAnalyticsPanelState,retainedSessionId,sameAnalyticsScope,sessionVerified} from './panel-state.ts';
 import {RetentionControls} from './retention.tsx';
+import {CollectionControls} from './collection.tsx';
 
 const tabs:[Tab,string][]=[['overview','Vue d’ensemble'],['productivity','Productivité'],
   ['pages','Pages'],['clicks','Clics'],['users','Collaborateurs'],['logs','Journal']];
@@ -313,19 +314,22 @@ export function AnalyticsAdminView(props:RuntimeViewProps){
       <TopList title="Événements par heure déclarée" items={snapshot.hours} empty="Aucun événement déclaré"/>
       <p className="text-xs text-slate-500">Durée fournie par les émetteurs : {number(snapshot.totals.reportedDurationMs)} ms. Elle ne mesure pas le temps de travail.</p></div>}
     {tab==='pages'&&snapshot&&<div className="space-y-4"><Unavailable title="Suivi des pages"
-      detail="Seules les pages explicitement déclarées apparaissent ici. Le suivi automatique n’est pas encore disponible."/>
+      detail="Les pages sont déclarées par un client autorisé. La navigation des vues du catalogue est collectée seulement si l’administrateur l’active."/>
       <DataTable headers={['Page','Vues déclarées']} rows={snapshot.pages.map(item=>[item.name,number(item.count)])}
         empty="Aucune page déclarée"/></div>}
     {tab==='clicks'&&snapshot&&<div className="space-y-4"><Unavailable title="Suivi des clics"
-      detail="Seules les actions explicitement déclarées apparaissent ici. Le suivi automatique n’est pas encore disponible."/>
+      detail="Les clics sont déclarés par un client autorisé. Seuls les composants avec un identifiant data-creezio-analytics-id stable sont collectés si l’administrateur l’active."/>
       <DataTable headers={['Élément','Clics déclarés']} rows={snapshot.clicks.map(item=>[item.name,number(item.count)])}
         empty="Aucun clic déclaré"/></div>}
     {tab==='users'&&snapshot&&<div className="space-y-4"><Unavailable title="Présence des collaborateurs"
       detail="Les sessions et le temps de présence ne sont pas encore mesurés. Ce tableau montre les identités qui ont déclaré des événements, y compris les applications."/>
       <DataTable headers={['Émetteur','Événements déclarés']} rows={snapshot.users.map(item=>[item.name,number(item.count)])}
         empty="Aucun événement déclaré"/></div>}
-    {tab==='logs'&&<div className="space-y-4"><Unavailable title="Journal des événements"
-      detail="La liste ci-dessous contient les événements déclarés. Les exécutions techniques sont présentées séparément ; les requêtes refusées avant le moteur ne sont pas collectées."/>
+    {tab==='logs'&&<div className="space-y-4">{props.contextId==='application'
+      ?<CollectionControls key={`${sessionId}:${props.audience}:${props.contextId}`} props={props} sessionId={sessionId}/>
+      :<p className="text-xs text-slate-500">La collecte et les refus avant moteur se gèrent dans le contexte d’installation application.</p>}
+      <Unavailable title="Journal des événements"
+      detail="La liste ci-dessous contient les événements déclarés. Les exécutions et les refus avant moteur sont présentés séparément."/>
       <div className="flex flex-wrap items-end gap-2"><label className="text-xs text-slate-600">Rechercher<br/>
         <input className={button} value={query} maxLength={120} onChange={event=>setQuery(event.target.value)}
           onKeyDown={event=>{if(event.key==='Enter')setAppliedQuery(query.trim());}}/></label>

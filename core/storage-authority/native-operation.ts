@@ -19,6 +19,10 @@ const actions:Readonly<Record<Kind,string>>=Object.freeze({
   'principals.set-human-status':'human-status-updated',
   'principals.revoke-sessions':'human-sessions-revoked',
   'sessions.revoke':'human-session-revoked',
+  'service.create':'service-created',
+  'service.status':'service-status-updated',
+  'service.token.issue':'api-token-issued',
+  'service.token.revoke':'api-token-revoked',
 });
 
 /** Adapter for the operation runner; the Worker must supply a verified complete target inventory. */

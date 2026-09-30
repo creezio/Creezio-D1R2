@@ -31,6 +31,8 @@ test('descriptor fixes each Meili read and bounded task-producing write',()=>{
     ['document-upsert','POST','/indexes/{id}/documents'],
     ['document-delete','POST','/indexes/{id}/documents/delete-batch'],
     ['task','GET','/tasks/{id}'],['search','GET','/indexes/{id}/search']]);
+  assert.deepEqual(meiliConnectorDescriptor.resources.find(item=>item.id==='document-upsert').query,
+    {fixed:[{name:'primaryKey',value:'id'}]});
   for(const resource of meiliConnectorDescriptor.resources.filter(item=>item.method==='POST')){
     assert.deepEqual(resource.successStatuses,[202]);
     assert.equal(resource.body.encoding,'json-root');

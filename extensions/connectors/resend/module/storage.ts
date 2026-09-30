@@ -19,10 +19,19 @@ export const resendVaultStorage:ConnectorVaultStorage=Object.freeze({
 export const resendConnectorDescriptor:ConnectorDescriptor=Object.freeze({
   id:RESEND_CONNECTOR_ID,moduleId:RESEND_MODULE_ID,config:resendConfigStorage,vault:resendVaultStorage,
   auth:Object.freeze({kind:'bearer'}),fixedOrigin:RESEND_ORIGIN,
+  webhook:Object.freeze({path:'/api/webhooks/resend',operationId:'event.receive',scheme:'resend' as const,
+    mapper:Object.freeze({path:'module/webhook.ts',export:'resendWebhookInput'}),
+    fields:Object.freeze({connectionId:'connection_id',signingRef:'webhook_key_ref',
+      signingVersion:'webhook_secret_version',previousRef:'webhook_previous_key_ref',
+      previousVersion:'webhook_previous_secret_version',serviceTokenRef:'webhook_service_token_ref',
+      serviceTokenVersion:'webhook_service_token_version'})}),
   resources:Object.freeze([
     Object.freeze({id:'domains',method:'GET',path:'/domains',params:Object.freeze([] as const)}),
+    Object.freeze({id:'email.received',method:'GET',path:'/emails/receiving/{id}',
+      params:Object.freeze(['id'] as const)}),
     Object.freeze({id:'email.send',method:'POST',path:'/emails',params:Object.freeze([] as const),
       idempotencyHeader:'Idempotency-Key',successStatuses:Object.freeze([200,201]),
+      attachments:Object.freeze({wireName:'attachments',maxItems:50,maxBytes:10*1024*1024}),
       body:Object.freeze({encoding:'json',fields:Object.freeze([
         {name:'from',wireName:'from',kind:'string',required:true,maxBytes:320},
         {name:'to',wireName:'to',kind:'json',required:true,maxBytes:2048},

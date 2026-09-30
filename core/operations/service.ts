@@ -16,6 +16,7 @@ import type { SqlStatement } from '../data/authorization.ts';
 import {captureHostInventory} from './host-inventory.ts';
 import type {ModuleSettingsHostInventory} from '../../sdk/module-settings/types.ts';
 import {createFileService, type FileBucket} from '../files/service.ts';
+import {prepareFrozenLinks} from '../files/freeze-links.ts';
 import {fileOwnerId, resolveFileCategory, type RuntimeFileCatalog} from '../files/catalog.ts';
 import {FileError} from '../files/mapping.ts';
 import type {OperationFilesPort} from '../../sdk/files/types.ts';
@@ -285,6 +286,8 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
         const connectorCommand=!!connector&&op.kind==='command'&&op.effects.writes.length>0;
         const connectorState:{guards:readonly DataPlan[]|null;unknown:boolean;externalEffect:boolean}=
           {guards:null,unknown:false,externalEffect:false};
+        let fileStatements:readonly SqlStatement[]|undefined;
+        let fileClaimed=false;
         const registerConnectorGuards=(tokens:readonly DataPlan[])=>{
           ensure();
           if(!connectorCommand||connectorState.guards||!Array.isArray(tokens)||tokens.length!==2
@@ -335,9 +338,17 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
               throw new OperationError('unavailable');
             }})}:{}),
           ...(providerAvailability ? {providerAvailability} : {}),
-          ...(operation.moduleId==='creezio.analytics'&&identity.audience==='admin'
-            &&op.kind==='query'&&op.id.startsWith('diagnostics.')
-            ?{diagnostics:createOperationDiagnosticsPort({db:options.db,data,lease,registry,
+          ...(operation.moduleId==='creezio.analytics'
+            &&(op.id==='collection.effective'||identity.audience==='admin'&&
+              (op.kind==='query'&&op.id.startsWith('diagnostics.')
+              ||['collection.policy','collection.effective','collection.configure',
+                'refusals.list','refusals.preview','refusals.purge'].includes(op.id)))
+            ?{diagnostics:createOperationDiagnosticsPort({db:options.db,
+              authorityDb:options.authorityDb??options.db,data,lease,catalog,
+              permissions:options.permissions,credential:request.credential,
+              actors:op.actors.filter((actor):actor is AuthorizationActor=>
+                ['user','machine','delegated-user','impersonated-user'].includes(actor)),
+              requiredPermissionIds:op.permissions.map(ref=>`${ref.moduleId}:${ref.id}`),registry,
               httpBindings:options.httpBindings})}:{}),
           ...(secretSource && op.kind === 'command'
             && op.id.startsWith('config.key.') && secretSource.storage.moduleId === operation.moduleId
@@ -367,7 +378,22 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
               audience:identity.audience,actors:op.actors.filter((actor):actor is AuthorizationActor=>
                 ['user','machine','delegated-user','impersonated-user'].includes(actor)),
               ensureActive:ensure})}:{}),
-          ...(options.files ? {files: Object.freeze({async preparePublication(categoryId, reference) {
+          ...(options.files ? {files: Object.freeze({async freezeLinks(categoryId,raw) {
+            ensure();
+            if(op.kind!=='command'||fileClaimed||!raw||typeof raw!=='object'
+              ||!op.effects.writes.some(ref=>ref.kind==='file'&&ref.moduleId===operation.moduleId&&ref.id===categoryId)
+              ||!op.effects.reads.some(ref=>ref.kind==='model'&&ref.moduleId===operation.moduleId&&ref.id===raw.sourceModel)
+              ||!op.effects.writes.some(ref=>ref.kind==='model'&&ref.moduleId===operation.moduleId&&ref.id===raw.destinationModel))
+              throw new OperationError('forbidden');
+            fileClaimed=true;
+            const captured=copyJson(raw,60_000) as unknown as typeof raw;
+            spend(1);
+            const category=resolveFileCategory(catalog,options.files!.catalog,operation.moduleId,
+              categoryId,identity.audience);
+            const statements=await prepareFrozenLinks({data,catalog,lease,moduleId:operation.moduleId,
+              category,bucket:options.files!.bucket,input:captured});
+            ensure();fileStatements=statements;
+          },async preparePublication(categoryId, reference) {
             ensure();
             if (op.kind !== 'command' || !op.effects.writes.some(ref => ref.moduleId === operation.moduleId && ref.kind === 'file' && ref.id === categoryId))
               throw new OperationError('forbidden');
@@ -474,6 +500,7 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           const filePlans=[...issued].filter(([,metadata])=>metadata.file).map(([token])=>token);
           if (filePlans.length && (filePlans.some(token=>!plans.includes(token))
             || !plans.some(token=>issued.get(token)!.write && !issued.get(token)!.file))) throw new OperationError('invalid_output');
+          if(fileStatements&&!plans.some(token=>issued.get(token)!.write))throw new OperationError('invalid_output');
           const secretPlans=[...issued].filter(([,metadata])=>metadata.secret).map(([token])=>token);
           if(secretPlans.length && (secretPlans.some(token=>!plans.includes(token))
             || !plans.some(token=>issued.get(token)!.write && !issued.get(token)!.secret)))throw new OperationError('invalid_output');
@@ -486,7 +513,8 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           const sourceCommit=async()=>{
             ensure();
             sourceReceipt=await store.commit(lease,start.claim,{plans,output,outbox,
-              ...(nativeStatements?{nativeStatements}:{}),...(approvalStatements?{approvalStatements}:{})});
+              ...(nativeStatements?{nativeStatements}:{}),...(approvalStatements?{approvalStatements}:{}),
+              ...(fileStatements?{fileStatements}:{})});
             return sourceReceipt;
           };
           const commit=async()=>{
@@ -634,6 +662,34 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           throw new OperationError('conflict');
         const envelope=ready[mapping.envelopeField];
         if(!envelope||typeof envelope!=='object'||Array.isArray(envelope))throw new OperationError('invalid_output');
+        const outbound=envelope as Record<string,JsonValue>;
+        const declared=outbound.attachments??[];
+        if(!Array.isArray(declared)||declared.length>50)throw new OperationError('invalid_output');
+        const binary: {filename:string;contentType:string;bytes:Uint8Array}[]=[];
+        if(declared.length){
+          if(!options.files||mapping.resourceId!=='email.send')throw new OperationError('invalid_catalog');
+          const category=resolveFileCategory(catalog,options.files.catalog,mapping.moduleId,
+            'attachments',identity.audience);
+          const fileService=createFileService({data,catalog,moduleId:mapping.moduleId,category,
+            bucket:options.files.bucket,
+            ownerId:await fileOwnerId(identity.principalId,identity.audience,category.ownerScope)});
+          let total=0;
+          for(const item of declared){
+            if(!item||typeof item!=='object'||Array.isArray(item))throw new OperationError('invalid_output');
+            const entry=item as Record<string,JsonValue>;
+            if(typeof entry.fileId!=='string'||typeof entry.intentId!=='string'
+              ||typeof entry.generation!=='string'||typeof entry.digest!=='string'
+              ||typeof entry.filename!=='string'||typeof entry.contentType!=='string'
+              ||!Number.isSafeInteger(entry.byteSize))throw new OperationError('invalid_output');
+            const file=await fileService.readPrivate(lease,{fileId:entry.fileId,
+              intentId:entry.intentId,generation:entry.generation,digest:entry.digest});
+            if(file.filename!==entry.filename||file.contentType!==entry.contentType
+              ||file.byteSize!==entry.byteSize||(total+=file.byteSize)>10*1024*1024)
+              throw new OperationError('conflict');
+            binary.push({filename:file.filename,contentType:file.contentType,bytes:file.bytes});
+          }
+        }
+        const {attachments:_references,...wireEnvelope}=outbound;
         const connector=connectors.find(item=>item.descriptor.moduleId===mapping.providerModuleId
           &&item.descriptor.id===mapping.connectorId);
         const readiness=registry.resolve(mapping.providerModuleId,mapping.readinessId);
@@ -667,7 +723,7 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           markMutationUnknown(){uncertain=true;},
           registerCommitGuards(tokens){if(providerGuards||tokens.length!==2||new Set(tokens).size!==2)
             throw new OperationError('invalid_output');providerGuards=tokens;},
-        }).mutate({resource:mapping.resourceId,fields:envelope as Record<string,JsonValue>});
+        }).mutate({resource:mapping.resourceId,fields:wireEnvelope,attachments:binary});
         if(result.kind==='ok'){
           const body=result.body;
           const id=body&&typeof body==='object'&&!Array.isArray(body)

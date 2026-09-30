@@ -20,6 +20,7 @@ import { oauthResourceMetadataUrl } from './core/oauth/protocol';
 import { resolveAccessHttpConfiguration } from './core/identity/http-policy';
 
 const registry = createOperationRegistry({catalog: operationCatalog, validators: operationValidators, handlers: operationHandlers});
+const analyticsCompiled=modules.some(module=>module.id==='creezio.analytics');
 const mcpTransportFactory = createMcpHttpTransportFactory(mcpCatalog, registry);
 const declaredHttp = createDeclaredHttpDispatcher({registry, dataCatalog, fileCatalog, permissions, bindings: httpBindings,
   workspaceCatalog, workspaceNavigationCatalog, frontCatalog, runtimeInventory, toolCatalog, widgetCatalog, widgetValidators, connectors,
@@ -49,6 +50,7 @@ const mcpHttp = {async dispatch(request: Request, resolved: Parameters<typeof di
     readLinkedImage:(binding,identity,recordId,reference)=>readMcpLinkedImage({...host.forContext(identity.contextId),files:fileCatalog},
     binding,identity,recordId,reference),
     approvals:host.approvals,
+    ...(analyticsCompiled?{diagnosticsDb:resolved.bindings.DB}:{}),
   }).dispatch(request, audience, requestId);
 }};
 const runtime = createRuntime({ modules, compositionDigest, nativeAccess, declaredHttp, oauthHttp, mcpHttp,

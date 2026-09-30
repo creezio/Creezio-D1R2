@@ -12,6 +12,8 @@ import {readProjection, WorkspaceAccessRefused} from './projection-client';
 import {CreezioShell} from '../../admin/workspace/workspace-shell';
 import {WidgetHostProvider} from '../../sdk/widgets/provider';
 import {createLocalDeliveryTransport} from '../../admin/delivery/transport';
+import {resolveWorkspaceLocation} from '../../sdk/workspace/controller';
+import {startAnalyticsCollection} from '../analytics/collection';
 
 export function WorkspaceHost({audience}: {audience: AccessAudience}) {
   const [access, setAccess] = useState<AccessController | null>(null);
@@ -49,6 +51,8 @@ function BoundWorkspace({access}: {access: AccessController}) {
   }, []);
   const {contextId, initialUrl} = selection;
   const currentProjection = useRef(projection); currentProjection.current = projection;
+  const analyticsCollector=useRef<ReturnType<typeof startAnalyticsCollection>|null>(null);
+  const analyticsUrl=useRef<string|null>(null);
   const assistantSession = useRef<string | null>(null);
   if (state.phase === 'authenticated' && state.session && !state.pending) assistantSession.current=state.session.id;
   else if (state.phase === 'anonymous' || state.pending === 'logout' || state.pending === 'login') assistantSession.current=null;
@@ -88,6 +92,25 @@ function BoundWorkspace({access}: {access: AccessController}) {
     return () => { current = false; clearTimeout(timer); abort.abort(); };
   }, [access, state, contextId, attempt]);
   const authenticated = state.phase === 'authenticated' && state.session && !state.pending;
+  const analyticsReady=!!(authenticated&&projection&&projection.sessionId===state.session?.id
+    &&projection.contextId===contextId&&projection.audience===access.audience
+    &&projection.compositionDigest===compositionDigest);
+  useEffect(()=>{
+    if(!analyticsReady||!projection||!httpBindings.some(binding=>binding.moduleId==='creezio.analytics'
+      &&binding.operationId==='collection.effective'&&binding.audience===access.audience))return;
+    const collector=startAnalyticsCollection({client,contextId,audience:access.audience,
+      surface:'workspace',target:document});analyticsCollector.current=collector;
+    const locate=(url:string|null)=>{
+      const location=url?resolveWorkspaceLocation(url,views,new Set(projection.viewIds),'workspace'):null;
+      const view=location&&views.find(item=>item.id===location.viewId);
+      collector.location(view?{viewId:view.id,route:view.route}:null);void collector.refresh();
+    };
+    locate(analyticsUrl.current);
+    const refresh=()=>{void collector.refresh();};
+    window.addEventListener('creezio:analytics-policy-updated',refresh);
+    return()=>{window.removeEventListener('creezio:analytics-policy-updated',refresh);
+      if(analyticsCollector.current===collector)analyticsCollector.current=null;collector.dispose();};
+  },[analyticsReady,projection,client,contextId,access.audience]);
   const sidebarKey=projection&&authenticated
     ?`${projection.sessionId}:${projection.contextId}:${projection.audience}:${projection.compositionDigest}:${projection.epoch}`:'';
   useEffect(()=>{
@@ -168,6 +191,13 @@ function BoundWorkspace({access}: {access: AccessController}) {
       homeViewId={navigation.find(item => item.viewId.endsWith(':dashboard') || item.viewId.endsWith(':home'))?.viewId}
       renderShell={renderShell}
       initialUrl={initialUrl} onLocationChange={url => {
+        analyticsUrl.current=url;
+        if(analyticsCollector.current){
+          const location=projection?resolveWorkspaceLocation(url,views,new Set(projection.viewIds),'workspace'):null;
+          const view=location&&views.find(item=>item.id===location.viewId);
+          analyticsCollector.current.location(view?{viewId:view.id,route:view.route}:null);
+          void analyticsCollector.current.refresh();
+        }
         const current = new URL(window.location.href); current.searchParams.set('context', contextId); current.searchParams.set('view', url);
         window.history.replaceState(null, '', current);
       }} />

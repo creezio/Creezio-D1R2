@@ -10,6 +10,11 @@ export interface StagedFileReference {
 
 /** Host-owned publication capability. The returned plan must accompany the business link. */
 export interface OperationFilesPort {
+  /** Host-verified, atomic copy of private links between declared module models. */
+  freezeLinks(categoryId:string,input:Readonly<{sourceModel:string;destinationModel:string;
+    sourceScope:Readonly<Record<string,string>>;destinationScope:Readonly<Record<string,string>>;
+    attachments:readonly Readonly<StagedFileReference & {
+      filename:string;contentType:string;byteSize:number}>[]}>):Promise<void>;
   publicationProof(categoryId: string, reference: StagedFileReference): Promise<DataPlan>;
   preparePublication(categoryId: string, reference: StagedFileReference): Promise<{
     readonly plan: DataPlan;

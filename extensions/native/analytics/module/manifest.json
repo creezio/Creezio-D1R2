@@ -8,8 +8,8 @@
     "version": "0.0.0",
     "source": {
       "kind": "snapshot",
-      "revision": "t22-analytics-retention-v3",
-      "integrity": "sha256-233f7efaa4e01d8763307d809d6606c533a47a035fe7aca3c4839ad947df047c"
+      "revision": "t22-analytics-collection-v4",
+      "integrity": "sha256-3fe1c5c624a1de933511a33ffce1aad4166f88427f508cf496ead5900d08767c"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -18,7 +18,7 @@
   },
   "compatibility": {
     "core": "^0.0.0",
-    "sdk": "^1.6.0",
+    "sdk": "^1.8.0",
     "requiredCapabilities": [
       "runtime.worker",
       "data.d1.shared"
@@ -1493,6 +1493,384 @@
         }
       },
       {
+        "id": "collection-policy-input",
+        "schema": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "collection-policy-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "configured": {
+              "type": "boolean"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "navigation": {
+              "type": "boolean"
+            },
+            "clicks": {
+              "type": "boolean"
+            },
+            "refusals": {
+              "type": "boolean"
+            },
+            "refusalRetentionDays": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            },
+            "manualOnly": {
+              "const": true
+            }
+          },
+          "required": [
+            "configured",
+            "revision",
+            "navigation",
+            "clicks",
+            "refusals",
+            "refusalRetentionDays",
+            "manualOnly"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "collection-effective-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "navigation": {
+              "type": "boolean"
+            },
+            "clicks": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "navigation",
+            "clicks"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "collection-configure-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "expectedRevision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "navigation": {
+              "type": "boolean"
+            },
+            "clicks": {
+              "type": "boolean"
+            },
+            "refusals": {
+              "type": "boolean"
+            },
+            "refusalRetentionDays": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            }
+          },
+          "required": [
+            "requestKey",
+            "expectedRevision",
+            "navigation",
+            "clicks",
+            "refusals",
+            "refusalRetentionDays"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "refusals-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "refusals-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "transport": {
+                    "type": "string",
+                    "enum": [
+                      "api",
+                      "mcp"
+                    ]
+                  },
+                  "method": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 8
+                  },
+                  "routeTemplate": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "status": {
+                    "type": "integer",
+                    "minimum": 400,
+                    "maximum": 599
+                  },
+                  "errorCode": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "occurredAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  },
+                  "durationMs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "id",
+                  "transport",
+                  "method",
+                  "routeTemplate",
+                  "status",
+                  "errorCode",
+                  "occurredAt",
+                  "durationMs"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 50
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "complete": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor",
+            "complete"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "refusals-preview-input",
+        "schema": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "refusals-preview-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "cutoff": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 35
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "occurredAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  }
+                },
+                "required": [
+                  "id",
+                  "occurredAt"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 10
+            },
+            "hasMore": {
+              "type": "boolean"
+            },
+            "manualOnly": {
+              "const": true
+            }
+          },
+          "required": [
+            "revision",
+            "cutoff",
+            "items",
+            "hasMore",
+            "manualOnly"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "refusals-purge-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "cutoff": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 35
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "occurredAt": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 35
+                  }
+                },
+                "required": [
+                  "id",
+                  "occurredAt"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "maxItems": 10
+            }
+          },
+          "required": [
+            "requestKey",
+            "revision",
+            "cutoff",
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "refusals-purge-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "deleted": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "hasMore": {
+              "type": "boolean"
+            },
+            "cutoff": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 35
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "deleted",
+            "hasMore",
+            "cutoff",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
         "id": "retention-policy-output",
         "schema": {
           "type": "object",
@@ -2127,6 +2505,236 @@
           "requiresApproval": false
         },
         "public": false
+      },
+      {
+        "id": "collection_policy",
+        "title": "Collecte optionnelle de l’installation",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 36
+            }
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "navigation_enabled",
+            "type": "boolean",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "clicks_enabled",
+            "type": "boolean",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "refusals_enabled",
+            "type": "boolean",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "refusal_retention_days",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 365
+            }
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "id"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "emit"
+          },
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "read"
+          },
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "manage-collection"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "transport_refusal",
+        "title": "Refus de transport avant moteur",
+        "scope": "application",
+        "fields": [
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 36
+            }
+          },
+          {
+            "id": "transport",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "api",
+                "mcp"
+              ]
+            }
+          },
+          {
+            "id": "method",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE",
+                "HEAD",
+                "OPTIONS"
+              ]
+            }
+          },
+          {
+            "id": "route_template",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "id": "status",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 400,
+              "maximum": 599
+            }
+          },
+          {
+            "id": "error_code",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 80
+            }
+          },
+          {
+            "id": "created_at_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "duration_ms",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "primaryKey": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "by-time",
+            "fields": [
+              "created_at_ms",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "read"
+          },
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "manage-retention"
+          }
+        ],
+        "deletion": {
+          "mode": "hard",
+          "requiresApproval": false
+        },
+        "public": false
       }
     ],
     "files": [],
@@ -2156,9 +2764,15 @@
             "moduleId": "creezio.analytics",
             "kind": "model",
             "id": "event"
+          },
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "model",
+            "id": "collection_policy"
           }
         ],
         "actions": [
+          "read",
           "create",
           "execute"
         ],
@@ -2189,6 +2803,16 @@
             "moduleId": "creezio.analytics",
             "kind": "model",
             "id": "event"
+          },
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "model",
+            "id": "collection_policy"
+          },
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "model",
+            "id": "transport_refusal"
           }
         ],
         "actions": [
@@ -2203,7 +2827,7 @@
       },
       {
         "id": "manage-retention",
-        "title": "Configurer et exécuter la purge manuelle",
+        "title": "Configurer et exécuter les purges manuelles Analytics",
         "audiences": [
           "admin"
         ],
@@ -2226,6 +2850,16 @@
             "moduleId": "creezio.analytics",
             "kind": "model",
             "id": "retention_policy"
+          },
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "model",
+            "id": "collection_policy"
+          },
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "model",
+            "id": "transport_refusal"
           }
         ],
         "actions": [
@@ -2233,6 +2867,40 @@
           "create",
           "update",
           "delete",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      },
+      {
+        "id": "manage-collection",
+        "title": "Configurer la collecte analytique optionnelle",
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "scopes": [
+          "analytics.configure"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "model",
+            "id": "collection_policy"
+          }
+        ],
+        "actions": [
+          "read",
+          "create",
+          "update",
           "execute"
         ],
         "enforcement": {
@@ -3122,6 +3790,695 @@
         "public": false
       },
       {
+        "id": "collection.policy",
+        "title": "Politique de collecte",
+        "kind": "query",
+        "input": {
+          "schemaId": "collection-policy-input"
+        },
+        "output": {
+          "schemaId": "collection-policy-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "collectionPolicy"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "collection_policy"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "content"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "collection.effective",
+        "title": "Collecte autorisée sur ce client",
+        "kind": "query",
+        "input": {
+          "schemaId": "collection-policy-input"
+        },
+        "output": {
+          "schemaId": "collection-effective-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "emit"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "collectionEffective"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "collection_policy"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "content"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "collection.configure",
+        "title": "Configurer la collecte",
+        "kind": "command",
+        "input": {
+          "schemaId": "collection-configure-input"
+        },
+        "output": {
+          "schemaId": "collection-policy-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "manage-collection"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "collectionConfigure"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "collection_policy"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "collection_policy"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 2,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "content"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "refusals.list",
+        "title": "Refus avant moteur",
+        "kind": "query",
+        "input": {
+          "schemaId": "refusals-list-input"
+        },
+        "output": {
+          "schemaId": "refusals-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "refusalsList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "transport_refusal"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 50
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "content"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "refusals.preview",
+        "title": "Prévisualiser les refus expirés",
+        "kind": "query",
+        "input": {
+          "schemaId": "refusals-preview-input"
+        },
+        "output": {
+          "schemaId": "refusals-preview-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "manage-retention"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "refusalsPreview"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "collection_policy"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "transport_refusal"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 500,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "content"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "refusals.purge",
+        "title": "Purger un lot de refus expirés",
+        "kind": "command",
+        "input": {
+          "schemaId": "refusals-purge-input"
+        },
+        "output": {
+          "schemaId": "refusals-purge-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.analytics",
+            "kind": "permission",
+            "id": "manage-retention"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "refusalsPurge"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "collection_policy"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "transport_refusal"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "model",
+              "id": "transport_refusal"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 23,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "content"
+          ]
+        },
+        "public": false
+      },
+      {
         "id": "retention.policy",
         "title": "Politique de rétention",
         "kind": "query",
@@ -4000,6 +5357,205 @@
         }
       },
       {
+        "id": "admin.collection.policy",
+        "method": "GET",
+        "path": "/api/admin/analytics/collection/policy",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "collection.policy"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "collection-policy-input"
+        },
+        "output": {
+          "schemaId": "collection-policy-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.collection.effective",
+        "method": "GET",
+        "path": "/api/admin/analytics/collection/effective",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "collection.effective"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "collection-policy-input"
+        },
+        "output": {
+          "schemaId": "collection-effective-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.collection.effective",
+        "method": "GET",
+        "path": "/api/app/analytics/collection/effective",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "collection.effective"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "collection-policy-input"
+        },
+        "output": {
+          "schemaId": "collection-effective-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.collection.configure",
+        "method": "POST",
+        "path": "/api/admin/analytics/collection/configure",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "collection.configure"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "collection-configure-input"
+        },
+        "output": {
+          "schemaId": "collection-policy-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.refusals.list",
+        "method": "GET",
+        "path": "/api/admin/analytics/refusals/list",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "refusals.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "refusals-list-input"
+        },
+        "output": {
+          "schemaId": "refusals-list-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.refusals.preview",
+        "method": "GET",
+        "path": "/api/admin/analytics/refusals/preview",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "refusals.preview"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "refusals-preview-input"
+        },
+        "output": {
+          "schemaId": "refusals-preview-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.refusals.purge",
+        "method": "POST",
+        "path": "/api/admin/analytics/refusals/purge",
+        "operation": {
+          "moduleId": "creezio.analytics",
+          "kind": "operation",
+          "id": "refusals.purge"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "refusals-purge-input"
+        },
+        "output": {
+          "schemaId": "refusals-purge-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
         "id": "admin.retention.policy",
         "method": "GET",
         "path": "/api/admin/analytics/retention/policy",
@@ -4350,6 +5906,178 @@
           "textFallback": true
         },
         {
+          "id": "collection.policy",
+          "name": "analytics_collection_policy",
+          "operation": {
+            "moduleId": "creezio.analytics",
+            "kind": "operation",
+            "id": "collection.policy"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "collection-policy-input"
+          },
+          "output": {
+            "schemaId": "collection-policy-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "collection.effective",
+          "name": "analytics_collection_effective",
+          "operation": {
+            "moduleId": "creezio.analytics",
+            "kind": "operation",
+            "id": "collection.effective"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "collection-policy-input"
+          },
+          "output": {
+            "schemaId": "collection-effective-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "collection.configure",
+          "name": "analytics_collection_configure",
+          "operation": {
+            "moduleId": "creezio.analytics",
+            "kind": "operation",
+            "id": "collection.configure"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "collection-configure-input"
+          },
+          "output": {
+            "schemaId": "collection-policy-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "refusals.list",
+          "name": "analytics_refusals_list",
+          "operation": {
+            "moduleId": "creezio.analytics",
+            "kind": "operation",
+            "id": "refusals.list"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "refusals-list-input"
+          },
+          "output": {
+            "schemaId": "refusals-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "refusals.preview",
+          "name": "analytics_refusals_preview",
+          "operation": {
+            "moduleId": "creezio.analytics",
+            "kind": "operation",
+            "id": "refusals.preview"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "refusals-preview-input"
+          },
+          "output": {
+            "schemaId": "refusals-preview-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "refusals.purge",
+          "name": "analytics_refusals_purge",
+          "operation": {
+            "moduleId": "creezio.analytics",
+            "kind": "operation",
+            "id": "refusals.purge"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "refusals-purge-input"
+          },
+          "output": {
+            "schemaId": "refusals-purge-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
           "id": "retention.policy",
           "name": "analytics_retention_policy",
           "operation": {
@@ -4584,6 +6312,36 @@
             {
               "moduleId": "creezio.analytics",
               "kind": "operation",
+              "id": "collection.policy"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "collection.effective"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "collection.configure"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "refusals.list"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "refusals.preview"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "refusals.purge"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
               "id": "retention.policy"
             },
             {
@@ -4606,7 +6364,7 @@
             "summary-ui",
             "events-ui"
           ],
-          "integrity": "sha256-66b2ded677acb26929e6be2fadb3c0df24a1f8ea3129bc848499eccf3c891dda"
+          "integrity": "sha256-5e1e0d7fa8b0943e552add613bfeffa955ed5c350afab94e72e9e9f106e88a72"
         }
       ]
     },
@@ -4670,6 +6428,36 @@
               "moduleId": "creezio.analytics",
               "kind": "operation",
               "id": "diagnostics.endpoints"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "collection.policy"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "collection.effective"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "collection.configure"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "refusals.list"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "refusals.preview"
+            },
+            {
+              "moduleId": "creezio.analytics",
+              "kind": "operation",
+              "id": "refusals.purge"
             },
             {
               "moduleId": "creezio.analytics",
@@ -4915,7 +6703,7 @@
     },
     "versionBinding": {
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t22-analytics-retention-v3"
+      "sourceRevision": "t22-analytics-collection-v4"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -5001,6 +6789,7 @@
         "ui/panel-state.ts",
         "ui/export.ts",
         "ui/retention.tsx",
+        "ui/collection.tsx",
         "ui/widgets/runtime.ts",
         "ui/widgets/summary.ts",
         "ui/widgets/summary.html",
@@ -5046,7 +6835,7 @@
     "validationBinding": {
       "moduleId": "creezio.analytics",
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t22-analytics-retention-v3"
+      "sourceRevision": "t22-analytics-collection-v4"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",

@@ -55,14 +55,26 @@ function updatePrepared(value: unknown): value is DeliveryUpdatePrepared {
     && id(value.updateId) && digest(value.planDigest) && summary(value.summary);
 }
 function updateStatus(value: unknown): value is DeliveryUpdateStatus {
-  return exact(value,['kind','updateId','planDigest','phase','summary','finalUrl','registryStatus'])
+  return exact(value,['kind','updateId','planDigest','phase','summary','finalUrl','registryStatus',
+    ...(object(value) && value.diagnostic !== undefined ? ['diagnostic'] : []),
+    ...(object(value) && value.retryEligible !== undefined ? ['retryEligible'] : [])])
     && value.kind === 'update' && id(value.updateId) && digest(value.planDigest)
     && ['prepared','building','built','preflight','schema-applying','schema-ready',
       'publishing','delivery-unknown','delivered'].includes(String(value.phase))
     && (value.summary === null || summary(value.summary))
     && (value.phase !== 'prepared' || summary(value.summary))
     && (value.finalUrl === null || text(value.finalUrl,2048) && /^https:\/\//.test(value.finalUrl))
-    && ['pending','effective','unknown'].includes(String(value.registryStatus));
+    && ['pending','effective','unknown'].includes(String(value.registryStatus))
+    && (value.retryEligible === undefined || typeof value.retryEligible === 'boolean')
+    && (value.diagnostic === undefined || exact(value.diagnostic,['phase','reason','exitCode','apiCodes'])
+      && ['wrangler','post-upload','unknown'].includes(String(value.diagnostic.phase))
+      && ['spawn_error','exit_nonzero','output_limit','timeout','inspection_failed','unavailable']
+        .includes(String(value.diagnostic.reason))
+      && (value.diagnostic.exitCode === null || Number.isInteger(value.diagnostic.exitCode)
+        && (value.diagnostic.exitCode as number) >= 0 && (value.diagnostic.exitCode as number) <= 255)
+      && Array.isArray(value.diagnostic.apiCodes) && value.diagnostic.apiCodes.length <= 4
+      && value.diagnostic.apiCodes.every((code: unknown) => Number.isInteger(code)
+        && (code as number) >= 1000 && (code as number) <= 999999));
 }
 async function json(response: Response): Promise<unknown> {
   if (!/^application\/json(?:;|$)/i.test(response.headers.get('content-type') ?? '')) throw new Error('invalid_response');
@@ -191,6 +203,7 @@ export function createLocalDeliveryTransport({access,fetcher=fetch,pollMs=1000,d
       ?call(`update/status?updateId=${encodeURIComponent(updateId)}`,undefined,updateStatus)
       :Promise.resolve(fail('invalid_input')),
     reconcileUpdate:input=>call('update/reconcile',input,updateStatus),
+    retryUpdate:input=>call('update/retry',input,updateStatus),
     dispose(){disposed=true;unsubscribe();reset();},
   };
   return Object.freeze(transport);

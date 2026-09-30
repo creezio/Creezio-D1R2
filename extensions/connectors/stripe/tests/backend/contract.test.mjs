@@ -46,6 +46,16 @@ test('fixed Stripe outbound contract and admin deny-default permissions',()=>{
   assert.deepEqual(manifest.contracts.connectors,[stripeConnectorDescriptor]);
   assert.ok(manifest.contracts.permissions.every(row=>row.default==='deny'&&
     JSON.stringify(row.audiences)==='["admin"]'&&row.context==='required'));
+  const webhookPermission=manifest.contracts.permissions.find(row=>row.id==='webhook.receive');
+  assert.deepEqual(webhookPermission?.actors,['machine']);
+  assert.deepEqual(webhookPermission.resources.map(row=>row.id),
+    ['connector_config','stripe_event','stripe_checkout']);
+  assert.deepEqual(manifest.contracts.operations.find(row=>row.id==='event.receive')
+    .permissions.map(row=>row.id),['webhook.receive']);
+  assert.deepEqual(manifest.contracts.operations.find(row=>row.id==='event.receive')
+    .actors,['machine','signed-webhook']);
+  assert.ok(manifest.contracts.operations.find(row=>row.id==='config.key.webhook.service.set')
+    .audit.redactFields.includes('serviceToken'));
   assert.equal(manifest.contracts.operations.find(row=>row.id==='sync.page').concurrency.mode,'none');
 });
 test('product and price projection validates the relation and preserves non-simple money',()=>{

@@ -73,7 +73,18 @@ test('built Worker completes native OAuth then real MCP discovery, call and revo
     const wire=new StreamableHTTPClientTransport(new URL(resource),{authProvider:{token:async()=>pair.access_token},
       fetch:send});
     await client.connect(wire);
-    const tools=(await client.listTools()).tools;assert.equal(tools.length,20);
+    const tools=(await client.listTools()).tools;
+    assert.deepEqual(tools.map(tool=>tool.name).sort(),[
+      'access_policy_read','access_permissions_list','access_principals_list','access_sessions_list',
+      'access_audit_list','access_audit_detail','access_policy_apply_delta',
+      'access_principals_set_human_status','access_principals_revoke_sessions','access_sessions_revoke',
+      'access_service_create','access_service_status','access_service_token_revoke',
+      'access_service_token_read','modules_catalog_list','modules_catalog_detail',
+      'modules_plans_preview','modules_plans_accept','modules_plans_confirm_publication',
+      'modules_plans_cancel_pending','modules_plans_read','modules_journal_list',
+      'modules_docs_list','modules_docs_read'].sort());
+    assert.ok(!tools.some(tool=>tool.name==='access_service_token_issue'),
+      'service token issuance remains session-only');
     for (const name of ['modules_plans_confirm_publication','modules_plans_cancel_pending'])
       assert.ok(tools.some(tool=>tool.name===name), `the authorized module lifecycle includes ${name}`);
     assert.ok(tools.every(tool=>tool._meta.securitySchemes[0].scopes.includes(tool.name.startsWith('modules_')?modulePermission:'creezio.access:manage')));
