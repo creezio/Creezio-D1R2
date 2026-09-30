@@ -1,10 +1,20 @@
 import { ACCESS_TABLES, type IdentityDatabase } from '../identity/d1-store.ts';
 import { OAUTH_AUTHORIZATION_FROM, OAUTH_AUTHORIZATION_LIVE } from '../authorization/oauth-guard.ts';
 import type { OAuthAudience } from './protocol.ts';
+import {STORAGE_AUTHORITY_TABLES} from '../storage-authority/models.ts';
 
 type Bind = string | number | null;
 const NOW = "(CAST(unixepoch('now') AS INTEGER) * 1000)";
 const t = Object.fromEntries(Object.entries(ACCESS_TABLES).map(([key, value]) => [key, `"${value}"`])) as Record<keyof typeof ACCESS_TABLES, string>;
+const sourceReceipts=`"${STORAGE_AUTHORITY_TABLES.storage_source_receipts}"`;
+export interface OAuthStorageReceipt {readonly id:string;readonly commandDigest:string;
+  readonly kind:'oauth.token'|'oauth.grant'|'oauth.replay';readonly targetId:string}
+const receiptId=(value:unknown):value is string=>typeof value==='string'
+  &&/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(value);
+function validReceipt(value:OAuthStorageReceipt,kind:OAuthStorageReceipt['kind'],targetId:string){
+  if(!value||!receiptId(value.id)||value.kind!==kind||value.targetId!==targetId
+    ||!/^sha256-[a-f0-9]{64}$/.test(value.commandDigest))throw new OAuthStoreError();
+}
 
 export class OAuthStoreError extends Error {
   constructor() { super('OAuth storage operation failed.'); this.name = 'OAuthStoreError'; }
@@ -37,6 +47,7 @@ export interface OAuthRefreshRow {
   readonly clientId: string; readonly resource: string; readonly expiresAtMs: number;
   readonly consumedAtMs: number | null;
 }
+export interface OAuthRefreshHistory extends OAuthRefreshRow {readonly principalId:string}
 export interface OAuthAccessRow {
   readonly id: string; readonly grantId: string; readonly clientId: string;
   readonly principalId: string; readonly resource: string; readonly audience: OAuthAudience;
@@ -79,6 +90,11 @@ export function createD1OAuthStore(db: IdentityDatabase) {
     AND g.auth_version=p.auth_version AND g.account_version=h.version AND g.credential_version=pc.version
     AND (pc.expires_at_ms IS NULL OR pc.expires_at_ms>${NOW})`;
   const identity = (id: keyof typeof ACCESS_TABLES) => t[id];
+  const receiptWrite=(receipt:OAuthStorageReceipt,grantId:string)=>statement(`INSERT INTO ${sourceReceipts}
+    (id,command_digest,kind,target_id,effect,created_at_ms)
+    SELECT ?,?,?,?,'revoked',${NOW} WHERE EXISTS(SELECT 1 FROM ${t.oauth_grants}
+      WHERE id=? AND revoked_at_ms IS NOT NULL)`,
+    [receipt.id,receipt.commandDigest,receipt.kind,receipt.targetId,grantId]);
   return Object.freeze({
     async pruneEphemeral(): Promise<void> {
       await batch([
@@ -279,6 +295,16 @@ export function createD1OAuthStore(db: IdentityDatabase) {
         clientId:String(row.clientId),resource:String(row.resource),expiresAtMs:Number(row.expiresAtMs),
         consumedAtMs:row.consumedAtMs as number | null}) : null;
     },
+    async refreshHistory(digest:string):Promise<OAuthRefreshHistory|null>{
+      const row=await query(`SELECT r.id,r.grant_id AS grantId,r.family_id AS familyId,
+        g.client_id AS clientId,g.principal_id AS principalId,g.resource,
+        r.expires_at_ms AS expiresAtMs,r.consumed_at_ms AS consumedAtMs
+        FROM ${t.oauth_refresh_tokens} r JOIN ${t.oauth_grants} g ON g.id=r.grant_id
+        WHERE r.secret_hash=? LIMIT 2`,[digest]);
+      return row?Object.freeze({id:String(row.id),grantId:String(row.grantId),familyId:String(row.familyId),
+        clientId:String(row.clientId),principalId:String(row.principalId),resource:String(row.resource),
+        expiresAtMs:Number(row.expiresAtMs),consumedAtMs:row.consumedAtMs as number|null}):null;
+    },
     async rotateRefresh(input: {digest:string;id:string;grantId:string;familyId:string;clientId:string;
       accessId:string;accessDigest:string;accessExpiresAtMs:number;
       refreshId:string;refreshDigest:string;refreshExpiresAtMs:number}): Promise<boolean> {
@@ -314,13 +340,27 @@ export function createD1OAuthStore(db: IdentityDatabase) {
       await batch([statement(`UPDATE ${t.oauth_refresh_tokens} SET revoked_at_ms=${NOW}
         WHERE family_id=? AND revoked_at_ms IS NULL`, [familyId])]);
     },
-    async revokeGrant(grantId: string, principalId: string): Promise<boolean> {
-      const result = await batch([statement(`UPDATE ${t.oauth_grants} SET revoked_at_ms=${NOW}
-        WHERE id=? AND principal_id=? AND revoked_at_ms IS NULL`, [grantId,principalId])]);
-      return result[0].meta.changes === 1;
+    async revokeReplayFamilyAndGrant(familyId:string,grantId:string,principalId:string,
+      receipt:OAuthStorageReceipt):Promise<boolean>{
+      validReceipt(receipt,'oauth.replay',grantId);
+      const result=await batch([
+        statement(`UPDATE ${t.oauth_refresh_tokens} SET revoked_at_ms=${NOW}
+          WHERE family_id=? AND grant_id=? AND revoked_at_ms IS NULL`,[familyId,grantId]),
+        statement(`UPDATE ${t.oauth_grants} SET revoked_at_ms=${NOW}
+          WHERE id=? AND principal_id=? AND EXISTS(SELECT 1 FROM ${t.oauth_refresh_tokens}
+            WHERE family_id=? AND grant_id=?)`,[grantId,principalId,familyId,grantId]),
+        receiptWrite(receipt,grantId),
+      ]);
+      return result[2].meta.changes===1;
     },
-    async revokeByToken(accessDigest: string | null, refreshDigest: string | null,
-      clientId: string): Promise<void> {
+    async revokeGrant(grantId: string, principalId: string,receipt?:OAuthStorageReceipt): Promise<boolean> {
+      if(receipt)validReceipt(receipt,'oauth.grant',grantId);
+      const result = await batch([statement(`UPDATE ${t.oauth_grants} SET revoked_at_ms=${NOW}
+        WHERE id=? AND principal_id=? AND revoked_at_ms IS NULL`, [grantId,principalId]),
+      ...(receipt?[receiptWrite(receipt,grantId)]:[])]);
+      return receipt?result[1].meta.changes===1:result[0].meta.changes===1;
+    },
+    async grantForToken(accessDigest:string|null,refreshDigest:string|null,clientId:string):Promise<string|null>{
       const grantByAccess = accessDigest ? await query(`SELECT g.id FROM ${t.oauth_access_tokens} a
         JOIN ${t.oauth_grants} g ON g.id=a.grant_id WHERE a.secret_hash=? AND g.client_id=? LIMIT 2`,
       [accessDigest,clientId]) : null;
@@ -328,8 +368,17 @@ export function createD1OAuthStore(db: IdentityDatabase) {
         JOIN ${t.oauth_grants} g ON g.id=r.grant_id WHERE r.secret_hash=? AND g.client_id=? LIMIT 2`,
       [refreshDigest,clientId]) : null;
       const grantId = grantByAccess?.id ?? grantByRefresh?.id;
-      if (typeof grantId === 'string') await batch([statement(`UPDATE ${t.oauth_grants}
-        SET revoked_at_ms=${NOW} WHERE id=? AND client_id=? AND revoked_at_ms IS NULL`, [grantId,clientId])]);
+      return typeof grantId==='string'?grantId:null;
+    },
+    async revokeByToken(accessDigest: string | null, refreshDigest: string | null,
+      clientId: string,receipt?:OAuthStorageReceipt): Promise<boolean> {
+      const grantId=await this.grantForToken(accessDigest,refreshDigest,clientId);
+      if(receipt&&grantId)validReceipt(receipt,'oauth.token',grantId);
+      if (grantId){const result=await batch([statement(`UPDATE ${t.oauth_grants}
+        SET revoked_at_ms=${NOW} WHERE id=? AND client_id=? AND revoked_at_ms IS NULL`, [grantId,clientId]),
+        ...(receipt?[receiptWrite(receipt,grantId)]:[])]);
+        return receipt?result[1].meta.changes===1:result[0].meta.changes===1;}
+      return false;
     },
     async access(digest: string): Promise<OAuthAccessRow | null> {
       const row = await query(`SELECT ot.id,ot.grant_id AS grantId,og.client_id AS clientId,

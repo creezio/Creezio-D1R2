@@ -7,6 +7,7 @@ import type { RuntimeNativeAccess } from '../runtime/types.ts';
 import { OAuthProtocolError, oauthAuthorizationServerMetadata, oauthProtectedResourceMetadata,
   type OAuthAudience } from './protocol.ts';
 import { createOAuthService } from './service.ts';
+import type {StorageMutationPort} from '../storage-authority/native-mutation.ts';
 
 const MAX_BODY = 16_384;
 export const OAUTH_HTTP_BODY_DEADLINE_MS = 10_000;
@@ -104,7 +105,8 @@ async function nativeSessionToken(request: Request, rawEnvironment: unknown,
 export async function dispatchOAuthHttp(request: Request, environment: RuntimeEnvironment,
   rawEnvironment: unknown, permissions: readonly PermissionDefinition[], requestId: string,
   path: string, enabledAudiences: RuntimeNativeAccess,
-  permissionTitles?: Readonly<Record<string,string>>): Promise<Response | null> {
+  permissionTitles?: Readonly<Record<string,string>>,
+  storageMutation?:StorageMutationPort): Promise<Response | null> {
   const resource = /^\/\.well-known\/oauth-protected-resource\/mcp\/(admin|app)$/.exec(path);
   const authMetadata = path === '/.well-known/oauth-authorization-server';
   const authorize = path === '/oauth/authorize';
@@ -117,11 +119,14 @@ export async function dispatchOAuthHttp(request: Request, environment: RuntimeEn
   if (!configuration) return error('temporarily_unavailable',503,requestId,token || revoke);
   if (!enabledAudiences || !enabledAudiences.admin && !enabledAudiences.app)
     return error('not_found',404,requestId,token || revoke || register);
+  if(storageMutation&&!environment.storageAuthority?.storageMutation
+    ||environment.storageAuthority?.storageMutation&&(token||revoke)&&!storageMutation)
+    return error('temporarily_unavailable',503,requestId,token||revoke);
   const origin = configuration.origin;
   try {
     checkRequest(request,origin,Boolean(consent));
     const service = createOAuthService(environment.bindings.DB,{issuer:origin,permissions,
-      enabledAudiences,permissionTitles});
+      enabledAudiences,permissionTitles,...(storageMutation?{storageMutation}:{})});
     if (resource || authMetadata) {
       if (request.method !== 'GET') return error('method_not_allowed',405,requestId);
       if (new URL(request.url).search) return error('invalid_request',400,requestId);

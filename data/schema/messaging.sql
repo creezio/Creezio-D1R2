@@ -25,6 +25,7 @@ CREATE TABLE "cz_637265657a696f2e6d6573736167696e67_6472616674" (
   "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
   "owner_id" TEXT NOT NULL CHECK ("owner_id" IS NOT NULL AND (typeof("owner_id") = 'text' AND instr("owner_id", char(0)) = 0 AND length("owner_id") >= 1 AND length("owner_id") <= 128)),
   "revision" INTEGER NOT NULL CHECK ("revision" IS NOT NULL AND (typeof("revision") = 'integer' AND "revision" BETWEEN -9007199254740991 AND 9007199254740991 AND "revision" >= 1 AND "revision" <= 9007199254740991)),
+  "send_intent_id" TEXT CHECK ("send_intent_id" IS NULL OR (typeof("send_intent_id") = 'text' AND instr("send_intent_id", char(0)) = 0 AND length("send_intent_id") >= 1 AND length("send_intent_id") <= 128)),
   "subject" TEXT NOT NULL CHECK ("subject" IS NOT NULL AND (typeof("subject") = 'text' AND instr("subject", char(0)) = 0 AND length("subject") >= 0 AND length("subject") <= 240)),
   "text_body" TEXT NOT NULL CHECK ("text_body" IS NOT NULL AND (typeof("text_body") = 'text' AND instr("text_body", char(0)) = 0 AND length("text_body") >= 0 AND length("text_body") <= 16000)),
   "to_addr" TEXT NOT NULL CHECK ("to_addr" IS NOT NULL AND (typeof("to_addr") = 'text' AND instr("to_addr", char(0)) = 0 AND length("to_addr") >= 0 AND length("to_addr") <= 2048)),
@@ -90,6 +91,27 @@ CREATE TABLE "cz_637265657a696f2e6d6573736167696e67_6d657373616765" (
   "text_body" TEXT NOT NULL CHECK ("text_body" IS NOT NULL AND (typeof("text_body") = 'text' AND instr("text_body", char(0)) = 0 AND length("text_body") >= 0 AND length("text_body") <= 16000)),
   "thread_id" TEXT CHECK ("thread_id" IS NULL OR (typeof("thread_id") = 'text' AND instr("thread_id", char(0)) = 0 AND length("thread_id") >= 1 AND length("thread_id") <= 128)),
   "to_addr" TEXT NOT NULL CHECK ("to_addr" IS NOT NULL AND (typeof("to_addr") = 'text' AND instr("to_addr", char(0)) = 0 AND length("to_addr") >= 0 AND length("to_addr") <= 2048)),
+  PRIMARY KEY ("context_id", "owner_id", "box_id", "id"),
+  FOREIGN KEY ("context_id", "owner_id", "box_id") REFERENCES "cz_637265657a696f2e6d6573736167696e67_626f78" ("context_id", "owner_id", "id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e6d6573736167696e67_73656e645f736e617073686f74" (
+  "bcc_addr" TEXT NOT NULL CHECK ("bcc_addr" IS NOT NULL AND (typeof("bcc_addr") = 'text' AND instr("bcc_addr", char(0)) = 0 AND length("bcc_addr") >= 0 AND length("bcc_addr") <= 2048)),
+  "box_id" TEXT NOT NULL CHECK ("box_id" IS NOT NULL AND (typeof("box_id") = 'text' AND instr("box_id", char(0)) = 0 AND length("box_id") >= 1 AND length("box_id") <= 128)),
+  "cc_addr" TEXT NOT NULL CHECK ("cc_addr" IS NOT NULL AND (typeof("cc_addr") = 'text' AND instr("cc_addr", char(0)) = 0 AND length("cc_addr") >= 0 AND length("cc_addr") <= 2048)),
+  "config_revision" INTEGER NOT NULL CHECK ("config_revision" IS NOT NULL AND (typeof("config_revision") = 'integer' AND "config_revision" BETWEEN -9007199254740991 AND 9007199254740991 AND "config_revision" >= 1 AND "config_revision" <= 9007199254740991)),
+  "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "created_at" TEXT NOT NULL CHECK ("created_at" IS NOT NULL AND (typeof("created_at") = 'text' AND length("created_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "created_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "created_at") = "created_at")),
+  "draft_id" TEXT NOT NULL CHECK ("draft_id" IS NOT NULL AND (typeof("draft_id") = 'text' AND instr("draft_id", char(0)) = 0 AND length("draft_id") >= 1 AND length("draft_id") <= 128)),
+  "draft_revision" INTEGER NOT NULL CHECK ("draft_revision" IS NOT NULL AND (typeof("draft_revision") = 'integer' AND "draft_revision" BETWEEN -9007199254740991 AND 9007199254740991 AND "draft_revision" >= 1 AND "draft_revision" <= 9007199254740991)),
+  "from_addr" TEXT NOT NULL CHECK ("from_addr" IS NOT NULL AND (typeof("from_addr") = 'text' AND instr("from_addr", char(0)) = 0 AND length("from_addr") >= 1 AND length("from_addr") <= 320)),
+  "html_body" TEXT NOT NULL CHECK ("html_body" IS NOT NULL AND (typeof("html_body") = 'text' AND instr("html_body", char(0)) = 0 AND length("html_body") >= 0 AND length("html_body") <= 32000)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
+  "owner_id" TEXT NOT NULL CHECK ("owner_id" IS NOT NULL AND (typeof("owner_id") = 'text' AND instr("owner_id", char(0)) = 0 AND length("owner_id") >= 1 AND length("owner_id") <= 128)),
+  "payload_digest" TEXT NOT NULL CHECK ("payload_digest" IS NOT NULL AND (typeof("payload_digest") = 'text' AND instr("payload_digest", char(0)) = 0 AND length("payload_digest") >= 64 AND length("payload_digest") <= 64)),
+  "subject" TEXT NOT NULL CHECK ("subject" IS NOT NULL AND (typeof("subject") = 'text' AND instr("subject", char(0)) = 0 AND length("subject") >= 0 AND length("subject") <= 240)),
+  "text_body" TEXT NOT NULL CHECK ("text_body" IS NOT NULL AND (typeof("text_body") = 'text' AND instr("text_body", char(0)) = 0 AND length("text_body") >= 0 AND length("text_body") <= 16000)),
+  "to_addr" TEXT NOT NULL CHECK ("to_addr" IS NOT NULL AND (typeof("to_addr") = 'text' AND instr("to_addr", char(0)) = 0 AND length("to_addr") >= 1 AND length("to_addr") <= 2048)),
   PRIMARY KEY ("context_id", "owner_id", "box_id", "id"),
   FOREIGN KEY ("context_id", "owner_id", "box_id") REFERENCES "cz_637265657a696f2e6d6573736167696e67_626f78" ("context_id", "owner_id", "id") ON DELETE RESTRICT
 ) WITHOUT ROWID;

@@ -8,13 +8,15 @@ const id = (value: unknown): value is string => typeof value === 'string' && val
 const schema = (value: unknown): value is Readonly<Record<string, unknown>> => !!value && typeof value === 'object'
   && !Array.isArray(value) && (value as Record<string, unknown>).type === 'object';
 const fail = (): never => { throw new TypeError('Invalid MCP catalog.'); };
+// The measured 18-module connectors profile is 25,763,592 bytes. This is a
+// static inventory bound; request budgets and the 1 MiB widget resource cap stay separate.
+const MAX_STATIC_MCP_CATALOG_BYTES = 32 * 1024 * 1024;
 
 /** Runtime check against the compiled operation registry; a catalog never grants authority. */
 export function createMcpCatalog(catalog: McpCatalog, registry: OperationRegistry) {
   // This static inventory includes compiled widget HTML for each exposed audience.
-  // The static multi-widget inventory can exceed 16 MiB across audiences.
-  // This bound does not change request or individual resource limits.
-  try { catalog = copyJson(catalog, 24 * 1024 * 1024) as unknown as McpCatalog; }
+  // The static multi-widget inventory spans both audiences.
+  try { catalog = copyJson(catalog, MAX_STATIC_MCP_CATALOG_BYTES) as unknown as McpCatalog; }
   catch { fail(); }
   if (!catalog || !Array.isArray(catalog.tools) || !Array.isArray(catalog.resources)
     || catalog.tools.length > 1000 || catalog.resources.length > 1000) fail();

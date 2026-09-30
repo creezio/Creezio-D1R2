@@ -111,8 +111,9 @@ export function createD1MachineStore(db: IdentityDatabase) {
   const roomPrincipal = `(SELECT COUNT(*) FROM (SELECT id FROM ${table.principals}
     LIMIT ${MACHINE_STORE_LIMITS.maximumPrincipals})) < ${MACHINE_STORE_LIMITS.maximumPrincipals}`;
   type Action = 'service-created' | 'service-status-updated' | 'api-token-issued' | 'api-token-rotated' | 'api-token-revoked';
-  function acquire(guard: LifecycleGuard, action: Action, extra: string, values: (string | number)[]) {
-    const auditId = crypto.randomUUID(), nonce = crypto.randomUUID();
+  function acquire(guard: LifecycleGuard, action: Action, extra: string, values: (string | number)[],
+    auditId:string=crypto.randomUUID()) {
+    const nonce = crypto.randomUUID();
     const exists = `EXISTS (SELECT 1 FROM ${table.access_audit} WHERE id = ? AND claim_nonce = ? AND action = ?)`;
     const args = () => [auditId, nonce, action];
     return { auditId, nonce, exists, args, query: statement(`INSERT INTO ${table.access_audit}
@@ -171,13 +172,14 @@ export function createD1MachineStore(db: IdentityDatabase) {
 
   async function setServiceStatus(guardValue: LifecycleGuard, input: {
     readonly principalId: string; readonly expectedAuthVersion: number; readonly status: ServicePrincipal['status'];
-  }): Promise<ServicePrincipal | null> {
+  },auditId?:string): Promise<ServicePrincipal | null> {
     const guard = captureGuard(guardValue);
     if (!identityInputFields(input, ['principalId', 'expectedAuthVersion', 'status']) || !validIdentityId(input.principalId)
       || !positive(input.expectedAuthVersion) || input.expectedAuthVersion >= MAX || !status(input.status)) throw new MachineStoreInputError();
     const { principalId, expectedAuthVersion, status: nextStatus } = input;
     const claim = acquire(guard, 'service-status-updated', `EXISTS (SELECT 1 FROM ${table.principals}
-      WHERE id = ? AND kind = 'service' AND auth_version = ? AND status <> ?)`, [principalId, expectedAuthVersion, nextStatus]);
+      WHERE id = ? AND kind = 'service' AND auth_version = ? AND status <> ?)`,
+      [principalId, expectedAuthVersion, nextStatus],auditId);
     return readServiceResult(await batch([
       claim.query,
       statement(`UPDATE ${table.principals} SET status = ?, auth_version = auth_version + 1, updated_at_ms = ${NOW}
@@ -192,6 +194,13 @@ export function createD1MachineStore(db: IdentityDatabase) {
       statement(`SELECT id, display_name AS displayName, status, auth_version AS authVersion FROM ${table.principals}
         WHERE id = ? AND ${claim.exists}`, [principalId, ...claim.args()]),
     ]));
+  }
+  async function readService(principalId:string):Promise<ServicePrincipal|null>{
+    if(!validIdentityId(principalId))throw new MachineStoreInputError();
+    const rows=await batch([statement(`SELECT id,display_name AS displayName,status,
+      auth_version AS authVersion FROM ${table.principals} WHERE id=? AND kind='service' LIMIT 2`,[principalId])]);
+    if(rows[0].results.length>1)throw new MachineStoreError();
+    return rows[0].results.length?serviceRow(rows[0].results[0]):null;
   }
 
   async function issueToken(guardValue: LifecycleGuard, input: IssueMachineTokenInput): Promise<IssuedMachineCredential | null> {
@@ -230,13 +239,13 @@ export function createD1MachineStore(db: IdentityDatabase) {
 
   async function rotateToken(guardValue: LifecycleGuard, input: {
     readonly credentialId: string; readonly digest: string; readonly ttlMs: number;
-  }): Promise<IssuedMachineCredential | null> {
+  },auditId?:string): Promise<IssuedMachineCredential | null> {
     const guard = captureGuard(guardValue);
     if (!identityInputFields(input, ['credentialId', 'digest', 'ttlMs']) || !validIdentityId(input.credentialId)
       || !digest(input.digest) || !ttl(input.ttlMs)) throw new MachineStoreInputError();
     const { credentialId, digest: tokenDigest, ttlMs } = input;
     const id = crypto.randomUUID(), claim = acquire(guard, 'api-token-rotated',
-      `EXISTS (SELECT 1 ${tokenFrom} WHERE k.id = ? AND ${liveToken})`, [credentialId]);
+      `EXISTS (SELECT 1 ${tokenFrom} WHERE k.id = ? AND ${liveToken})`, [credentialId],auditId);
     // The old token is revoked before creating its successor, so a rotation at
     // the live-token quota does not increase the number of active credentials.
     return issued(await batch([
@@ -257,11 +266,11 @@ export function createD1MachineStore(db: IdentityDatabase) {
     ]));
   }
 
-  async function revokeToken(guardValue: LifecycleGuard, credentialId: string): Promise<boolean> {
+  async function revokeToken(guardValue: LifecycleGuard, credentialId: string,auditId?:string): Promise<boolean> {
     const guard = captureGuard(guardValue);
     if (!validIdentityId(credentialId)) throw new MachineStoreInputError();
     const claim = acquire(guard, 'api-token-revoked', `EXISTS (SELECT 1 FROM ${table.api_credentials}
-      WHERE id = ? AND revoked_at_ms IS NULL)`, [credentialId]);
+      WHERE id = ? AND revoked_at_ms IS NULL)`, [credentialId],auditId);
     const results = await batch([
       claim.query,
       statement(`UPDATE ${table.api_credentials} SET revoked_at_ms = ${NOW}, revocation_nonce = ?
@@ -275,5 +284,5 @@ export function createD1MachineStore(db: IdentityDatabase) {
     return success;
   }
 
-  return Object.freeze({ createService, setServiceStatus, issueToken, readToken, rotateToken, revokeToken });
+  return Object.freeze({ createService, setServiceStatus, readService, issueToken, readToken, rotateToken, revokeToken });
 }

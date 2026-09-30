@@ -18,6 +18,7 @@ const sameSource = (left, right) => ['planDigest', 'modelDigest', 'sqlDigest',
 export async function runLocalSchema({mode, config = loadLocalConfiguration(), io = createTerminalIO(),
   adapter = openLocalAccessDatabase, engine, lock = acquireLocalRuntimeLock} = {}) {
   if (!['inspect', 'apply'].includes(mode)) return refusal('invalid_mode');
+  if (config?.storageInstallationId) return refusal('storage_authority_cutover_unavailable');
   if (mode === 'apply' && io.interactive === false) return refusal('terminal_required');
   let lease, connection, result = refusal('schema_failed'), writeStarted = false, closureUnknown = false;
   try {

@@ -19,7 +19,7 @@
     "compose": "node scripts/build/compose-runtime.mjs",
     "data:access": "node scripts/data/prepare-access.mjs --write",
     "data:runtime": "node scripts/data/prepare-runtime.mjs --write",
-    "check:data": "node scripts/data/prepare-access.mjs && node scripts/data/prepare-runtime.mjs && node scripts/data/prepare-modules-settings.mjs && node scripts/data/prepare-native-module.mjs conversations && node scripts/data/prepare-native-module.mjs openai && node scripts/data/prepare-native-module.mjs messaging && node scripts/data/prepare-native-module.mjs crm && node scripts/data/prepare-native-module.mjs support && node scripts/data/prepare-native-module.mjs pages-navigation && node scripts/data/prepare-native-module.mjs analytics && node scripts/data/prepare-native-module.mjs catalog --family=common && node scripts/data/prepare-native-module.mjs n8n --family=connectors && node scripts/data/prepare-native-module.mjs stripe --family=connectors && node scripts/data/prepare-native-module.mjs meili --family=connectors",
+    "check:data": "node scripts/data/prepare-access.mjs && node scripts/data/prepare-runtime.mjs && node scripts/data/prepare-modules-settings.mjs && node scripts/data/prepare-native-module.mjs conversations && node scripts/data/prepare-native-module.mjs openai && node scripts/data/prepare-native-module.mjs messaging && node scripts/data/prepare-native-module.mjs crm && node scripts/data/prepare-native-module.mjs support && node scripts/data/prepare-native-module.mjs pages-navigation && node scripts/data/prepare-native-module.mjs analytics && node scripts/data/prepare-native-module.mjs catalog --family=common && node scripts/data/prepare-native-module.mjs n8n --family=connectors && node scripts/data/prepare-native-module.mjs stripe --family=connectors && node scripts/data/prepare-native-module.mjs meili --family=connectors && node scripts/data/prepare-native-module.mjs granola --family=connectors && node scripts/data/prepare-native-module.mjs resend --family=connectors && node scripts/data/prepare-native-module.mjs hermes --family=connectors",
     "dev": "node scripts/local/serve.mjs dev",
     "build": "node scripts/run-framework.mjs build",
     "build:sites": "node scripts/sites/build.mjs",
@@ -68,7 +68,13 @@
     "data:stripe": "node scripts/data/prepare-native-module.mjs stripe --family=connectors --write",
     "test:stripe": "node extensions/connectors/stripe/gate.mjs && node --test tests/stripe/*.test.mjs tests/connectors/*.test.mjs",
     "data:meili": "node scripts/data/prepare-native-module.mjs meili --family=connectors --write",
-    "test:meili": "node extensions/connectors/meili/gate.mjs && node --test tests/meili/*.test.mjs tests/connectors/*.test.mjs"
+    "test:meili": "node extensions/connectors/meili/gate.mjs && node --test tests/meili/*.test.mjs tests/connectors/*.test.mjs",
+    "data:granola": "node scripts/data/prepare-native-module.mjs granola --family=connectors --write",
+    "data:resend": "node scripts/data/prepare-native-module.mjs resend --family=connectors --write",
+    "data:hermes": "node scripts/data/prepare-native-module.mjs hermes --family=connectors --write",
+    "test:granola": "node extensions/connectors/granola/gate.mjs && node --test tests/granola/*.test.mjs",
+    "test:resend": "node extensions/connectors/resend/gate.mjs && node --test tests/connectors/resend-integration.test.mjs",
+    "test:hermes": "node extensions/connectors/hermes/gate.mjs && node --test tests/connectors/hermes-integration.test.mjs"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",

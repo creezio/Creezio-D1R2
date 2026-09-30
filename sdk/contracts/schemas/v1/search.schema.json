@@ -71,6 +71,18 @@
       "projectionVersion": {
         "$ref": "urn:creezio:contracts:v1:common#/$defs/version"
       },
+      "projection": {
+        "type":"object",
+        "properties": {
+          "orderIndexId":{"$ref":"urn:creezio:contracts:v1:common#/$defs/id"},
+          "idField":{"$ref":"urn:creezio:contracts:v1:common#/$defs/id"},
+          "revisionField":{"$ref":"urn:creezio:contracts:v1:common#/$defs/id"},
+          "visibilityField":{"$ref":"urn:creezio:contracts:v1:common#/$defs/id"},
+          "visibleValue":{"type":"string","minLength":1,"maxLength":128}
+        },
+        "required":["orderIndexId","idField","revisionField","visibilityField","visibleValue"],
+        "additionalProperties":false
+      },
       "filterBeforeCount": {
         "const": true
       },

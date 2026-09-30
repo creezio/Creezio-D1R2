@@ -49,3 +49,15 @@ test('version 2 target declares distinct active bindings and a revoked route wit
   assert.throws(()=>validateCloudflareTarget({...extended,resources:[{...extended.resources[0],
     bucketName:{toString:()=>extended.resources[0].bucketName}},extended.resources[1]]}));
 });
+
+test('version 3 target carries a stable physical installation UUID into the route manifest',()=>{
+  const storageInstallationId='aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+  const extended={...target,schemaVersion:3,storageInstallationId,resources:[
+    {contextId:'tenant-a',slot:1,status:'active',databaseName:'tenant-a-db',
+      databaseId:'22222222-2222-4222-8222-222222222222',bucketName:'tenant-a-files'}]};
+  const worker=cloudflareWorkerConfiguration(extended);
+  assert.equal(JSON.parse(worker.vars.CREEZIO_STORAGE_ROUTES).storageInstallationId,storageInstallationId);
+  assert.equal(JSON.parse(worker.vars.CREEZIO_STORAGE_ROUTES).schemaVersion,2);
+  assertCloudflareBuiltConfiguration(worker,extended);
+  assert.throws(()=>validateCloudflareTarget({...extended,storageInstallationId:'foreign'}));
+});

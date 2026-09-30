@@ -110,7 +110,12 @@
       },
       "enabled": true,
       "configuration": [],
-      "integrations": []
+      "integrations": [
+        {
+          "moduleId": "creezio.resend",
+          "enabled": false
+        }
+      ]
     },
     {
       "moduleId": "creezio.crm",

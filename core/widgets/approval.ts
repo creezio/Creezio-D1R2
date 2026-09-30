@@ -3,6 +3,7 @@ import {copyJson,quote,validId} from '../data/input.ts';
 import type {DataCredential,DataLease,JsonValue,PermissionDefinition,RuntimeDataCatalog} from '../data/types.ts';
 import type {IdentityDatabase} from '../identity/d1-store.ts';
 import {createD1IdentityStore} from '../identity/d1-store.ts';
+import type {StorageRouteIdentity} from '../storage-authority/target.ts';
 import {createD1OAuthStore} from '../oauth/store.ts';
 import {createNativeAuthorizationResolver} from '../authorization/resolver.ts';
 import {authorize as authorizeDecision} from '../authorization/authorize.ts';
@@ -79,10 +80,13 @@ function approvalRow(value:Row|null):Row {
 
 /** Approval state is host technical data. No widget, module handler or MCP tool obtains SQL. */
 export function createWidgetApprovalService(options:{db:IdentityDatabase;catalog:RuntimeDataCatalog;
-  permissions:readonly PermissionDefinition[];registry:OperationRegistry}) {
-  const data=createDataAccess(options.db,{catalog:options.catalog,permissions:options.permissions});
-  const transactions=createDataTransactionExecutor(data,options.db),identities=createD1IdentityStore(options.db),
-    oauth=createD1OAuthStore(options.db),humanResolver=createNativeAuthorizationResolver(options.db,
+  permissions:readonly PermissionDefinition[];registry:OperationRegistry;
+  authorityDb?:IdentityDatabase;storageRoute?:StorageRouteIdentity}) {
+  const data=createDataAccess(options.db,{catalog:options.catalog,permissions:options.permissions,
+    authorityDb:options.authorityDb,storageRoute:options.storageRoute});
+  const identityDb=options.authorityDb??options.db;
+  const transactions=createDataTransactionExecutor(data,options.db),identities=createD1IdentityStore(identityDb),
+    oauth=createD1OAuthStore(identityDb),humanResolver=createNativeAuthorizationResolver(identityDb,
       {permissions:options.permissions});
   async function binding(credential:DataCredential,identity:Scope){
     const secret=await credentialDigest(credential);

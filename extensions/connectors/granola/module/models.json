@@ -1,0 +1,958 @@
+[
+  {
+    "id": "connector_config",
+    "title": "Connexion Granola",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "origin",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 8,
+          "maxLength": 512
+        }
+      },
+      {
+        "id": "key_ref",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "secret_version",
+        "type": "integer",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "connection_id",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "webhook_key_ref",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "webhook_secret_version",
+        "type": "integer",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "webhook_previous_key_ref",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "webhook_previous_secret_version",
+        "type": "integer",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "webhook_service_token_ref",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "webhook_service_token_version",
+        "type": "integer",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "enabled",
+        "type": "boolean",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "updated_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.granola",
+        "kind": "permission",
+        "id": "manage"
+      },
+      {
+        "moduleId": "creezio.granola",
+        "kind": "permission",
+        "id": "read"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "connector_secret",
+    "title": "Clé Granola scellée",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "binding_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "ciphertext",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 32768
+        }
+      },
+      {
+        "id": "key_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "version",
+        "type": "integer",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "state",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "active",
+            "revoked"
+          ]
+        }
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.granola",
+        "kind": "permission",
+        "id": "manage"
+      },
+      {
+        "moduleId": "creezio.granola",
+        "kind": "permission",
+        "id": "read"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "sync_state",
+    "title": "Checkpoint de synchronisation Granola",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "notes",
+            "folders"
+          ]
+        }
+      },
+      {
+        "id": "run_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "connection_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "cursor",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 512
+        }
+      },
+      {
+        "id": "status",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "partial",
+            "pages_exhausted"
+          ]
+        }
+      },
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "updated_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.granola",
+        "kind": "permission",
+        "id": "manage"
+      },
+      {
+        "moduleId": "creezio.granola",
+        "kind": "permission",
+        "id": "read"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "note",
+    "title": "Note Granola projetée",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "connection_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "title",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 0,
+          "maxLength": 1000
+        }
+      },
+      {
+        "id": "owner",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 0,
+          "maxLength": 256
+        }
+      },
+      {
+        "id": "note_created_at",
+        "type": "date-time",
+        "nullable": true,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "note_updated_at",
+        "type": "date-time",
+        "nullable": true,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "folder_id",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 64
+        }
+      },
+      {
+        "id": "summary_text",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 0,
+          "maxLength": 16000
+        }
+      },
+      {
+        "id": "web_url",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 0,
+          "maxLength": 2048
+        }
+      },
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "synced_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [
+      {
+        "id": "by-connection",
+        "fields": [
+          "context_id",
+          "connection_id",
+          "id"
+        ],
+        "unique": false
+      }
+    ],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.granola",
+        "kind": "permission",
+        "id": "manage"
+      },
+      {
+        "moduleId": "creezio.granola",
+        "kind": "permission",
+        "id": "read"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "folder",
+    "title": "Dossier Granola projeté",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "connection_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "name",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 0,
+          "maxLength": 500
+        }
+      },
+      {
+        "id": "parent_folder_id",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 64
+        }
+      },
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "synced_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [
+      {
+        "id": "by-connection",
+        "fields": [
+          "context_id",
+          "connection_id",
+          "id"
+        ],
+        "unique": false
+      }
+    ],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.granola",
+        "kind": "permission",
+        "id": "manage"
+      },
+      {
+        "moduleId": "creezio.granola",
+        "kind": "permission",
+        "id": "read"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "transcript_segment",
+    "title": "Segment Granola projeté",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "connection_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "note_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 64
+        }
+      },
+      {
+        "id": "text",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 0,
+          "maxLength": 8192
+        }
+      },
+      {
+        "id": "speaker_name",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 0,
+          "maxLength": 256
+        }
+      },
+      {
+        "id": "start_time",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "end_time",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "synced_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [
+      {
+        "id": "by-note",
+        "fields": [
+          "context_id",
+          "connection_id",
+          "note_id",
+          "id"
+        ],
+        "unique": false
+      }
+    ],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.granola",
+        "kind": "permission",
+        "id": "manage"
+      },
+      {
+        "moduleId": "creezio.granola",
+        "kind": "permission",
+        "id": "read"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "webhook_event",
+    "title": "Réception Granola signée",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "connection_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "event_type",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "note.generated",
+            "note.edited",
+            "note.access_granted"
+          ]
+        }
+      },
+      {
+        "id": "note_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 64
+        }
+      },
+      {
+        "id": "occurred_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "body_digest",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "received_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [
+      {
+        "id": "by-connection",
+        "fields": [
+          "context_id",
+          "connection_id",
+          "id"
+        ],
+        "unique": false
+      }
+    ],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.granola",
+        "kind": "permission",
+        "id": "manage"
+      },
+      {
+        "moduleId": "creezio.granola",
+        "kind": "permission",
+        "id": "read"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  }
+]

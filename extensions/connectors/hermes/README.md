@@ -1,0 +1,11 @@
+# Hermes externe pour Creezio
+
+Ce module connecte Creezio à un serveur Hermes déjà exploité par son administrateur. Creezio ne lance aucun processus Hermes. L’administrateur configure une origine HTTPS explicite et une clé scellée par le coffre de l’hôte. Les handlers ne reçoivent ni la clé ni un `fetch` libre.
+
+Les vues workspace admin et app reprennent les cartes de suivi de l’assistant original ; la vue app masque la configuration. La vue admin affiche aussi les capacités annoncées par `/v1/capabilities` et les modèles légers de `/v1/models`. Le droit `hermes.manage` administre l’origine et la clé ; `hermes.use` autorise les intentions et runs du principal et de l’audience. `hermes.connect` ne donne que read/execute sur la connexion, sans droit d’écriture de configuration. Une rotation ou révocation incrémente un stamp privé de génération ; les anciens runs ne sont plus interrogeables avec la nouvelle connexion.
+
+Les lectures distantes déclarées sont les GET officiels `/v1/capabilities`, `/v1/models`, `/api/model/options` et `/v1/runs/{run_id}`. Les commandes déclarées sont POST `/v1/runs` et `/v1/runs/{run_id}/stop`. Elles passent par le port connecteur et sont bornées. Les réponses sont projetées sans clés, contenu interne du fournisseur ou métadonnées non demandées. Le modèle `/v1/models` n’est pas le catalogue complet des fournisseurs Hermes ; `/api/model/options` est seulement déclaré pour une future vue détaillée.
+
+La création de run prépare une intention D1 liée au principal, à l’audience et à la génération. Une capture GET des capacités, limitée à cinq minutes, précède la soumission explicite. Le POST utilise la clé d’idempotence du journal d’opérations et fige la demande ; une issue inconnue reste inconnue, sans second POST. La préparation expire après quinze minutes, avant l’expiration de la preuve locale d’idempotence. Une relecture peut enregistrer un résultat borné dans D1. L’arrêt explicite enregistre `stopping`, jamais un état terminal présumé. Les widgets et le POST d’approbation restent différés faute de fixture exacte de l’instance. Le lien Work T17 n’est pas inclus. Ni les tests locaux ni un paquet ne prouvent une recette avec un fournisseur réel.
+
+Référence de protocole : [API Server Hermes](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/api-server.md).

@@ -21,16 +21,21 @@ function harness(initial=row,remote={kind:'ok',status:200,body:{results:[],limit
         return {plan:{kind:'secret-plan'},version:2};}},
     connector:{async request(args){calls.push({request:args});return typeof remote==='function'?remote(args):remote;}}}};
 }
-test('descriptor exposes two fixed Bearer GETs with no document search or index write',()=>{
+test('descriptor fixes each Meili read and bounded task-producing write',()=>{
   assert.deepEqual(manifest.contracts.models.map(model=>model.primaryKey),
-    [['context_id','id'],['context_id','id']]);
+    Array.from({length:4},()=>['context_id','id']));
   assert.deepEqual(manifest.contracts.connectors,[meiliConnectorDescriptor]);
   assert.deepEqual(meiliConnectorDescriptor.auth,{kind:'bearer'});
-  assert.deepEqual(meiliConnectorDescriptor.resources.map(({id,method,path,params,query})=>
-    ({id,method,path,params,query})),[{id:'indexes',method:'GET',path:'/indexes',params:[],
-      query:{fixed:[{name:'limit',value:'1'}]}},
-    {id:'index-list',method:'GET',path:'/indexes',params:['cursor','limit'],
-      query:{cursor:'offset',limit:'limit'}}]);
+  assert.deepEqual(meiliConnectorDescriptor.resources.map(({id,method,path})=>[id,method,path]),[
+    ['indexes','GET','/indexes'],['index-list','GET','/indexes'],
+    ['document-upsert','POST','/indexes/{id}/documents'],
+    ['document-delete','POST','/indexes/{id}/documents/delete-batch'],
+    ['task','GET','/tasks/{id}'],['search','GET','/indexes/{id}/search']]);
+  for(const resource of meiliConnectorDescriptor.resources.filter(item=>item.method==='POST')){
+    assert.deepEqual(resource.successStatuses,[202]);
+    assert.equal(resource.body.encoding,'json-root');
+    assert.equal(resource.body.fields.length,1);
+  }
   assert.deepEqual(manifest.contracts.search,[]);
 });
 test('index listing projects only bounded metadata, paginates and rejects rotation during GET',async()=>{

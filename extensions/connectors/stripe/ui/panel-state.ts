@@ -2,12 +2,12 @@ import type {PendingCommand} from '@creezio/sdk/operations/command-journal';
 
 type AccessSnapshot={readonly phase:'loading'|'anonymous'|'authenticated'|'unavailable';
   readonly pending:null|'login'|'logout';readonly session:{readonly id:string}|null};
-export type StripeTab='overview'|'customers'|'subscriptions'|'invoices'|'products'|'prices'|'settings';
+export type StripeTab='overview'|'customers'|'subscriptions'|'invoices'|'products'|'prices'|'checkout'|'settings';
 export type StripeScope={sessionId:string;audience:'admin'|'app';contextId:string;panelId:string};
 export type StripePanel={sessionId:string;audience:'admin';contextId:string;tab:StripeTab;
   pending?:PendingCommand};
 const tab=(value:unknown):value is StripeTab=>
-  ['overview','customers','subscriptions','invoices','products','prices','settings'].includes(String(value));
+  ['overview','customers','subscriptions','invoices','products','prices','checkout','settings'].includes(String(value));
 export function retainedSessionId(previous:string,access:AccessSnapshot):string{
   if(access.phase==='anonymous')return '';
   if(access.phase==='authenticated'&&!access.pending)return access.session?.id??'';

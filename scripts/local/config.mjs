@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync, lstatSync } from 'node:fs';
 import {resourceBindingNames,validateStorageRoutes} from '../../adapters/storage/resources.ts';
+import {loadStorageInstallationIdentity} from './storage-installation.mjs';
 
 export const LOCAL_REPOSITORY_ROOT = path.resolve(fileURLToPath(new URL('../../', import.meta.url)));
 export const LOCAL_BINDINGS = Object.freeze({ database: 'DB', bucket: 'BUCKET',
@@ -31,7 +32,7 @@ function localResources(value){
 
 /** Local tools have one target. There is no remote/account/database override. */
 export function loadLocalConfiguration({ root = LOCAL_REPOSITORY_ROOT,
-  storageResources,
+  storageResources, storageAuthority = false,
   origin = process.env.CREEZIO_APP_ORIGIN ?? 'http://127.0.0.1:5173',
   sandboxOrigin = process.env.CREEZIO_WIDGET_SANDBOX_ORIGIN ?? 'http://127.0.0.1:5175',
   operatorOrigin = process.env.CREEZIO_LOCAL_DELIVERY_ORIGIN ?? 'http://127.0.0.1:5176',
@@ -64,12 +65,16 @@ export function loadLocalConfiguration({ root = LOCAL_REPOSITORY_ROOT,
   const hosting = JSON.parse(readFileSync(hostingPath, 'utf8'));
   if (!hosting || hosting.d1 !== LOCAL_BINDINGS.database || hosting.r2 !== LOCAL_BINDINGS.bucket) throw new Error('Local bindings differ from the hosting contract.');
   const resources=localResources(storageResources);
+  if(storageAuthority!==false&&storageAuthority!==true||storageAuthority&&resources.length===0)
+    throw new Error('Invalid local storage authority configuration.');
+  const storageInstallationId=storageAuthority?loadStorageInstallationIdentity(canonicalRoot):null;
   return Object.freeze({ root: canonicalRoot, origin, host: '127.0.0.1', port,
     operatorOrigin, operatorPort: Number(operatorUrl.port),
     sandboxOrigin, sandboxHost: sandboxBindHost, sandboxPort: Number(sandboxUrl.port),
     statePath, persistenceRoot: path.join(statePath, 'v3'), d1Path: path.join(statePath, 'v3', 'd1'),
     lockPath: path.join(canonicalRoot, '.wrangler', 'creezio-local.lock'),
-    bindings: LOCAL_BINDINGS, storageResources:resources, compatibilityDate: LOCAL_COMPATIBILITY_DATE });
+    bindings: LOCAL_BINDINGS, storageResources:resources, storageInstallationId,
+    compatibilityDate: LOCAL_COMPATIBILITY_DATE });
 }
 
 export function localWorkerConfiguration(config) {
@@ -80,7 +85,8 @@ export function localWorkerConfiguration(config) {
     vars: { CREEZIO_RUNTIME_PROFILE: 'local', CREEZIO_APP_ORIGIN: config.origin,
       CREEZIO_LOCAL_DELIVERY_ORIGIN: config.operatorOrigin,
       CREEZIO_WIDGET_SANDBOX_ORIGIN: config.sandboxOrigin,
-      ...(resources.length?{CREEZIO_STORAGE_ROUTES:JSON.stringify({schemaVersion:1,
+      ...(resources.length?{CREEZIO_STORAGE_ROUTES:JSON.stringify({schemaVersion:config.storageInstallationId?2:1,
+        ...(config.storageInstallationId?{storageInstallationId:config.storageInstallationId}:{}),
         routes:resources.map(({contextId,slot,status})=>({contextId,slot,status}))})}:{}) },
     d1_databases: [{ binding: config.bindings.database, database_name: config.bindings.databaseName, database_id: config.bindings.databaseId },
       ...active.map(item=>({binding:resourceBindingNames(item.slot).database,

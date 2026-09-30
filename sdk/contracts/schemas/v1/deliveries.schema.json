@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:creezio:contracts:v1:deliveries",
+  "title": "Creezio durable connector deliveries",
+  "description": "A module-owned outbox projection bound to one selected provider contract and connector resource. No scheduler or credential is declared here.",
+  "type": "array",
+  "maxItems": 16,
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {"$ref": "urn:creezio:contracts:v1:common#/$defs/id"},
+      "trigger": {"const":"on-invoke"},
+      "intentIdSource": {"const":"execution-id"},
+      "command": {"$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"},
+      "prepare": {"$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"},
+      "prepareInput": {
+        "type": "object", "minProperties": 1, "maxProperties": 16,
+        "propertyNames": {"pattern":"^[A-Za-z][A-Za-z0-9_]{0,63}$"},
+        "additionalProperties": {"type":"string","pattern":"^(?:\\$intentId|[A-Za-z][A-Za-z0-9_]{0,63})$"}
+      },
+      "matchFields": {
+        "type": "array", "maxItems": 16, "uniqueItems": true,
+        "items": {"type":"string","pattern":"^[A-Za-z][A-Za-z0-9_]{0,63}$"}
+      },
+      "envelopeField": {"type":"string","pattern":"^[A-Za-z][A-Za-z0-9_]{0,63}$"},
+      "provider": {
+        "type": "object",
+        "properties": {
+          "publicContract": {"$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"},
+          "readiness": {"$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"},
+          "connectorId": {"$ref": "urn:creezio:contracts:v1:common#/$defs/id"},
+          "resourceId": {"$ref": "urn:creezio:contracts:v1:common#/$defs/id"},
+          "configRevisionField": {"type":"string","pattern":"^[A-Za-z][A-Za-z0-9_]{0,63}$"}
+        },
+        "required": ["publicContract", "readiness", "connectorId", "resourceId", "configRevisionField"],
+        "additionalProperties": false
+      },
+      "projector": {"$ref": "urn:creezio:contracts:v1:common#/$defs/codeRef"},
+      "projectorInput": {
+        "type": "object", "minProperties": 2, "maxProperties": 16,
+        "propertyNames": {"pattern":"^[A-Za-z][A-Za-z0-9_]{0,63}$"},
+        "additionalProperties": {"type":"string","pattern":"^(?:\\$intentId|\\$receipt|[A-Za-z][A-Za-z0-9_]{0,63})$"}
+      },
+      "acceptance": {
+        "type": "object",
+        "properties": {
+          "responseIdField": {"type":"string","pattern":"^[A-Za-z][A-Za-z0-9_]{0,63}$"},
+          "receiptIdField": {"type":"string","pattern":"^[A-Za-z][A-Za-z0-9_]{0,63}$"}
+        },
+        "required": ["responseIdField", "receiptIdField"],
+        "additionalProperties": false
+      },
+      "models": {
+        "type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true,
+        "items": {"$ref": "urn:creezio:contracts:v1:common#/$defs/contractRef"}
+      },
+      "receipt": {"$ref": "urn:creezio:contracts:v1:common#/$defs/schemaRef"},
+      "requiresModules": {
+        "type": "array", "maxItems": 16, "uniqueItems": true,
+        "items": {"$ref": "urn:creezio:contracts:v1:common#/$defs/id"}
+      }
+    },
+    "required": ["id", "trigger", "intentIdSource", "command", "prepare", "prepareInput", "matchFields", "envelopeField",
+      "provider", "projector", "projectorInput", "acceptance", "models", "receipt"],
+    "additionalProperties": false
+  }
+}

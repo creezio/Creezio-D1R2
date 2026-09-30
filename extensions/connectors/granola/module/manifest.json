@@ -1,0 +1,7082 @@
+{
+  "schemaVersion": "1.0.0",
+  "identity": {
+    "id": "creezio.granola",
+    "title": "Granola : notes et transcriptions",
+    "publisher": "creezio",
+    "origin": "https://github.com/creezio/Creezio-D1R2",
+    "version": "0.1.0",
+    "source": {
+      "kind": "snapshot",
+      "revision": "t29-granola-notes-v1",
+      "integrity": "sha256-e384781e5f469d90e3664f354ae8d300a85c6cc46248cfde6179e713a4e2103b"
+    },
+    "license": {
+      "expression": "NOASSERTION",
+      "file": "LICENSE"
+    }
+  },
+  "compatibility": {
+    "core": "^0.0.0",
+    "sdk": "^1.6.0",
+    "requiredCapabilities": [
+      "runtime.worker",
+      "data.d1.shared"
+    ],
+    "optionalCapabilities": []
+  },
+  "entrypoints": {
+    "server": {
+      "path": "module/entry.server.ts",
+      "export": "granola"
+    },
+    "ui": {
+      "path": "ui/index.tsx",
+      "export": "GranolaNotesView"
+    },
+    "plugin": {
+      "manifest": "plugin/plugin.json",
+      "mcp": "plugin/mcp.json",
+      "contributions": {
+        "path": "plugin/contributions.ts",
+        "export": "contributions"
+      }
+    }
+  },
+  "dependencies": [
+    {
+      "moduleId": "creezio.access",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.0.0",
+      "optional": false,
+      "contracts": [],
+      "whenAbsent": "block",
+      "whenIncompatible": "block",
+      "autoInstall": false
+    }
+  ],
+  "contracts": {
+    "schemas": [
+      {
+        "id": "empty-input",
+        "schema": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "config-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "config": {
+              "type": "object",
+              "properties": {
+                "origin": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "hasKey": {
+                  "type": "boolean"
+                },
+                "hasWebhookSecret": {
+                  "type": "boolean"
+                },
+                "hasWebhookService": {
+                  "type": "boolean"
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "missing",
+                    "configured",
+                    "unverified"
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "origin",
+                "enabled",
+                "hasKey",
+                "hasWebhookSecret",
+                "hasWebhookService",
+                "state",
+                "revision"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "config"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "config-set-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "enabled",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "config-key-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "apiKey": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 4096
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "apiKey",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "config-revoke-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "webhook-secret-set-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "webhookSecret": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 512
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "webhookSecret",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "webhook-service-set-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "serviceToken": {
+              "type": "string",
+              "minLength": 32,
+              "maxLength": 256
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "serviceToken",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "webhook-event-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "eventId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "bodyDigest": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64
+            },
+            "eventType": {
+              "type": "string",
+              "enum": [
+                "note.generated",
+                "note.edited",
+                "note.access_granted"
+              ]
+            },
+            "noteId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "occurredAt": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            }
+          },
+          "required": [
+            "requestKey",
+            "eventId",
+            "bodyDigest",
+            "eventType",
+            "noteId",
+            "occurredAt"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "webhook-event-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "eventId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "recorded": {
+              "const": true
+            }
+          },
+          "required": [
+            "eventId",
+            "recorded"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "check-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "reachable": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "reachable"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "states-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "states": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "collection": {
+                    "type": "string",
+                    "enum": [
+                      "notes",
+                      "folders"
+                    ]
+                  },
+                  "runId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "cursor": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 512
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "partial",
+                      "pages_exhausted"
+                    ]
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "updatedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 40
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "collection",
+                  "runId",
+                  "cursor",
+                  "status",
+                  "revision",
+                  "updatedAt"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "states"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "state-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "object",
+              "properties": {
+                "collection": {
+                  "type": "string",
+                  "enum": [
+                    "notes",
+                    "folders"
+                  ]
+                },
+                "runId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "cursor": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 512
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "partial",
+                    "pages_exhausted"
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "updatedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "collection",
+                "runId",
+                "cursor",
+                "status",
+                "revision",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "sync-start-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "collection": {
+              "type": "string",
+              "enum": [
+                "notes",
+                "folders"
+              ]
+            },
+            "runId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "collection",
+            "runId",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "sync-page-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "collection": {
+              "type": "string",
+              "enum": [
+                "notes",
+                "folders"
+              ]
+            },
+            "runId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "cursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8
+            },
+            "expectedRevision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "collection",
+            "runId",
+            "cursor",
+            "limit",
+            "expectedRevision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "sync-page-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "object",
+              "properties": {
+                "collection": {
+                  "type": "string",
+                  "enum": [
+                    "notes",
+                    "folders"
+                  ]
+                },
+                "runId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "cursor": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 512
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "partial",
+                    "pages_exhausted"
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "updatedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "collection",
+                "runId",
+                "cursor",
+                "status",
+                "revision",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            },
+            "processed": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 8
+            }
+          },
+          "required": [
+            "state",
+            "processed"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 25
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "note-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "title": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 1000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "owner": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 256
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "note_created_at": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 40
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "note_updated_at": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 40
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "folder_id": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "summary_text": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 16000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "web_url": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 2048
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "synced_at": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "owner",
+                  "note_created_at",
+                  "note_updated_at",
+                  "synced_at"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 25
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "folder-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 0,
+                    "maxLength": 500
+                  },
+                  "parent_folder_id": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "synced_at": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "parent_folder_id",
+                  "synced_at"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 25
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "note-id-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "note-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "note": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "title": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 1000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "owner": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 256
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "note_created_at": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "note_updated_at": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "folder_id": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "summary_text": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 16000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "web_url": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 0,
+                      "maxLength": 2048
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "synced_at": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "owner",
+                "note_created_at",
+                "note_updated_at",
+                "synced_at"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "note"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "note-refresh-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "note": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    "title": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 0,
+                          "maxLength": 1000
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "owner": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 0,
+                          "maxLength": 256
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "note_created_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 40
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "note_updated_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 40
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "folder_id": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "summary_text": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 0,
+                          "maxLength": 16000
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "web_url": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 0,
+                          "maxLength": 2048
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "synced_at": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "owner",
+                    "note_created_at",
+                    "note_updated_at",
+                    "synced_at"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "removed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "note",
+            "removed"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "note-refresh-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          "required": [
+            "requestKey",
+            "id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "transcript-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "cursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 25
+            }
+          },
+          "required": [
+            "id",
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "transcript-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "note_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "segments": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "note_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 0,
+                    "maxLength": 8192
+                  },
+                  "speaker_name": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 256
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "start_time": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  },
+                  "end_time": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  }
+                },
+                "required": [
+                  "id",
+                  "note_id",
+                  "text",
+                  "speaker_name",
+                  "start_time",
+                  "end_time"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 25
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "note_id",
+            "segments",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "granola-panel-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "audience": {
+              "type": "string",
+              "enum": [
+                "admin",
+                "app"
+              ]
+            },
+            "contextId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "pending": {
+              "type": "object",
+              "properties": {
+                "sessionId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "audience": {
+                  "type": "string",
+                  "enum": [
+                    "admin",
+                    "app"
+                  ]
+                },
+                "contextId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "bindingId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 257
+                },
+                "requestKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                "intent": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "targetId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "required": [
+                "sessionId",
+                "audience",
+                "contextId",
+                "bindingId",
+                "requestKey"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "granola-view-input",
+        "schema": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "key-reference-setting",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "connector_config",
+        "title": "Connexion Granola",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "origin",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 8,
+              "maxLength": 512
+            }
+          },
+          {
+            "id": "key_ref",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "secret_version",
+            "type": "integer",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "connection_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "webhook_key_ref",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "webhook_secret_version",
+            "type": "integer",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "webhook_previous_key_ref",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "webhook_previous_secret_version",
+            "type": "integer",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "webhook_service_token_ref",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "webhook_service_token_version",
+            "type": "integer",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "enabled",
+            "type": "boolean",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "connector_secret",
+        "title": "Clé Granola scellée",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "binding_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "ciphertext",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 32768
+            }
+          },
+          {
+            "id": "key_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "version",
+            "type": "integer",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "state",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "active",
+                "revoked"
+              ]
+            }
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "sync_state",
+        "title": "Checkpoint de synchronisation Granola",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "notes",
+                "folders"
+              ]
+            }
+          },
+          {
+            "id": "run_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "connection_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "cursor",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "id": "status",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "partial",
+                "pages_exhausted"
+              ]
+            }
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "note",
+        "title": "Note Granola projetée",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "connection_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "title",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 1000
+            }
+          },
+          {
+            "id": "owner",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 256
+            }
+          },
+          {
+            "id": "note_created_at",
+            "type": "date-time",
+            "nullable": true,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "note_updated_at",
+            "type": "date-time",
+            "nullable": true,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "folder_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "summary_text",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 16000
+            }
+          },
+          {
+            "id": "web_url",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 2048
+            }
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "synced_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "by-connection",
+            "fields": [
+              "context_id",
+              "connection_id",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "folder",
+        "title": "Dossier Granola projeté",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "connection_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "name",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 500
+            }
+          },
+          {
+            "id": "parent_folder_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "synced_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "by-connection",
+            "fields": [
+              "context_id",
+              "connection_id",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "transcript_segment",
+        "title": "Segment Granola projeté",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "connection_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "note_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "text",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 8192
+            }
+          },
+          {
+            "id": "speaker_name",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 0,
+              "maxLength": 256
+            }
+          },
+          {
+            "id": "start_time",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "end_time",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "synced_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "by-note",
+            "fields": [
+              "context_id",
+              "connection_id",
+              "note_id",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "webhook_event",
+        "title": "Réception Granola signée",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "connection_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "event_type",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "note.generated",
+                "note.edited",
+                "note.access_granted"
+              ]
+            }
+          },
+          {
+            "id": "note_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "occurred_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "body_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 64,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "received_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "by-connection",
+            "fields": [
+              "context_id",
+              "connection_id",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      }
+    ],
+    "files": [],
+    "events": [],
+    "connectors": [
+      {
+        "id": "granola.api.v1",
+        "moduleId": "creezio.granola",
+        "config": {
+          "moduleId": "creezio.granola",
+          "modelId": "connector_config",
+          "contextField": "context_id",
+          "fields": {
+            "id": "id",
+            "origin": "origin",
+            "keyRef": "key_ref",
+            "secretVersion": "secret_version",
+            "enabled": "enabled",
+            "revision": "revision",
+            "updatedAt": "updated_at"
+          }
+        },
+        "vault": {
+          "moduleId": "creezio.granola",
+          "modelId": "connector_secret",
+          "contextField": "context_id",
+          "fields": {
+            "id": "id",
+            "bindingId": "binding_id",
+            "ciphertext": "ciphertext",
+            "keyId": "key_id",
+            "version": "version",
+            "state": "state"
+          }
+        },
+        "auth": {
+          "kind": "bearer"
+        },
+        "fixedOrigin": "https://public-api.granola.ai",
+        "webhook": {
+          "path": "/api/webhooks/granola",
+          "operationId": "event.receive",
+          "scheme": "standard",
+          "mapper": {
+            "path": "module/webhook.ts",
+            "export": "granolaWebhookInput"
+          },
+          "fields": {
+            "connectionId": "connection_id",
+            "signingRef": "webhook_key_ref",
+            "signingVersion": "webhook_secret_version",
+            "previousRef": "webhook_previous_key_ref",
+            "previousVersion": "webhook_previous_secret_version",
+            "serviceTokenRef": "webhook_service_token_ref",
+            "serviceTokenVersion": "webhook_service_token_version"
+          }
+        },
+        "resources": [
+          {
+            "id": "notes",
+            "method": "GET",
+            "path": "/v1/notes",
+            "params": [
+              "cursor",
+              "limit"
+            ],
+            "query": {
+              "cursor": "cursor",
+              "limit": "page_size",
+              "fields": [
+                {
+                  "name": "folderId",
+                  "wireName": "folder_id",
+                  "kind": "string",
+                  "maxBytes": 64
+                },
+                {
+                  "name": "createdAfter",
+                  "wireName": "created_after",
+                  "kind": "string",
+                  "maxBytes": 40
+                },
+                {
+                  "name": "createdBefore",
+                  "wireName": "created_before",
+                  "kind": "string",
+                  "maxBytes": 40
+                },
+                {
+                  "name": "updatedAfter",
+                  "wireName": "updated_after",
+                  "kind": "string",
+                  "maxBytes": 40
+                }
+              ]
+            }
+          },
+          {
+            "id": "note",
+            "method": "GET",
+            "path": "/v1/notes/{id}",
+            "params": [
+              "id"
+            ]
+          },
+          {
+            "id": "transcript",
+            "method": "GET",
+            "path": "/v1/notes/{id}/transcript",
+            "params": [
+              "id",
+              "cursor",
+              "limit"
+            ],
+            "query": {
+              "cursor": "cursor",
+              "limit": "page_size"
+            }
+          },
+          {
+            "id": "folders",
+            "method": "GET",
+            "path": "/v1/folders",
+            "params": [
+              "cursor",
+              "limit"
+            ],
+            "query": {
+              "cursor": "cursor",
+              "limit": "page_size"
+            }
+          }
+        ]
+      }
+    ],
+    "settings": [
+      {
+        "id": "api-key-ref",
+        "title": "Référence de clé Granola",
+        "schema": {
+          "schemaId": "key-reference-setting"
+        },
+        "visibility": "secret-reference",
+        "required": false,
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "provider": "granola.api.v1",
+        "redact": true
+      }
+    ],
+    "search": [],
+    "permissions": [
+      {
+        "id": "manage",
+        "title": "Administrer Granola",
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "scopes": [
+          "granola.manage"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "model",
+            "id": "connector_config"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "model",
+            "id": "connector_secret"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "model",
+            "id": "sync_state"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "model",
+            "id": "note"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "model",
+            "id": "folder"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "model",
+            "id": "transcript_segment"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "model",
+            "id": "webhook_event"
+          }
+        ],
+        "actions": [
+          "read",
+          "create",
+          "update",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      },
+      {
+        "id": "read",
+        "title": "Lire les notes Granola",
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "scopes": [
+          "granola.read"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "model",
+            "id": "connector_config"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "model",
+            "id": "connector_secret"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "model",
+            "id": "note"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "model",
+            "id": "folder"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "model",
+            "id": "transcript_segment"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "model",
+            "id": "sync_state"
+          },
+          {
+            "moduleId": "creezio.granola",
+            "kind": "model",
+            "id": "webhook_event"
+          }
+        ],
+        "actions": [
+          "read",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      }
+    ],
+    "operations": [
+      {
+        "id": "config.read",
+        "title": "Lire la connexion Granola",
+        "kind": "query",
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 4,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.set",
+        "title": "Activer la connexion Granola",
+        "kind": "command",
+        "input": {
+          "schemaId": "config-set-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configSet"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 4,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.key.set",
+        "title": "Sceller une clé Granola",
+        "kind": "command",
+        "input": {
+          "schemaId": "config-key-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configKeySet"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 8,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.key.revoke",
+        "title": "Révoquer la clé Granola",
+        "kind": "command",
+        "input": {
+          "schemaId": "config-revoke-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configKeyRevoke"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 8,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.key.webhook.set",
+        "title": "Sceller le secret webhook Granola",
+        "kind": "command",
+        "input": {
+          "schemaId": "webhook-secret-set-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configWebhookSet"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 6,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.key.webhook.revoke",
+        "title": "Révoquer le secret webhook Granola",
+        "kind": "command",
+        "input": {
+          "schemaId": "config-revoke-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configWebhookRevoke"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 6,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.key.webhook.service.set",
+        "title": "Sceller le jeton de service webhook",
+        "kind": "command",
+        "input": {
+          "schemaId": "webhook-service-set-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configWebhookServiceSet"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 6,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.key.webhook.service.revoke",
+        "title": "Révoquer le jeton de service webhook",
+        "kind": "command",
+        "input": {
+          "schemaId": "config-revoke-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configWebhookServiceRevoke"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 6,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "event.receive",
+        "title": "Enregistrer un événement Granola signé",
+        "kind": "command",
+        "input": {
+          "schemaId": "webhook-event-input"
+        },
+        "output": {
+          "schemaId": "webhook-event-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine",
+          "signed-webhook"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "eventReceive"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "webhook_event"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "webhook_event"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 4,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "connection.check",
+        "title": "Vérifier la connexion Granola",
+        "kind": "query",
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "check-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "connectionCheck"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "granola.api.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 4,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "sync.state",
+        "title": "Lire le checkpoint",
+        "kind": "query",
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "states-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "syncState"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "sync_state"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 4,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "sync.start",
+        "title": "Démarrer une synchronisation bornée",
+        "kind": "command",
+        "input": {
+          "schemaId": "sync-start-input"
+        },
+        "output": {
+          "schemaId": "state-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "syncStart"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "sync_state"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "sync_state"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 4,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "sync.page",
+        "title": "Projeter une page Granola",
+        "kind": "command",
+        "input": {
+          "schemaId": "sync-page-input"
+        },
+        "output": {
+          "schemaId": "sync-page-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "syncPage"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_secret"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "sync_state"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "note"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "folder"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "sync_state"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "note"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "folder"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "granola.api.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 24,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "note.list",
+        "title": "Lire note projeté",
+        "kind": "query",
+        "input": {
+          "schemaId": "list-input"
+        },
+        "output": {
+          "schemaId": "note-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "noteList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "note"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 25
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 27,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "folder.list",
+        "title": "Lire folder projeté",
+        "kind": "query",
+        "input": {
+          "schemaId": "list-input"
+        },
+        "output": {
+          "schemaId": "folder-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "folderList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "folder"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 25
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 27,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "note.detail",
+        "title": "Lire une note projetée",
+        "kind": "query",
+        "input": {
+          "schemaId": "note-id-input"
+        },
+        "output": {
+          "schemaId": "note-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "noteDetail"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "note"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 4,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "note.refresh",
+        "title": "Actualiser une note précise",
+        "kind": "command",
+        "input": {
+          "schemaId": "note-refresh-input"
+        },
+        "output": {
+          "schemaId": "note-refresh-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "noteRefresh"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_secret"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "note"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "note"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "granola.api.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 8,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "transcript.page",
+        "title": "Lire une page de transcription",
+        "kind": "query",
+        "input": {
+          "schemaId": "transcript-input"
+        },
+        "output": {
+          "schemaId": "transcript-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "transcriptPage"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "model",
+              "id": "note"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "granola.api.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 25
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 27,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      }
+    ],
+    "api": [
+      {
+        "id": "admin.config.read",
+        "method": "GET",
+        "path": "/api/admin/granola/config/read",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "config.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.set",
+        "method": "POST",
+        "path": "/api/admin/granola/config/set",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "config.set"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "config-set-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.key.set",
+        "method": "POST",
+        "path": "/api/admin/granola/config/key/set",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "config.key.set"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "config-key-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.key.revoke",
+        "method": "POST",
+        "path": "/api/admin/granola/config/key/revoke",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "config.key.revoke"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "config-revoke-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.key.webhook.set",
+        "method": "POST",
+        "path": "/api/admin/granola/config/key/webhook/set",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "config.key.webhook.set"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "webhook-secret-set-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.key.webhook.revoke",
+        "method": "POST",
+        "path": "/api/admin/granola/config/key/webhook/revoke",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "config.key.webhook.revoke"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "config-revoke-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.key.webhook.service.set",
+        "method": "POST",
+        "path": "/api/admin/granola/config/key/webhook/service/set",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "config.key.webhook.service.set"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "webhook-service-set-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.key.webhook.service.revoke",
+        "method": "POST",
+        "path": "/api/admin/granola/config/key/webhook/service/revoke",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "config.key.webhook.service.revoke"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "config-revoke-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.connection.check",
+        "method": "GET",
+        "path": "/api/admin/granola/connection/check",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "connection.check"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "check-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.sync.state",
+        "method": "GET",
+        "path": "/api/admin/granola/sync/state",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "sync.state"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "states-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.sync.start",
+        "method": "POST",
+        "path": "/api/admin/granola/sync/start",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "sync.start"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "sync-start-input"
+        },
+        "output": {
+          "schemaId": "state-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.sync.page",
+        "method": "POST",
+        "path": "/api/admin/granola/sync/page",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "sync.page"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "sync-page-input"
+        },
+        "output": {
+          "schemaId": "sync-page-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.note.list",
+        "method": "GET",
+        "path": "/api/admin/granola/note/list",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "note.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "list-input"
+        },
+        "output": {
+          "schemaId": "note-list-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.note.list",
+        "method": "GET",
+        "path": "/api/app/granola/note/list",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "note.list"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "list-input"
+        },
+        "output": {
+          "schemaId": "note-list-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.folder.list",
+        "method": "GET",
+        "path": "/api/admin/granola/folder/list",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "folder.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "list-input"
+        },
+        "output": {
+          "schemaId": "folder-list-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.folder.list",
+        "method": "GET",
+        "path": "/api/app/granola/folder/list",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "folder.list"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "list-input"
+        },
+        "output": {
+          "schemaId": "folder-list-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.note.detail",
+        "method": "GET",
+        "path": "/api/admin/granola/note/detail",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "note.detail"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "note-id-input"
+        },
+        "output": {
+          "schemaId": "note-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.note.detail",
+        "method": "GET",
+        "path": "/api/app/granola/note/detail",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "note.detail"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "inputField": "id",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "note-id-input"
+        },
+        "output": {
+          "schemaId": "note-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.note.refresh",
+        "method": "POST",
+        "path": "/api/admin/granola/note/refresh",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "note.refresh"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "note-refresh-input"
+        },
+        "output": {
+          "schemaId": "note-refresh-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.transcript.page",
+        "method": "GET",
+        "path": "/api/admin/granola/transcript/page",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "transcript.page"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "inputField": "id",
+            "required": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "transcript-input"
+        },
+        "output": {
+          "schemaId": "transcript-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.transcript.page",
+        "method": "GET",
+        "path": "/api/app/granola/transcript/page",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "transcript.page"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "inputField": "id",
+            "required": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "transcript-input"
+        },
+        "output": {
+          "schemaId": "transcript-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "webhook.event.receive",
+        "method": "POST",
+        "path": "/api/webhooks/granola",
+        "operation": {
+          "moduleId": "creezio.granola",
+          "kind": "operation",
+          "id": "event.receive"
+        },
+        "audience": "admin",
+        "auth": [
+          "webhook-signature"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "webhook-event-input"
+        },
+        "output": {
+          "schemaId": "webhook-event-output"
+        },
+        "rateLimit": {
+          "requests": 120,
+          "windowSeconds": 60
+        }
+      }
+    ],
+    "mcp": {
+      "tools": [
+        {
+          "id": "config.read",
+          "name": "granola_config_read",
+          "operation": {
+            "moduleId": "creezio.granola",
+            "kind": "operation",
+            "id": "config.read"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "empty-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.set",
+          "name": "granola_config_set",
+          "operation": {
+            "moduleId": "creezio.granola",
+            "kind": "operation",
+            "id": "config.set"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "config-set-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.key.set",
+          "name": "granola_config_key_set",
+          "operation": {
+            "moduleId": "creezio.granola",
+            "kind": "operation",
+            "id": "config.key.set"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "config-key-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.key.revoke",
+          "name": "granola_config_key_revoke",
+          "operation": {
+            "moduleId": "creezio.granola",
+            "kind": "operation",
+            "id": "config.key.revoke"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "config-revoke-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.key.webhook.set",
+          "name": "granola_config_key_webhook_set",
+          "operation": {
+            "moduleId": "creezio.granola",
+            "kind": "operation",
+            "id": "config.key.webhook.set"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "webhook-secret-set-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.key.webhook.revoke",
+          "name": "granola_config_key_webhook_revoke",
+          "operation": {
+            "moduleId": "creezio.granola",
+            "kind": "operation",
+            "id": "config.key.webhook.revoke"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "config-revoke-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.key.webhook.service.set",
+          "name": "granola_config_key_webhook_service_set",
+          "operation": {
+            "moduleId": "creezio.granola",
+            "kind": "operation",
+            "id": "config.key.webhook.service.set"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "webhook-service-set-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.key.webhook.service.revoke",
+          "name": "granola_config_key_webhook_service_revoke",
+          "operation": {
+            "moduleId": "creezio.granola",
+            "kind": "operation",
+            "id": "config.key.webhook.service.revoke"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "config-revoke-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "connection.check",
+          "name": "granola_connection_check",
+          "operation": {
+            "moduleId": "creezio.granola",
+            "kind": "operation",
+            "id": "connection.check"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "empty-input"
+          },
+          "output": {
+            "schemaId": "check-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": true
+          },
+          "textFallback": true
+        },
+        {
+          "id": "sync.state",
+          "name": "granola_sync_state",
+          "operation": {
+            "moduleId": "creezio.granola",
+            "kind": "operation",
+            "id": "sync.state"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "empty-input"
+          },
+          "output": {
+            "schemaId": "states-output"
+          },
+          "widget": {
+            "moduleId": "creezio.granola",
+            "kind": "widget",
+            "id": "sync"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "sync.start",
+          "name": "granola_sync_start",
+          "operation": {
+            "moduleId": "creezio.granola",
+            "kind": "operation",
+            "id": "sync.start"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "sync-start-input"
+          },
+          "output": {
+            "schemaId": "state-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "sync.page",
+          "name": "granola_sync_page",
+          "operation": {
+            "moduleId": "creezio.granola",
+            "kind": "operation",
+            "id": "sync.page"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "sync-page-input"
+          },
+          "output": {
+            "schemaId": "sync-page-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": true
+          },
+          "textFallback": true
+        },
+        {
+          "id": "note.list",
+          "name": "granola_note_list",
+          "operation": {
+            "moduleId": "creezio.granola",
+            "kind": "operation",
+            "id": "note.list"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "list-input"
+          },
+          "output": {
+            "schemaId": "note-list-output"
+          },
+          "widget": {
+            "moduleId": "creezio.granola",
+            "kind": "widget",
+            "id": "notes"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "folder.list",
+          "name": "granola_folder_list",
+          "operation": {
+            "moduleId": "creezio.granola",
+            "kind": "operation",
+            "id": "folder.list"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "list-input"
+          },
+          "output": {
+            "schemaId": "folder-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "note.detail",
+          "name": "granola_note_detail",
+          "operation": {
+            "moduleId": "creezio.granola",
+            "kind": "operation",
+            "id": "note.detail"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "note-id-input"
+          },
+          "output": {
+            "schemaId": "note-output"
+          },
+          "widget": {
+            "moduleId": "creezio.granola",
+            "kind": "widget",
+            "id": "summary"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "note.refresh",
+          "name": "granola_note_refresh",
+          "operation": {
+            "moduleId": "creezio.granola",
+            "kind": "operation",
+            "id": "note.refresh"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "note-refresh-input"
+          },
+          "output": {
+            "schemaId": "note-refresh-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": true
+          },
+          "textFallback": true
+        },
+        {
+          "id": "transcript.page",
+          "name": "granola_transcript_page",
+          "operation": {
+            "moduleId": "creezio.granola",
+            "kind": "operation",
+            "id": "transcript.page"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "transcript-input"
+          },
+          "output": {
+            "schemaId": "transcript-output"
+          },
+          "widget": {
+            "moduleId": "creezio.granola",
+            "kind": "widget",
+            "id": "transcript"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": true
+          },
+          "textFallback": true
+        }
+      ],
+      "resources": [
+        {
+          "id": "notes-ui",
+          "uri": "ui://creezio.granola/notes",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/notes.html"
+          },
+          "widget": {
+            "moduleId": "creezio.granola",
+            "kind": "widget",
+            "id": "notes"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        },
+        {
+          "id": "summary-ui",
+          "uri": "ui://creezio.granola/summary",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/summary.html"
+          },
+          "widget": {
+            "moduleId": "creezio.granola",
+            "kind": "widget",
+            "id": "summary"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        },
+        {
+          "id": "transcript-ui",
+          "uri": "ui://creezio.granola/transcript",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/transcript.html"
+          },
+          "widget": {
+            "moduleId": "creezio.granola",
+            "kind": "widget",
+            "id": "transcript"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        },
+        {
+          "id": "sync-ui",
+          "uri": "ui://creezio.granola/sync",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "permission",
+              "id": "manage"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/sync.html"
+          },
+          "widget": {
+            "moduleId": "creezio.granola",
+            "kind": "widget",
+            "id": "sync"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        }
+      ],
+      "prompts": [],
+      "skills": []
+    },
+    "ui": {
+      "views": [
+        {
+          "id": "notes",
+          "title": "Notes Granola",
+          "surfaces": [
+            "workspace"
+          ],
+          "route": "/granola/notes",
+          "component": {
+            "path": "ui/index.tsx",
+            "export": "GranolaNotesView"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "note.list"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "folder.list"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "note.detail"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "transcript.page"
+            }
+          ],
+          "input": {
+            "schemaId": "granola-view-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend",
+            "stateSchema": {
+              "schemaId": "granola-panel-state"
+            }
+          }
+        },
+        {
+          "id": "connect",
+          "title": "Connexion Granola",
+          "surfaces": [
+            "workspace"
+          ],
+          "route": "/admin/granola",
+          "component": {
+            "path": "ui/index.tsx",
+            "export": "GranolaConnectView"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "permission",
+              "id": "manage"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "config.read"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "config.set"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "config.key.set"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "config.key.revoke"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "config.key.webhook.set"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "config.key.webhook.revoke"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "config.key.webhook.service.set"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "config.key.webhook.service.revoke"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "connection.check"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "sync.state"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "sync.start"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "sync.page"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "note.list"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "folder.list"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "note.detail"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "note.refresh"
+            },
+            {
+              "moduleId": "creezio.granola",
+              "kind": "operation",
+              "id": "transcript.page"
+            }
+          ],
+          "input": {
+            "schemaId": "granola-view-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend",
+            "stateSchema": {
+              "schemaId": "granola-panel-state"
+            }
+          }
+        }
+      ],
+      "navigation": [
+        {
+          "id": "granola-notes",
+          "title": "Notes Granola",
+          "view": {
+            "moduleId": "creezio.granola",
+            "kind": "view",
+            "id": "notes"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "permission",
+              "id": "read"
+            }
+          ],
+          "surfaces": [
+            "workspace"
+          ],
+          "order": 82
+        },
+        {
+          "id": "granola-connect",
+          "title": "Connexion Granola",
+          "view": {
+            "moduleId": "creezio.granola",
+            "kind": "view",
+            "id": "connect"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.granola",
+              "kind": "permission",
+              "id": "manage"
+            }
+          ],
+          "surfaces": [
+            "workspace"
+          ],
+          "order": 83
+        }
+      ],
+      "slots": [],
+      "front": {
+        "mode": "absent",
+        "justification": {
+          "reason": "Granola notes require authenticated workspace rights.",
+          "policyRule": "granola.context-only"
+        }
+      },
+      "themes": [],
+      "styles": []
+    },
+    "widgets": [
+      {
+        "id": "notes",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "notes-ui",
+        "renderer": {
+          "path": "ui/widgets/panels.ts",
+          "export": "startGranolaWidget"
+        },
+        "input": {
+          "schemaId": "note-list-output"
+        },
+        "state": {
+          "schemaId": "empty-input"
+        },
+        "result": {
+          "schemaId": "note-list-output"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "refresh",
+            "label": "Relire",
+            "input": {
+              "schemaId": "list-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.granola",
+                "kind": "operation",
+                "id": "note.list"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 65536,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      },
+      {
+        "id": "summary",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "summary-ui",
+        "renderer": {
+          "path": "ui/widgets/panels.ts",
+          "export": "startGranolaWidget"
+        },
+        "input": {
+          "schemaId": "note-output"
+        },
+        "state": {
+          "schemaId": "empty-input"
+        },
+        "result": {
+          "schemaId": "note-output"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "refresh",
+            "label": "Relire",
+            "input": {
+              "schemaId": "note-id-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.granola",
+                "kind": "operation",
+                "id": "note.detail"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 65536,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      },
+      {
+        "id": "transcript",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "transcript-ui",
+        "renderer": {
+          "path": "ui/widgets/panels.ts",
+          "export": "startGranolaWidget"
+        },
+        "input": {
+          "schemaId": "transcript-output"
+        },
+        "state": {
+          "schemaId": "empty-input"
+        },
+        "result": {
+          "schemaId": "transcript-output"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "refresh",
+            "label": "Relire",
+            "input": {
+              "schemaId": "transcript-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.granola",
+                "kind": "operation",
+                "id": "transcript.page"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 65536,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      },
+      {
+        "id": "sync",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "sync-ui",
+        "renderer": {
+          "path": "ui/widgets/panels.ts",
+          "export": "startGranolaWidget"
+        },
+        "input": {
+          "schemaId": "states-output"
+        },
+        "state": {
+          "schemaId": "empty-input"
+        },
+        "result": {
+          "schemaId": "states-output"
+        },
+        "audiences": [
+          "admin"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.granola",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "refresh",
+            "label": "Relire",
+            "input": {
+              "schemaId": "empty-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.granola",
+                "kind": "operation",
+                "id": "sync.state"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 65536,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      }
+    ],
+    "publicContracts": []
+  },
+  "documentation": {
+    "installed": {
+      "readme": {
+        "path": "README.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "prd": {
+        "path": "prd.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      },
+      "changelog": {
+        "path": "CHANGELOG.md",
+        "visibility": "public",
+        "artifact": "runtime"
+      }
+    },
+    "development": {
+      "agents": {
+        "path": "AGENTS.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "files": {
+        "path": "FILES.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "interview": {
+        "path": "interview.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      },
+      "todo": {
+        "path": "TODO.md",
+        "visibility": "restricted",
+        "artifact": "validation"
+      }
+    },
+    "versionBinding": {
+      "moduleVersion": "0.1.0",
+      "sourceRevision": "t29-granola-notes-v1"
+    },
+    "localRevisions": {
+      "installedVersionDistinct": true,
+      "approvedImmutable": true
+    },
+    "installationHistory": {
+      "distinctFromPackageChangelog": true
+    }
+  },
+  "validation": {
+    "gate": "gate.mjs",
+    "suites": {
+      "backend": {
+        "mode": "required",
+        "script": "ci/backend.mjs",
+        "tests": [
+          "tests/backend/contract.test.mjs"
+        ]
+      },
+      "ui": {
+        "mode": "required",
+        "script": "ci/ui.mjs",
+        "tests": [
+          "tests/ui/contract.test.mjs"
+        ]
+      },
+      "api-mcp": {
+        "mode": "required",
+        "script": "ci/api-mcp.mjs",
+        "tests": [
+          "tests/api-mcp/contract.test.mjs"
+        ]
+      },
+      "widgets": {
+        "mode": "required",
+        "script": "ci/widgets.mjs",
+        "tests": [
+          "tests/widgets/contract.test.mjs"
+        ]
+      },
+      "package": {
+        "mode": "required",
+        "script": "ci/package.mjs",
+        "tests": [
+          "tests/package/contract.test.mjs"
+        ]
+      },
+      "docs": {
+        "mode": "required",
+        "script": "ci/docs.mjs",
+        "tests": [
+          "tests/docs/contract.test.mjs"
+        ]
+      }
+    },
+    "policy": {
+      "id": "creezio.local-contracts",
+      "version": "1.0.0",
+      "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
+    },
+    "isolation": {
+      "productionSecrets": false,
+      "publicationRights": false
+    },
+    "evidence": {
+      "sourceIntegrity": true,
+      "artifactIntegrity": true,
+      "profile": true,
+      "executedSuites": true
+    }
+  },
+  "packaging": {
+    "runtime": {
+      "files": [
+        "module/manifest.json",
+        "module/models.json",
+        "module/entry.server.ts",
+        "module/storage.ts",
+        "module/operations.ts",
+        "module/service.ts",
+        "module/projection.ts",
+        "module/webhook.ts",
+        "ui/index.tsx",
+        "ui/selection.ts",
+        "ui/widgets/panels.ts",
+        "ui/widgets/notes.html",
+        "ui/widgets/summary.html",
+        "ui/widgets/transcript.html",
+        "ui/widgets/sync.html",
+        "README.md",
+        "prd.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "plugin/plugin.json",
+        "plugin/mcp.json",
+        "plugin/contributions.ts"
+      ],
+      "references": []
+    },
+    "validation": {
+      "files": [
+        "AGENTS.md",
+        "FILES.md",
+        "interview.md",
+        "TODO.md",
+        "gate.mjs",
+        "module/generate-manifest.mjs",
+        "ci/run-suite.mjs",
+        "tests/helpers.mjs",
+        "ci/backend.mjs",
+        "tests/backend/contract.test.mjs",
+        "ci/ui.mjs",
+        "tests/ui/contract.test.mjs",
+        "ci/api-mcp.mjs",
+        "tests/api-mcp/contract.test.mjs",
+        "ci/widgets.mjs",
+        "tests/widgets/contract.test.mjs",
+        "ci/package.mjs",
+        "tests/package/contract.test.mjs",
+        "ci/docs.mjs",
+        "tests/docs/contract.test.mjs"
+      ],
+      "references": []
+    },
+    "validationBinding": {
+      "moduleId": "creezio.granola",
+      "moduleVersion": "0.1.0",
+      "sourceRevision": "t29-granola-notes-v1"
+    },
+    "noRuntimeTests": true,
+    "installation": "build-and-publish",
+    "providerInstallation": false
+  },
+  "lifecycle": {
+    "deactivation": "preserve-data",
+    "configuration": "explicit-state",
+    "uninstall": "explicit-approved-action",
+    "activationRequirements": [],
+    "absent": {
+      "files": {
+        "reason": "Bounded notes and transcript pages have no R2 asset.",
+        "policyRule": "granola.no-files"
+      }
+    },
+    "dependencyChanges": {
+      "install": "resolve-explicit-consumer-selection",
+      "activate": "require-active-dependencies",
+      "update": "validate-dependent-contracts",
+      "deactivate": "block-or-explicit-dependent-plan",
+      "uninstall": "block-or-explicit-dependent-plan",
+      "data": "preserve"
+    }
+  }
+}

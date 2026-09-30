@@ -1,5 +1,5 @@
 import { createD1MachineStore } from './machine-store.ts';
-import { createD1IdentityStore, type IdentityDatabase } from './d1-store.ts';
+import { ACCESS_TABLES, createD1IdentityStore, type IdentityDatabase } from './d1-store.ts';
 import { parseMachineScopes, type MachineScope } from './machine-policy.ts';
 import { identityInputFields, identityAdmissionKey, normalizeDisplayName, validIdentityId } from './input.ts';
 import { digestOpaqueToken, issueOpaqueToken } from './tokens.ts';
@@ -8,6 +8,7 @@ import { createD1AuthorizationStore } from '../authorization/d1-store.ts';
 import { authorize, copyAuthorizationTarget } from '../authorization/authorize.ts';
 import { MANAGE_ACCESS, policySnapshot, validPolicyCatalog, type AccessPolicy } from '../authorization/policy.ts';
 import type { AuthorizationDecision, AuthorizationSnapshot, AuthorizationTarget, PermissionDefinition } from '../authorization/types.ts';
+import type {StorageMutationPort} from '../storage-authority/native-mutation.ts';
 
 export const MACHINE_ACCOUNT_POLICY = Object.freeze({ minimumTtlMs: 1000, maximumTtlMs: 365 * 24 * 60 * 60 * 1000,
   admissionWindowMs: 60_000, administrationGlobalLimit: 60, administrationActorLimit: 20 });
@@ -19,11 +20,19 @@ const validTtl = (value: unknown): value is number => Number.isSafeInteger(value
 /** Explicit service identities and scoped API credentials. A provider API key,
  * browser session and machine credential are different authorities. All methods
  * are internal operations until their transport adapters are qualified. */
-export function createMachineAccountService(db: IdentityDatabase, options: { permissions: readonly PermissionDefinition[] }) {
+export function createMachineAccountService(db: IdentityDatabase, options: {
+  permissions: readonly PermissionDefinition[];storageMutation?:StorageMutationPort }) {
   const store = createD1MachineStore(db), identity = createD1IdentityStore(db);
   const authorizationStore = createD1AuthorizationStore(db);
   const { resolve, permissions } = createNativeAuthorizationResolver(db, options);
   const catalog = new Map(permissions.map(permission => [permission.id, permission]));
+  const auditReceipt=async(auditId:string,action:string,column:string,targetId?:string)=>{
+    const field=column==='principal'?'target_principal_id':'credential_id';
+    const row=await db.prepare(`SELECT 1 AS ok FROM "${ACCESS_TABLES.access_audit}"
+      WHERE id=? AND action=? ${targetId?`AND ${field}=?`:''} LIMIT 2`)
+      .bind(...(targetId?[auditId,action,targetId]:[auditId,action])).first();
+    return row?.ok===1;
+  };
   function knownScopes(scopes: readonly MachineScope[]) {
     return scopes.every(scope => scope.permissionIds.every(id => {
       const definition = catalog.get(id);
@@ -64,6 +73,17 @@ export function createMachineAccountService(db: IdentityDatabase, options: { per
     const principalId = input.principalId, expectedAuthVersion = Number(input.expectedAuthVersion), status = input.status;
     try {
       const current = await administration(token); if (!current.ok) return current;
+      if(options.storageMutation){
+        const commandKey=JSON.stringify([current.guard.principalId,principalId,expectedAuthVersion,status]);
+        const auditId=await options.storageMutation.receiptId('machine.status',commandKey);
+        const outcome=await options.storageMutation.commit({kind:'machine.status',commandKey,
+          sourceCommit:()=>store.setServiceStatus(current.guard,
+            {principalId,expectedAuthVersion,status},auditId),committed:value=>value!==null,
+          inspectSource:()=>auditReceipt(auditId,'service-status-updated','principal',principalId),
+          recoverValue:()=>store.readService(principalId)});
+        return outcome.state==='confirmed'&&outcome.value
+          ?Object.freeze({ok:true as const,principal:outcome.value}):fail('storage_error');
+      }
       const principal = await store.setServiceStatus(current.guard, { principalId, expectedAuthVersion, status });
       return principal ? Object.freeze({ ok: true as const, principal }) : fail('conflict');
     } catch { return fail('storage_error'); }
@@ -92,6 +112,16 @@ export function createMachineAccountService(db: IdentityDatabase, options: { per
       const scopes = parseMachineScopes(previous.scopes);
       if (!scopes || !knownScopes(scopes) || !activeContexts(scopes, current.policy)) return fail('invalid_input');
       const issued = await issueOpaqueToken('api-token');
+      if(options.storageMutation){
+        const commandKey=JSON.stringify([current.guard.principalId,credentialId,ttlMs]);
+        const auditId=await options.storageMutation.receiptId('machine.rotate',commandKey);
+        const outcome=await options.storageMutation.commit({kind:'machine.rotate',commandKey,
+          sourceCommit:()=>store.rotateToken(current.guard,{credentialId,ttlMs,digest:issued.digest},auditId),
+          committed:value=>value!==null,
+          inspectSource:()=>auditReceipt(auditId,'api-token-rotated','credential')});
+        return outcome.state==='confirmed'&&outcome.value
+          ?Object.freeze({ok:true as const,token:issued.token,credential:outcome.value}):fail('storage_error');
+      }
       const credential = await store.rotateToken(current.guard, { credentialId, ttlMs, digest: issued.digest });
       return credential ? Object.freeze({ ok: true as const, token: issued.token, credential }) : fail('conflict');
     } catch { return fail('storage_error'); }
@@ -101,6 +131,17 @@ export function createMachineAccountService(db: IdentityDatabase, options: { per
     const credentialId = input.credentialId;
     try {
       const current = await administration(token); if (!current.ok) return current;
+      if(options.storageMutation){
+        const commandKey=JSON.stringify([current.guard.principalId,credentialId]);
+        const auditId=await options.storageMutation.receiptId('machine.revoke',commandKey);
+        const outcome=await options.storageMutation.commit({kind:'machine.revoke',commandKey,
+          sourceCommit:()=>store.revokeToken(current.guard,credentialId,auditId),
+          committed:value=>value===true,
+          inspectSource:()=>auditReceipt(auditId,'api-token-revoked','credential',credentialId),
+          recoverValue:async()=>true});
+        return outcome.state==='confirmed'&&outcome.value===true
+          ?Object.freeze({ok:true as const}):fail('storage_error');
+      }
       return await store.revokeToken(current.guard, credentialId) ? Object.freeze({ ok: true as const }) : fail('conflict');
     } catch { return fail('storage_error'); }
   }

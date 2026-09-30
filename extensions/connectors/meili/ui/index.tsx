@@ -12,6 +12,9 @@ import {configRevisionChanged,indexPageFrom,panelData,preferFreshConfig,readPane
 type Config={origin:string|null;enabled:boolean;hasKey:boolean;
   state:'missing'|'configured'|'unverified';revision:number};
 type Check={authenticated:boolean;status:'connected'|'key_rejected'};
+type IndexState={state:'missing'|'building'|'prepared'|'waiting'|'failed'|'ready';revision:number;
+  active:string|null;building:string|null;abandoned:string|null;preparedCount:number;
+  emitKey:string|null;taskUid:number|null};
 const stateLabel:Record<Config['state'],string>={
   missing:'Non configuré',configured:'Configuré',unverified:'Non vérifié'
 };
@@ -23,6 +26,14 @@ const configFrom=(value:unknown):Config|null=>{
   return row&&(row.origin===null||typeof row.origin==='string')&&typeof row.enabled==='boolean'
     &&typeof row.hasKey==='boolean'&&['missing','configured','unverified'].includes(String(row.state))
     &&Number.isSafeInteger(row.revision)&&Number(row.revision)>=0?row as unknown as Config:null;
+};
+const indexFrom=(value:unknown):IndexState|null=>{
+  const row=record(value);
+  return row&&['missing','building','prepared','waiting','failed','ready'].includes(String(row.state))
+    &&Number.isSafeInteger(row.revision)&&Number(row.revision)>=0
+    &&[row.active,row.building,row.abandoned,row.emitKey].every(item=>item===null||typeof item==='string')
+    &&Number.isSafeInteger(row.preparedCount)&&Number(row.preparedCount)>=0
+    &&(row.taskUid===null||Number.isSafeInteger(row.taskUid))?row as unknown as IndexState:null;
 };
 
 export function MeiliAdminView(props:WorkspaceViewProps){
@@ -40,6 +51,8 @@ export function MeiliAdminView(props:WorkspaceViewProps){
   const [checking,setChecking]=useState(false),[busy,setBusy]=useState(false),[loading,setLoading]=useState(false);
   const [connection,setConnection]=useState<Check|null>(null);
   const [indexPage,setIndexPage]=useState<IndexPage|null>(null);
+  const [indexState,setIndexState]=useState<IndexState|null>(null);
+  const [sources,setSources]=useState<string[]>([]),[source,setSource]=useState('');
   const [indexLoading,setIndexLoading]=useState(false);
   const [pending,setPending]=useState<PendingCommand|null>(null);
   const configSnapshot=useRef<Config|null>(null);
@@ -76,7 +89,7 @@ export function MeiliAdminView(props:WorkspaceViewProps){
       if(preferFreshConfig(configSnapshot.current,next)===next){
         if(configRevisionChanged(configSnapshot.current,next)){
           checkSerial.current++;setChecking(false);setConnection(null);
-          indexSerial.current++;setIndexLoading(false);setIndexPage(null);
+          indexSerial.current++;setIndexLoading(false);setIndexPage(null);setIndexState(null);
         }
         configSnapshot.current=next;setConfig(next);
         if(!originDirty.current)setOrigin(next.origin??'');
@@ -85,11 +98,29 @@ export function MeiliAdminView(props:WorkspaceViewProps){
     }catch{if(current(token)&&serial===readSerial.current)setNotice('Configuration indisponible.');}
     finally{if(current(token)&&serial===readSerial.current)setLoading(false);}
   };
+  const loadIndex=async(token:number)=>{
+    const serial=++indexSerial.current;
+    if(!current(token))return;
+    try{
+      const result=await props.client.invoke({bindingId:binding('index.read'),contextId:props.contextId,
+        input:source?{source}:{},isCurrent:()=>current(token)});
+      if(current(token)&&serial===indexSerial.current){
+        const body=output(result),available=body?.sources;
+        if(Array.isArray(available)&&available.every(item=>typeof item==='string')){
+          setSources(available as string[]);
+          if(!source&&available.length>0){setSource(String(available[0]));return;}
+          if(source&&!available.includes(source)){setSource('');setIndexState(null);return;}
+        }
+        setIndexState(indexFrom(body?.index));
+      }
+    }catch{if(current(token)&&serial===indexSerial.current)setIndexState(null);}
+  };
   useEffect(()=>{
     const next:MeiliScope={sessionId,audience:props.audience,contextId:props.contextId,panelId:props.panelId};
     const transition=scopeChange(prior.current,next,access.pending?'loading':access.phase);
     readSerial.current++;checkSerial.current++;indexSerial.current++;mutationSerial.current++;
-    if(transition.purge){configSnapshot.current=null;setConfig(null);setOrigin('');setApiKey('');setEnabled(false);
+    if(transition.purge){configSnapshot.current=null;setConfig(null);setIndexState(null);setSources([]);setSource('');
+      setOrigin('');setApiKey('');setEnabled(false);
       setConnection(null);setIndexPage(null);setNotice('');setPending(null);setBusy(false);
       originDirty.current=false;enabledDirty.current=false;editRevision.current=null;
       keyRevision.current=null;keyVersion.current++;pendingKeyVersion.current=null;journal.current=null;
@@ -106,14 +137,18 @@ export function MeiliAdminView(props:WorkspaceViewProps){
       setPending(journal.current.pending);
       initial.current=null;
     }
-    void read(generation.current);
+    void read(generation.current);void loadIndex(generation.current);
   },[allowed,sessionId,access.phase,access.pending,props.client,props.access,
     props.audience,props.contextId,props.panelId]);
+  useEffect(()=>{if(source&&allowed)void loadIndex(generation.current);},[source]);
   const acceptConfig=(next:Config)=>{
-    if(preferFreshConfig(configSnapshot.current,next)!==next)return false;
+    const previous=configSnapshot.current;
+    if(preferFreshConfig(previous,next)!==next)return false;
     configSnapshot.current=next;setConfig(next);setOrigin(next.origin??'');setEnabled(next.enabled);
     originDirty.current=false;enabledDirty.current=false;editRevision.current=null;keyRevision.current=null;
-    setConnection(null);indexSerial.current++;setIndexLoading(false);setIndexPage(null);return true;};
+    setConnection(null);indexSerial.current++;setIndexLoading(false);setIndexPage(null);
+    if(configRevisionChanged(previous,next))setIndexState(null);
+    return true;};
   const mutate=async(name:'config.set'|'config.key.set'|'config.key.revoke',input:Record<string,unknown>)=>{
     const controller=journal.current,token=generation.current;
     if(!controller||!current(token)||controller.pending||busy||!config)return;
@@ -151,6 +186,8 @@ export function MeiliAdminView(props:WorkspaceViewProps){
       if(!current(token)||serial!==mutationSerial.current)return;
       setPending(outcome?.pending??null);
       const next=outcome?configFrom(output(outcome.result)?.config):null;
+      const nextIndex=outcome?indexFrom(output(outcome.result)?.index):null;
+      if(nextIndex)setIndexState(nextIndex);
       if(next){const adopted=acceptConfig(next);
         if(pendingKeyVersion.current!==null&&pendingKeyVersion.current===keyVersion.current)setApiKey('');
         pendingKeyVersion.current=null;setNotice(adopted?'Modification confirmée.':
@@ -192,12 +229,37 @@ export function MeiliAdminView(props:WorkspaceViewProps){
       setNotice('Liste des index indisponible.');}}
     finally{if(current(token)&&serial===indexSerial.current)setIndexLoading(false);}
   };
+  const indexCommand=async(name:'index.rebuild.start'|'index.sync.start'|'index.prepare'|'index.emit'|
+    'index.reconcile'|'index.abandon')=>{
+    const controller=journal.current,token=generation.current,prior=indexState;
+    if(!controller||!current(token)||controller.pending||busy||!prior||!config?.enabled||!config.hasKey)return;
+    if(name==='index.abandon'&&!window.confirm('Abandonner ce lot préparé ? Son effet fournisseur peut être inconnu. L’ancienne génération active sera conservée.'))return;
+    const requestKey=name==='index.emit'?prior.emitKey:crypto.randomUUID();
+    if(!requestKey)return;
+    const serial=++mutationSerial.current;
+    setBusy(true);setNotice('');
+    try{
+      const outcome=await controller.execute(props.client,{sessionId,audience:props.audience,
+        contextId:props.contextId,bindingId:binding(name),requestKey,intent:name},
+        {revision:prior.revision,source,...(name==='index.abandon'?{acknowledgeUnknown:true}:{})},
+        ()=>current(token),value=>persist(value,token));
+      if(!current(token)||serial!==mutationSerial.current)return;
+      setPending(outcome.pending);
+      const next=indexFrom(output(outcome.result)?.index);
+      if(next){setIndexState(next);setNotice(next.state==='prepared'
+        ?'Lot préparé et figé. Émettez-le une seule fois avec la clé enregistrée.'
+        :next.state==='waiting'?'Tâche fournisseur enregistrée. Confirmez son état avant de continuer.'
+          :next.state==='ready'?'Génération synchronisée.':'Progression enregistrée.');}
+      else setNotice(outcome.pending?'Résultat incertain : inspectez la commande. Ne créez pas une nouvelle clé d’émission.'
+        :'Commande refusée. Relisez la progression avant toute nouvelle action.');
+    }finally{if(serial===mutationSerial.current)setBusy(false);}
+  };
   const hydrated=prior.current.sessionId===sessionId&&prior.current.audience===props.audience
     &&prior.current.contextId===props.contextId&&prior.current.panelId===props.panelId;
   if(!allowed||!hydrated)return <p className="p-6 text-sm">Recherche indisponible pour cette session.</p>;
   return <section className="h-full overflow-y-auto p-3" data-meili-admin-view>
     {pending?<p role="alert" className="mb-3 rounded-md border border-amber-300 p-3 text-sm">
-      Résultat de configuration incertain. Aucune commande ne sera rejouée.
+      Résultat de commande incertain. Aucune émission ne sera rejouée.
       <Button type="button" variant="outline" className="ml-2" disabled={checking||busy}
         onClick={()=>void inspect()}>Vérifier l’opération</Button></p>:null}
     <Card>
@@ -206,8 +268,8 @@ export function MeiliAdminView(props:WorkspaceViewProps){
           <Search className="h-4 w-4" /> Recherche (Meilisearch)
         </CardTitle>
         <CardDescription>
-          Connectez une instance Meilisearch externe. Cette étape vérifie la connexion ;
-          l’indexation externe et la recherche globale ne sont pas encore actives.
+          Connectez une instance Meilisearch externe. La projection Catalogue reste séparée
+          de la recherche globale du produit.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -244,15 +306,42 @@ export function MeiliAdminView(props:WorkspaceViewProps){
             onClick={()=>void mutate('config.key.revoke',{revision:config!.revision})}>Révoquer la clé</Button>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" disabled title="Indexeur externe non disponible dans cette étape">
-            <RefreshCw className="mr-2 h-4 w-4" /> Réindexer la recherche</Button>
+          <label className="grid gap-1 text-sm">Source déclarée
+            <select className="rounded-md border px-3 py-2 text-sm" value={source}
+              disabled={busy||!!pending} onChange={event=>{setSource(event.target.value);setIndexState(null);}}>
+              {sources.length===0?<option value="">Aucune source</option>:null}
+              {sources.map(item=><option key={item} value={item}>{item}</option>)}
+            </select></label>
+          <Button type="button" disabled={busy||!!pending||!config?.enabled||!config.hasKey
+            ||!source||!indexState||!['missing','ready','failed'].includes(indexState.state)}
+            onClick={()=>void indexCommand('index.rebuild.start')}>
+            <RefreshCw className="mr-2 h-4 w-4" /> Nouvelle génération Catalogue</Button>
           <Button type="button" variant="outline" disabled={loading||busy||checking}
-            onClick={()=>void read(generation.current)}>
+            onClick={()=>{void read(generation.current);void loadIndex(generation.current);}}>
             {loading?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:null}
             Actualiser l’état</Button>
         </div>
-        <p className="text-xs text-slate-500">Indexation externe indisponible pour le moment.
-          Le diagnostic ci-dessous lit les noms d’index du compte connecté, sans consulter leurs documents.</p>
+        <div className="space-y-2 rounded-md border p-3" aria-label="Projection Catalogue Meili">
+          <p className="text-sm">Projection : {indexState?.state??'indisponible'}
+            {indexState?.taskUid!==null&&indexState?.taskUid!==undefined?` · tâche ${indexState.taskUid}`:''}
+            {indexState?.abandoned?' · génération abandonnée conservée':''}</p>
+          <div className="flex flex-wrap gap-2">
+            {indexState?.state==='ready'&&indexState.active?<Button type="button" disabled={busy||!!pending}
+              onClick={()=>void indexCommand('index.sync.start')}>Synchroniser les changements</Button>:null}
+            {indexState?.state==='building'?<Button type="button" disabled={busy||!!pending}
+              onClick={()=>void indexCommand('index.prepare')}>Préparer le lot suivant</Button>:null}
+            {indexState?.state==='prepared'?<><Button type="button" disabled={busy||!!pending||!indexState.emitKey}
+              onClick={()=>void indexCommand('index.emit')}>Émettre le lot préparé ({indexState.preparedCount})</Button>
+              <Button type="button" variant="outline" disabled={busy||!!pending}
+                onClick={()=>void indexCommand('index.abandon')}>Abandonner après inspection</Button></>:null}
+            {indexState?.state==='waiting'?<Button type="button" disabled={busy||!!pending}
+              onClick={()=>void indexCommand('index.reconcile')}>Vérifier la tâche fournisseur</Button>:null}
+          </div>
+          <p className="text-xs text-slate-500">Une issue inconnue exige l’inspection de la commande ;
+            l’abandon explicite conserve l’ancienne génération et ne supprime aucun index distant.</p>
+        </div>
+        <p className="text-xs text-slate-500">Le diagnostic ci-dessous lit les noms d’index du compte connecté,
+          sans consulter leurs documents.</p>
         <div className="space-y-2 rounded-md border p-3" aria-label="Diagnostic des index Meili">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-sm font-medium">Index du compte Meilisearch</h3>

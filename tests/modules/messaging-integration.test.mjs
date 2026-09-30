@@ -159,7 +159,8 @@ test('native messaging persists drafts and private files through the real D1 ope
       for(const item of page.items)seenDrafts.add(item.id);draftCursor=page.nextCursor;
     }while(draftCursor&&seenDrafts.size<2);
     assert.deepEqual(seenDrafts,new Set([draft.id,appDraft.id]));
-    assert.deepEqual({...success(await invoke('transport.status', {}))}, {state: 'unavailable', send: false, receive: false});
+    assert.deepEqual({...success(await invoke('transport.status', {}))},
+      {state: 'unavailable', send: false, receive: false, from: null});
     await rejected(invoke('message.send', {...privateRead, requestKey: 'mail-send', revision: saved.revision}), 'unavailable');
     assert.equal(success(await invoke('draft.read', privateRead)).draft.revision, saved.revision);
     assert.deepEqual(success(await invoke('message.list', {boxId: box.id, limit: 10})).items, []);

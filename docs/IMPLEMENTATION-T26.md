@@ -1,5 +1,9 @@
 # T26 — Connecteur n8n externe
 
+## État de travail du 30 septembre 2026
+
+La source locale renforce l’invalidation des résultats périmés quand session, audience, origine, clé ou révision de configuration changent. Les listes de workflows/exécutions refusent les curseurs de contrôle, les boucles et les pages vides non terminales. Les tests locaux couvrent ces refus. La recette sur n8n réel est mise en attente à la demande explicite de l’utilisateur du 30 septembre : aucun nouvel appel 401, demande de clé ou lancement de workflow n’est prévu dans cette tranche.
+
 `creezio.n8n` se connecte à une instance n8n déjà disponible avec son origine HTTPS et sa clé API. Creezio n'installe ni n'exécute n8n. Le module optionnel fournit sa configuration par contexte, le stockage chiffré de la clé, sa révocation, la vérification de connexion et la lecture paginée des workflows/exécutions. Son profil de qualification `configuration/composition.connectors.json` l'associe au front standard et au Catalogue ; les compositions usuelles ne l'activent pas.
 
 Le contrat facultatif `contracts.connectors` décrit les modèles privés de configuration/coffre, le mode d'authentification et les ressources GET fixes. Le compilateur découvre ces déclarations dans les modules activés. L'hôte générique applique les droits courants, le contexte, la version de clé et la durée de vie de l'opération ; le handler reçoit un port nommé, jamais le secret déchiffré ou un client HTTP libre. Il peut y avoir plusieurs connecteurs dans une application ; cette première surface de configuration prévoit un connecteur par module.

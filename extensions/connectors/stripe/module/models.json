@@ -71,6 +71,80 @@
         }
       },
       {
+        "id": "checkout_return_origin",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 8,
+          "maxLength": 512
+        }
+      },
+      {
+        "id": "webhook_key_ref",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "webhook_secret_version",
+        "type": "integer",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "webhook_previous_key_ref",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "webhook_previous_secret_version",
+        "type": "integer",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "webhook_service_token_ref",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "webhook_service_token_version",
+        "type": "integer",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
         "id": "enabled",
         "type": "boolean",
         "nullable": false,
@@ -692,6 +766,13 @@
         }
       },
       {
+        "id": "cancel_at_period_end",
+        "type": "boolean",
+        "nullable": true,
+        "protected": false,
+        "computed": false
+      },
+      {
         "id": "period_end_at",
         "type": "date-time",
         "nullable": true,
@@ -1203,6 +1284,314 @@
       },
       {
         "id": "custom_amount",
+        "type": "boolean",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "updated_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [
+      {
+        "id": "by-connection",
+        "fields": [
+          "context_id",
+          "connection_id",
+          "id"
+        ],
+        "unique": false
+      }
+    ],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "manage"
+      },
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "read"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "stripe_checkout",
+    "title": "Session Checkout Stripe",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "connection_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "execution_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "price_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "quantity",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      {
+        "id": "mode",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "payment",
+            "subscription"
+          ]
+        }
+      },
+      {
+        "id": "status",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 32
+        }
+      },
+      {
+        "id": "payment_status",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 32
+        }
+      },
+      {
+        "id": "url",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 8,
+          "maxLength": 2048
+        }
+      },
+      {
+        "id": "livemode",
+        "type": "boolean",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "updated_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [
+      {
+        "id": "by-connection",
+        "fields": [
+          "context_id",
+          "connection_id",
+          "id"
+        ],
+        "unique": false
+      }
+    ],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "manage"
+      },
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "read"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "stripe_event",
+    "title": "Événement Stripe signé",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "connection_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "type",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "object_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "body_digest",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      {
+        "id": "livemode",
         "type": "boolean",
         "nullable": false,
         "protected": false,

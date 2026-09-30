@@ -177,9 +177,9 @@ export function createD1ImpersonationStore(db: IdentityDatabase) {
     return projection;
   }
 
-  async function stop(tokenDigest: string): Promise<boolean> {
+  async function stop(tokenDigest: string,auditId:string=crypto.randomUUID()): Promise<boolean> {
     if (!digest(tokenDigest)) return false;
-    const nonce = crypto.randomUUID(), auditId = crypto.randomUUID();
+    const nonce = crypto.randomUUID();
     const results = await batch([
       statement(`UPDATE ${table.impersonations} SET ended_at_ms = ${NOW}, revocation_nonce = ?
         WHERE secret_hash = ? AND ended_at_ms IS NULL AND revocation_nonce IS NULL`, [nonce, tokenDigest]),

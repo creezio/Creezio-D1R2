@@ -1,6 +1,7 @@
 import {createDataAccess} from '../data/service.ts';
 import type {DataCredential,DataLease,DataRecord,PermissionDefinition,RuntimeDataCatalog} from '../data/types.ts';
 import type {IdentityDatabase} from '../identity/d1-store.ts';
+import type {StorageRouteIdentity} from '../storage-authority/target.ts';
 import {createVaultKeyring,isVaultReference,plainRecord,VaultError,type VaultKeyring} from '../vault/crypto.ts';
 import {createVaultService,type VaultStorage} from '../vault/service.ts';
 import type {ProviderConfigStorage,ProviderHttpPort,ProviderTransport} from '../../sdk/providers/types.ts';
@@ -34,11 +35,13 @@ export function readProviderKeyring(rawEnvironment:unknown):VaultKeyring|null {
 }
 
 export function createOpenAiProviderHost(options:{readonly db:IdentityDatabase;readonly catalog:RuntimeDataCatalog;
+  readonly authorityDb?:IdentityDatabase;readonly storageRoute?:StorageRouteIdentity;
   readonly permissions:readonly PermissionDefinition[];readonly config:ProviderConfigStorage;
   readonly vault:VaultStorage;readonly keyring:VaultKeyring|null;
   readonly transport:(http:ProviderHttpPort)=>ProviderTransport}) {
   if(options.config.moduleId!=='creezio.openai'||options.vault.moduleId!=='creezio.openai')throw new VaultError('unavailable');
-  const data=createDataAccess(options.db,{catalog:options.catalog,permissions:options.permissions});
+  const data=createDataAccess(options.db,{catalog:options.catalog,permissions:options.permissions,
+    authorityDb:options.authorityDb,storageRoute:options.storageRoute});
   const vault=options.keyring?createVaultService({data,catalog:options.catalog,storage:options.vault,keyring:options.keyring}):null;
   const cf=options.config.fields;
   const configFields=[options.config.contextField,...Object.values(cf)];

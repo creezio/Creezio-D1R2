@@ -99,6 +99,55 @@ CREATE TABLE "cz_637265657a696f2e72756e74696d65_6f7574626f78" (
   FOREIGN KEY ("execution_id") REFERENCES "cz_637265657a696f2e72756e74696d65_657865637574696f6e73" ("id") ON DELETE RESTRICT
 ) WITHOUT ROWID;
 
+CREATE TABLE "cz_637265657a696f2e72756e74696d65_73746f726167655f6772616e7473" (
+  "actor_principal_id" TEXT NOT NULL CHECK ("actor_principal_id" IS NOT NULL AND (typeof("actor_principal_id") = 'text' AND instr("actor_principal_id", char(0)) = 0 AND length("actor_principal_id") >= 1 AND length("actor_principal_id") <= 128)),
+  "audience" TEXT NOT NULL CHECK ("audience" IS NOT NULL AND (typeof("audience") = 'text' AND instr("audience", char(0)) = 0 AND "audience" IN ('admin', 'app'))),
+  "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "credential_digest" TEXT NOT NULL CHECK ("credential_digest" IS NOT NULL AND (typeof("credential_digest") = 'text' AND instr("credential_digest", char(0)) = 0 AND length("credential_digest") >= 1 AND length("credential_digest") <= 71)),
+  "expires_at_ms" INTEGER NOT NULL CHECK ("expires_at_ms" IS NOT NULL AND (typeof("expires_at_ms") = 'integer' AND "expires_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "expires_at_ms" >= 0 AND "expires_at_ms" <= 9007199254740991)),
+  "generation" INTEGER NOT NULL CHECK ("generation" IS NOT NULL AND (typeof("generation") = 'integer' AND "generation" BETWEEN -9007199254740991 AND 9007199254740991 AND "generation" >= 0 AND "generation" <= 9007199254740991)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
+  "module_id" TEXT NOT NULL CHECK ("module_id" IS NOT NULL AND (typeof("module_id") = 'text' AND instr("module_id", char(0)) = 0 AND length("module_id") >= 1 AND length("module_id") <= 128)),
+  "principal_id" TEXT NOT NULL CHECK ("principal_id" IS NOT NULL AND (typeof("principal_id") = 'text' AND instr("principal_id", char(0)) = 0 AND length("principal_id") >= 1 AND length("principal_id") <= 128)),
+  "source_epoch" INTEGER NOT NULL CHECK ("source_epoch" IS NOT NULL AND (typeof("source_epoch") = 'integer' AND "source_epoch" BETWEEN -9007199254740991 AND 9007199254740991 AND "source_epoch" >= 0 AND "source_epoch" <= 9007199254740991)),
+  "target_digest" TEXT NOT NULL CHECK ("target_digest" IS NOT NULL AND (typeof("target_digest") = 'text' AND instr("target_digest", char(0)) = 0 AND length("target_digest") >= 1 AND length("target_digest") <= 71)),
+  PRIMARY KEY ("id")
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e72756e74696d65_73746f726167655f6d75746174696f6e73" (
+  "command_digest" TEXT NOT NULL CHECK ("command_digest" IS NOT NULL AND (typeof("command_digest") = 'text' AND instr("command_digest", char(0)) = 0 AND length("command_digest") >= 1 AND length("command_digest") <= 71)),
+  "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
+  "generation" INTEGER NOT NULL CHECK ("generation" IS NOT NULL AND (typeof("generation") = 'integer' AND "generation" BETWEEN -9007199254740991 AND 9007199254740991 AND "generation" >= 0 AND "generation" <= 9007199254740991)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
+  "installation_id" TEXT NOT NULL CHECK ("installation_id" IS NOT NULL AND (typeof("installation_id") = 'text' AND instr("installation_id", char(0)) = 0 AND length("installation_id") >= 1 AND length("installation_id") <= 128)),
+  "state" TEXT NOT NULL CHECK ("state" IS NOT NULL AND (typeof("state") = 'text' AND instr("state", char(0)) = 0 AND "state" IN ('prepared', 'fenced', 'source-attempted', 'source-confirmed', 'open'))),
+  "updated_at_ms" INTEGER NOT NULL CHECK ("updated_at_ms" IS NOT NULL AND (typeof("updated_at_ms") = 'integer' AND "updated_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "updated_at_ms" >= 0 AND "updated_at_ms" <= 9007199254740991)),
+  PRIMARY KEY ("id")
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e72756e74696d65_73746f726167655f726f75746573" (
+  "generation" INTEGER NOT NULL CHECK ("generation" IS NOT NULL AND (typeof("generation") = 'integer' AND "generation" BETWEEN -9007199254740991 AND 9007199254740991 AND "generation" >= 0 AND "generation" <= 9007199254740991)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
+  "installation_id" TEXT NOT NULL CHECK ("installation_id" IS NOT NULL AND (typeof("installation_id") = 'text' AND instr("installation_id", char(0)) = 0 AND length("installation_id") >= 1 AND length("installation_id") <= 128)),
+  "mutation_id" TEXT CHECK ("mutation_id" IS NULL OR (typeof("mutation_id") = 'text' AND instr("mutation_id", char(0)) = 0 AND length("mutation_id") >= 1 AND length("mutation_id") <= 128)),
+  "slot" INTEGER NOT NULL CHECK ("slot" IS NOT NULL AND (typeof("slot") = 'integer' AND "slot" BETWEEN -9007199254740991 AND 9007199254740991 AND "slot" >= 0 AND "slot" <= 9007199254740991)),
+  "source_epoch" INTEGER NOT NULL CHECK ("source_epoch" IS NOT NULL AND (typeof("source_epoch") = 'integer' AND "source_epoch" BETWEEN -9007199254740991 AND 9007199254740991 AND "source_epoch" >= 0 AND "source_epoch" <= 9007199254740991)),
+  "state" TEXT NOT NULL CHECK ("state" IS NOT NULL AND (typeof("state") = 'text' AND instr("state", char(0)) = 0 AND "state" IN ('active', 'deny'))),
+  "updated_at_ms" INTEGER NOT NULL CHECK ("updated_at_ms" IS NOT NULL AND (typeof("updated_at_ms") = 'integer' AND "updated_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "updated_at_ms" >= 0 AND "updated_at_ms" <= 9007199254740991)),
+  PRIMARY KEY ("id")
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e72756e74696d65_73746f726167655f736f757263655f7265636569707473" (
+  "command_digest" TEXT NOT NULL CHECK ("command_digest" IS NOT NULL AND (typeof("command_digest") = 'text' AND instr("command_digest", char(0)) = 0 AND length("command_digest") >= 1 AND length("command_digest") <= 71)),
+  "created_at_ms" INTEGER NOT NULL CHECK ("created_at_ms" IS NOT NULL AND (typeof("created_at_ms") = 'integer' AND "created_at_ms" BETWEEN -9007199254740991 AND 9007199254740991 AND "created_at_ms" >= 0 AND "created_at_ms" <= 9007199254740991)),
+  "effect" TEXT NOT NULL CHECK ("effect" IS NOT NULL AND (typeof("effect") = 'text' AND instr("effect", char(0)) = 0 AND "effect" IN ('revoked', 'no-op'))),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
+  "kind" TEXT NOT NULL CHECK ("kind" IS NOT NULL AND (typeof("kind") = 'text' AND instr("kind", char(0)) = 0 AND length("kind") >= 1 AND length("kind") <= 64)),
+  "target_id" TEXT NOT NULL CHECK ("target_id" IS NOT NULL AND (typeof("target_id") = 'text' AND instr("target_id", char(0)) = 0 AND length("target_id") >= 1 AND length("target_id") <= 128)),
+  PRIMARY KEY ("id")
+) WITHOUT ROWID;
+
 CREATE INDEX "cz_637265657a696f2e72756e74696d65_617070726f76616c73_idx_6163746f722d7374617465" ON "cz_637265657a696f2e72756e74696d65_617070726f76616c73" ("actor_principal_id", "context_id", "audience", "state", "created_at_ms");
 
 CREATE INDEX "cz_637265657a696f2e72756e74696d65_617070726f76616c73_idx_657870697279" ON "cz_637265657a696f2e72756e74696d65_617070726f76616c73" ("expires_at_ms", "state");
@@ -120,3 +169,11 @@ CREATE UNIQUE INDEX "cz_637265657a696f2e72756e74696d65_6f7574626f78_idx_64656c69
 CREATE UNIQUE INDEX "cz_637265657a696f2e72756e74696d65_6f7574626f78_idx_657865637574696f6e2d696e74656e74" ON "cz_637265657a696f2e72756e74696d65_6f7574626f78" ("execution_id", "intent_id");
 
 CREATE INDEX "cz_637265657a696f2e72756e74696d65_6f7574626f78_idx_70656e64696e67" ON "cz_637265657a696f2e72756e74696d65_6f7574626f78" ("state", "updated_at_ms");
+
+CREATE INDEX "cz_637265657a696f2e72756e74696d65_73746f726167655f6772616e7473_idx_636f6e746578742d67656e65726174696f6e" ON "cz_637265657a696f2e72756e74696d65_73746f726167655f6772616e7473" ("context_id", "generation", "expires_at_ms");
+
+CREATE INDEX "cz_637265657a696f2e72756e74696d65_73746f726167655f6d75746174696f6e73_idx_636f6e746578742d7374617465" ON "cz_637265657a696f2e72756e74696d65_73746f726167655f6d75746174696f6e73" ("context_id", "state", "updated_at_ms");
+
+CREATE UNIQUE INDEX "cz_637265657a696f2e72756e74696d65_73746f726167655f726f75746573_idx_696e7374616c6c6174696f6e2d736c6f74" ON "cz_637265657a696f2e72756e74696d65_73746f726167655f726f75746573" ("installation_id", "slot");
+
+CREATE INDEX "cz_637265657a696f2e72756e74696d65_73746f726167655f736f757263655f7265636569707473_idx_7461726765742d6b696e64" ON "cz_637265657a696f2e72756e74696d65_73746f726167655f736f757263655f7265636569707473" ("target_id", "kind", "created_at_ms");

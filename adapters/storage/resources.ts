@@ -2,9 +2,11 @@ import {resolveBindings, type RuntimeBindings} from './bindings.ts';
 import type {RuntimeProfile} from '../runtime-profiles.ts';
 
 const CONTEXT = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const INSTALLATION = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const SLOT_COUNT = 16;
 type ResourceRoute = Readonly<{contextId:string;slot:number;status:'active'|'revoked'}>;
-export type StorageRoutes = Readonly<{schemaVersion:1;routes:readonly ResourceRoute[]}>;
+export type StorageRoutes = Readonly<{schemaVersion:1;routes:readonly ResourceRoute[]}>
+  | Readonly<{schemaVersion:2;storageInstallationId:string;routes:readonly ResourceRoute[]}>;
 export type StorageResource = RuntimeBindings & Readonly<{slot:number}>;
 
 function plain(value:unknown):value is Record<string,unknown> {
@@ -22,7 +24,10 @@ export function resourceBindingNames(slot:number):Readonly<{database:string;buck
 
 /** A deployment owned mapping; client supplied context identifiers never grant access. */
 export function validateStorageRoutes(value:unknown):StorageRoutes {
-  if(!plain(value)||!keys(value,['schemaVersion','routes'])||value.schemaVersion!==1
+  if(!plain(value)||(value.schemaVersion!==1&&value.schemaVersion!==2)
+    ||!keys(value,value.schemaVersion===2?['schemaVersion','storageInstallationId','routes']:['schemaVersion','routes'])
+    ||value.schemaVersion===2&&(typeof value.storageInstallationId!=='string'
+      ||!INSTALLATION.test(value.storageInstallationId))
     ||!Array.isArray(value.routes)||value.routes.length<1||value.routes.length>SLOT_COUNT)
     throw new Error('Invalid storage routes.');
   const contexts=new Set<string>(), slots=new Set<number>();
@@ -36,7 +41,9 @@ export function validateStorageRoutes(value:unknown):StorageRoutes {
     contexts.add(raw.contextId);slots.add(slot);
     return Object.freeze({contextId:raw.contextId,slot,status:raw.status as ResourceRoute['status']});
   });
-  return Object.freeze({schemaVersion:1,routes:Object.freeze(routes)});
+  return value.schemaVersion===2
+    ?Object.freeze({schemaVersion:2,storageInstallationId:value.storageInstallationId as string,routes:Object.freeze(routes)})
+    :Object.freeze({schemaVersion:1,routes:Object.freeze(routes)});
 }
 
 /** Only a caller that has resolved native identity and current ACL may use the selected storage. */

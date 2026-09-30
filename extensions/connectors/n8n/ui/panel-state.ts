@@ -7,8 +7,17 @@ export type N8nTab='settings'|'workflows'|'executions';
 export type N8nScope={sessionId:string;audience:'admin'|'app';contextId:string;panelId:string};
 export type N8nPanel={sessionId:string;audience:'admin'|'app';contextId:string;tab:N8nTab;
   workflowCursor?:string;executionCursor?:string;pending?:PendingCommand};
+export type N8nConfigStamp={revision:number;origin:string|null;enabled:boolean;hasKey:boolean};
 const tab=(value:unknown):value is N8nTab=>value==='settings'||value==='workflows'||value==='executions';
 const text=(value:unknown,max:number):value is string=>typeof value==='string'&&value.length<=max;
+
+export function preferFreshConfig<T extends N8nConfigStamp>(current:T|null,next:T):T{
+  return current&&current.revision>next.revision?current:next;
+}
+export function providerChanged(current:N8nConfigStamp|null,next:N8nConfigStamp):boolean{
+  return !!current&&(current.revision!==next.revision||current.origin!==next.origin
+    ||current.enabled!==next.enabled||current.hasKey!==next.hasKey);
+}
 
 export function retainedSessionId(previous:string,access:AccessSnapshot):string{
   if(access.phase==='anonymous')return '';

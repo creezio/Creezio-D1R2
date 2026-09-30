@@ -46,8 +46,13 @@ function subscription(raw:Record<string,unknown>):Record<string,JsonValue>{
   if(typeof raw.livemode!=='boolean')return fail();
   const result:Record<string,JsonValue>={livemode:raw.livemode,
     customer_id:id(raw.customer,'cus_'),status:bounded(raw.status,64),currency:null,
-    price_id:null,unit_amount_minor:null,interval:null,interval_count:null,quantity:null,period_end_at:null};
+    price_id:null,unit_amount_minor:null,interval:null,interval_count:null,quantity:null,
+    cancel_at_period_end:null,period_end_at:null};
   if(!result.status)return fail();
+  if(raw.cancel_at_period_end!==undefined){
+    if(typeof raw.cancel_at_period_end!=='boolean')return fail();
+    result.cancel_at_period_end=raw.cancel_at_period_end;
+  }
   put(result,raw,'currency','currency',value=>value===null?null:currency(value));
   if(Object.hasOwn(raw,'items')){
     const items=object(raw.items),data=items.data;

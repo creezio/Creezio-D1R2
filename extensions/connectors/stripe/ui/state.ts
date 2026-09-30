@@ -1,7 +1,10 @@
 export type Collection='customers'|'subscriptions'|'invoices'|'products'|'prices_active'|'prices_inactive';
 export type Run={collection:Collection;runId:string|null;cursor:string|null;
   status:'partial'|'pages_exhausted';revision:number;updatedAt:string|null};
-export type Config={origin:string;enabled:boolean;hasKey:boolean;revision:number;state:string};
+export type Config={origin:string;enabled:boolean;hasKey:boolean;hasWebhookSecret:boolean;
+  hasWebhookService:boolean;
+  checkoutReturnOrigin:string|null;
+  revision:number;state:string};
 
 /** A late read cannot roll a confirmed command back to an older revision. */
 export function latestConfig(previous:Config|null,candidate:Config):Config{
@@ -20,7 +23,7 @@ export function externalConfigurationChanged(knownRevision:number,next:Config):b
 }
 export function sameConfiguration(first:Config,verified:Config):boolean{
   return first.revision===verified.revision&&first.hasKey===verified.hasKey&&
-    first.enabled===verified.enabled;
+    first.enabled===verified.enabled&&first.checkoutReturnOrigin===verified.checkoutReturnOrigin;
 }
 export function reconcileRuns(previous:readonly Run[],candidates:readonly Run[],configChanged:boolean):Run[]{
   return mergeRuns(configChanged?[]:previous,candidates);

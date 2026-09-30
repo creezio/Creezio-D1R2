@@ -14,7 +14,7 @@ export const meiliVaultStorage:ConnectorVaultStorage=Object.freeze({
     version:'version',state:'state'})
 });
 
-/** Build-owned, read-only resources; callers cannot supply a URL or method. */
+/** Build-owned paths and bodies; callers cannot supply a URL, method or header. */
 export const meiliConnectorDescriptor:ConnectorDescriptor=Object.freeze({
   id:MEILI_CONNECTOR_ID,moduleId:MEILI_MODULE_ID,config:meiliConfigStorage,vault:meiliVaultStorage,
   auth:Object.freeze({kind:'bearer'}),
@@ -23,6 +23,19 @@ export const meiliConnectorDescriptor:ConnectorDescriptor=Object.freeze({
       query:Object.freeze({fixed:Object.freeze([{name:'limit',value:'1'}])})}),
     Object.freeze({id:'index-list',method:'GET' as const,path:'/indexes',
       params:Object.freeze(['cursor','limit'] as const),
-      query:Object.freeze({cursor:'offset',limit:'limit'})})
+      query:Object.freeze({cursor:'offset',limit:'limit'})}),
+    Object.freeze({id:'document-upsert',method:'POST' as const,path:'/indexes/{id}/documents',
+      params:Object.freeze(['id'] as const),successStatuses:Object.freeze([202]),
+      body:Object.freeze({encoding:'json-root' as const,fields:Object.freeze([
+        Object.freeze({name:'documents',wireName:'documents',kind:'json' as const,required:true,maxBytes:64_000})])})}),
+    Object.freeze({id:'document-delete',method:'POST' as const,path:'/indexes/{id}/documents/delete-batch',
+      params:Object.freeze(['id'] as const),successStatuses:Object.freeze([202]),
+      body:Object.freeze({encoding:'json-root' as const,fields:Object.freeze([
+        Object.freeze({name:'ids',wireName:'ids',kind:'json' as const,required:true,maxBytes:8_000})])})}),
+    Object.freeze({id:'task',method:'GET' as const,path:'/tasks/{id}',params:Object.freeze(['id'] as const)}),
+    Object.freeze({id:'search',method:'GET' as const,path:'/indexes/{id}/search',
+      params:Object.freeze(['id','cursor','limit'] as const),
+      query:Object.freeze({cursor:'offset',limit:'limit',fields:Object.freeze([
+        Object.freeze({name:'q',wireName:'q',kind:'string' as const,maxBytes:256})])})})
   ])
 });

@@ -214,11 +214,11 @@ export function createD1AccountLifecycleStore(db: IdentityDatabase) {
       purpose: requestedPurpose, expiresAtMs: rows[0].expiresAtMs });
   }
 
-  async function consumeCapability(input: ConsumeCapabilityInput): Promise<{ readonly principalId: string } | null> {
+  async function consumeCapability(input: ConsumeCapabilityInput,auditId:string=crypto.randomUUID()): Promise<{ readonly principalId: string } | null> {
     if (!shape(input, ['digest', 'purpose', 'passwordRecord']) || !digest(input.digest)
       || !purpose(input.purpose) || !isApprovedPasswordRecord(input.passwordRecord)) throw new LifecycleStoreInputError();
     const { digest: capabilityDigest, purpose: requestedPurpose, passwordRecord } = input;
-    const nonce = crypto.randomUUID(), auditId = crypto.randomUUID();
+    const nonce = crypto.randomUUID();
     const owned = `k.claim_nonce = ? AND k.secret_hash = ? AND k.purpose = ? AND k.consumed_at_ms IS NOT NULL`;
     const args = () => [nonce, capabilityDigest, requestedPurpose];
     const owner = `SELECT k.principal_id FROM ${table.account_capabilities} k WHERE ${owned}`;

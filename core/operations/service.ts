@@ -1,4 +1,4 @@
-import { createDataAccess } from '../data/service.ts';
+import { createDataAccess, bindHostReadGuards } from '../data/service.ts';
 import { copyJson } from '../data/input.ts';
 import { DataAccessError, type DataCredential, type DataLease, type DataPlan, type DataPort, type DataRecord,
   type JsonValue, type RuntimeDataCatalog, type PermissionDefinition } from '../data/types.ts';
@@ -8,7 +8,10 @@ import { createOperationStore } from './store.ts';
 import { OperationStoreError, type OperationExecution, type OperationOutboxIntent } from './store-types.ts';
 import type { OperationRegistry } from './registry.ts';
 import { OperationError, OPERATION_LIMITS, type OperationContext, type OperationDataPort, type OperationHandlerResult, type RegisteredOperation, type OperationProviderAvailability } from './types.ts';
-import { createNativeAccessOperationAdapter, validNativeAccessDeclaration } from './native-access.ts';
+import { createNativeAccessOperationAdapter, validNativeAccessDeclaration, type NativeStorageRevocation } from './native-access.ts';
+import type {StorageRouteIdentity} from '../storage-authority/target.ts';
+import type {StorageMutationPort} from '../storage-authority/native-mutation.ts';
+import {createNativeStorageOperationCommit} from '../storage-authority/native-operation.ts';
 import type { SqlStatement } from '../data/authorization.ts';
 import {captureHostInventory} from './host-inventory.ts';
 import type {ModuleSettingsHostInventory} from '../../sdk/module-settings/types.ts';
@@ -19,6 +22,8 @@ import type {OperationFilesPort} from '../../sdk/files/types.ts';
 import {createProviderSecretsPort} from '../providers/secrets.ts';
 import {createConnectorHost} from '../connectors/host.ts';
 import type {ConnectorDescriptor} from '../../sdk/connectors/types.ts';
+import {createSearchProjectionHost} from '../search/projection.ts';
+import type {SearchProjectionSource} from '../../sdk/search/types.ts';
 import {VaultError,type VaultKeyring} from '../vault/crypto.ts';
 import type {VaultStorage} from '../vault/service.ts';
 import {operationDigest} from './digest.ts';
@@ -28,14 +33,22 @@ import {createOperationDiagnosticsPort} from './diagnostics.ts';
 import type {OperationHttpBinding} from './http-types.ts';
 import type {CompiledWidgetCatalog,WidgetValidatorMap} from '../../sdk/widgets/catalog.ts';
 import type {WidgetApprovalService} from '../widgets/approval.ts';
+import type {WebhookProofAuthority} from '../connectors/webhook-proof.ts';
+import type {DeliveryMapping} from './delivery-types.ts';
 
 export interface OperationRequest {
   readonly credential: DataCredential; readonly moduleId: string; readonly operationId: string;
   readonly contextId: string; readonly audience: AuthorizationAudience; readonly input: unknown; readonly signal?: AbortSignal;
   readonly approvalId?:string;
+  readonly webhookProof?:object;
 }
 export interface OperationStatusRequest extends Omit<OperationRequest, 'input' | 'signal'> { readonly executionId: string }
 export interface OperationLookupRequest extends Omit<OperationRequest, 'input' | 'signal'> { readonly requestKey: string }
+export interface OperationDeliveryRequest {
+  readonly credential:DataCredential;readonly moduleId:string;readonly deliveryId:string;
+  readonly contextId:string;readonly audience:AuthorizationAudience;readonly executionId:string;
+  readonly intentId:string;readonly signal?:AbortSignal;
+}
 const encoder = new TextEncoder();
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) throw new OperationError('invalid_input');
@@ -51,10 +64,11 @@ function capture(request: unknown, mode: 'invoke' | 'status' | 'lookup' = 'invok
   try {
     const raw = object(request), required = ['credential', 'moduleId', 'operationId', 'contextId', 'audience',
       mode === 'status' ? 'executionId' : mode === 'lookup' ? 'requestKey' : 'input'];
-    if (required.some(key => !Object.hasOwn(raw, key)) || Object.keys(raw).some(key => !required.includes(key) && (mode !== 'invoke' || !['signal','approvalId'].includes(key))))
+    if (required.some(key => !Object.hasOwn(raw, key)) || Object.keys(raw).some(key => !required.includes(key) && (mode !== 'invoke' || !['signal','approvalId','webhookProof'].includes(key))))
       throw new Error();
     const signal = raw.signal;
     if (signal !== undefined && !(signal instanceof AbortSignal)) throw new Error();
+    if(raw.webhookProof!==undefined&&(!raw.webhookProof||typeof raw.webhookProof!=='object'))throw new Error();
     const copied = copyJson(Object.fromEntries(required.map(key => [key, raw[key]])), OPERATION_LIMITS.inputBytes + 8192) as Record<string, JsonValue>;
     if (['moduleId', 'operationId', 'contextId', ...(mode === 'status' ? ['executionId'] : [])].some(key => typeof copied[key] !== 'string' || !copied[key])
       || !['admin', 'app'].includes(String(copied.audience))) throw new Error();
@@ -64,7 +78,8 @@ function capture(request: unknown, mode: 'invoke' | 'status' | 'lookup' = 'invok
     if (mode === 'invoke' && raw.approvalId !== undefined
       && (typeof raw.approvalId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(raw.approvalId))) throw new Error();
     return Object.freeze({ ...copied, ...(signal ? { signal } : {}),
-      ...(mode === 'invoke' && raw.approvalId ? {approvalId:raw.approvalId} : {}) }) as unknown as OperationRequest | OperationStatusRequest | OperationLookupRequest;
+      ...(mode === 'invoke' && raw.approvalId ? {approvalId:raw.approvalId} : {}),
+      ...(mode === 'invoke' && raw.webhookProof ? {webhookProof:raw.webhookProof} : {}) }) as unknown as OperationRequest | OperationStatusRequest | OperationLookupRequest;
   } catch { throw new OperationError('invalid_input'); }
 }
 function errorCode(error: unknown): OperationError['code'] {
@@ -81,11 +96,16 @@ function errorCode(error: unknown): OperationError['code'] {
 
 /** Internal common executor. API/MCP adapters supply native credentials; a channel never grants rights. */
 export function createOperationEngine(options: { readonly db: IdentityDatabase; readonly catalog: RuntimeDataCatalog;
+  readonly authorityDb?:IdentityDatabase;readonly storageRoute?:StorageRouteIdentity;
+  readonly storageMutation?:StorageMutationPort;
   readonly registry: OperationRegistry; readonly permissions: readonly PermissionDefinition[];
   readonly files?: {readonly catalog: RuntimeFileCatalog; readonly bucket: FileBucket};
   readonly providerSecrets?: {readonly storage:VaultStorage;readonly keyring:VaultKeyring;readonly providerId:string};
   readonly connectors?:readonly {readonly descriptor:ConnectorDescriptor;readonly keyring:VaultKeyring|null;
     readonly fetcher?:typeof fetch}[];
+  readonly search?:readonly {readonly moduleId:string;readonly sources:readonly SearchProjectionSource[]}[];
+  readonly deliveries?:readonly DeliveryMapping[];
+  readonly webhooks?:Pick<WebhookProofAuthority,'consume'>;
   readonly providerAvailability?: (request: OperationRequest, providerId: string) => Promise<OperationProviderAvailability>;
   readonly runtimeInventory?: ModuleSettingsHostInventory;
   readonly approvals?:WidgetApprovalService;
@@ -94,12 +114,21 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
   const { registry } = options, catalog = copyJson(options.catalog, 4 * 1024 * 1024) as unknown as RuntimeDataCatalog;
   if (catalog.compositionDigest !== registry.compositionDigest) throw new OperationError('invalid_catalog');
   const hostInventory = captureHostInventory(options.runtimeInventory, registry.compositionDigest);
-  const data = createDataAccess(options.db, { catalog, permissions: options.permissions }), store = createOperationStore({ db: options.db, data });
+  const data = createDataAccess(options.db, { catalog, permissions: options.permissions,
+    authorityDb:options.authorityDb,storageRoute:options.storageRoute }), store = createOperationStore({ db: options.db, data });
   if((options.connectors?.length??0)>16)throw new OperationError('invalid_catalog');
   const connectors=(options.connectors??[]).map(item=>createConnectorHost({data,catalog,...item}));
+  const search=(options.search??[]).map(item=>({moduleId:item.moduleId,
+    host:createSearchProjectionHost({data,catalog,sources:item.sources})}));
+  if(new Set(search.map(item=>item.moduleId)).size!==search.length)throw new OperationError('invalid_catalog');
   if(new Set(connectors.map(item=>`${item.descriptor.moduleId}\0${item.descriptor.id}`)).size!==connectors.length)
     throw new OperationError('invalid_catalog');
-  const nativeAccess = createNativeAccessOperationAdapter(options.db, options.permissions, catalog);
+  const deliveries=options.deliveries??[];
+  if(deliveries.length>16||new Set(deliveries.map(item=>`${item.moduleId}\0${item.id}`)).size!==deliveries.length)
+    throw new OperationError('invalid_catalog');
+  const nativeAccess = createNativeAccessOperationAdapter(options.authorityDb??options.db, options.permissions, catalog);
+  const nativeStorage=options.storageMutation
+    ?createNativeStorageOperationCommit(options.authorityDb??options.db,options.storageMutation):null;
   async function authorize(request: OperationRequest | OperationStatusRequest | OperationLookupRequest, operation: RegisteredOperation): Promise<DataLease> {
     const declaration = operation.declaration;
     if (operation.moduleId === 'creezio.access' && (!validNativeAccessDeclaration(declaration)
@@ -118,8 +147,24 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
     if (['waiting', 'succeeded'].includes(value.state) && operation.validateOutput(value.output) !== true) throw new OperationError('invalid_output');
     return value;
   }
+  async function confirmedExecution(value:OperationExecution,operation:RegisteredOperation,lease:DataLease){
+    const checked=checkedExecution(value,operation);
+    if(!nativeStorage||operation.moduleId!=='creezio.access'
+      ||operation.declaration.kind!=='command'||checked.state!=='succeeded')return checked;
+    const outcome=await nativeStorage.recover(operation.declaration.id as NativeStorageRevocation['kind'],checked.id,
+      ()=>store.read(lease,checked.id),result=>result.state==='succeeded');
+    if(outcome.state!=='confirmed')throw new OperationError('unknown');
+    return checkedExecution(outcome.value,operation);
+  }
   async function invoke(supplied: OperationRequest, traversal?:QueryTraversal): Promise<{ readonly execution: OperationExecution; readonly replayed: boolean }> {
       const request = capture(supplied) as OperationRequest, operation = registry.resolve(request.moduleId, request.operationId), op = operation.declaration;
+      let webhookGuards:Awaited<ReturnType<NonNullable<typeof options.webhooks>['consume']>>=null;
+      if(op.actors.includes('signed-webhook')){
+        if(!options.webhooks||!request.webhookProof
+          ||!(webhookGuards=await options.webhooks.consume(request.webhookProof,request))
+          ||webhookGuards.length<2||webhookGuards.length>4)
+          throw new OperationError('forbidden');
+      }else if(request.webhookProof)throw new OperationError('invalid_input');
       if (request.signal?.aborted) throw new OperationError('cancelled');
       if (operation.validateInput(request.input) !== true) throw new OperationError('invalid_input');
       // Unimplemented effects never silently execute as an ordinary mutation.
@@ -177,9 +222,9 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
         const start = await store.start(lease, { operationId: op.id, operationVersion: operation.contractDigest, keyHash, inputHash,
           claimTtlMs: Math.min(OPERATION_LIMITS.maxDurationMs, Math.max(1000, op.execution.maxDurationMs + 5000)),
           retentionMs: op.idempotency.mode === 'required' ? op.idempotency.retentionSeconds * 1000 : 86400_000 });
-        if (start.kind === 'existing') return Object.freeze({ execution: checkedExecution(start.execution, operation), replayed: true });
+        if (start.kind === 'existing') return Object.freeze({ execution: await confirmedExecution(start.execution, operation,lease), replayed: true });
         const controller = new AbortController(), issued = new Map<DataPlan, { write: boolean; compared: boolean;
-          file?: boolean; secret?: boolean; connectorGuard?: boolean }>();
+          file?: boolean; secret?: boolean; connectorGuard?: boolean; webhookGuard?: boolean }>();
         let active = true, usedItems = 0, failure: OperationError | undefined;
         const ensure = () => { if (!active || controller.signal.aborted) throw failure ?? new OperationError('cancelled'); };
         const spend = (amount: number) => { ensure(); if (!Number.isSafeInteger(amount) || amount < 1 || (usedItems += amount) > op.execution.maxItems) throw new OperationError('invalid_input'); };
@@ -223,7 +268,8 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
         const connector=connectors.find(item=>item.descriptor.moduleId===operation.moduleId
           &&op.effects.providers.includes(item.descriptor.id));
         const connectorCommand=!!connector&&op.kind==='command'&&op.effects.writes.length>0;
-        const connectorState:{guards:readonly DataPlan[]|null}={guards:null};
+        const connectorState:{guards:readonly DataPlan[]|null;unknown:boolean;externalEffect:boolean}=
+          {guards:null,unknown:false,externalEffect:false};
         const registerConnectorGuards=(tokens:readonly DataPlan[])=>{
           ensure();
           if(!connectorCommand||connectorState.guards||!Array.isArray(tokens)||tokens.length!==2
@@ -235,6 +281,16 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           }
           connectorState.guards=Object.freeze([...tokens]);
         };
+        const privateWebhookGuards=(webhookGuards??[]).map(guard=>{
+          if(guard.moduleId!==operation.moduleId||!catalog.modules.some(module=>
+            module.moduleId===guard.moduleId&&module.enabled&&module.models.some(model=>
+              model.modelId===guard.modelId)))throw new OperationError('forbidden');
+          const token=data.internalPort(lease,{moduleId:guard.moduleId,
+            modelId:guard.modelId,fields:guard.fields}).planGet(guard.modelId,
+            {key:guard.key,where:guard.where,required:true});
+          issued.set(token,{write:false,compared:false,webhookGuard:true});
+          return token;
+        });
         const moduleConnectors=connectors.filter(item=>item.descriptor.moduleId===operation.moduleId);
         const secretConnector=moduleConnectors.length===1?moduleConnectors[0]:null;
         const secretKeyring=secretConnector?options.connectors?.find(item=>item.descriptor.moduleId===operation.moduleId
@@ -277,12 +333,23 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
               }})} : {}),
           ...(connector&&(op.kind==='query'||connectorCommand)&&operation.moduleId===connector.descriptor.moduleId
             &&op.effects.providers.includes(connector.descriptor.id)
-            ? {connector:connector.port({lease,credential:request.credential,contextId:identity.contextId,
+            ? {connector:connector.port({lease,credential:request.credential,executionId:start.execution.id,
+              contextId:identity.contextId,
               audience:identity.audience,actors:op.actors.filter((actor):actor is AuthorizationActor=>
                 ['user','machine','delegated-user','impersonated-user'].includes(actor)),
               requiredPermissionIds:op.permissions.map(ref=>`${ref.moduleId}:${ref.id}`),signal:controller.signal,
-              ensureActive:ensure,...(connectorCommand?{registerCommitGuards:registerConnectorGuards}:{})})}
+              ensureActive:ensure,...(connectorCommand?{
+                registerCommitGuards:registerConnectorGuards,
+                markMutationAttempted(){connectorState.externalEffect=true;},
+                markMutationUnknown(){connectorState.unknown=true;},
+                markMutationSucceeded(){connectorState.externalEffect=true;}}:{})})}
             : {}),
+          ...(search.find(item=>item.moduleId===operation.moduleId)
+            ?{search:search.find(item=>item.moduleId===operation.moduleId)!.host.port({
+              credential:request.credential,contextId:identity.contextId,
+              audience:identity.audience,actors:op.actors.filter((actor):actor is AuthorizationActor=>
+                ['user','machine','delegated-user','impersonated-user'].includes(actor)),
+              ensureActive:ensure})}:{}),
           ...(options.files ? {files: Object.freeze({async preparePublication(categoryId, reference) {
             ensure();
             if (op.kind !== 'command' || !op.effects.writes.some(ref => ref.moduleId === operation.moduleId && ref.kind === 'file' && ref.id === categoryId))
@@ -323,19 +390,25 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           })} : {}) });
         let attemptingCommit = false;
         let nativeStatements: readonly SqlStatement[] | undefined;
+        let nativeRevocation:NativeStorageRevocation|undefined;
+        let sourceReceipt:OperationExecution|undefined;
         let nativeCompared = false;
         try {
           const execution = Promise.resolve().then(async () => {
             ensure();
             if (operation.moduleId !== 'creezio.access') return operation.handler(input, context);
-            const prepared = await nativeAccess.execute(op.id, request.credential as Extract<typeof request.credential, {kind: 'session' | 'oauth'}>, input);
+            const auditId=nativeStorage&&op.kind==='command'
+              ?await nativeStorage.auditId(op.id as NativeStorageRevocation['kind'],start.execution.id):undefined;
+            const prepared = await nativeAccess.execute(op.id, request.credential as Extract<typeof request.credential, {kind: 'session' | 'oauth'}>, input,auditId);
             nativeStatements = prepared.nativeStatements;
+            nativeRevocation=prepared.storageRevocation;
             nativeCompared = prepared.compared === true;
             return {output: prepared.output};
           });
           // A late planner cannot commit anything: only this executor owns the opaque batch plans.
           const result = object(await Promise.race([execution, cancellation])) as unknown as OperationHandlerResult;
           ensure();
+          if(connectorState.unknown)throw new OperationError('unknown');
           if (!Object.hasOwn(result, 'output') || Object.keys(result).some(key => !['output', 'plans', 'outbox'].includes(key))) throw new OperationError('invalid_output');
           const output = copyJson(result.output, OPERATION_LIMITS.outputBytes);
           if (operation.validateOutput(output) !== true) throw new OperationError('invalid_output');
@@ -346,13 +419,15 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           for (let i = 0; i < suppliedPlans.length; i++) {
             const descriptor = descriptors[String(i)], token = descriptor?.value;
             if (!descriptor || !Object.hasOwn(descriptor, 'value') || !issued.has(token)
-              || issued.get(token)?.connectorGuard || plans.includes(token)) throw new OperationError('invalid_output');
+              || issued.get(token)?.connectorGuard || issued.get(token)?.webhookGuard
+              || plans.includes(token)) throw new OperationError('invalid_output');
             plans.push(token);
           }
           if(connectorCommand){
             if(!connectorState.guards||!plans.some(token=>issued.get(token)?.write))throw new OperationError('invalid_output');
             plans.unshift(...connectorState.guards);
           }
+          if(privateWebhookGuards.length)plans.unshift(...privateWebhookGuards);
           const filePlans=[...issued].filter(([,metadata])=>metadata.file).map(([token])=>token);
           if (filePlans.length && (filePlans.some(token=>!plans.includes(token))
             || !plans.some(token=>issued.get(token)!.write && !issued.get(token)!.file))) throw new OperationError('invalid_output');
@@ -365,9 +440,24 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           if (!Array.isArray(outbox) || outbox.length && (op.kind !== 'command'||connectorCommand)
             || outbox.some(intent => !op.effects.providers.includes(intent.provider))) throw new OperationError('invalid_output');
           ensure(); attemptingCommit = true;
-          const committed = await Promise.race([store.commit(lease, start.claim, { plans, output, outbox,
-            ...(nativeStatements ? {nativeStatements} : {}),
-            ...(approvalStatements ? {approvalStatements} : {}) }), cancellation]);
+          const sourceCommit=async()=>{
+            ensure();
+            sourceReceipt=await store.commit(lease,start.claim,{plans,output,outbox,
+              ...(nativeStatements?{nativeStatements}:{}),...(approvalStatements?{approvalStatements}:{})});
+            return sourceReceipt;
+          };
+          const commit=async()=>{
+            if(!nativeStorage||!nativeRevocation)return sourceCommit();
+            const outcome=await nativeStorage.commit({descriptor:nativeRevocation,executionId:start.execution.id,
+              sourceCommit,
+              // The exact source batch receipt remains valid when that batch revokes its own session/epoch.
+              // Later requests have no cached receipt and must use fresh native authorization.
+              readExecution:async()=>sourceReceipt??await store.read(lease,start.execution.id),
+              succeeded:value=>value.state==='succeeded'});
+            if(outcome.state!=='confirmed')throw new OperationError('unknown');
+            return outcome.value;
+          };
+          const committed = await Promise.race([commit(), cancellation]);
           return Object.freeze({ execution: checkedExecution(committed, operation), replayed: false });
         } catch (error) {
           const code = errorCode(error);
@@ -377,27 +467,215 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
             try {
               const observed = await Promise.race([store.read(lease, start.execution.id), cancellation]);
               if (observed && ['succeeded', 'waiting', 'failed'].includes(observed.state))
-                return Object.freeze({ execution: checkedExecution(observed, operation), replayed: false });
+                return Object.freeze({ execution: await confirmedExecution(observed, operation,lease), replayed: false });
             } catch { /* Unknown remains unknown; status can be requested with fresh authority. */ }
             throw new OperationError('unknown');
           }
           try {
-            const observed = await Promise.race([store.fail(lease, start.claim, code), cancellation]);
+            const observed = connectorState.unknown||connectorState.externalEffect
+              ?await store.markUnknown(lease,start.claim,code)
+              :await Promise.race([store.fail(lease,start.claim,code),cancellation]);
             return Object.freeze({ execution: checkedExecution(observed, operation), replayed: false });
           } catch {
             // If the acknowledgement or fresh authorization is lost, never report a confirmed rejection or replay the handler.
-            throw new OperationError(code);
+            throw new OperationError(connectorState.unknown||connectorState.externalEffect?'unknown':code);
           }
         }
       } catch (error) { if (error instanceof OperationError) throw error; throw new OperationError(errorCode(error)); }
       finally { close(); data.dispose(lease); }
     }
+  function deliveryRequest(supplied:OperationDeliveryRequest):OperationDeliveryRequest{
+    const raw=object(supplied);
+    const names=['credential','moduleId','deliveryId','contextId','audience','executionId','intentId'];
+    if(names.some(name=>!Object.hasOwn(raw,name))||Object.keys(raw).some(name=>
+      !names.includes(name)&&name!=='signal')||raw.signal!==undefined&&!(raw.signal instanceof AbortSignal))
+      throw new OperationError('invalid_input');
+    let captured:OperationDeliveryRequest;
+    try{captured=copyJson(Object.fromEntries(names.map(name=>[name,raw[name]])),8192) as unknown as OperationDeliveryRequest;}
+    catch{throw new OperationError('invalid_input');}
+    for(const name of ['moduleId','deliveryId','contextId','executionId','intentId'] as const)
+      if(typeof captured[name]!=='string'||!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(captured[name]))
+        throw new OperationError('invalid_input');
+    if(!['admin','app'].includes(captured.audience))throw new OperationError('invalid_input');
+    return Object.freeze({...captured,...(raw.signal?{signal:raw.signal as AbortSignal}:{})});
+  }
+  async function deliveryAction(supplied:OperationDeliveryRequest,send:boolean){
+    const request=deliveryRequest(supplied);
+    const mapping=deliveries.find(item=>item.moduleId===request.moduleId&&item.id===request.deliveryId);
+    if(!mapping)throw new OperationError('unsupported');
+    const source=registry.resolve(mapping.moduleId,mapping.commandId);
+    if(source.declaration.kind!=='command')throw new OperationError('invalid_catalog');
+    const operationRequest={credential:request.credential,moduleId:mapping.moduleId,
+      operationId:mapping.commandId,contextId:request.contextId,audience:request.audience,
+      executionId:request.executionId};
+    const lease=await authorize(operationRequest,source);
+    try{
+      const execution=await store.read(lease,request.executionId);
+      if(!execution)throw new OperationError('not_found');
+      checkedExecution(execution,source);
+      const prior=await store.readDelivery(lease,{executionId:request.executionId,outboxId:request.intentId});
+      if(!prior)throw new OperationError('not_found');
+      if(prior.provider!==mapping.connectorId||prior.providerIdempotencyKey!==request.intentId)
+        throw new OperationError('conflict');
+      if(!send||prior.state!=='queued')return Object.freeze({delivery:prior,replayed:true});
+      if(!prior.payload||typeof prior.payload!=='object'||Array.isArray(prior.payload))
+        throw new OperationError('invalid_output');
+      if(request.signal?.aborted)throw new OperationError('cancelled');
+      const acquired=await store.claimDelivery(lease,{executionId:request.executionId,
+        outboxId:request.intentId,claimTtlMs:30_000});
+      if(!acquired){
+        const current=await store.readDelivery(lease,{executionId:request.executionId,outboxId:request.intentId});
+        if(!current)throw new OperationError('not_found');
+        return Object.freeze({delivery:current,replayed:true});
+      }
+      const {claim,delivery}=acquired;
+      const payload=delivery.payload;
+      const fields=payload as Record<string,JsonValue>,identity=data.describeLease(lease);
+      const ownerPort=data.forModule(lease,mapping.moduleId);
+      const permitted=new Set(mapping.modelIds),issued=new Set<DataPlan>();
+      const allowed=(id:string)=>{if(!permitted.has(id))throw new OperationError('forbidden');
+        if(request.signal?.aborted)throw new OperationError('cancelled');};
+      const projectedData:OperationDataPort=Object.freeze({
+        get(id,args){allowed(id);return ownerPort.get(id,args);},
+        list(id,args){allowed(id);return ownerPort.list(id,args);},
+        planGet(id,args){allowed(id);const token=ownerPort.planGet(id,args);issued.add(token);return token;},
+        planList(id,args){allowed(id);const token=ownerPort.planList(id,args);issued.add(token);return token;},
+        planCreate(id,args){allowed(id);const token=ownerPort.planCreate(id,args);issued.add(token);return token;},
+        planPatch(id,args){allowed(id);const token=ownerPort.planPatch(id,args);issued.add(token);return token;},
+        planDelete(id,args){allowed(id);const token=ownerPort.planDelete(id,args);issued.add(token);return token;},
+      });
+      const project=async(receipt:JsonValue)=>{
+        if(mapping.validateReceipt(receipt)!==true)throw new OperationError('invalid_output');
+        const input:Record<string,JsonValue>=Object.create(null);
+        for(const [target,sourceField] of Object.entries(mapping.projectorInput)){
+          const value=sourceField==='$intentId'?request.intentId:sourceField==='$receipt'?receipt:fields[sourceField];
+          if(value===undefined)throw new OperationError('invalid_output');
+          input[target]=value;
+        }
+        const result=await mapping.projector(input,{principalId:identity.principalId,data:projectedData,
+          receivedAt:new Date().toISOString()});
+        if(!Array.isArray(result)||result.length>12||new Set(result).size!==result.length
+          ||result.some(token=>!issued.has(token)))throw new OperationError('invalid_output');
+        return result;
+      };
+      const settle=async(kind:'accepted'|'rejected'|'unknown',providerMessageId?:string,
+        guards:readonly DataPlan[]=[])=>{
+        const receipt=copyJson({kind,...(providerMessageId?{[mapping.acceptance.receiptIdField]:providerMessageId}:{})},16_384);
+        const plans=await project(receipt);
+        if(guards.length+plans.length>16)throw new OperationError('invalid_output');
+        return store.settleDelivery(lease,claim,{state:kind==='accepted'?'succeeded':kind==='rejected'?'failed':'unknown',receipt},
+          [...guards,...plans]);
+      };
+      let uncertain=false,providerGuards:readonly DataPlan[]|null=null;
+      let providerLease:DataLease|null=null;
+      try{
+        const prepareInput:Record<string,JsonValue>=Object.create(null);
+        for(const [target,sourceField] of Object.entries(mapping.prepareInput)){
+          const value=sourceField==='$intentId'?request.intentId:fields[sourceField];
+          if(value===undefined)throw new OperationError('invalid_output');
+          prepareInput[target]=value;
+        }
+        const prepared=await invoke({credential:request.credential,moduleId:mapping.moduleId,
+          operationId:mapping.prepareId,contextId:request.contextId,audience:request.audience,
+          input:prepareInput,signal:request.signal});
+        if(prepared.execution.state!=='succeeded')throw new OperationError('unavailable');
+        const output=prepared.execution.output;
+        if(!output||typeof output!=='object'||Array.isArray(output))throw new OperationError('invalid_output');
+        const ready=output as Record<string,JsonValue>;
+        if(mapping.matchFields.some(field=>JSON.stringify(ready[field])!==JSON.stringify(fields[field]))
+          ||ready.intentId!==request.intentId)throw new OperationError('conflict');
+        const expectedConfigRevision=ready[mapping.configRevisionField];
+        if(typeof expectedConfigRevision!=='number'||!Number.isSafeInteger(expectedConfigRevision)
+          ||expectedConfigRevision<1)throw new OperationError('invalid_output');
+        if(fields[mapping.configRevisionField]!==expectedConfigRevision)
+          throw new OperationError('conflict');
+        const envelope=ready[mapping.envelopeField];
+        if(!envelope||typeof envelope!=='object'||Array.isArray(envelope))throw new OperationError('invalid_output');
+        const connector=connectors.find(item=>item.descriptor.moduleId===mapping.providerModuleId
+          &&item.descriptor.id===mapping.connectorId);
+        const readiness=registry.resolve(mapping.providerModuleId,mapping.readinessId);
+        if(!connector||readiness.declaration.kind!=='query'||!connector.descriptor.resources.some(item=>
+          item.id===mapping.resourceId&&item.method!=='GET'&&item.idempotencyHeader))
+          throw new OperationError('invalid_catalog');
+        const refresh=async()=>{
+          const fresh=await authorize(operationRequest,source);
+          try{const current=data.describeLease(fresh);
+            if(current.principalId!==identity.principalId||current.actorPrincipalId!==identity.actorPrincipalId
+              ||current.contextId!==identity.contextId||current.audience!==identity.audience)
+              throw new OperationError('forbidden');}
+          finally{data.dispose(fresh);}
+        };
+        await refresh();
+        providerLease=await authorize({...operationRequest,moduleId:mapping.providerModuleId,
+          operationId:mapping.readinessId},readiness);
+        const providerIdentity=data.describeLease(providerLease);
+        if(providerIdentity.principalId!==identity.principalId
+          ||providerIdentity.actorPrincipalId!==identity.actorPrincipalId
+          ||providerIdentity.contextId!==identity.contextId||providerIdentity.audience!==identity.audience)
+          throw new OperationError('forbidden');
+        const result=await connector.port({lease:providerLease,credential:request.credential,
+          contextId:request.contextId,audience:request.audience,
+          actors:readiness.declaration.actors.filter((actor):actor is AuthorizationActor=>
+            ['user','machine','delegated-user','impersonated-user'].includes(actor)),
+          requiredPermissionIds:readiness.declaration.permissions.map(ref=>`${ref.moduleId}:${ref.id}`),
+          signal:request.signal??new AbortController().signal,executionId:request.intentId,
+          expectedConfigRevision,
+          ensureActive(){if(request.signal?.aborted)throw new OperationError('cancelled');},
+          markMutationUnknown(){uncertain=true;},
+          registerCommitGuards(tokens){if(providerGuards||tokens.length!==2||new Set(tokens).size!==2)
+            throw new OperationError('invalid_output');providerGuards=tokens;},
+        }).mutate({resource:mapping.resourceId,fields:envelope as Record<string,JsonValue>});
+        if(result.kind==='ok'){
+          const body=result.body;
+          const id=body&&typeof body==='object'&&!Array.isArray(body)
+            ?(body as Record<string,JsonValue>)[mapping.acceptance.responseIdField]:null;
+          if(typeof id!=='string'||!id||id.length>256||!providerGuards)throw new OperationError('unknown');
+          await refresh();
+          const guards=bindHostReadGuards(data,providerLease,lease,providerGuards);
+          try{return Object.freeze({delivery:await settle('accepted',id,guards),replayed:false});}
+          catch(error){
+            const observed=await store.readDelivery(lease,{executionId:request.executionId,outboxId:request.intentId});
+            if(observed?.state==='succeeded')return Object.freeze({delivery:observed,replayed:false});
+            throw error;
+          }
+        }
+        if(result.code==='outcome_unknown'||uncertain)throw new OperationError('unknown');
+        return Object.freeze({delivery:await settle('rejected'),replayed:false});
+      }catch{
+        try{return Object.freeze({delivery:await settle('unknown'),replayed:false});}
+        catch{
+          const current=await store.readDelivery(lease,{executionId:request.executionId,outboxId:request.intentId});
+          if(current?.state==='succeeded')return Object.freeze({delivery:current,replayed:false});
+          throw new OperationError('unknown');
+        }
+      }finally{if(providerLease)data.dispose(providerLease);}
+    }finally{data.dispose(lease);}
+  }
   return Object.freeze({
-    invoke(supplied:OperationRequest){return invoke(supplied);},
+    async invoke(supplied:OperationRequest){
+      const result=await invoke(supplied);
+      const mapping=deliveries.find(item=>item.moduleId===result.execution.moduleId
+        &&item.commandId===result.execution.operationId);
+      if(result.execution.state!=='waiting'||!mapping)return result;
+      const request=capture(supplied) as OperationRequest;
+      try{await deliveryAction({credential:request.credential,moduleId:mapping.moduleId,
+        deliveryId:mapping.id,contextId:request.contextId,audience:request.audience,
+        executionId:result.execution.id,intentId:result.execution.id,signal:request.signal},true);}
+      catch{/* The committed intent remains inspectable and is never re-emitted by this catch. */}
+      const source=registry.resolve(mapping.moduleId,mapping.commandId);
+      const lease=await authorize({...request,executionId:result.execution.id},source);
+      try{
+        const current=await store.read(lease,result.execution.id);
+        return Object.freeze({execution:current?checkedExecution(current,source):result.execution,
+          replayed:result.replayed});
+      }finally{data.dispose(lease);}
+    },
+    deliver(supplied:OperationDeliveryRequest){return deliveryAction(supplied,true);},
+    deliveryStatus(supplied:OperationDeliveryRequest){return deliveryAction(supplied,false);},
     async status(supplied: OperationStatusRequest): Promise<OperationExecution | null> {
       const request = capture(supplied, 'status') as OperationStatusRequest, operation = registry.resolve(request.moduleId, request.operationId);
       const lease = await authorize(request, operation);
-      try { const execution = await store.read(lease, request.executionId); return execution ? checkedExecution(execution, operation) : null; }
+      try { const execution = await store.read(lease, request.executionId); return execution ? await confirmedExecution(execution, operation,lease) : null; }
       catch (error) { if (error instanceof OperationError) throw error; throw new OperationError(errorCode(error)); }
       finally { data.dispose(lease); }
     },
@@ -408,7 +686,7 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
       const lease = await authorize(request, operation);
       try {
         const execution = await store.lookup(lease, {operationId: operation.declaration.id, keyHash: await operationDigest(request.requestKey)});
-        return execution ? checkedExecution(execution, operation) : null;
+        return execution ? await confirmedExecution(execution, operation,lease) : null;
       } catch (error) { if (error instanceof OperationError) throw error; throw new OperationError(errorCode(error)); }
       finally { data.dispose(lease); }
     },

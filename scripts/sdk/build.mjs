@@ -14,6 +14,7 @@ const entries={
   'operations/client':'operations/client.ts',
   'operations/command-journal':'operations/command-journal.ts',
   'connectors/types':'connectors/types.ts',
+  'search/types':'search/types.ts',
   'delivery/context':'delivery/context.tsx',
   'delivery/transport':'delivery/transport.ts',
   'files/types':'files/types.ts',

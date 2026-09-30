@@ -1,5 +1,6 @@
 import { resolveRuntimeEnvironment } from './environment.ts';
 import { dispatchAccessHttp } from '../identity/http.ts';
+import {createRoutedNativeSessionLogout} from '../storage-authority/native-session.ts';
 import type { CreezioRuntime, RuntimeDefinition, RuntimeInput, RuntimeOperation, RuntimeOperationContext, RuntimeNativeAccess, RuntimeHandler } from './types.ts';
 
 export type { CreezioRuntime, RuntimeDefinition, RuntimeHandler, RuntimeInput, RuntimeModule, RuntimeOperation, RuntimeOperationContext } from './types.ts';
@@ -194,8 +195,12 @@ export function createRuntime(definition: RuntimeDefinition): CreezioRuntime {
       if (path === '/api/health') return request.method === 'GET' || head
         ? json({status:'ok'},200,requestId,head)
         : error('method_not_allowed','Method not allowed.',405,requestId,head,{allow:'GET, HEAD'});
-      if (path === '/api/access' || path.startsWith('/api/access/'))
-        return dispatchAccessHttp(request, resolved, environment, nativeAccess, requestId, path);
+      if (path === '/api/access' || path.startsWith('/api/access/')){
+        const routed=resolved.storageAuthority?.storageMutation
+          ?createRoutedNativeSessionLogout(resolved.bindings.DB,resolved.storageAuthority.inventory):null;
+        return dispatchAccessHttp(request, resolved, environment, nativeAccess, requestId, path,
+          routed?((token,audience)=>routed.logout(token,audience)):undefined);
+      }
       if (path === '/api/workspace' || path.startsWith('/api/workspace/') || path === '/api/files' || path.startsWith('/api/files/')
         || path === '/api/widgets' || path.startsWith('/api/widgets/')) {
         const audience = segments[2];

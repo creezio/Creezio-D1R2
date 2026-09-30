@@ -6,6 +6,8 @@ import { createD1IdentityStore, type IdentityDatabase } from '../identity/d1-sto
 import { identityAdmissionKey } from '../identity/input.ts';
 import { digestOpaqueToken, issueOpaqueToken } from '../identity/tokens.ts';
 import { createD1OAuthStore, type OAuthClientRow, type OAuthGrantRow } from './store.ts';
+import {STORAGE_AUTHORITY_TABLES} from '../storage-authority/models.ts';
+import type {StorageMutationPort} from '../storage-authority/native-mutation.ts';
 import { OAUTH_LIMITS, OAuthProtocolError, oauthIssuer, oauthRedirect, oauthResource,
   parseOAuthAuthorizationRequest, validOAuthRedirectUri, verifyOAuthPkce,
   type OAuthAudience, type OAuthAuthorizationRequest } from './protocol.ts';
@@ -24,6 +26,7 @@ export interface OAuthServiceOptions {
   readonly enabledAudiences?: Readonly<{admin:boolean;app:boolean}>;
   /** Presentation only; never participates in authorization. */
   readonly permissionTitles?: Readonly<Record<string,string>>;
+  readonly storageMutation?:StorageMutationPort;
 }
 export interface OAuthTokenResponse {
   readonly access_token: string; readonly token_type: 'Bearer'; readonly expires_in: number;
@@ -36,6 +39,22 @@ export function createOAuthService(db: IdentityDatabase, options: OAuthServiceOp
   const enabled = options.enabledAudiences ?? Object.freeze({admin:true,app:true});
   const resolver = createNativeAuthorizationResolver(db, {permissions: options.permissions});
   const store = createD1OAuthStore(db);
+  const storageReceipts=`"${STORAGE_AUTHORITY_TABLES.storage_source_receipts}"`;
+  async function routedRevoke(kind:'oauth.token'|'oauth.grant'|'oauth.replay',commandKey:string,targetId:string,
+    sourceCommit:(receipt:{id:string;commandDigest:string;kind:typeof kind;targetId:string})=>Promise<boolean>){
+    const port=options.storageMutation;
+    if(!port)throw new Error('Storage mutation port unavailable.');
+    const receipt={id:await port.receiptId(kind,commandKey),
+      commandDigest:await port.commandDigest(kind,commandKey),kind,targetId};
+    return port.commit({kind,commandKey,sourceCommit:()=>sourceCommit(receipt),
+      committed:value=>value===true,
+      inspectSource:async()=>{
+        const row=await db.prepare(`SELECT 1 AS ok FROM ${storageReceipts}
+          WHERE id=? AND command_digest=? AND kind=? AND target_id=? AND effect='revoked' LIMIT 2`)
+          .bind(receipt.id,receipt.commandDigest,receipt.kind,receipt.targetId).first();
+        return row?.ok===1;
+      },recoverValue:async()=>true});
+  }
   const admission = createD1IdentityStore(db);
   function advertised(audience: OAuthAudience) {
     if (!enabled[audience]) return [];
@@ -267,11 +286,33 @@ export function createOAuthService(db: IdentityDatabase, options: OAuthServiceOp
       const refreshDigest = await digestOpaqueToken(input.refreshToken,'oauth-refresh');
       if (!refreshDigest) return fail('invalid_grant');
       const old = await store.refresh(refreshDigest);
-      if (!old || old.clientId !== input.clientId || old.resource !== input.resource) return fail('invalid_grant');
+      if (!old || old.clientId !== input.clientId || old.resource !== input.resource){
+        if(options.storageMutation){
+          const historical=await store.refreshHistory(refreshDigest);
+          if(historical?.clientId===input.clientId&&historical.resource===input.resource
+            &&historical.consumedAtMs!==null){
+            const outcome=await routedRevoke('oauth.replay',
+              JSON.stringify([historical.familyId,historical.grantId,input.clientId]),historical.grantId,
+              receipt=>store.revokeReplayFamilyAndGrant(historical.familyId,historical.grantId,
+                historical.principalId,receipt));
+            if(outcome.state!=='confirmed')return fail('temporarily_unavailable',503);
+          }
+        }
+        return fail('invalid_grant');
+      }
       if (old.consumedAtMs !== null) {
-        await store.revokeFamily(old.familyId);
         const grant = await store.grant(old.grantId);
-        if (grant) await store.revokeGrant(old.grantId,grant.principalId);
+        const historical=options.storageMutation?await store.refreshHistory(refreshDigest):null;
+        if(options.storageMutation){
+          if(!historical)return fail('temporarily_unavailable',503);
+          const outcome=await routedRevoke('oauth.replay',
+            JSON.stringify([old.familyId,old.grantId,input.clientId]),old.grantId,
+            receipt=>store.revokeReplayFamilyAndGrant(old.familyId,old.grantId,historical.principalId,receipt));
+          if(outcome.state!=='confirmed')return fail('temporarily_unavailable',503);
+        }else{
+          await store.revokeFamily(old.familyId);
+          if(grant)await store.revokeGrant(old.grantId,grant.principalId);
+        }
         return fail('invalid_grant');
       }
       const pair = await issuePair(old.grantId);
@@ -287,9 +328,18 @@ export function createOAuthService(db: IdentityDatabase, options: OAuthServiceOp
       } catch (error) {
         const latest = await store.refresh(refreshDigest);
         if (latest?.consumedAtMs !== null && latest?.consumedAtMs !== undefined) {
-          await store.revokeFamily(old.familyId);
           const grant = await store.grant(old.grantId);
-          if (grant) await store.revokeGrant(old.grantId,grant.principalId);
+          const historical=options.storageMutation?await store.refreshHistory(refreshDigest):null;
+          if(options.storageMutation){
+            if(!historical)return fail('temporarily_unavailable',503);
+            const outcome=await routedRevoke('oauth.replay',
+              JSON.stringify([old.familyId,old.grantId,input.clientId]),old.grantId,
+              receipt=>store.revokeReplayFamilyAndGrant(old.familyId,old.grantId,historical.principalId,receipt));
+            if(outcome.state!=='confirmed')return fail('temporarily_unavailable',503);
+          }else{
+            await store.revokeFamily(old.familyId);
+            if(grant)await store.revokeGrant(old.grantId,grant.principalId);
+          }
           return fail('invalid_grant');
         }
         throw error;
@@ -306,10 +356,22 @@ export function createOAuthService(db: IdentityDatabase, options: OAuthServiceOp
       if (!identifier(clientId) || !await store.client(clientId)) return fail('invalid_client', 401);
       const access = await digestOpaqueToken(token,'oauth-access');
       const refresh = await digestOpaqueToken(token,'oauth-refresh');
-      await store.revokeByToken(access,refresh,clientId);
+      if(options.storageMutation){
+        const grantId=await store.grantForToken(access,refresh,clientId);
+        if(!grantId)return;
+        const outcome=await routedRevoke('oauth.token',JSON.stringify([clientId,grantId]),grantId,
+          receipt=>store.revokeByToken(access,refresh,clientId,receipt));
+        if(outcome.state!=='confirmed')return fail('temporarily_unavailable',503);
+      }else await store.revokeByToken(access,refresh,clientId);
     },
     async revokeGrant(grantId: string, principalId: string): Promise<boolean> {
       if (!identifier(grantId) || !identifier(principalId)) return fail('invalid_request');
+      if(options.storageMutation){
+        const outcome=await routedRevoke('oauth.grant',JSON.stringify([grantId,principalId]),grantId,
+          receipt=>store.revokeGrant(grantId,principalId,receipt));
+        if(outcome.state!=='confirmed')return fail('temporarily_unavailable',503);
+        return outcome.value;
+      }
       return store.revokeGrant(grantId,principalId);
     },
   });

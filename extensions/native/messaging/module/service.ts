@@ -35,7 +35,8 @@ const nextCursor=(after:Row|null,expected:Record<string,unknown>):string|null=>{
 const expected=(c:OperationContext,parts:Record<string,unknown>={})=>({context:c.contextId,owner:c.principalId,audience:c.audience,...parts});
 const viewBox=(r:Row)=>({id:r.id,name:r.name,address:r.address,kind:r.kind,revision:r.revision});
 const viewDraft=(r:Row)=>({id:r.id,boxId:r.box_id,to:r.to_addr,cc:r.cc_addr,bcc:r.bcc_addr,
-  subject:r.subject,text:r.text_body,html:r.html_body,updatedAt:r.updated_at,revision:r.revision});
+  subject:r.subject,text:r.text_body,html:r.html_body,updatedAt:r.updated_at,revision:r.revision,
+  sendIntentId:typeof r.send_intent_id==='string'?r.send_intent_id:null});
 const viewMessage=(r:Row)=>({id:r.id,boxId:r.box_id,direction:r.direction,from:r.from_addr,
   to:r.to_addr,cc:r.cc_addr,subject:r.subject,text:r.text_body,html:r.html_body,state:r.state,
   folder:r.folder,read:r.read_at!==null,threadId:r.thread_id,replyTo:r.reply_to,inReplyTo:r.in_reply_to,
@@ -231,7 +232,7 @@ export async function draftList(value:JsonValue,c:OperationContext){
 export async function draftCreate(value:JsonValue,c:OperationContext){
   const a=input(value),b=await box(c,a.boxId),at=now();
   const row={...scope(c),box_id:b.id,id:crypto.randomUUID(),to_addr:'',cc_addr:'',bcc_addr:'',
-    subject:'',text_body:'',html_body:'',created_at:at,updated_at:at,revision:1};
+    subject:'',text_body:'',html_body:'',send_intent_id:null,created_at:at,updated_at:at,revision:1};
   return {output:{draft:viewDraft(row)},plans:[c.data.planGet('box',{key:boxKey(c,String(b.id)),required:true}),
     c.data.planCreate('draft',{values:row})]};
 }
@@ -244,7 +245,10 @@ export async function draftSave(value:JsonValue,c:OperationContext){
   if(!Number.isSafeInteger(rev)||rev!==old.revision)fail('conflict');
   if(!validText(a.subject,240)||!validText(a.text,16000)||!validText(a.html,32000))fail('invalid_input');
   const changes={to_addr:recipients(a.to),cc_addr:recipients(a.cc),bcc_addr:recipients(a.bcc),
-    subject:a.subject,text_body:a.text,html_body:safeHtml(a.html),updated_at:now()};
+    subject:a.subject,text_body:a.text,html_body:safeHtml(a.html),updated_at:now(),
+    send_intent_id:null as string|null};
+  if(['to_addr','cc_addr','bcc_addr','subject','text_body','html_body'].every(name=>old[name]===changes[name as keyof typeof changes]))
+    changes.send_intent_id=typeof old.send_intent_id==='string'?old.send_intent_id:null;
   const updated={...old,...changes,revision:rev+1};
   return {output:{draft:viewDraft(updated)},plans:[c.data.planGet('box',{key:boxKey(c,a.boxId),required:true}),
     c.data.planPatch('draft',{key:draftKey(c,a.boxId,a.draftId),compare:{field:'revision',expected:rev},values:changes})]};
@@ -252,6 +256,7 @@ export async function draftSave(value:JsonValue,c:OperationContext){
 export async function draftDelete(value:JsonValue,c:OperationContext){
   const a=input(value),old=await draft(c,a.boxId,a.draftId),rev=Number(a.revision);
   if(!Number.isSafeInteger(rev)||rev!==old.revision)fail('conflict');
+  if(typeof old.send_intent_id==='string')fail('conflict');
   // A draft with private attachments cannot be deleted before explicit unlink/reconciliation.
   const refs=await c.data.list('draft_attachment',{limit:1,where:{...scope(c),box_id:a.boxId,draft_id:a.draftId}}) as Page;
   if(refs.items.length)fail('conflict');
@@ -292,6 +297,91 @@ export async function attachmentUnlink(value:JsonValue,c:OperationContext){
     c.data.planPatch('draft',{key:draftKey(c,a.boxId,a.draftId),
       compare:{field:'revision',expected:rev},values:{updated_at:at}})]};
 }
-export const transportStatus=()=>({output:{state:'unavailable',send:false,receive:false}});
-/** No transport capability exists on OperationContext. Never claim a send or queue one. */
-export const messageSend=()=>fail('unavailable');
+async function readiness(c:OperationContext):Promise<{state:'ready'|'missing'|'unavailable';from:string|null;configRevision:number}>{
+  const unavailable={state:'unavailable' as const,from:null,configRevision:0};
+  const port=c.operations;
+  if(!port)return unavailable;
+  let value:JsonValue;
+  try{value=await port.query({moduleId:'creezio.resend',operationId:'delivery.readiness',input:{}});}
+  catch(error){if(error instanceof OperationError&&['not_found','forbidden','unsupported','unavailable'].includes(error.code))
+    return unavailable;
+    throw error;
+  }
+  if(!value||typeof value!=='object'||Array.isArray(value))fail('unavailable');
+  const row=value as Record<string,unknown>;
+  if(!['ready','missing','unavailable'].includes(String(row.state))
+    ||!(row.from===null||validText(row.from,320))
+    ||!Number.isSafeInteger(row.configRevision)||Number(row.configRevision)<0)fail('unavailable');
+  return row as {state:'ready'|'missing'|'unavailable';from:string|null;configRevision:number};
+}
+export async function transportStatus(_value:JsonValue,c:OperationContext){
+  const state=await readiness(c);
+  return {output:{state:state.state,send:state.state==='ready',receive:false,from:state.from}};
+}
+const splitRecipients=(value:string)=>value?value.split(',').map(part=>part.trim()):[];
+const digest=async(parts:readonly unknown[])=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',
+  new TextEncoder().encode(JSON.stringify(parts))))).map(byte=>byte.toString(16).padStart(2,'0')).join('');
+/** Commit the immutable message, private Bcc snapshot and outbox intent in one host transaction. */
+export async function messageSend(value:JsonValue,c:OperationContext){
+  const a=input(value),old=await draft(c,a.boxId,a.draftId),rev=Number(a.revision);
+  if(!Number.isSafeInteger(rev)||rev!==old.revision)fail('conflict');
+  if(typeof old.send_intent_id==='string')fail('conflict');
+  const b=await box(c,a.boxId);
+  if(!validText(b.address,320)||!address.test(String(b.address)))fail('invalid_input');
+  if(c.providerAvailability?.providerId!=='resend.api.v1'||c.providerAvailability.state!=='ready')fail('unavailable');
+  const ready=await readiness(c);
+  if(ready.state!=='ready'||ready.from!==b.address||ready.configRevision<1)fail('unavailable');
+  const refs=await c.data.list('draft_attachment',{limit:1,where:{...scope(c),box_id:a.boxId,draft_id:a.draftId}}) as Page;
+  if(refs.items.length)fail('unavailable');
+  const to=recipients(old.to_addr),cc=recipients(old.cc_addr),bcc=recipients(old.bcc_addr),
+    subject=String(old.subject),text=String(old.text_body),html=safeHtml(String(old.html_body));
+  if(!to||!subject.trim()||!text.trim()&&!html.trim())fail('invalid_input');
+  const envelope={from:String(b.address),to:splitRecipients(to),cc:splitRecipients(cc),bcc:splitRecipients(bcc),
+    subject,text,html};
+  if(new TextEncoder().encode(JSON.stringify(envelope)).length>60_000)fail('invalid_input');
+  const at=now(),intentId=c.executionId;
+  if(!validId(intentId))fail('unavailable');
+  const payloadDigest=await digest([intentId,a.boxId,a.draftId,rev,ready.configRevision,
+    envelope.from,to,cc,bcc,subject,text,html]);
+  const snapshot={...scope(c),box_id:a.boxId,id:intentId,draft_id:a.draftId,draft_revision:rev,
+    from_addr:envelope.from,to_addr:to,cc_addr:cc,bcc_addr:bcc,subject,text_body:text,html_body:html,
+    config_revision:ready.configRevision,payload_digest:payloadDigest,created_at:at};
+  const message={...scope(c),box_id:a.boxId,id:intentId,direction:'outbound',from_addr:envelope.from,
+    to_addr:to,cc_addr:cc,subject,text_body:text,html_body:html,state:'queued',folder:'outbox',
+    read_at:null,thread_id:null,reply_to:null,in_reply_to:null,provider_message_id:null,
+    received_at:null,sent_at:null,created_at:at,revision:1};
+  const draftAfter={...old,send_intent_id:intentId,updated_at:at,revision:rev+1};
+  return {output:{message:viewMessage(message),draft:viewDraft(draftAfter)},plans:[
+    c.data.planGet('box',{key:boxKey(c,a.boxId),required:true}),
+    c.data.planPatch('draft',{key:draftKey(c,a.boxId,a.draftId),compare:{field:'revision',expected:rev},
+      values:{send_intent_id:intentId,updated_at:at}}),
+    c.data.planCreate('message',{values:message}),c.data.planCreate('send_snapshot',{values:snapshot})],
+  outbox:[{id:intentId,provider:'resend.api.v1',providerIdempotencyKey:intentId,
+    payload:{kind:'mail.send.v1',boxId:a.boxId,messageId:intentId,snapshotDigest:payloadDigest,
+      configRevision:ready.configRevision}}]};
+}
+/** Internal read for the host outbox bridge; never exposed as an API or MCP tool. */
+export async function messageDeliveryPrepare(value:JsonValue,c:OperationContext){
+  const a=input(value);
+  if(!validId(a.intentId)||!validId(a.boxId)||typeof a.snapshotDigest!=='string'
+    ||!/^[a-f0-9]{64}$/.test(a.snapshotDigest))fail('invalid_input');
+  const b=await box(c,a.boxId);
+  const key=messageKey(c,a.boxId,a.intentId);
+  const message=await c.data.get('message',{key}),snapshot=await c.data.get('send_snapshot',{key});
+  if(!message||!snapshot||message.direction!=='outbound'||message.id!==a.intentId
+    ||snapshot.id!==a.intentId||snapshot.payload_digest!==a.snapshotDigest
+    ||snapshot.from_addr!==b.address||message.from_addr!==snapshot.from_addr
+    ||!['queued','sending','unknown'].includes(String(message.state)))fail('unavailable');
+  const frozen=snapshot as Row;
+  const to=recipients(frozen.to_addr),cc=recipients(frozen.cc_addr),bcc=recipients(frozen.bcc_addr);
+  if(!to||!Number.isSafeInteger(frozen.config_revision)||Number(frozen.config_revision)<1)fail('unavailable');
+  const envelope={from:String(frozen.from_addr),to:splitRecipients(to),cc:splitRecipients(cc),
+    bcc:splitRecipients(bcc),subject:String(frozen.subject),text:String(frozen.text_body),
+    html:safeHtml(String(frozen.html_body))};
+  if(new TextEncoder().encode(JSON.stringify(envelope)).length>60_000)fail('unavailable');
+  const check=await digest([a.intentId,a.boxId,frozen.draft_id,frozen.draft_revision,
+    frozen.config_revision,envelope.from,to,cc,bcc,envelope.subject,envelope.text,envelope.html]);
+  if(check!==a.snapshotDigest)fail('unavailable');
+  return {output:{intentId:a.intentId,boxId:a.boxId,snapshotDigest:check,
+    configRevision:frozen.config_revision,envelope}};
+}

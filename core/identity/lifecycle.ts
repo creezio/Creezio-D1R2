@@ -1,13 +1,14 @@
-import { createD1IdentityStore, normalizeLoginIdentifier, type IdentityDatabase } from './d1-store.ts';
+import { ACCESS_TABLES, createD1IdentityStore, normalizeLoginIdentifier, type IdentityDatabase } from './d1-store.ts';
 import { createD1AccountLifecycleStore, type LifecycleGuard } from './lifecycle-store.ts';
 import { validNewPassword } from './accounts.ts';
-import { hashPassword } from './password.ts';
+import { hashPassword,verifyPassword } from './password.ts';
 import { digestOpaqueToken, issueOpaqueToken } from './tokens.ts';
 import { identityInputFields, identityAdmissionKey, normalizeDisplayName, validIdentityId } from './input.ts';
 import { authorize } from '../authorization/authorize.ts';
 import { policySnapshot } from '../authorization/policy.ts';
 import { ACCESS_MANAGEMENT, createNativeAuthorizationResolver } from '../authorization/resolver.ts';
 import type { PermissionDefinition } from '../authorization/types.ts';
+import type {StorageMutationPort} from '../storage-authority/native-mutation.ts';
 
 export const LIFECYCLE_POLICY = Object.freeze({ invitationTtlMs: 24 * 60 * 60 * 1000,
   activationTtlMs: 60 * 60 * 1000, resetTtlMs: 15 * 60 * 1000,
@@ -24,7 +25,8 @@ const validPurpose = (value: unknown): value is Purpose => value === 'invitation
  * Never wire issuance to an anonymous "forgot password" request. A future delivery
  * adapter must own the verified recipient and return a non-enumerating response.
  * Activation creates no session, membership or role; login and ACL remain separate. */
-export function createAccountLifecycleService(db: IdentityDatabase, options: { permissions: readonly PermissionDefinition[] }) {
+export function createAccountLifecycleService(db: IdentityDatabase, options: {
+  permissions: readonly PermissionDefinition[];storageMutation?:StorageMutationPort }) {
   const store = createD1AccountLifecycleStore(db), identity = createD1IdentityStore(db);
   const { resolve, permissions } = createNativeAuthorizationResolver(db, options);
   async function admitted(domain: string, value: string, globalLimit: number, perSubjectLimit: number) {
@@ -86,8 +88,29 @@ export function createAccountLifecycleService(db: IdentityDatabase, options: { p
       if (!digest) return fail('unavailable');
       if (!await admitted('account-redemption', digest, LIFECYCLE_POLICY.redemptionGlobalLimit,
         LIFECYCLE_POLICY.redemptionTokenLimit)) return fail('rate_limited');
-      if (!await store.readCapability(digest, purpose)) return fail('unavailable');
+      if (!options.storageMutation&&!await store.readCapability(digest, purpose)) return fail('unavailable');
       const passwordRecord = hashPassword(password);
+      if(options.storageMutation){
+        const commandKey=JSON.stringify([digest,purpose]);
+        const kind=`lifecycle.${purpose}`;
+        const auditId=await options.storageMutation.receiptId(kind,commandKey);
+        const action=purpose==='password-reset'?'password-reset':'account-activated';
+        const receipt=async()=>await db.prepare(`SELECT target_principal_id AS principalId FROM "${ACCESS_TABLES.access_audit}"
+          WHERE id=? AND action=? LIMIT 2`).bind(auditId,action).first();
+        const outcome=await options.storageMutation.commit({kind,commandKey,
+          sourceCommit:()=>store.consumeCapability({digest,purpose,passwordRecord},auditId),
+          committed:value=>value!==null,
+          inspectSource:async()=>typeof (await receipt())?.principalId==='string',
+          recoverValue:async()=>{
+            const audit=await receipt();
+            if(typeof audit?.principalId!=='string')return null;
+            const stored=await db.prepare(`SELECT password_record AS record FROM "${ACCESS_TABLES.password_credentials}"
+              WHERE principal_id=? LIMIT 2`).bind(audit.principalId).first();
+            return verifyPassword(password,stored?.record)?{principalId:audit.principalId}:null;
+          }});
+        return outcome.state==='confirmed'&&outcome.value
+          ?Object.freeze({ok:true as const,principalId:outcome.value.principalId}):fail('storage_error');
+      }
       const result = await store.consumeCapability({ digest, purpose, passwordRecord });
       return result ? Object.freeze({ ok: true as const, principalId: result.principalId }) : fail('unavailable');
     } catch { return fail('storage_error'); }

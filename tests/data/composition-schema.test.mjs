@@ -5,10 +5,10 @@ import { fileURLToPath } from 'node:url';
 import { compileCompositionSchema, loadCompositionSchema } from '../../scripts/data/composition-schema.mjs';
 import { contractIntegrity } from '../../sdk/contracts/validate.mjs';
 import { describeD1Schema } from '../../scripts/data/d1-schema.mjs';
-import { OPERATION_STORAGE_MODULE_ID, OPERATION_MODELS } from '../../core/operations/models.ts';
+import { RUNTIME_STORAGE_MODULE_ID, RUNTIME_MODELS } from '../../scripts/data/runtime-models.mjs';
 
 const json = name => JSON.parse(readFileSync(new URL(name, import.meta.url), 'utf8'));
-const hostObjects = describeD1Schema(OPERATION_STORAGE_MODULE_ID, OPERATION_MODELS).objects.length;
+const hostObjects = describeD1Schema(RUNTIME_STORAGE_MODULE_ID, RUNTIME_MODELS).objects.length;
 function inputs({accessOnly = false} = {}) {
   const input = {composition: json('../../configuration/composition.json'), lock: json('../../configuration/composition.lock.json'),
     modules: []};
@@ -29,13 +29,17 @@ function relock(input) {
 
 test('composed compiler includes every selected native module and freezes the runtime projection', async () => {
   const input = inputs(), plan = compileCompositionSchema(input);
+  assert.equal(plan.runtimeCatalog.lockDigest,plan.lockDigest);
+  assert.equal(plan.lockDigest,contractIntegrity(input.lock));
   assert.deepEqual(plan.runtimeCatalog.modules.map(module => [module.moduleId, module.models.length]),
     [['creezio.access', 28], ['creezio.analytics', 1], ['creezio.conversations', 8],
-      ['creezio.crm', 3], ['creezio.delivery', 0], ['creezio.messaging', 5],
+      ['creezio.crm', 3], ['creezio.delivery', 0], ['creezio.messaging', 6],
       ['creezio.modules-settings', 4], ['creezio.openai', 2],
       ['creezio.pages-navigation', 7], ['creezio.support', 2]]);
   const publicPages=plan.runtimeCatalog.modules.find(module=>module.moduleId==='creezio.pages-navigation');
   assert.ok(publicPages.models.some(model=>model.modelId==='public_page'));
+  assert.ok(plan.runtimeCatalog.modules.find(module=>module.moduleId==='creezio.messaging')
+    .models.some(model=>model.modelId==='send_snapshot'));
   assert.deepEqual(plan.runtimeCatalog.modules.find(module => module.moduleId === 'creezio.modules-settings')
     .models.map(model => model.modelId), ['head', 'journal', 'plan-outcomes', 'plans']);
   const conversations = input.modules.find(module => module.identity.id === 'creezio.conversations').contracts.models;
@@ -46,16 +50,16 @@ test('composed compiler includes every selected native module and freezes the ru
     .filter(field => field.id === 'widget_context_snapshot').map(field => [field.type, field.nullable]), [['json', true]]);
   assert.equal(describeD1Schema('creezio.conversations',conversations).objects.length,17);
   const messaging = input.modules.find(module => module.identity.id === 'creezio.messaging').contracts.models;
-  assert.deepEqual(messaging.map(model => model.id).sort(), ['box', 'draft', 'draft_attachment', 'file_metadata', 'message']);
+  assert.deepEqual(messaging.map(model => model.id).sort(), ['box', 'draft', 'draft_attachment', 'file_metadata', 'message', 'send_snapshot']);
   const crm=input.modules.find(module=>module.identity.id==='creezio.crm').contracts.models;
   const added=['creezio.support','creezio.pages-navigation','creezio.analytics']
     .map(id=>input.modules.find(module=>module.identity.id===id))
     .reduce((count,module)=>count+describeD1Schema(module.identity.id,module.contracts.models).objects.length,0);
   assert.equal(plan.objects.length, 74 + 4 + 17 + 2 + hostObjects + describeD1Schema('creezio.messaging', messaging).objects.length
     +describeD1Schema('creezio.crm',crm).objects.length+added);
-  assert.equal(plan.host.moduleId, OPERATION_STORAGE_MODULE_ID);
-  assert.deepEqual(plan.host.models.map(entry => entry.modelId), ['approvals', 'attempts', 'audit', 'executions', 'outbox']);
-  assert.equal(plan.runtimeCatalog.modules.some(module => module.moduleId === OPERATION_STORAGE_MODULE_ID), false);
+  assert.equal(plan.host.moduleId, RUNTIME_STORAGE_MODULE_ID);
+  assert.deepEqual(plan.host.models.map(entry => entry.modelId), RUNTIME_MODELS.map(model => model.id).sort());
+  assert.equal(plan.runtimeCatalog.modules.some(module => module.moduleId === RUNTIME_STORAGE_MODULE_ID), false);
   assert.equal(plan.runtimeCatalog.modules[0].permissions.length, 2);
   for (const descriptor of input.modules) assert.deepEqual(
     plan.runtimeCatalog.modules.find(module => module.moduleId === descriptor.identity.id).permissions,
@@ -64,6 +68,18 @@ test('composed compiler includes every selected native module and freezes the ru
   input.modules[0].contracts.models[0].fields[0].nullable = true;
   assert.equal(plan.runtimeCatalog.modules[0].models[0].model.fields[0].nullable, false);
   assert.equal((await loadCompositionSchema({ root: fileURLToPath(new URL('../../', import.meta.url)) })).planDigest, plan.planDigest);
+});
+
+test('a module archive change binds a new lock even when composition and SQL remain unchanged',()=>{
+  const input=inputs(),before=compileCompositionSchema(input);
+  input.lock.modules[0].runtime.integrity=`sha256-${'7'.repeat(64)}`;
+  const after=compileCompositionSchema(input);
+  assert.equal(after.compositionDigest,before.compositionDigest);
+  assert.equal(after.sqlDigest,before.sqlDigest);
+  assert.equal(after.modelDigest,before.modelDigest);
+  assert.notEqual(after.lockDigest,before.lockDigest);
+  assert.notEqual(after.planDigest,before.planDigest);
+  assert.equal(after.runtimeCatalog.lockDigest,after.lockDigest);
 });
 
 test('disabled Access selection preserves data declarations while the catalog closes its runtime port', () => {
@@ -84,7 +100,7 @@ test('empty composition is explicit and still locked', () => {
 
 test('the technical runtime namespace cannot be selected or exposed as a product module', () => {
   const input = inputs({accessOnly: true});
-  const renamed = JSON.parse(JSON.stringify(input).replaceAll('creezio.access', OPERATION_STORAGE_MODULE_ID));
+  const renamed = JSON.parse(JSON.stringify(input).replaceAll('creezio.access', RUNTIME_STORAGE_MODULE_ID));
   assert.throws(() => compileCompositionSchema(relock(renamed)), { code: 'schema.reserved-module' });
 });
 

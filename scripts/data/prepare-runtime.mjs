@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { describeD1Schema } from './d1-schema.mjs';
-import { OPERATION_STORAGE_MODULE_ID, OPERATION_MODELS, OPERATION_TABLES } from '../../core/operations/models.ts';
+import { RUNTIME_STORAGE_MODULE_ID, RUNTIME_MODELS, RUNTIME_TABLES } from './runtime-models.mjs';
 
 const repository = fileURLToPath(new URL('../../', import.meta.url));
 const maximumBytes = 8 * 1024 * 1024;
@@ -41,16 +41,16 @@ function artifactPath(root, check) {
  * This operator/build utility creates no connection, applies no SQL and never imports a module. */
 export function prepareRuntimeSchema(options = {}) {
   const { root, check } = captureOptions(options), target = artifactPath(root, check);
-  const generated = describeD1Schema(OPERATION_STORAGE_MODULE_ID, OPERATION_MODELS);
-  if (Object.keys(generated.tables).length !== Object.keys(OPERATION_TABLES).length
-    || Object.entries(OPERATION_TABLES).some(([id, table]) => generated.tables[id] !== table)) fail('runtime.schema-map');
+  const generated = describeD1Schema(RUNTIME_STORAGE_MODULE_ID, RUNTIME_MODELS);
+  if (Object.keys(generated.tables).length !== Object.keys(RUNTIME_TABLES).length
+    || Object.entries(RUNTIME_TABLES).some(([id, table]) => generated.tables[id] !== table)) fail('runtime.schema-map');
   let current;
   try { current = readFileSync(target, 'utf8'); }
   catch (error) { if (error?.code !== 'ENOENT' || check) throw error; }
   if (check && current !== generated.sql) fail('runtime.schema-mismatch');
   const changed = !check && current !== generated.sql;
   if (changed) { mkdirSync(path.dirname(target), { recursive: true }); writeFileSync(target, generated.sql); }
-  return Object.freeze({ moduleId: OPERATION_STORAGE_MODULE_ID, models: OPERATION_MODELS.length,
+  return Object.freeze({ moduleId: RUNTIME_STORAGE_MODULE_ID, models: RUNTIME_MODELS.length,
     statements: generated.statements.length, sqlBytes: Buffer.byteLength(generated.sql),
     sqlDigest: `sha256-${createHash('sha256').update(generated.sql).digest('hex')}`,
     checked: check, artifactChanged: changed, databaseChanged: false });

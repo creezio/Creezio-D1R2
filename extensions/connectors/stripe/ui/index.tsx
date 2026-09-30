@@ -14,7 +14,10 @@ import {Badge,Button,Card} from '@creezio/sdk/ui';
 type Customer={id:string;name:string|null;livemode:boolean};
 type Subscription={id:string;customer_id:string;status:string;currency:string|null;price_id:string|null;
   unit_amount_minor:number|null;interval:string|null;interval_count:number|null;quantity:number|null;
-  period_end_at:string|null;livemode:boolean};
+  period_end_at:string|null;cancel_at_period_end:boolean|null;revision:number;livemode:boolean};
+type CheckoutSession={id:string;url:string|null;mode:'payment'|'subscription';status:string;
+  paymentStatus:string;livemode:false};
+type StripeEvent={id:string;type:string;object_id:string;updated_at:string;livemode:false};
 type Invoice={id:string;customer_id:string|null;status:string|null;currency:string;
   amount_due_minor:number;period_start_at:string|null;period_end_at:string|null;livemode:boolean};
 type Product={id:string;name:string;active:boolean;default_price_id:string|null;livemode:boolean};
@@ -28,7 +31,7 @@ const collections:Collection[]=['customers','subscriptions','invoices','products
 const listCollections:ListCollection[]=['customers','subscriptions','invoices','products','prices'];
 const overviewCollections:ListCollection[]=['customers','subscriptions','invoices'];
 const titles:Record<Collection|string,string>={customers:'Clients',subscriptions:'Abonnements',invoices:'Factures',
-  products:'Produits',prices:'Prix',prices_active:'Prix actifs',prices_inactive:'Prix inactifs'};
+  products:'Produits',prices:'Prix',prices_active:'Prix actifs',prices_inactive:'Prix inactifs',checkout:'Checkout'};
 const SUB_STATUT_LABEL:Record<string,string>={active:'Actif',trialing:'Essai',past_due:'Impayé',
   canceled:'Résilié',unpaid:'Impayé',incomplete:'Incomplet'};
 const INVOICE_STATUT_LABEL:Record<string,string>={paid:'Payée',open:'En attente',payment_failed:'Échouée',
@@ -67,6 +70,13 @@ export function StripeAdminView(props:WorkspaceViewProps){
   const restored=verified?readPanel(props.navigation.readPanelState()?.data,scope):null;
   const [tab,setTab]=useState<StripeTab>(restored?.tab??'overview');
   const [config,setConfig]=useState<Config|null>(null),[apiKey,setApiKey]=useState('');
+  const [webhookSecret,setWebhookSecret]=useState('');
+  const [webhookServiceToken,setWebhookServiceToken]=useState('');
+  const [checkoutOrigin,setCheckoutOrigin]=useState(''),[checkoutPriceId,setCheckoutPriceId]=useState('');
+  const [checkoutQuantity,setCheckoutQuantity]=useState(1),[checkoutCustomerId,setCheckoutCustomerId]=useState('');
+  const [checkoutSession,setCheckoutSession]=useState<CheckoutSession|null>(null),
+    [lookupSessionId,setLookupSessionId]=useState('');
+  const [events,setEvents]=useState<StripeEvent[]>([]),[eventCursor,setEventCursor]=useState<string|null>(null);
   const [enabled,setEnabled]=useState(false),[enableRevision,setEnableRevision]=useState<number|null>(null);
   const [runs,setRuns]=useState<Run[]>([]),[pages,setPages]=useState<Partial<Record<ListCollection,Page>>>({});
   const [busy,setBusy]=useState(false),[checking,setChecking]=useState(false);
@@ -134,7 +144,8 @@ export function StripeAdminView(props:WorkspaceViewProps){
         if(tabRef.current==='overview')for(const id of overviewCollections)void loadPage(id,token);
         else if(listCollections.includes(tabRef.current as ListCollection))void loadPage(tabRef.current as ListCollection,token);}
       configVersion.current=next.revision;
-      setConfig(old=>latestConfig(old,next));if(enableRevision===null)setEnabled(next.enabled);}
+      setConfig(old=>latestConfig(old,next));if(enableRevision===null)setEnabled(next.enabled);
+      if(tabRef.current!=='settings')setCheckoutOrigin(next.checkoutReturnOrigin??'');}
     setRuns(old=>reconcileRuns(old,Array.isArray(states?.states)?states.states as Run[]:[],rotated));
   };
   const loadPage=async(collection:ListCollection,token:number,cursor:string|null=null,append=false)=>{
@@ -151,11 +162,22 @@ export function StripeAdminView(props:WorkspaceViewProps){
     }
     setLoading(old=>({...old,[collection]:false}));
   };
+  const loadEvents=async(token:number,cursor:string|null=null,append=false)=>{
+    const value=await read('event.list',{limit:25,...(cursor?{cursor}:{})},token);
+    if(!current(token)||!value||!Array.isArray(value.items))return;
+    const rows=value.items as StripeEvent[];
+    setEvents(previous=>append?[...previous,...rows.filter(row=>!previous.some(old=>old.id===row.id))]:rows);
+    setEventCursor(typeof value.nextCursor==='string'?value.nextCursor:null);
+  };
   useEffect(()=>{
     const phase=access.pending?'loading':access.phase;
     const transition=scopeChange(prior.current,scope,phase);
     if(transition.purge){overviewSerial.current++;configVersion.current=0;
-      setTab('overview');tabRef.current='overview';setConfig(null);setApiKey('');
+      setTab('overview');tabRef.current='overview';setConfig(null);setApiKey('');setWebhookSecret('');
+      setWebhookServiceToken('');
+      setCheckoutOrigin('');setCheckoutPriceId('');setCheckoutCustomerId('');
+      setCheckoutSession(null);setLookupSessionId('');
+      setEvents([]);setEventCursor(null);
       setEnabled(false);setEnableRevision(null);setRuns([]);setPages({});setPending(null);setNotice('');
       setShowSync(false);invalidateLists();
       journal.current=null;journalScope.current={sessionId:'',audience:props.audience,contextId:props.contextId};}
@@ -175,12 +197,14 @@ export function StripeAdminView(props:WorkspaceViewProps){
     const token=generation.current;
     void loadOverview(token);
     if(tabRef.current==='overview')for(const id of overviewCollections)void loadPage(id,token);
+    if(tabRef.current==='overview')void loadEvents(token);
     else if(listCollections.includes(tabRef.current as ListCollection))void loadPage(tabRef.current as ListCollection,token);
   },[active,sessionId,access.phase,access.pending,props.client,props.access,props.audience,props.contextId,props.panelId]);
   const changeTab=(next:StripeTab)=>{
     setTab(next);tabRef.current=next;
     if(journal.current)persist(journal.current.pending,generation.current);
     if(next==='overview')for(const id of overviewCollections)void loadPage(id,generation.current);
+    if(next==='overview')void loadEvents(generation.current);
     else if(listCollections.includes(next as ListCollection))void loadPage(next as ListCollection,generation.current);
   };
   const mutate=async(operation:string,input:Record<string,unknown>)=>{
@@ -197,7 +221,11 @@ export function StripeAdminView(props:WorkspaceViewProps){
       overviewSerial.current++;
       if(value.config){const next=value.config as Config;configVersion.current=next.revision;
         setConfig(old=>latestConfig(old,next));setEnabled(next.enabled);
-        setEnableRevision(null);if(operation.startsWith('config.key.'))setApiKey('');}
+        setEnableRevision(null);setCheckoutOrigin(next.checkoutReturnOrigin??'');
+        if(operation.startsWith('config.key.')){setApiKey('');setWebhookSecret('');
+          setWebhookServiceToken('');}}
+      if(value.session)setCheckoutSession(value.session as CheckoutSession);
+      if(operation==='subscription.cancel.schedule')void loadPage('subscriptions',token);
       if(operation.startsWith('config.key.')){invalidateLists();setRuns([]);setPages({});}
       if(value.state){const next=value.state as Run;setRuns(old=>mergeRuns(old,[next]));}
       if(operation==='sync.page'&&value.state)
@@ -219,7 +247,10 @@ export function StripeAdminView(props:WorkspaceViewProps){
     if(value){overviewSerial.current++;}
     if(value?.config){const next=value.config as Config;configVersion.current=next.revision;
       setConfig(old=>latestConfig(old,next));setEnabled(next.enabled);
-      setEnableRevision(null);setApiKey('');}
+      setEnableRevision(null);setCheckoutOrigin(next.checkoutReturnOrigin??'');
+      setApiKey('');setWebhookSecret('');setWebhookServiceToken('');}
+    if(value?.session)setCheckoutSession(value.session as CheckoutSession);
+    if(pending.intent==='subscription.cancel.schedule'&&value)void loadPage('subscriptions',token);
     if(pending.intent?.startsWith('config.key.')&&value){invalidateLists();setRuns([]);setPages({});}
     if(value?.state){const next=value.state as Run;setRuns(old=>mergeRuns(old,[next]));}
     if(pending.intent==='sync.page'&&value?.state)
@@ -249,7 +280,7 @@ export function StripeAdminView(props:WorkspaceViewProps){
       <p className="text-sm text-muted-foreground">Abonnements et factures Stripe.</p></div>
       <div className="flex items-center gap-2"><Button size="sm" onClick={()=>setShowSync(value=>!value)}>
         Resynchroniser Stripe</Button></div></div>
-    <nav className="flex flex-wrap gap-2" aria-label="Sections facturation">{(['overview',...listCollections,'settings'] as StripeTab[]).map(value=>
+    <nav className="flex flex-wrap gap-2" aria-label="Sections facturation">{(['overview',...listCollections,'checkout','settings'] as StripeTab[]).map(value=>
       <Button key={value} type="button" size="sm" variant={tab===value?'default':'outline'}
         aria-current={tab===value?'page':undefined} onClick={()=>changeTab(value)}>
         {value==='overview'?'Vue générale':value==='settings'?'Connexion':titles[value]}</Button>)}</nav>
@@ -291,7 +322,14 @@ export function StripeAdminView(props:WorkspaceViewProps){
             <td className="py-2 pr-3">{subscription?.price_id??'—'}</td>
             <td className="py-2 pr-3">{subscription?formatStripeAmount(subscription.unit_amount_minor,subscription.currency):'—'}</td>
             <td className="py-2 pr-3"><Badge variant={subVariant(subscription?.status??null)}>
-              {subscription?.status?SUB_STATUT_LABEL[subscription.status]||subscription.status:'Sans abonnement'}</Badge></td>
+              {subscription?.status?SUB_STATUT_LABEL[subscription.status]||subscription.status:'Sans abonnement'}</Badge>
+              {subscription?.cancel_at_period_end?<div className="text-xs">Arrêt prévu</div>:null}
+              {subscription&&['active','trialing','past_due'].includes(subscription.status)&&
+                !subscription.cancel_at_period_end&&!subscription.livemode?
+                <Button className="mt-1" size="sm" variant="outline" type="button"
+                  disabled={busy||!!pending} onClick={()=>void mutate('subscription.cancel.schedule',
+                    {subscriptionId:subscription.id,revision:subscription.revision})}>
+                  Arrêter à l’échéance</Button>:null}</td>
             <td className="py-2">{date(subscription?.period_end_at)}</td></tr>)}</tbody></table></div>}
       <div className="mt-3 flex gap-2">{(['customers','subscriptions'] as const).map(id=>pages[id]?.nextCursor?
         <Button key={id} size="sm" variant="outline" type="button" disabled={loading[id]}
@@ -360,17 +398,67 @@ export function StripeAdminView(props:WorkspaceViewProps){
         Suite prix</Button>:null}
       <p className="mt-2 text-xs text-muted-foreground">Prix actifs et inactifs ont deux parcours Stripe distincts ; cette liste peut rester partielle. Le produit indiqué est son identifiant Stripe, sans rapprochement supposé.</p>
     </Card>:null}
-    {tab==='overview'?<Card className="p-4"><h2 className="mb-3 text-base font-semibold">Événements Stripe reçus</h2>
-      <div className="text-sm text-muted-foreground">Aucun webhook n’est raccordé dans ce module.</div></Card>:null}
+    {tab==='checkout'?<Card className="p-4"><h2 className="mb-3 text-base font-semibold">Checkout Stripe test</h2>
+      <p className="mb-3 text-sm text-muted-foreground">Choisissez un prix fixe actif déjà synchronisé. Le montant vient du prix Stripe, jamais de ce formulaire.</p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="grid gap-1 text-sm">Identifiant du prix
+          <input className="rounded-md border px-3 py-2" value={checkoutPriceId} maxLength={128}
+            onChange={event=>setCheckoutPriceId(event.target.value)} disabled={busy||!!pending}/></label>
+        <label className="grid gap-1 text-sm">Quantité
+          <input className="rounded-md border px-3 py-2" type="number" min={1} max={100}
+            value={checkoutQuantity} onChange={event=>setCheckoutQuantity(Number(event.target.value))}
+            disabled={busy||!!pending}/></label>
+        <label className="grid gap-1 text-sm">Client Stripe existant (facultatif)
+          <input className="rounded-md border px-3 py-2" value={checkoutCustomerId} maxLength={128}
+            onChange={event=>setCheckoutCustomerId(event.target.value)} disabled={busy||!!pending}/></label>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">{(['payment','subscription'] as const).map(mode=><Button
+        key={mode} size="sm" type="button" disabled={busy||!!pending||!config?.enabled||!config.checkoutReturnOrigin
+          ||!checkoutPriceId||!Number.isSafeInteger(checkoutQuantity)||checkoutQuantity<1||checkoutQuantity>100}
+        onClick={()=>void mutate(mode==='payment'?'checkout.payment.create':'checkout.subscription.create',
+          {priceId:checkoutPriceId,quantity:checkoutQuantity,
+            ...(checkoutCustomerId?{customerId:checkoutCustomerId}:{})})}>
+        {mode==='payment'?'Créer un paiement test':'Créer un abonnement test'}</Button>)}</div>
+      {checkoutSession?<div className="mt-4 text-sm"><p>Session {checkoutSession.id} · {checkoutSession.status} · {checkoutSession.paymentStatus}</p>
+        {checkoutSession.url?<a className="underline" href={checkoutSession.url} target="_blank" rel="noopener noreferrer">
+          Ouvrir Checkout Stripe</a>:null}</div>:null}
+      <div className="mt-4 flex flex-wrap items-end gap-2"><label className="grid gap-1 text-sm">Relire une session créée
+        <input className="rounded-md border px-3 py-2" value={lookupSessionId} maxLength={128}
+          onChange={event=>setLookupSessionId(event.target.value)}/></label>
+        <Button size="sm" type="button" variant="outline" disabled={!lookupSessionId||busy||!!pending}
+          onClick={()=>void read('checkout.read',{sessionId:lookupSessionId},generation.current)
+            .then(value=>{if(value?.session)setCheckoutSession(value.session as CheckoutSession);})}>
+          Relire</Button></div></Card>:null}
+    {tab==='overview'?<Card className="p-4"><div className="mb-3 flex items-center justify-between gap-2">
+      <h2 className="text-base font-semibold">Événements Stripe reçus</h2>
+      <Button size="sm" variant="outline" type="button" onClick={()=>void loadEvents(generation.current)}>
+        Actualiser</Button></div>
+      {events.length? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left text-xs uppercase text-muted-foreground">
+        <th className="py-2 pr-3">Événement</th><th className="py-2 pr-3">Type</th>
+        <th className="py-2 pr-3">Objet</th><th className="py-2">Reçu</th></tr></thead><tbody>
+        {events.map(event=><tr key={event.id} className="border-b last:border-0">
+          <td className="py-2 pr-3">{event.id}</td><td className="py-2 pr-3">{event.type}</td>
+          <td className="py-2 pr-3">{event.object_id}</td><td className="py-2">{date(event.updated_at)}</td>
+        </tr>)}</tbody></table></div>:<div className="text-sm text-muted-foreground">Aucun événement signé reçu dans cette connexion.</div>}
+      {eventCursor?<Button className="mt-3" size="sm" variant="outline" type="button"
+        onClick={()=>void loadEvents(generation.current,eventCursor,true)}>Suite événements</Button>:null}
+    </Card>:null}
     {tab==='settings'?<Card className="p-4"><h2 className="mb-3 text-base font-semibold">Connexion Stripe</h2>
       <p className="mb-3 text-sm text-muted-foreground">La clé est conservée dans le coffre serveur.</p>
       <p className="mb-3 text-sm">État : {config?.hasKey?'Clé enregistrée':'Clé absente'} · {config?.enabled?'active':'suspendue'}</p>
+      <p className="mb-3 text-sm">Webhook : {config?.hasWebhookSecret?'secret enregistré':'secret absent'}</p>
+      <p className="mb-3 text-sm">Principal de service : {config?.hasWebhookService?'jeton scellé':'jeton absent'}</p>
+      <label className="mb-3 grid gap-1 text-sm">Origine HTTPS de retour Checkout
+        <input className="rounded-md border px-3 py-2" type="url" value={checkoutOrigin}
+          placeholder="https://app.example.com" maxLength={512} disabled={busy||!!pending}
+          onChange={event=>setCheckoutOrigin(event.target.value)}/></label>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={enabled}
         disabled={busy||!!pending||!config?.hasKey} onChange={event=>{if(enableRevision===null)setEnableRevision(config?.revision??0);
           setEnabled(event.target.checked);}}/>Connexion active</label>
       <Button className="mt-2" size="sm" variant="outline" type="button"
         disabled={busy||!!pending||enabled&&!config?.hasKey}
-        onClick={()=>void mutate('config.set',{enabled,revision:enableRevision??config?.revision??0})}>
+        onClick={()=>void mutate('config.set',{enabled,checkoutReturnOrigin:checkoutOrigin||null,
+          revision:enableRevision??config?.revision??0})}>
         Enregistrer la configuration</Button>
       <div className="mt-4 flex flex-wrap items-end gap-2"><label className="grid gap-1 text-sm">Clé secrète Stripe
         <input className="rounded-md border px-3 py-2 text-sm" type="password" autoComplete="off" maxLength={4096}
@@ -381,6 +469,29 @@ export function StripeAdminView(props:WorkspaceViewProps){
           onClick={()=>void mutate('config.key.revoke',{revision:config!.revision})}>Révoquer la clé</Button></div>
       <Button className="mt-3" size="sm" variant="outline" type="button" disabled={!config?.enabled||busy||!!pending}
         onClick={()=>void read('connection.check',{},generation.current).then(value=>{
-          if(value?.reachable===true)setNotice('Connexion Stripe joignable.');})}>Vérifier la connexion</Button></Card>:null}
+          if(value?.reachable===true)setNotice('Connexion Stripe joignable.');})}>Vérifier la connexion</Button>
+      <div className="mt-4 flex flex-wrap items-end gap-2"><label className="grid gap-1 text-sm">Secret de signature webhook
+        <input className="rounded-md border px-3 py-2 text-sm" type="password" autoComplete="off"
+          maxLength={512} value={webhookSecret} disabled={busy||!!pending||!config?.enabled}
+          onChange={event=>setWebhookSecret(event.target.value)}/></label>
+        <Button size="sm" variant="outline" type="button" disabled={busy||!!pending||!config?.enabled
+          ||!webhookSecret.startsWith('whsec_')}
+          onClick={()=>void mutate('config.key.webhook.set',{webhookSecret,revision:config!.revision})}>
+          Enregistrer le secret</Button>
+        <Button size="sm" variant="outline" type="button" disabled={busy||!!pending||!config?.hasWebhookSecret}
+          onClick={()=>void mutate('config.key.webhook.revoke',{revision:config!.revision})}>
+          Révoquer le secret</Button></div>
+      <p className="mt-4 text-xs text-muted-foreground">Créez un principal de service et un jeton API natif limité à ce contexte, audience admin et droit Stripe manage, puis saisissez le jeton ici. Aucun principal n’est créé par un webhook.</p>
+      <div className="mt-2 flex flex-wrap items-end gap-2"><label className="grid gap-1 text-sm">Jeton API du service webhook
+        <input className="rounded-md border px-3 py-2 text-sm" type="password" autoComplete="off"
+          maxLength={256} value={webhookServiceToken} disabled={busy||!!pending||!config?.enabled}
+          onChange={event=>setWebhookServiceToken(event.target.value)}/></label>
+        <Button size="sm" variant="outline" type="button" disabled={busy||!!pending||!config?.enabled
+          ||!/^cz1a_[A-Za-z0-9_-]{43}$/u.test(webhookServiceToken)}
+          onClick={()=>void mutate('config.key.webhook.service.set',
+            {serviceToken:webhookServiceToken,revision:config!.revision})}>Sceller le jeton</Button>
+        <Button size="sm" variant="outline" type="button" disabled={busy||!!pending||!config?.hasWebhookService}
+          onClick={()=>void mutate('config.key.webhook.service.revoke',{revision:config!.revision})}>
+          Révoquer le jeton scellé</Button></div></Card>:null}
   </div>;
 }

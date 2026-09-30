@@ -5,6 +5,7 @@ import { AccessHttpError, resolveAccessHttpConfiguration, validateAccessHttpRequ
 import { identityInputFields } from './input.ts';
 import type { RuntimeEnvironment } from '../runtime/environment.ts';
 import type { RuntimeNativeAccess } from '../runtime/types.ts';
+import type {NativeLogoutResult} from '../storage-authority/native-session.ts';
 
 export const ACCESS_HTTP_OPERATION_DEADLINE_MS = 30_000;
 type Audience = 'admin' | 'app';
@@ -55,7 +56,8 @@ async function bounded<T>(request: Request, operation: () => Promise<T>): Promis
  * Host-only adapter: bindings and credentials never enter a module handler context.
  */
 export async function dispatchAccessHttp(request: Request, environment: RuntimeEnvironment, rawEnvironment: unknown,
-  nativeAccess: RuntimeNativeAccess, requestId: string, path: string): Promise<Response> {
+  nativeAccess: RuntimeNativeAccess, requestId: string, path: string,
+  routedLogout?: (token:string,audience:Audience)=>Promise<NativeLogoutResult>): Promise<Response> {
   const head = request.method === 'HEAD';
   const match = /^\/api\/access\/(admin|app)\/(login|session|logout)$/.exec(path);
   if (!match) return failure('not_found', 404, requestId, head);
@@ -104,7 +106,16 @@ export async function dispatchAccessHttp(request: Request, environment: RuntimeE
       catch (error) { if (!(error instanceof AccessHttpError) || error.status !== 401) throw error; token = null; }
       // Absence or an already invalid credential is deliberately indistinguishable.
       // Storage failures propagate and never produce a successful logout response.
-      if (token) await service.logout(token, audience);
+      if (token) {
+        if (environment.storageAuthority?.inventory.length && !routedLogout)
+          throw new AccessHttpError('storage_revocation_unavailable',503);
+        if (routedLogout) {
+          const outcome=await routedLogout(token,audience);
+          if(outcome.state==='pending')throw new AccessHttpError('storage_revocation_pending',503);
+          if(outcome.state!=='revoked'&&outcome.state!=='not_found')
+            throw new AccessHttpError('storage_revocation_unavailable',503);
+        }else await service.logout(token,audience);
+      }
     });
     return json({ok: true}, 200, requestId, head, {'set-cookie': clearAccessCookie(configuration, audience)});
   } catch (error) {

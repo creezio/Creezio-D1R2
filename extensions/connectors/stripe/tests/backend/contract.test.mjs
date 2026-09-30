@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {manifest} from '../helpers.mjs';
 import {stripeConnectorDescriptor} from '../../module/storage.ts';
 import {projectStripePage} from '../../module/projection.ts';
-import {configSet,configKeySet,configKeyRevoke,syncStart,syncPage,syncState,connectionCheck} from '../../module/service.ts';
+import {configSet,configKeySet,configKeyRevoke,syncStart,syncPage,syncState,connectionCheck,
+  checkoutPaymentCreate,checkoutSubscriptionCreate,checkoutRead,subscriptionCancelSchedule} from '../../module/service.ts';
 
 const config={id:'stripe.api.v1',origin:'https://api.stripe.com',key_ref:'secret-reference',
   secret_version:1,connection_id:'connection-a',enabled:true,revision:3,updated_at:'2026-09-29T00:00:00.000Z'};
@@ -22,17 +23,23 @@ function harness({configuration=config,state=run,projection={},body={object:'lis
   },providerSecrets:{async preparePut(){return {plan:{secret:1},reference:'new-reference',version:1};},
     async prepareReplace(){return {plan:{secret:2},reference:'next-reference',version:2};},
     async prepareRevoke(){return {plan:{secret:3}};}},
-  connector:{async request(request){calls.push({request});return {kind:'ok',status:200,body};}}};
+  connector:{async request(request){calls.push({request});return {kind:'ok',status:200,body};},
+    async mutate(request){calls.push({mutation:request});return {kind:'ok',status:200,body};}}};
+  context.executionId='execution-test';
   return {context,calls,plans};
 }
-test('fixed Stripe GET contract and admin deny-default permissions',()=>{
+test('fixed Stripe outbound contract and admin deny-default permissions',()=>{
   assert.deepEqual(stripeConnectorDescriptor.auth,{kind:'bearer'});
   assert.equal(stripeConnectorDescriptor.fixedOrigin,'https://api.stripe.com');
   assert.deepEqual(stripeConnectorDescriptor.staticHeaders,[{name:'Stripe-Version',value:'2026-08-26.dahlia'}]);
   assert.deepEqual(stripeConnectorDescriptor.resources.map(row=>[row.id,row.method,row.path]),[
     ['customers','GET','/v1/customers'],['subscriptions','GET','/v1/subscriptions'],
     ['invoices','GET','/v1/invoices'],['products','GET','/v1/products'],
-    ['prices_active','GET','/v1/prices'],['prices_inactive','GET','/v1/prices']]);
+    ['prices_active','GET','/v1/prices'],['prices_inactive','GET','/v1/prices'],
+    ['checkout_payment_create','POST','/v1/checkout/sessions'],
+    ['checkout_subscription_create','POST','/v1/checkout/sessions'],
+    ['checkout_session','GET','/v1/checkout/sessions/{id}'],
+    ['subscription_schedule_cancel','POST','/v1/subscriptions/{id}']]);
   assert.deepEqual(stripeConnectorDescriptor.resources[1].query.fixed,[{name:'status',value:'all'}]);
   assert.deepEqual(stripeConnectorDescriptor.resources[4].query.fixed,[{name:'active',value:'true'}]);
   assert.deepEqual(stripeConnectorDescriptor.resources[5].query.fixed,[{name:'active',value:'false'}]);
@@ -162,4 +169,48 @@ test('catalog sync reuses the same run engine with an additive state table and o
   assert.equal(h.calls.find(row=>row.patch==='stripe_catalog_sync_state')?.args.compare.expected,4);
   const states=await syncState({},h.context);
   assert.equal(states.output.states.length,6);
+});
+test('Checkout validates a projected fixed test price and uses server-bound return origin',async()=>{
+  const configuration={...config,checkout_return_origin:'https://app.example.test'};
+  const price={id:'price_test',connection_id:config.connection_id,active:true,livemode:false,
+    type:'one_time',billing_scheme:'per_unit',custom_amount:false,usage_type:null,
+    unit_amount_minor:1299};
+  const body={id:'cs_test_123',object:'checkout.session',livemode:false,mode:'payment',
+    status:'open',payment_status:'unpaid',url:'https://checkout.stripe.com/c/test',
+    client_reference_id:'execution-test',metadata:{secret:'excluded'}};
+  const h=harness({configuration,projection:{price_test:price},body});
+  const result=await checkoutPaymentCreate({priceId:'price_test',quantity:2},h.context);
+  assert.equal(result.output.session.url,'https://checkout.stripe.com/c/test');
+  assert.equal(result.plans.length,1);
+  const sent=h.calls.find(call=>call.mutation).mutation;
+  assert.equal(sent.resource,'checkout_payment_create');
+  assert.equal(sent.fields.successUrl,
+    'https://app.example.test/?checkout=success&session_id={CHECKOUT_SESSION_ID}');
+  assert.equal(sent.fields.clientReferenceId,'execution-test');
+  assert.equal(h.calls.find(call=>call.create).create,'stripe_checkout');
+  assert.doesNotMatch(JSON.stringify(result),/metadata|excluded/u);
+  await assert.rejects(checkoutPaymentCreate({priceId:'price_test',quantity:2},
+    harness({configuration,projection:{price_test:{...price,livemode:true}},body}).context),
+  {code:'invalid_input'});
+  await assert.rejects(checkoutSubscriptionCreate({priceId:'price_test',quantity:2},h.context),
+    {code:'invalid_input'});
+});
+test('Checkout read stays within the saved session and subscription cancel uses CAS',async()=>{
+  const session={id:'cs_test_123',connection_id:config.connection_id,mode:'payment'};
+  const checkout=harness({projection:{cs_test_123:session},body:{id:'cs_test_123',
+    object:'checkout.session',livemode:false,mode:'payment',status:'complete',
+    payment_status:'paid',url:null}});
+  assert.equal((await checkoutRead({sessionId:'cs_test_123'},checkout.context))
+    .output.session.paymentStatus,'paid');
+  assert.equal(checkout.calls.find(call=>call.request).request.id,'cs_test_123');
+  const subscription={id:'sub_123',connection_id:config.connection_id,livemode:false,
+    customer_id:'cus_123',status:'active',revision:3,cancel_at_period_end:false};
+  const h=harness({projection:{sub_123:subscription},body:{id:'sub_123',object:'subscription',
+    livemode:false,customer:'cus_123',cancel_at_period_end:true}});
+  const result=await subscriptionCancelSchedule({subscriptionId:'sub_123',revision:3},h.context);
+  assert.equal(result.output.cancelAtPeriodEnd,true);
+  assert.equal(h.calls.find(call=>call.mutation).mutation.fields.cancelAtPeriodEnd,true);
+  assert.equal(h.calls.find(call=>call.patch).args.compare.expected,3);
+  await assert.rejects(subscriptionCancelSchedule({subscriptionId:'sub_123',revision:2},h.context),
+    {code:'conflict'});
 });

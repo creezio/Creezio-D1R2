@@ -5,11 +5,11 @@
     "title": "Connecteur Stripe",
     "publisher": "creezio",
     "origin": "https://github.com/creezio/Creezio-D1R2",
-    "version": "0.2.1",
+    "version": "0.3.0",
     "source": {
       "kind": "snapshot",
-      "revision": "t27-stripe-price-frequency-fr-v1",
-      "integrity": "sha256-98533e010dc9d896c1dfb30ad3b899f462791cfc06462e7cb47de1a6f78c88a6"
+      "revision": "t27-stripe-checkout-test-v1",
+      "integrity": "sha256-f8ca30dd33c1576852d204d001ee4398dff3162b0b05a096b54d4e8bf06edc8c"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -18,7 +18,7 @@
   },
   "compatibility": {
     "core": "^0.0.0",
-    "sdk": "^1.4.0",
+    "sdk": "^1.6.0",
     "requiredCapabilities": [
       "runtime.worker",
       "data.d1.shared"
@@ -83,6 +83,24 @@
                 "hasKey": {
                   "type": "boolean"
                 },
+                "checkoutReturnOrigin": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 8,
+                      "maxLength": 512
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "hasWebhookSecret": {
+                  "type": "boolean"
+                },
+                "hasWebhookService": {
+                  "type": "boolean"
+                },
                 "revision": {
                   "type": "integer",
                   "minimum": 0,
@@ -101,6 +119,9 @@
                 "origin",
                 "enabled",
                 "hasKey",
+                "checkoutReturnOrigin",
+                "hasWebhookSecret",
+                "hasWebhookService",
                 "revision",
                 "state"
               ],
@@ -130,6 +151,18 @@
               "type": "integer",
               "minimum": 0,
               "maximum": 9007199254740991
+            },
+            "checkoutReturnOrigin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 8,
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -187,6 +220,64 @@
           },
           "required": [
             "requestKey",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "webhook-secret-set-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "webhookSecret": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 512
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "webhookSecret",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "webhook-service-set-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "serviceToken": {
+              "type": "string",
+              "minLength": 32,
+              "maxLength": 256
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "serviceToken",
             "revision"
           ],
           "additionalProperties": false
@@ -769,6 +860,21 @@
                       }
                     ]
                   },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "cancel_at_period_end": {
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "livemode": {
                     "type": "boolean"
                   },
@@ -789,6 +895,8 @@
                   "interval_count",
                   "quantity",
                   "period_end_at",
+                  "revision",
+                  "cancel_at_period_end",
                   "livemode",
                   "updated_at"
                 ],
@@ -1176,6 +1284,356 @@
         }
       },
       {
+        "id": "checkout-create-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "priceId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "quantity": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "customerId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "requestKey",
+            "priceId",
+            "quantity"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "checkout-read-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "sessionId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "checkout-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "url": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 8,
+                      "maxLength": 2048
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "payment",
+                    "subscription"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 32
+                },
+                "paymentStatus": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 32
+                },
+                "livemode": {
+                  "const": false
+                }
+              },
+              "required": [
+                "id",
+                "url",
+                "mode",
+                "status",
+                "paymentStatus",
+                "livemode"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "session"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "subscription-cancel-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "subscriptionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "subscriptionId",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "subscription-cancel-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "subscriptionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "cancelAtPeriodEnd": {
+              "const": true
+            },
+            "livemode": {
+              "const": false
+            }
+          },
+          "required": [
+            "subscriptionId",
+            "cancelAtPeriodEnd",
+            "livemode"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "stripe-event-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "eventId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "bodyDigest": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64
+            },
+            "type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "objectId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "livemode": {
+              "const": false
+            },
+            "sessionMode": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "payment",
+                    "subscription"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "sessionStatus": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "paymentStatus": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "requestKey",
+            "eventId",
+            "bodyDigest",
+            "type",
+            "objectId",
+            "livemode",
+            "sessionMode",
+            "sessionStatus",
+            "paymentStatus"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "stripe-event-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "eventId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "recorded": {
+              "const": true
+            },
+            "checkoutUpdated": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "eventId",
+            "recorded",
+            "checkoutUpdated"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "stripe-event-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "type": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "object_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "body_digest": {
+                    "type": "string",
+                    "minLength": 64,
+                    "maxLength": 64
+                  },
+                  "livemode": {
+                    "const": false
+                  },
+                  "updated_at": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "id",
+                  "type",
+                  "object_id",
+                  "body_digest",
+                  "livemode",
+                  "updated_at"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 25
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
         "id": "stripe-panel-state",
         "schema": {
           "type": "object",
@@ -1202,6 +1660,7 @@
                 "invoices",
                 "products",
                 "prices",
+                "checkout",
                 "settings"
               ]
             },
@@ -1344,6 +1803,80 @@
             "constraints": {
               "minLength": 1,
               "maxLength": 128
+            }
+          },
+          {
+            "id": "checkout_return_origin",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 8,
+              "maxLength": 512
+            }
+          },
+          {
+            "id": "webhook_key_ref",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "webhook_secret_version",
+            "type": "integer",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "webhook_previous_key_ref",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "webhook_previous_secret_version",
+            "type": "integer",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "webhook_service_token_ref",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "webhook_service_token_version",
+            "type": "integer",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
             }
           },
           {
@@ -1968,6 +2501,13 @@
             }
           },
           {
+            "id": "cancel_at_period_end",
+            "type": "boolean",
+            "nullable": true,
+            "protected": false,
+            "computed": false
+          },
+          {
             "id": "period_end_at",
             "type": "date-time",
             "nullable": true,
@@ -2535,6 +3075,314 @@
           "requiresApproval": false
         },
         "public": false
+      },
+      {
+        "id": "stripe_checkout",
+        "title": "Session Checkout Stripe",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "connection_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "execution_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "price_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "quantity",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "id": "mode",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "payment",
+                "subscription"
+              ]
+            }
+          },
+          {
+            "id": "status",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 32
+            }
+          },
+          {
+            "id": "payment_status",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 32
+            }
+          },
+          {
+            "id": "url",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 8,
+              "maxLength": 2048
+            }
+          },
+          {
+            "id": "livemode",
+            "type": "boolean",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "by-connection",
+            "fields": [
+              "context_id",
+              "connection_id",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "stripe_event",
+        "title": "Événement Stripe signé",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "connection_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "type",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "object_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "body_digest",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 64,
+              "maxLength": 64
+            }
+          },
+          {
+            "id": "livemode",
+            "type": "boolean",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "by-connection",
+            "fields": [
+              "context_id",
+              "connection_id",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
       }
     ],
     "files": [],
@@ -2574,6 +3422,25 @@
           "kind": "bearer"
         },
         "fixedOrigin": "https://api.stripe.com",
+        "mutationSecretPrefix": "sk_test_",
+        "webhook": {
+          "path": "/api/webhooks/stripe",
+          "operationId": "event.receive",
+          "scheme": "stripe",
+          "mapper": {
+            "path": "module/webhook.ts",
+            "export": "stripeWebhookInput"
+          },
+          "fields": {
+            "connectionId": "connection_id",
+            "signingRef": "webhook_key_ref",
+            "signingVersion": "webhook_secret_version",
+            "previousRef": "webhook_previous_key_ref",
+            "previousVersion": "webhook_previous_secret_version",
+            "serviceTokenRef": "webhook_service_token_ref",
+            "serviceTokenVersion": "webhook_service_token_version"
+          }
+        },
         "staticHeaders": [
           {
             "name": "Stripe-Version",
@@ -2676,6 +3543,162 @@
                 }
               ]
             }
+          },
+          {
+            "id": "checkout_payment_create",
+            "method": "POST",
+            "path": "/v1/checkout/sessions",
+            "params": [],
+            "idempotencyHeader": "Idempotency-Key",
+            "successStatuses": [
+              200
+            ],
+            "body": {
+              "encoding": "form",
+              "fixed": [
+                {
+                  "name": "mode",
+                  "value": "payment"
+                }
+              ],
+              "fields": [
+                {
+                  "name": "priceId",
+                  "wireName": "line_items[0][price]",
+                  "kind": "string",
+                  "required": true,
+                  "maxBytes": 128
+                },
+                {
+                  "name": "quantity",
+                  "wireName": "line_items[0][quantity]",
+                  "kind": "integer",
+                  "required": true,
+                  "maxBytes": 8
+                },
+                {
+                  "name": "successUrl",
+                  "wireName": "success_url",
+                  "kind": "string",
+                  "required": true,
+                  "maxBytes": 2048
+                },
+                {
+                  "name": "cancelUrl",
+                  "wireName": "cancel_url",
+                  "kind": "string",
+                  "required": true,
+                  "maxBytes": 2048
+                },
+                {
+                  "name": "clientReferenceId",
+                  "wireName": "client_reference_id",
+                  "kind": "string",
+                  "required": true,
+                  "maxBytes": 128
+                },
+                {
+                  "name": "customerId",
+                  "wireName": "customer",
+                  "kind": "string",
+                  "maxBytes": 128
+                }
+              ]
+            }
+          },
+          {
+            "id": "checkout_subscription_create",
+            "method": "POST",
+            "path": "/v1/checkout/sessions",
+            "params": [],
+            "idempotencyHeader": "Idempotency-Key",
+            "successStatuses": [
+              200
+            ],
+            "body": {
+              "encoding": "form",
+              "fixed": [
+                {
+                  "name": "mode",
+                  "value": "subscription"
+                }
+              ],
+              "fields": [
+                {
+                  "name": "priceId",
+                  "wireName": "line_items[0][price]",
+                  "kind": "string",
+                  "required": true,
+                  "maxBytes": 128
+                },
+                {
+                  "name": "quantity",
+                  "wireName": "line_items[0][quantity]",
+                  "kind": "integer",
+                  "required": true,
+                  "maxBytes": 8
+                },
+                {
+                  "name": "successUrl",
+                  "wireName": "success_url",
+                  "kind": "string",
+                  "required": true,
+                  "maxBytes": 2048
+                },
+                {
+                  "name": "cancelUrl",
+                  "wireName": "cancel_url",
+                  "kind": "string",
+                  "required": true,
+                  "maxBytes": 2048
+                },
+                {
+                  "name": "clientReferenceId",
+                  "wireName": "client_reference_id",
+                  "kind": "string",
+                  "required": true,
+                  "maxBytes": 128
+                },
+                {
+                  "name": "customerId",
+                  "wireName": "customer",
+                  "kind": "string",
+                  "maxBytes": 128
+                }
+              ]
+            }
+          },
+          {
+            "id": "checkout_session",
+            "method": "GET",
+            "path": "/v1/checkout/sessions/{id}",
+            "params": [
+              "id"
+            ]
+          },
+          {
+            "id": "subscription_schedule_cancel",
+            "method": "POST",
+            "path": "/v1/subscriptions/{id}",
+            "params": [
+              "id"
+            ],
+            "idempotencyHeader": "Idempotency-Key",
+            "successStatuses": [
+              200
+            ],
+            "body": {
+              "encoding": "form",
+              "fields": [
+                {
+                  "name": "cancelAtPeriodEnd",
+                  "wireName": "cancel_at_period_end",
+                  "kind": "boolean",
+                  "required": true,
+                  "maxBytes": 5
+                }
+              ]
+            }
           }
         ]
       }
@@ -2763,6 +3786,16 @@
             "moduleId": "creezio.stripe",
             "kind": "model",
             "id": "stripe_price"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "stripe_checkout"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "stripe_event"
           }
         ],
         "actions": [
@@ -2833,6 +3866,16 @@
             "moduleId": "creezio.stripe",
             "kind": "model",
             "id": "stripe_price"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "stripe_checkout"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "stripe_event"
           }
         ],
         "actions": [
@@ -2957,7 +4000,8 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret"
           ]
         },
         "public": false
@@ -3081,7 +4125,8 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret"
           ]
         },
         "public": false
@@ -3216,7 +4261,8 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret"
           ]
         },
         "public": false
@@ -3351,7 +4397,552 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.key.webhook.set",
+        "title": "Enregistrer le secret du webhook Stripe",
+        "kind": "command",
+        "input": {
+          "schemaId": "webhook-secret-set-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configWebhookSet"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 10,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.key.webhook.revoke",
+        "title": "Révoquer le secret du webhook Stripe",
+        "kind": "command",
+        "input": {
+          "schemaId": "config-key-revoke-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configWebhookRevoke"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 10,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.key.webhook.service.set",
+        "title": "Enregistrer le jeton de service webhook",
+        "kind": "command",
+        "input": {
+          "schemaId": "webhook-service-set-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configWebhookServiceSet"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 10,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "config.key.webhook.service.revoke",
+        "title": "Révoquer le jeton de service webhook",
+        "kind": "command",
+        "input": {
+          "schemaId": "config-key-revoke-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "configWebhookServiceRevoke"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 10,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret"
           ]
         },
         "public": false
@@ -3473,7 +5064,813 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "checkout.payment.create",
+        "title": "Créer un Checkout de paiement test",
+        "kind": "command",
+        "input": {
+          "schemaId": "checkout-create-input"
+        },
+        "output": {
+          "schemaId": "checkout-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "checkoutPaymentCreate"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_price"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_checkout"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "stripe.api.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 15000,
+          "maxItems": 12,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "checkout.subscription.create",
+        "title": "Créer un Checkout abonnement test",
+        "kind": "command",
+        "input": {
+          "schemaId": "checkout-create-input"
+        },
+        "output": {
+          "schemaId": "checkout-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "checkoutSubscriptionCreate"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_price"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_checkout"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "stripe.api.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 15000,
+          "maxItems": 12,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "checkout.read",
+        "title": "Relire une session Checkout test",
+        "kind": "query",
+        "input": {
+          "schemaId": "checkout-read-input"
+        },
+        "output": {
+          "schemaId": "checkout-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "checkoutRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_checkout"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "stripe.api.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 15000,
+          "maxItems": 8,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "subscription.cancel.schedule",
+        "title": "Programmer l’arrêt d’un abonnement test",
+        "kind": "command",
+        "input": {
+          "schemaId": "subscription-cancel-input"
+        },
+        "output": {
+          "schemaId": "subscription-cancel-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "subscriptionCancelSchedule"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_subscription"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_subscription"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "stripe.api.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 15000,
+          "maxItems": 12,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "event.receive",
+        "title": "Enregistrer un événement Stripe signé",
+        "kind": "command",
+        "input": {
+          "schemaId": "stripe-event-input"
+        },
+        "output": {
+          "schemaId": "stripe-event-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine",
+          "signed-webhook"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "eventReceive"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_event"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_checkout"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_event"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_checkout"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 12,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "event.list",
+        "title": "Lire les événements Stripe rapprochés",
+        "kind": "query",
+        "input": {
+          "schemaId": "local-list-input"
+        },
+        "output": {
+          "schemaId": "stripe-event-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "eventList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_event"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 25
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 27,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret"
           ]
         },
         "public": false
@@ -3598,7 +5995,8 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret"
           ]
         },
         "public": false
@@ -3737,7 +6135,8 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret"
           ]
         },
         "public": false
@@ -3933,7 +6332,8 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret"
           ]
         },
         "public": false
@@ -4056,7 +6456,8 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret"
           ]
         },
         "public": false
@@ -4179,7 +6580,8 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret"
           ]
         },
         "public": false
@@ -4302,7 +6704,8 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret"
           ]
         },
         "public": false
@@ -4425,7 +6828,8 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret"
           ]
         },
         "public": false
@@ -4548,7 +6952,8 @@
         "audit": {
           "required": true,
           "redactFields": [
-            "apiKey"
+            "apiKey",
+            "webhookSecret"
           ]
         },
         "public": false
@@ -4664,6 +7069,114 @@
         }
       },
       {
+        "id": "admin.config.key.webhook.set",
+        "method": "POST",
+        "path": "/api/admin/stripe/config/key/webhook/set",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "config.key.webhook.set"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "webhook-secret-set-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.key.webhook.revoke",
+        "method": "POST",
+        "path": "/api/admin/stripe/config/key/webhook/revoke",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "config.key.webhook.revoke"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "config-key-revoke-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.key.webhook.service.set",
+        "method": "POST",
+        "path": "/api/admin/stripe/config/key/webhook/service/set",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "config.key.webhook.service.set"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "webhook-service-set-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.config.key.webhook.service.revoke",
+        "method": "POST",
+        "path": "/api/admin/stripe/config/key/webhook/service/revoke",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "config.key.webhook.service.revoke"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "config-key-revoke-input"
+        },
+        "output": {
+          "schemaId": "config-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
         "id": "admin.connection.check",
         "method": "GET",
         "path": "/api/admin/stripe/connection/check",
@@ -4684,6 +7197,161 @@
         },
         "output": {
           "schemaId": "connection-check-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.checkout.payment.create",
+        "method": "POST",
+        "path": "/api/admin/stripe/checkout/payment/create",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "checkout.payment.create"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "checkout-create-input"
+        },
+        "output": {
+          "schemaId": "checkout-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.checkout.subscription.create",
+        "method": "POST",
+        "path": "/api/admin/stripe/checkout/subscription/create",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "checkout.subscription.create"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "checkout-create-input"
+        },
+        "output": {
+          "schemaId": "checkout-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.checkout.read",
+        "method": "GET",
+        "path": "/api/admin/stripe/checkout/read",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "checkout.read"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "query",
+            "inputField": "sessionId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "checkout-read-input"
+        },
+        "output": {
+          "schemaId": "checkout-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.subscription.cancel.schedule",
+        "method": "POST",
+        "path": "/api/admin/stripe/subscription/cancel/schedule",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "subscription.cancel.schedule"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "subscription-cancel-input"
+        },
+        "output": {
+          "schemaId": "subscription-cancel-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.event.list",
+        "method": "GET",
+        "path": "/api/admin/stripe/event/list",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "event.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "local-list-input"
+        },
+        "output": {
+          "schemaId": "stripe-event-list-output"
         },
         "rateLimit": {
           "requests": 30,
@@ -4970,6 +7638,31 @@
           "requests": 30,
           "windowSeconds": 60
         }
+      },
+      {
+        "id": "webhook.event.receive",
+        "method": "POST",
+        "path": "/api/webhooks/stripe",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "event.receive"
+        },
+        "audience": "admin",
+        "auth": [
+          "webhook-signature"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "stripe-event-input"
+        },
+        "output": {
+          "schemaId": "stripe-event-output"
+        },
+        "rateLimit": {
+          "requests": 120,
+          "windowSeconds": 60
+        }
       }
     ],
     "mcp": {
@@ -5091,6 +7784,122 @@
           "textFallback": true
         },
         {
+          "id": "config.key.webhook.set",
+          "name": "stripe_config_key_webhook_set",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "config.key.webhook.set"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "webhook-secret-set-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.key.webhook.revoke",
+          "name": "stripe_config_key_webhook_revoke",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "config.key.webhook.revoke"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "config-key-revoke-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.key.webhook.service.set",
+          "name": "stripe_config_key_webhook_service_set",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "config.key.webhook.service.set"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "webhook-service-set-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "config.key.webhook.service.revoke",
+          "name": "stripe_config_key_webhook_service_revoke",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "config.key.webhook.service.revoke"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "config-key-revoke-input"
+          },
+          "output": {
+            "schemaId": "config-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
           "id": "connection.check",
           "name": "stripe_connection_check",
           "operation": {
@@ -5116,6 +7925,151 @@
             "destructive": false,
             "idempotent": true,
             "openWorld": true
+          },
+          "textFallback": true
+        },
+        {
+          "id": "checkout.payment.create",
+          "name": "stripe_checkout_payment_create",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "checkout.payment.create"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "checkout-create-input"
+          },
+          "output": {
+            "schemaId": "checkout-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": true
+          },
+          "textFallback": true
+        },
+        {
+          "id": "checkout.subscription.create",
+          "name": "stripe_checkout_subscription_create",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "checkout.subscription.create"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "checkout-create-input"
+          },
+          "output": {
+            "schemaId": "checkout-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": true
+          },
+          "textFallback": true
+        },
+        {
+          "id": "checkout.read",
+          "name": "stripe_checkout_read",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "checkout.read"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "checkout-read-input"
+          },
+          "output": {
+            "schemaId": "checkout-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": true
+          },
+          "textFallback": true
+        },
+        {
+          "id": "subscription.cancel.schedule",
+          "name": "stripe_subscription_cancel_schedule",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "subscription.cancel.schedule"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "subscription-cancel-input"
+          },
+          "output": {
+            "schemaId": "subscription-cancel-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": true
+          },
+          "textFallback": true
+        },
+        {
+          "id": "event.list",
+          "name": "stripe_event_list",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "event.list"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "local-list-input"
+          },
+          "output": {
+            "schemaId": "stripe-event-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
           },
           "textFallback": true
         },
@@ -5431,6 +8385,31 @@
               "moduleId": "creezio.stripe",
               "kind": "operation",
               "id": "price.list"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "checkout.payment.create"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "checkout.subscription.create"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "checkout.read"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "subscription.cancel.schedule"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "event.list"
             }
           ],
           "resources": [
@@ -5484,7 +8463,52 @@
             {
               "moduleId": "creezio.stripe",
               "kind": "operation",
+              "id": "config.key.webhook.set"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "config.key.webhook.revoke"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "config.key.webhook.service.set"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "config.key.webhook.service.revoke"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
               "id": "connection.check"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "checkout.payment.create"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "checkout.subscription.create"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "checkout.read"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "subscription.cancel.schedule"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "event.list"
             },
             {
               "moduleId": "creezio.stripe",
@@ -5567,8 +8591,8 @@
       "front": {
         "mode": "absent",
         "justification": {
-          "reason": "The original billing page is administrative; no customer payment front is in this read-only slice.",
-          "policyRule": "stripe.admin-only-first-slice"
+          "reason": "Checkout URLs are issued by an authorized administrative operation; this module does not render a customer checkout page.",
+          "policyRule": "stripe.admin-checkout-api"
         }
       },
       "themes": [],
@@ -5684,8 +8708,8 @@
       }
     },
     "versionBinding": {
-      "moduleVersion": "0.2.1",
-      "sourceRevision": "t27-stripe-price-frequency-fr-v1"
+      "moduleVersion": "0.3.0",
+      "sourceRevision": "t27-stripe-checkout-test-v1"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -5767,6 +8791,7 @@
         "module/operations.ts",
         "module/service.ts",
         "module/projection.ts",
+        "module/webhook.ts",
         "ui/index.tsx",
         "ui/panel-state.ts",
         "ui/state.ts",
@@ -5811,8 +8836,8 @@
     },
     "validationBinding": {
       "moduleId": "creezio.stripe",
-      "moduleVersion": "0.2.1",
-      "sourceRevision": "t27-stripe-price-frequency-fr-v1"
+      "moduleVersion": "0.3.0",
+      "sourceRevision": "t27-stripe-checkout-test-v1"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",
@@ -5825,7 +8850,7 @@
     "activationRequirements": [],
     "absent": {
       "files": {
-        "reason": "This read-only Stripe projection stores no file content.",
+        "reason": "Stripe payment data does not store file content.",
         "policyRule": "stripe.no-files"
       }
     },

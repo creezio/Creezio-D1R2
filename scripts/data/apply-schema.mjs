@@ -109,12 +109,14 @@ async function readManaged(db) {
   let receipt;
   try { receipt = JSON.parse(payload); } catch { return { ok: false, code: 'schema.receipt-invalid' }; }
   if (inspectJson(receipt, { maxBytes: SCHEMA_LIMITS.bytes + 4096, maxNodes: 30000, maxDepth: 12 }).errors.length
-    || !exactKeys(receipt, ['schemaVersion', 'applicationId', 'sequence', 'previousId', 'nonce', 'compositionDigest', 'modelDigest', 'sqlDigest', 'planDigest', 'objects'])
+    || !exactKeys(receipt, ['schemaVersion', 'applicationId', 'sequence', 'previousId', 'nonce', 'compositionDigest', 'modelDigest', 'sqlDigest', 'planDigest', 'objects',
+      ...(receipt&&Object.hasOwn(receipt,'lockDigest')?['lockDigest']:[])])
     || receipt.schemaVersion !== 1 || typeof receipt.applicationId !== 'string' || receipt.applicationId.length > 128
     || !/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(receipt.applicationId)
     || receipt.sequence !== headers.length || receipt.previousId !== headers.at(-1).previousId
     || typeof receipt.nonce !== 'string' || !/^[a-f0-9-]{36}$/.test(receipt.nonce)
-    || ['compositionDigest', 'modelDigest', 'sqlDigest', 'planDigest'].some(field => typeof receipt[field] !== 'string' || !HASH.test(receipt[field]))
+    || ['compositionDigest', 'modelDigest', 'sqlDigest', 'planDigest',...(Object.hasOwn(receipt,'lockDigest')?['lockDigest']:[])]
+      .some(field => typeof receipt[field] !== 'string' || !HASH.test(receipt[field]))
     || !validObjects(receipt.objects) || payload !== canonicalJson(receipt) || schemaDigest(payload) !== headers.at(-1).id)
     return { ok: false, code: 'schema.receipt-invalid' };
   const expected = [...receipt.objects, SCHEMA_RECEIPT_OBJECT];
@@ -158,7 +160,8 @@ async function inspect(db, plan) {
     }
     const objects = [...previous, ...additions].sort((a, b) => a.type === b.type ? a.name < b.name ? -1 : a.name > b.name ? 1 : 0 : a.type === 'table' ? -1 : 1);
     if (!validObjects(objects)) return { public: publicState('blocked', 'schema.limit', plan) };
-    const ready = current.receipt?.planDigest === plan.planDigest && additions.length === 0;
+    const ready = current.receipt?.planDigest === plan.planDigest
+      && current.receipt?.lockDigest === plan.lockDigest && additions.length === 0;
     if (!ready && current.headers.length >= SCHEMA_LIMITS.receipts) return { public: publicState('blocked', 'schema.receipt-limit', plan) };
     return { public: publicState(ready ? 'ready' : 'additive', ready ? 'schema.current' : 'schema.approval-required', plan, additions, current.receiptId), current, objects, additions };
   } catch { return { public: publicState('unavailable', 'schema.unavailable', plan) }; }
@@ -187,7 +190,7 @@ export async function applyCompositionSchema(db, plan, options) {
   if (before.public.state !== 'additive') return outcome(false, before.public.code, 'none', before.public.state);
   const receipt = { schemaVersion: 1, applicationId: plan.applicationId, sequence: before.current.headers.length + 1,
     previousId: before.current.receiptId, nonce: randomUUID(), compositionDigest: plan.compositionDigest,
-    modelDigest: plan.modelDigest, sqlDigest: plan.sqlDigest, planDigest: plan.planDigest, objects: before.objects };
+    lockDigest: plan.lockDigest, modelDigest: plan.modelDigest, sqlDigest: plan.sqlDigest, planDigest: plan.planDigest, objects: before.objects };
   const payload = canonicalJson(receipt), id = schemaDigest(payload);
   try {
     const statements = [managedSchemaGuard(db, before.current.objects)];

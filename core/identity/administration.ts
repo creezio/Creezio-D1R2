@@ -1,10 +1,11 @@
 import { createD1AccountAdministrationStore, ADMINISTRATION_STORE_LIMITS, type AdministrativePrincipal, type AdministrativeSession,
   type AdministrationPage, type PrincipalPageInput, type SessionPageInput, type HumanVersionInput, type HumanStatusInput } from './administration-store.ts';
-import { createD1IdentityStore, type IdentityDatabase } from './d1-store.ts';
+import { ACCESS_TABLES, createD1IdentityStore, type IdentityDatabase } from './d1-store.ts';
 import { identityAdmissionKey, identityInputFields, validIdentityId } from './input.ts';
 import { ACCESS_MANAGEMENT, createNativeAuthorizationResolver } from '../authorization/resolver.ts';
 import { authorize } from '../authorization/authorize.ts';
 import type { AuthorizationDecision, PermissionDefinition } from '../authorization/types.ts';
+import type {StorageMutationPort} from '../storage-authority/native-mutation.ts';
 
 export const ADMINISTRATION_POLICY = Object.freeze({
   admissionWindowMs: 60_000,
@@ -27,10 +28,17 @@ const validStatus = (value: unknown): value is HumanStatusInput['status'] => val
  * own transport and then call these methods. A session or authorization snapshot
  * is never returned as a write permit; the D1 store rechecks it in each batch.
  */
-function createAccountAdministrationServices(db: IdentityDatabase, options: { permissions: readonly PermissionDefinition[] }) {
+type AdministrationOptions={permissions:readonly PermissionDefinition[];storageMutation?:StorageMutationPort};
+function createAccountAdministrationServices(db: IdentityDatabase, options: AdministrationOptions) {
   const store = createD1AccountAdministrationStore(db);
   const identity = createD1IdentityStore(db);
   const { resolveAdminAuthority } = createNativeAuthorizationResolver(db, options);
+  const auditReceipt=async(auditId:string,action:string,targetColumn:string,targetId:string)=>{
+    const column=targetColumn==='session'?'target_session_id':'target_principal_id';
+    const row=await db.prepare(`SELECT 1 AS ok FROM "${ACCESS_TABLES.access_audit}"
+      WHERE id=? AND action=? AND ${column}=? LIMIT 2`).bind(auditId,action,targetId).first();
+    return row?.ok===1;
+  };
 
   async function administration(token: unknown) {
     const current = await resolveAdminAuthority(token);
@@ -109,6 +117,19 @@ function createAccountAdministrationServices(db: IdentityDatabase, options: { pe
     if (!captured) return fail('invalid_input');
     try {
       const current = await administration(token); if (!current.ok) return current;
+      if(options.storageMutation){
+        const commandKey=JSON.stringify([current.guard.principalId,captured]);
+        const plan=store.prepareSetHumanStatus(current.guard,captured,
+          await options.storageMutation.receiptId('human.status',commandKey));
+        if(!plan)return fail('conflict');
+        const outcome=await options.storageMutation.commit({kind:'human.status',
+          commandKey,
+          sourceCommit:()=>store.commitPreparedSetHumanStatus(plan),committed:value=>value!==null,
+          recoverValue:async()=>await store.readPrincipal(captured.principalId),
+          inspectSource:()=>auditReceipt(plan.auditId,'human-status-updated','principal',captured.principalId)});
+        return outcome.state==='confirmed'&&outcome.value
+          ?Object.freeze({ok:true as const,principal:outcome.value}):fail('storage_error');
+      }
       const principal = await store.setHumanStatus(current.guard, captured);
       return principal ? Object.freeze({ ok: true as const, principal }) : fail('conflict');
     } catch { return fail('storage_error'); }
@@ -119,6 +140,18 @@ function createAccountAdministrationServices(db: IdentityDatabase, options: { pe
     if (!captured) return fail('invalid_input');
     try {
       const current = await administration(token); if (!current.ok) return current;
+      if(options.storageMutation){
+        const commandKey=JSON.stringify([current.guard.principalId,captured]);
+        const plan=store.prepareRevokeAllHumanSessions(current.guard,captured,
+          await options.storageMutation.receiptId('human.sessions',commandKey));
+        const outcome=await options.storageMutation.commit({kind:'human.sessions',
+          commandKey,
+          sourceCommit:()=>store.commitPreparedRevokeAllHumanSessions(plan),committed:value=>value!==null,
+          recoverValue:async()=>plan.output,
+          inspectSource:()=>auditReceipt(plan.auditId,'human-sessions-revoked','principal',captured.principalId)});
+        return outcome.state==='confirmed'&&outcome.value
+          ?Object.freeze({ok:true as const,...outcome.value}):fail('storage_error');
+      }
       const result = await store.revokeAllHumanSessions(current.guard, captured);
       return result ? Object.freeze({ ok: true as const, ...result }) : fail('conflict');
     } catch { return fail('storage_error'); }
@@ -129,35 +162,47 @@ function createAccountAdministrationServices(db: IdentityDatabase, options: { pe
     if (!captured) return fail('invalid_input');
     try {
       const current = await administration(token); if (!current.ok) return current;
+      if(options.storageMutation){
+        const commandKey=JSON.stringify([current.guard.principalId,captured]);
+        const plan=store.prepareRevokeSessionById(current.guard,captured,
+          await options.storageMutation.receiptId('human.session',commandKey));
+        const outcome=await options.storageMutation.commit({kind:'human.session',
+          commandKey,
+          sourceCommit:()=>store.commitPreparedRevokeSessionById(plan),committed:value=>value===true,
+          recoverValue:async()=>true,
+          inspectSource:()=>auditReceipt(plan.auditId,'human-session-revoked','session',captured.sessionId)});
+        return outcome.state==='confirmed'&&outcome.value===true
+          ?Object.freeze({ok:true as const}):fail('storage_error');
+      }
       return await store.revokeSessionById(current.guard, captured)
         ? Object.freeze({ ok: true as const }) : fail('conflict');
     } catch { return fail('storage_error'); }
   }
 
   /** Host executor only: prepare T04's guarded writes for the T06 commit batch. */
-  async function prepareSetHumanStatus(token: unknown, input: unknown) {
+  async function prepareSetHumanStatus(token: unknown, input: unknown,sourceAuditId?:string) {
     const captured = statusInput(input);
     if (!captured) return fail('invalid_input');
     try {
       const current = await administration(token); if (!current.ok) return current;
-      const plan = store.prepareSetHumanStatus(current.guard, captured);
+      const plan = store.prepareSetHumanStatus(current.guard, captured,sourceAuditId);
       return plan ? Object.freeze({ok: true as const, ...plan}) : fail('conflict');
     } catch { return fail('storage_error'); }
   }
-  async function prepareRevokeAllHumanSessions(token: unknown, input: unknown) {
+  async function prepareRevokeAllHumanSessions(token: unknown, input: unknown,sourceAuditId?:string) {
     const captured = versionInput(input);
     if (!captured) return fail('invalid_input');
     try {
       const current = await administration(token); if (!current.ok) return current;
-      return Object.freeze({ok: true as const, ...store.prepareRevokeAllHumanSessions(current.guard, captured)});
+      return Object.freeze({ok: true as const, ...store.prepareRevokeAllHumanSessions(current.guard, captured,sourceAuditId)});
     } catch { return fail('storage_error'); }
   }
-  async function prepareRevokeSessionById(token: unknown, input: unknown) {
+  async function prepareRevokeSessionById(token: unknown, input: unknown,sourceAuditId?:string) {
     const captured = sessionInput(input);
     if (!captured) return fail('invalid_input');
     try {
       const current = await administration(token); if (!current.ok) return current;
-      return Object.freeze({ok: true as const, ...store.prepareRevokeSessionById(current.guard, captured)});
+      return Object.freeze({ok: true as const, ...store.prepareRevokeSessionById(current.guard, captured,sourceAuditId)});
     } catch { return fail('storage_error'); }
   }
 
@@ -168,11 +213,11 @@ function createAccountAdministrationServices(db: IdentityDatabase, options: { pe
     prepareRevokeAllHumanSessions, prepareRevokeSessionById})});
 }
 
-export function createAccountAdministrationService(db: IdentityDatabase, options: { permissions: readonly PermissionDefinition[] }) {
+export function createAccountAdministrationService(db: IdentityDatabase, options: AdministrationOptions) {
   return createAccountAdministrationServices(db, options).publicService;
 }
 
 /** Host-only bridge for committing T04 effects with an operation execution. */
-export function createAccountAdministrationPlanService(db: IdentityDatabase, options: { permissions: readonly PermissionDefinition[] }) {
+export function createAccountAdministrationPlanService(db: IdentityDatabase, options: AdministrationOptions) {
   return createAccountAdministrationServices(db, options).hostPlans;
 }

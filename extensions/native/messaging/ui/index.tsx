@@ -3,8 +3,9 @@
 import {useCallback,useEffect,useRef,useState,useSyncExternalStore,type ChangeEvent} from 'react';
 import {Paperclip,Save,Send,X} from 'lucide-react';
 import {useRegisterWorkspaceMetadata} from '@creezio/sdk/workspace/metadata';
-import {createCommandJournal} from '@creezio/sdk/operations/command-journal';
+import {createCommandJournal,readPendingCommand} from '@creezio/sdk/operations/command-journal';
 import type {PendingCommand,CommandOutcome} from '@creezio/sdk/operations/command-journal';
+import type {OperationClientResult} from '@creezio/sdk/operations/client';
 import {createFileClient} from '@creezio/sdk/files/client';
 import type {WorkspaceViewProps as RuntimeViewProps} from '@creezio/sdk/workspace/types';
 import {call,readableError,folders,scopeChanged,messagingPanelData,panelMatchesScope,createLatestRequest,attachmentRevision,type Attachment,type Box,type Draft,type Folder,type Message,
@@ -45,6 +46,7 @@ export function MessagingView(props:RuntimeViewProps) {
   const [unreadOnly,setUnreadOnly]=useState(false);
   const [busy,setBusy]=useState(false);
   const [pending,setPending]=useState<PendingCommand|null>(null);
+  const [sendFollowup,setSendFollowup]=useState<PendingCommand|null>(null);
   const [loading,setLoading]=useState(false);
   const [notice,setNotice]=useState('');
   const [composer,setComposer]=useState(false);
@@ -116,6 +118,7 @@ export function MessagingView(props:RuntimeViewProps) {
       restoreDraft.current=null;panelRestored.current=false;initialPanel.current=null;journal.current=null;
       setHydratedScope('');
       setPending(null);setBoxes([]);setBoxId('');setFolder('inbox');setMessages([]);setDrafts([]);setSelectedId(null);
+      setSendFollowup(null);
       setMessage(null);setDraft(null);setAttachments([]);setThread([]);setThreadCursor(null);
       setQuery('');setUnreadOnly(false);setNewBox(false);setBoxName('');setBoxAddress('');
       setComposer(false);setEditor(blank);setNotice('');
@@ -131,6 +134,9 @@ export function MessagingView(props:RuntimeViewProps) {
       if(folders.some(item=>item.id===restoredFolder))setFolder(restoredFolder as Folder);
       if(typeof restoredDraft==='string'&&validId(restoredDraft))restoreDraft.current=restoredDraft;
       journal.current=createCommandJournal({sessionId,audience:props.audience,contextId:props.contextId},data?.pending);
+      const followup=readPendingCommand(data?.sendFollowup,
+        {sessionId,audience:props.audience,contextId:props.contextId});
+      setSendFollowup(followup?.intent==='message.send'?followup:null);
       panelRestored.current=true;initialPanel.current=null;
       setPending(journal.current.pending);
       setHydratedScope(scopeKey);
@@ -244,15 +250,16 @@ export function MessagingView(props:RuntimeViewProps) {
     }finally{if(threadSerial.current.accepts(serial))setThreadLoading(false);}
   }
 
-  function savePosition(nextFolder:Folder,nextBox:string,draftId?:string,nextPending=journal.current?.pending??null){
+  function savePosition(nextFolder:Folder,nextBox:string,draftId?:string,nextPending=journal.current?.pending??null,
+    nextFollowup=sendFollowup){
     if(!sessionId||live.current.sessionId!==sessionId||live.current.contextId!==props.contextId||
       live.current.audience!==props.audience)return false;
     return props.navigation.savePanelState({activeSubview:nextFolder,
       data:messagingPanelData({sessionId,audience:props.audience,contextId:props.contextId},
-        nextBox,draftId??null,nextPending)});
+        nextBox,draftId??null,nextPending,nextFollowup)});
   }
   async function executeMutation<T>(operation:string,input:Record<string,unknown>,isCurrent:()=>boolean,
-    targetId?:string):Promise<Outcome<T>>{
+    targetId?:string):Promise<Outcome<T>|{kind:'queued';value:T;code:string;issued:PendingCommand}>{
     const activeJournal=journal.current;
     if(!activeJournal)return {kind:'rejected',code:'client_state_unavailable'};
     if(activeJournal.pending)return {kind:'unknown',code:'in_progress'};
@@ -268,6 +275,21 @@ export function MessagingView(props:RuntimeViewProps) {
     if(journal.current===activeJournal&&live.current.sessionId===sessionId&&
       live.current.audience===props.audience&&live.current.contextId===props.contextId)
       setPending(outcome.pending);
+    if(operation==='message.send'&&outcome.result.kind==='execution'
+      &&outcome.result.execution.state==='waiting'){
+      const value=outcome.result.execution.output as T;
+      if(journal.current===activeJournal&&live.current.sessionId===sessionId){
+        const retained=props.navigation.savePanelState({activeSubview:live.current.folder,
+          data:messagingPanelData({sessionId,audience:props.audience,contextId:props.contextId},
+            live.current.boxId,null,null,issued)});
+        if(!retained)return {kind:'unknown',code:'client_state_unavailable'};
+        setSendFollowup(issued);journal.current=createCommandJournal({sessionId,audience:props.audience,
+          contextId:props.contextId});setPending(null);invalidateReads();
+      }
+      return {kind:'queued',value,code:'waiting',issued};
+    }
+    if(operation!=='message.send'&&outcome.result.kind==='execution'&&outcome.result.execution.state==='waiting')
+      return {kind:'unknown',code:'in_progress'};
     if(outcome.pending)return {kind:'unknown',code:'in_progress'};
     if(outcome.result.kind==='rejected'||outcome.result.kind==='unknown')
       return {kind:outcome.result.kind,code:outcome.result.code};
@@ -287,6 +309,16 @@ export function MessagingView(props:RuntimeViewProps) {
       if(!current())return;
       setPending(outcome?.pending??null);
       if(!outcome)return;
+      if(issued.intent==='message.send'&&outcome.result.kind==='execution'
+        &&outcome.result.execution.state==='waiting'){
+        if(!savePosition(live.current.folder,live.current.boxId,undefined,null,issued)){
+          setNotice('État local indisponible ; conservez la clé de suivi et relisez la file d’attente.');return;
+        }
+        setSendFollowup(issued);journal.current=createCommandJournal({sessionId,audience:props.audience,
+          contextId:props.contextId});setPending(null);
+        setListRevision(value=>value+1);
+        setNotice('Intention durable enregistrée ; le message est en file d’attente.');return;
+      }
       if(outcome.pending){setNotice('Résultat encore incertain. La clé reste conservée ; aucune commande n’a été rejouée.');return;}
       if(outcome.result.kind!=='execution'||outcome.result.execution.state!=='succeeded'){
         setNotice('La modification n’a pas été confirmée. Relisez les données avant de poursuivre.');return;}
@@ -312,6 +344,23 @@ export function MessagingView(props:RuntimeViewProps) {
       }else if(live.current.boxId)setListRevision(value=>value+1);
       if(live.current.selectedId)setSelectionRevision(value=>value+1);
       setNotice('Modification confirmée. Liste actualisée ; relisez le détail si nécessaire.');
+    }finally{finishBusy(busyToken);}
+  }
+  async function inspectSendFollowup(){
+    const issued=sendFollowup;if(!issued||busy||!current())return;
+    const busyToken=beginBusy();
+    try{
+      const result:OperationClientResult=await props.client.status({bindingId:issued.bindingId,
+        contextId:issued.contextId,requestKey:issued.requestKey,isCurrent:current});
+      if(!current())return;
+      if(result.kind!=='execution'){setNotice('Statut incertain ; relisez la file d’attente avant toute reprise.');return;}
+      const state=result.execution.state;
+      if(state==='waiting'){setNotice('Intention d’envoi toujours en attente ; aucune réémission lancée.');return;}
+      setSendFollowup(null);savePosition(live.current.folder,live.current.boxId,undefined,null,null);
+      setListRevision(value=>value+1);
+      setNotice(state==='succeeded'?'Acceptation fournisseur confirmée ; vérifiez les accusés.':
+        state==='unknown'?'Résultat de transport inconnu ; aucune réémission automatique.':
+        'Envoi non confirmé ; le brouillon est conservé.');
     }finally{finishBusy(busyToken);}
   }
   function chooseFolder(next:Folder){if(next===folder)return;invalidateReads();selectionIdentity.current.invalidate();
@@ -363,6 +412,31 @@ export function MessagingView(props:RuntimeViewProps) {
         setSelectedId(savedId);savePosition('drafts',boxId,savedId);void loadList();
       }
       setNotice('Brouillon enregistré.');
+    }finally{finishBusy(busyToken);}
+  }
+  async function sendDraft(){
+    if(!editor.id||!boxId||busy||!current()||journal.current?.pending)return;
+    if(sendFollowup){setNotice('Vérifiez l’intention d’envoi précédente avant une autre demande.');return;}
+    if(!draft||draft.id!==editor.id||draft.sendIntentId){
+      setNotice('Relisez le brouillon avant l’envoi ; une intention existe peut-être déjà.');return;
+    }
+    if(editor.revision!==draft.revision||editor.to!==draft.to||editor.cc!==draft.cc||editor.bcc!==draft.bcc
+      ||editor.subject!==draft.subject||editor.text!==draft.text||editor.html!==draft.html){
+      setNotice('Enregistrez les modifications du brouillon avant de l’envoyer.');return;
+    }
+    if(attachments.length){setNotice('Les pièces jointes ne sont pas encore prises en charge par le transport ; le brouillon est conservé.');return;}
+    const selected=editor.id,busyToken=beginBusy();setNotice('');
+    try{
+      const result=await executeMutation<{message:Message;draft:Draft}>('message.send',
+        {boxId,draftId:selected,revision:editor.revision},()=>scoped(boxId),selected);
+      if(!scoped(boxId))return;
+      if(result.kind!=='queued'){
+        setNotice(result.kind==='ok'?'Statut d’envoi inattendu ; relisez la file d’attente.':readableError(result.code));return;
+      }
+      setComposer(false);setEditor(draftFrom(result.value.draft));setDraft(result.value.draft);
+      setFolder('outbox');setSelectedId(result.value.message.id);
+      savePosition('outbox',boxId,undefined,null,result.issued);setListRevision(value=>value+1);
+      setNotice('Intention durable enregistrée. Le message reste en file d’attente jusqu’à confirmation du fournisseur.');
     }finally{finishBusy(busyToken);}
   }
   async function updateMessage(change:{folder?:Folder;read?:boolean}){
@@ -431,13 +505,17 @@ export function MessagingView(props:RuntimeViewProps) {
   if(hydratedScope!==scopeKey)return <div className="rounded-md border p-6 text-sm">Chargement de la messagerie…</div>;
   return <div className="flex h-[calc(100vh-8.5rem)] min-h-[420px] flex-col overflow-hidden rounded-2xl border border-[#e6e0d4] bg-white/80 shadow-sm">
     <div role="status" className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-950">
-      <span>Envoi et réception indisponibles sans transport de messagerie. La lecture des données existantes et la rédaction de brouillons restent disponibles.</span>
+      <span>La réception reste indisponible. L’envoi exige un transport Resend autorisé ; une intention en attente n’est pas un message envoyé.</span>
       <button type="button" className={messagingButton} disabled={!!pending||busy} onClick={()=>setNewBox(true)}>Nouvelle boîte</button>
     </div>
     {notice&&<div role="alert" className="border-b border-[#ebe4d8] px-4 py-2 text-sm text-[#3a4158]">{notice}</div>}
     {pending&&<div role="status" className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-950">
       <span>Une modification attend confirmation. Les autres modifications sont bloquées.</span>
       <button type="button" disabled={busy} className={messagingButton} onClick={()=>void inspectPending()}>Vérifier la dernière modification</button>
+    </div>}
+    {sendFollowup&&<div role="status" className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-950">
+      <span>Une intention d’envoi attend un accusé. La boîte reste utilisable ; n’envoyez pas à nouveau ce brouillon.</span>
+      <button type="button" disabled={busy} className={messagingButton} onClick={()=>void inspectSendFollowup()}>Vérifier l’envoi</button>
     </div>}
     <div className="flex min-h-0 flex-1" style={{gridTemplateColumns:`${widths[0]}% ${widths[1]}% 1fr`}}>
       <div style={{width:`${widths[0]}%`}} className="min-w-0"><FoldersPanel boxes={boxes} boxId={boxId} folder={folder} onBox={chooseBox} onFolder={chooseFolder} onCompose={()=>openCompose()} unread={messages.filter(item=>item.direction==='inbound'&&!item.read).length}/></div>
@@ -467,9 +545,11 @@ export function MessagingView(props:RuntimeViewProps) {
           <button type="button" disabled={busy||!!pending} aria-label={`Retirer ${item.filename}`} onClick={()=>void unlinkFile(item)}><X size={13}/></button></span>)}</div>}
         {!editor.id&&<p className="text-xs text-[#5c6478]">Enregistrez d’abord le brouillon pour y joindre des fichiers.</p>}
       </div><footer className="flex flex-wrap items-center justify-between gap-2 border-t border-[#ebe4d8] p-4">
-        <span className="text-xs text-amber-900">Envoi indisponible : aucun transport configuré.</span>
+        <span className="text-xs text-amber-900">Le transport vérifie les droits et l’expéditeur au moment de l’envoi. Les pièces jointes restent indisponibles.</span>
         <div className="flex gap-2"><button type="button" disabled={busy||!!pending} onClick={()=>void saveDraft()} className={`${messagingButton} inline-flex items-center gap-2`}><Save size={15}/>Enregistrer le brouillon</button>
-          <button type="button" disabled title="Envoi indisponible sans transport" className={`${messagingButton} inline-flex items-center gap-2`}><Send size={15}/>Envoyer</button></div>
+          <button type="button" disabled={busy||!!pending||!!sendFollowup||!editor.id||!!draft?.sendIntentId||attachments.length>0}
+            title={attachments.length?'Pièces jointes non prises en charge par le transport':undefined}
+            onClick={()=>void sendDraft()} className={`${messagingButton} inline-flex items-center gap-2`}><Send size={15}/>Envoyer</button></div>
       </footer></div></div>}
   </div>;
 }

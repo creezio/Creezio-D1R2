@@ -4,7 +4,7 @@ import {sourceIdentity,sameSourceIdentity} from '../quality/evidence.mjs';
 import {schemaDigest} from '../data/composition-schema.mjs';
 import {applyCompositionSchema,inspectCompositionSchema} from '../data/apply-schema.mjs';
 import {projectCloudflareComposition} from './composition.mjs';
-import {validateCloudflareTarget} from './config.mjs';
+import {validateCloudflareTarget,cloudflareWorkerConfiguration} from './config.mjs';
 import {createCloudflareControlPlane} from './control-plane.mjs';
 import {createCloudflareProvisioner} from './provisioning.mjs';
 import {createRemoteD1Client} from './remote/d1.mjs';
@@ -117,16 +117,25 @@ function updateArtifactRoot(root,updateId){
   return path.join(root,'.wrangler','delivery','updates',updateId,'artifact');
 }
 function boundToTarget(bindings,target){
-  return Array.isArray(bindings)
-    &&bindings.some(item=>item.name==='DB'&&item.type==='d1'&&item.id===target.databaseId)
-    &&bindings.some(item=>item.name==='BUCKET'&&item.type==='r2_bucket'
-      &&item.bucket_name===target.bucketName)
-    &&bindings.some(item=>item.name==='CREEZIO_RUNTIME_PROFILE'&&item.type==='plain_text'
-      &&item.text==='cloudflare')
-    &&bindings.some(item=>item.name==='CREEZIO_APP_ORIGIN'&&item.type==='plain_text'
-      &&item.text===target.origin)
-    &&bindings.some(item=>item.name==='CREEZIO_WIDGET_SANDBOX_ORIGIN'
-      &&item.type==='plain_text'&&item.text===target.widgetSandboxOrigin)
+  if(!Array.isArray(bindings)||new Set(bindings.map(item=>item?.name)).size!==bindings.length)
+    return false;
+  let expected;
+  try{expected=cloudflareWorkerConfiguration(target);}catch{return false;}
+  const actualD1=bindings.filter(item=>item.type==='d1').map(item=>[item.name,item.id]),
+    actualR2=bindings.filter(item=>item.type==='r2_bucket').map(item=>[item.name,item.bucket_name]);
+  const sameBindings=(actual,wanted)=>actual.length===wanted.length
+    &&wanted.every(([name,id])=>actual.some(([observed,value])=>observed===name&&value===id));
+  if(!sameBindings(actualD1,expected.d1_databases.map(item=>[item.binding,item.database_id]))
+    ||!sameBindings(actualR2,expected.r2_buckets.map(item=>[item.binding,item.bucket_name])))
+    return false;
+  const plain=(name,value)=>bindings.some(item=>item.name===name&&item.type==='plain_text'
+    &&item.text===value);
+  const route=expected.vars.CREEZIO_STORAGE_ROUTES;
+  return plain('CREEZIO_RUNTIME_PROFILE','cloudflare')
+    &&plain('CREEZIO_APP_ORIGIN',target.origin)
+    &&plain('CREEZIO_WIDGET_SANDBOX_ORIGIN',target.widgetSandboxOrigin)
+    &&(route?plain('CREEZIO_STORAGE_ROUTES',route)
+      :!bindings.some(item=>item.name==='CREEZIO_STORAGE_ROUTES'))
     &&bindings.some(item=>item.name==='CREEZIO_VAULT_KEYRING'&&item.type==='secret_text');
 }
 
@@ -567,6 +576,7 @@ export function createCloudflareDeliveryPipeline(options){
     const registry=await registryPorts(),activeId=await updateJournal.findActive(principalId);
     if(activeId){
       const active=await updateJournal.load(activeId);
+      if(active?.target?.schemaVersion===3)fail('storage_authority_cutover_unavailable',409);
       if(active?.stage!=='prepared')fail('update_in_progress',409);
       await assertPrevious(active,await connected(active),registry);
       await updateProjectionFor(active);
@@ -574,6 +584,7 @@ export function createCloudflareDeliveryPipeline(options){
         summary:active.summary};
     }
     const selected=connection,current=await currentPublication(principalId,selected,registry);
+    if(current.prior.target?.schemaVersion===3)fail('storage_authority_cutover_unavailable',409);
     const source=identity(config.root);
     if(source.dirty||!/^[a-f0-9]{40}$/.test(source.head))fail('source_not_clean',409);
     const projection=project(),targetPlan=projection?.targetPlan;
@@ -613,6 +624,7 @@ export function createCloudflareDeliveryPipeline(options){
   }
   async function runUpdate(initial){
     let record=initial;
+    if(record.target?.schemaVersion===3)fail('storage_authority_cutover_unavailable',409);
     const registry=await registryPorts();
     if(registry.registryIdentity.projectId!==record.registryProjectId
       ||registry.registryIdentity.installationId!==record.registryInstallationId)
@@ -669,6 +681,7 @@ export function createCloudflareDeliveryPipeline(options){
   }
   async function startUpdate(input,context){
     let record=await updateRecordFor(input?.updateId,input?.planDigest,context);
+    if(record.target?.schemaVersion===3)fail('storage_authority_cutover_unavailable',409);
     if(record.stage==='delivered'||record.stage==='delivery-unknown')return updateStatusOf(record);
     if(record.stage!=='prepared')fail('update_in_progress',409);
     record=await saveUpdate(record,{stage:'building'});
@@ -684,6 +697,7 @@ export function createCloudflareDeliveryPipeline(options){
   }
   async function reconcileUpdate(input,context){
     let record=await updateRecordFor(input?.updateId,input?.planDigest,context);
+    if(record.target?.schemaVersion===3)fail('storage_authority_cutover_unavailable',409);
     if(record.stage==='prepared')fail('update_not_started',409);
     if(record.stage==='delivered')return updateStatusOf(record);
     const registry=await registryPorts(),gateRecord=await registry.publicationJournal.get(record.updateId);

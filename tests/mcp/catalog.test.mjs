@@ -144,13 +144,13 @@ test('MCP catalog admits six self-contained widgets in two audiences within its 
   assert.equal(runtime.resources('app').length,6);
 });
 
-test('MCP catalog admits the measured multi-widget inventory and refuses aggregates above 24 MiB',()=>{
+test('MCP catalog admits the measured multi-widget inventory and refuses aggregates above 32 MiB',()=>{
   const accepted={...compile(),resources:widgetResources(16,608000)};
   const acceptedBytes=Buffer.byteLength(JSON.stringify(accepted));
   assert.ok(acceptedBytes>16*1024*1024&&acceptedBytes<24*1024*1024,acceptedBytes);
   assert.equal(createMcpCatalog(accepted,registry).resources('admin').length,16);
-  const oversized={...compile(),resources:widgetResources(22,608000)};
-  assert.ok(Buffer.byteLength(JSON.stringify(oversized))>24*1024*1024);
+  const oversized={...compile(),resources:widgetResources(28,608000)};
+  assert.ok(Buffer.byteLength(JSON.stringify(oversized))>32*1024*1024);
   assert.throws(()=>createMcpCatalog(oversized,registry),TypeError);
   const oneLarge={...compile(),resources:widgetResources(1,1_048_577)};
   assert.ok(Buffer.byteLength(JSON.stringify(oneLarge))<16*1024*1024);

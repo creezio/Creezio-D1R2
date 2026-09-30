@@ -27,6 +27,8 @@ export interface DataPermission {
 }
 export interface RuntimeDataCatalog {
   readonly schemaVersion: 1; readonly compositionDigest: string;
+  /** Exact installed module contracts/archives; required for routed storage. */
+  readonly lockDigest?: string;
   readonly modules: readonly { readonly moduleId: string; readonly version: string; readonly enabled: boolean;
     readonly permissions: readonly DataPermission[];
     readonly models: readonly { readonly modelId: string; readonly table: string; readonly model: DataModel }[] }[];

@@ -17,14 +17,30 @@ export interface ConnectorVaultStorage {
     version:string;state:string}>;
 }
 export type ConnectorParameter='id'|'cursor'|'limit';
+export interface ConnectorBodyField {
+  /** Handler name and fixed provider name; a handler cannot add fields at call time. */
+  readonly name:string;
+  readonly wireName:string;
+  readonly kind:'string'|'integer'|'boolean'|'json';
+  readonly required?:boolean;
+  readonly maxBytes:number;
+}
 export interface ConnectorResource {
   readonly id:string;
-  readonly method:'GET';
+  readonly method:'GET'|'POST'|'PUT'|'PATCH'|'DELETE';
   readonly path:string;
   readonly params:readonly ConnectorParameter[];
   /** Provider names for declared inputs and fixed filters, never supplied by the operation. */
   readonly query?:Readonly<{cursor?:string;limit?:string;
+    fixed?:readonly Readonly<{name:string;value:string}>[];
+    fields?:readonly ConnectorBodyField[]}>;
+  /** A write can only send declared fields using the declared encoding. */
+  readonly body?:Readonly<{encoding:'form'|'json'|'json-root';fields:readonly ConnectorBodyField[];
     fixed?:readonly Readonly<{name:string;value:string}>[]}>;
+  /** Optional provider replay guard, for example Stripe's Idempotency-Key. */
+  readonly idempotencyHeader?:string;
+  readonly successStatuses?:readonly number[];
+  readonly responseBody?:'json'|'none';
 }
 export interface ConnectorDescriptor {
   readonly id:string;
@@ -36,6 +52,13 @@ export interface ConnectorDescriptor {
   readonly fixedOrigin?:string;
   /** Non-credential protocol headers fixed by the module contract. */
   readonly staticHeaders?:readonly Readonly<{name:string;value:string}>[];
+  /** Optional test credential constraint for outbound mutations. */
+  readonly mutationSecretPrefix?:string;
+  /** Build-selected signed ingress, resolved by the host from context-scoped vault references. */
+  readonly webhook?:Readonly<{path:string;operationId:string;scheme:'stripe'|'standard';
+    mapper:Readonly<{path:string;export:string}>;
+    fields:Readonly<{connectionId:string;signingRef:string;signingVersion:string;
+      previousRef:string;previousVersion:string;serviceTokenRef:string;serviceTokenVersion:string}>}>;
   readonly resources:readonly ConnectorResource[];
 }
 export interface ConnectorRequest {
@@ -43,13 +66,21 @@ export interface ConnectorRequest {
   readonly id?:string;
   readonly cursor?:string;
   readonly limit?:number;
+  readonly fields?:Readonly<Record<string,JsonValue>>;
+  readonly signal?:AbortSignal;
+}
+export interface ConnectorMutationRequest {
+  readonly resource:string;
+  readonly id?:string;
+  readonly fields:Readonly<Record<string,JsonValue>>;
   readonly signal?:AbortSignal;
 }
 export type ConnectorErrorCode='invalid_request'|'not_configured'|'access_denied'|'remote_auth'|
-  'remote_not_found'|'remote_error'|'unavailable'|'invalid_response';
-export type ConnectorResult=Readonly<{kind:'ok';status:200;body:JsonValue}>|
+  'remote_not_found'|'remote_error'|'unavailable'|'invalid_response'|'outcome_unknown';
+export type ConnectorResult=Readonly<{kind:'ok';status:number;body:JsonValue}>|
   Readonly<{kind:'error';code:ConnectorErrorCode;status?:number}>;
-/** One bounded, read-only call per declared operation. Secret material stays in the host. */
+/** One bounded call per declared operation. Secret material stays in the host. */
 export interface ConnectorPort {
   request(input:ConnectorRequest):Promise<ConnectorResult>;
+  mutate(input:ConnectorMutationRequest):Promise<ConnectorResult>;
 }

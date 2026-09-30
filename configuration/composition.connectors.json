@@ -98,7 +98,12 @@
       },
       "enabled": true,
       "configuration": [],
-      "integrations": []
+      "integrations": [
+        {
+          "moduleId": "creezio.resend",
+          "enabled": true
+        }
+      ]
     },
     {
       "moduleId": "creezio.crm",
@@ -179,7 +184,12 @@
       },
       "enabled": true,
       "configuration": [],
-      "integrations": []
+      "integrations": [
+        {
+          "moduleId": "creezio.meili",
+          "enabled": true
+        }
+      ]
     },
     {
       "moduleId": "creezio.n8n",
@@ -196,7 +206,7 @@
     {
       "moduleId": "creezio.stripe",
       "origin": "https://github.com/creezio/Creezio-D1R2",
-      "versionRange": "^0.2.0",
+      "versionRange": "^0.3.0",
       "source": {
         "kind": "workspace",
         "path": "extensions/connectors/stripe"
@@ -208,10 +218,46 @@
     {
       "moduleId": "creezio.meili",
       "origin": "https://github.com/creezio/Creezio-D1R2",
-      "versionRange": "^0.2.0",
+      "versionRange": "^0.3.0",
       "source": {
         "kind": "workspace",
         "path": "extensions/connectors/meili"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
+    },
+    {
+      "moduleId": "creezio.granola",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.1.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/connectors/granola"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
+    },
+    {
+      "moduleId": "creezio.resend",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.1.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/connectors/resend"
+      },
+      "enabled": true,
+      "configuration": [],
+      "integrations": []
+    },
+    {
+      "moduleId": "creezio.hermes",
+      "origin": "https://github.com/creezio/Creezio-D1R2",
+      "versionRange": "^0.1.0",
+      "source": {
+        "kind": "workspace",
+        "path": "extensions/connectors/hermes"
       },
       "enabled": true,
       "configuration": [],
@@ -239,7 +285,10 @@
         "creezio.catalog",
         "creezio.n8n",
         "creezio.stripe",
-        "creezio.meili"
+        "creezio.meili",
+        "creezio.granola",
+        "creezio.resend",
+        "creezio.hermes"
       ]
     },
     "app": {
@@ -254,7 +303,11 @@
         "creezio.analytics",
         "creezio.theme-standard",
         "creezio.catalog",
-        "creezio.n8n"
+        "creezio.n8n",
+        "creezio.granola",
+        "creezio.resend",
+        "creezio.hermes",
+        "creezio.meili"
       ]
     }
   }

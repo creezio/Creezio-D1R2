@@ -2,13 +2,7 @@
 # Keep identical bytes on Windows development and Linux CI checkouts.
 extensions/native/access/module/models.json text eol=lf
 extensions/native/access/module/manifest.json text eol=lf
-data/schema/access.sql text eol=lf
-data/schema/runtime.sql text eol=lf
-data/schema/modules-settings.sql text eol=lf
-data/schema/conversations.sql text eol=lf
-data/schema/openai.sql text eol=lf
-data/schema/messaging.sql text eol=lf
-data/schema/crm.sql text eol=lf
+data/schema/*.sql text eol=lf
 
 # Module archives lock exact bytes across Windows and Linux. Text sources use LF;
 # binary assets retain their original bytes and are not normalized by packaging.

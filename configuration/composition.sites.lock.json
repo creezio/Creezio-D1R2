@@ -8,7 +8,7 @@
     "version": "1.0.0",
     "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
   },
-  "compositionIntegrity": "sha256-96059f38bc486807e075517dc833343c342be328a2c9f8c3131ee99a52b1d739",
+  "compositionIntegrity": "sha256-6252736ea2373d95e15624ec98c0b1aedb11e72fdd2c143c51c16cf4238d7f06",
   "modules": [
     {
       "moduleId": "creezio.access",
@@ -190,19 +190,19 @@
         "revision": "t18-messaging-widgets-v1",
         "integrity": "sha256-f73ba5a50bd6d90c1313beb01dc61d278a1d6a0cd9b43384e44f052bb6dcbdc9"
       },
-      "contractIntegrity": "sha256-5fa3dc15cd6cff724f834ca9843c12a829c574030f7dae13567349ea9d6200a7",
+      "contractIntegrity": "sha256-2a4dae04102d71d604bdc98a1b2620754b458b844e80b50f0eaeb49e18397a60",
       "runtime": {
-        "integrity": "sha256-7a096c7b87ad1956f719f5dbaefc3e6a26fb6916f792312786d88454a58ba37c",
+        "integrity": "sha256-17a1f9f880c914240cd89e63e33d9b5c5a2282d1470e51c5ad369a983c9f0fbf",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.messaging/runtime-7a096c7b87ad1956f719f5dbaefc3e6a26fb6916f792312786d88454a58ba37c.tgz"
+          "path": ".creezio/module-artifacts/creezio.messaging/runtime-17a1f9f880c914240cd89e63e33d9b5c5a2282d1470e51c5ad369a983c9f0fbf.tgz"
         }
       },
       "validation": {
-        "integrity": "sha256-0df53b3730b353382d5a60c28fd123c9ec93119830fc57efa0f5c0df069db91c",
+        "integrity": "sha256-0f2cb26607ec14afd899629adbe67b4e81753ec9a978809812a4a0b0696795da",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.messaging/validation-0df53b3730b353382d5a60c28fd123c9ec93119830fc57efa0f5c0df069db91c.tgz"
+          "path": ".creezio/module-artifacts/creezio.messaging/validation-0f2cb26607ec14afd899629adbe67b4e81753ec9a978809812a4a0b0696795da.tgz"
         }
       },
       "dependencies": [

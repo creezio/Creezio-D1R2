@@ -4,10 +4,15 @@ import {existsSync,mkdtempSync,mkdirSync,rmdirSync,writeFileSync,unlinkSync} fro
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {parseArchiveValidationArgs,assertArchiveValidationStage,inspectSdkTarEntries,
-  packArchiveValidationArtifacts,runArchiveValidation,runClosedArchiveNode}
+  moduleSpecifiers,packArchiveValidationArtifacts,runArchiveValidation,runClosedArchiveNode}
   from '../../scripts/modules/validate-archives.mjs';
 
 const digest='a'.repeat(64);
+test('module import scan ignores provider field values while checking static and dynamic imports',()=>{
+  const source="const fields=[{name:'from',wireName:'from'}]; import type {Port} from '@creezio/sdk/connectors/types'; export {x} from './x.ts'; const y=import('./y.ts');";
+  assert.deepEqual(moduleSpecifiers(source,'module/storage.ts'),
+    ['@creezio/sdk/connectors/types','./x.ts','./y.ts']);
+});
 test('closed archive CLI binds one SDK digest to selected module directories',()=>{
   const parsed=parseArchiveValidationArgs(['--sdk-archive','sdk.tgz','--sdk-sha256',digest,
     'extensions/native/pages-navigation','extensions/native/analytics']);

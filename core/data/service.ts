@@ -6,8 +6,11 @@ import { copyJson, keys, record, validId } from './input.ts';
 import { DATA_LIMITS, DataAccessError, type DataAccess, type DataAction, type DataBatchResult, type DataCredential,
   type DataLease, type DataPlan, type DataPort, type DataRecord, type InternalDataPortOptions,
   type RuntimeDataCatalog, type AuthorizationTarget, type PermissionDefinition } from './types.ts';
+import {readActiveStorageRoute,projectScopedStorageGrant,freshScopedStorageGuard,
+  type ScopedStorageGrant,type StorageRouteIdentity} from '../storage-authority/target.ts';
 
-interface LeaseState { readonly authorization: ResolvedDataAuthorization; readonly moduleId: string; closed: boolean }
+interface LeaseState { readonly authorization: ResolvedDataAuthorization; readonly moduleId: string;
+  readonly storageGrant?:ScopedStorageGrant; closed: boolean }
 interface PlanState { readonly lease: DataLease; readonly compiled: CompiledDataPlan; attempted: boolean }
 
 /** Host-only bridge. It is intentionally absent from DataAccess/DataPort, and
@@ -24,20 +27,34 @@ export interface HostDataBatchResult {
 export interface HostDataTransactionExecutor {
   execute(lease: DataLease, batch: HostDataBatch): Promise<HostDataBatchResult>;
 }
-const hostExecutors = new WeakMap<DataAccess, { readonly db: IdentityDatabase; readonly executor: HostDataTransactionExecutor }>();
+type ReadGuardBinder = (source: DataLease, destination: DataLease, plans: readonly DataPlan[]) => readonly DataPlan[];
+const hostExecutors = new WeakMap<DataAccess, { readonly db: IdentityDatabase; readonly executor: HostDataTransactionExecutor;
+  readonly bindReadGuards: ReadGuardBinder }>();
 export function createDataTransactionExecutor(data: DataAccess, db: IdentityDatabase): HostDataTransactionExecutor {
   const registered = hostExecutors.get(data);
   if (!registered || registered.db !== db) throw new DataAccessError('invalid_lease');
   return registered.executor;
 }
 
+/** Host-only: carry a provider's read proofs into the caller's atomic settlement.
+ * Both native authorizations remain guarded; neither writes nor credentials cross this bridge. */
+export function bindHostReadGuards(data: DataAccess, source: DataLease, destination: DataLease,
+  plans: readonly DataPlan[]): readonly DataPlan[] {
+  const registered = hostExecutors.get(data);
+  if (!registered) throw new DataAccessError('invalid_lease');
+  return registered.bindReadGuards(source, destination, plans);
+}
+
 /** Request-local internal service. The host injects a verified static catalogue;
  * module handlers receive only their own DataPort, never this factory, the DB,
  * an internal protected-field port or the authority to mint leases. */
 export function createDataAccess(db: IdentityDatabase,
-  options: { readonly catalog: RuntimeDataCatalog; readonly permissions: readonly PermissionDefinition[] }): DataAccess {
+  options: { readonly catalog: RuntimeDataCatalog; readonly permissions: readonly PermissionDefinition[];
+    readonly authorityDb?:IdentityDatabase;readonly storageRoute?:StorageRouteIdentity }): DataAccess {
+  if(Boolean(options.storageRoute)!==Boolean(options.authorityDb))throw new DataAccessError('invalid_catalog');
+  const storageRoute=options.storageRoute?Object.freeze({...options.storageRoute}):undefined;
   const catalog = copyJson(options.catalog, 4 * 1024 * 1024) as unknown as RuntimeDataCatalog;
-  const models = compileDataCatalog(catalog), authorization = createDataAuthorization(db, options.permissions);
+  const models = compileDataCatalog(catalog), authorization = createDataAuthorization(options.authorityDb??db, options.permissions);
   const enabledModules = new Set(catalog.modules.filter(module => module.enabled).map(module => module.moduleId));
   const leases = new WeakMap<DataLease, LeaseState>(), plans = new WeakMap<DataPlan, PlanState>();
   const getLease = (lease: DataLease) => {
@@ -45,15 +62,46 @@ export function createDataAccess(db: IdentityDatabase,
     if (!state || state.closed) throw new DataAccessError('invalid_lease');
     return state;
   };
+  const bindReadGuards: ReadGuardBinder = (source, destination, inputs) => {
+    const from = getLease(source), to = getLease(destination), a = from.authorization, b = to.authorization;
+    if (a.digest !== b.digest || a.subjectPrincipalId !== b.subjectPrincipalId
+      || a.actorPrincipalId !== b.actorPrincipalId || a.target.contextId !== b.target.contextId
+      || a.target.audience !== b.target.audience) throw new DataAccessError('forbidden');
+    if (!Array.isArray(inputs) || Object.getPrototypeOf(inputs) !== Array.prototype
+      || inputs.length < 1 || inputs.length > DATA_LIMITS.plans) throw new DataAccessError('invalid_plan');
+    const descriptors = Object.getOwnPropertyDescriptors(inputs), captured: CompiledDataPlan[] = [];
+    if (Reflect.ownKeys(descriptors).length !== inputs.length + 1) throw new DataAccessError('invalid_plan');
+    const distinct = new Set<DataPlan>();
+    for (let i = 0; i < inputs.length; i++) {
+      const descriptor = descriptors[String(i)];
+      if (!descriptor || !Object.hasOwn(descriptor, 'value')) throw new DataAccessError('invalid_plan');
+      const token = descriptor.value, entry = token && typeof token === 'object' ? plans.get(token) : undefined;
+      if (!entry || entry.lease !== source || entry.attempted || entry.compiled.write
+        || entry.compiled.list || distinct.has(token)) throw new DataAccessError('invalid_plan');
+      distinct.add(token); captured.push(entry.compiled);
+    }
+    const authorizationGuard = from.storageGrant ? freshScopedStorageGuard(from.storageGrant) : freshDataGuard(a);
+    return Object.freeze(captured.map(compiled => {
+      const token: DataPlan = Object.freeze({kind: 'data-plan'});
+      plans.set(token, {lease: destination, attempted: false, compiled: Object.freeze({...compiled,
+        statements: Object.freeze([authorizationGuard, ...compiled.statements]), resultIndex: compiled.resultIndex + 1})});
+      return token;
+    }));
+  };
   async function authorize(credential: DataCredential, target: AuthorizationTarget, owner: { readonly moduleId: string }): Promise<DataLease> {
     const captured = copyJson(owner); record(captured); keys(captured, ['moduleId']);
     if (!validId(captured.moduleId) || !enabledModules.has(captured.moduleId))
       throw new DataAccessError('forbidden');
-    let resolved: ResolvedDataAuthorization;
-    try { resolved = await authorization.resolve(credential, target); }
+    let resolved: ResolvedDataAuthorization, storageGrant:ScopedStorageGrant|undefined;
+    try {
+      const route=storageRoute?await readActiveStorageRoute(db,storageRoute):undefined;
+      resolved = await authorization.resolve(credential, target);
+      if(route)storageGrant=await projectScopedStorageGrant(db,route,resolved,captured.moduleId,
+        catalog.compositionDigest,catalog.lockDigest??'');
+    }
     catch (error) { if (error instanceof DataAccessError) throw error; throw new DataAccessError('storage_error'); }
     const lease: DataLease = Object.freeze({ kind: 'data-lease' });
-    leases.set(lease, { authorization: resolved, moduleId: captured.moduleId, closed: false });
+    leases.set(lease, { authorization: resolved, moduleId: captured.moduleId, storageGrant, closed: false });
     return lease;
   }
   async function executeHost(lease: DataLease, inputs: readonly DataPlan[], write: boolean,
@@ -87,7 +135,8 @@ export function createDataAccess(db: IdentityDatabase,
       });
     };
     const prefix = captureStatements(before), suffix = captureStatements(after);
-    const statements = [freshDataGuard(state.authorization), ...prefix, ...captured.flatMap(plan => plan.statements), ...suffix];
+    const statements = [state.storageGrant?freshScopedStorageGuard(state.storageGrant):freshDataGuard(state.authorization),
+      ...prefix, ...captured.flatMap(plan => plan.statements), ...suffix];
     if (statements.length > DATA_LIMITS.statements) throw new DataAccessError('invalid_plan');
     // No plan replay after a write attempt, including an unknown acknowledgement.
     // A multi-stage core operation may build a new plan under the same bounded
@@ -176,7 +225,7 @@ export function createDataAccess(db: IdentityDatabase,
     readBatch: (lease, inputs) => execute(lease, inputs, false), commitBatch: (lease, inputs) => execute(lease, inputs, true),
     dispose: lease => { const state = leases.get(lease); if (state) state.closed = true; },
   } satisfies DataAccess);
-  hostExecutors.set(access, { db, executor: Object.freeze({ execute: (lease: DataLease, batch: HostDataBatch) =>
+  hostExecutors.set(access, { db, bindReadGuards, executor: Object.freeze({ execute: (lease: DataLease, batch: HostDataBatch) =>
     executeHost(lease, batch.plans ?? [], batch.write, batch.before ?? [], batch.after ?? [], true) }) });
   return access;
 }

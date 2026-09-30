@@ -20,10 +20,11 @@ La vue de configuration reprend celle de l'assistant Creezio original ; les vues
 
 Les références originales sont `packages/assistant/src/runtime/hermes-client.ts`, `hermes-models.ts` et `hermes-kanban.ts`. Conserver leur vocabulaire et leurs comportements utiles ; remplacer le fetch libre, les adresses locales implicites, les variables de clés et les reprises qui pourraient redéclencher une soumission.
 
-- [ ] Contrat de configuration, capacités, runs, permissions, modèles et API/MCP.
-- [ ] Port mutateur commun, journal durable, projection et transitions de connexion.
-- [ ] Vue originale adaptée et widgets de suivi/action sans double logique métier.
-- [ ] Six suites et tests D1 : perte d'accusé, révocation, collision d'idempotence, changement de connexion, run étranger et refus d'approbation automatique.
+- [x] Contrat de configuration, capacités, runs, permissions, modèles et API/MCP en source.
+- [x] Port mutateur commun, journal durable, projection et transitions de connexion vérifiés sur D1 local.
+- [x] Vues workspace admin et app adaptées des cartes originales, sans chat parallèle.
+- [x] Six suites de validation source (dont widgets explicitement non applicables) et recette D1/hôte : perte d'accusé sans rejeu, révocation, idempotence, run étranger et champs secrets protégés.
+- [ ] Widgets de suivi et approbation : le POST d'approbation attend une fixture de la version Hermes réellement exploitée.
 - [ ] Recette externe sur l'instance et la version réellement disponibles, avec soumission témoin autorisée, relecture et arrêt si nécessaire.
 
 Les capacités encore absentes du fournisseur restent indisponibles avec un écart consigné. La présence du module, d'un mock ou d'une clé ne qualifie pas cette recette.

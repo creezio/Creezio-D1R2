@@ -83,7 +83,7 @@ test('Stripe price intervals use French singular and plural without guessing unk
   assert.equal(formatStripeFrequency('recurring','quarter',1),'Périodicité non reconnue');
   assert.equal(formatStripeFrequency('recurring','month',null),'Périodicité non disponible');
 });
-test('original billing cards/tables remain, unavailable numbers and events are explicit',()=>{
+test('original billing cards/tables remain and signed events are visible',()=>{
   const ui=read('ui/index.tsx');
   for(const label of ['Facturation','Revenu mensuel (MRR)','Abonnements actifs',
     'Factures impayées','Clients &amp; abonnements','Factures','Événements Stripe reçus',
@@ -92,7 +92,8 @@ test('original billing cards/tables remain, unavailable numbers and events are e
   assert.ok(ui.includes("import {Badge,Button,Card} from '@creezio/sdk/ui'"));
   assert.match(ui,/subVariant\(/u);assert.match(ui,/invoiceVariant\(/u);
   assert.match(ui,/Calcul non disponible sur ce parcours partiel/u);
-  assert.match(ui,/Aucun webhook n’est raccordé/u);
+  assert.match(ui,/Aucun événement signé reçu dans cette connexion/u);
+  assert.match(ui,/event\.list/u);
   assert.match(ui,/createCommandJournal/u);
   assert.match(ui,/Nom non rapproché/u);
   assert.doesNotMatch(ui,/products\.find\(/u,

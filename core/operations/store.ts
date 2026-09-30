@@ -379,7 +379,8 @@ export function createOperationStore({ db, data }: OperationStoreOptions): Opera
     const state = ownDeliveryClaim(lease,claim,true);
     // A positive reply may arrive after the claim deadline. Its exact nonce can
     // settle that emission, but never authorizes a second emission.
-    const result = await run(lease, { write: true, before: [assert(sql(`EXISTS(SELECT 1 FROM ${T.outbox}
+    let result;
+    try{result = await run(lease, { write: true, before: [assert(sql(`EXISTS(SELECT 1 FROM ${T.outbox}
       WHERE execution_id=? AND intent_id=? AND claim_nonce=? AND state IN ('claimed','unknown'))`, state.executionId, state.outboxId, state.nonce))], plans, after: [
       sql(`UPDATE ${T.outbox} SET state=?,receipt=CASE WHEN ? THEN ? ELSE receipt END,updated_at_ms=${NOW}
         WHERE execution_id=? AND intent_id=? AND claim_nonce=?`,
@@ -391,7 +392,14 @@ export function createOperationStore({ db, data }: OperationStoreOptions): Opera
         updated_at_ms=${NOW} WHERE id=?`, state.executionId, state.executionId, state.executionId, state.executionId),
       audit(state.executionId, state.identity, `delivery-${captured.state}`, state.nonce, state.outboxId),
       deliveryQuery(state.executionId, state.outboxId, state.identity),
-    ] });
+    ] });}
+    catch(error){
+      // A failed atomic settlement may be recorded as unknown by the same claim.
+      // If the acknowledgement was lost after commit, the nonce/state assertion
+      // refuses that second settlement without replaying provider egress.
+      state.attempted=false;
+      throw error;
+    }
     const row = result.after.at(-1)?.results[0]; if (!row) return fail('unavailable'); return delivery(row);
   }
   return Object.freeze({ start, read, lookup, commit, resume, readDelivery, findDelivery, claimDelivery,

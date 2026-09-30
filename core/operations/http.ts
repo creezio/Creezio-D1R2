@@ -15,17 +15,21 @@ import type { OperationHttpBinding, OperationHttpExecution } from './http-types.
 import { oauthResource } from '../oauth/protocol.ts';
 import {dispatchFileHttp} from '../files/http.ts';
 import type {RuntimeFileCatalog} from '../files/catalog.ts';
-import type {FileBucket} from '../files/service.ts';
-import {createOpenAiProviderHost,readProviderKeyring} from '../providers/host.ts';
+import {createRuntimeOperationHost} from '../runtime/operation-host.ts';
 import type {ProviderConfigStorage,ProviderHttpPort,ProviderTransport} from '../../sdk/providers/types.ts';
 import type {ConnectorDescriptor} from '../../sdk/connectors/types.ts';
+import type {SearchProjectionSource} from '../../sdk/search/types.ts';
+import type {DeliveryMapping} from './delivery-types.ts';
 import type {VaultStorage} from '../vault/service.ts';
 import {createTurnBridge} from '../conversations/turn-bridge.ts';
 import type {ProviderOperationSchema} from '../providers/tools.ts';
 import {dispatchWidgetHttp} from '../widgets/http.ts';
-import {createWidgetApprovalService} from '../widgets/approval.ts';
 import {dispatchDeliveryAuthorizationHttp} from '../delivery/http.ts';
 import type {CompiledWidgetCatalog, WidgetValidatorMap} from '../../sdk/widgets/catalog.ts';
+import {createWebhookProofAuthority} from '../connectors/webhook-proof.ts';
+import {createSignedWebhookBridge,type SignedWebhookBridge,
+  } from '../connectors/webhook-http.ts';
+import {createVaultedWebhookResolver,type CompiledWebhookMapping} from '../connectors/webhook-resolver.ts';
 
 type Engine = ReturnType<typeof createOperationEngine>;
 const encoder = new TextEncoder();
@@ -220,7 +224,8 @@ async function bounded<T>(request: Request, action: () => Promise<T>, command: b
 }
 
 /** Host-only adapter. Bindings are compiled at build time; this does no module discovery. */
-export function createOperationHttpTransport(bindings: readonly OperationHttpBinding[], engine: Engine) {
+export function createOperationHttpTransport(bindings: readonly OperationHttpBinding[], engine: Engine,
+  webhooks?:SignedWebhookBridge) {
   const selected = Object.freeze([...bindings]);
   if (selected.length > 1000 || selected.some(binding => !binding || typeof binding.path !== 'string')) throw new Error('Invalid HTTP bindings.');
   return Object.freeze({
@@ -239,6 +244,9 @@ export function createOperationHttpTransport(bindings: readonly OperationHttpBin
         return failure('method_not_allowed', 405, requestId, { allow: [...new Set(methods)].join(', ') }, request.method === 'HEAD');
       const binding = statusMatch ? statusBinding : lookupMatch ? lookupBinding : selectedRoute?.binding;
       if (!binding) return failure('not_found', 404, requestId);
+      if(binding.auth.includes('webhook-signature'))return statusRead
+        ?failure('not_found',404,requestId)
+        :webhooks?webhooks.dispatch(request,binding):failure('runtime_unavailable',503,requestId);
       const configuration = resolveAccessHttpConfiguration(rawEnvironment, environment.profile);
       if (!configuration) return failure('runtime_unavailable', 503, requestId);
       try {
@@ -287,21 +295,32 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
   readonly openAiProvider?: {readonly config:ProviderConfigStorage;readonly vault:VaultStorage;
     readonly transport:(http:ProviderHttpPort)=>ProviderTransport};
   readonly connectors?:readonly ConnectorDescriptor[];
+  readonly search?:readonly {readonly moduleId:string;readonly sources:readonly SearchProjectionSource[]}[];
+  readonly deliveries?:readonly DeliveryMapping[];
+  readonly webhooks?:{readonly mappings:readonly CompiledWebhookMapping[];readonly contextId:string};
   readonly toolCatalog?:readonly ProviderOperationSchema[];
   readonly widgetCatalog?:CompiledWidgetCatalog;
   readonly widgetValidators?:WidgetValidatorMap;
   readonly runtimeInventory?: Parameters<typeof createOperationEngine>[0]['runtimeInventory']}) {
+  const webhookProof=options.webhooks?createWebhookProofAuthority():null;
   return Object.freeze({async dispatch(request: Request, environment: RuntimeEnvironment, rawEnvironment: unknown,
     requestId: string): Promise<Response | null> {
     const path = new URL(request.url).pathname;
     if (path === '/api/delivery/admin/authorization'||path === '/api/delivery/admin/connections')
       return dispatchDeliveryAuthorizationHttp(request,environment,rawEnvironment,requestId,
         options.permissions,options.dataCatalog);
+    const host=createRuntimeOperationHost({catalog:options.dataCatalog,registry:options.registry,
+      permissions:options.permissions,runtimeInventory:options.runtimeInventory,httpBindings:options.bindings,
+      connectors:options.connectors,search:options.search,deliveries:options.deliveries,
+      fileCatalog:options.fileCatalog,openAiProvider:options.openAiProvider,
+      ...(options.widgetCatalog&&options.widgetValidators?{widgets:{catalog:options.widgetCatalog,validators:options.widgetValidators}}:{}),
+      ...(webhookProof?{webhooks:webhookProof}:{})},environment,rawEnvironment);
     if (path.startsWith('/api/widgets/')) return options.widgetCatalog
       ? dispatchWidgetHttp(request, environment, rawEnvironment, requestId, {permissions:options.permissions,catalog:options.widgetCatalog,
-        approvals:createWidgetApprovalService({db:environment.bindings.DB,catalog:options.dataCatalog,permissions:options.permissions,registry:options.registry})}) : null;
+        approvals:host.approvals}) : null;
     if (path.startsWith('/api/files/')) return options.fileCatalog
-      ? dispatchFileHttp(request, environment, rawEnvironment, requestId, {catalog:options.dataCatalog,files:options.fileCatalog,permissions:options.permissions}) : null;
+      ? dispatchFileHttp(request, environment, rawEnvironment, requestId, {catalog:options.dataCatalog,files:options.fileCatalog,
+        permissions:options.permissions,storageAuthority:environment.storageAuthority}) : null;
     if (path.startsWith('/api/workspace/')) return dispatchWorkspaceHttp(request, environment, rawEnvironment, requestId,
       {permissions: options.permissions, catalog: options.workspaceCatalog});
     if (path.startsWith('/api/front/')) return options.frontCatalog?.front.kind === 'theme'
@@ -310,24 +329,9 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
     const driveMatch=/^\/api\/operations\/turns\/([A-Za-z0-9][A-Za-z0-9._:-]{0,127})\/drive$/.exec(path);
     if (!path.startsWith(STATUS_PREFIX) && !path.startsWith(LOOKUP_PREFIX)
       && !driveMatch && !options.bindings.some(binding => match(path, binding.path))) return null;
-    let keyring:ReturnType<typeof readProviderKeyring>=null;
-    try{keyring=readProviderKeyring(rawEnvironment);}catch{/* Misconfigured deployment is unavailable, never replaced with an in-process key. */}
-    const provider=options.openAiProvider?createOpenAiProviderHost({db:environment.bindings.DB,
-      catalog:options.dataCatalog,permissions:options.permissions,...options.openAiProvider,keyring}):null;
-    const createHostEngine = () => createOperationEngine({db: environment.bindings.DB, registry: options.registry,
-      catalog: options.dataCatalog, permissions: options.permissions, runtimeInventory: options.runtimeInventory,
-      httpBindings:options.bindings,
-      approvals:createWidgetApprovalService({db:environment.bindings.DB,catalog:options.dataCatalog,permissions:options.permissions,registry:options.registry}),
-      ...(options.widgetCatalog && options.widgetValidators ? {widgets:{catalog:options.widgetCatalog,validators:options.widgetValidators}} : {}),
-      ...(provider ? {providerAvailability:async(request,providerId)=>providerId==='openai.responses.v1'
-        ?provider.availability(request):{providerId,state:'missing' as const,modelIds:[]}} : {}),
-      ...(options.openAiProvider&&keyring?{providerSecrets:{storage:options.openAiProvider.vault,keyring,
-        providerId:'openai.responses.v1'}}:{}),
-      ...(options.connectors?{connectors:options.connectors.map(descriptor=>({descriptor,keyring}))}:{}),
-      ...(options.fileCatalog ? {files:{catalog:options.fileCatalog,bucket:environment.bindings.BUCKET as unknown as FileBucket}} : {})});
     if(driveMatch){
       if(request.method!=='POST')return failure('method_not_allowed',405,requestId,{allow:'POST'},request.method==='HEAD');
-      if(!provider)return failure('runtime_unavailable',503,requestId);
+      if(!options.openAiProvider)return failure('runtime_unavailable',503,requestId);
       const configuration=resolveAccessHttpConfiguration(rawEnvironment,environment.profile);
       if(!configuration)return failure('runtime_unavailable',503,requestId);
       try{
@@ -354,8 +358,10 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
         const throttle=await bucket.consumeThrottle({key:await identityAdmissionKey('turn-drive',`${contextId}:${token}`),
           limit:30,windowMs:60_000});
         if(!throttle.allowed)fail('rate_limited',429);
-        const bridge=createTurnBridge({db:environment.bindings.DB,catalog:options.dataCatalog,
-          permissions:options.permissions,provider,registry:options.registry,engine:createHostEngine(),toolCatalog:options.toolCatalog??[],
+        const selected=host.forContext(contextId);
+        if(!selected.provider)return failure('runtime_unavailable',503,requestId);
+        const bridge=createTurnBridge({...selected,provider:selected.provider,registry:options.registry,
+          toolCatalog:options.toolCatalog??[],
           ...(options.widgetCatalog && options.widgetValidators ? {widgets:{catalog:options.widgetCatalog,validators:options.widgetValidators}} : {})});
         const driveSignal=new AbortController(),onAbort=()=>driveSignal.abort();
         if(request.signal.aborted)onAbort();else request.signal.addEventListener('abort',onAbort,{once:true});
@@ -371,6 +377,14 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
         return failure('service_unavailable',503,requestId);
       }
     }
-    return createOperationHttpTransport(options.bindings, createHostEngine()).dispatch(request, environment, rawEnvironment, requestId);
+    const engine=host.engine;
+    const bridge=options.webhooks&&webhookProof?createSignedWebhookBridge({engine,proof:webhookProof,
+      resolve:async binding=>{
+        try{return await createVaultedWebhookResolver({...host.forContext(options.webhooks!.contextId),
+          keyring:host.keyring,contextId:options.webhooks!.contextId,connectors:options.connectors??[],
+          mappings:options.webhooks!.mappings})(binding);}
+        catch{return null;}
+      }}):undefined;
+    return createOperationHttpTransport(options.bindings,engine,bridge).dispatch(request, environment, rawEnvironment, requestId);
   }});
 }

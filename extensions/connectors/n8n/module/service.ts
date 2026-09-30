@@ -36,8 +36,16 @@ const ready=(context:OperationContext):ConnectorPort=>{
   if(!port)throw new OperationError('unavailable');
   return port;
 };
+const sameConnection=(before:Row,after:Row|null)=>!!after&&before.revision===after.revision
+  &&before.origin===after.origin&&before.enabled===after.enabled&&before.key_ref===after.key_ref
+  &&before.secret_version===after.secret_version;
 const remote=async(context:OperationContext,request:Parameters<ConnectorPort['request']>[0]):Promise<JsonValue>=>{
+  const before=await current(context);
+  if(!before||before.enabled!==true||typeof before.origin!=='string'
+    ||typeof before.key_ref!=='string'||!Number.isSafeInteger(before.secret_version))
+    throw new OperationError('unavailable');
   const answer=await ready(context).request({...request,signal:context.signal});
+  if(!sameConnection(before,await current(context)))throw new OperationError('conflict');
   if(answer.kind==='ok')return answer.body;
   throw new OperationError(answer.code==='remote_not_found'?'not_found':
     answer.code==='access_denied'?'forbidden':answer.code==='invalid_request'?'invalid_input':'unavailable');
@@ -79,14 +87,17 @@ const execution=(value:unknown)=>{
 const pageInput=(value:JsonValue)=>{
   const args=input(value);
   if(!Number.isSafeInteger(args.limit)||Number(args.limit)<1||Number(args.limit)>25
-    ||args.cursor!==undefined&&(typeof args.cursor!=='string'||args.cursor.length<1||args.cursor.length>2048))
+    ||args.cursor!==undefined&&(typeof args.cursor!=='string'||args.cursor.length<1||args.cursor.length>2048
+      ||!args.cursor.isWellFormed()||/[\u0000-\u001f\u007f]/u.test(args.cursor)))
     throw new OperationError('invalid_input');
   return {limit:Number(args.limit),...(args.cursor===undefined?{}:{cursor:String(args.cursor)})};
 };
-const page=<T>(body:JsonValue,limit:number,project:(item:unknown)=>T)=>{
+const page=<T>(body:JsonValue,limit:number,cursor:string|undefined,project:(item:unknown)=>T)=>{
   const row=record(body),items=row.data;
   if(!Array.isArray(items)||items.length>limit||row.nextCursor!==undefined&&row.nextCursor!==null
-    &&(typeof row.nextCursor!=='string'||row.nextCursor.length<1||row.nextCursor.length>2048))
+    &&(typeof row.nextCursor!=='string'||row.nextCursor.length<1||row.nextCursor.length>2048
+      ||!row.nextCursor.isWellFormed()||/[\u0000-\u001f\u007f]/u.test(row.nextCursor)
+      ||row.nextCursor===cursor||items.length===0))
     throw new OperationError('unavailable');
   const output={items:items.map(project),nextCursor:row.nextCursor??null};
   if(new TextEncoder().encode(JSON.stringify(output)).length>220_000)throw new OperationError('unavailable');
@@ -138,7 +149,7 @@ export async function connectionCheck(_value:JsonValue,context:OperationContext)
 }
 export async function workflowList(value:JsonValue,context:OperationContext){
   const args=pageInput(value),body=await remote(context,{resource:'workflows',...args});
-  return {output:page(body,args.limit,workflow)};
+  return {output:page(body,args.limit,args.cursor,workflow)};
 }
 export async function workflowRead(value:JsonValue,context:OperationContext){
   const id=requestedId(input(value).id),body=await remote(context,{resource:'workflow',id});
@@ -146,7 +157,7 @@ export async function workflowRead(value:JsonValue,context:OperationContext){
 }
 export async function executionList(value:JsonValue,context:OperationContext){
   const args=pageInput(value),body=await remote(context,{resource:'executions',...args});
-  return {output:page(body,args.limit,execution)};
+  return {output:page(body,args.limit,args.cursor,execution)};
 }
 export async function executionRead(value:JsonValue,context:OperationContext){
   const id=requestedId(input(value).id),body=await remote(context,{resource:'execution',id});

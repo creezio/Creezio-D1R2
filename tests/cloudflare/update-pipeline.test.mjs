@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createCloudflareDeliveryPipeline} from '../../scripts/cloudflare/pipeline.mjs';
+import {cloudflareWorkerConfiguration} from '../../scripts/cloudflare/config.mjs';
 import {createPublicationGate} from '../../core/registry/publication.ts';
 
 const root=fileURLToPath(new URL('../../',import.meta.url));
@@ -17,16 +18,14 @@ const origin=`https://${workerName}.example.workers.dev`;
 const target={schemaVersion:1,accountId,workerName,databaseId,databaseName:`${workerName}-db`,
   bucketName:`${workerName}-files`,origin,
   widgetSandboxOrigin:`https://${workerName}-widgets.example.workers.dev`};
+const routed={...target,schemaVersion:3,storageInstallationId:'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+  resources:[{contextId:'tenant-a',slot:1,status:'active',
+    databaseId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',databaseName:'tenant-a-db',
+    bucketName:'tenant-a-files'}]};
 const originalArtifact={sourceSha:'d'.repeat(40),artifactDigest:`sha256-${'4'.repeat(64)}`,
   compositionDigest:`sha256-${'5'.repeat(64)}`,coreVersion:'1.0.0',contractVersion:'1.0.0'};
 const artifact={sourceSha,artifactDigest:`sha256-${'6'.repeat(64)}`,
   compositionDigest,coreVersion:'1.0.1',contractVersion:'1.0.0'};
-const bindings=[{name:'DB',type:'d1',id:databaseId},
-  {name:'BUCKET',type:'r2_bucket',bucket_name:target.bucketName},
-  {name:'CREEZIO_RUNTIME_PROFILE',type:'plain_text',text:'cloudflare'},
-  {name:'CREEZIO_APP_ORIGIN',type:'plain_text',text:origin},
-  {name:'CREEZIO_WIDGET_SANDBOX_ORIGIN',type:'plain_text',text:target.widgetSandboxOrigin},
-  {name:'CREEZIO_VAULT_KEYRING',type:'secret_text'}];
 function journal(idField){
   const records=new Map();
   return {records,async load(id){return structuredClone(records.get(id)??null);},
@@ -52,18 +51,24 @@ function publicationJournal(){
       records.set(record.requestKey,record);}};
 }
 function fixture({unknownUpload=false,declarationFailsOnce=false,driftAfterBuild=false,
-  lostSchemaReplyOnce=false}={}){
+  lostSchemaReplyOnce=false,routedTarget=false}={}){
   const events=[],planJournal=journal('transferId'),updateJournal=journal('updateId'),
     gateJournal=publicationJournal();
   const initial={schemaVersion:1,revision:1,transferId:'transfer-one',owner:context.principalId,
-    stage:'delivered',accountId,workerName,tokenId,target,artifact:originalArtifact,
+    stage:'delivered',accountId,workerName,tokenId,target:routedTarget?routed:target,artifact:originalArtifact,
     registryProjectId:'project-one',registryInstallationId:'installation-one'};
   planJournal.records.set(initial.transferId,initial);
   gateJournal.records.set(initial.transferId,{state:'synchronized',declaration:{
     deploymentId:'deployment-original',artifact:originalArtifact}});
+  const deployed=cloudflareWorkerConfiguration(initial.target);
+  const installedBindings=[...deployed.d1_databases.map(item=>({name:item.binding,type:'d1',
+    id:item.database_id})),...deployed.r2_buckets.map(item=>({name:item.binding,
+    type:'r2_bucket',bucket_name:item.bucket_name})),
+    ...Object.entries(deployed.vars).map(([name,text])=>({name,type:'plain_text',text})),
+    {name:'CREEZIO_VAULT_KEYRING',type:'secret_text'}];
   const current={deploymentId:'deployment-original',versionId:originalVersion,
     tag:'cz-transfer-one',message:`Creezio ${originalArtifact.artifactDigest} ${originalArtifact.sourceSha}`,
-    bindings:structuredClone(bindings)};
+    bindings:structuredClone(installedBindings)};
   let schemaState='additive',schemaReceiptId=`sha256-${'7'.repeat(64)}`;
   let uploadCount=0,schemaEffects=0,declareCount=0;
   const targetPlan={applicationId:'application',planDigest:`sha256-${'8'.repeat(64)}`,
@@ -137,6 +142,56 @@ function fixture({unknownUpload=false,declarationFailsOnce=false,driftAfterBuild
   return {pipeline,configure,events,current,options,updateJournal,gateJournal,
     get uploadCount(){return uploadCount;},get schemaEffects(){return schemaEffects;}};
 }
+
+test('routed Cloudflare update refuses before build, schema, or upload',async()=>{
+  const f=fixture({routedTarget:true});await f.configure();
+  await assert.rejects(f.pipeline.prepareUpdate({},context),
+    error=>error.code==='storage_authority_cutover_unavailable');
+  assert.equal(f.updateJournal.records.size,0);
+  assert.equal(f.schemaEffects,0);assert.equal(f.uploadCount,0);
+  assert.equal(f.events.includes('build'),false);
+});
+
+test('previous routed publication requires its complete D1/R2 inventory and route manifest',async()=>{
+  for(const removed of ['DB_RESOURCE_01','BUCKET_RESOURCE_01','CREEZIO_STORAGE_ROUTES']){
+    const f=fixture({routedTarget:true});await f.configure();
+    f.current.bindings=f.current.bindings.filter(item=>item.name!==removed);
+    await assert.rejects(f.pipeline.prepareUpdate({},context),error=>error.code==='unmanaged_worker');
+    assert.equal(f.updateJournal.records.size,0);
+  }
+  const f=fixture({routedTarget:true});await f.configure();
+  f.current.bindings.push({name:'BUCKET_RESOURCE_02',type:'r2_bucket',bucket_name:'unexpected'});
+  await assert.rejects(f.pipeline.prepareUpdate({},context),error=>error.code==='unmanaged_worker');
+  assert.equal(f.updateJournal.records.size,0);
+});
+
+test('an existing routed update journal cannot bypass the cutover guard',async()=>{
+  const f=fixture();await f.configure();
+  const prepared=await f.pipeline.prepareUpdate({},context);
+  const stored=f.updateJournal.records.get(prepared.updateId);
+  stored.target=structuredClone(routed);
+  const input={updateId:prepared.updateId,planDigest:prepared.planDigest};
+  const unchanged=structuredClone(stored);
+  await assert.rejects(f.pipeline.prepareUpdate({},context),
+    error=>error.code==='storage_authority_cutover_unavailable');
+  await assert.rejects(f.pipeline.startUpdate(input,context),
+    error=>error.code==='storage_authority_cutover_unavailable');
+  await assert.rejects(f.pipeline.reconcileUpdate(input,context),
+    error=>error.code==='storage_authority_cutover_unavailable');
+  assert.deepEqual(f.updateJournal.records.get(prepared.updateId),unchanged,
+    'cutover refusals must not advance the durable journal stage or revision');
+  assert.equal(f.schemaEffects,0);assert.equal(f.uploadCount,0);
+  assert.equal(f.events.includes('build'),false);
+  for(const stage of ['delivery-unknown','delivered']){
+    stored.stage=stage;
+    const terminal=structuredClone(stored);
+    await assert.rejects(f.pipeline.startUpdate(input,context),
+      error=>error.code==='storage_authority_cutover_unavailable');
+    assert.deepEqual(f.updateJournal.records.get(prepared.updateId),terminal);
+    assert.equal((await f.pipeline.statusUpdate(prepared.updateId,context)).phase,stage,
+      'read-only status remains available for an old routed record');
+  }
+});
 
 test('compatible update preserves production ports and publishes once after additive schema',async()=>{
   const f=fixture();await f.configure();
