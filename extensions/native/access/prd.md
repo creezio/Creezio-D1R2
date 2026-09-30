@@ -1,5 +1,7 @@
 # PRD — comptes et accès natifs
 
+L'administrateur peut admettre un contexte nouveau par la commande native `policy.apply-delta` avec `kind: context-admit`, un identifiant et un statut explicites. Cette admission conserve le contrôle `manage`, l'epoch et l'audit ; elle n'affecte ni membre ni rôle automatiquement. Une route D1/R2 ne vaut pas autorisation. Les appartenances, rôles et activations passent ensuite par les deltas existants ; un identifiant déjà admis ou une epoch périmée doit être refusé.
+
 L'administration conserve les écrans Creezio originaux : matrice par rôle et permission, comptes avec exceptions individuelles, journal présentant auteur, cible et changements. Leur adaptation au socle serverless ne change pas le résultat visuel attendu. Les commandes empruntent les opérations communes ; aucune copie des règles métier dans le front. La pluralité des rôles, contextes et audiences doit être explicite sans écrasement implicite. Un changement distant ne remplace pas un brouillon sale ; un résultat inconnu reste réconciliable après rechargement avant toute nouvelle mutation.
 
 Version de travail 0.0.0 liée à [T-04](../../../docs/TODO.md#T-04), [REQ-0401](../../../docs/EXIGENCES.md#REQ-0401) et [REQ-0402](../../../docs/EXIGENCES.md#REQ-0402). Ce PRD décrit le module cible ; le TODO distingue réalisation et qualification.
