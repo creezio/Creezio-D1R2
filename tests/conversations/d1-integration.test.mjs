@@ -305,8 +305,13 @@ test('Conversations operations use real D1 authority, CAS, cursors and atomic fi
     const removedContext=success(await widgetInvoke('widget.context.remove',{requestKey:'context-remove',
       ...contextBase,expectedRevision:1})).context;
     assert.equal(removedContext.removed,true);assert.equal(removedContext.revision,2);
+    const removedRead=success(await widgetInvoke('widget.context.read',Object.fromEntries(
+      Object.entries(contextBase).filter(([key])=>key!=='input')))).context;
+    assert.equal(removedRead.revision,2);
+    assert.equal(removedRead.removed,true);
+    assert.equal(removedRead.value,null);
     const resumed=success(await widgetInvoke('widget.context.replace',{requestKey:'context-resume',
-      ...contextBase,expectedRevision:2})).context;
+      ...contextBase,expectedRevision:removedRead.revision})).context;
     assert.equal(resumed.revision,3);
     const widgetTurn=await widgetInvoke('turn.start',{requestKey:'widget-turn',conversationId:widgetConversation.id,
       messageId:'widget-user-message',body:'Continue',revision:2,draftRevision:0,modelId:'model-a'});
@@ -327,6 +332,11 @@ test('Conversations operations use real D1 authority, CAS, cursors and atomic fi
     const removedWidgetContext=success(await widgetInvoke('widget.context.remove',{requestKey:'context-removed-before-turn',
       ...removedBase,expectedRevision:1})).context;
     assert.equal(removedWidgetContext.removed,true);
+    const removedBeforeTurn=success(await widgetInvoke('widget.context.read',Object.fromEntries(
+      Object.entries(removedBase).filter(([key])=>key!=='input')))).context;
+    assert.equal(removedBeforeTurn.revision,removedWidgetContext.revision);
+    assert.equal(removedBeforeTurn.removed,true);
+    assert.equal(removedBeforeTurn.value,null);
     const afterRemoval=await widgetInvoke('turn.start',{requestKey:'widget-turn-after-removal',
       conversationId:removedConversation.id,messageId:'widget-user-after-removal',body:'Continue',
       revision:2,draftRevision:0,modelId:'model-a'});

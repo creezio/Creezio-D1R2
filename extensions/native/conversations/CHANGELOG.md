@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.0 — T16, reprise d'un contexte retiré (correctif local)
+
+- La lecture d'un contexte de widget retiré conserve sa révision et signale `removed: true` avec une valeur nulle. Une nouvelle sélection peut ainsi remplacer la ligne retirée avec sa vraie révision, sans conflit artificiel.
+- La lecture reste soumise à l'instance, à l'action courante, à l'audience, aux droits et aux validateurs ; un contexte retiré ou expiré n'est pas transmis au modèle. Les tests D1 couvrent retrait, lecture et reprise. La livraison et la recette hébergée restent à faire.
+
 ## 0.0.0 — T16, statut après retrait du contexte
 
 - L'hôte affiche « Contexte retiré pour les prochains tours » quand le contrôleur confirme le retrait. Il conserve les états de remplacement, refus et résultat incertain. Le service et le contrat de contexte ne changent pas.

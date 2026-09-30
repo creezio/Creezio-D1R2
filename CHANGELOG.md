@@ -1,5 +1,9 @@
 # Changelog
 
+## Correctif local à livrer — révision d'un contexte widget retiré (T16)
+
+Sur Lab Sites v4, une nouvelle sélection du widget de demandes a été refusée par `conflict` après un retrait antérieur : la lecture avait masqué la révision de la ligne retirée. Le correctif local conserve cette révision avec une valeur nulle pour permettre le remplacement contrôlé, sans réinjecter le contexte retiré dans un tour. Les vérifications locales sont distinctes d'une livraison ; le Site Lab v4 et son plugin ChatGPT restent inchangés.
+
 ## En qualification — produits et prix Stripe (T27)
 
 Facturation ajoute les onglets Produits et Prix avec deux lectures API/MCP des projections D1. Le moteur de synchronisation existant lit les produits et les prix actifs/inactifs par trois ressources GET bornées ; deux modèles de données et un modèle de parcours sont ajoutés sans modifier les anciennes tables. Les montants et les relations gardent leur devise, leur précision et leur génération de connexion. Aucun paiement ni modification distante Stripe n'est introduit ; la recette fournisseur et navigateur de ces ajouts reste à effectuer.

@@ -102,6 +102,14 @@ test('saved historical context is admitted only by the current action and input 
   const host=createWidgetOperationPort({catalog:{widgets:[current],resources:[]},validators:currentValidators,
     audience:'app',authorize:()=>{}});
   const instance=host.projectHistory(stored).instances[0];
+  assert.equal(host.contextActionAvailable(instance,'pick'),true);
+  assert.equal(host.contextActionAvailable(instance,'removed'),false);
+  assert.equal(createWidgetOperationPort({catalog:{widgets:[current],resources:[]},validators:currentValidators,
+    audience:'app',authorize:()=>{throw Error('revoked');}}).contextActionAvailable(instance,'pick'),false);
+  assert.equal(createWidgetOperationPort({catalog:{widgets:[{...current,actions:[]}],resources:[]},
+    validators:currentValidators,audience:'app',authorize:()=>{}}).contextActionAvailable(instance,'pick'),false);
+  assert.equal(createWidgetOperationPort({catalog:{widgets:[current],resources:[]},
+    validators:new Map(),audience:'app',authorize:()=>{}}).contextActionAvailable(instance,'pick'),false);
   assert.deepEqual({...host.contextValue(instance,'pick',{id:'request_1',revision:5})},
     {id:'request_1',revision:5});
   assert.equal(host.contextValue(instance,'pick',{oldField:'request_1'}),null);
