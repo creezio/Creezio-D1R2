@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {copyFileSync,lstatSync,mkdirSync,mkdtempSync,readFileSync,realpathSync,
+import {copyFileSync,lstatSync,mkdirSync,mkdtempSync,readFileSync,realpathSync,rmSync,
   readdirSync,writeFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import path from 'node:path';
@@ -23,12 +23,13 @@ function scratch(t){
       assert.equal(stat.isSymbolicLink(),false);
       if(stat.isDirectory())for(const name of readdirSync(target))scan(path.join(target,name));};
     scan(root);
-    execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',
+    if(process.platform==='win32')execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',
       '$ErrorActionPreference="Stop"; $target=[IO.Path]::GetFullPath($env:CREEZIO_SEARCH_TMP); '+
       '$parent=[IO.Path]::GetFullPath($env:CREEZIO_SEARCH_PARENT); '+
       'if ([IO.Path]::GetDirectoryName($target) -ne $parent) { throw "Containment failed" }; '+
       'Remove-Item -LiteralPath $target -Recurse -Force'],
     {env:{...process.env,CREEZIO_SEARCH_TMP:root,CREEZIO_SEARCH_PARENT:parent},stdio:'pipe'});
+    else rmSync(root,{recursive:true,force:true});
   });
   return root;
 }

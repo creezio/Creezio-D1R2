@@ -110,7 +110,15 @@ test('modules settings operation commits head, plan, journal and execution in re
           `../../${selection.source.path}/${operation.handler.path}`,import.meta.url).href))[operation.handler.export];
       }
     }
-    const registry=createOperationRegistry({catalog:compiled.catalog,validators,handlers});
+    // Optional integrations absent from this fixture leave their commands inactive.
+    // The host registry must receive exactly the handlers selected by the compiler.
+    const activeHandlers=Object.fromEntries(compiled.catalog.modules.flatMap(module=>
+      module.operations.filter(entry=>entry.active).map(entry=>{
+        const name=`${module.moduleId}:${entry.operation.id}`;
+        assert.equal(typeof handlers[name],'function',`Missing active handler: ${name}`);
+        return [name,handlers[name]];
+      })));
+    const registry=createOperationRegistry({catalog:compiled.catalog,validators,handlers:activeHandlers});
     const runtime=new Miniflare({host:'127.0.0.1',port:0,cf:false,modules:true,compatibilityDate:'2026-05-15',
       script:'export default {fetch(){return new Response(null,{status:404})}}',
       d1Databases:{DB:'creezio-module-settings-qualification'},d1Persist:false});
