@@ -208,10 +208,10 @@
         }
       },
       "validation": {
-        "integrity": "sha256-dbe56857c0ba25d6f433aaab0e12b147601221988196dc626ec18830dfae832e",
+        "integrity": "sha256-2f75e61b599d44fb40dc56ca7d676d0190000e31eb1b7a60b97735075fea2aaa",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.crm/validation-dbe56857c0ba25d6f433aaab0e12b147601221988196dc626ec18830dfae832e.tgz"
+          "path": ".creezio/module-artifacts/creezio.crm/validation-2f75e61b599d44fb40dc56ca7d676d0190000e31eb1b7a60b97735075fea2aaa.tgz"
         }
       },
       "dependencies": [
