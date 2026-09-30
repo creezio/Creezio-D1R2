@@ -1,5 +1,27 @@
 import type {PendingCommand} from '@creezio/sdk/operations/command-journal';
 
+export type IndexPage={items:{uid:string;primaryKey:string|null;createdAt:string;updatedAt:string}[];
+  total:number;nextCursor:string|null};
+/** Accept a page only as a bounded diagnostic, never as an arbitrary provider response. */
+export function indexPageFrom(value:unknown):IndexPage|null{
+  if(!value||typeof value!=='object'||Array.isArray(value))return null;
+  const page=value as Record<string,unknown>;
+  if(!Array.isArray(page.items)||page.items.length>20||!Number.isSafeInteger(page.total)
+    ||Number(page.total)<0||!(page.nextCursor===null||typeof page.nextCursor==='string'
+      &&/^(0|[1-9][0-9]{0,5})$/u.test(page.nextCursor)))return null;
+  const items=[];
+  for(const raw of page.items){
+    if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;
+    const item=raw as Record<string,unknown>;
+    if(typeof item.uid!=='string'||item.uid.length<1||item.uid.length>400
+      ||!(item.primaryKey===null||typeof item.primaryKey==='string')
+      ||typeof item.createdAt!=='string'||typeof item.updatedAt!=='string')return null;
+    items.push({uid:item.uid,primaryKey:item.primaryKey,createdAt:item.createdAt,
+      updatedAt:item.updatedAt});
+  }
+  return {items,total:Number(page.total),nextCursor:page.nextCursor as string|null};
+}
+
 type Access={readonly phase:'loading'|'anonymous'|'authenticated'|'unavailable';
   readonly pending:null|'login'|'logout';readonly session:{readonly id:string}|null};
 export type MeiliScope={sessionId:string;audience:'admin'|'app';contextId:string;panelId:string};
