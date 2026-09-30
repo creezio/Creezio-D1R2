@@ -8,6 +8,7 @@ import type { OperationRegistry } from './registry.ts';
 import { createOperationEngine } from './service.ts';
 import { dispatchWorkspaceHttp } from '../workspace/http.ts';
 import type { WorkspaceAuthorizationCatalog } from '../workspace/authorization.ts';
+import type {WorkspaceNavigationCatalogV1} from '../../sdk/workspace/navigation-catalog.ts';
 import { dispatchFrontHttp } from '../front/http.ts';
 import type { FrontAuthorizationCatalog } from '../front/authorization.ts';
 import { OperationError } from './types.ts';
@@ -291,6 +292,7 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
   readonly dataCatalog: RuntimeDataCatalog; readonly permissions: readonly PermissionDefinition[];
   readonly fileCatalog?: RuntimeFileCatalog;
   readonly bindings: readonly OperationHttpBinding[]; readonly workspaceCatalog: WorkspaceAuthorizationCatalog;
+  readonly workspaceNavigationCatalog?:WorkspaceNavigationCatalogV1;
   readonly frontCatalog?: FrontAuthorizationCatalog & {readonly front: {readonly kind: 'workspace' | 'headless' | 'theme'}};
   readonly openAiProvider?: {readonly config:ProviderConfigStorage;readonly vault:VaultStorage;
     readonly transport:(http:ProviderHttpPort)=>ProviderTransport};
@@ -311,6 +313,7 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
         options.permissions,options.dataCatalog);
     const host=createRuntimeOperationHost({catalog:options.dataCatalog,registry:options.registry,
       permissions:options.permissions,runtimeInventory:options.runtimeInventory,httpBindings:options.bindings,
+      workspaceCatalog:options.workspaceCatalog,workspaceNavigationCatalog:options.workspaceNavigationCatalog,
       connectors:options.connectors,search:options.search,deliveries:options.deliveries,
       fileCatalog:options.fileCatalog,openAiProvider:options.openAiProvider,
       ...(options.widgetCatalog&&options.widgetValidators?{widgets:{catalog:options.widgetCatalog,validators:options.widgetValidators}}:{}),

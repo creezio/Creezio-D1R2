@@ -2,15 +2,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync, lstatSync } from 'node:fs';
 import {resourceBindingNames,validateStorageRoutes} from '../../adapters/storage/resources.ts';
-import {loadStorageInstallationIdentity} from './storage-installation.mjs';
+import {loadStorageInstallationIdentity,loadLocalStorageInventory} from './storage-installation.mjs';
 
 export const LOCAL_REPOSITORY_ROOT = path.resolve(fileURLToPath(new URL('../../', import.meta.url)));
 export const LOCAL_BINDINGS = Object.freeze({ database: 'DB', bucket: 'BUCKET',
   databaseId: '00000000-0000-4000-8000-000000000000', databaseName: 'creezio-local', bucketName: 'creezio-local' });
 export const LOCAL_COMPATIBILITY_DATE = '2026-05-15';
 
-function localResources(value){
-  if(value===undefined)return Object.freeze([]);
+export function validateLocalStorageResources(value){
+  if(value===undefined||Array.isArray(value)&&value.length===0)return Object.freeze([]);
   if(!Array.isArray(value))throw new Error('Invalid local storage resources.');
   const routes=validateStorageRoutes({schemaVersion:1,routes:value.map(item=>({
     contextId:item?.contextId,slot:item?.slot,status:item?.status}))});
@@ -32,7 +32,7 @@ function localResources(value){
 
 /** Local tools have one target. There is no remote/account/database override. */
 export function loadLocalConfiguration({ root = LOCAL_REPOSITORY_ROOT,
-  storageResources, storageAuthority = false,
+  storageResources, storageAuthority,
   origin = process.env.CREEZIO_APP_ORIGIN ?? 'http://127.0.0.1:5173',
   sandboxOrigin = process.env.CREEZIO_WIDGET_SANDBOX_ORIGIN ?? 'http://127.0.0.1:5175',
   operatorOrigin = process.env.CREEZIO_LOCAL_DELIVERY_ORIGIN ?? 'http://127.0.0.1:5176',
@@ -64,10 +64,18 @@ export function loadLocalConfiguration({ root = LOCAL_REPOSITORY_ROOT,
   }
   const hosting = JSON.parse(readFileSync(hostingPath, 'utf8'));
   if (!hosting || hosting.d1 !== LOCAL_BINDINGS.database || hosting.r2 !== LOCAL_BINDINGS.bucket) throw new Error('Local bindings differ from the hosting contract.');
-  const resources=localResources(storageResources);
-  if(storageAuthority!==false&&storageAuthority!==true||storageAuthority&&resources.length===0)
+  const inventory=loadLocalStorageInventory(canonicalRoot);
+  const supplied=storageResources===undefined?undefined:validateLocalStorageResources(storageResources);
+  if(storageAuthority!==undefined&&storageAuthority!==false&&storageAuthority!==true)
     throw new Error('Invalid local storage authority configuration.');
-  const storageInstallationId=storageAuthority?loadStorageInstallationIdentity(canonicalRoot):null;
+  if(inventory&&(storageAuthority===false
+    ||supplied&&JSON.stringify(supplied)!==JSON.stringify(validateLocalStorageResources(inventory.resources))))
+    throw new Error('Local storage inventory differs from the requested resources.');
+  const resources=inventory?validateLocalStorageResources(inventory.resources):supplied??Object.freeze([]);
+  if(storageAuthority===true&&resources.length===0)
+    throw new Error('Invalid local storage authority configuration.');
+  const storageInstallationId=inventory?.storageInstallationId
+    ??(storageAuthority===true?loadStorageInstallationIdentity(canonicalRoot):null);
   return Object.freeze({ root: canonicalRoot, origin, host: '127.0.0.1', port,
     operatorOrigin, operatorPort: Number(operatorUrl.port),
     sandboxOrigin, sandboxHost: sandboxBindHost, sandboxPort: Number(sandboxUrl.port),
@@ -78,6 +86,10 @@ export function loadLocalConfiguration({ root = LOCAL_REPOSITORY_ROOT,
 }
 
 export function localWorkerConfiguration(config) {
+  const inventory=loadLocalStorageInventory(config.root);
+  if(inventory&&(config.storageInstallationId!==inventory.storageInstallationId
+    ||JSON.stringify(config.storageResources)!==JSON.stringify(validateLocalStorageResources(inventory.resources))))
+    throw new Error('Local storage inventory differs from the build configuration.');
   const resources=config.storageResources??[];
   const active=resources.filter(item=>item.status==='active');
   return { name: 'creezio', main: 'worker.ts', compatibility_date: config.compatibilityDate,

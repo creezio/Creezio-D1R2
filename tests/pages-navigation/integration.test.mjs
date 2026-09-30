@@ -66,27 +66,76 @@ test('D1 operation engine keeps drafts, published snapshots and access boundarie
     const machine=good(await machines.createService(admin.token,{displayName:'Editorial API client'})).principal;
     const acl=createAuthorizationService(db,{permissions}),before=good(await acl.readPolicy(admin.token));
     const policy=structuredClone(before.policy);
-    policy.roles.push({id:'pages-editor',inherits:[],permissionIds:[`${moduleId}:edit`,`${moduleId}:view`],
+    policy.roles.push({id:'pages-editor',inherits:[],permissionIds:[`${moduleId}:edit`,`${moduleId}:view`,
+      `${moduleId}:sidebar.read`],
       permissionOverrides:[]});
+    policy.roles.push({id:'pages-sidebar-admin',inherits:['pages-editor'],
+      permissionIds:[`${moduleId}:sidebar.manage`],permissionOverrides:[]});
     for(const principalId of [owner.principalId,machine.id])for(const audience of ['admin','app']){
       if(!policy.memberships.some(row=>row.principalId===principalId&&row.audience===audience
         &&row.contextId==='application'))policy.memberships.push({principalId,
           audience,contextId:'application',status:'active'});
-      policy.assignments.push({principalId,audience,contextId:'application',roleId:'pages-editor'});
+      policy.assignments.push({principalId,audience,contextId:'application',
+        roleId:audience==='admin'?'pages-sidebar-admin':'pages-editor'});
     }
     good(await acl.replacePolicy(admin.token,{expectedEpoch:before.epoch,policy}));
     const appToken=good(await machines.issueToken(admin.token,{principalId:machine.id,label:'Editorial app read',
-      ttlMs:60000,scopes:[{contextId:'application',audience:'app',permissionIds:[`${moduleId}:view`]}]})).token;
+      ttlMs:60000,scopes:[{contextId:'application',audience:'app',
+        permissionIds:[`${moduleId}:view`,`${moduleId}:sidebar.read`]}]})).token;
     const adminToken=good(await machines.issueToken(admin.token,{principalId:machine.id,label:'Editorial admin edit',
-      ttlMs:60000,scopes:[{contextId:'application',audience:'admin',permissionIds:[`${moduleId}:edit`]}]})).token;
+      ttlMs:60000,scopes:[{contextId:'application',audience:'admin',
+        permissionIds:[`${moduleId}:edit`,`${moduleId}:sidebar.manage`]}]})).token;
     const fileCatalog={compositionDigest:digest,categories:manifest.contracts.files.map(category=>({moduleId,
       category,audiences:['admin','app']}))};
     const registered=registry();
-    const engine=createOperationEngine({db,catalog,registry:registered,permissions,files:{catalog:fileCatalog,bucket}});
+    const workspaceCatalog={compositionDigest:digest,views:[
+      {id:`${moduleId}:editor`,surfaces:['workspace'],audiences:['admin'],
+        permissions:[{moduleId,kind:'permission',id:'sidebar.manage'}]},
+      {id:`${moduleId}:reader`,surfaces:['workspace'],audiences:['admin','app'],
+        permissions:[{moduleId,kind:'permission',id:'sidebar.read'}]}],navigation:[
+      {id:`${moduleId}:editor-link`,viewId:`${moduleId}:editor`,surfaces:['workspace'],audiences:['admin'],
+        permissions:[{moduleId,kind:'permission',id:'sidebar.manage'}]},
+      {id:`${moduleId}:reader-link`,viewId:`${moduleId}:reader`,surfaces:['workspace'],
+        audiences:['admin','app'],permissions:[{moduleId,kind:'permission',id:'sidebar.read'}]}]};
+    const workspaceNavigationCatalog={compositionDigest:digest,entries:[
+      {id:`${moduleId}:editor-link`,moduleId,viewId:`${moduleId}:editor`,title:'Éditeur',
+        order:10,route:'/editor',audiences:['admin'],permissionIds:[`${moduleId}:sidebar.manage`]},
+      {id:`${moduleId}:reader-link`,moduleId,viewId:`${moduleId}:reader`,title:'Lecture',
+        order:20,route:'/reader',audiences:['admin','app'],permissionIds:[`${moduleId}:sidebar.read`]}]};
+    const engine=createOperationEngine({db,catalog,registry:registered,permissions,files:{catalog:fileCatalog,bucket},
+      workspaceCatalog,workspaceNavigationCatalog});
     const invoke=(operationId,input,audience='admin')=>engine.invoke({credential:{kind:'session',
       token:audience==='admin'?admin.token:app.token},moduleId,operationId,contextId:'application',audience,input});
     const invokeMachine=(operationId,input,audience='app',token=appToken)=>engine.invoke({credential:{kind:'api-token',
       token},moduleId,operationId,contextId:'application',audience,input});
+    const firstSidebar=output(await invoke('sidebar.catalog',{}));
+    assert.deepEqual(firstSidebar.entries.map(entry=>entry.id),
+      [`${moduleId}:editor-link`,`${moduleId}:reader-link`]);
+    assert.equal(firstSidebar.entries[0].route,'/editor');
+    const appSidebar=output(await invoke('sidebar.resolved',{},'app'));
+    assert.deepEqual(appSidebar.items.map(item=>item.id),[`${moduleId}:reader-link`]);
+    assert.match(appSidebar.sessionId,/^[a-f0-9-]{36}$/u);
+    const savedSidebar=output(await invoke('sidebar.save',{requestKey:'sidebar-save-one',expectedRevision:0,
+      edits:[{id:`${moduleId}:reader-link`,hidden:true,title:'Lecture adaptée',order:2}],resetIds:[]}));
+    assert.equal(savedSidebar.revision,1);
+    assert.deepEqual(output(await invoke('sidebar.resolved',{},'app')).items,[]);
+    assert.deepEqual(output(await invokeMachine('sidebar.catalog',{},'admin',adminToken))
+      .entries.map(entry=>entry.id),[`${moduleId}:editor-link`],
+      'an admin token lacking the entry permission cannot inspect its route');
+    await rejected(invokeMachine('sidebar.save',{requestKey:'sidebar-reset-no-entry-right',
+      expectedRevision:1,edits:[],resetIds:[`${moduleId}:reader-link`]},'admin',adminToken),
+    'invalid_input');
+    await rejected(invoke('sidebar.save',{requestKey:'sidebar-stale',expectedRevision:0,
+      edits:[],resetIds:[]}), 'conflict');
+    await rejected(invoke('sidebar.save',{requestKey:'sidebar-forbidden',expectedRevision:1,
+      edits:[],resetIds:[]},'app'),'forbidden');
+    const sidebarRow=await db.prepare(`SELECT overrides FROM "${generated.tables.sidebar_overrides}"
+      WHERE context_id=? AND id=?`).bind('application','workspace').first();
+    assert.equal(JSON.stringify(sidebarRow).includes('/reader'),false);
+    assert.equal(JSON.stringify(sidebarRow).includes('sidebar.read'),false);
+    output(await invoke('sidebar.save',{requestKey:'sidebar-reset',expectedRevision:1,
+      edits:[],resetIds:[`${moduleId}:reader-link`]}));
+    assert.deepEqual(output(await invoke('sidebar.resolved',{},'app')).items.map(item=>item.title),['Lecture']);
     const created=output(await invoke('page.create',{requestKey:'page-create',id:'home',slug:'/',title:'Accueil'})).page;
     assert.equal(created.revision,1);
     assert.equal(output(await invoke('page.create',{requestKey:'page-create',id:'home',slug:'/',title:'Accueil'})).page.id,'home');
@@ -130,6 +179,12 @@ test('D1 operation engine keeps drafts, published snapshots and access boundarie
     const machineHttp=await dispatch(request('/api/app/pages-navigation/page/published/read?page_id=home',appToken));
     assert.equal(machineHttp.status,200,await machineHttp.clone().text());
     assert.equal((await machineHttp.json()).execution.output.page.title,'Accueil V1');
+    const sidebarHttp=await dispatch(request('/api/app/pages-navigation/sidebar/resolved',appToken));
+    assert.equal(sidebarHttp.status,200,await sidebarHttp.clone().text());
+    assert.deepEqual((await sidebarHttp.json()).execution.output.items.map(item=>item.id),
+      [`${moduleId}:reader-link`]);
+    const sidebarDenied=await dispatch(request('/api/admin/pages-navigation/sidebar/catalog',appToken));
+    assert.equal(sidebarDenied.status,401);
     const resolvedHttp=await dispatch(request('/api/app/pages-navigation/page/published/resolve?slug=%2F',appToken));
     assert.equal(resolvedHttp.status,200,await resolvedHttp.clone().text());
     assert.equal((await resolvedHttp.json()).execution.output.pageId,'home');

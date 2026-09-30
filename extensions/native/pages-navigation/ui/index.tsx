@@ -12,6 +12,7 @@ import {call,operationResult,errorText,requestKey,type DraftPage,type Media,type
   type PageResult,type PageSummary,type PublishedPage,type Seo,type Result} from './contracts.ts';
 import {createReadGeneration,pageScopeAfter,panelBelongsToScope,parseContentInput,requiresPageReset,samePageSelection} from './state.ts';
 import {createPublishedImageLoad,publishedImageIds,referencedMedia,type ImageStates} from './published-images.ts';
+import {SidebarEditor,type SidebarCatalog,type SidebarEdit} from './sidebar.tsx';
 import './landing.css';
 
 const button='rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 hover:bg-slate-50 disabled:opacity-50';
@@ -66,14 +67,16 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
   const journalScope=useRef({sessionId,audience:props.audience,contextId:props.contextId});
   const [pending,setPending]=useState<PendingCommand|null>(journal.current?.pending??null);
   const [checking,setChecking]=useState(false);
-  const [tab,setTab]=useState<'pages'|'navigation'>(()=>initialPanelOwned&&
-    initialPanel.current?.activeSubview==='navigation'?'navigation':'pages');
+  const [tab,setTab]=useState<'pages'|'navigation'|'sidebar'>(()=>initialPanelOwned&&
+    ['navigation','sidebar'].includes(initialPanel.current?.activeSubview??'')
+      ?initialPanel.current!.activeSubview as 'navigation'|'sidebar':'pages');
   const [pages,setPages]=useState<PageSummary[]>([]),[selected,setSelected]=useState(()=>
     initialPanelOwned&&typeof initialPanel.current?.data?.pageId==='string'?initialPanel.current.data.pageId:'') ,
     [saved,setSaved]=useState<DraftPage|null>(null),[edited,setEdited]=useState<DraftPage|null>(null),
     [preview,setPreview]=useState<DraftPage|PublishedPage|null>(null),
     [previewImages,setPreviewImages]=useState<{key:string;states:ImageStates}>({key:'',states:{}}),
     [navigation,setNavigation]=useState<Navigation>(blankNav),[navEdited,setNavEdited]=useState<Navigation>(blankNav),
+    [sidebar,setSidebar]=useState<SidebarCatalog|null>(null),[sidebarUnavailable,setSidebarUnavailable]=useState(false),
     [media,setMedia]=useState<Media[]>([]),[notice,setNotice]=useState(''),
     [newSlug,setNewSlug]=useState('/'),[newTitle,setNewTitle]=useState(''),
     [publicVisibility,setPublicVisibility]=useState<boolean|null>(null),
@@ -83,7 +86,8 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
   const [invalidContent,setInvalidContent]=useState<ReadonlySet<string>>(()=>new Set());
   const tabRef=useRef(tab);tabRef.current=tab;
   const epoch=useRef(0),selectionEpoch=useRef(0),listSerial=useRef(0),busySerial=useRef(0),busyRef=useRef(!!journal.current?.pending);
-  const pageReadSerial=useRef(createReadGeneration()),navReadSerial=useRef(createReadGeneration());
+  const pageReadSerial=useRef(createReadGeneration()),navReadSerial=useRef(createReadGeneration()),
+    sidebarReadSerial=useRef(createReadGeneration());
   const selectedRef=useRef(selected);
   if(selectedRef.current!==selected){selectionEpoch.current++;selectedRef.current=selected;}
   const live=useRef({active:props.active,authorized:props.authorized,sessionId,client:props.client,
@@ -127,6 +131,7 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
     if(!controller||!current())return {kind:'rejected',code:'stale'};
     if(operation.startsWith('page.')||operation.startsWith('media.'))pageReadSerial.current.invalidate();
     if(operation.startsWith('navigation.'))navReadSerial.current.invalidate();
+    if(operation.startsWith('sidebar.'))sidebarReadSerial.current.invalidate();
     const targetId=typeof input.pageId==='string'?input.pageId:typeof input.id==='string'?input.id:undefined;
     const outcome=await controller.execute(props.client,{sessionId,audience:props.audience,contextId:props.contextId,
       bindingId:`creezio.pages-navigation:${props.audience}.${operation}`,requestKey:requestKey(),intent:operation,
@@ -150,6 +155,7 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
       }
       await loadPages();
       if(issued.intent?.startsWith('navigation.'))await loadNavigation(true);
+      else if(issued.intent?.startsWith('sidebar.'))await loadSidebar();
       else if(issued.targetId&&issued.targetId===selectedRef.current){
         const pageId=issued.targetId,selection=selectionEpoch.current,readSerial=pageReadSerial.current.begin(),
           valid=()=>pageCurrent(pageId,selection)&&pageReadSerial.current.accepts(readSerial);
@@ -183,6 +189,14 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
     if(result.kind==='ok'){setNavigation(result.value.navigation);setNavEdited(result.value.navigation);}
     else setNotice(errorText(result.code));
   },[props.client,props.access,props.audience,props.contextId,sessionId,enabled]);
+  const loadSidebar=useCallback(async()=>{
+    if(!current())return;
+    const serial=sidebarReadSerial.current.begin();
+    const result=await call<SidebarCatalog>(scope,'sidebar.catalog',{},current);
+    if(!current()||!sidebarReadSerial.current.accepts(serial))return;
+    if(result.kind==='ok'){setSidebar(result.value);setSidebarUnavailable(false);}
+    else {setSidebar(null);setSidebarUnavailable(true);setNotice(errorText(result.code));}
+  },[props.client,props.access,props.audience,props.contextId,sessionId,enabled]);
   useEffect(()=>{const phase=access.pending?'loading':access.phase;
     const next={sessionId,phase,client:props.client,access:props.access,audience:props.audience,
       contextId:props.contextId};
@@ -203,13 +217,15 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
       if(fromAnonymous&&panelBelongsToScope(savedPanel?.data,journalScope.current)){
         const pageId=savedPanel?.data?.pageId;
         if(typeof pageId==='string'&&pageId){selectedRef.current=pageId;selectionEpoch.current++;setSelected(pageId);}
-        setTab(savedPanel?.activeSubview==='navigation'?'navigation':'pages');
+        setTab(savedPanel?.activeSubview==='navigation'?'navigation':
+          savedPanel?.activeSubview==='sidebar'?'sidebar':'pages');
       }
     }
     if(reset){listSerial.current++;selectionEpoch.current++;pageReadSerial.current.invalidate();
-      navReadSerial.current.invalidate();selectedRef.current='';busySerial.current++;busyRef.current=false;
+      navReadSerial.current.invalidate();sidebarReadSerial.current.invalidate();selectedRef.current='';busySerial.current++;busyRef.current=false;
       busyRef.current=!!journal.current?.pending;setBusy(busyRef.current);setPages([]);setPageCursor(null);setSelected('');setSaved(null);setEdited(null);
-      setPreview(null);setNavigation(blankNav);setNavEdited(blankNav);setMedia([]);setInvalidContent(new Set());
+      setPreview(null);setNavigation(blankNav);setNavEdited(blankNav);setSidebar(null);setSidebarUnavailable(false);
+      setMedia([]);setInvalidContent(new Set());
       setNotice('');setNewTitle('');setNewSlug('/');setPublicVisibility(null);setPublicSlug(null);
       tabRef.current='pages';setTab('pages');skipSelectionOnce.current=true;
       pendingPanelReset.current=true;}
@@ -219,6 +235,7 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
     void loadPages();
     if(reset||!navDirty)void loadNavigation(reset);
   },[enabled,sessionId,access.phase,access.pending,props.client,props.access,props.audience,props.contextId]);
+  useEffect(()=>{if(enabled&&tab==='sidebar')void loadSidebar();},[enabled,tab,loadSidebar]);
   useEffect(()=>{
     if(skipSelectionOnce.current){skipSelectionOnce.current=false;return;}
     if(!enabled||!selected)return;
@@ -400,9 +417,22 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
     setSelected(pageId);props.navigation.savePanelState({activeSubview:'pages',data:{
       sessionId,audience:props.audience,contextId:props.contextId,pageId,tab:'pages',
       ...(journal.current?.pending?{pending:{...journal.current.pending}}:{})}});}
-  function changeTab(next:'pages'|'navigation'){tabRef.current=next;setTab(next);props.navigation.savePanelState({activeSubview:next,
+  function changeTab(next:'pages'|'navigation'|'sidebar'){tabRef.current=next;setTab(next);props.navigation.savePanelState({activeSubview:next,
     data:{sessionId,audience:props.audience,contextId:props.contextId,
       ...(selected?{pageId:selected}:{}),tab:next,...(journal.current?.pending?{pending:{...journal.current.pending}}:{})}});}
+  async function saveSidebar(edits:SidebarEdit[],resetIds:string[]):Promise<boolean>{
+    if(!current()||!sidebar||sidebarUnavailable)return false;
+    const serial=beginBusy();if(serial===null)return false;setNotice('');
+    try{
+      const result=await mutate<{revision:number}>('sidebar.save',{
+        requestKey:requestKey(),expectedRevision:sidebar.revision,edits,resetIds},current);
+      if(!current())return false;
+      if(result.kind!=='ok'){setNotice(errorText(result.code));return false;}
+      setNotice('Sidebar enregistrée ; droits et routes inchangés.');
+      window.dispatchEvent(new Event('creezio:sidebar-updated'));
+      await loadSidebar();return true;
+    }finally{finishBusy(serial);}
+  }
   const ownScope=scopeIdentity.current.sessionId===sessionId&&
     scopeIdentity.current.audience===props.audience&&scopeIdentity.current.contextId===props.contextId;
   const previewKey=preview?JSON.stringify([sessionId,props.audience,props.contextId,preview.id,
@@ -430,7 +460,8 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
     <header className="flex flex-wrap items-center gap-3"><h1 className="text-xl font-semibold">Pages et navigation</h1>
       <p className="text-sm text-slate-600">Édition native, brouillons et snapshots publiés conservés en D1.</p>
       <div className="ml-auto flex gap-2"><button type="button" className={button} onClick={()=>changeTab('pages')}>Landing</button>
-        <button type="button" className={button} onClick={()=>changeTab('navigation')}>Navigation</button></div></header>
+        <button type="button" className={button} onClick={()=>changeTab('navigation')}>Navigation</button>
+        <button type="button" className={button} onClick={()=>changeTab('sidebar')}>Sidebar</button></div></header>
     <p className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
       La publication met à jour le snapshot applicatif. La lecture anonyme sur le Site et les médias publics attendent un port d’hébergement contrôlé.</p>
     {notice&&<p role="status" className="rounded-md border border-sky-200 bg-sky-50 p-2 text-sm">{notice}</p>}
@@ -525,7 +556,7 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
       <button type="button" className={button} disabled={!navDirty||busy} onClick={()=>void saveNav()}><Save size={14}/> Enregistrer</button>
       <button type="button" className={button} disabled={navDirty||busy||navigation.revision<1} onClick={()=>void publishNav()}><Upload size={14}/> Publier</button>
       <button type="button" className={button} disabled={busy||navigation.revision<1} onClick={()=>void resetNav()}><ArchiveRestore size={14}/> Reset brouillon</button></div>
-      <p className="text-xs text-slate-600">Liens publiés du front. Le catalogue sidebar du workspace reste régi par le SDK hôte.</p>
+      <p className="text-xs text-slate-600">Liens publiés du front. La présentation du menu du workspace se règle dans l’onglet Sidebar.</p>
       <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left text-slate-500">
         <th className="p-2">Lien</th><th className="p-2">Libellé</th><th className="p-2">Visible</th><th className="p-2">Ordre</th><th className="p-2">Actions</th></tr></thead>
         <tbody>{navEdited.items.map((item,index)=><tr key={item.id} className="border-b">
@@ -548,5 +579,9 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
         items:[...navEdited.items,{id:crypto.randomUUID(),label:'Nouveau lien',href:'/',icon:'Circle',
           group:'brand',order:navEdited.items.length,hidden:false}]})}><Plus size={14}/> Ajouter un lien</button>
     </fieldset></section>
+    <div className={tab==='sidebar'?'':'hidden'}>{sidebarUnavailable?
+      <section role="alert" className={card}>Catalogue sidebar indisponible pour cette session.
+        <button type="button" className={button} onClick={()=>void loadSidebar()}>Relire</button></section>:
+      <SidebarEditor catalog={sidebar} busy={busy||!!pending} reload={()=>void loadSidebar()} save={saveSidebar}/>}</div>
   </div>;
 }

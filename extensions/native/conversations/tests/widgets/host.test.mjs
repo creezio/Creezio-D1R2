@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {sandboxProfileHeaders} from '../../../../../sdk/widgets/proxy/profile-policy.mjs';
 import {validWidgetMessageContent} from '../../../../../sdk/widgets/validation.ts';
 import {createWidgetApprovalClient} from '../../../../../sdk/widgets/approval-client.ts';
@@ -15,6 +16,12 @@ const content = {
     resourceUri: `ui://creezio/example.catalog/comparison/1.0.0/${resourceDigest}.html`,
     resourceDigest, state: {selectedIds: ['a', 'b']}}],
 };
+
+test('initial chat render uses the same host instance passed to the widget bridge',()=>{
+  const source=readFileSync(new URL('../../ui/widget-message.tsx',import.meta.url),'utf8');
+  assert.match(source,/structuredContent:\s*\{kind:\s*'creezio\.widget\.render\.v1',\s*instance:\s*instanceRef,\s*input:\s*output\}/u);
+  assert.match(source,/createMcpAppsBridge\(\{iframe:[\s\S]*?instance:\s*instanceRef,/u);
+});
 
 test('widget snapshot accepts a pinned multi-instance message and rejects identity substitution', () => {
   assert.equal(validWidgetMessageContent(content), true);

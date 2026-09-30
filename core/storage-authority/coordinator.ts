@@ -85,6 +85,31 @@ export async function fenceStorageRoute(source:IdentityDatabase,target:IdentityD
   return 'fenced';
 }
 
+/** First installation creates a denied route without any active interval. */
+export async function initializeStorageRouteDeny(source:IdentityDatabase,target:IdentityDatabase,
+  input:Mutation,sourceEpoch:number){
+  valid(input);
+  if(input.expectedGeneration!==1||!Number.isSafeInteger(sourceEpoch)||sourceEpoch<1)
+    fail('invalid_input');
+  await prepareStorageRevocation(source,input);
+  const observed=await targetRoute(target,input);
+  if(observed===null){
+    try{
+      const result=await target.prepare(`INSERT INTO ${routes}
+        (id,installation_id,slot,generation,state,mutation_id,source_epoch,updated_at_ms)
+        VALUES (?,?,?,2,'deny',?,?,(CAST(unixepoch('now') AS INTEGER)*1000))`)
+        .bind(input.contextId,input.installationId,input.slot,input.mutationId,sourceEpoch).run();
+      if(!result.success||result.meta.changes!==1)fail('conflict');
+    }catch(error){if(error instanceof StorageAuthorityError)throw error;
+      const after=await targetRoute(target,input);
+      if(after?.state!=='deny'||after.mutationId!==input.mutationId
+        ||after.generation!==2||after.sourceEpoch!==sourceEpoch)fail('unavailable');
+    }
+  }else if(observed.state!=='deny'||observed.mutationId!==input.mutationId
+    ||observed.generation!==2||observed.sourceEpoch!==sourceEpoch)fail('conflict');
+  return fenceStorageRoute(source,target,input);
+}
+
 export async function inspectStorageRevocation(source:IdentityDatabase,input:Mutation){
   valid(input);
   const current=await row(source,input.mutationId);

@@ -8,5 +8,7 @@ test('docs bind the candidate version and keep remote integration limits explici
     assert.ok(read(name).length>50,name);
   for(const text of ['externe','coffre','publication/dépublication','instance n8n réelle'])
     assert.ok(read('README.md').includes(text),text);
-  assert.match(read('TODO.md'),/ne clôt pas REQ-2601\/2602/u);
+  assert.match(read('TODO.md'),/ne ferment pas la recette fournisseur réelle/u);
+  assert.match(read('README.md'),/2xx.*accepté/u);
+  assert.match(read('prd.md'),/clé API ne part jamais au webhook/u);
 });

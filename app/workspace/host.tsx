@@ -33,6 +33,12 @@ function BoundWorkspace({access}: {access: AccessController}) {
   },[access]);
   const state = useSyncExternalStore(access.subscribe, access.getSnapshot, access.getSnapshot);
   const [projection, setProjection] = useState<WorkspaceProjection | null>(null);
+  const [sidebar,setSidebar]=useState<{key:string;items:readonly {id:string;viewId:string;title:string;order:number}[]}|null>(null);
+  const [sidebarVersion,setSidebarVersion]=useState(0);
+  useEffect(()=>{const refresh=()=>setSidebarVersion(value=>value+1);
+    window.addEventListener('creezio:sidebar-updated',refresh);
+    return()=>window.removeEventListener('creezio:sidebar-updated',refresh);
+  },[]);
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [revocationVersion,setRevocationVersion] = useState(0);
@@ -82,6 +88,46 @@ function BoundWorkspace({access}: {access: AccessController}) {
     return () => { current = false; clearTimeout(timer); abort.abort(); };
   }, [access, state, contextId, attempt]);
   const authenticated = state.phase === 'authenticated' && state.session && !state.pending;
+  const sidebarKey=projection&&authenticated
+    ?`${projection.sessionId}:${projection.contextId}:${projection.audience}:${projection.compositionDigest}:${projection.epoch}`:'';
+  useEffect(()=>{
+    setSidebar(null);
+    if(!projection||!authenticated||projection.compositionDigest!==compositionDigest||
+      projection.sessionId!==state.session?.id||projection.contextId!==contextId)return;
+    const binding=httpBindings.find(item=>item.moduleId==='creezio.pages-navigation'
+      &&item.operationId==='sidebar.resolved'&&item.audience===access.audience
+      &&item.auth.includes('session')&&item.contributorModuleId==='creezio.pages-navigation');
+    if(!binding)return;
+    let current=true;
+    void client.invoke({bindingId:`${binding.contributorModuleId}:${binding.id}`,contextId,input:{},
+      isCurrent:()=>current}).then(result=>{
+      if(!current||result.kind!=='execution'||result.execution.state!=='succeeded')return;
+      const value=result.execution.output;
+      if(!value||typeof value!=='object'||Array.isArray(value))return;
+      const data=value as Record<string,unknown>;
+      if(data.sessionId!==projection.sessionId||data.contextId!==contextId||
+        data.audience!==access.audience||data.compositionDigest!==compositionDigest||
+        data.epoch!==projection.epoch||!Array.isArray(data.items)||data.items.length>navigation.length)return;
+      const visible=new Set(projection.navigationIds),known=new Map(navigation.map(item=>[item.id,item]));
+      const items: {id:string;viewId:string;title:string;order:number}[]=[],seen=new Set<string>();
+      for(const raw of data.items){
+        if(!raw||typeof raw!=='object'||Array.isArray(raw))return;
+        const item=raw as Record<string,unknown>,source=known.get(String(item.id));
+        if(!source||!visible.has(source.id)||seen.has(source.id)||item.viewId!==source.viewId
+          ||typeof item.title!=='string'||!item.title||item.title.length>240||!item.title.isWellFormed()
+          ||!Number.isSafeInteger(item.order)||Number(item.order)<0||Number(item.order)>10000)return;
+        seen.add(source.id);items.push({id:source.id,viewId:source.viewId,title:item.title,order:Number(item.order)});
+      }
+      setSidebar({key:sidebarKey,items});
+    }).catch(()=>{});
+    return()=>{current=false;};
+  },[projection,authenticated,state.session?.id,contextId,access.audience,client,sidebarKey,sidebarVersion]);
+  const workspaceNavigation=useMemo(()=>{
+    if(!projection||sidebar?.key!==sidebarKey)return navigation;
+    const selected=new Map(sidebar.items.map(item=>[item.id,item]));
+    return navigation.filter(item=>selected.has(item.id)).map(item=>({...item,
+      title:selected.get(item.id)!.title,order:selected.get(item.id)!.order}));
+  },[projection,sidebar,sidebarKey]);
   const assistantView = views.find(view => view.id === 'creezio.conversations:admin' && view.moduleId === 'creezio.conversations'
     && view.audiences.includes(access.audience) && view.surfaces.includes('workspace'));
   const renderShell = (shell: WorkspaceRenderProps) => {
@@ -117,7 +163,7 @@ function BoundWorkspace({access}: {access: AccessController}) {
     {!contextId ? <p role="alert">Le contexte demandé est invalide.</p> : error ? <div role="alert">Impossible de vérifier l’accès aux vues.
       <button type="button" onClick={() => setAttempt(value => value + 1)}>Réessayer</button></div> : null}
     <div hidden={!authenticated} inert={!authenticated}>
-    <Workspace access={access} projection={projection} views={views} navigation={navigation} client={client} contextId={contextId}
+    <Workspace access={access} projection={projection} views={views} navigation={workspaceNavigation} client={client} contextId={contextId}
       revocationVersion={revocationVersion}
       homeViewId={navigation.find(item => item.viewId.endsWith(':dashboard') || item.viewId.endsWith(':home'))?.viewId}
       renderShell={renderShell}

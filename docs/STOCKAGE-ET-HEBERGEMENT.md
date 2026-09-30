@@ -110,6 +110,8 @@ La première publication comprend explicitement application, données et fichier
 
 Une fois la production utilisée, elle devient la référence pour ses données. Une mise à jour de code conserve les données de production et ne réimporte pas aveuglément le jeu local de développement. Les personnalisations du fork, la configuration et les accès restent propres à l'application. Toute incompatibilité détectée bloque la mise à jour automatique.
 
+Pour la topologie T33 hors Sites, le parcours en qualification traite le couple principal et chaque couple D1/R2 actif comme des unités physiques distinctes. La capture locale est tenue sous un verrou d'export commun ; l'import distant vérifie les données, objets et reçus du plan SQL central par cible. Les routes copiées restent en `deny` jusqu'à la preuve de la version Worker publiée, de tous ses bindings et de la déclaration au registre. La mise à jour ferme les routes concernées avant SQL et publication, conserve les paires retenues, laisse les paires révoquées fermées et ne rouvre les autres qu'après inspection de leurs reçus. Un changement de D1 ou de bucket pour un contexte déjà actif exige un transfert explicite distinct. Voir [réalisation T33](IMPLEMENTATION-T33.md).
+
 Mettre à jour une seule extension change sa résolution et ses dépendances nécessaires, puis republie l'application complète. Cela ne remet pas les données à zéro et ne met pas à jour les services tiers. Le starter d'extension suit le même parcours pour sa démo ; le paquet distribuable reste distinct de cette installation.
 
 Les commandes de déploiement s'exécutent dans l'environnement local ou un exécuteur explicitement configuré. Le Worker hébergé ne reçoit pas une chaîne de compilation ni un droit général d'auto-publication. Aucun pont de publication depuis le back-office GPT Sites n'est requis : Sites conserve le parcours demande utilisateur/tâche GPT, publication puis vérification.
@@ -159,7 +161,7 @@ Les résultats et limites sont détaillés dans [Qualification Sites](QUALIFICAT
 - [Commandes R2](https://developers.cloudflare.com/r2/reference/wrangler-commands/) : lecture/écriture des objets locaux et distants.
 - [Données locales](https://developers.cloudflare.com/workers/local-development/local-data/) : persistance des ressources de développement.
 
-État du parcours Cloudflare personnel : développement T32 en cours avec tests ciblés des ports de build, provisionnement et transfert ; aucun déploiement ni transfert de l'application vers ce compte réalisé. Voir [réalisation T32](IMPLEMENTATION-T32.md). Les sondes Sites publiées et leurs preuves réelles sont consignées dans Qualification Sites.
+État du parcours Cloudflare personnel : les ports T32 et le raccordement T33 multi-paires ont des tests locaux ciblés, y compris reprise d'ACK inconnus et isolation D1/R2 Miniflare. L'inventaire local persistant et le changement de schéma local T33 restent en finalisation ; la revue indépendante et la recette réelle demeurent nécessaires. Aucun déploiement ni transfert de l'application T33 vers Cloudflare n'a été réalisé. Voir [réalisation T32](IMPLEMENTATION-T32.md) et [réalisation T33](IMPLEMENTATION-T33.md). Les sondes Sites publiées et leurs preuves réelles sont consignées dans Qualification Sites.
 
 ## Qualification des accès de publication
 

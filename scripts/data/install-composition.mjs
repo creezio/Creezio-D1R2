@@ -20,17 +20,30 @@ export async function loadComposedInstallPlan(repository=root){
   return loadCompositionSchema({root:repository,compositionPath,lockPath});
 }
 
-function guardedRead(db,plan,receiptId,sql){
-  return db.batch([managedSchemaGuard(db,[...plan.objects,SCHEMA_RECEIPT_OBJECT]),
+async function verifiedPhysicalObjects(db,plan,receiptId){
+  const managed=await inspectManagedSchema(db);
+  const receipt=managed?.receipt;
+  if(managed?.ok!==true||managed.receiptId!==receiptId||!receipt
+    ||receipt.planDigest!==plan.planDigest||receipt.lockDigest!==plan.lockDigest
+    ||receipt.compositionDigest!==plan.compositionDigest||receipt.modelDigest!==plan.modelDigest
+    ||receipt.sqlDigest!==plan.sqlDigest)return null;
+  return [...receipt.objects,SCHEMA_RECEIPT_OBJECT];
+}
+const installerDataTables=objects=>objects.filter(object=>object.type==='table'
+  &&![SCHEMA_RECEIPT_TABLE,ACCESS_TABLES.bootstrap,ACCESS_TABLES.auth_throttles].includes(object.name));
+
+function guardedRead(db,physicalObjects,receiptId,sql){
+  return db.batch([managedSchemaGuard(db,physicalObjects),
     db.prepare(`SELECT CASE WHEN (SELECT id FROM ${quote(SCHEMA_RECEIPT_TABLE)} ORDER BY sequence DESC LIMIT 1) = ?
       THEN 1 ELSE json('creezio-install-receipt-changed') END AS approved`).bind(receiptId),db.prepare(sql)]);
 }
 
 async function inspectReady(db,plan,receiptId){
-  const tables=plan.objects.filter(object=>object.type==='table'
-    &&![ACCESS_TABLES.bootstrap,ACCESS_TABLES.auth_throttles].includes(object.name));
+  const physicalObjects=await verifiedPhysicalObjects(db,plan,receiptId);
+  if(!physicalObjects)return state('blocked','schema_changed',plan);
+  const tables=installerDataTables(physicalObjects);
   const empty=tables.map(object=>`NOT EXISTS (SELECT 1 FROM ${quote(object.name)} LIMIT 1)`).join(' AND ');
-  const checks=await guardedRead(db,plan,receiptId,
+  const checks=await guardedRead(db,physicalObjects,receiptId,
     `SELECT (SELECT COUNT(*) FROM ${quote(ACCESS_TABLES.bootstrap)}) AS markerCount,
       (SELECT capability_digest FROM ${quote(ACCESS_TABLES.bootstrap)} WHERE id='installation') AS markerDigest,
       (SELECT created_at_ms FROM ${quote(ACCESS_TABLES.bootstrap)} WHERE id='installation') AS createdAtMs,
@@ -68,7 +81,7 @@ export async function inspectComposedInstallation(db,plan){
   if(!isCompositionSchemaPlan(plan))return state('blocked','invalid_plan',plan);
   try{
     const schema=await inspectCompositionSchema(db,plan);
-    if(schema.state==='ready')return inspectReady(db,plan,schema.receiptId);
+    if(schema.state==='ready')return await inspectReady(db,plan,schema.receiptId);
     if(schema.state==='additive'){
       const managed=await inspectManagedSchema(db);
       return managed.ok&&!managed.receipt&&managed.objects.length===0
@@ -78,16 +91,15 @@ export async function inspectComposedInstallation(db,plan){
   }catch{return state('unavailable','storage_unavailable',plan);}
 }
 
-function guardedDatabase(db,plan,receiptId){
+function guardedDatabase(db,physicalObjects,receiptId){
   const statements=new WeakMap();
-  const rows=plan.objects.filter(object=>object.type==='table'
-    &&![ACCESS_TABLES.bootstrap,ACCESS_TABLES.auth_throttles].includes(object.name));
+  const rows=installerDataTables(physicalObjects);
   const emptyGuard=()=>db.prepare(`SELECT CASE WHEN ${rows.map(object=>`NOT EXISTS (SELECT 1 FROM ${quote(object.name)} LIMIT 1)`).join(' AND ')}
     THEN 1 ELSE json('creezio-install-data-present') END AS approved`);
   const receiptGuard=()=>db.prepare(`SELECT CASE WHEN (SELECT id FROM ${quote(SCHEMA_RECEIPT_TABLE)} ORDER BY sequence DESC LIMIT 1) = ?
     THEN 1 ELSE json('creezio-install-receipt-changed') END AS approved`).bind(receiptId);
-  const before=()=>[managedSchemaGuard(db,[...plan.objects,SCHEMA_RECEIPT_OBJECT]),receiptGuard(),emptyGuard()];
-  const after=()=>managedSchemaGuard(db,[...plan.objects,SCHEMA_RECEIPT_OBJECT]);
+  const before=()=>[managedSchemaGuard(db,physicalObjects),receiptGuard(),emptyGuard()];
+  const after=()=>managedSchemaGuard(db,physicalObjects);
   function wrap(raw){
     const wrapped={bind:(...args)=>wrap(raw.bind(...args)),
       async all(){const values=await db.batch([...before(),raw,after()]);return values[3];},
@@ -120,8 +132,12 @@ export async function installComposed(db,plan,input){
     return result(false,before.code,'none','preflight',before.state);
   const schema=await inspectCompositionSchema(db,plan);
   if(schema.state!=='ready')return result(false,'schema_changed','none','preflight',schema.state);
+  let physicalObjects;
+  try{physicalObjects=await verifiedPhysicalObjects(db,plan,schema.receiptId);}
+  catch{return result(false,'storage_unavailable','none','preflight','unavailable');}
+  if(!physicalObjects)return result(false,'schema_changed','none','preflight','blocked');
   try{
-    const guarded=guardedDatabase(db,plan,schema.receiptId);
+    const guarded=guardedDatabase(db,physicalObjects,schema.receiptId);
     const capability=await provisionBootstrapCapability(guarded);
     if(!capability){const after=await inspectComposedInstallation(db,plan);
       return result(false,after.state==='bootstrap_live'?'bootstrap_pending':'bootstrap_unavailable','none','bootstrap',after.state);}

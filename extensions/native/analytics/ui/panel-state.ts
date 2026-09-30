@@ -1,4 +1,5 @@
 import type {WorkspacePanelState,WorkspaceViewProps} from '@creezio/sdk/workspace/types';
+import {readPendingCommand} from '@creezio/sdk/operations/command-journal';
 import type {Period,Tab} from './contracts.ts';
 
 type AccessSnapshot=ReturnType<WorkspaceViewProps['access']['getSnapshot']>;
@@ -31,7 +32,8 @@ export function readAnalyticsPanelState(value:WorkspacePanelState|null,scope:Ana
   return {tab:value.activeSubview as Tab,period:data.period as Period,query:data.query,
     type:data.type,principalId:data.principalId};
 }
-export function analyticsPanelState(scope:AnalyticsScope,panel:AnalyticsPanel):WorkspacePanelState{
+export function analyticsPanelState(scope:AnalyticsScope,panel:AnalyticsPanel,pending:unknown=null):WorkspacePanelState{
+  const retained=readPendingCommand(pending,scope);
   return {activeSubview:panel.tab,data:{...scope,period:panel.period,query:panel.query,
-    type:panel.type,principalId:panel.principalId}};
+    type:panel.type,principalId:panel.principalId,...(retained?{pending:retained}:{})}};
 }

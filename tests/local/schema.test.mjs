@@ -21,7 +21,7 @@ const itemModel = {id:'items',title:'items',scope:'application',fields:[
   {id:'label',type:'string',nullable:false,protected:true,computed:false}],
   primaryKey:['id'],indexes:[],relations:[],permissions:[],deletion:{mode:'hard',requiresApproval:false},public:false};
 
-function planFor(includeOutcome, withIndex=false) {
+function planFor(includeOutcome, withIndex=false, withNullable=false) {
   const composition = json('../../configuration/composition.json');
   const lock = json('../../configuration/composition.lock.json');
   const access = json('../../extensions/native/access/module/manifest.json');
@@ -29,6 +29,8 @@ function planFor(includeOutcome, withIndex=false) {
   const models = json('../../extensions/native/modules-settings/module/models.json');
   module.contracts.models = [...models.filter(item=>includeOutcome || item.id!=='plan-outcomes')
     .map(item=>({...item,permissions:[]})),{...itemModel,
+      fields:withNullable?[...itemModel.fields,
+        {id:'notes',type:'string',nullable:true,protected:true,computed:false}]:itemModel.fields,
       indexes:withIndex?[{id:'label',fields:['label'],unique:false}]:[]}];
   module.contracts.schemas=[];module.contracts.permissions=[];module.contracts.operations=[];
   module.contracts.api=[];module.contracts.mcp={tools:[],resources:[],prompts:[],skills:[]};
@@ -60,10 +62,10 @@ function harness(db, loadPlan, {approval, disposalError=false, busy=false,storag
   return {calls,run:mode=>runLocalSchema({mode,config,io,adapter,lock,engine})};
 }
 
-test('routed local schema refuses before loading a plan, lock, or D1',async()=>{
+test('routed local schema with no active inventory refuses before loading a plan, lock, or D1',async()=>{
   const f=harness(null,()=>assert.fail('must not load plan'),{storageAuthority:true});
   for(const mode of ['inspect','apply'])assert.deepEqual(await f.run(mode),
-    {ok:false,code:'storage_authority_cutover_unavailable',effect:'none'});
+    {ok:false,code:'invalid_storage_resources',effect:'none'});
   assert.deepEqual(f.calls.purposes,[]);
   assert.equal(f.calls.opened,0);
   assert.equal(f.calls.reads,0);
@@ -129,6 +131,21 @@ test('local schema command updates an initialized D1 only after exact approval a
   assert.equal(uncertain.calls.released,0,'an uncertain closure retains the cooperative lock');
   assert.equal((await inspectCompositionSchema(db,later)).state,'ready');
   assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM ${SCHEMA_RECEIPT_TABLE}`).first()).n,3);
+  assert.equal((await db.prepare(`SELECT label FROM "${items}" WHERE id='witness'`).first()).label,'preserved');
+
+  const columns=planFor(true,true,true),columnPreview=harness(db,()=>columns);
+  const previewColumns=await columnPreview.run('inspect');
+  assert.equal(previewColumns.state,'additive');
+  assert.deepEqual(previewColumns.additions,[]);
+  assert.deepEqual(previewColumns.columnAdditions,
+    [{table:items,columns:[{name:'notes',nullable:true}]}]);
+  assert.ok(columnPreview.calls.lines.includes(`Colonne : ${items}.notes nullable`));
+  const columnApproved=harness(db,()=>columns,{approval:columns.planDigest});
+  const columnResult=await columnApproved.run('apply');
+  assert.equal(columnResult.ok,true,JSON.stringify(columnResult));
+  assert.equal(columnResult.priorReceiptId,previewColumns.receiptId);
+  assert.notEqual(columnResult.receiptId,previewColumns.receiptId);
+  assert.deepEqual(columnResult.columnAdditions,previewColumns.columnAdditions);
   assert.equal((await db.prepare(`SELECT label FROM "${items}" WHERE id='witness'`).first()).label,'preserved');
 });
 

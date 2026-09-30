@@ -17,4 +17,13 @@ CREATE TABLE "cz_637265657a696f2e616e616c7974696373_6576656e74" (
   PRIMARY KEY ("context_id", "id")
 ) WITHOUT ROWID;
 
+CREATE TABLE "cz_637265657a696f2e616e616c7974696373_726574656e74696f6e5f706f6c696379" (
+  "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 36)),
+  "retention_days" INTEGER NOT NULL CHECK ("retention_days" IS NOT NULL AND (typeof("retention_days") = 'integer' AND "retention_days" BETWEEN -9007199254740991 AND 9007199254740991 AND "retention_days" >= 1 AND "retention_days" <= 3650)),
+  "revision" INTEGER NOT NULL CHECK ("revision" IS NOT NULL AND (typeof("revision") = 'integer' AND "revision" BETWEEN -9007199254740991 AND 9007199254740991 AND "revision" >= 1 AND "revision" <= 9007199254740991)),
+  "updated_at" TEXT NOT NULL CHECK ("updated_at" IS NOT NULL AND (typeof("updated_at") = 'text' AND length("updated_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "updated_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "updated_at") = "updated_at")),
+  PRIMARY KEY ("context_id", "id")
+) WITHOUT ROWID;
+
 CREATE INDEX "cz_637265657a696f2e616e616c7974696373_6576656e74_idx_62792d74696d65" ON "cz_637265657a696f2e616e616c7974696373_6576656e74" ("context_id", "created_at", "id");

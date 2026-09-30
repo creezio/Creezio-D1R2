@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 import {hermesConnectorDescriptor} from './storage.ts';
 
 const root=new URL('../',import.meta.url),m=JSON.parse(readFileSync(new URL('module/manifest.json',root),'utf8'));
-const id='creezio.hermes',connectorId='hermes.api.v1',version='0.1.0',revision='t29-hermes-external-v1';
+const id='creezio.hermes',connectorId='hermes.api.v1',version='0.1.1',revision='t29-hermes-widgets-v1';
 const ref=(kind,name)=>({moduleId:id,kind,id:name});
 const str=(max=128,min=1)=>({type:'string',minLength:min,maxLength:max});
 const num=(min=0)=>({type:'integer',minimum:min,maximum:Number.MAX_SAFE_INTEGER});
@@ -139,10 +139,30 @@ for(const op of operations)for(const audience of op.audiences){
       Object.entries(shape.properties).filter(([,value])=>value.type==='string').map(([name])=>({name,in:'query',inputField:name,required:true})),
     input:op.input,output:op.output,rateLimit:{requests:30,windowSeconds:60}});
 }
+const widgetOperations={'capabilities.read':'capabilities','models.list':'models','run.read':'run'};
 const tools=operations.map(op=>({id:op.id,name:`hermes_${op.id.replaceAll('.','_')}`,operation:ref('operation',op.id),
   audiences:op.audiences,auth:['oauth','api-token'],input:op.input,output:op.output,
+  ...(widgetOperations[op.id]?{widget:ref('widget',widgetOperations[op.id])}:{}),
   annotations:{readOnly:op.kind==='query',destructive:op.id==='config.key.revoke',idempotent:op.kind==='query',
     openWorld:op.effects.providers.length>0},textFallback:true}));
+const widgets=Object.entries(widgetOperations).map(([operationId,name])=>{
+  const source=operations.find(op=>op.id===operationId);
+  return {id:name,version:'1.0.0',compatibility:'^1.0.0',resource:`${name}-ui`,
+    renderer:{path:'ui/widgets/runtime.ts',export:'startHermesWidget'},input:source.output,
+    state:empty,result:source.output,audiences:source.audiences,
+    permissions:[ref('permission',name==='run'?'use':'manage')],requiredCapabilities:[],assets:[],
+    actions:[{id:'read',label:'Relire',input:source.input,requiredCapabilities:[],fallback:'unavailable',
+      mode:'direct',target:{kind:'operation',operation:ref('operation',operationId)}}],
+    instance:{identity:'host-generated',revision:'monotonic',correlation:'request-instance-conversation',
+      objectVersion:'distinct',lateResponse:'reject-stale'},
+    transport:{protocol:'mcp-apps',maxPayloadBytes:131072,timeoutMs:15000,
+      uncertainResult:'reconcile-before-retry',fallbackDispatch:'before-first-dispatch-only'}};
+});
+const widgetResources=widgets.map(widget=>({id:`${widget.id}-ui`,uri:`ui://${id}/${widget.id}`,
+  mimeType:'text/html;profile=mcp-app',audiences:widget.audiences,permissions:widget.permissions,
+  source:{kind:'asset',path:`ui/widgets/${widget.id}.html`},widget:ref('widget',widget.id),
+  ui:{csp:{connectDomains:[],resourceDomains:[],frameDomains:[],baseUriDomains:[]},
+    permissions:{},prefersBorder:true}}));
 m.identity={id,title:'Connecteur Hermes externe',publisher:'creezio',origin:'https://github.com/creezio/Creezio-D1R2',
   version,source:{kind:'snapshot',revision,integrity:`sha256-${createHash('sha256').update(revision).digest('hex')}`},
   license:{expression:'NOASSERTION',file:'LICENSE'}};
@@ -156,7 +176,7 @@ m.contracts={schemas,models,files:[],events:[],connectors:[structuredClone(herme
     visibility:'secret-reference',required:false,permissions:[ref('permission','manage')],provider:connectorId,redact:true},
   {id:'origin',title:'Origine HTTPS Hermes',schema:schema('origin-setting',str(512)),visibility:'server',
     required:true,permissions:[ref('permission','manage')],provider:connectorId,redact:true}],
-  search:[],permissions,operations,api,mcp:{tools,resources:[],prompts:[],skills:[]},
+  search:[],permissions,operations,api,mcp:{tools,resources:widgetResources,prompts:[],skills:[]},
   ui:{views:[{id:'admin',title:'Hermes',surfaces:['workspace'],route:'/admin/hermes',
     component:{path:'ui/index.tsx',export:'HermesAdminView'},permissions:[ref('permission','manage'),
       ref('permission','use'),ref('permission','connect')],
@@ -170,20 +190,20 @@ m.contracts={schemas,models,files:[],events:[],connectors:[structuredClone(herme
       ref('permission','use'),ref('permission','connect')],surfaces:['workspace'],order:79},
       {id:'hermes-app',title:'Mes runs Hermes',view:ref('view','app'),permissions:[ref('permission','use'),
         ref('permission','connect')],surfaces:['workspace'],order:80}],slots:[],front:{mode:'absent',justification:{reason:'Hermes configuration and runs live in workspace.',policyRule:'hermes.workspace-only'}},themes:[],styles:[]},
-  widgets:[],publicContracts:[]};
+  widgets,publicContracts:[]};
 m.documentation.versionBinding={moduleVersion:version,sourceRevision:revision};
 for(const suite of ['backend','ui','api-mcp','widgets','package','docs'])m.validation.suites[suite].tests=[`tests/${suite}/contract.test.mjs`];
-m.validation.suites.widgets.mode='not-applicable';m.validation.suites.widgets.justification={
-  reason:'Run widgets await the durable submission and approval contract.',policyRule:'hermes.widgets-pending-run-contract'};
+m.validation.suites.widgets.mode='required';delete m.validation.suites.widgets.justification;
 m.packaging.runtime.files=['module/manifest.json','module/models.json','module/entry.server.ts','module/storage.ts',
-  'module/operations.ts','module/service.ts','ui/index.tsx','ui/panel-state.ts','README.md','prd.md','CHANGELOG.md',
+  'module/operations.ts','module/service.ts','ui/index.tsx','ui/panel-state.ts','ui/widgets/runtime.ts',
+  'ui/widgets/model.ts',
+  ...widgets.map(widget=>`ui/widgets/${widget.id}.html`),'README.md','prd.md','CHANGELOG.md',
   'LICENSE','plugin/plugin.json','plugin/mcp.json','plugin/contributions.ts'];
 m.packaging.validation.files=['AGENTS.md','FILES.md','interview.md','TODO.md','gate.mjs','module/generate-manifest.mjs',
   'ci/run-suite.mjs','tests/helpers.mjs',...['backend','ui','api-mcp','widgets','package','docs'].flatMap(name=>
     [`ci/${name}.mjs`,`tests/${name}/contract.test.mjs`])];
 m.packaging.validationBinding={moduleId:id,moduleVersion:version,sourceRevision:revision};
-m.lifecycle.absent={files:{reason:'Hermes files stay at the external service.',policyRule:'hermes.no-files'},
-  widgets:{reason:'No run widget before submission is durable.',policyRule:'hermes.widgets-pending-run-contract'}};
+m.lifecycle.absent={files:{reason:'Hermes files stay at the external service.',policyRule:'hermes.no-files'}};
 m.lifecycle.configuration='explicit-state';
 writeFileSync(new URL('module/models.json',root),JSON.stringify(models,null,2)+'\n');
 writeFileSync(new URL('module/manifest.json',root),JSON.stringify(m,null,2)+'\n');

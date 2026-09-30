@@ -11,6 +11,6 @@ test('n8n source manifest is valid and declares every runtime/validation artifac
   }
   assert.ok(manifest.packaging.runtime.files.includes('module/storage.ts'));
   assert.ok(manifest.packaging.runtime.files.includes('ui/index.tsx'));
-  assert.equal(manifest.compatibility.sdk,'^1.2.0');
+  assert.equal(manifest.compatibility.sdk,'^1.6.0');
   assert.ok(read('module/storage.ts').includes('n8nConnectorDescriptor'));
 });

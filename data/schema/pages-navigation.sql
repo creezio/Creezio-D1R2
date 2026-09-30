@@ -99,6 +99,16 @@ CREATE TABLE "cz_637265657a696f2e70616765732d6e617669676174696f6e_7075626c697368
   FOREIGN KEY ("context_id", "page_id") REFERENCES "cz_637265657a696f2e70616765732d6e617669676174696f6e_706167655f7075626c69636174696f6e" ("context_id", "page_id") ON DELETE RESTRICT
 ) WITHOUT ROWID;
 
+CREATE TABLE "cz_637265657a696f2e70616765732d6e617669676174696f6e_736964656261725f6f7665727269646573" (
+  "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND "id" IN ('workspace'))),
+  "overrides" TEXT NOT NULL CHECK ("overrides" IS NOT NULL AND (typeof("overrides") = 'text' AND json_valid("overrides") = 1)),
+  "revision" INTEGER NOT NULL CHECK ("revision" IS NOT NULL AND (typeof("revision") = 'integer' AND "revision" BETWEEN -9007199254740991 AND 9007199254740991 AND "revision" >= 1 AND "revision" <= 9007199254740991)),
+  "updated_at" TEXT NOT NULL CHECK ("updated_at" IS NOT NULL AND (typeof("updated_at") = 'text' AND length("updated_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "updated_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "updated_at") = "updated_at")),
+  "updated_by" TEXT NOT NULL CHECK ("updated_by" IS NOT NULL AND (typeof("updated_by") = 'text' AND instr("updated_by", char(0)) = 0 AND length("updated_by") >= 1 AND length("updated_by") <= 128)),
+  PRIMARY KEY ("context_id", "id")
+) WITHOUT ROWID;
+
 CREATE UNIQUE INDEX "cz_637265657a696f2e70616765732d6e617669676174696f6e_66696c655f6d65746164617461_idx_696e74656e74" ON "cz_637265657a696f2e70616765732d6e617669676174696f6e_66696c655f6d65746164617461" ("context_id", "intent_id", "generation");
 
 CREATE UNIQUE INDEX "cz_637265657a696f2e70616765732d6e617669676174696f6e_66696c655f6d65746164617461_idx_6f626a6563742d6b6579" ON "cz_637265657a696f2e70616765732d6e617669676174696f6e_66696c655f6d65746164617461" ("context_id", "object_key");

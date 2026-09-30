@@ -9,6 +9,7 @@ import {call,errorText,type Count,type Event,type EventPage,type ExportPage,
   type Period,type Snapshot,type Tab} from './contracts.ts';
 import {collectExportPages} from './export.ts';
 import {analyticsPanelState,readAnalyticsPanelState,retainedSessionId,sameAnalyticsScope,sessionVerified} from './panel-state.ts';
+import {RetentionControls} from './retention.tsx';
 
 const tabs:[Tab,string][]=[['overview','Vue d’ensemble'],['productivity','Productivité'],
   ['pages','Pages'],['clicks','Clics'],['users','Collaborateurs'],['logs','Journal']];
@@ -91,6 +92,7 @@ export function AnalyticsAdminView(props:RuntimeViewProps){
     [type,setType]=useState(saved?.type??''),
     [principal,setPrincipal]=useState(saved?.principalId??'');
   const [autoRefresh,setAutoRefresh]=useState(true);
+  const [retentionOpen,setRetentionOpen]=useState(false);
   const [busy,setBusy]=useState(false),[loadingMore,setLoadingMore]=useState(false),
     [exporting,setExporting]=useState(false),[notice,setNotice]=useState('');
   const [executions,setExecutions]=useState<ExecutionDiagnosticsPage|null>(null);
@@ -119,7 +121,7 @@ export function AnalyticsAdminView(props:RuntimeViewProps){
     setSnapshot(null);setEvents([]);setNextCursor(null);setNotice('');
     setExecutions(null);setEndpoints(null);setDiagnosticsBusy({executions:false,endpoints:false});
     setBusy(false);setLoadingMore(false);setExporting(false);
-    if(changed){const restored=readAnalyticsPanelState(props.navigation.readPanelState(),
+    if(changed){setRetentionOpen(false);const restored=readAnalyticsPanelState(props.navigation.readPanelState(),
       {sessionId,audience:props.audience,contextId:props.contextId});
       skipPersist.current=true;setTab(restored?.tab??'overview');setPeriod(restored?.period??'week');
       setQuery(restored?.query??'');setAppliedQuery(restored?.query??'');
@@ -135,7 +137,7 @@ export function AnalyticsAdminView(props:RuntimeViewProps){
   useEffect(()=>{if(skipPersist.current){skipPersist.current=false;return;}
     if(enabled)props.navigation.savePanelState(analyticsPanelState({sessionId,
       audience:props.audience,contextId:props.contextId},{tab,period,query:appliedQuery,type,
-      principalId:principal}));},
+      principalId:principal},props.navigation.readPanelState()?.data?.pending));},
   [enabled,props.navigation,sessionId,props.audience,props.contextId,tab,period,appliedQuery,type,principal]);
   const scope={client:props.client,access:props.access,audience:props.audience,contextId:props.contextId};
   const refresh=useCallback(async()=>{
@@ -259,8 +261,12 @@ export function AnalyticsAdminView(props:RuntimeViewProps){
           className="rounded border-slate-300"/>Auto-refresh</label>
         <button className={button} type="button" onClick={()=>void refresh()} disabled={busy}>
           <RefreshCw className={`h-3.5 w-3.5 ${busy?'animate-spin':''}`}/>Actualiser</button>
-        <button className={`${button} text-rose-600`} type="button" disabled title="La purge n’est pas disponible pour ces données">
-          <Trash2 className="h-3.5 w-3.5"/>Purger</button></div></div>
+        <button className={`${button} text-rose-600`} type="button" aria-expanded={retentionOpen}
+          onClick={()=>setRetentionOpen(value=>!value)}>
+          <Trash2 className="h-3.5 w-3.5"/>Rétention et purge</button></div></div>
+    {retentionOpen&&enabled&&<RetentionControls
+      key={`${sessionId}:${props.audience}:${props.contextId}`} props={props} sessionId={sessionId}
+      onChanged={()=>{void refresh();}}/>}
     {notice&&<p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{notice}</p>}
     {busy&&!snapshot&&<p className="text-sm text-slate-500">Chargement des mesures…</p>}
     {snapshot&&<p className="text-xs text-slate-500">Période : {date(snapshot.period.from)} au {date(snapshot.period.to)} ·

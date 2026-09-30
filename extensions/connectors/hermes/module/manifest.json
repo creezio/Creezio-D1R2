@@ -5,11 +5,11 @@
     "title": "Connecteur Hermes externe",
     "publisher": "creezio",
     "origin": "https://github.com/creezio/Creezio-D1R2",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "source": {
       "kind": "snapshot",
-      "revision": "t29-hermes-external-v1",
-      "integrity": "sha256-b3a279aacc1990357774b9324681a708aa47693e1705eec066eb91e7a32f17ba"
+      "revision": "t29-hermes-widgets-v1",
+      "integrity": "sha256-c51d405430d30c1ccbb74341ca3852fa0316cc9cf7d1e61ea701a2f792429fe1"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -3849,6 +3849,11 @@
           "output": {
             "schemaId": "capabilities-output"
           },
+          "widget": {
+            "moduleId": "creezio.hermes",
+            "kind": "widget",
+            "id": "capabilities"
+          },
           "annotations": {
             "readOnly": true,
             "destructive": false,
@@ -3907,6 +3912,11 @@
           "output": {
             "schemaId": "models-output"
           },
+          "widget": {
+            "moduleId": "creezio.hermes",
+            "kind": "widget",
+            "id": "models"
+          },
           "annotations": {
             "readOnly": true,
             "destructive": false,
@@ -3936,6 +3946,11 @@
           },
           "output": {
             "schemaId": "run-output"
+          },
+          "widget": {
+            "moduleId": "creezio.hermes",
+            "kind": "widget",
+            "id": "run"
           },
           "annotations": {
             "readOnly": true,
@@ -4066,7 +4081,111 @@
           "textFallback": true
         }
       ],
-      "resources": [],
+      "resources": [
+        {
+          "id": "capabilities-ui",
+          "uri": "ui://creezio.hermes/capabilities",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.hermes",
+              "kind": "permission",
+              "id": "manage"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/capabilities.html"
+          },
+          "widget": {
+            "moduleId": "creezio.hermes",
+            "kind": "widget",
+            "id": "capabilities"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        },
+        {
+          "id": "models-ui",
+          "uri": "ui://creezio.hermes/models",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.hermes",
+              "kind": "permission",
+              "id": "manage"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/models.html"
+          },
+          "widget": {
+            "moduleId": "creezio.hermes",
+            "kind": "widget",
+            "id": "models"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        },
+        {
+          "id": "run-ui",
+          "uri": "ui://creezio.hermes/run",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.hermes",
+              "kind": "permission",
+              "id": "use"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/run.html"
+          },
+          "widget": {
+            "moduleId": "creezio.hermes",
+            "kind": "widget",
+            "id": "run"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        }
+      ],
       "prompts": [],
       "skills": []
     },
@@ -4307,7 +4426,204 @@
       "themes": [],
       "styles": []
     },
-    "widgets": [],
+    "widgets": [
+      {
+        "id": "capabilities",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "capabilities-ui",
+        "renderer": {
+          "path": "ui/widgets/runtime.ts",
+          "export": "startHermesWidget"
+        },
+        "input": {
+          "schemaId": "capabilities-output"
+        },
+        "state": {
+          "schemaId": "empty-input"
+        },
+        "result": {
+          "schemaId": "capabilities-output"
+        },
+        "audiences": [
+          "admin"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.hermes",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "read",
+            "label": "Relire",
+            "input": {
+              "schemaId": "empty-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.hermes",
+                "kind": "operation",
+                "id": "capabilities.read"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 131072,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      },
+      {
+        "id": "models",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "models-ui",
+        "renderer": {
+          "path": "ui/widgets/runtime.ts",
+          "export": "startHermesWidget"
+        },
+        "input": {
+          "schemaId": "models-output"
+        },
+        "state": {
+          "schemaId": "empty-input"
+        },
+        "result": {
+          "schemaId": "models-output"
+        },
+        "audiences": [
+          "admin"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.hermes",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "read",
+            "label": "Relire",
+            "input": {
+              "schemaId": "empty-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.hermes",
+                "kind": "operation",
+                "id": "models.list"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 131072,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      },
+      {
+        "id": "run",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "run-ui",
+        "renderer": {
+          "path": "ui/widgets/runtime.ts",
+          "export": "startHermesWidget"
+        },
+        "input": {
+          "schemaId": "run-output"
+        },
+        "state": {
+          "schemaId": "empty-input"
+        },
+        "result": {
+          "schemaId": "run-output"
+        },
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.hermes",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "read",
+            "label": "Relire",
+            "input": {
+              "schemaId": "run-read-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.hermes",
+                "kind": "operation",
+                "id": "run.read"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 131072,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      }
+    ],
     "publicContracts": []
   },
   "documentation": {
@@ -4351,8 +4667,8 @@
       }
     },
     "versionBinding": {
-      "moduleVersion": "0.1.0",
-      "sourceRevision": "t29-hermes-external-v1"
+      "moduleVersion": "0.1.1",
+      "sourceRevision": "t29-hermes-widgets-v1"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -4387,15 +4703,11 @@
         ]
       },
       "widgets": {
-        "mode": "not-applicable",
+        "mode": "required",
         "script": "ci/widgets.mjs",
         "tests": [
           "tests/widgets/contract.test.mjs"
-        ],
-        "justification": {
-          "reason": "Run widgets await the durable submission and approval contract.",
-          "policyRule": "hermes.widgets-pending-run-contract"
-        }
+        ]
       },
       "package": {
         "mode": "required",
@@ -4439,6 +4751,11 @@
         "module/service.ts",
         "ui/index.tsx",
         "ui/panel-state.ts",
+        "ui/widgets/runtime.ts",
+        "ui/widgets/model.ts",
+        "ui/widgets/capabilities.html",
+        "ui/widgets/models.html",
+        "ui/widgets/run.html",
         "README.md",
         "prd.md",
         "CHANGELOG.md",
@@ -4476,8 +4793,8 @@
     },
     "validationBinding": {
       "moduleId": "creezio.hermes",
-      "moduleVersion": "0.1.0",
-      "sourceRevision": "t29-hermes-external-v1"
+      "moduleVersion": "0.1.1",
+      "sourceRevision": "t29-hermes-widgets-v1"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",
@@ -4492,10 +4809,6 @@
       "files": {
         "reason": "Hermes files stay at the external service.",
         "policyRule": "hermes.no-files"
-      },
-      "widgets": {
-        "reason": "No run widget before submission is durable.",
-        "policyRule": "hermes.widgets-pending-run-contract"
       }
     },
     "dependencyChanges": {

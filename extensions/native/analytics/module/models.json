@@ -153,6 +153,88 @@
         "moduleId": "creezio.analytics",
         "kind": "permission",
         "id": "read"
+      },
+      {
+        "moduleId": "creezio.analytics",
+        "kind": "permission",
+        "id": "manage-retention"
+      }
+    ],
+    "deletion": {
+      "mode": "hard",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "retention_policy",
+    "title": "Politique de rétention manuelle",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 36
+        }
+      },
+      {
+        "id": "retention_days",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1,
+          "maximum": 3650
+        }
+      },
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      {
+        "id": "updated_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.analytics",
+        "kind": "permission",
+        "id": "manage-retention"
       }
     ],
     "deletion": {

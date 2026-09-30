@@ -100,6 +100,11 @@
         "moduleId": "creezio.n8n",
         "kind": "permission",
         "id": "read"
+      },
+      {
+        "moduleId": "creezio.n8n",
+        "kind": "permission",
+        "id": "trigger"
       }
     ],
     "deletion": {
@@ -209,6 +214,437 @@
         "moduleId": "creezio.n8n",
         "kind": "permission",
         "id": "read"
+      },
+      {
+        "moduleId": "creezio.n8n",
+        "kind": "permission",
+        "id": "trigger"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "webhook_config",
+    "title": "Configuration du webhook de production n8n",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "origin",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 8,
+          "maxLength": 512
+        }
+      },
+      {
+        "id": "path_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "workflow_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "key_ref",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "secret_version",
+        "type": "integer",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "enabled",
+        "type": "boolean",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "updated_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.n8n",
+        "kind": "permission",
+        "id": "manage"
+      },
+      {
+        "moduleId": "creezio.n8n",
+        "kind": "permission",
+        "id": "trigger"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "webhook_secret",
+    "title": "Secret webhook scellé",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "binding_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "ciphertext",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 32768
+        }
+      },
+      {
+        "id": "key_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "version",
+        "type": "integer",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "state",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "active",
+            "revoked"
+          ]
+        }
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.n8n",
+        "kind": "permission",
+        "id": "manage"
+      },
+      {
+        "moduleId": "creezio.n8n",
+        "kind": "permission",
+        "id": "trigger"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "run",
+    "title": "Intention et suivi n8n",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "principal_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "audience",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "admin",
+            "app"
+          ]
+        }
+      },
+      {
+        "id": "workflow_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "path_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "webhook_origin",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 8,
+          "maxLength": 512
+        }
+      },
+      {
+        "id": "webhook_revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "input",
+        "type": "json",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "status",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "prepared",
+            "accepted"
+          ]
+        }
+      },
+      {
+        "id": "remote_execution_id",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "remote_status",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 64
+        }
+      },
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "created_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "updated_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.n8n",
+        "kind": "permission",
+        "id": "manage"
+      },
+      {
+        "moduleId": "creezio.n8n",
+        "kind": "permission",
+        "id": "trigger"
       }
     ],
     "deletion": {

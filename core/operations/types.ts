@@ -9,6 +9,7 @@ import type {SearchProjectionPort} from '../../sdk/search/types.ts';
 import type {WidgetOperationPort} from '../widgets/host.ts';
 import type {OperationDiagnosticsPort} from './diagnostics.ts';
 import type {ModuleQueryPort} from './intermodule.ts';
+import type {WorkspaceNavigationCatalogPortV1} from '../../sdk/workspace/navigation-catalog.ts';
 import {OperationError} from '@creezio/sdk/operations/error';
 export {OperationError};
 export type {OperationErrorCode} from '@creezio/sdk/operations/error';
@@ -76,6 +77,8 @@ export interface OperationContext {
   readonly diagnostics?: OperationDiagnosticsPort;
   /** Declared query-only intermodule call, with host-owned traversal and authorization. */
   readonly operations?: ModuleQueryPort;
+  /** Build-owned workspace catalogue, available only to pages-navigation. */
+  readonly workspaceNavigation?: WorkspaceNavigationCatalogPortV1;
 }
 export interface OperationHandlerResult {
   readonly output: unknown;

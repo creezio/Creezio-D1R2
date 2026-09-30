@@ -190,3 +190,67 @@ export async function diagnosticsEndpoints(value:JsonValue,c:OperationContext){
   return {output:await c.diagnostics.listEndpoints({limit:Number(input.limit),
     ...(input.cursor===undefined?{}:{cursor:String(input.cursor)})})};
 }
+
+const policyId='retention';
+const purgeLimit=10;
+const isoDate=(value:unknown):value is string=>typeof value==='string'
+  &&/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/u.test(value)
+  &&Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value;
+const retentionDays=(value:unknown):number=>Number.isSafeInteger(value)&&Number(value)>=1&&Number(value)<=3650
+  ?Number(value):invalid();
+const revision=(value:unknown):number=>Number.isSafeInteger(value)&&Number(value)>=0
+  &&Number(value)<Number.MAX_SAFE_INTEGER?Number(value):invalid();
+const cutoffFor=(days:number,atMs=Date.now())=>new Date(atMs-days*86_400_000).toISOString();
+const policyView=(row:Row|null)=>({configured:!!row,retentionDays:row?Number(row.retention_days):null,
+  revision:row?Number(row.revision):0,manualOnly:true});
+const readPolicy=(c:OperationContext)=>c.data.get('retention_policy',{key:{id:policyId}}) as Promise<Row|null>;
+
+/** Configuration never schedules a purge. The first write is explicit and CAS-protected. */
+export async function retentionPolicy(_value:JsonValue,c:OperationContext){
+  return {output:policyView(await readPolicy(c))};
+}
+export async function retentionConfigure(value:JsonValue,c:OperationContext){
+  const input=args(value),days=retentionDays(input.retentionDays),expected=revision(input.expectedRevision);
+  const current=await readPolicy(c);
+  if(Number(current?.revision??0)!==expected)throw new OperationError('conflict');
+  const updatedAt=now(),next=expected+1;
+  const plan=current
+    ?c.data.planPatch('retention_policy',{key:{id:policyId},compare:{field:'revision',expected},
+      values:{retention_days:days,updated_at:updatedAt}})
+    :c.data.planCreate('retention_policy',{values:{id:policyId,retention_days:days,
+      revision:next,updated_at:updatedAt}});
+  return {output:{configured:true,retentionDays:days,revision:next,manualOnly:true},plans:[plan]};
+}
+
+type PurgeItem={id:string;occurredAt:string};
+async function eligible(c:OperationContext,cutoff:string):Promise<{items:PurgeItem[];hasMore:boolean}>{
+  const page=await c.data.list('event',{limit:purgeLimit+1,
+    order:{indexId:'by-time',direction:'asc'},fields:['id','created_at']}) as Page;
+  const rows=page.items.filter(row=>String(row.created_at)<cutoff);
+  return {items:rows.slice(0,purgeLimit).map(row=>({id:String(row.id),occurredAt:String(row.created_at)})),
+    hasMore:rows.length>purgeLimit};
+}
+export async function retentionPreview(_value:JsonValue,c:OperationContext){
+  const policy=await readPolicy(c),view=policyView(policy);
+  if(!policy)return {output:{...view,cutoff:null,items:[],hasMore:false}};
+  const cutoff=cutoffFor(retentionDays(policy.retention_days));
+  const selected=await eligible(c,cutoff);
+  return {output:{...view,cutoff,...selected}};
+}
+
+/** Delete exactly the previewed oldest batch; policy and each event are rechecked in the commit. */
+export async function retentionPurge(value:JsonValue,c:OperationContext){
+  const input=args(value),expected=revision(input.revision),cutoff=input.cutoff;
+  if(!isoDate(cutoff))throw new OperationError('invalid_input');
+  if(Date.parse(cutoff)>Date.now()||!Array.isArray(input.items)
+    ||input.items.length<1||input.items.length>purgeLimit)invalid();
+  const policy=await readPolicy(c);
+  if(!policy||Number(policy.revision)!==expected)throw new OperationError('conflict');
+  if(Date.parse(cutoff)>Date.parse(cutoffFor(retentionDays(policy.retention_days))))invalid();
+  const selected=await eligible(c,cutoff);
+  if(JSON.stringify(selected.items)!==JSON.stringify(input.items))throw new OperationError('conflict');
+  const plans=[c.data.planGet('retention_policy',{key:{id:policyId},where:{revision:expected},
+    fields:['id'],required:true}),...selected.items.map(item=>c.data.planDelete('event',
+    {key:{id:item.id},where:{created_at:item.occurredAt}}))];
+  return {output:{deleted:selected.items.length,hasMore:selected.hasMore,cutoff,revision:expected},plans};
+}

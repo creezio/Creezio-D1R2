@@ -1,13 +1,20 @@
 # Changelog
 
+## 30 septembre 2026 — PR #80 intégrée, SDK 1.6.0 publié
+
+- Core main `684901c46cff026dc0209f3e2deabbf894826af9` intègre PR #80 après CI candidate et main 1 360/1 360 : ports communs des connecteurs et runtime de stockage isolé. Le Worker Cloudflare applicatif sert toujours la source `cd2eeb2` ; cette intégration n'est pas une publication de l'app.
+- [SDK 1.6.0](https://github.com/creezio/Creezio-D1R2/releases/download/sdk-v1.6.0/creezio-sdk-1.6.0.tgz) est public depuis ce main : archive SHA-256 `d1d8dba645f4a710cd8c5a37f9eaabdeb15c6745c08a8bd5922d2fbcf2a53be8`, 78 067 octets, 82 entrées, huit consommateurs, 48 suites et 170 contrôles vérifiés. Son adoption par chaque application reste explicite. SDK 1.7.0 est une archive candidate locale de 78 922 octets et 84 entrées, SHA-256 `3b302ad2fc09e05879e8d624d2975ee3b072d962ba6fa66c99f78293e3eae66c`, qualifiée sur dix consommateurs et 60 suites ; elle n'est pas publique.
+- Le checkout courant conserve les tranches non intégrées : installation et cutover T33 testés et revus localement, n8n webhook/widgets, widgets Hermes et rétention Analytics avec revues de code favorables, barre latérale Pages T21 gelée et revue localement. Leur intégration et leurs recettes propres restent distinctes ; aucune recette réelle T33 ou fournisseur reporté n'en découle.
+- Une image Linux depuis `684901c` a été construite sans être activée : l'inspection réclame des colonnes dans les tables existantes de brouillon Messaging (`send_intent_id`), de configuration et d'abonnement Stripe (retour Checkout, webhook, annulation), et de ticket Support (liens). Le correctif central borné aux ajouts de colonnes passe ses tests locaux ; l'omission d'index relevée en revue est corrigée et relue sans autre finding moteur. Le raccord de l'installation composée est qualifié localement et revu ; intégration et CI restent nécessaires avant activation ; ces colonnes sont requises, sans migration de module ni DDL forcé. Les données et la source Cloudflare existantes restent sur leurs versions vérifiées.
+
 ## En développement — connecteurs et runtime des données isolées
 
-- Les contrats de module déclarent les mutations de connecteurs, les webhooks, les projections de recherche et les livraisons différées dans le journal commun. Le SDK 1.6 correspondant reste candidat.
+- Les contrats de module déclarent les mutations de connecteurs, les webhooks, les projections de recherche et les livraisons différées dans le journal commun. Le SDK 1.6 correspondant est public ; les compléments de module gardent leurs propres étapes d'intégration et recette.
 - Messagerie et le connecteur externe Resend partagent un transport d'envoi avec intention durable, projection du reçu et inspection des résultats incertains sans nouvel envoi automatique.
 - Meili ajoute l'indexation et la recherche du Catalogue sous les droits courants. Stripe ajoute Checkout, les abonnements et les événements en mode test ; ces ajouts ne constituent pas encore un parcours de paiement de production.
 - Granola et Hermes ajoutent leurs connexions et opérations aux interfaces originales. Hermes conserve les commandes incertaines entre les vues ; aucun service tiers n'est intégré à l'application.
-- Le runtime hors Sites route les données, fichiers, fournisseurs et journaux vers le contexte D1/R2 sélectionné. La révocation coordonne les accusés des cibles ; les gardes de composition refusent une ancienne version. Les essais locaux et la revue du runtime sont acquis ; la mise à jour opérateur et la recette Cloudflare sur plusieurs bases restent ouvertes.
-- Les recettes réelles n8n, Granola, Resend et Hermes sont différées par l'utilisateur. Les tests avec transports simulés ne les remplacent pas. Aucun SDK ou déploiement de cette tranche n'est annoncé publié.
+- Le runtime hors Sites route les données, fichiers, fournisseurs et journaux vers le contexte D1/R2 sélectionné. La révocation coordonne les accusés des cibles ; les gardes de composition refusent une ancienne version. Installation et cutover multi-D1 sont testés et revus localement ; l'intégration du checkout et la recette Cloudflare réelle restent ouvertes.
+- Les recettes réelles n8n, Granola, Resend et Hermes sont différées par l'utilisateur. Les tests avec transports simulés ne les remplacent pas. Le SDK 1.6 est public séparément ; aucun déploiement applicatif des compléments de ce checkout n'est annoncé.
 
 ## En développement — compléments des modules natifs et externes
 
@@ -16,7 +23,7 @@
 - Analytics consulte les métadonnées du journal commun et les endpoints déclarés, avec exports CSV/JSON bornés. Les contenus métier et les secrets ne font pas partie de ces exports.
 - Pages ajoute une publication anonyme explicite, son document HTML et ses médias vérifiés. Le rendu provient de la contribution du module sélectionné ; les pages protégées et les brouillons restent exclus.
 - La composition isole le renderer HTML des pages dans un artefact ESM vérifié, pour conserver les mêmes composants dans un Worker compilé sous la condition `react-server`.
-- L'adaptateur de stockage accepte une configuration statique de ressources séparées hors Sites. Le routage métier et la synchronisation de l'autorité restent en préparation, sans annoncer cette configuration comme une isolation applicative complète.
+- L'adaptateur de stockage accepte une configuration statique de ressources séparées hors Sites. PR #80 intègre le routage métier et les gardes d'autorité au runtime ; l'installation distribuée reste un lot distinct, sans isolation réelle annoncée sur Cloudflare.
 - Reprise parallèle des compléments T18–T22, T25–T29 et T33 autorisée par l'utilisateur ; les conditions des chantiers différés et le test utilisateur T39 sont conservés.
 
 ## État de livraison ciblée — 30 septembre 2026

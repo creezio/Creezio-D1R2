@@ -1,5 +1,13 @@
 # Réalisation T30 — SDK distribué et starter de module
 
+## SDK 1.6 public — 30 septembre 2026
+
+La PR #80 est intégrée sur main `684901c46cff026dc0209f3e2deabbf894826af9`, arbre `115f5764d1dc5a2d256f2f5724d13d16c304a0c9`. Les CI du candidat et du main passent 1 360 tests sans omission. Le [SDK 1.6.0 public](https://github.com/creezio/Creezio-D1R2/releases/download/sdk-v1.6.0/creezio-sdk-1.6.0.tgz) contient 82 entrées, 78 067 octets, SHA-256 `d1d8dba645f4a710cd8c5a37f9eaabdeb15c6745c08a8bd5922d2fbcf2a53be8`. Le tag annoté vise ce main ; les téléchargements de l'archive en brouillon et après publication ont été vérifiés (release `400339777`, asset `601576924`).
+
+Les huit consommateurs Messaging, Resend, Granola, Hermes, Meili, Stripe, Catalogue et n8n ont exécuté leurs six suites depuis leurs archives avec ce SDK : 45 suites réussies, trois suites widgets explicitement non applicables et 170 contrôles. La première tentative du helper avait confondu un champ nommé `from` avec un import ; le helper réutilise désormais l'analyseur TypeScript canonique du dépôt. Aucun résultat de cette tentative interrompue n'est compté comme une réussite.
+
+Cette version distribue les contrats de lecture intermodule, diagnostics, mutations de connecteurs, webhooks signés, recherche et livraisons durables. Elle ne publie pas une application ni ne qualifie un fournisseur réel. Les archives antérieures, le Starter et Lab restent inchangés. Le port de catalogue de navigation destiné à T21 est préparé dans la source SDK 1.7 candidate ; il n'appartient pas à l'archive 1.6 publiée.
+
 ## Chaîne de trois éditeurs — témoin REQ-3004
 
 `tests/modules/three-publishers.test.mjs` construit trois paquets npm de test d'origines distinctes, avec dépendances obligatoires A → B → C et une intégration D facultative absente. Un seul hôte léger les installe hors ligne depuis leurs archives ; les reçus runtime et validation sont vérifiés octet par octet, puis la composition produit réellement ses routes, vues et ressources de widget. Les contrôles refusent B ou C absent, mauvaise origine, mauvaise version, contrat public incompatible, conflit de version et octet installé altéré. L'absence de D désactive seulement la navigation qui le demande.

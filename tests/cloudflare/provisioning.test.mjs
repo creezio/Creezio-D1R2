@@ -7,7 +7,8 @@ const databaseId = '11111111-2222-3333-4444-555555555555';
 const plan = Object.freeze({accountId, bucketName: 'creezio-test-bucket',
   databaseName: 'creezio-test-database', jurisdiction: 'default',
   tokenScope: 'account', transferId: 'transfer-123', workerName: 'creezio-test-worker'});
-function fixture({preexistingD1 = false, publicBucket = false, lostD1 = false} = {}) {
+function fixture({preexistingD1 = false, publicBucket = false, lostD1 = false,
+  workerExists = false} = {}) {
   const calls = []; let database = preexistingD1 ? {name: plan.databaseName, id: databaseId} : null;
   let bucket = null, record = null;
   const control = {accountId,
@@ -15,7 +16,7 @@ function fixture({preexistingD1 = false, publicBucket = false, lostD1 = false} =
     workerSubdomain: async () => 'creezio-subdomain',
     findD1: async () => database,
     bucket: async () => bucket,
-    workerSettings: async () => null,
+    workerSettings: async () => workerExists ? {bindings:[]} : null,
     workerDeployment: async () => null,
     createD1: async name => {
       calls.push('POST:d1:' + record?.stage);
@@ -79,3 +80,18 @@ test('public R2 bucket is refused without attempting to hide or delete it', asyn
   assert.equal(f.current().stage, 'r2-intent');
   assert.equal(f.calls.filter(item => item.startsWith('POST:')).length, 2);
 });
+
+test('adding a pair to an existing Worker requires an exact owner guard throughout provisioning',
+  async()=>{
+    const unguarded=fixture({workerExists:true});
+    await assert.rejects(createCloudflareProvisioner(unguarded).provision(plan),
+      error=>error.code==='worker_exists');
+    assert.equal(unguarded.current(),null);
+    const guarded=fixture({workerExists:true});let checks=0;
+    const provisioner=createCloudflareProvisioner({...guarded,
+      assertWorker:async()=>{checks++;if(checks===3)throw new Error('prior deployment changed');}});
+    await assert.rejects(provisioner.provision(plan),/prior deployment changed/);
+    assert.equal(guarded.current().stage,'d1-created');
+    assert.equal(guarded.calls.filter(item=>item.startsWith('POST:r2:')).length,0);
+    assert.ok(checks>=3);
+  });

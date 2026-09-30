@@ -261,3 +261,85 @@ test('analytics D1, paging, shared emission and admin-only read use engine ACL',
       await assert.rejects(client.readResource({uri:summaryTool._meta.ui.resourceUri}));
     }finally{if(client)await client.close();await runtime.dispose();}
   });
+
+test('manual retention previews and deletes bounded D1 batches with policy and event guards',
+  {timeout:90000},async()=>{
+    const runtime=new Miniflare({host:'127.0.0.1',port:0,cf:false,modules:true,
+      compatibilityDate:'2026-05-15',script:'export default {fetch(){return new Response(null,{status:404})}}',
+      d1Databases:{DB:'creezio-analytics-retention'},d1Persist:false});
+    try{
+      const db=await runtime.getD1Database('DB');
+      await db.batch([...access.statements,...technical.statements,...generated.statements]
+        .map(sql=>db.prepare(sql)));
+      const accounts=createAccountService(db),bootstrap=await provisionBootstrapCapability(db);
+      const password='Synthetic retention qualification password';
+      assert.equal((await accounts.bootstrap({token:bootstrap.token,
+        loginIdentifier:'retention@example.invalid',displayName:'Retention owner',password})).ok,true);
+      const admin=await accounts.login({loginIdentifier:'retention@example.invalid',password,audience:'admin'});
+      const app=await accounts.login({loginIdentifier:'retention@example.invalid',password,audience:'app'});
+      assert.equal(admin.ok,true);assert.equal(app.ok,true);
+      const registered=registry(),engine=createOperationEngine({db,catalog,registry:registered,permissions});
+      const invoke=(operationId,input,session=admin,audience='admin',contextId='application')=>engine.invoke({
+        credential:{kind:'session',token:session.token},moduleId,operationId,contextId,audience,input});
+      await rejected(invoke('retention.preview',{}),'forbidden');
+      await db.prepare(`INSERT INTO "${ACCESS_TABLES.role_grants}" (role_id,permission_id) VALUES (?,?)`)
+        .bind('administrator',`${moduleId}:manage-retention`).run();
+      const absent=succeeded(await invoke('retention.preview',{}));
+      assert.equal(absent.configured,false);assert.equal(absent.retentionDays,null);
+      assert.equal(absent.revision,0);assert.equal(absent.manualOnly,true);
+      assert.equal(absent.cutoff,null);assert.equal(absent.items.length,0);
+      await rejected(invoke('retention.preview',{},app,'app'),'forbidden');
+      await rejected(invoke('retention.preview',{},admin,'admin','another-context'),'forbidden');
+      const configured=succeeded(await invoke('retention.configure',{
+        requestKey:'retention-configure-1',retentionDays:30,expectedRevision:0}));
+      assert.equal(configured.revision,1);assert.equal(configured.manualOnly,true);
+      await rejected(invoke('retention.configure',{
+        requestKey:'retention-configure-stale',retentionDays:90,expectedRevision:0}),'conflict');
+      const eventTable=`"${generated.tables.event}"`;
+      const columns=['context_id','id','principal_id','actor_principal_id','event_type','action_id',
+        'surface','path','error_code','duration_ms','created_at'];
+      const insert=(contextId,id,createdAt)=>db.prepare(`INSERT INTO ${eventTable}
+        (${columns.map(name=>`"${name}"`).join(',')}) VALUES (${columns.map(()=>'?').join(',')})`)
+        .bind(contextId,id,'retention-owner','retention-owner','activity',null,
+          'workspace',null,null,null,createdAt);
+      const old=Array.from({length:15},(_,i)=>insert('application',`old-${String(i).padStart(2,'0')}`,
+        `2025-01-01T00:00:${String(i).padStart(2,'0')}.000Z`));
+      await db.batch([...old,insert('other-context','other-old','2025-01-01T00:00:00.000Z'),
+        insert('application','future',new Date(Date.now()+86_400_000).toISOString())]);
+      const preview=succeeded(await invoke('retention.preview',{}));
+      assert.equal(preview.items.length,10);assert.equal(preview.hasMore,true);
+      assert.ok(preview.items.every(item=>item.id.startsWith('old-')));
+      await rejected(invoke('retention.purge',{requestKey:'future-cutoff',revision:1,
+        cutoff:new Date(Date.now()+86_400_000).toISOString(),items:preview.items}),'invalid_input');
+      await rejected(invoke('retention.purge',{requestKey:'forged-preview',revision:1,
+        cutoff:preview.cutoff,items:[{id:'future',occurredAt:preview.items[0].occurredAt}]}),'conflict');
+      const changed=succeeded(await invoke('retention.configure',{requestKey:'retention-configure-2',
+        retentionDays:45,expectedRevision:1}));
+      assert.equal(changed.revision,2);
+      await rejected(invoke('retention.purge',{requestKey:'stale-policy',revision:1,
+        cutoff:preview.cutoff,items:preview.items}),'conflict');
+      const fresh=succeeded(await invoke('retention.preview',{}));
+      assert.equal(fresh.revision,2);
+      const request=input=>invoke('retention.purge',input);
+      const candidates=await Promise.all(['race-a','race-b'].map(requestKey=>
+        request({requestKey,revision:fresh.revision,cutoff:fresh.cutoff,items:fresh.items})
+          .catch(error=>error)));
+      const winners=candidates.filter(result=>result.execution?.state==='succeeded');
+      assert.equal(winners.length,1,JSON.stringify(candidates));
+      assert.equal(winners[0].execution.output.deleted,10);
+      assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM ${eventTable}
+        WHERE context_id='application' AND id LIKE 'old-%'`).first()).n,5);
+      const next=succeeded(await invoke('retention.preview',{}));
+      assert.equal(next.items.length,5);assert.equal(next.hasMore,false);
+      const last=succeeded(await request({requestKey:'last-batch',revision:next.revision,
+        cutoff:next.cutoff,items:next.items}));
+      assert.equal(last.deleted,5);
+      const replay=succeeded(await request({requestKey:'last-batch',revision:next.revision,
+        cutoff:next.cutoff,items:next.items}));
+      assert.deepEqual(replay,last,'same request key reads the journal without deleting again');
+      assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM ${eventTable}
+        WHERE context_id='application' AND id LIKE 'old-%'`).first()).n,0);
+      assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM ${eventTable}
+        WHERE id IN ('other-old','future')`).first()).n,2);
+    }finally{await runtime.dispose();}
+  });

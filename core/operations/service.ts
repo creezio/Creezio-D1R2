@@ -35,6 +35,8 @@ import type {CompiledWidgetCatalog,WidgetValidatorMap} from '../../sdk/widgets/c
 import type {WidgetApprovalService} from '../widgets/approval.ts';
 import type {WebhookProofAuthority} from '../connectors/webhook-proof.ts';
 import type {DeliveryMapping} from './delivery-types.ts';
+import {createWorkspaceAuthorizationService,type WorkspaceAuthorizationCatalog} from '../workspace/authorization.ts';
+import type {WorkspaceNavigationCatalogV1} from '../../sdk/workspace/navigation-catalog.ts';
 
 export interface OperationRequest {
   readonly credential: DataCredential; readonly moduleId: string; readonly operationId: string;
@@ -108,12 +110,25 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
   readonly webhooks?:Pick<WebhookProofAuthority,'consume'>;
   readonly providerAvailability?: (request: OperationRequest, providerId: string) => Promise<OperationProviderAvailability>;
   readonly runtimeInventory?: ModuleSettingsHostInventory;
+  readonly workspaceCatalog?:WorkspaceAuthorizationCatalog;
+  readonly workspaceNavigationCatalog?:WorkspaceNavigationCatalogV1;
   readonly approvals?:WidgetApprovalService;
   readonly httpBindings?:readonly OperationHttpBinding[];
   readonly widgets?:{readonly catalog:CompiledWidgetCatalog;readonly validators:WidgetValidatorMap} }) {
   const { registry } = options, catalog = copyJson(options.catalog, 4 * 1024 * 1024) as unknown as RuntimeDataCatalog;
   if (catalog.compositionDigest !== registry.compositionDigest) throw new OperationError('invalid_catalog');
   const hostInventory = captureHostInventory(options.runtimeInventory, registry.compositionDigest);
+  const navigationCatalog=options.workspaceNavigationCatalog
+    ?copyJson(options.workspaceNavigationCatalog,262_144) as unknown as WorkspaceNavigationCatalogV1:null;
+  if(navigationCatalog&&(!options.workspaceCatalog||navigationCatalog.compositionDigest!==registry.compositionDigest
+    ||options.workspaceCatalog.compositionDigest!==registry.compositionDigest
+    ||!Array.isArray(navigationCatalog.entries)||navigationCatalog.entries.length>1000
+    ||new Set(navigationCatalog.entries.map(entry=>entry.id)).size!==navigationCatalog.entries.length
+    ||navigationCatalog.entries.some(entry=>!options.workspaceCatalog!.navigation.some(nav=>nav.id===entry.id
+      &&nav.viewId===entry.viewId))))throw new OperationError('invalid_catalog');
+  const navigationAuthorization=navigationCatalog
+    ?createWorkspaceAuthorizationService(options.authorityDb??options.db,
+      {catalog:options.workspaceCatalog!,permissions:options.permissions}):null;
   const data = createDataAccess(options.db, { catalog, permissions: options.permissions,
     authorityDb:options.authorityDb,storageRoute:options.storageRoute }), store = createOperationStore({ db: options.db, data });
   if((options.connectors?.length??0)>16)throw new OperationError('invalid_catalog');
@@ -291,7 +306,9 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           issued.set(token,{write:false,compared:false,webhookGuard:true});
           return token;
         });
-        const moduleConnectors=connectors.filter(item=>item.descriptor.moduleId===operation.moduleId);
+        const moduleConnectors=connectors.filter(item=>item.descriptor.moduleId===operation.moduleId
+          &&op.effects.writes.some(ref=>ref.kind==='model'&&ref.moduleId===operation.moduleId
+            &&ref.id===item.descriptor.vault.modelId));
         const secretConnector=moduleConnectors.length===1?moduleConnectors[0]:null;
         const secretKeyring=secretConnector?options.connectors?.find(item=>item.descriptor.moduleId===operation.moduleId
           &&item.descriptor.id===secretConnector.descriptor.id)?.keyring:null;
@@ -369,6 +386,32 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
             return (await this.preparePublication(categoryId,reference)).plan;
           }} satisfies OperationFilesPort)} : {}),
           ...(operation.moduleId === 'creezio.modules-settings' && hostInventory ? {hostInventory} : {}),
+          ...(operation.moduleId==='creezio.pages-navigation'&&navigationCatalog ? {workspaceNavigation:Object.freeze({
+            async read(){
+              ensure();
+              const identity=data.describeLease(lease);
+              let sessionId:string|null=null,epoch:number|null=null,visible:Set<string>|null=null;
+              if(request.credential.kind==='session'){
+                const checked=await navigationAuthorization!.read(request.credential.token,
+                  identity.audience,identity.contextId);
+                if(!checked.ok||checked.projection.principalId!==identity.principalId)
+                  throw new OperationError('forbidden');
+                sessionId=checked.projection.sessionId;epoch=checked.projection.epoch;
+                visible=new Set(checked.projection.navigationIds);
+              }
+              ensure();
+              const entries=navigationCatalog.entries.filter(entry=>entry.audiences.includes(identity.audience))
+                .map(entry=>{
+                  let available=visible===null||visible.has(entry.id);
+                  if(available&&entry.permissionIds.length){
+                    try{data.requirePermissions(lease,entry.permissionIds);}catch{available=false;}
+                  }
+                  return {...entry,available};
+                });
+              return Object.freeze({compositionDigest:navigationCatalog.compositionDigest,
+                contextId:identity.contextId,audience:identity.audience,sessionId,epoch,
+                entries:Object.freeze(entries)});
+            }} )}:{}),
           ...(operation.moduleId === 'creezio.conversations' && options.widgets ? {widgets:createWidgetOperationPort({
             ...options.widgets,audience:identity.audience,
             authorize(widget){if(widget.permissions.length)data.requirePermissions(lease,widget.permissions);},

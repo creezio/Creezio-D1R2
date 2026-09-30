@@ -1,6 +1,6 @@
 import renderer from 'vinext/server/fetch-handler';
 import { createRuntime } from './core/runtime/dispatch';
-import { modules, compositionDigest, nativeAccess, httpBindings, mcpCatalog, permissions, permissionTitles, workspaceCatalog, frontCatalog, widgetCatalog, widgetValidators } from './.creezio/generated/server';
+import { modules, compositionDigest, nativeAccess, httpBindings, mcpCatalog, permissions, permissionTitles, workspaceCatalog, workspaceNavigationCatalog, frontCatalog, widgetCatalog, widgetValidators } from './.creezio/generated/server';
 import { operationCatalog, operationValidators, operationHandlers } from './.creezio/generated/operations';
 import { dataCatalog } from './.creezio/generated/data-catalog';
 import {fileCatalog} from './.creezio/generated/file-catalog';
@@ -22,7 +22,7 @@ import { resolveAccessHttpConfiguration } from './core/identity/http-policy';
 const registry = createOperationRegistry({catalog: operationCatalog, validators: operationValidators, handlers: operationHandlers});
 const mcpTransportFactory = createMcpHttpTransportFactory(mcpCatalog, registry);
 const declaredHttp = createDeclaredHttpDispatcher({registry, dataCatalog, fileCatalog, permissions, bindings: httpBindings,
-  workspaceCatalog, frontCatalog, runtimeInventory, toolCatalog, widgetCatalog, widgetValidators, connectors,
+  workspaceCatalog, workspaceNavigationCatalog, frontCatalog, runtimeInventory, toolCatalog, widgetCatalog, widgetValidators, connectors,
   search:searchProjections,deliveries:deliveryMappings,webhooks:{mappings:webhookMappings,contextId:frontContextId},
   ...(openAiProvider ? {openAiProvider} : {})});
 const oauthHttp = {dispatch(request: Request, resolved: Parameters<typeof dispatchOAuthHttp>[1], rawEnvironment: unknown,
@@ -36,6 +36,7 @@ const mcpHttp = {async dispatch(request: Request, resolved: Parameters<typeof di
   if (!configuration) return Response.json({error:{code:'runtime_unavailable'},requestId},{status:503,
     headers:{'cache-control':'no-store','x-content-type-options':'nosniff','x-creezio-request-id':requestId}});
   const host=createRuntimeOperationHost({catalog:dataCatalog,registry,permissions,runtimeInventory,httpBindings,
+    workspaceCatalog,workspaceNavigationCatalog,
     connectors,search:searchProjections,deliveries:deliveryMappings,fileCatalog,
     widgets:{catalog:widgetCatalog,validators:widgetValidators},...(openAiProvider?{openAiProvider}:{})},
   resolved,rawEnvironment);

@@ -5,7 +5,7 @@ import path from 'node:path';
 import {createInterface} from 'node:readline';
 import {loadLocalConfiguration} from '../../local/config.mjs';
 import {acquireLocalRuntimeLock} from '../../local/lock.mjs';
-import {openLocalStorage} from '../../local/database.mjs';
+import {openLocalStorage,openLocalStoragePair} from '../../local/database.mjs';
 import {inspectCompositionSchema} from '../../data/apply-schema.mjs';
 import {schemaDigest} from '../../data/composition-schema.mjs';
 import type {VaultKeyring} from '../../../core/vault/crypto.ts';
@@ -14,6 +14,8 @@ import type {CapturedObject,CapturedRow,CapturedTable,SecretSelection,SqlCell,Tr
 
 const ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const HASH=/^sha256-[a-f0-9]{64}$/;
+const groupExportLocks=new WeakSet<object>();
+const poisonedGroupLocks=new WeakSet<object>();
 const SHA=/^[a-f0-9]{40}$/;
 const GIB=1024**3;
 const MIN_FREE_BYTES=20*GIB;
@@ -108,6 +110,14 @@ function policy(entry:ModelEntry):CapturedTable['policy'] {
   if(entry.moduleId==='creezio.access'&&entry.modelId==='access_audit')return 'transform';
   if(entry.moduleId==='creezio.openai'&&['provider_config','provider_secret'].includes(entry.modelId))return 'transform';
   return 'copy';
+}
+function transferPolicy(entry:ModelEntry,sourceContextId:string):CapturedTable['policy']{
+  if(sourceContextId!=='application'&&entry.moduleId==='creezio.runtime'){
+    if(entry.modelId==='storage_routes')return 'transform';
+    if(['storage_grants','storage_mutations','storage_source_receipts'].includes(entry.modelId))
+      return 'skip';
+  }
+  return policy(entry);
 }
 type SourceDb=Awaited<ReturnType<typeof openLocalStorage>>['db'];
 type QuietHistory=Readonly<{rows:ReadonlyMap<string,string>;count:number}>;
@@ -341,6 +351,22 @@ function metadata(value:unknown){
 }
 function isManifest(value:unknown):value is TransferManifest {
   return plain(value)&&value.schemaVersion===1&&plain(value.identity)
+    &&(value.identity.sourceContextId===undefined
+      ?value.identity.routeFence===undefined
+      :typeof value.identity.sourceContextId==='string'
+        &&ID.test(value.identity.sourceContextId)
+        &&value.identity.sourceContextId!=='application'
+        &&plain(value.identity.routeFence)
+        &&Object.keys(value.identity.routeFence).sort().join(',')===
+          'commandDigest,contextId,expectedGeneration,installationId,mutationId,slot'
+        &&value.identity.routeFence.contextId===value.identity.sourceContextId
+        &&ID.test(String(value.identity.routeFence.installationId))
+        &&ID.test(String(value.identity.routeFence.mutationId))
+        &&HASH.test(String(value.identity.routeFence.commandDigest))
+        &&Number.isSafeInteger(value.identity.routeFence.slot)
+        &&Number(value.identity.routeFence.slot)>=1
+        &&Number.isSafeInteger(value.identity.routeFence.expectedGeneration)
+        &&Number(value.identity.routeFence.expectedGeneration)>=1)
     &&HASH.test(String(value.manifestDigest))&&Array.isArray(value.tables)
     &&(value.uncertainHistoryCount===undefined||Number.isSafeInteger(value.uncertainHistoryCount)
       &&Number(value.uncertainHistoryCount)>=0)
@@ -351,21 +377,38 @@ function isManifest(value:unknown):value is TransferManifest {
 /** Capture is materialized while the official local runtime is stopped and the export lock is held. */
 export async function captureLocalTransfer(input:{config:ReturnType<typeof loadLocalConfiguration>;
   plan:Plan;transferId:string;sourceSha:string;target:TransferTarget;directory:string;
+  sourceContextId?:string;
+  groupExportLock?:object;
   secretSelections:readonly SecretSelection[];sourceKeyring?:VaultKeyring;targetKeyring?:VaultKeyring}):Promise<TransferCapture>{
   if(!input||!ID.test(input.transferId)||!SHA.test(input.sourceSha)||!validTarget(input.target)
     ||!input.plan||!HASH.test(input.plan.planDigest)||!HASH.test(input.plan.modelDigest)
     ||!HASH.test(input.plan.compositionDigest)||!HASH.test(input.plan.lockDigest)
-    ||typeof input.directory!=='string'||path.basename(input.directory)!==input.transferId)return fail('invalid_input');
-  const config=loadLocalConfiguration({root:input.config.root,origin:input.config.origin}),
+    ||typeof input.directory!=='string'||path.basename(input.directory)!==input.transferId
+    ||input.sourceContextId!==undefined&&!ID.test(input.sourceContextId)
+    ||input.groupExportLock!==undefined&&!groupExportLocks.has(input.groupExportLock))
+    return fail('invalid_input');
+  const sourceContextId=input.sourceContextId??'application';
+  const localOptions={root:input.config.root,origin:input.config.origin,
+    sandboxOrigin:input.config.sandboxOrigin,operatorOrigin:input.config.operatorOrigin,
+    sandboxBindHost:input.config.sandboxHost,
+    ...(input.config.storageResources?.length?{storageResources:input.config.storageResources}:{}),
+    storageAuthority:Boolean(input.config.storageInstallationId)};
+  const config=loadLocalConfiguration(localOptions),
     chosen=selections(input.secretSelections),entries=modelEntries(input.plan);
+  if(config.storageInstallationId!==input.config.storageInstallationId
+    ||sourceContextId!=='application'&&(!config.storageInstallationId
+      ||!config.storageResources.some(item=>item.contextId===sourceContextId&&item.status==='active')))
+    return fail('invalid_input');
   if([...chosen.values()].some(item=>item.mode==='rewrap')&&(!input.sourceKeyring||!input.targetKeyring))
     return fail('invalid_input');
   await freeSpace(config.root);
   let lock:Awaited<ReturnType<typeof acquireLocalRuntimeLock>>|undefined,
     storage:Awaited<ReturnType<typeof openLocalStorage>>|undefined;
   try{
-    try{lock=await acquireLocalRuntimeLock(config,'export');}
-    catch(error){if((error as {code?:string}).code==='local_busy')return fail('source_busy');throw error;}
+    if(!input.groupExportLock){
+      try{lock=await acquireLocalRuntimeLock(config,'export');}
+      catch(error){if((error as {code?:string}).code==='local_busy')return fail('source_busy');throw error;}
+    }
     let existingDirectory=false;
     try{await lstat(input.directory);existingDirectory=true;}
     catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')return fail('unsafe_path');}
@@ -374,30 +417,29 @@ export async function captureLocalTransfer(input:{config:ReturnType<typeof loadL
       try{existing=await loadCapturedTransfer({config,directory:input.directory,transferId:input.transferId});}
       catch{return fail('capture_incomplete');}
       if(!existing||existing.identity.sourceSha!==input.sourceSha||!same(existing.identity.target,input.target)
-        ||existing.identity.planDigest!==input.plan.planDigest)return fail('capture_incomplete');
+        ||existing.identity.planDigest!==input.plan.planDigest
+        ||(existing.identity.sourceContextId??'application')!==sourceContextId)
+        return fail('capture_incomplete');
       return Object.freeze({manifest:existing,directory:input.directory,async release(){}});
     }
-    storage=await openLocalStorage(config);
+    storage=sourceContextId==='application'?await openLocalStorage(config)
+      :await openLocalStoragePair(config,sourceContextId);
     const inspected=await inspectCompositionSchema(storage.db,input.plan);
     if(inspected.state!=='ready'||!HASH.test(String(inspected.receiptId)))return fail('schema_mismatch');
     const quiet=await preflightEffects(storage.db,entries);
     // A predictable active effect cannot leave a partial capture directory.
     if(!await safeDirectory(config,input.directory,true))return fail('capture_incomplete');
-    const identity:TransferIdentity={transferId:input.transferId,applicationId:input.plan.applicationId,
-      sourceSha:input.sourceSha,compositionDigest:input.plan.compositionDigest as TransferDigest,
-      lockDigest:input.plan.lockDigest as TransferDigest,modelDigest:input.plan.modelDigest as TransferDigest,
-      schemaObjectsDigest:schemaDigest(input.plan.objects) as TransferDigest,
-      planDigest:input.plan.planDigest as TransferDigest,sourceSchemaReceiptId:inspected.receiptId as TransferDigest,
-      target:input.target};
     const policyDigest=schemaDigest(entries.map(entry=>({moduleId:entry.moduleId,modelId:entry.modelId,
-      table:entry.table,policy:policy(entry)}))) as TransferDigest;
+      table:entry.table,policy:transferPolicy(entry,sourceContextId)}))) as TransferDigest;
     const tables:CapturedTable[]=[];
     const seenSecrets=new Set<string>();
+    let routeFence:TransferIdentity['routeFence'];
     for(const entry of entries){
       const columns=entry.model.fields.map(field=>field.id),primaryKey=[...entry.model.primaryKey];
       if(!columns.length||new Set(columns).size!==columns.length||!primaryKey.length
         ||primaryKey.some(key=>!columns.includes(key)))return fail('invalid_input');
-      const action=policy(entry),dataFile=action==='skip'?null:`table-${createHash('sha256').update(entry.table).digest('hex')}.ndjson`;
+      const action=transferPolicy(entry,sourceContextId),dataFile=action==='skip'?null:
+        `table-${createHash('sha256').update(entry.table).digest('hex')}.ndjson`;
       const statement=`SELECT ${columns.map(quote).join(',')} FROM ${quote(entry.table)} ORDER BY ${primaryKey.map(quote).join(',')} LIMIT 1 OFFSET ?`;
       const hash=createHash('sha256');let rowCount=0,sourceRowCount=0,byteLength=0;
       const handle=dataFile?await open(file(input.directory,dataFile),'wx',0o600):null;
@@ -409,6 +451,24 @@ export async function captureLocalTransfer(input:{config:ReturnType<typeof loadL
           if(!row)break;
           checkedState(entry,row,quiet);sourceRowCount++;
           if(action==='skip')continue;
+          if(sourceContextId!=='application'&&entry.moduleId==='creezio.runtime'
+            &&entry.modelId==='storage_routes'){
+            const selected=config.storageResources.find(item=>item.contextId===sourceContextId);
+            if(routeFence||!selected||row.id!==sourceContextId
+              ||row.installation_id!==config.storageInstallationId||row.slot!==selected.slot
+              ||row.state!=='active'||!Number.isSafeInteger(row.generation)
+              ||Number(row.generation)<1||Number(row.generation)>=Number.MAX_SAFE_INTEGER
+              ||!Number.isSafeInteger(row.source_epoch)||Number(row.source_epoch)<1)
+              return fail('integrity_error');
+            const commandDigest=schemaDigest(['first-publish',input.transferId,
+              input.plan.planDigest,config.storageInstallationId,sourceContextId,
+              selected.slot,input.target.databaseId]) as TransferDigest;
+            routeFence={installationId:config.storageInstallationId,contextId:sourceContextId,
+              slot:selected.slot,expectedGeneration:Number(row.generation),commandDigest,
+              mutationId:`transfer:${commandDigest.slice(7,55)}`};
+            row.generation=Number(row.generation)+1;row.state='deny';
+            row.mutation_id=routeFence.mutationId;
+          }
           if(entry.moduleId==='creezio.access'&&entry.modelId==='access_audit')
             row.session_id=null;
           if(entry.moduleId==='creezio.openai'&&entry.modelId==='provider_config'){
@@ -443,6 +503,14 @@ export async function captureLocalTransfer(input:{config:ReturnType<typeof loadL
         policy:action,sourceRowCount,rowCount,byteLength,
         rowDigest:`sha256-${hash.digest('hex')}` as TransferDigest,dataFile});
     }
+    if(sourceContextId!=='application'&&!routeFence)return fail('integrity_error');
+    const identity:TransferIdentity={transferId:input.transferId,applicationId:input.plan.applicationId,
+      sourceSha:input.sourceSha,compositionDigest:input.plan.compositionDigest as TransferDigest,
+      lockDigest:input.plan.lockDigest as TransferDigest,modelDigest:input.plan.modelDigest as TransferDigest,
+      schemaObjectsDigest:schemaDigest(input.plan.objects) as TransferDigest,
+      planDigest:input.plan.planDigest as TransferDigest,
+      sourceSchemaReceiptId:inspected.receiptId as TransferDigest,target:input.target,
+      ...(sourceContextId==='application'?{}:{sourceContextId,routeFence})};
     for(const [key,item] of chosen)if(item.mode==='rewrap'&&!seenSecrets.has(key))return fail('invalid_input');
     const objectSegments:TransferManifest['objects']['segments'][number][]=[],seenKeys=new Set<string>();
     let count=0,bytes=0,cursor:string|undefined,segmentHandle:Awaited<ReturnType<typeof open>>|undefined,
@@ -511,28 +579,66 @@ export async function captureLocalTransfer(input:{config:ReturnType<typeof loadL
     try{await output.writeFile(JSON.stringify(manifest)+'\n');await output.sync();}
     finally{await output.close();}
     await rename(temporary,manifestPath);
-    await storage.dispose();storage=undefined;await lock.release();lock=undefined;
+    await storage.dispose();storage=undefined;
+    if(lock){await lock.release();lock=undefined;}
     return Object.freeze({manifest,directory:input.directory,async release(){}});
   }catch(error){if(error instanceof TransferCaptureError)throw error;
     throw new TransferCaptureError('source_unavailable');}
   finally{
     let closed=true;
     if(storage)try{await storage.dispose();}catch{closed=false;}
+    if(!closed&&input.groupExportLock)poisonedGroupLocks.add(input.groupExportLock);
     if(lock&&closed)await lock.release().catch(()=>{});
     // An uncertain Miniflare closure leaves its lock for manual inspection.
+  }
+}
+
+/** One export lease spans every D1/R2 pair of a stopped routed installation. */
+export async function captureLocalTransferGroup(
+  inputs:readonly Parameters<typeof captureLocalTransfer>[0][]):Promise<readonly TransferCapture[]>{
+  if(!Array.isArray(inputs)||inputs.length<2||inputs.length>17
+    ||inputs.some(item=>item.groupExportLock!==undefined
+      ||item.config!==inputs[0].config||item.sourceSha!==inputs[0].sourceSha))
+    return fail('invalid_input');
+  let lock:Awaited<ReturnType<typeof acquireLocalRuntimeLock>>;
+  try{lock=await acquireLocalRuntimeLock(inputs[0].config,'export');}
+  catch(error){if((error as {code?:string}).code==='local_busy')return fail('source_busy');throw error;}
+  groupExportLocks.add(lock);
+  try{
+    const results:TransferCapture[]=[];
+    for(const input of inputs){
+      const result=await captureLocalTransfer({...input,groupExportLock:lock});
+      await result.release();results.push(result);
+    }
+    return Object.freeze(results);
+  }finally{
+    groupExportLocks.delete(lock);
+    if(!poisonedGroupLocks.has(lock))await lock.release();
   }
 }
 
 /** Resume uses only the immutable snapshot. Every named file is checked; no live recapture occurs. */
 export async function loadCapturedTransfer(input:{config:ReturnType<typeof loadLocalConfiguration>;
   directory:string;transferId:string}):Promise<TransferManifest>{
-  const config=loadLocalConfiguration({root:input.config.root,origin:input.config.origin});
+  const localOptions={root:input.config.root,origin:input.config.origin,
+    sandboxOrigin:input.config.sandboxOrigin,operatorOrigin:input.config.operatorOrigin,
+    sandboxBindHost:input.config.sandboxHost,
+    ...(input.config.storageResources?.length?{storageResources:input.config.storageResources}:{}),
+    storageAuthority:Boolean(input.config.storageInstallationId)};
+  const config=loadLocalConfiguration(localOptions);
+  if(config.storageInstallationId!==input.config.storageInstallationId)return fail('invalid_input');
   await safeDirectory(config,input.directory,false);
   const raw=await readFile(await readSafe(input.directory,'manifest.json'),'utf8');
   if(encoder.encode(raw).length>1_048_576)return fail('integrity_error');
   let manifest:unknown;
   try{manifest=JSON.parse(raw);}catch{return fail('capture_incomplete');}
   if(!isManifest(manifest)||manifest.identity.transferId!==input.transferId)return fail('integrity_error');
+  if(manifest.identity.routeFence){
+    const route=config.storageResources.find(item=>item.contextId===manifest.identity.sourceContextId);
+    if(!config.storageInstallationId||manifest.identity.routeFence.installationId!==config.storageInstallationId
+      ||route?.status!=='active'||route.slot!==manifest.identity.routeFence.slot)
+      return fail('integrity_error');
+  }
   const {manifestDigest,...base}=manifest;
   if(schemaDigest(base)!==manifestDigest)return fail('integrity_error');
   for(const table of manifest.tables){

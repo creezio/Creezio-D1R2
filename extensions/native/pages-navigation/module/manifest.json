@@ -8,8 +8,8 @@
     "version": "0.0.0",
     "source": {
       "kind": "snapshot",
-      "revision": "t21-pages-navigation-v3",
-      "integrity": "sha256-f1b2fd5ddcd1bc049daff99cddbc8dd7d388e9e45d2fbe2ec41456c60893fff0"
+      "revision": "t21-pages-navigation-v4",
+      "integrity": "sha256-228f30b05d58d62c84626427a7b882957660ad2fe7c7752eecde32e284c84203"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -18,7 +18,7 @@
   },
   "compatibility": {
     "core": "^0.0.0",
-    "sdk": "^1.6.0",
+    "sdk": "^1.7.0",
     "requiredCapabilities": [
       "runtime.worker",
       "data.d1.shared",
@@ -1813,6 +1813,354 @@
         }
       },
       {
+        "id": "sidebar-catalog-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "compositionDigest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "contextId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "audience": {
+              "type": "string",
+              "enum": [
+                "admin",
+                "app"
+              ]
+            },
+            "sessionId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "epoch": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "entries": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "moduleId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "viewId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 240
+                  },
+                  "order": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  },
+                  "route": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "audiences": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "admin",
+                        "app"
+                      ]
+                    },
+                    "maxItems": 2
+                  },
+                  "permissionIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 257
+                    },
+                    "maxItems": 64
+                  },
+                  "available": {
+                    "type": "boolean"
+                  },
+                  "hidden": {
+                    "type": "boolean"
+                  },
+                  "displayTitle": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 240
+                  },
+                  "displayOrder": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  }
+                },
+                "required": [
+                  "id",
+                  "moduleId",
+                  "viewId",
+                  "title",
+                  "order",
+                  "route",
+                  "audiences",
+                  "permissionIds",
+                  "available",
+                  "hidden",
+                  "displayTitle",
+                  "displayOrder"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 1000
+            }
+          },
+          "required": [
+            "compositionDigest",
+            "contextId",
+            "audience",
+            "sessionId",
+            "epoch",
+            "revision",
+            "entries"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "sidebar-resolved-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "compositionDigest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "contextId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "audience": {
+              "type": "string",
+              "enum": [
+                "admin",
+                "app"
+              ]
+            },
+            "sessionId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "epoch": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "viewId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 240
+                  },
+                  "order": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  }
+                },
+                "required": [
+                  "id",
+                  "viewId",
+                  "title",
+                  "order"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 1000
+            }
+          },
+          "required": [
+            "compositionDigest",
+            "contextId",
+            "audience",
+            "sessionId",
+            "epoch",
+            "revision",
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "sidebar-save-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "expectedRevision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "edits": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "hidden": {
+                    "type": "boolean"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "order": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 100
+            },
+            "resetIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "maxItems": 100
+            }
+          },
+          "required": [
+            "requestKey",
+            "expectedRevision",
+            "edits",
+            "resetIds"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "sidebar-save-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "updatedAt": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 35
+            },
+            "updatedBy": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "revision",
+            "updatedAt",
+            "updatedBy"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
         "id": "editor-view-input",
         "schema": {
           "type": "object",
@@ -1863,7 +2211,8 @@
               "type": "string",
               "enum": [
                 "pages",
-                "navigation"
+                "navigation",
+                "sidebar"
               ]
             },
             "pending": {
@@ -2931,6 +3280,96 @@
           "requiresApproval": false
         },
         "public": false
+      },
+      {
+        "id": "sidebar_overrides",
+        "title": "Présentation de la barre latérale du workspace",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "workspace"
+              ]
+            }
+          },
+          {
+            "id": "overrides",
+            "type": "json",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "updated_by",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "sidebar.manage"
+          },
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "sidebar.read"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
       }
     ],
     "files": [
@@ -3067,6 +3506,11 @@
           },
           {
             "moduleId": "creezio.pages-navigation",
+            "kind": "model",
+            "id": "sidebar_overrides"
+          },
+          {
+            "moduleId": "creezio.pages-navigation",
             "kind": "file",
             "id": "media"
           }
@@ -3131,6 +3575,75 @@
             "moduleId": "creezio.pages-navigation",
             "kind": "file",
             "id": "media"
+          }
+        ],
+        "actions": [
+          "read",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      },
+      {
+        "id": "sidebar.manage",
+        "title": "Gérer la présentation de la barre latérale",
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "scopes": [
+          "pages.sidebar.manage"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "model",
+            "id": "sidebar_overrides"
+          }
+        ],
+        "actions": [
+          "read",
+          "create",
+          "update",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      },
+      {
+        "id": "sidebar.read",
+        "title": "Lire la présentation de la barre latérale",
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "scopes": [
+          "pages.sidebar.read"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "model",
+            "id": "sidebar_overrides"
           }
         ],
         "actions": [
@@ -5593,6 +6106,355 @@
           ]
         },
         "public": false
+      },
+      {
+        "id": "sidebar.catalog",
+        "title": "Lire le catalogue de la barre latérale",
+        "kind": "query",
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "sidebar-catalog-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "sidebar.manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "sidebarCatalog"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "sidebar_overrides"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 1,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "sidebar.resolved",
+        "title": "Lire la barre latérale autorisée",
+        "kind": "query",
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "sidebar-resolved-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "sidebar.read"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "sidebarResolved"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "sidebar_overrides"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 1,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "sidebar.save",
+        "title": "Adapter la barre latérale",
+        "kind": "command",
+        "input": {
+          "schemaId": "sidebar-save-input"
+        },
+        "output": {
+          "schemaId": "sidebar-save-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "permission",
+            "id": "sidebar.manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "sidebarSave"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "sidebar_overrides"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "model",
+              "id": "sidebar_overrides"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 2,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "sections",
+            "settings",
+            "seo",
+            "items"
+          ]
+        },
+        "public": false
       }
     ],
     "api": [
@@ -6391,6 +7253,114 @@
           "requests": 60,
           "windowSeconds": 60
         }
+      },
+      {
+        "id": "admin.sidebar.catalog",
+        "method": "GET",
+        "path": "/api/admin/pages-navigation/sidebar/catalog",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "sidebar.catalog"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "sidebar-catalog-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.sidebar.resolved",
+        "method": "GET",
+        "path": "/api/admin/pages-navigation/sidebar/resolved",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "sidebar.resolved"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "sidebar-resolved-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.sidebar.resolved",
+        "method": "GET",
+        "path": "/api/app/pages-navigation/sidebar/resolved",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "sidebar.resolved"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "empty-input"
+        },
+        "output": {
+          "schemaId": "sidebar-resolved-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.sidebar.save",
+        "method": "POST",
+        "path": "/api/admin/pages-navigation/sidebar/save",
+        "operation": {
+          "moduleId": "creezio.pages-navigation",
+          "kind": "operation",
+          "id": "sidebar.save"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "sidebar-save-input"
+        },
+        "output": {
+          "schemaId": "sidebar-save-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
       }
     ],
     "mcp": {
@@ -6979,6 +7949,94 @@
             "openWorld": false
           },
           "textFallback": true
+        },
+        {
+          "id": "sidebar.catalog",
+          "name": "pages_sidebar_catalog",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "sidebar.catalog"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "empty-input"
+          },
+          "output": {
+            "schemaId": "sidebar-catalog-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "sidebar.resolved",
+          "name": "pages_sidebar_resolved",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "sidebar.resolved"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "empty-input"
+          },
+          "output": {
+            "schemaId": "sidebar-resolved-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "sidebar.save",
+          "name": "pages_sidebar_save",
+          "operation": {
+            "moduleId": "creezio.pages-navigation",
+            "kind": "operation",
+            "id": "sidebar.save"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "sidebar-save-input"
+          },
+          "output": {
+            "schemaId": "sidebar-save-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
         }
       ],
       "resources": [],
@@ -7065,6 +8123,16 @@
               "moduleId": "creezio.pages-navigation",
               "kind": "operation",
               "id": "media.unlink"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "sidebar.catalog"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "sidebar.save"
             }
           ],
           "resources": [],
@@ -7192,6 +8260,21 @@
               "moduleId": "creezio.pages-navigation",
               "kind": "operation",
               "id": "media.unlink"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "sidebar.catalog"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "sidebar.resolved"
+            },
+            {
+              "moduleId": "creezio.pages-navigation",
+              "kind": "operation",
+              "id": "sidebar.save"
             }
           ],
           "input": {
@@ -7420,7 +8503,7 @@
     },
     "versionBinding": {
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t21-pages-navigation-v3"
+      "sourceRevision": "t21-pages-navigation-v4"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -7437,7 +8520,8 @@
         "mode": "required",
         "script": "ci/backend.mjs",
         "tests": [
-          "tests/backend/contract.test.mjs"
+          "tests/backend/contract.test.mjs",
+          "tests/backend/sidebar.test.mjs"
         ]
       },
       "ui": {
@@ -7504,8 +8588,10 @@
         "module/entry.server.ts",
         "module/operations.ts",
         "module/service.ts",
+        "module/sidebar.ts",
         "ui/contracts.ts",
         "ui/index.tsx",
+        "ui/sidebar.tsx",
         "ui/front-page.tsx",
         "ui/front-nav.tsx",
         "ui/front-link.ts",
@@ -7537,6 +8623,7 @@
         "module/generate-manifest.mjs",
         "ci/run-suite.mjs",
         "tests/helpers.mjs",
+        "tests/backend/sidebar.test.mjs",
         "ci/backend.mjs",
         "tests/backend/contract.test.mjs",
         "ci/ui.mjs",
@@ -7555,7 +8642,7 @@
     "validationBinding": {
       "moduleId": "creezio.pages-navigation",
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t21-pages-navigation-v3"
+      "sourceRevision": "t21-pages-navigation-v4"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",

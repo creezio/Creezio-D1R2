@@ -19,6 +19,10 @@ export type EndpointDiagnostic={moduleId:string;operationId:string;audience:'adm
   path:string;kind:'query'|'command'};
 export type EndpointDiagnosticsPage={items:EndpointDiagnostic[];nextCursor:string|null;complete:boolean;
   source:'compiled-http-bindings'|'unavailable'};
+export type RetentionPreview={configured:boolean;retentionDays:number|null;revision:number;
+  manualOnly:true;cutoff:string|null;items:{id:string;occurredAt:string}[];hasMore:boolean};
+export type RetentionPolicy=Pick<RetentionPreview,'configured'|'retentionDays'|'revision'|'manualOnly'>;
+export type RetentionPurgeResult={deleted:number;hasMore:boolean;cutoff:string;revision:number};
 export type Scope=Pick<WorkspaceViewProps,'client'|'access'|'audience'|'contextId'>;
 export type Result<T>={kind:'ok';value:T}|{kind:'error';code:string};
 export async function call<T>(scope:Scope,operation:string,input:Record<string,unknown>,isCurrent:()=>boolean):Promise<Result<T>>{

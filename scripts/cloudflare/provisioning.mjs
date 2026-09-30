@@ -23,11 +23,18 @@ function checkedPlan(plan, accountId) {
 }
 
 /** journal: load(transferId), create(record), compareAndSave(previous,next). */
-export function createCloudflareProvisioner({control, journal}) {
+export function createCloudflareProvisioner({control, journal, assertWorker}) {
   if (!control || !ACCOUNT.test(control.accountId ?? '') ||
       !journal || typeof journal.load !== 'function' ||
-      typeof journal.create !== 'function' || typeof journal.compareAndSave !== 'function')
+      typeof journal.create !== 'function' || typeof journal.compareAndSave !== 'function' ||
+      assertWorker !== undefined && typeof assertWorker !== 'function')
     fail('invalid_configuration');
+  async function checkedWorker(probe) {
+    if (assertWorker) {
+      if (!probe.workerExists) fail('worker_changed');
+      await assertWorker();
+    } else if (probe.workerExists) fail('worker_exists');
+  }
   const identity = record => Object.freeze({accountId: record.plan.accountId,
     workerName: record.plan.workerName, databaseId: record.databaseId,
     bucketName: record.plan.bucketName, jurisdiction: record.plan.jurisdiction,
@@ -57,7 +64,8 @@ export function createCloudflareProvisioner({control, journal}) {
       control.verifyToken(plan.tokenScope), control.workerSubdomain()
     ]);
     const probe = await inspected({plan});
-    if (probe.database || probe.bucket || probe.workerExists) fail('resource_exists');
+    await checkedWorker(probe);
+    if (probe.database || probe.bucket) fail('resource_exists');
     const record = Object.freeze({schemaVersion: 1, revision: 1, plan,
       tokenId: token.id, subdomain, stage: 'prepared', databaseId: null,
       bucketCreatedAt: null, intentAt: null});
@@ -73,7 +81,7 @@ export function createCloudflareProvisioner({control, journal}) {
     if (verified.id !== record.tokenId) fail('token_changed');
     if (await control.workerSubdomain() !== record.subdomain) fail('subdomain_changed');
     let probe = await inspected(record);
-    if (probe.workerExists) fail('worker_exists');
+    await checkedWorker(probe);
     if (record.stage === 'd1-intent') return {state: 'unknown',
       resource: 'd1', candidateId: probe.database?.id ?? null};
     if (record.stage === 'r2-intent') return {state: 'unknown',
@@ -92,7 +100,8 @@ export function createCloudflareProvisioner({control, journal}) {
       probe = await inspected(record);
     }
     if (record.stage === 'd1-created') {
-      if (!probe.database || probe.database.id !== record.databaseId || probe.bucket || probe.workerExists)
+      await checkedWorker(probe);
+      if (!probe.database || probe.database.id !== record.databaseId || probe.bucket)
         fail('resource_conflict');
       record = await save(record, {stage: 'r2-intent', intentAt: new Date().toISOString()});
       let created;
@@ -108,8 +117,9 @@ export function createCloudflareProvisioner({control, journal}) {
         intentAt: null});
       probe = await inspected(record);
     }
+    await checkedWorker(probe);
     if (record.stage !== 'ready' || !probe.database || probe.database.id !== record.databaseId ||
-        !probe.bucket?.private || probe.bucket.name !== plan.bucketName || probe.workerExists)
+        !probe.bucket?.private || probe.bucket.name !== plan.bucketName)
       fail('resource_conflict');
     return {state: 'ready', target: identity(record)};
   }

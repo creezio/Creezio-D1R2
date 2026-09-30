@@ -10,7 +10,8 @@ import {createAuthorizationService} from '../../core/authorization/service.ts';
 import {createOperationRegistry} from '../../core/operations/registry.ts';
 import {createOperationEngine} from '../../core/operations/service.ts';
 import {createVaultKeyring,createVaultReference} from '../../core/vault/crypto.ts';
-import {n8nConnectorDescriptor} from '../../extensions/connectors/n8n/module/storage.ts';
+import {n8nConnectorDescriptor,n8nWebhookDescriptor} from '../../extensions/connectors/n8n/module/storage.ts';
+import {OperationError} from '../../core/operations/types.ts';
 
 const json=path=>JSON.parse(readFileSync(new URL(path,import.meta.url),'utf8'));
 const manifest=json('../../extensions/connectors/n8n/module/manifest.json');
@@ -50,7 +51,7 @@ const terminalOrUnknown=async promise=>{
 };
 function gate(){let open;const waiting=new Promise(resolve=>{open=resolve;});return {waiting,open};}
 
-async function fixture({maxItems=4}={}){
+async function fixture({maxItems=4,secretProbe}={}){
   const runtime=new Miniflare({host:'127.0.0.1',port:0,cf:false,modules:true,
     compatibilityDate:'2026-05-15',script:'export default {fetch(){return new Response(null,{status:404})}}',
     d1Databases:{DB:'creezio-connector-command-proof'},d1Persist:false});
@@ -79,8 +80,13 @@ async function fixture({maxItems=4}={}){
     db.prepare(`INSERT INTO "${generated.tables.connector_secret}"(context_id,id,binding_id,ciphertext,key_id,version,state)
       VALUES(?,?,?,?,?,?,?)`).bind('application',reference,connectorId,ciphertext,'proof-key',1,'active'),
   ]);
-  let calls=0,ready=gate(),release=gate(),hold=false,skipGet=false;
+  let calls=0,ready=gate(),release=gate(),hold=false,skipGet=false,secretPortObserved;
   const handler=async(input,context)=>{
+    if(secretProbe){
+      secretPortObserved=Boolean(context.providerSecrets);
+      if(!context.providerSecrets)throw new OperationError('forbidden');
+      return {output:{id:input.id},plans:[]};
+    }
     if(skipGet)return {output:{id:input.id},plans:[context.data.planCreate('projection',
       {values:{id:input.id,value:'untrusted'}})]};
     const remote=await context.connector.request({resource:'workflows',limit:1});
@@ -90,25 +96,52 @@ async function fixture({maxItems=4}={}){
       {values:{id:input.id,value:remote.body.data[0].id}})]};
   };
   const declared={...operation,execution:{...operation.execution,maxItems}};
+  if(secretProbe){
+    declared.id='config.key.probe';
+    declared.effects={...declared.effects,providers:[],writes:secretProbe==='ambiguous'
+      ?[ref('model',n8nConnectorDescriptor.vault.modelId),ref('model',n8nWebhookDescriptor.vault.modelId)]
+      :[ref('model','projection')]};
+  }
   const registry=createOperationRegistry({catalog:{schemaVersion:1,compositionDigest:digest,modules:[{moduleId,
     version:manifest.identity.version,enabled:true,
     schemas:[{schemaId:'sync-input',validator:'input'},{schemaId:'sync-output',validator:'output'}],
     operations:[{operation:declared,active:true,contractDigest:digest,inputValidator:'input',outputValidator:'output'}]}]},
     validators:{input:value=>!!value&&typeof value.requestKey==='string'&&typeof value.id==='string',
-      output:value=>!!value&&typeof value.id==='string'},handlers:{[`${moduleId}:sync.page`]:handler}});
+      output:value=>!!value&&typeof value.id==='string'},handlers:{[`${moduleId}:${declared.id}`]:handler}});
   const engine=createOperationEngine({db,catalog,registry,permissions,
     connectors:[{descriptor:n8nConnectorDescriptor,keyring,fetcher:async()=>{calls++;
-      return Response.json({data:[{id:'wf-1'}]});}}]});
+      return Response.json({data:[{id:'wf-1'}]});}},
+      ...(secretProbe?[{descriptor:n8nWebhookDescriptor,keyring,fetcher:async()=>{
+        calls++;throw new Error('No provider call is allowed in a key-selection probe');
+      }}]:[])]});
   const invoke=(id,requestKey)=>engine.invoke({credential:{kind:'session',token:admin.token},moduleId,
-    operationId:'sync.page',contextId:'application',audience:'admin',input:{id,requestKey}});
+    operationId:declared.id,contextId:'application',audience:'admin',input:{id,requestKey}});
   const lookup=requestKey=>engine.lookup({credential:{kind:'session',token:admin.token},moduleId,
-    operationId:'sync.page',contextId:'application',audience:'admin',requestKey});
+    operationId:declared.id,contextId:'application',audience:'admin',requestKey});
   const projected=id=>db.prepare(`SELECT id,value FROM "${generated.tables.projection}" WHERE context_id=? AND id=?`)
     .bind('application',id).first();
   return {runtime,db,admin,owner,acl,keyring,reference,invoke,lookup,projected,get calls(){return calls;},
+    get secretPortObserved(){return secretPortObserved;},
     pause(){hold=true;ready=gate();release=gate();return {entered:ready.waiting,resume:release.open};},
     skip(){skipGet=true;}};
 }
+
+test('key commands cannot select an ambiguous or undeclared connector vault', {timeout:30000},async()=>{
+  for(const secretProbe of ['ambiguous','unrelated']){
+    const f=await fixture({secretProbe});
+    try{
+      const before=await f.db.prepare(`SELECT * FROM "${generated.tables.connector_secret}"`).all();
+      const result=await f.invoke(secretProbe,`vault-probe-${secretProbe}`);
+      assert.equal(f.secretPortObserved,false);
+      assert.equal(result.execution.state,'failed');
+      assert.equal(result.execution.errorCode,'forbidden');
+      assert.equal(f.calls,0);
+      assert.equal(await f.projected(secretProbe),null);
+      assert.deepEqual((await f.db.prepare(`SELECT * FROM "${generated.tables.connector_secret}"`).all()).results,before.results);
+      assert.equal((await f.db.prepare(`SELECT COUNT(*) AS count FROM "${generated.tables.webhook_secret}"`).first()).count,0);
+    }finally{await f.runtime.dispose();}
+  }
+});
 
 test('command GET proofs and business projection commit atomically in real D1', {timeout:30000},async()=>{
   const f=await fixture();

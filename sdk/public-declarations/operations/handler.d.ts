@@ -49,6 +49,7 @@ export interface ProviderSecretsPort {
 import type {OperationFilesPort} from '@creezio/sdk/files/types';
 import type {ConnectorPort} from '@creezio/sdk/connectors/types';
 import type {SearchProjectionPort} from '@creezio/sdk/search/types';
+import type {WorkspaceNavigationCatalogPortV1} from '@creezio/sdk/workspace/navigation-catalog';
 export interface OperationProviderAvailability {
   readonly providerId:string;readonly state:'ready'|'missing'|'invalid'|'unavailable';
   readonly modelIds:readonly string[];
@@ -76,6 +77,7 @@ export interface OperationContext {
       source:'compiled-http-bindings'|'unavailable'}>;
   };
   readonly operations?:{query(request:{moduleId:string;operationId:string;input:JsonValue}):Promise<JsonValue>};
+  readonly workspaceNavigation?:WorkspaceNavigationCatalogPortV1;
 }
 export interface OperationHandlerResult {readonly output:unknown;readonly plans?:readonly DataPlan[];
   readonly outbox?:readonly OperationOutboxIntent[]}

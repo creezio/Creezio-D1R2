@@ -185,7 +185,7 @@ function scalarLiteral(value) {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
-function fieldSQL(field) {
+export function fieldSQL(field) {
   const name = quote(field.id), constraints = field.constraints ?? {}, checks = [];
   switch (field.type) {
     case 'string': checks.push(`typeof(${name}) = 'text'`, `instr(${name}, char(0)) = 0`); break;
@@ -212,6 +212,19 @@ function fieldSQL(field) {
   return `${name} ${SQL_TYPES[field.type]}${field.nullable ? '' : ' NOT NULL'}${defaultSQL} CHECK (${sqlCheck})`;
 }
 
+/** Canonical table definition for a model already validated by the composition compiler.
+ * The central additive publisher also uses this with a projection of existing fields. */
+export function modelTableSQL(moduleId, model) {
+  const table = sqlTableName(moduleId, model.id);
+  const clauses = [...model.fields].sort(compareIds).map(fieldSQL);
+  clauses.push(`PRIMARY KEY (${model.primaryKey.map(quote).join(', ')})`);
+  for (const relation of [...model.relations].sort(compareIds)) {
+    clauses.push(`FOREIGN KEY (${relation.fields.map(quote).join(', ')}) REFERENCES ${quote(sqlTableName(moduleId, relation.target.id))}` +
+      ` (${relation.targetFields.map(quote).join(', ')}) ON DELETE ${DELETE_ACTIONS[relation.onDelete]}`);
+  }
+  return `CREATE TABLE ${quote(table)} (\n  ${clauses.join(',\n  ')}\n) WITHOUT ROWID;`;
+}
+
 function compile(moduleId, models) {
   requireId(moduleId, '/moduleId');
   const inspected = inspectJson(models);
@@ -227,14 +240,8 @@ function compile(moduleId, models) {
   for (const model of ordered) {
     const table = sqlTableName(moduleId, model.id);
     tables[model.id] = table;
-    const clauses = [...model.fields].sort(compareIds).map(fieldSQL);
-    clauses.push(`PRIMARY KEY (${model.primaryKey.map(quote).join(', ')})`);
-    for (const relation of [...model.relations].sort(compareIds)) {
-      clauses.push(`FOREIGN KEY (${relation.fields.map(quote).join(', ')}) REFERENCES ${quote(sqlTableName(moduleId, relation.target.id))}` +
-        ` (${relation.targetFields.map(quote).join(', ')}) ON DELETE ${DELETE_ACTIONS[relation.onDelete]}`);
-    }
     // WITHOUT ROWID prevents INTEGER PRIMARY KEY from silently allocating an id for NULL.
-    objects.push({ type: 'table', name: table, table, sql: `CREATE TABLE ${quote(table)} (\n  ${clauses.join(',\n  ')}\n) WITHOUT ROWID;` });
+    objects.push({ type: 'table', name: table, table, sql: modelTableSQL(moduleId, model) });
   }
   for (const model of ordered) for (const index of [...model.indexes].sort(compareIds)) {
     const name = indexName(moduleId, model.id, index.id), table = tables[model.id];
