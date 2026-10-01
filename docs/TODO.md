@@ -1,5 +1,17 @@
 # Backlog de réalisation
 
+## Révision 63 — PR #84 livrée, SDK 1.9 public, recettes ciblées (1er octobre 2026)
+
+Core main `9ce856cb`/arbre `59bf248e` passe 1 454/1 454 en CI candidate et main. Linux sert cette source sur le volume conservé ; Cloudflare Core sert la même source après update `c01a71c4` livré et registre synchronisé (101 modules/72 assets). SDK 1.9.0 est public, archive Linux SHA-256 `b10cc8ca47bad85d3f22124e0b3da214cea15610330fc650a8c107cba189eb2a`, 88 108 octets/93 fichiers ; 12 consommateurs, 72 suites dont 68 réussies et quatre non applicables, 296 tests. La publication du SDK, l'activation Linux et l'update Cloudflare sont trois reçus indépendants.
+
+T21 : la recette publique antérieure reste acquise. Sur `9ce856c`, les champs SEO de la page témoin sont enregistrés et une publication protégée est confirmée ; la nouvelle publication publique s'est arrêtée sur la confirmation navigateur, son GET anonyme reste 404. Aucun rendu SEO public ni déconnexion de cette session n'est revendiqué. T28 : la carte Meili montre la source Catalogue et l'état prêt à l'ouverture et après rechargement, sans Actualiser ; la tâche fournisseur 166 et la recherche native du produit restent la recette précédente. Widget et autres reconstructions non qualifiés.
+
+T20 : une recette API native a créé deux contacts témoins, parcouru deux pages avec `limit=1`, archivé le seul témoin A (révision 2) et confirmé son refus en lecture active `not_found` ; B et les enregistrements antérieurs sont conservés. Elle ne qualifie pas le navigateur ni les widgets. T19 : les deux boîtes existantes ont chacune zéro message et pas de page suivante ; aucune liaison Support→message réel n'a été exercée, aucun appel fournisseur.
+
+T33 : le projet/volume isolé et deux couples locaux ont été initialisés, mais l'installation du propriétaire reste non confirmée. Le D1 principal a un reçu de schéma et 118 tables/114 index, sans bootstrap ni ligne d'autorisation ; `source_unconfirmed` bloque la suite. Conserver volume et credential, diagnostiquer en lecture seule avant toute reprise. Aucune paire T33 publiée sur Cloudflare. T27 : la tranche Checkout/webhook reste candidate à une recette Stripe réelle en mode test ; aucun effet Stripe nouveau n'est établi par ces reçus.
+
+Restent dans le mandat actuel : preuve Pages SEO publique/visuelle lorsque le dialogue est résolu, cas Meili/widget et reconstruction restants, CRM/Support/Messaging en interface et avec message réel lorsque disponible, Stripe en mode test, T33 deux couples locaux puis Cloudflare, et recettes différées des autres fournisseurs. T39 attend le test utilisateur. Les reports explicites T17/T23/T24, T34/T35, WinHub/TempoFlow et compléments comptes/données/opérations/OAuth ne sont pas rouverts par cette révision.
+
 ## Révision 62 — PR #83 intégrée, SDK 1.8 public et recette Meili réelle (1er octobre 2026)
 
 PR #83 intègre les pièces jointes entrantes par squash sur Core main `123980763be202250a32986cfc16342293b9cc31`, arbre `a849536cac0ee86988d0f15dab607ba5c0286b91`. Ses CI candidate et main passent 1 447/1 447 tests sans omission ; le run main 36799636434 est qualifié. SDK 1.9/Resend 0.2 restent candidats et aucun envoi Resend réel n'en découle. Ce merge ne qualifie aucune livraison Cloudflare. Le [SDK 1.8.0 public](https://github.com/creezio/Creezio-D1R2/releases/download/sdk-v1.8.0/creezio-sdk-1.8.0.tgz) provient du main précédent `7aeac0c295d5c3ce80ef211f8ae4022892e7a19e`, arbre `53325f6be2f84dc0158693a84fe4f5858ada4337` : archive Linux attestée SHA-256 `c19f9f520f54cb50cdc306bd2ab0947544e2fb32a70b019a3eb86eb2a2d2d223`, 79 022 octets et 84 entrées. Dix consommateurs de cette archive exacte passent 60 suites (58 réussies, deux non applicables) et 238 tests ; l'asset public et la release sont vérifiés par `outputs/CREEZIO-SDK18-PUBLIC-RELEASE-2026-10-01.json`. L'image Linux de `7aeac0c` est active sur le volume conservé, avec schéma prêt et témoins relus (`outputs/CREEZIO-PR82-LINUX-DELIVERY-SDK18-2026-10-01.json`). Aucune application n'adopte automatiquement le nouvel SDK.
@@ -546,6 +558,9 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 
 <a id="T-33"></a>
 ## T-33 — Stockages distincts hors Sites
+
+- Correctif d'installation des profils larges : garde de vacuité équilibrée, cinq tests Linux réussis sur le profil à au moins 114 tables. La reprise de l'installation T33 réelle reste ouverte ; conserver sa composition tant que le premier compte n'est pas installé. Voir [le contrat et ses preuves](IMPLEMENTATION-T33.md#installation-avec-le-profil-complet-de-modules).
+
 
 - Lot : **P6** ; état : **en cours — code intégré et schéma adopté sur Linux, recette isolée multi-couple ouverte** ; responsabilités : intégration Git/livraison, installation/revue locale, configuration persistée et recette réelle traitées par des responsables distincts.
 - Dépendances : [T-32](#T-32).

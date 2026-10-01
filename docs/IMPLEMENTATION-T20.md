@@ -1,5 +1,9 @@
 # T20 — CRM natif
 
+## Recette API native CRM sur Linux main `9ce856c` — 1er octobre 2026
+
+Deux contacts témoins nouveaux ont été créés sous le même propriétaire/contexte. Une recherche `limit=1` avec curseur a parcouru deux pages contenant exactement leurs ID. Le contact A a été archivé par la commande native (révision 1→2) ; la recherche active n'a conservé que B, la recherche archivée retrouve A, et la lecture active de A répond `not_found`. B et les enregistrements métier antérieurs sont préservés ; aucune suppression physique n'a eu lieu. Le journal a confirmé les trois intentions. Cette recette API ne couvre ni les vues navigateur ni les widgets ; voir `CREEZIO-T20-T19-NATIVE-RECIPE-9CE856C-2026-10-01.json`.
+
 Réalisation de [REQ-2001](EXIGENCES.md#REQ-2001) et [US-20](USER-STORIES.md#US-20), suivie dans le [backlog](TODO.md#T-20). Branche `core/t20-native-crm`, depuis le socle intégrant la messagerie PR #42.
 
 ## Données et interfaces

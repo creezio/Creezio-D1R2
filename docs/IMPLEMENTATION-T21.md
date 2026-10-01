@@ -1,5 +1,9 @@
 # T21 — Pages et navigation
 
+## Saisie SEO partielle sur Linux main `9ce856c` — 1er octobre 2026
+
+Sur la page témoin existante, titre, description et URL canonique ont été saisis et enregistrés au brouillon v10 ; une publication **protégée** a été confirmée (publication v5, brouillon v11). Une tentative de publication publique suivante a affiché sa confirmation, mais son acceptation n'a pas été observée : GET anonyme 404 après la tentative. Le contrôle du dialogue/onglet navigateur a échoué, la session n'est pas déconnectée et aucun nouvel appui sur Publier ne doit être déduit de ce reçu. Celui-ci ne qualifie ni le HTML SEO public ni le rendu de la description/canonical saisis. La recette publique antérieure sur `3d42489` reste distincte et valide pour son autre révision.
+
 ## Publication publique vérifiée sur Linux main — 1er octobre
 
 La recette sur Core main `3d4248960f4ff56d9fdf5e956abe26d6e202f174`, image Linux `sha256:caff5af853c3670c43cc9d64f4955af10d7b456c79e28bf9dd2fc286864cf523`, a exercé dans l’interface originale une page déjà protégée (brouillon v7, publication v2), puis le choix explicite « Accès public sans connexion » (v8/v3) et une republication protégée (v9/v4). Sans cookie, `GET /p?slug=...` est passé de 404 à 200, puis à 404 après révocation. L’image PNG de 202 octets citée par la version publique a été servie en 200 avec SHA-256 `54fc933a66e82a89867171bea2648b76447e07ea1182cbab521ea937234f67d9` ; son ancienne révision et les deux URL média après révocation ont répondu 404. Le navigateur a montré cette même image en 32 × 32 et le HTML serveur contenait title et canonical. Le reçu `outputs/CREEZIO-T21-LINUX-PUBLIC-RECIPE-2026-10-01.json` (SHA-256 `7ca6d3d2900f2b3f0c67d9906835c5e0fdc5846b697ccd97d8981dc1fee987f1`) lie les trois reçus HTTP et les deux captures ; la déconnexion UI est confirmée.

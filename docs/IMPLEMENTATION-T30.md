@@ -1,5 +1,9 @@
 # Réalisation T30 — SDK distribué et starter de module
 
+## SDK 1.9.0 public depuis Core main `9ce856c` — 1er octobre 2026
+
+Le tag `sdk-v1.9.0` vise `9ce856cb1cbb2f9fa576c5fae0f7b4be09488cb9` (arbre `59bf248ef823980e2ff243d811f7edd663e427f4`). L'archive qualifiée sur Linux est SHA-256 `b10cc8ca47bad85d3f22124e0b3da214cea15610330fc650a8c107cba189eb2a`, 88 108 octets et 93 entrées. Les douze modules consommateurs ont clos 72 suites : 68 réussies et quatre non applicables, 296 tests. Le helper a vérifié l'asset `602546338`, la release `400682948` et le téléchargement public après publication. Le SDK distribue les ports utilisés par la source qualifiée ; il ne publie ni application ni fournisseur et n'est pas adopté implicitement par Lab, Starter ou un Site.
+
 ## SDK 1.6 public — 30 septembre 2026
 
 La PR #80 est intégrée sur main `684901c46cff026dc0209f3e2deabbf894826af9`, arbre `115f5764d1dc5a2d256f2f5724d13d16c304a0c9`. Les CI du candidat et du main passent 1 360 tests sans omission. Le [SDK 1.6.0 public](https://github.com/creezio/Creezio-D1R2/releases/download/sdk-v1.6.0/creezio-sdk-1.6.0.tgz) contient 82 entrées, 78 067 octets, SHA-256 `d1d8dba645f4a710cd8c5a37f9eaabdeb15c6745c08a8bd5922d2fbcf2a53be8`. Le tag annoté vise ce main ; les téléchargements de l'archive en brouillon et après publication ont été vérifiés (release `400339777`, asset `601576924`).

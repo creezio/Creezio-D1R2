@@ -10,12 +10,15 @@ import {ACCESS_TABLES} from '../../core/identity/d1-store.ts';
 
 const root=fileURLToPath(new URL('../../',import.meta.url));
 const plan=await loadCompositionSchema({root,compositionPath:'configuration/composition.widgets-local.json'});
+const connectorsPlan=await loadCompositionSchema({root,
+  compositionPath:'configuration/composition.connectors.json',
+  lockPath:'configuration/composition.connectors.lock.json'});
 const credentials={loginIdentifier:'owner@example.invalid',displayName:'Local owner',
   password:'Synthetic local installation password'};
-async function database(t){
+async function database(t,id='composed-local-installation'){
   const mf=new Miniflare({host:'127.0.0.1',port:0,cf:false,modules:true,
     script:'export default {fetch(){return new Response(null,{status:404})}}',
-    compatibilityDate:'2026-05-15',d1Databases:{DB:'composed-local-installation'},
+    compatibilityDate:'2026-05-15',d1Databases:{DB:id},
     telemetry:{enabled:false},logRequests:false});
   t.after(async()=>mf.dispose());
   return mf.getD1Database('DB');
@@ -77,4 +80,42 @@ test('foreign D1 objects block local installation without deleting data or creat
   assert.equal(refusal.ok,false);
   assert.equal((await db.prepare("SELECT value FROM foreign_data WHERE id='keep'").first()).value,'user');
   assert.equal((await db.prepare(`SELECT name FROM sqlite_schema WHERE name='${SCHEMA_RECEIPT_TABLE}'`).first()),null);
+});
+
+test('wide connectors schema resumes one native owner and still rejects populated data',
+  {timeout:120000},async t=>{
+  const dataTables=connectorsPlan.objects.filter(item=>item.type==='table'
+    &&![ACCESS_TABLES.bootstrap,ACCESS_TABLES.auth_throttles].includes(item.name));
+  assert.ok(dataTables.length>=114,'exercise the full connector profile');
+  const db=await database(t,'composed-wide-installation');
+  assert.equal((await inspectComposedInstallation(db,connectorsPlan)).state,'fresh');
+  const schema=await applyCompositionSchema(db,connectorsPlan,
+    {expectedPlanDigest:connectorsPlan.planDigest});
+  assert.equal(schema.ok,true,JSON.stringify(schema));
+  assert.equal((await inspectComposedInstallation(db,connectorsPlan)).state,'schema_ready');
+  const installed=await installComposed(db,connectorsPlan,{credentials,
+    expectedPlanDigest:connectorsPlan.planDigest,createSchema:false});
+  assert.equal(installed.ok,true,JSON.stringify(installed));
+  assert.equal((await inspectComposedInstallation(db,connectorsPlan)).state,'initialized');
+  assert.equal((await db.prepare(`SELECT epoch FROM "${ACCESS_TABLES.authorization_state}"
+    WHERE id='application'`).first()).epoch,1);
+  const replay=await installComposed(db,connectorsPlan,{credentials,
+    expectedPlanDigest:connectorsPlan.planDigest,createSchema:false});
+  assert.equal(replay.ok,false);
+  assert.equal(replay.code,'already_initialized');
+
+  const foreign=await database(t,'composed-wide-foreign');
+  assert.equal((await applyCompositionSchema(foreign,connectorsPlan,
+    {expectedPlanDigest:connectorsPlan.planDigest})).ok,true);
+  await foreign.prepare(`INSERT INTO "${ACCESS_TABLES.contexts}" (id,status)
+    VALUES ('foreign','active')`).run();
+  const observed=await inspectComposedInstallation(foreign,connectorsPlan);
+  assert.equal(observed.state,'blocked');
+  assert.equal(observed.code,'foreign_data');
+  const denied=await installComposed(foreign,connectorsPlan,{credentials,
+    expectedPlanDigest:connectorsPlan.planDigest,createSchema:false});
+  assert.equal(denied.ok,false);
+  assert.equal(denied.code,'foreign_data');
+  assert.equal((await foreign.prepare(`SELECT status FROM "${ACCESS_TABLES.contexts}"
+    WHERE id='foreign'`).first()).status,'active');
 });

@@ -1,10 +1,14 @@
 # T28 — Connexion et diagnostic d'une instance Meili externe
 
-## Recette fournisseur sur Linux main 7aeac0c, 1er octobre 2026
+## Correction de lecture UI sur Linux main `9ce856c` — 1er octobre 2026
+
+Dans la carte Meili de l'interface originale, la source `creezio.catalog:catalog-products` et la projection `ready` apparaissent à l'ouverture puis après rechargement, sans action « Actualiser ». Le reçu `CREEZIO-T28-MEILI-UI-9CE856C-2026-10-01.json` lie cette lecture à la source/image Linux ; il confirme la déconnexion. Aucune nouvelle tâche, mutation d'index ou recherche fournisseur n'a été émise par cette recette. La tâche réelle 166, les deux documents et la recherche native du produit à 12,99 EUR restent prouvés par le reçu Meili antérieur. Le widget de recherche et les autres scénarios restent ouverts.
+
+## Recette fournisseur antérieure sur Linux main 7aeac0c, 1er octobre 2026
 
 La reprise de la première tâche Meili 165, échouée, a créé une émission distincte sur l'image Linux active de Core main `7aeac0c295d5c3ce80ef211f8ae4022892e7a19e` (`sha256:c7b5400b2d999637619bb3d87a9fd96a6642def56bcab9ae319f995963ea5101`). La tâche réelle 166 a reçu deux documents avec `primaryKey=id`, puis la réconciliation et l'avancement ont porté le nouvel index à `ready`, révision 9. L'ancien index, le produit et son média ont été conservés ; aucun index étranger n'a été modifié. Une recherche native sous droits courants a relu le produit du Catalogue à 12,99 EUR, sans résultat périmé. Les six reçus de la séquence et leurs empreintes sont liés par `outputs/CREEZIO-T28-MEILI-REAL-QUALIFICATION-2026-10-01.json`.
 
-Dans l'interface originale, le premier affichage après ouverture ou rechargement ne montre pas la source Catalogue avant un rafraîchissement manuel ; après celui-ci, la source et l'état prêt apparaissent. Le défaut est reproduit et un correctif UI est en cours dans un lot distinct, sans qualification de ce correctif sur Linux. Le widget de résultats de recherche n'a pas été exercé. Cette recette prouve l'émission, la tâche et la recherche native sur Meili réel pour ce témoin ; la recherche UI complète, les autres scénarios de reconstruction, Cloudflare/Sites et la recherche globale T05 restent ouverts.
+À cette étape antérieure, le premier affichage après ouverture ou rechargement ne montrait pas la source Catalogue avant un rafraîchissement manuel ; après celui-ci, la source et l'état prêt apparaissaient. Le défaut était reproduit et son correctif UI n'était pas encore qualifié sur Linux. Le widget de résultats de recherche n'a pas été exercé. Cette recette prouve l'émission, la tâche et la recherche native sur Meili réel pour ce témoin ; la recherche UI complète, les autres scénarios de reconstruction, Cloudflare/Sites et la recherche globale T05 restent ouverts.
 
 ## État historique du candidat source 0.3.0, 30 septembre 2026
 
