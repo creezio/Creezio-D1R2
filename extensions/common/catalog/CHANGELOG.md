@@ -1,5 +1,9 @@
 # Changelog
 
+## Non publié — libellé des images privées
+
+Le libellé de l’éditeur décrit la lecture privée déjà disponible aux utilisateurs autorisés pour les produits publiés, dans le front et les widgets app, avec cinq liens au plus. Aucun droit, fichier ou comportement ne change.
+
 ## 0.1.3 — témoin de clic front pour T22 (candidat non publié)
 
 La carte produit authentifiée expose l’identifiant statique `catalog.product.open` pour la collecte optionnelle Analytics. Le même identifiant vaut pour toutes les cartes, sans SKU, ID, nom ni prix. Aucun comportement Catalogue, modèle, droit, opération ou port public ne change ; l’activation Analytics reste une décision administrative séparée. La recette navigateur hébergée de ce clic est ouverte.

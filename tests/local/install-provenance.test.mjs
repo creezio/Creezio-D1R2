@@ -14,8 +14,10 @@ import {runLocalInstallation} from '../../scripts/local/install.mjs';
 import {runLocalSchema} from '../../scripts/local/schema.mjs';
 import {contractIntegrity} from '../../sdk/contracts/validate.mjs';
 import {ACCESS_TABLES} from '../../core/identity/d1-store.ts';
+import {createAccountService} from '../../core/identity/accounts.ts';
 import {STORAGE_AUTHORITY_TABLES} from '../../core/storage-authority/models.ts';
 import {createStorageMutationPort} from '../../core/storage-authority/native-mutation.ts';
+import {createRoutedNativeSessionLogout} from '../../core/storage-authority/native-session.ts';
 import {prepareStorageRevocation,fenceStorageRoute,markStorageSourceAttempted}
   from '../../core/storage-authority/coordinator.ts';
 
@@ -136,6 +138,45 @@ test('official access epoch changes preserve the full routed installation and sc
     ['unproven','installed']);
   assert.deepEqual(await f.install('install'),{ok:false,code:'target_unproven',effect:'none'});
   assert.equal((await f.schema('inspect')).ok,false);
+  await f.primary.prepare(`UPDATE ${mutations} SET command_digest=? WHERE id=?`)
+    .bind(original.digest,current.id).run();
+  assert.deepEqual((await f.install('inspect')).targets.map(item=>item.provenance),
+    ['installed','installed']);
+  f.retargetContext('tenant-b',f.a);
+  assert.deepEqual((await f.install('inspect')).targets.map(item=>item.provenance),
+    ['installed','unproven']);
+  assert.deepEqual(await f.install('install'),{ok:false,code:'target_unproven',effect:'none'});
+});
+
+test('official routed logout preserves A/B provenance after zero-DDL adoption and rejects tampering',
+  {timeout:60000},async t=>{
+  const f=await fixture(t);
+  assert.equal((await f.install('install')).ok,true);
+  f.selectAfter();
+  assert.equal((await f.schema('apply')).ok,true);
+  const accounts=createAccountService(f.primary);
+  const signed=await accounts.login({loginIdentifier:credentials.loginIdentifier,
+    password:credentials.password,audience:'admin'});
+  assert.equal(signed.ok,true);
+  const targets=resources.map((resource,index)=>({identity:{installationId,
+    contextId:resource.contextId,slot:resource.slot},db:index===0?f.a:f.b}));
+  const logout=createRoutedNativeSessionLogout(f.primary,targets);
+  assert.deepEqual(await logout.logout(signed.token,'admin'),{state:'revoked'});
+  assert.equal(await accounts.session(signed.token,'admin'),null);
+  const inspected=await f.install('inspect');
+  assert.equal(inspected.ok,true,JSON.stringify(inspected));
+  assert.deepEqual(inspected.targets.map(item=>item.provenance),['installed','installed']);
+  assert.equal((await f.schema('inspect')).ok,true);
+  const current=await f.a.prepare(`SELECT mutation_id AS id FROM ${routes}`).first();
+  assert.match(current.id,/^logout:/);
+  const original=await f.primary.prepare(`SELECT command_digest AS digest FROM ${mutations}
+    WHERE id=?`).bind(current.id).first();
+  assert.match(original.digest,/^sha256-[a-f0-9]{64}$/);
+  await f.primary.prepare(`UPDATE ${mutations} SET command_digest=? WHERE id=?`)
+    .bind(`sha256-${'0'.repeat(64)}`,current.id).run();
+  assert.deepEqual((await f.install('inspect')).targets.map(item=>item.provenance),
+    ['unproven','installed']);
+  assert.deepEqual(await f.install('install'),{ok:false,code:'target_unproven',effect:'none'});
   await f.primary.prepare(`UPDATE ${mutations} SET command_digest=? WHERE id=?`)
     .bind(original.digest,current.id).run();
   assert.deepEqual((await f.install('inspect')).targets.map(item=>item.provenance),

@@ -368,7 +368,7 @@ export function CatalogAdminView(props:RuntimeViewProps){
               onClick={()=>void transition('product.archive')}>Archiver</button>}</div>
           {full&&<p className="text-xs text-slate-500">Statut {full.status} · révision {full.revision} · {money(full.priceMinor,full.currency)}</p>}
           {full&&<section className="space-y-2 border-t pt-3"><h3 className="font-medium">Images privées</h3>
-            <p className="text-xs text-slate-500">R2 admin ; non diffusées au front. Maximum 5 images liées.</p>
+            <p className="text-xs text-slate-500">Images privées accessibles aux utilisateurs autorisés pour un produit publié. Maximum 5 images liées.</p>
             {full.status!=='archived'&&<input type="file" accept="image/png,image/jpeg,image/webp"
               disabled={busy||media.length>=5} onChange={event=>void upload(event)}/>}
             <ul className="space-y-1">{media.map(item=><li key={item.fileId} className="flex flex-wrap items-center gap-2 text-sm">

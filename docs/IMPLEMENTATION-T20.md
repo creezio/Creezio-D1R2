@@ -1,5 +1,9 @@
 # T20 — CRM natif
 
+## Relation Support/CRM sur Original Sites v5 — 1er octobre 2026
+
+Le contact CRM préexistant `0347a984-4f37-4120-890e-b53a5bc1280d` a été lié explicitement au ticket Support `debf24c8-4c25-459a-ae4a-da082bde2de4` dans le workspace admin. Le rechargement admin conserve ce lien et les deux messages du fil. Une lecture native du port public Support `reference.contact.read` retrouve le même contact ; les lectures du ticket en admin et app confirment la même référence à la révision 4. Le front sans droit CRM refuse la recherche localement tout en conservant sa session et le ticket ; aucun code HTTP navigateur n'est revendiqué. Ce témoin qualifie le raccord CRM/Support sous droits actuels, sans qualifier les six widgets CRM ni une relation avec un message Messaging. Preuves hors dépôt : `outputs/CREEZIO-T19-SITES-UI-RECIPE-2026-10-01.json`, `outputs/CREEZIO-T09-ORIGINAL-SUPPORT-NATIVE-READ-2026-10-01.json`.
+
 ## Recette API native CRM sur Linux main `9ce856c` — 1er octobre 2026
 
 Deux contacts témoins nouveaux ont été créés sous le même propriétaire/contexte. Une recherche `limit=1` avec curseur a parcouru deux pages contenant exactement leurs ID. Le contact A a été archivé par la commande native (révision 1→2) ; la recherche active n'a conservé que B, la recherche archivée retrouve A, et la lecture active de A répond `not_found`. B et les enregistrements métier antérieurs sont préservés ; aucune suppression physique n'a eu lieu. Le journal a confirmé les trois intentions. Cette recette API ne couvre ni les vues navigateur ni les widgets ; voir `CREEZIO-T20-T19-NATIVE-RECIPE-9CE856C-2026-10-01.json`.

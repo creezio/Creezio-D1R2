@@ -1,5 +1,9 @@
 # T21 — Pages et navigation
 
+## Média Pages public sur Original Sites v5 — 1er octobre 2026
+
+Sur Original Sites v5, source Site `a2cf524` issue de Core `be89116`, un PNG de 202 octets (SHA-256 `54fc933a66e82a89867171bea2648b76447e07ea1182cbab521ea937234f67d9`) a été joint une seule fois à la page existante `/qualification-t09`. Le nouveau fichier est resté inaccessible en lecture anonyme avec l'ancienne publication v2 (HTTP 404). L'éditeur a conservé le nouveau brouillon, puis une seule publication a porté la page à la révision publiée 3. Un GET anonyme de la page a retourné 200 ; l'URL du média extraite du HTML réellement rendu a servi `image/png`, 202 octets et le SHA-256 attendu. Le navigateur a affiché le hero en 32 × 32. Ces lectures qualifient la visibilité du seul fichier référencé par ce snapshot sur Sites ; elles ne qualifient ni une image Catalogue, ni une révocation ou un autre fichier sur cette cible. Preuves hors dépôt : `outputs/CREEZIO-T09-ORIGINAL-PAGES-MEDIA-BEFORE-PUBLICATION-2026-10-01.json`, `outputs/CREEZIO-T09-ORIGINAL-PAGES-MEDIA-PUBLISHED-2026-10-01.json` et `outputs/CREEZIO-T21-SITES-MEDIA-PUBLISHED-2026-10-01.png`.
+
 ## SEO public vérifié et canonical corrigé en candidate — 1er octobre 2026
 
 La relecture native de la publication sur Linux `1dce54d` a levé l'incertitude du dialogue décrit ci-dessous, sans réémettre la commande. Le snapshot public v12/publication 6 sert le titre et la description saisis ainsi que l'image décodée en 32 × 32. La page a ensuite été republiée protégée v13/publication 7 : page et ancienne image publiques répondent 404 sans cookie, puis la session a été déconnectée. Le reçu `CREEZIO-T21-SEO-LINUX-RECIPE-1DCE54D-2026-10-01.json` lie ces preuves et captures.
