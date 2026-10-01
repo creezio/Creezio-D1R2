@@ -4,7 +4,7 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import {createCommandJournal,readPendingCommand} from '@creezio/sdk/operations/command-journal';
 import {manifest,read} from '../helpers.mjs';
 import {retainedSessionId,scopeChange,sessionVerified,readPanel,panelData,preferFreshConfig,indexPageFrom,
-  configRevisionChanged}
+  configRevisionChanged,readConfigThenIndex}
   from '../../ui/panel-state.ts';
 
 test('transient access masks the old scope without dropping pending; real scope change purges it',()=>{
@@ -99,6 +99,40 @@ test('a fresh config read invalidates a prior connection check, same revision do
   assert.equal(configRevisionChanged(null,checked),true);
   const ui=read('ui/index.tsx');
   assert.match(ui,/if\(configRevisionChanged\(configSnapshot\.current,next\)\)\{\s*checkSerial\.current\+\+;setChecking\(false\);setConnection\(null\)/u);
+});
+test('initial and refreshed index reads wait for their accepted config read',async()=>{
+  const deferred=()=>{let resolve;const promise=new Promise(done=>{resolve=done;});
+    return {promise,resolve};};
+  const first=deferred(),second=deferred(),calls=[];
+  let current=true;
+  const load=(name,config,selectedSource)=>readConfigThenIndex(async()=>{
+    calls.push(`${name}:config`);await config.promise;
+    return selectedSource===null?null:{source:selectedSource};
+  },async value=>{calls.push(`${name}:index:${value.source}`);},()=>current);
+  const initial=load('initial',first,'');
+  assert.deepEqual(calls,['initial:config']);
+  first.resolve();await initial;
+  assert.deepEqual(calls,['initial:config','initial:index:']);
+  const old=load('old',second,null);
+  const refreshed=load('refresh',{promise:Promise.resolve()},'products');
+  await refreshed;
+  assert.deepEqual(calls,['initial:config','initial:index:','old:config',
+    'refresh:config','refresh:index:products']);
+  second.resolve();await old;
+  assert.equal(calls.some(item=>item.startsWith('old:index')),false,
+    'stale config must not restart index');
+  await readConfigThenIndex(async()=>{
+    calls.push('failed:config');
+    try{await Promise.reject(new Error('configuration refused'));}
+    catch{return null;}
+  },async()=>{calls.push('failed:index');},()=>current);
+  assert.equal(calls.includes('failed:index'),false,
+    'a refused config read must not start an index read');
+  const revoked=deferred();
+  const rotated=load('rotated',revoked,'');
+  current=false;revoked.resolve();await rotated;
+  assert.equal(calls.some(item=>item.startsWith('rotated:index')),false,
+    'scope loss blocks follow-up reads');
 });
 test('admin surface exposes a resumable projection without persisting provider secrets',()=>{
   const ui=read('ui/index.tsx');

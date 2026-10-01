@@ -60,13 +60,15 @@ function updateStatus(value: unknown): value is DeliveryUpdateStatus {
     ...(object(value) && value.retryEligible !== undefined ? ['retryEligible'] : [])])
     && value.kind === 'update' && id(value.updateId) && digest(value.planDigest)
     && ['prepared','building','built','preflight','schema-applying','schema-ready',
-      'publishing','delivery-unknown','delivered'].includes(String(value.phase))
+      'publishing','delivery-unknown','rejected','delivered'].includes(String(value.phase))
     && (value.summary === null || summary(value.summary))
     && (value.phase !== 'prepared' || summary(value.summary))
     && (value.finalUrl === null || text(value.finalUrl,2048) && /^https:\/\//.test(value.finalUrl))
     && ['pending','effective','unknown'].includes(String(value.registryStatus))
     && (value.retryEligible === undefined || typeof value.retryEligible === 'boolean')
-    && (value.diagnostic === undefined || exact(value.diagnostic,['phase','reason','exitCode','apiCodes'])
+    && (value.diagnostic === undefined || exact(value.diagnostic,['phase','reason','exitCode','apiCodes',
+      ...(object(value.diagnostic) && value.diagnostic.validationIssue !== undefined
+        ? ['validationIssue'] : [])])
       && ['wrangler','post-upload','unknown'].includes(String(value.diagnostic.phase))
       && ['spawn_error','exit_nonzero','output_limit','timeout','inspection_failed','unavailable']
         .includes(String(value.diagnostic.reason))
@@ -74,7 +76,15 @@ function updateStatus(value: unknown): value is DeliveryUpdateStatus {
         && (value.diagnostic.exitCode as number) >= 0 && (value.diagnostic.exitCode as number) <= 255)
       && Array.isArray(value.diagnostic.apiCodes) && value.diagnostic.apiCodes.length <= 4
       && value.diagnostic.apiCodes.every((code: unknown) => Number.isInteger(code)
-        && (code as number) >= 1000 && (code as number) <= 999999));
+        && (code as number) >= 1000 && (code as number) <= 999999)
+      && (value.diagnostic.validationIssue === undefined
+        || value.diagnostic.apiCodes.includes(10021)
+          && ['startup_cpu_limit','startup_memory_limit','syntax_error','unsupported_handler',
+            'unknown_validation'].includes(String(value.diagnostic.validationIssue))))
+    && (value.phase !== 'rejected' || value.registryStatus === 'pending'
+      && value.finalUrl === null && value.retryEligible === false
+      && object(value.diagnostic) && Array.isArray(value.diagnostic.apiCodes)
+      && value.diagnostic.apiCodes.includes(10021));
 }
 async function json(response: Response): Promise<unknown> {
   if (!/^application\/json(?:;|$)/i.test(response.headers.get('content-type') ?? '')) throw new Error('invalid_response');
@@ -204,6 +214,7 @@ export function createLocalDeliveryTransport({access,fetcher=fetch,pollMs=1000,d
       :Promise.resolve(fail('invalid_input')),
     reconcileUpdate:input=>call('update/reconcile',input,updateStatus),
     retryUpdate:input=>call('update/retry',input,updateStatus),
+    rejectUpdate:input=>call('update/reject',input,updateStatus),
     dispose(){disposed=true;unsubscribe();reset();},
   };
   return Object.freeze(transport);

@@ -2,7 +2,7 @@
 
 ## 0.3.0 — candidate Checkout test et événements signés
 
-La réception signée possède le droit machine distinct `creezio.stripe:webhook.receive`. Il couvre seulement les modèles lus ou écrits par `event.receive` ; il ne confère ni gestion Stripe, ni création Checkout, ni gestion des clés. La qualification Stripe réelle reste ouverte.
+La réception signée possède le droit machine distinct `creezio.stripe:webhook.receive`. Il couvre seulement les modèles lus ou écrits par `event.receive` ; il ne confère ni gestion Stripe, ni création Checkout, ni gestion des clés. Le texte de configuration du jeton dans l'interface indique ce droit dédié. La qualification Stripe réelle reste ouverte.
 
 Création de sessions Checkout de paiement ou d'abonnement, lecture de leur état, arrêt d'abonnement en fin de période et réception des événements Stripe signés. Ces fonctions reprennent la page Facturation et les mêmes opérations API/MCP. Deux projections D1, `stripe_checkout` et `stripe_event`, complètent les neuf modèles précédents. Le coffre conserve séparément la clé Stripe, les secrets webhook courant/précédent et le jeton machine Creezio.
 

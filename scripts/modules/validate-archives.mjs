@@ -175,10 +175,14 @@ function executeClosed(stage,sdkArchive,sdk,checked,results){
     for(const kind of ['runtime','validation'])
       execFileSync('tar',['-xf',resolve(root,artifacts[kind].path),'-C',assembled],{timeout:30000});
     scanNoLinks(assembled);
-    const files=['module/manifest.json','module/models.json'];
+    const modelsFile=join(assembled,'module/models.json');
+    const hasModelsFile=existsSync(modelsFile);
+    const files=['module/manifest.json',
+      ...(manifest.contracts.models.length>0||hasModelsFile?['module/models.json']:[])];
     const before=files.map(name=>sha256(readFileSync(join(assembled,name))));
     runClosedArchiveNode(stage,['module/generate-manifest.mjs'],{cwd:assembled,timeout:30000});
-    if(files.some((name,index)=>sha256(readFileSync(join(assembled,name)))!==before[index]))
+    if(existsSync(modelsFile)!==hasModelsFile
+      ||files.some((name,index)=>sha256(readFileSync(join(assembled,name)))!==before[index]))
       throw Error(`${directory}: generator changed packaged contract`);
     const gate=JSON.parse(runClosedArchiveNode(stage,['gate.mjs'],{cwd:assembled,encoding:'utf8',
       timeout:90000,maxBuffer:8*1024*1024}));

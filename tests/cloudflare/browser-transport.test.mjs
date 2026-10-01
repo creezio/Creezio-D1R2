@@ -100,3 +100,27 @@ test('browser update start acknowledges one accepted job and reads its exact sta
     assert.equal(seen.filter(url=>url.includes('/jobs/')).length,0);
   }finally{transport.dispose();}
 });
+
+test('browser posts one exact rejection request and accepts only a bounded terminal receipt',async()=>{
+  const seen=[];let malformed=false;
+  const diagnostic={phase:'wrangler',reason:'exit_nonzero',exitCode:1,apiCodes:[10021],
+    validationIssue:'unknown_validation'};
+  const terminal={kind:'update',updateId:'update-one',planDigest:digest,phase:'rejected',
+    summary:null,finalUrl:null,registryStatus:'pending',retryEligible:false,diagnostic};
+  const transport=createLocalDeliveryTransport({access:access(),fetcher:async(url,init)=>{
+    const initial=startup(url);if(initial)return initial;
+    if(url.endsWith('/update/reject')){
+      seen.push(JSON.parse(init.body));
+      return Response.json({ok:true,value:malformed
+        ?{...terminal,diagnostic:{...diagnostic,rawLog:'provider secret'}}:terminal});
+    }
+    throw new Error('unexpected request');
+  }});
+  try{
+    const input={updateId:'update-one',planDigest:digest};
+    assert.deepEqual(await transport.rejectUpdate(input),{ok:true,value:terminal});
+    malformed=true;
+    assert.deepEqual(await transport.rejectUpdate(input),{ok:false,code:'invalid_response'});
+    assert.deepEqual(seen,[input,input]);
+  }finally{transport.dispose();}
+});

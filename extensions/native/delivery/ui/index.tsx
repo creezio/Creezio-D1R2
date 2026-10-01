@@ -4,26 +4,42 @@ import {useCallback, useEffect, useRef, useState, type ChangeEvent} from 'react'
 import {Badge, Button, Card, CardContent, CardHeader, CardTitle} from '@creezio/sdk/ui';
 import {useRegisterWorkspaceMetadata} from '@creezio/sdk/workspace/metadata';
 import {useDeliveryTransport} from '@creezio/sdk/delivery/context';
-import type {RuntimeViewProps} from '../../../../sdk/runtime/ui.ts';
+import type {WorkspaceViewProps as RuntimeViewProps} from '@creezio/sdk/workspace/types';
 import {createDeliveryController, deliveryViewInput, type DeliveryController,
-  type DeliverySnapshot} from '../../../../sdk/delivery/controller.ts';
-import {deliveryViewModel} from '../../../../sdk/delivery/view-model.ts';
+  type DeliverySnapshot} from '@creezio/sdk/delivery/controller';
+import {deliveryViewModel} from '@creezio/sdk/delivery/view-model';
 import {createDeliveryUpdateController, type DeliveryUpdateController,
-  type DeliveryUpdateSnapshot} from '../../../../sdk/delivery/update-controller.ts';
-import {deliveryUpdateViewModel} from '../../../../sdk/delivery/update-view-model.ts';
+  type DeliveryUpdateSnapshot} from '@creezio/sdk/delivery/update-controller';
+import {deliveryUpdateViewModel} from '@creezio/sdk/delivery/update-view-model';
 import type {DeliveryConfigureInput, DeliverySecretSelection, DeliveryTarget,
-  DeliveryTransport} from '../../../../sdk/delivery/transport.ts';
+  DeliveryTransport} from '@creezio/sdk/delivery/transport';
 import {deliveryPersistence, deliveryUpdatePersistence} from './persistence.ts';
 import {DeliveryOverview, DeliveryUpdateOverview} from './presentation.tsx';
 
 const empty: DeliverySnapshot = {authorized: false, identityVersion: 0, busy: false,
   connection: 'reconnecting', inspection: null, prepared: null, transfer: null, saved: null, error: null};
-const emptyUpdate: DeliveryUpdateSnapshot = {authorized: false, identityVersion: 0, busy: false,
+const emptyUpdate: DeliveryUpdateSnapshot = {authorized: false, rejectAvailable: false,
+  identityVersion: 0, busy: false,
   connection: 'reconnecting', inspection: null, prepared: null, update: null, saved: null, error: null};
 const blankTarget: DeliveryTarget = {accountId: '', workerName: ''};
 const fieldLabels: Record<keyof DeliveryTarget, string> = {
   accountId: 'Identifiant du compte Cloudflare', workerName: 'Nom du Worker',
 };
+const validationLabels = {
+  startup_cpu_limit: 'limite CPU au démarrage',
+  startup_memory_limit: 'limite mémoire au démarrage',
+  syntax_error: 'syntaxe du Worker',
+  unsupported_handler: 'handler non pris en charge',
+  unknown_validation: 'validation Cloudflare non classée',
+} as const;
+const diagnosticReasonLabels = {
+  spawn_error: 'l’outil de publication n’a pas démarré',
+  exit_nonzero: 'l’outil de publication a refusé la demande',
+  output_limit: 'le diagnostic a dépassé sa limite',
+  timeout: 'le délai de publication a expiré',
+  inspection_failed: 'la vérification distante a échoué',
+  unavailable: 'le service de publication est indisponible',
+} as const;
 function errorMessage(code: string | null) {
   if (!code) return '';
   if (code === 'unauthorized' || code === 'forbidden') return 'Accès à la livraison refusé. Actualisez votre session.';
@@ -116,7 +132,7 @@ export function DeliveryAdminView(props: RuntimeViewProps) {
   }, [enabled, controller, snapshot.saved?.started, snapshot.transfer?.phase]);
   useEffect(() => {
     if (!enabled || !updateController || (!updateSnapshot.saved?.started && !updateSnapshot.update)
-      || updateSnapshot.update?.phase === 'delivered') return;
+      || updateSnapshot.update?.phase === 'delivered' || updateSnapshot.update?.phase === 'rejected') return;
     const timer = window.setInterval(() => {void updateController.status();}, 5000);
     return () => window.clearInterval(timer);
   }, [enabled, updateController, updateSnapshot.saved?.started, updateSnapshot.update?.phase]);
@@ -163,13 +179,16 @@ export function DeliveryAdminView(props: RuntimeViewProps) {
       onStart={() => {void updateController?.start();}}
       onRefresh={() => {void refreshUpdate();}}
       onReconcile={() => {void updateController?.reconcile();}}
-      onRetry={() => {void updateController?.retry();}} />
+      onRetry={() => {void updateController?.retry();}}
+      onReject={() => {void updateController?.reject();}} />
     {updateSnapshot.update?.diagnostic && <p role="status" className="mx-6 mb-4 text-sm text-amber-900">
-      Diagnostic de la tentative : {updateSnapshot.update.diagnostic.reason}
+      Diagnostic de la tentative : {diagnosticReasonLabels[updateSnapshot.update.diagnostic.reason]}
       {updateSnapshot.update.diagnostic.exitCode !== null
         ? ` (sortie ${updateSnapshot.update.diagnostic.exitCode})` : ''}
       {updateSnapshot.update.diagnostic.apiCodes.length
         ? ` · codes Cloudflare ${updateSnapshot.update.diagnostic.apiCodes.join(', ')}` : ''}.
+      {updateSnapshot.update.diagnostic.validationIssue
+        ? ` Catégorie : ${validationLabels[updateSnapshot.update.diagnostic.validationIssue]}.` : ''}
     </p>}
     {updateSnapshot.error && <p role="alert" className="mx-6 mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
       {errorMessage(updateSnapshot.error)}</p>}
@@ -189,7 +208,8 @@ export function DeliveryAdminView(props: RuntimeViewProps) {
           || Object.values(target).some(value => !value.trim())} onClick={() => void configure()}>Enregistrer</Button>
           <Button size="sm" variant="outline" onClick={() => {setEditing(false);setApiToken('');}}>Annuler</Button></div>
       </CardContent></Card>}
-    {updateSnapshot.prepared && <Card className="mx-6 mb-6"><CardHeader>
+    {updateSnapshot.prepared && updateSnapshot.update?.phase !== 'rejected'
+      && <Card className="mx-6 mb-6"><CardHeader>
       <CardTitle className="text-base">Plan préparé</CardTitle></CardHeader>
       <CardContent className="space-y-2 text-sm"><p>{updateSnapshot.prepared.summary.title}</p>
         <p>Mise à jour <code>{updateSnapshot.prepared.updateId}</code> · plan <code>{updateSnapshot.prepared.planDigest}</code></p>

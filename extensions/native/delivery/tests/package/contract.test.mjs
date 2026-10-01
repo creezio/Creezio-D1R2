@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync, readFileSync} from 'node:fs';
-import {validateModule} from '../../../../../sdk/contracts/validate.mjs';
+import {validateModule} from '@creezio/sdk/contracts/node';
 
 const moduleRoot = new URL('../../', import.meta.url);
 const manifest = JSON.parse(readFileSync(new URL('module/manifest.json', moduleRoot), 'utf8'));

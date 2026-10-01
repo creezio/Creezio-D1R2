@@ -1,6 +1,6 @@
-import type {WorkspaceNavigation} from '../../../../sdk/workspace/types.ts';
-import type {DeliveryPersistence, DeliverySavedTransfer} from '../../../../sdk/delivery/controller.ts';
-import type {DeliveryUpdatePersistence, DeliverySavedUpdate} from '../../../../sdk/delivery/update-controller.ts';
+import type {WorkspaceNavigation} from '@creezio/sdk/workspace/types';
+import type {DeliveryPersistence, DeliverySavedTransfer} from '@creezio/sdk/delivery/controller';
+import type {DeliveryUpdatePersistence, DeliverySavedUpdate} from '@creezio/sdk/delivery/update-controller';
 
 function panelData(navigation: WorkspaceNavigation): Record<string, unknown> {
   const data = navigation.readPanelState()?.data;

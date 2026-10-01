@@ -62,7 +62,8 @@ execute('sdk-validation-pack',[process.env.npm_execpath,'pack','--workspace','sd
 const sdkArchive=resolve(sdkDirectory,`creezio-sdk-${sdkPackage.version}.tgz`);
 const sdkSha=createHash('sha256').update(readFileSync(sdkArchive)).digest('hex');
 execute('module-archive-suites',['scripts/modules/validate-archives.mjs','--sdk-archive',sdkArchive,
-  '--sdk-sha256',sdkSha,'extensions/native/support','extensions/native/pages-navigation',
+  '--sdk-sha256',sdkSha,'extensions/native/delivery','extensions/native/messaging',
+  'extensions/native/support','extensions/native/pages-navigation',
   'extensions/native/analytics','extensions/common/catalog','extensions/connectors/n8n',
   'extensions/connectors/stripe','extensions/connectors/meili','extensions/connectors/granola',
   'extensions/connectors/resend','extensions/connectors/hermes'],180_000);

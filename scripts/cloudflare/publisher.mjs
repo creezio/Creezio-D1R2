@@ -16,6 +16,14 @@ const MAX_CONTENT=16*1024*1024;
 // existing 16 MiB per-file limit; bound this aggregate response separately.
 const MAX_VERSION_ENVELOPE=32*1024*1024;
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
+const validationIssue=value=>{
+  if(/script startup exceeded cpu time limit/i.test(value))return 'startup_cpu_limit';
+  if(/script startup exceeded memory limit/i.test(value))return 'startup_memory_limit';
+  if(/\bSyntaxError\b/.test(value))return 'syntax_error';
+  if(/no registered event handlers|event handlers unsupported by the Workers runtime/i.test(value))
+    return 'unsupported_handler';
+  return 'unknown_validation';
+};
 export class CloudflarePublicationError extends Error {
   constructor(code,diagnostic=null){super(`Cloudflare publication ${code}.`);
     this.code=code;this.diagnostic=diagnostic;}
@@ -27,10 +35,13 @@ export function publicationFailure(error){
   if(!value||value.phase!=='wrangler'&&value.phase!=='post-upload'
     ||!['spawn_error','exit_nonzero','output_limit','timeout','inspection_failed'].includes(value.reason))
     return {phase:'unknown',reason:'unavailable',exitCode:null,apiCodes:[]};
+  const apiCodes=Array.isArray(value.apiCodes)?value.apiCodes.filter(code=>Number.isInteger(code)
+    &&code>=1000&&code<=999999).slice(0,4):[];
   return {phase:value.phase,reason:value.reason,
     exitCode:Number.isInteger(value.exitCode)&&value.exitCode>=0&&value.exitCode<=255?value.exitCode:null,
-    apiCodes:Array.isArray(value.apiCodes)?value.apiCodes.filter(code=>Number.isInteger(code)
-      &&code>=1000&&code<=999999).slice(0,4):[]};
+    apiCodes,...(apiCodes.includes(10021)?{validationIssue:[
+      'startup_cpu_limit','startup_memory_limit','syntax_error','unsupported_handler','unknown_validation'
+    ].includes(value.validationIssue)?value.validationIssue:'unknown_validation'}:{})};
 }
 function file(root,relative,maxBytes){
   const target=path.resolve(root,relative);
@@ -66,13 +77,14 @@ export async function runCloudflareUpload({root,configPath,transferId,artifact,t
     child.stderr?.on('data',chunk=>{
       consume(chunk);
       // Parse Cloudflare's numeric `code: N` shape and immediately discard raw stderr.
-      stderrTail=(stderrTail+chunk.toString('utf8')).slice(-512);
+      stderrTail=(stderrTail+chunk.toString('utf8')).slice(-4096);
       for(const match of stderrTail.matchAll(/\bcode\s*:\s*(\d{4,6})\b/gi)){
         const code=Number(match[1]);if(code>=1000&&code<=999999&&apiCodes.size<4)apiCodes.add(code);
       }
     });
     const diagnostic=(reason,code=null)=>({phase:'wrangler',reason,
-      exitCode:Number.isInteger(code)&&code>=0&&code<=255?code:null,apiCodes:[...apiCodes]});
+      exitCode:Number.isInteger(code)&&code>=0&&code<=255?code:null,apiCodes:[...apiCodes],
+      ...(apiCodes.has(10021)?{validationIssue:validationIssue(stderrTail)}:{})});
     const timer=setTimeout(()=>{timedOut=true;child.kill('SIGTERM');},15*60*1000);
     child.once('error',()=>{if(closed)return;closed=true;clearTimeout(timer);
       reject(new CloudflarePublicationError('outcome_unknown',diagnostic('spawn_error')));});

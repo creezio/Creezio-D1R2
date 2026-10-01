@@ -73,19 +73,23 @@ function validUpdateInspection(value){return exact(value,
 function validUpdatePrepared(value){return exact(value,['kind','updateId','planDigest','summary'])
   &&value.kind==='update'&&id(value.updateId)&&digest(value.planDigest)
   &&validSummary(value.summary);}
-function validDiagnostic(value){return exact(value,['phase','reason','exitCode','apiCodes'])
+function validDiagnostic(value){return exact(value,['phase','reason','exitCode','apiCodes',
+    ...(value?.validationIssue===undefined?[]:['validationIssue'])])
   &&['wrangler','post-upload','unknown'].includes(value.phase)
   &&['spawn_error','exit_nonzero','output_limit','timeout','inspection_failed','unavailable'].includes(value.reason)
   &&(value.exitCode===null||Number.isInteger(value.exitCode)&&value.exitCode>=0&&value.exitCode<=255)
   &&Array.isArray(value.apiCodes)&&value.apiCodes.length<=4
-  &&value.apiCodes.every(code=>Number.isInteger(code)&&code>=1000&&code<=999999);}
+  &&value.apiCodes.every(code=>Number.isInteger(code)&&code>=1000&&code<=999999)
+  &&(value.validationIssue===undefined||value.apiCodes.includes(10021)
+    &&['startup_cpu_limit','startup_memory_limit','syntax_error','unsupported_handler',
+      'unknown_validation'].includes(value.validationIssue));}
 function validUpdateStatus(value){return exact(value,
   ['kind','updateId','planDigest','phase','summary','finalUrl','registryStatus',
     ...(value?.diagnostic===undefined?[]:['diagnostic']),
     ...(value?.retryEligible===undefined?[]:['retryEligible'])])
   &&value.kind==='update'&&id(value.updateId)&&digest(value.planDigest)
   &&['prepared','building','built','preflight','schema-applying','schema-ready',
-    'publishing','delivery-unknown','delivered'].includes(value.phase)
+    'publishing','delivery-unknown','rejected','delivered'].includes(value.phase)
   &&(value.summary===null||validSummary(value.summary))
   &&(value.phase!=='prepared'||validSummary(value.summary))
   &&(value.finalUrl===null||typeof value.finalUrl==='string'
@@ -264,7 +268,8 @@ export function createLocalDeliveryServer({config,port,operations,fetcher=fetch}
         }else if(kind==='configure'&&!validInspection(value)
           ||(kind==='start'||kind==='reconcile')&&(!validTransfer(value)
             ||value.transferId!==input.transferId||value.planDigest!==input.planDigest)
-          ||(kind==='startUpdate'||kind==='reconcileUpdate'||kind==='retryUpdate')&&(!validUpdateStatus(value)
+          ||(kind==='startUpdate'||kind==='reconcileUpdate'||kind==='retryUpdate'
+            ||kind==='rejectUpdate')&&(!validUpdateStatus(value)
             ||value.updateId!==input.updateId||value.planDigest!==input.planDigest))
           throw error('invalid_response',503);
         job.value=safeValue(value);job.state='done';
@@ -361,10 +366,11 @@ export function createLocalDeliveryServer({config,port,operations,fetcher=fetch}
         if(value.phase!=='prepared')grant.updateStarted={...grant.updatePrepared};
         send(response,200,{ok:true,value:safeValue(value)},config.origin);return;
       }
-      if(['update/prepare','update/start','update/reconcile','update/retry'].includes(route)&&request.method==='POST'){
+      if(['update/prepare','update/start','update/reconcile','update/retry','update/reject'].includes(route)&&request.method==='POST'){
         if(url.search)throw error('invalid_query',400);
         const kind=route==='update/prepare'?'prepareUpdate'
-          :route==='update/start'?'startUpdate':route==='update/retry'?'retryUpdate':'reconcileUpdate';
+          :route==='update/start'?'startUpdate':route==='update/retry'?'retryUpdate'
+          :route==='update/reject'?'rejectUpdate':'reconcileUpdate';
         if(typeof operations[kind]!=='function'||typeof operations.statusUpdate!=='function')
           throw error('service_unavailable',503);
         const body=await bodyOf(request);
@@ -378,7 +384,7 @@ export function createLocalDeliveryServer({config,port,operations,fetcher=fetch}
         if(route!=='update/prepare'){
           if(!grant.updatePrepared||grant.updatePrepared.updateId!==body.updateId
             ||grant.updatePrepared.planDigest!==body.planDigest)throw error('forbidden',403);
-          if((route==='update/reconcile'||route==='update/retry')&&(!grant.updateStarted
+          if((route==='update/reconcile'||route==='update/retry'||route==='update/reject')&&(!grant.updateStarted
             ||grant.updateStarted.updateId!==body.updateId
             ||grant.updateStarted.planDigest!==body.planDigest)){
             const owned=await operations.statusUpdate(body.updateId,{principalId:grant.principalId,
@@ -414,18 +420,18 @@ export function createLocalDeliveryServer({config,port,operations,fetcher=fetch}
             sessionId:grant.sessionId,epoch:grant.epoch,requireOwnership:true});
           if(!validUpdateStatus(owned)||owned.updateId!==previous.updateId
             ||owned.planDigest!==previous.planDigest)throw error('forbidden',403);
-          if(owned.phase==='delivered'&&owned.registryStatus==='effective'){
+          if(owned.phase==='rejected'||owned.phase==='delivered'&&owned.registryStatus==='effective'){
             if(jobs.get(key)===existing){jobs.delete(key);existing=null;
               grant.updatePrepared=null;grant.updateStarted=null;}
             else existing=jobs.get(key);
           }else if(owned.phase!=='prepared')throw error('update_in_progress',409);
         }
-        if(existing&&(!['reconcileUpdate','retryUpdate'].includes(kind)||existing.state==='running')){
+        if(existing&&(!['reconcileUpdate','retryUpdate','rejectUpdate'].includes(kind)||existing.state==='running')){
           const output=jobResult(existing);send(response,output.status,output.body,config.origin);return;
         }
         if(grant.activeJob){const active=jobs.get(grant.activeJob);
           if(active!==existing)throw error('in_flight',409);}
-        if(existing&&['reconcileUpdate','retryUpdate'].includes(kind))jobs.delete(key);
+        if(existing&&['reconcileUpdate','retryUpdate','rejectUpdate'].includes(kind))jobs.delete(key);
         if(kind==='startUpdate')grant.updateStarted={updateId:body.updateId,planDigest:body.planDigest};
         const job=launch(grant,kind,body,kind==='prepareUpdate'?nativeCookie:null),
           output=jobResult(job);

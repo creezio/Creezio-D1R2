@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createDeliveryController, deliveryViewInput} from '../../../../../sdk/delivery/controller.ts';
-import {deliveryViewModel} from '../../../../../sdk/delivery/view-model.ts';
-import {createDeliveryUpdateController} from '../../../../../sdk/delivery/update-controller.ts';
-import {deliveryUpdateViewModel} from '../../../../../sdk/delivery/update-view-model.ts';
+import {createDeliveryController, deliveryViewInput} from '@creezio/sdk/delivery/controller';
+import {deliveryViewModel} from '@creezio/sdk/delivery/view-model';
+import {createDeliveryUpdateController} from '@creezio/sdk/delivery/update-controller';
+import {deliveryUpdateViewModel} from '@creezio/sdk/delivery/update-view-model';
 
 const digest = `sha256-${'a'.repeat(64)}`;
 const summary = {title: 'Plan vérifié', details: ['D1 et R2'], warnings: []};
@@ -183,6 +183,7 @@ test('update review persists its exact identity before start and resumes without
     async statusUpdate(id){calls.push(['status',id]);return {ok:true,value:status};},
     async reconcileUpdate(input){calls.push(['reconcile',input]);return {ok:true,value:status};},
     async retryUpdate(input){calls.push(['retry',input]);return {ok:true,value:status};},
+    async rejectUpdate(input){calls.push(['reject',input]);return {ok:false,code:'update_not_ready'};},
   };
   const persistence={read:()=>stored.value,save(value){stored.value=value;return true;}};
   let controller=createDeliveryUpdateController({access,transport,persistence});
@@ -204,5 +205,76 @@ test('update review persists its exact identity before start and resumes without
     ['reconcile',{updateId:'update-1',planDigest:digest}],
     ['retry',{updateId:'update-1',planDigest:digest}]]);
   assert.equal(calls.filter(call=>call==='prepare').length,1);
+  controller.dispose();
+});
+
+test('confirmed Cloudflare validation refusal retains baseline and permits a new reviewed plan',async()=>{
+  const stored={value:null},calls=[];
+  const access={audience:'admin',getSnapshot:()=>({phase:'authenticated',pending:null,
+    session:{audience:'admin',principalId:'admin-1'}}),subscribe:()=>()=>{}};
+  const inspection={kind:'update',readiness:'ready',currentPublicationId:'baseline-1',
+    activeUpdateId:null,target:{accountId:'account-1',workerName:'worker-1'}};
+  const uncertain={kind:'update',updateId:'rejected-one',planDigest:digest,phase:'delivery-unknown',
+    summary:null,finalUrl:null,registryStatus:'unknown',retryEligible:false,
+    diagnostic:{phase:'wrangler',reason:'exit_nonzero',exitCode:1,apiCodes:[10021],
+      validationIssue:'unknown_validation'}};
+  const rejected={...uncertain,phase:'rejected',registryStatus:'pending',retryEligible:false};
+  let preparation=0;
+  const transport={
+    async inspectUpdate(){return {ok:true,value:{...inspection}};},
+    async prepareUpdate(){preparation++;return {ok:true,value:{kind:'update',
+      updateId:preparation===1?'rejected-one':'corrected-two',planDigest:digest,summary}};},
+    async startUpdate(input){calls.push(['start',input]);return {ok:true,value:uncertain};},
+    async statusUpdate(id){calls.push(['status',id]);return {ok:true,value:rejected};},
+    async rejectUpdate(input){calls.push(['reject',input]);inspection.activeUpdateId=null;
+      return {ok:true,value:rejected};},
+  };
+  const persistence={read:()=>stored.value,save(value){stored.value=value;return true;}};
+  let controller=createDeliveryUpdateController({access,transport,persistence});
+  await controller.inspect();await controller.prepare();await controller.start();
+  assert.equal(deliveryUpdateViewModel(controller.getSnapshot()).canReject,true);
+  assert.equal(deliveryUpdateViewModel(controller.getSnapshot()).canRetry,false);
+  assert.equal((await controller.reject()).ok,true);
+  assert.deepEqual(calls.at(-1),['reject',{updateId:'rejected-one',planDigest:digest}]);
+  assert.equal(controller.getSnapshot().update.phase,'rejected');
+  assert.equal(deliveryUpdateViewModel(controller.getSnapshot()).canPrepare,true);
+  assert.equal(deliveryUpdateViewModel(controller.getSnapshot()).canReconcile,false);
+  assert.deepEqual(await controller.reject(),{ok:false,code:'update_not_ready'});
+  controller.dispose();
+  controller=createDeliveryUpdateController({access,transport,persistence});
+  await controller.inspect();await controller.status();
+  assert.equal(controller.getSnapshot().update.phase,'rejected');
+  assert.equal(deliveryUpdateViewModel(controller.getSnapshot()).canPrepare,true);
+  assert.equal((await controller.prepare()).ok,true);
+  assert.equal(stored.value.updateId,'corrected-two');
+  assert.equal(stored.value.started,false);
+  controller.dispose();
+});
+
+test('legacy update transport hides checked refusal and blocks a 10021 retry',async()=>{
+  let retries=0;
+  const access={audience:'admin',getSnapshot:()=>({phase:'authenticated',pending:null,
+    session:{audience:'admin',principalId:'admin-1'}}),subscribe:()=>()=>{}};
+  const status={kind:'update',updateId:'legacy-one',planDigest:digest,
+    phase:'delivery-unknown',summary:null,finalUrl:null,registryStatus:'unknown',
+    retryEligible:true,diagnostic:{phase:'wrangler',reason:'exit_nonzero',exitCode:1,
+      apiCodes:[10021],validationIssue:'unknown_validation'}};
+  const transport={
+    async inspectUpdate(){return {ok:true,value:{kind:'update',readiness:'ready',
+      currentPublicationId:'baseline-1',activeUpdateId:'legacy-one',target:inspection.target}};},
+    async statusUpdate(){return {ok:true,value:status};},
+    async retryUpdate(){retries++;return {ok:true,value:status};},
+  };
+  const stored={kind:'update',owner:'admin-1',updateId:'legacy-one',
+    planDigest:digest,started:true};
+  const controller=createDeliveryUpdateController({access,transport,
+    persistence:{read:()=>stored,save:()=>true}});
+  await controller.inspect();await controller.status();
+  assert.equal(controller.getSnapshot().rejectAvailable,false);
+  assert.equal(deliveryUpdateViewModel(controller.getSnapshot()).canReject,false);
+  assert.equal(deliveryUpdateViewModel(controller.getSnapshot()).canRetry,false);
+  assert.deepEqual(await controller.reject(),{ok:false,code:'service_unavailable'});
+  assert.deepEqual(await controller.retry(),{ok:false,code:'update_not_ready'});
+  assert.equal(retries,0);
   controller.dispose();
 });

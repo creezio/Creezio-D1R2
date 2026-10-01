@@ -481,7 +481,7 @@ export function StripeAdminView(props:WorkspaceViewProps){
         <Button size="sm" variant="outline" type="button" disabled={busy||!!pending||!config?.hasWebhookSecret}
           onClick={()=>void mutate('config.key.webhook.revoke',{revision:config!.revision})}>
           Révoquer le secret</Button></div>
-      <p className="mt-4 text-xs text-muted-foreground">Créez un principal de service et un jeton API natif limité à ce contexte, audience admin et droit Stripe manage, puis saisissez le jeton ici. Aucun principal n’est créé par un webhook.</p>
+      <p className="mt-4 text-xs text-muted-foreground">Créez un principal de service et un jeton API natif limité à ce contexte, audience admin et seul droit creezio.stripe:webhook.receive, puis saisissez le jeton ici. Aucun principal n’est créé par un webhook.</p>
       <div className="mt-2 flex flex-wrap items-end gap-2"><label className="grid gap-1 text-sm">Jeton API du service webhook
         <input className="rounded-md border px-3 py-2 text-sm" type="password" autoComplete="off"
           maxLength={256} value={webhookServiceToken} disabled={busy||!!pending||!config?.enabled}
