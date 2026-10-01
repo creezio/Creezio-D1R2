@@ -63,7 +63,8 @@ export interface DataPort {
   patch(modelId: string, input: DataPatch): Promise<{ readonly changes: number }>;
   delete(modelId: string, input: DataDelete): Promise<{ readonly changes: number }>;
 }
-export interface InternalDataPortOptions { readonly moduleId: string; readonly modelId: string; readonly fields: readonly string[] }
+export interface InternalDataPortOptions { readonly moduleId: string; readonly modelId: string;
+  readonly fields: readonly string[]; readonly guardOnly?: boolean }
 export interface DataAccess {
   authorize(credential: DataCredential, target: AuthorizationTarget, owner: { readonly moduleId: string }): Promise<DataLease>;
   forModule(lease: DataLease, moduleId: string): DataPort;

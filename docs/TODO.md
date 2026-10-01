@@ -1,5 +1,11 @@
 # Backlog de réalisation
 
+## Révision 64 — installation Linux rétablie et correctif webhook (1er octobre 2026)
+
+PR #85 est intégrée sur `1dce54de8f60629d004ec688790270ad28d5d816` après CI candidate et main 1 455/1 455. Linux sert cette source sur le même volume ; la relecture confirme propriétaire, droits, OpenAI configuré, brouillon et fichier antérieurs, sans nouvel appel LLM. Cloudflare reste sur `9ce856c` et le SDK public reste 1.9.0.
+
+T27 : un Checkout a été payé en mode test et relu par Creezio et Stripe, avec les quatre abonnements antérieurs conservés. Son webhook a révélé un défaut de garde du coffre et des permissions de modèles manquantes. Le correctif candidat 0.3.1 passe le pont signé jusqu'à D1 et ses refus locaux ; il conserve le jeton limité, le coffre protégé et l'ancien événement incertain. T22 : deux boutons existants sont instrumentés sous la politique du contexte. Ces deux changements attendent une CI commune, leur livraison et leurs recettes ciblées ; ils ne changent pas l'interface originale ni le SDK public. Les tests fournisseurs reportés, T39 et les autres accords futurs restent inchangés.
+
 ## Révision 63 — PR #84 livrée, SDK 1.9 public, recettes ciblées (1er octobre 2026)
 
 Core main `9ce856cb`/arbre `59bf248e` passe 1 454/1 454 en CI candidate et main. Linux sert cette source sur le volume conservé ; Cloudflare Core sert la même source après update `c01a71c4` livré et registre synchronisé (101 modules/72 assets). SDK 1.9.0 est public, archive Linux SHA-256 `b10cc8ca47bad85d3f22124e0b3da214cea15610330fc650a8c107cba189eb2a`, 88 108 octets/93 fichiers ; 12 consommateurs, 72 suites dont 68 réussies et quatre non applicables, 296 tests. La publication du SDK, l'activation Linux et l'update Cloudflare sont trois reçus indépendants.
@@ -487,6 +493,8 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 
 <a id="T-27"></a>
 ## T-27 — Connecteur Stripe
+
+- Recette Cloudflare du 1er octobre sur Core `9ce856c` : création native d'un Checkout, paiement fictif et relecture `complete`/`paid` acquis ; quatre abonnements préexistants inchangés, refus de signature/droits/prix vérifiés. Le webhook historique reste incertain. Le correctif candidat 0.3.1 passe le chemin signé HTTP→D1 et ses refus locaux ; nouvelle recette distante, déduplication et clôture du test encore ouvertes ; voir [T27](IMPLEMENTATION-T27.md).
 
 - Lot : **P5** ; état : **en cours — produits/prix 0.2.0 intégrés, compléments ouverts** ; responsable : root avec les agents Sol.
 - Dépendances : [T-11](#T-11), [T-16](#T-16).

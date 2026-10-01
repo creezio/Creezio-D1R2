@@ -167,6 +167,7 @@ export function createDataAccess(db: IdentityDatabase,
     function plan(modelId: string, action: DataAction, input: unknown, list = false): DataPlan {
       const fresh = getLease(lease);
       if (!validId(modelId) || internal && modelId !== internal.modelId) throw new DataAccessError('forbidden');
+      if (internal?.guardOnly && (action !== 'read' || list)) throw new DataAccessError('forbidden');
       const model = models.get(`${moduleId}:${modelId}`);
       if (!model) throw new DataAccessError('forbidden');
       if (action === 'delete' && [...models.values()].some(source => source.model.relations.some(relation =>
@@ -182,7 +183,10 @@ export function createDataAccess(db: IdentityDatabase,
     const planPatch: DataPort['planPatch'] = (id, input) => plan(id, 'update', input);
     const planDelete: DataPort['planDelete'] = (id, input) => plan(id, 'delete', input);
     return Object.freeze({ planGet, planList, planCreate, planPatch, planDelete,
-      get: async (id, input) => (await execute(lease, [planGet(id, input)], false))[0].rows[0] ?? null,
+      get: async (id, input) => {
+        if (internal?.guardOnly) throw new DataAccessError('forbidden');
+        return (await execute(lease, [planGet(id, input)], false))[0].rows[0] ?? null;
+      },
       list: async (id, input) => {
         const token = planList(id, input), compiled = plans.get(token)!.compiled;
         const rows = (await execute(lease, [token], false))[0].rows, limit = compiled.list!.limit;
@@ -197,10 +201,12 @@ export function createDataAccess(db: IdentityDatabase,
   }
   const access: DataAccess = Object.freeze({ authorize, forModule: (lease, moduleId) => makePort(lease, moduleId),
     internalPort: (lease, input) => {
-      const captured = copyJson(input); record(captured); keys(captured, ['moduleId','modelId','fields']);
+      const captured = copyJson(input); record(captured); keys(captured, ['moduleId','modelId','fields'],['guardOnly']);
       if (!validId(captured.moduleId) || !validId(captured.modelId) || !Array.isArray(captured.fields)
         || captured.fields.length > DATA_LIMITS.fields || captured.fields.some(field => !validId(field))
-        || new Set(captured.fields).size !== captured.fields.length) throw new DataAccessError('invalid_input');
+        || new Set(captured.fields).size !== captured.fields.length
+        || captured.guardOnly !== undefined && typeof captured.guardOnly !== 'boolean')
+        throw new DataAccessError('invalid_input');
       const model = models.get(`${captured.moduleId}:${captured.modelId}`);
       if (!model || captured.fields.some(id => !model.model.fields.some(field => field.id === id && !field.computed)))
         throw new DataAccessError('invalid_input');

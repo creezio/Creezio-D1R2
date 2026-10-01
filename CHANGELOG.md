@@ -1,4 +1,9 @@
 # Changelog
+## Correctif candidat Stripe 0.3.1 — réception des événements signés
+
+- Le compte de service webhook accède aux trois modèles métier déclarés nécessaires, sans recevoir de droit de lecture du coffre. L'hôte garde la vérification atomique des secrets et termine proprement une erreur de préparation des gardes.
+- Le test positif traverse le pont signé jusqu'à la projection D1 ; les refus du jeton limité et les révocations restent vérifiés. Le paiement fictif distant de la version précédente est acquis, mais son webhook historique reste incertain ; la nouvelle version attend sa CI et sa recette après livraison.
+
 ## Collecte de clics — candidate Analytics et Catalogue
 
 - Deux boutons existants déclarent des identifiants d'action statiques : Actualiser dans Analytics et ouverture d'une fiche du front Catalogue. Leur collecte reste conditionnée par la politique du contexte, sans contenu métier dans l'événement et sans modification du rendu.

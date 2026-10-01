@@ -417,25 +417,25 @@
     {
       "moduleId": "creezio.stripe",
       "origin": "https://github.com/creezio/Creezio-D1R2",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "source": {
         "kind": "snapshot",
-        "revision": "t27-stripe-checkout-test-v1",
-        "integrity": "sha256-f8ca30dd33c1576852d204d001ee4398dff3162b0b05a096b54d4e8bf06edc8c"
+        "revision": "t27-stripe-webhook-permissions-v1",
+        "integrity": "sha256-dff3414eb159f1cdf227a4e70a578274f5e61442469411127ac4ff7d204786ea"
       },
-      "contractIntegrity": "sha256-2a684e98a3d27f15d91a362c78715e57a2477949421f97fbf65a4c0a94c7c636",
+      "contractIntegrity": "sha256-2d334b02abee26cfc25809c6f3fa1e5021908b1bdfe5c8f7501ebe28d42ed6db",
       "runtime": {
-        "integrity": "sha256-c28c3fc4d6ff5c31dec0eea14eab7b842b4e40dc2a3976a756873ac5693dd82c",
+        "integrity": "sha256-b79d2ab0143c74e903fd37a4f0c685320045ce03a58ac608cb5d8ae343e040e7",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.stripe/runtime-c28c3fc4d6ff5c31dec0eea14eab7b842b4e40dc2a3976a756873ac5693dd82c.tgz"
+          "path": ".creezio/module-artifacts/creezio.stripe/runtime-b79d2ab0143c74e903fd37a4f0c685320045ce03a58ac608cb5d8ae343e040e7.tgz"
         }
       },
       "validation": {
-        "integrity": "sha256-6b90bcb2f817309fbf789180022ec7167bfdc64e1ab4cd32a50ce6f14c3c0170",
+        "integrity": "sha256-4ea84f9514ebaeea96c873395b94e1774d8713fb8e4ba45b50bd9f166417ad70",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.stripe/validation-6b90bcb2f817309fbf789180022ec7167bfdc64e1ab4cd32a50ce6f14c3c0170.tgz"
+          "path": ".creezio/module-artifacts/creezio.stripe/validation-4ea84f9514ebaeea96c873395b94e1774d8713fb8e4ba45b50bd9f166417ad70.tgz"
         }
       },
       "dependencies": [

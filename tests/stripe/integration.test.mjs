@@ -1,6 +1,7 @@
 import '../../scripts/local-environment.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {createHmac} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {Miniflare} from 'miniflare';
@@ -19,6 +20,7 @@ import {createOperationHttpTransport} from '../../core/operations/http.ts';
 import {createMcpHttpTransport} from '../../core/mcp/http.ts';
 import {createVaultKeyring} from '../../core/vault/crypto.ts';
 import {createWebhookProofAuthority} from '../../core/connectors/webhook-proof.ts';
+import {createSignedWebhookBridge} from '../../core/connectors/webhook-http.ts';
 import {createVaultedWebhookResolver} from '../../core/connectors/webhook-resolver.ts';
 import {stripeWebhookInput} from '../../extensions/connectors/stripe/module/webhook.ts';
 import {compileHttpBindings} from '../../scripts/operations/http-bindings.mjs';
@@ -372,6 +374,46 @@ test('Stripe GET-only connector commits pages atomically in D1 and scopes API/MC
         moduleId,operationId:'checkout.payment.create',contextId:'application',audience:'admin',
         input:{requestKey:'webhook-must-not-checkout',priceId:'price_active',quantity:1}}),
       {code:'forbidden'},'webhook scope cannot create Checkout sessions');
+      await assert.rejects(engine.invoke({credential:{kind:'api-token',token:serviceToken},
+        moduleId,operationId:'event.list',contextId:'application',audience:'admin',
+        input:{limit:25}}),{code:'forbidden'},'webhook scope cannot list events');
+      const invalidGuardInput={...eventInput,requestKey:'evt_test_bad_guard',eventId:'evt_test_bad_guard'};
+      const invalidGuardProof=await proof.issue({moduleId,operationId:'event.receive',
+        contextId:'application',audience:'admin',token:serviceToken,
+        eventId:invalidGuardInput.eventId,bodyDigest:invalidGuardInput.bodyDigest,
+        guards:[snapshot.guards[0],{...snapshot.guards[1],modelId:'undeclared_guard'},
+          ...snapshot.guards.slice(2)],operationInput:invalidGuardInput});
+      const invalidGuard=await engine.invoke({credential:{kind:'api-token',token:serviceToken},
+        moduleId,operationId:'event.receive',contextId:'application',audience:'admin',
+        input:invalidGuardInput,webhookProof:invalidGuardProof});
+      assert.equal(invalidGuard.execution.state,'failed','guard construction must settle its claim');
+      assert.equal(invalidGuard.execution.errorCode,'forbidden');
+      const acceptedInput={...eventInput,requestKey:'evt_test_success',eventId:'evt_test_success'};
+      const acceptedProof=await proof.issue({moduleId,operationId:'event.receive',
+        contextId:'application',audience:'admin',token:serviceToken,
+        eventId:acceptedInput.eventId,bodyDigest:acceptedInput.bodyDigest,
+        guards:snapshot.guards,operationInput:acceptedInput});
+      const accepted=await engine.invoke({credential:{kind:'api-token',token:serviceToken},
+        moduleId,operationId:'event.receive',contextId:'application',audience:'admin',
+        input:acceptedInput,webhookProof:acceptedProof});
+      assert.equal(accepted.execution.state,'succeeded',JSON.stringify(accepted.execution));
+      assert.deepEqual({...accepted.execution.output},{eventId:'evt_test_success',recorded:true,
+        checkoutUpdated:true});
+      assert.equal(await db.prepare(`SELECT count(*) AS n FROM "${generated.tables.stripe_event}" WHERE context_id=?`)
+        .bind('application').first().then(row=>row.n),1);
+      const eventBody=JSON.stringify({id:'evt_test_bridge',object:'event',livemode:false,
+        type:'checkout.session.completed',data:{object:{id:'cs_test_unlinked',object:'checkout.session',
+          mode:'subscription',status:'complete',payment_status:'paid'}}});
+      const stamp=String(Math.floor(Date.now()/1000));
+      const signature=createHmac('sha256','whsec_synthetic_signing_secret_123456789')
+        .update(`${stamp}.${eventBody}`).digest('hex');
+      const bridge=createSignedWebhookBridge({engine,proof,resolve:resolver});
+      const response=await bridge.dispatch(new Request('https://app.example.test/api/webhooks/stripe',{
+        method:'POST',headers:{'content-type':'application/json',
+          'stripe-signature':`t=${stamp},v1=${signature}`},body:eventBody}),binding);
+      assert.equal(response.status,204,'signed bridge must commit the event');
+      assert.equal(await db.prepare(`SELECT count(*) AS n FROM "${generated.tables.stripe_event}" WHERE context_id=?`)
+        .bind('application').first().then(row=>row.n),2);
       success(await invoke('config.key.webhook.revoke',{requestKey:'webhook-revoke',
         revision:serviced.revision}));
       const racedEvent=await engine.invoke({credential:{kind:'api-token',token:serviceToken},
@@ -379,6 +421,6 @@ test('Stripe GET-only connector commits pages atomically in D1 and scopes API/MC
         input:eventInput,webhookProof:raceProof}).catch(error=>error);
       assert.notEqual(racedEvent.execution?.state,'succeeded');
       assert.equal(await db.prepare(`SELECT count(*) AS n FROM "${generated.tables.stripe_event}" WHERE context_id=?`)
-        .bind('application').first().then(row=>row.n),0);
+        .bind('application').first().then(row=>row.n),2);
     }finally{if(mcpClient)await mcpClient.close();await runtime.dispose();}
   });

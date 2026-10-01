@@ -4,7 +4,7 @@ import {stripeConnectorDescriptor} from './storage.ts';
 
 const root=new URL('../',import.meta.url);
 const template=JSON.parse(readFileSync(new URL('module/manifest.json',root),'utf8'));
-const id='creezio.stripe',connectorId='stripe.api.v1',version='0.3.0',sourceRevision='t27-stripe-checkout-test-v1';
+const id='creezio.stripe',connectorId='stripe.api.v1',version='0.3.1',sourceRevision='t27-stripe-webhook-permissions-v1';
 const ref=(kind,name)=>({moduleId:id,kind,id:name});
 const str=(max=128,min=1)=>({type:'string',minLength:min,maxLength:max});
 const integer=(min=0,max=Number.MAX_SAFE_INTEGER)=>({type:'integer',minimum:min,maximum:max});
@@ -35,7 +35,7 @@ model('connector_config','Configuration Stripe',[idField,
   field('webhook_previous_secret_version','integer',{nullable:true,constraints:{minimum:1}}),
   field('webhook_service_token_ref','string',{nullable:true,constraints:{minLength:1,maxLength:128}}),
   field('webhook_service_token_version','integer',{nullable:true,constraints:{minimum:1}}),
-  field('enabled','boolean'),revisionField,updatedField],['manage','read']);
+  field('enabled','boolean'),revisionField,updatedField],['manage','read','webhook.receive']);
 model('connector_secret','Clé Stripe scellée',[
   field('id','string',{protected:true,constraints:{minLength:1,maxLength:128}}),
   field('binding_id','string',{protected:true,constraints:{minLength:1,maxLength:128}}),
@@ -119,14 +119,14 @@ model('stripe_checkout','Session Checkout Stripe',[idField,
   field('status','string',{constraints:{minLength:1,maxLength:32}}),
   field('payment_status','string',{constraints:{minLength:1,maxLength:32}}),
   field('url','string',{nullable:true,constraints:{minLength:8,maxLength:2048}}),
-  field('livemode','boolean'),revisionField,updatedField],['manage','read'],
+  field('livemode','boolean'),revisionField,updatedField],['manage','read','webhook.receive'],
   [{id:'by-connection',fields:['context_id','connection_id','id'],unique:false}]);
 model('stripe_event','Événement Stripe signé',[idField,
   field('connection_id','string',{constraints:{minLength:1,maxLength:128}}),
   field('type','string',{constraints:{minLength:1,maxLength:128}}),
   field('object_id','string',{constraints:{minLength:1,maxLength:128}}),
   field('body_digest','string',{constraints:{minLength:64,maxLength:64}}),
-  field('livemode','boolean'),revisionField,updatedField],['manage','read'],
+  field('livemode','boolean'),revisionField,updatedField],['manage','read','webhook.receive'],
   [{id:'by-connection',fields:['context_id','connection_id','id'],unique:false}]);
 
 const schemas=[],schema=(name,value)=>{schemas.push({id:name,schema:value});return {schemaId:name};};

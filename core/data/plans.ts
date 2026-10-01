@@ -139,7 +139,10 @@ export function compileDataPlan(entry: CompiledModel, state: ResolvedDataAuthori
   const { model } = entry;
   if (!entry.enabled || model.scope === 'application' && state.target.contextId !== 'application') throw new DataAccessError('forbidden');
   // Explicit actions/resources, never role names or a permission-id naming convention.
-  if (!permits(entry, state, action)) throw new DataAccessError('forbidden');
+  // The signed-webhook host may plan a protected read guard without granting the
+  // machine token general access to the vault model. It cannot mint a write plan.
+  if (!(internal?.guardOnly === true && action === 'read' && !list)
+    && !permits(entry, state, action)) throw new DataAccessError('forbidden');
   if (action === 'delete' && (model.deletion.mode !== 'hard' || model.deletion.requiresApproval)) throw new DataAccessError('unsupported');
   // Foreign keys establish integrity. This port additionally requires a readable
   // same-module parent and proves its presence in the write transaction.

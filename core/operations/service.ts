@@ -318,16 +318,6 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           }
           connectorState.guards=Object.freeze([...tokens]);
         };
-        const privateWebhookGuards=(webhookGuards??[]).map(guard=>{
-          if(guard.moduleId!==operation.moduleId||!catalog.modules.some(module=>
-            module.moduleId===guard.moduleId&&module.enabled&&module.models.some(model=>
-              model.modelId===guard.modelId)))throw new OperationError('forbidden');
-          const token=data.internalPort(lease,{moduleId:guard.moduleId,
-            modelId:guard.modelId,fields:guard.fields}).planGet(guard.modelId,
-            {key:guard.key,where:guard.where,required:true});
-          issued.set(token,{write:false,compared:false,webhookGuard:true});
-          return token;
-        });
         const moduleConnectors=connectors.filter(item=>item.descriptor.moduleId===operation.moduleId
           &&op.effects.writes.some(ref=>ref.kind==='model'&&ref.moduleId===operation.moduleId
             &&ref.id===item.descriptor.vault.modelId));
@@ -532,6 +522,19 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
         let sourceReceipt:OperationExecution|undefined;
         let nativeCompared = false;
         try {
+          const privateWebhookGuards=(webhookGuards??[]).map(guard=>{
+            if(guard.moduleId!==operation.moduleId||!catalog.modules.some(module=>
+              module.moduleId===guard.moduleId&&module.enabled&&module.models.some(model=>
+                model.modelId===guard.modelId)))throw new OperationError('forbidden');
+            const vaultGuard=connectors.some(item=>item.descriptor.moduleId===guard.moduleId
+              &&item.descriptor.webhook?.operationId===op.id
+              &&item.descriptor.vault.modelId===guard.modelId);
+            const token=data.internalPort(lease,{moduleId:guard.moduleId,
+              modelId:guard.modelId,fields:guard.fields,...(vaultGuard?{guardOnly:true}:{})}).planGet(guard.modelId,
+              {key:guard.key,where:guard.where,required:true});
+            issued.set(token,{write:false,compared:false,webhookGuard:true});
+            return token;
+          });
           const execution = Promise.resolve().then(async () => {
             ensure();
             if (operation.moduleId !== 'creezio.access') return operation.handler(input, context);

@@ -129,6 +129,18 @@ test('data ports use live native credentials, exact scopes and atomic D1 plans',
       assert.throws(()=>data.describeLease(lease),code('invalid_lease'));
       await assert.rejects(()=>port.get('record',{key:{id:'record-a'}}),code('invalid_lease'));
     });
+    await t.test('host guard ports can only prepare a fixed protected read',async()=>{
+      const {lease}=await fresh();
+      const guard=data.internalPort(lease,{moduleId,modelId:'record',
+        fields:['id','secret'],guardOnly:true});
+      assert.doesNotThrow(()=>guard.planGet('record',{key:{id:'record-a'},
+        where:{secret:'rotated'},required:true}));
+      await assert.rejects(()=>guard.get('record',{key:{id:'record-a'}}),code('forbidden'));
+      assert.throws(()=>guard.planList('record',{limit:1}),code('forbidden'));
+      assert.throws(()=>guard.planCreate('record',{values:{id:'bad'}}),code('forbidden'));
+      assert.throws(()=>guard.planPatch('record',{key:{id:'record-a'},values:{secret:'bad'}}),code('forbidden'));
+      data.dispose(lease);
+    });
     await t.test('actions and resources are explicit, with no grant from a permissive operation target',async()=>{
       const readOnly=good(await machines.issueToken(signed.token,{principalId:machine.principal.id,label:'Read X admin',ttlMs:60000,
         scopes:[{contextId:'context-x',audience:'admin',permissionIds:[permissions[0].id]},
