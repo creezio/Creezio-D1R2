@@ -15,6 +15,8 @@ docker compose -f adapters/docker/compose.yaml up -d --no-build
 
 Ouvrir `http://127.0.0.1:5173/access/admin`. L'installation interactive demande le premier compte et une confirmation explicite. Aucun mot de passe n'est fourni par image, variable ou argument. Le proxy TCP sur le port interne 5174 transmet HTTP et WebSocket au serveur local qui conserve son origine canonique `127.0.0.1:5173`. Le port publié reste limité au loopback de l'hôte.
 
+Pour un second projet local avec d'autres origines, les deux ponts internes restent sur 5174 et 5177 mais ciblent les ports de `CREEZIO_APP_ORIGIN` et `CREEZIO_LOCAL_DELIVERY_ORIGIN` du même démarrage. Aucun des trois ports configurés (application, opérateur, sandbox) ne peut occuper 5174 ou 5177. Le sandbox n'utilise pas de pont : son port publié doit cibler son propre `CREEZIO_WIDGET_SANDBOX_ORIGIN`. Par exemple, avec les origines 5273/5275/5276, publier `127.0.0.1:5273:5174`, `127.0.0.1:5275:5275` et `127.0.0.1:5276:5177`. Vérifier ces trois mappings dans le Compose effectif avant de démarrer ; chaque projet conserve son volume et son origine canonique distincts.
+
 Pour ajouter les tables ou index déclarés par une nouvelle image à une base déjà installée, conserver le volume, arrêter `app`, puis inspecter et appliquer le plan central depuis cette image :
 
 ```sh

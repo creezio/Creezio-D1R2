@@ -6,6 +6,8 @@ PR #85 est intégrée sur `1dce54de8f60629d004ec688790270ad28d5d816` après CI c
 
 T27 : un Checkout a été payé en mode test et relu par Creezio et Stripe, avec les quatre abonnements antérieurs conservés. Son webhook a révélé un défaut de garde du coffre et des permissions de modèles manquantes. Le correctif candidat 0.3.1 passe le pont signé jusqu'à D1 et ses refus locaux ; il conserve le jeton limité, le coffre protégé et l'ancien événement incertain. T22 : deux boutons existants sont instrumentés sous la politique du contexte. Ces deux changements attendent une CI commune, leur livraison et leurs recettes ciblées ; ils ne changent pas l'interface originale ni le SDK public. Les tests fournisseurs reportés, T39 et les autres accords futurs restent inchangés.
 
+T33 : le propriétaire est maintenant installé par le CLI natif, avec le même reçu primaire et deux cibles D1 prêtes, sans recréer le schéma. Le premier accès HTTP a révélé les ports fixes des proxys Docker malgré des origines configurées distinctes. Ce correctif est ajouté à la même candidate ; les tests d'isolation API/R2 et Cloudflare restent ouverts.
+
 ## Révision 63 — PR #84 livrée, SDK 1.9 public, recettes ciblées (1er octobre 2026)
 
 Core main `9ce856cb`/arbre `59bf248e` passe 1 454/1 454 en CI candidate et main. Linux sert cette source sur le volume conservé ; Cloudflare Core sert la même source après update `c01a71c4` livré et registre synchronisé (101 modules/72 assets). SDK 1.9.0 est public, archive Linux SHA-256 `b10cc8ca47bad85d3f22124e0b3da214cea15610330fc650a8c107cba189eb2a`, 88 108 octets/93 fichiers ; 12 consommateurs, 72 suites dont 68 réussies et quatre non applicables, 296 tests. La publication du SDK, l'activation Linux et l'update Cloudflare sont trois reçus indépendants.
@@ -569,7 +571,7 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 <a id="T-33"></a>
 ## T-33 — Stockages distincts hors Sites
 
-- Correctif d'installation des profils larges : garde de vacuité équilibrée, cinq tests Linux réussis sur le profil à au moins 114 tables. La reprise de l'installation T33 réelle reste ouverte ; conserver sa composition tant que le premier compte n'est pas installé. Voir [le contrat et ses preuves](IMPLEMENTATION-T33.md#installation-avec-le-profil-complet-de-modules).
+- Correctif d'installation des profils larges intégré par PR #85 : garde de vacuité équilibrée, cinq tests Linux sur au moins 114 tables, puis propriétaire T33 réel installé et trois D1 prêts. Les données sont conservées. Le correctif des ports Docker attend son intégration avant la recette API/R2 des deux contextes ; voir [le contrat et ses preuves](IMPLEMENTATION-T33.md#installation-avec-le-profil-complet-de-modules).
 
 
 - Lot : **P6** ; état : **en cours — code intégré et schéma adopté sur Linux, recette isolée multi-couple ouverte** ; responsabilités : intégration Git/livraison, installation/revue locale, configuration persistée et recette réelle traitées par des responsables distincts.

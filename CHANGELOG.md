@@ -1,4 +1,9 @@
 # Changelog
+## Correctif candidat Docker — origines locales configurées
+
+- Les ponts de l'application et de l'opérateur suivent les ports de la configuration locale, avec refus des collisions sur leurs ports réservés. Le sandbox conserve son port configuré et son mapping explicite dans Compose.
+- Le propriétaire de l'installation T33 est confirmé sur son volume conservé et les trois D1 sont prêts. La recette HTTP de cette installation a révélé ce défaut de ports ; l'isolation métier et la publication Cloudflare restent à qualifier après livraison du correctif.
+
 ## Correctif candidat Stripe 0.3.1 — réception des événements signés
 
 - Le compte de service webhook accède aux trois modèles métier déclarés nécessaires, sans recevoir de droit de lecture du coffre. L'hôte garde la vérification atomique des secrets et termine proprement une erreur de préparation des gardes.
