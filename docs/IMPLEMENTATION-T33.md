@@ -1,6 +1,12 @@
 # T-33 — Stockages distincts hors Sites
 
-Le correctif candidat de publication du sandbox s'applique aussi au cutover Cloudflare routé : son reçu distant exact précède l'upload du Worker principal et est recontrôlé avant la réouverture des routes. Les preuves locales A/B ne valent toujours pas publication T33 distante.
+## Chaîne Linux 8d vers b9 vérifiée — 2 octobre 2026
+
+Sur la source 8d, le prévol natif avant mutation et les reçus API A/B, révocation et post-révocation sont conservés ; la clôture `CREEZIO-T33-LINUX-8D-API-CLOSURE-2026-10-01.json` indique explicitement `nativePostInspection.receiptWritten:false`. Il n'existe donc pas de reçu natif post-révocation 8d qualifié. Sous b9, l'inspection native post-révocation du conteneur historique arrêté et le prévol natif du conteneur courant arrêté portent le même volume et UUID d'installation, avec plans et reçus SQL propres à chaque époque. L'accès b9 indique epoch 5, A désactivé et B actif ; le readback API préserve le témoin B, refuse A, et ferme les sessions. Le wrapper hors dépôt compare les sources, images, 32 chemins de diff, volumes, identités, plans/reçus SQL exacts, conteneurs et empreintes des reçus historiques ; 19 contrôles hors réseau passent. Ce faisceau qualifie le témoin Linux/API borné et la préparation opérateur, sans publication Cloudflare multi-couple ni adoption/DDL manuel. Reçus hors dépôt : `CREEZIO-T33-NATIVE-POST-REVOKE-B9A4562-2026-10-02.json`, `CREEZIO-T33-NATIVE-PREFLIGHT-B9A4562-2026-10-02.json`, `CREEZIO-T33-B9-ACCESS-INSPECTED-2026-10-02.json` et `CREEZIO-T33-B9-SAMPLES-PRESERVED-2026-10-02.json`. Les sections candidates du 1er octobre ci-dessous restent historiques.
+
+La préparation de livraison a ensuite nécessité l'autorisation administrative native `creezio.delivery:manage`, absente du rôle initial. Un seul delta de politique a fait avancer l'epoch de 5 à 6, sans réactiver A ni modifier B. Une nouvelle lecture confirme A refusé et les mêmes empreintes du brouillon/fichier B, puis la déconnexion ; l'ancien reçu epoch 5 reste conservé. Le wrapper vérifie cette transition séparément et ses 22 contrôles hors réseau passent. Le prévol distant constate les noms libres et l'opérateur sans transfert actif ; cela ne constitue pas encore une publication. Reçus hors dépôt : `CREEZIO-T33-DELIVERY-GRANT-2026-10-02.json` et `CREEZIO-T33-B9-SAMPLES-PRESERVED-AFTER-DELIVERY-GRANT-2026-10-02.json`.
+
+Le correctif intégré de publication du sandbox s'applique aussi au cutover Cloudflare routé : son reçu distant exact précède l'upload du Worker principal et est recontrôlé avant la réouverture des routes. Les preuves locales A/B ne valent toujours pas publication T33 distante.
 
 ## Correctif candidat : lignée du logout natif — 1er octobre 2026
 

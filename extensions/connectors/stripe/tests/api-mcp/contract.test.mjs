@@ -8,7 +8,7 @@ test('every Stripe operation has explicit admin API and MCP exposure with machin
     'config.key.revoke','config.key.webhook.set','config.key.webhook.revoke',
     'config.key.webhook.service.set','config.key.webhook.service.revoke',
     'connection.check','checkout.payment.create',
-    'checkout.subscription.create','checkout.read','subscription.cancel.schedule',
+    'checkout.subscription.create','checkout.read','subscription.cancel.schedule','subscription.cancel.set',
     'event.receive','event.list',
     'sync.state','sync.start','sync.page',
     'customer.list','subscription.list','invoice.list','product.list','price.list']);
@@ -43,7 +43,8 @@ test('GET projections and commands have matching auth, pagination and no arbitra
     ['collection','cursor','expectedRevision','limit','requestKey','runId'].sort());
   assert.equal(schema.properties.limit.maximum,8);
   assert.ok(!JSON.stringify(manifest.contracts.api).includes('apiKey'));
-  for(const id of ['checkout.payment.create','checkout.subscription.create','subscription.cancel.schedule']){
+  for(const id of ['checkout.payment.create','checkout.subscription.create',
+    'subscription.cancel.schedule','subscription.cancel.set']){
     const row=operation(id);
     assert.equal(row.kind,'command');assert.equal(row.idempotency.mode,'required');
     assert.deepEqual(row.effects.providers,['stripe.api.v1']);
@@ -51,4 +52,20 @@ test('GET projections and commands have matching auth, pagination and no arbitra
   }
   const checkoutRead=manifest.contracts.api.find(row=>row.operation.id==='checkout.read');
   assert.deepEqual(checkoutRead.parameters.map(row=>row.name),['session_id']);
+  const cancellation=operation('subscription.cancel.set');
+  assert.equal(cancellation.concurrency.mode,'object-version');
+  assert.deepEqual(cancellation.permissions.map(row=>row.id),['manage']);
+  const input=manifest.contracts.schemas.find(row=>row.id===cancellation.input.schemaId).schema;
+  assert.deepEqual([...input.required].sort(),['requestKey','subscriptionId','revision','cancelAtPeriodEnd'].sort());
+  assert.deepEqual(input.properties.cancelAtPeriodEnd,{type:'boolean'});
+  const output=manifest.contracts.schemas.find(row=>row.id===cancellation.output.schemaId).schema;
+  assert.deepEqual(output.properties.cancelAtPeriodEnd,{type:'boolean'});
+  const legacy=operation('subscription.cancel.schedule');
+  assert.deepEqual(manifest.contracts.schemas.find(row=>row.id===legacy.output.schemaId)
+    .schema.properties.cancelAtPeriodEnd,{const:true});
+  assert.equal(manifest.contracts.api.find(row=>row.operation.id===cancellation.id).path,
+    '/api/admin/stripe/subscription/cancel/set');
+  assert.equal(manifest.contracts.mcp.tools.find(row=>row.operation.id===cancellation.id).name,
+    'stripe_subscription_cancel_set');
+  assert.deepEqual(manifest.contracts.widgets[0].actions.map(row=>row.target.operation.id),['sync.state']);
 });

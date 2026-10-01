@@ -6,6 +6,21 @@ export type Config={origin:string;enabled:boolean;hasKey:boolean;hasWebhookSecre
   checkoutReturnOrigin:string|null;
   revision:number;state:string};
 
+type SubscriptionLifecycle={id:string;status:string;livemode:boolean;
+  cancel_at_period_end:boolean|null;revision:number};
+export function subscriptionLifecycleAction(subscription:SubscriptionLifecycle){
+  if(subscription.livemode||!['active','trialing','past_due'].includes(subscription.status)||
+    typeof subscription.cancel_at_period_end!=='boolean'||!subscription.id||
+    !Number.isSafeInteger(subscription.revision)||subscription.revision<1)return null;
+  const cancelAtPeriodEnd=!subscription.cancel_at_period_end;
+  return {operation:'subscription.cancel.set',
+    input:{subscriptionId:subscription.id,revision:subscription.revision,cancelAtPeriodEnd},
+    label:cancelAtPeriodEnd?'Arrêter à l’échéance':'Maintenir l’abonnement',
+    confirmation:cancelAtPeriodEnd
+      ?`Programmer l’arrêt de l’abonnement ${subscription.id} à la fin de la période ?`
+      :`Retirer l’arrêt programmé de l’abonnement ${subscription.id} et maintenir son renouvellement ?`};
+}
+
 /** A late read cannot roll a confirmed command back to an older revision. */
 export function latestConfig(previous:Config|null,candidate:Config):Config{
   return previous&&previous.revision>candidate.revision?previous:candidate;

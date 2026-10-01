@@ -1,5 +1,9 @@
 # T22 — Analytics et diagnostics
 
+## Refus pré-moteur et fenêtre de diagnostics Original Sites — 2 octobre 2026
+
+Sur Original Sites v6, deux refus anonymes 401 `authentication_required` ont été observés sur les entrées HTTP et MCP ; la vue Journal et les exports UI JSON/CSV contiennent exactement ces deux événements. La politique de collecte a été restaurée désactivée. Sur Original Sites v7, la lecture native de `diagnostics.executions` a couvert trois pages et 150 lignes `week` sous projection bornée à neuf champs, sans ligne `failed` codée dans cette fenêtre. La même API refuse l'anonyme à 401 et l'owner hors contexte à 403 ; logout 200/session 401. Aucun résultat UI de diagnostic `failed` n'est revendiqué, ni absence globale d'erreurs. Attendre un témoin d'échec déjà existant avant comparaison UI/API/MCP, sans le provoquer. Reçus hors dépôt : `CREEZIO-T22-ORIGINAL-V6-REFUSALS-FINAL-2026-10-01.json` et `CREEZIO-T22-ORIGINAL-V7-DIAGNOSTICS-EXISTING-2026-10-02.json`. Les états du 1er octobre ci-dessous restent historiques.
+
 État courant au 1er octobre 2026 : les deux clics déclarés ont été observés sur Original Sites v4, avec collecte activée puis désactivée. Le refus pré-moteur HTTP/MCP est implémenté dans `core/operations/transport-diagnostics.ts` et raccordé aux deux transports ; la suite d'intégration Analytics couvre l'absence de collecte sans politique active, la lecture et la purge bornée des refus. Cette qualification de code et de tests ne vaut pas recette hébergée du diagnostic pré-moteur. Les mesures dépendantes de Work T17 et l'instrumentation exhaustive des autres modules restent ouvertes.
 
 ## Actions d’interface déclarées — recette Sites du 1er octobre

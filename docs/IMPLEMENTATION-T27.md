@@ -1,5 +1,15 @@
 # T27 — Connecteur Stripe
 
+## Candidate 0.4.0 — arrêt en fin de période réversible
+
+La commande additive `subscription.cancel.set` prend l'état souhaité `cancelAtPeriodEnd`, l'identifiant d'abonnement, sa révision locale et une clé de demande. Le contrat historique `subscription.cancel.schedule` est conservé. L'API et MCP administratifs utilisent le même service, les mêmes droits, la projection courante et le journal des commandes ; l'écran Facturation propose soit l'arrêt à l'échéance, soit le maintien de l'abonnement. Aucun modèle D1, port SDK, mécanisme d'identité ou webhook n'est remplacé.
+
+Cette action retire un arrêt encore programmé ; elle ne réactive pas un abonnement terminé. Le comportement fournisseur correspond au paramètre `cancel_at_period_end` décrit dans la [documentation Stripe](https://docs.stripe.com/billing/subscriptions/cancel). Le mode TEST reste imposé. Les modifications de prix/quantité, les accès d'achat client et les fonctions premium ne sont pas ajoutés par cette tranche. Les contrôles de la candidate et sa recette hébergée sont suivis séparément ; aucun nouvel appel fournisseur n'est acquis à ce stade.
+
+## Recettes acquises sur 0.3.1
+
+Le reçu `CREEZIO-T27-STRIPE-031-FINAL-2026-10-01.json` conserve le second Checkout TEST payé, son événement projeté, les six abonnements relus et les deux arrêts de témoins programmés. Le produit et le prix de test sont désactivés, l'endpoint de qualification est fermé et les quatre abonnements historiques sont inchangés. Le retour vers le front est ensuite vérifié sur Core `eddf01a`. La conservation après livraison b9 ne réexécute aucun paiement. Le code HTTP 204 du webhook et la rediffusion distante restent non attestés ; l'ancien événement incertain garde son propre résultat.
+
 ## Recette Cloudflare du 1er octobre — paiement acquis, webhook en correction
 
 Sur Core `9ce856c` publié, la configuration native a connecté le compte Stripe de test, projeté les quatre abonnements préexistants puis un produit et son prix mensuel de 1 EUR dédiés à la qualification. Un Checkout `subscription` a été créé par l'API Creezio et payé une seule fois dans le navigateur avec la carte fictive Stripe. La session se relit `complete`/`paid`, avec `livemode=false`, dans l'API native et chez Stripe. Les quatre abonnements antérieurs sont inchangés dans les deux systèmes. Les appels sans signature, l'usage du jeton webhook pour créer un Checkout et le prix non projeté ont été refusés. Aucun paiement réel n'a été effectué.

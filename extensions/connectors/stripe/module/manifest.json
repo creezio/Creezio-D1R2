@@ -5,11 +5,11 @@
     "title": "Connecteur Stripe",
     "publisher": "creezio",
     "origin": "https://github.com/creezio/Creezio-D1R2",
-    "version": "0.3.1",
+    "version": "0.4.0",
     "source": {
       "kind": "snapshot",
-      "revision": "t27-stripe-webhook-permissions-v1",
-      "integrity": "sha256-dff3414eb159f1cdf227a4e70a578274f5e61442469411127ac4ff7d204786ea"
+      "revision": "t27-stripe-subscription-cancellation-v1",
+      "integrity": "sha256-50d728e0bc8240a102997db76e0369fe2f9e632ce73f571a2986228243a14c84"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -1438,6 +1438,64 @@
             },
             "cancelAtPeriodEnd": {
               "const": true
+            },
+            "livemode": {
+              "const": false
+            }
+          },
+          "required": [
+            "subscriptionId",
+            "cancelAtPeriodEnd",
+            "livemode"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "subscription-cancel-set-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "subscriptionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "cancelAtPeriodEnd": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "requestKey",
+            "subscriptionId",
+            "revision",
+            "cancelAtPeriodEnd"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "subscription-cancel-set-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "subscriptionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "cancelAtPeriodEnd": {
+              "type": "boolean"
             },
             "livemode": {
               "const": false
@@ -5682,6 +5740,145 @@
         "public": false
       },
       {
+        "id": "subscription.cancel.set",
+        "title": "Programmer ou retirer l’arrêt d’un abonnement test",
+        "kind": "command",
+        "input": {
+          "schemaId": "subscription-cancel-set-input"
+        },
+        "output": {
+          "schemaId": "subscription-cancel-set-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "subscriptionCancelSet"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_subscription"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_subscription"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "stripe.api.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 15000,
+          "maxItems": 12,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
         "id": "event.receive",
         "title": "Enregistrer un événement Stripe signé",
         "kind": "command",
@@ -7398,6 +7595,33 @@
         }
       },
       {
+        "id": "admin.subscription.cancel.set",
+        "method": "POST",
+        "path": "/api/admin/stripe/subscription/cancel/set",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "subscription.cancel.set"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "subscription-cancel-set-input"
+        },
+        "output": {
+          "schemaId": "subscription-cancel-set-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
         "id": "admin.event.list",
         "method": "GET",
         "path": "/api/admin/stripe/event/list",
@@ -8124,6 +8348,35 @@
           "textFallback": true
         },
         {
+          "id": "subscription.cancel.set",
+          "name": "stripe_subscription_cancel_set",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "subscription.cancel.set"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "subscription-cancel-set-input"
+          },
+          "output": {
+            "schemaId": "subscription-cancel-set-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": true
+          },
+          "textFallback": true
+        },
+        {
           "id": "event.list",
           "name": "stripe_event_list",
           "operation": {
@@ -8488,6 +8741,11 @@
             {
               "moduleId": "creezio.stripe",
               "kind": "operation",
+              "id": "subscription.cancel.set"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
               "id": "event.list"
             }
           ],
@@ -8583,6 +8841,11 @@
               "moduleId": "creezio.stripe",
               "kind": "operation",
               "id": "subscription.cancel.schedule"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "subscription.cancel.set"
             },
             {
               "moduleId": "creezio.stripe",
@@ -8787,8 +9050,8 @@
       }
     },
     "versionBinding": {
-      "moduleVersion": "0.3.1",
-      "sourceRevision": "t27-stripe-webhook-permissions-v1"
+      "moduleVersion": "0.4.0",
+      "sourceRevision": "t27-stripe-subscription-cancellation-v1"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -8915,8 +9178,8 @@
     },
     "validationBinding": {
       "moduleId": "creezio.stripe",
-      "moduleVersion": "0.3.1",
-      "sourceRevision": "t27-stripe-webhook-permissions-v1"
+      "moduleVersion": "0.4.0",
+      "sourceRevision": "t27-stripe-subscription-cancellation-v1"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",
