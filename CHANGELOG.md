@@ -1,24 +1,29 @@
 # Changelog
 
+## Correctif du retour vers le front
+
+- Les paramètres de retour Checkout sur la racine n'entraînent plus une fausse vue introuvable. Le front affiche son accueil neutre sans déduire un paiement des paramètres de l'URL.
+- Le nouveau paiement Stripe TEST sur Core be89116 est confirmé, avec nouvel événement et projection des abonnements ; l'ancien webhook incertain conserve sa preuve distincte. La recette du retour corrigé attend sa livraison.
+
 ## Correctif T07/T22 — refus de l'aperçu de rétention
 
 - L'ouverture de l'aperçu de rétention avec le seul droit de lecture Analytics renvoyait un 403 et fermait les onglets du workspace. La recette Sites confirme que session et projection restaient valides. Ce refus reste désormais dans le panneau concerné ; les commandes, les 401 et les refus de session conservent leur traitement.
-- Les deux tests ciblés du garde passent. La correction rejoint la PR #90 pour une livraison groupée ; aucun droit de gestion de rétention, activation de collecte ou purge n'est ajouté. La vérification de l'interface après livraison reste requise.
+- Les deux tests ciblés du garde et les CI candidate/main de la PR #90 passent. Original Sites v5 (`a2cf524`, Core `be89116`) conserve Support, Conversations et Analytique après l'alerte de droit `analytics.purge` ; le chat reste accessible, la session active et les deux clics précédents visibles. Aucun droit de gestion, activation de collecte ou purge n'est ajouté (`CREEZIO-T22-ORIGINAL-RETENTION-LOCAL-BE89116.json` hors dépôt).
 
 ## Correctif T15 — statut d'une réponse connue avant reprise du flux
 
 - La reprise d'un tour possédant déjà un reçu OpenAI lit d'abord son statut : une réponse terminée peut être confirmée sans rouvrir un flux long. Une réponse encore active reprend le même flux ; aucune seconde création n'est émise.
-- Le délai et l'annulation restent applicables avant et après la lecture. Un résultat arrivé après expiration, ou un reçu devenu indisponible, conserve l'état inconnu. Les six scénarios ciblés passent dans la suite du pont ; CI et livraison restent à qualifier. L'ancien tour Original n'est pas déclaré récupéré.
+- Le délai et l'annulation restent applicables avant et après la lecture. Un résultat arrivé après expiration, ou un reçu devenu indisponible, conserve l'état inconnu. Les six scénarios ciblés et les CI candidate/main de la PR #90 passent ; Core `be89116` est livré sur Linux, Cloudflare et Original Sites v5. Aucun nouveau tour hébergé ne qualifie encore cette reprise ; l'ancien tour Original n'est pas déclaré récupéré.
 
-## 1er octobre 2026 — PR #89 et recettes Sites
+## 1er octobre 2026 — PR #90, livraisons Core et recettes Sites
 
-- PR #89 est intégrée sur `8d723ce`, avec 1 472 tests dans chacune des CI candidate et main, puis livrée sur Linux avec le même volume et sans DDL. L'isolation T33 reste à qualifier séparément.
-- Lab Sites v4 sert le correctif widget depuis `7c6dc10` : lecture directe, contexte, message préparé et conservation après rechargement sont vérifiés ; l'API confirme la demande à 42,50 € et son fichier inchangés. Un premier mauvais choix d'outil par le modèle reste documenté. Sur Original Sites, Catalogue et connexions Meili/Stripe sont vérifiés ; indexation et webhook restent distincts.
+- PR #89 est intégrée sur `8d723ce`, puis PR #90 sur `be89116` (arbre `793b9b8`) avec 1 472 tests dans chacune des CI candidate et main. Core `be89116` sert Linux sur le volume conservé, schéma prêt et zéro DDL ; Cloudflare a livré l'update `a0270e39`, registre synchronisé et témoins D1/R2 conservés. Original Sites v5 sert la source `a2cf524` liée à Core `be89116`, avec registre synchronisé. Ces livraisons restent distinctes des recettes métier ciblées.
+- Lab Sites v4 sert le correctif widget depuis `7c6dc10` : lecture directe, contexte, message préparé et conservation après rechargement sont vérifiés ; l'API confirme la demande à 42,50 € et son fichier inchangés. Un premier mauvais choix d'outil par le modèle reste documenté. Sur Original Sites v4, l'index Meili est prêt révision 5 et la recherche native retrouve le produit à 42,50 € ; le widget Meili et le nouveau webhook Stripe restent ouverts.
 
 ## Correctif candidat T33 — provenance de l’installation conservée
 
 - Après une adoption centrale de schéma sans DDL, l’inspection reconnaît les routes passées du journal d’installation au journal de schéma. Elle vérifie la chaîne complète par pages, les identités D1/R2 et le reçu courant ; un cutover fermé doit être repris par la commande de schéma.
-- Huit tests ciblés passent et la revue indépendante est favorable. La CI et la recette sur le volume Linux existant restent à qualifier ; aucun nouveau bootstrap ni changement de schéma n’est ajouté.
+- Huit tests ciblés passent et la revue indépendante est favorable. Sur le profil T33 isolé de source `8d723ce`, les témoins API/R2 A/B et la révocation A sont qualifiés ; après ces mutations de politique, `install.inspect` perd la provenance des deux routes malgré le schéma prêt. Le nouveau correctif candidat reconnaît la lignée `authority:` avec cinq tests Miniflare et un test négatif filtré, sans nouveau bootstrap ni DDL. Intégration, CI, inspection Linux corrigée et Cloudflare T33 restent ouvertes.
 
 ## Correctif candidat T09/T14/T16 — choix de l'alias widget dans le chat natif
 

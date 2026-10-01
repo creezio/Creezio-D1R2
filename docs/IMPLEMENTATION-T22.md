@@ -1,10 +1,12 @@
 # T22 — Analytics et diagnostics
 
-## Actions d'interface déclarées — candidate du 1er octobre
+## Actions d’interface déclarées — recette Sites du 1er octobre
 
 Le bouton Actualiser du workspace Analytics déclare `analytics.refresh` et l'ouverture d'une fiche du front Catalogue déclare `catalog.product.open`. Le collecteur commun utilise ces identifiants statiques seulement quand la politique de collecte des clics est activée. La charge ne contient ni libellé, ni identifiant produit, ni prix ; elle utilise la route déclarée et l'audience de la vue. Les handlers, le rendu et la navigation existants restent inchangés.
 
-Le test du collecteur lit ces déclarations dans les boutons JSX réels et vérifie le refus d'émission quand la collecte est désactivée, puis la charge autorisée dans les deux audiences. Les deux tests de collecte, les suites Analytics (22 contrôles) et Catalogue (29 contrôles), ainsi que les 39 tests de schéma/composition passent localement. Catalogue devient la candidate 0.1.3, compatible avec le SDK 1.9 public ; aucun nouveau SDK n'est nécessaire. Les six verrous concernés ont été régénérés et vérifiés après la dernière édition. La CI, la livraison et les clics réellement enregistrés depuis un navigateur restent à qualifier ; cette tranche ne couvre pas toutes les actions des autres modules.
+Le test du collecteur lit ces déclarations dans les boutons JSX réels. Ses deux tests, les suites Analytics (22 contrôles) et Catalogue (29 contrôles), ainsi que les 39 tests de schéma/composition passent localement ; Catalogue 0.1.3 reste compatible avec le SDK 1.9 public ; les six verrous concernés ont été régénérés et vérifiés. Sur Original Sites v4, la recette en cinq étapes confirme zéro événement collecte désactivée, deux clics identifiés (workspace Analytics et front Catalogue) après activation, aucun doublon après rechargement, puis le retour à la politique désactivée avec les deux événements conservés. Les sessions sont fermées et les anciens cookies refusés 401 (`CREEZIO-T22-ORIGINAL-CLICKS-FIVE-STAGE-2026-10-01.json` hors dépôt). Cette preuve ne couvre ni toutes les actions des autres modules ni les autres déploiements.
+
+Sur Original Sites v5 lié à Core `be89116`, l'ouverture de Rétention montre l'alerte de droit `analytics.purge` ; Support, Conversations et Analytique restent ouverts, le chat et la session accessibles, et les deux clics antérieurs visibles. Cette recette du refus facultatif ne change ni droit, ni politique, ni donnée et ne lance aucune purge (`CREEZIO-T22-ORIGINAL-RETENTION-LOCAL-BE89116.json` hors dépôt).
 
 ## Intégration PR #81 et recette Linux du 30 septembre
 

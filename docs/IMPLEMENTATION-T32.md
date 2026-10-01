@@ -1,5 +1,9 @@
 # Réalisation T32 — livraison Docker local vers Cloudflare
 
+## Update Core `be89116` sur Cloudflare — 1er octobre 2026
+
+L'update `a0270e39-619a-4d6f-b0ea-5e6d955cdfa8` de Core main `be891160afc69813a676ecdb7eb56a39dc932393` est `delivered`, registre `synchronized` (`CREEZIO-T55-CORE-UPDATE-be891160afc69813a676ecdb7eb56a39dc932393-a0270e39-619a-4d6f-b0ea-5e6d955cdfa8-DELIVERY.json` hors dépôt). La lecture de préservation après livraison est `verified` et conserve les témoins antérieurs (`CREEZIO-T55-CF-PRESERVATION-be891160afc69813a676ecdb7eb56a39dc932393-a0270e39-619a-4d6f-b0ea-5e6d955cdfa8-AFTER.json` hors dépôt). Cette mise à jour concerne le couple principal Core ; elle ne qualifie pas le profil T33 à plusieurs couples.
+
 ## Update Core `9ce856c` sur Cloudflare — 1er octobre 2026
 
 PR #84/main `9ce856cb1cbb2f9fa576c5fae0f7b4be09488cb9` est qualifiée par la CI main 1 454/1 454. L'image Linux de cette source a conservé le volume et les témoins. L'ancien update Cloudflare `cc8a33af` de source `3d42489`, refusé `10021`, a été terminé par la vérification native de l'ancienne version Worker ; son schéma D1 déjà adopté n'a pas été annulé. Le nouveau plan `c01a71c4-94f7-4883-9efd-66a64d5aea85`, digest `sha256-99a772d56458d1fd2689a109c2d93bb12a90e9b1ec0a44ad5f38a2f76990d7bf`, a utilisé ce reçu D1 dans la chaîne exacte `438959e3… → 0c16dc74…`, sans rejouer l'émission précédente.

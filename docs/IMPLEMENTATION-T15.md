@@ -16,11 +16,11 @@ Le catalogue d'outils est compilé depuis les schémas d'entrée exacts des opé
 
 Le SDK et le panneau Conversations original assurent l'envoi, l'observation, l'arrêt demandé et la reprise. Un état fournisseur inconnu suspend la boucle automatique ; seule une action explicite peut demander une reprise. Après expiration d'un claim sans reçu, la projection retrouve cet état sans recréer l'émission, y compris si l'arrêt a été demandé après la première incertitude ou pendant sa projection. Le front utilise les mêmes opérations que le workspace. OAuth/MCP et HTTP injectent le même moteur et les mêmes capacités serveur ; une identité GPT ne remplace pas les comptes applicatifs.
 
-## Reprise d'un reçu connu — correctif en qualification
+## Reprise d’un reçu connu — intégrée par la PR #90
 
 La reprise consulte le statut fournisseur avant de rouvrir le flux du même reçu. Le pont réutilise la réconciliation existante du texte, des outils et de l'usage si la réponse est déjà terminale ; sinon il reprend au curseur enregistré. Le signal borné est vérifié avant et après cette lecture et avant reprise. Un reçu indisponible ou un résultat arrivé après expiration reste inconnu, sans nouvelle création. Les chemins d'annulation et d'outil en attente gardent leur priorité.
 
-Six scénarios ciblés couvrent réponse terminale, réponse active, interruption du flux, statut indisponible, signal déjà annulé et statut terminal retourné après annulation. La suite ciblée passe ; la recette du correctif livré reste distincte. Le mode background ne fournit qu'une disponibilité temporaire du reçu : cette correction ne promet pas de récupérer un ancien tour expiré.
+Six scénarios ciblés couvrent réponse terminale, réponse active, interruption du flux, statut indisponible, signal déjà annulé et statut terminal retourné après annulation. La PR #90 est intégrée sur main `be89116`, arbre `793b9b8` : CI candidate et main réussies avec 1 472/1 472 tests, 33 commandes sans échec et runtime courant. Core `be89116` est livré sur Linux et Cloudflare ; Original Sites v5 sert la source `a2cf524` liée à ce Core. Aucun nouveau tour hébergé ne qualifie encore la reprise par statut. Le mode background ne promet pas de récupérer un ancien tour après expiration du reçu.
 
 ## Catalogue de lectures des modules — correctif en qualification
 

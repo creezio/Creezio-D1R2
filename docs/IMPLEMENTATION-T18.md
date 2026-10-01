@@ -1,6 +1,6 @@
 # T18 — Messagerie native
 
-Réalisation de [REQ-1801](EXIGENCES.md#REQ-1801) et [US-18](USER-STORIES.md#US-18), suivie dans le [backlog](TODO.md#T-18). La tranche initiale est intégrée par PR #42 ; la décision de partage entre interfaces et le journal SDK sont suivis sur `core/t18-shared-messaging-sdk`.
+Réalisation de [REQ-1801](EXIGENCES.md#REQ-1801) et [US-18](USER-STORIES.md#US-18), suivie dans le [backlog](TODO.md#T-18). Les tranches initiale et de partage sont intégrées par les PR #42 et #44. Sur Original Sites v4, la boîte de l’administration apparaît dans le front pour le même principal après octroi du droit applicatif ; le même brouillon et son texte y sont relus, sans seconde boîte ni second brouillon (`CREEZIO-T09-ORIGINAL-MESSAGING-FRONT-SHARED-2026-10-01.json` hors dépôt). Aucun message n’a été envoyé et le transport fournisseur reste ouvert.
 
 ## Périmètre en cours
 
@@ -50,7 +50,7 @@ Le journal public `@creezio/sdk/operations/command-journal` centralise le suivi 
 
 PR #44 est fusionnée sur `9cd410be0309a006e2ff5cbf24dc847d0144e39b`, arbre identique au candidat `21e6d2c401c6f4fb43f0904d161a75f2d4fec176`, CI candidate 1 196/1 196 et revue indépendante sans anomalie ouverte. Docker Linux a été construit depuis ce candidat dans le checkout et le volume existants. L'application native du schéma additif a conservé le propriétaire, la conversation, le brouillon et le fichier témoins ; aucune transformation des anciennes tables n'a été imposée.
 
-La nouvelle recette navigateur admin/app a vérifié les mêmes boîtes A/B, le brouillon enregistré puis modifié depuis l'autre audience et relu dans la première, sa conservation après rechargement et les bascules de boîte. Une nouvelle pièce jointe privée de 108 octets apparaît dans les deux lecteurs ; les deux API retournent le même identifiant et les octets exacts. Upload et lien ont été exécutés une fois, via les API natives. Le sélecteur et le téléchargement dans le navigateur ne sont pas qualifiés par cette recette. Sessions déconnectées et runtime arrêté avec code 0 après contrôle ; données conservées. Les fournisseurs externes, widgets et publications hébergées restent ouverts.
+La nouvelle recette navigateur admin/app a vérifié les mêmes boîtes A/B, le brouillon enregistré puis modifié depuis l'autre audience et relu dans la première, sa conservation après rechargement et les bascules de boîte. Une nouvelle pièce jointe privée de 108 octets apparaît dans les deux lecteurs ; les deux API retournent le même identifiant et les octets exacts. Upload et lien ont été exécutés une fois, via les API natives. Le sélecteur et le téléchargement dans le navigateur ne sont pas qualifiés par cette recette. Sessions déconnectées et runtime arrêté avec code 0 après contrôle ; données conservées. À cette étape antérieure, les fournisseurs externes, widgets et publications hébergées restaient ouverts.
 
 ## Contrôle de démarrage du profil complet — 29 septembre
 

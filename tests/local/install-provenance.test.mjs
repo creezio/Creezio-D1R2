@@ -15,6 +15,7 @@ import {runLocalSchema} from '../../scripts/local/schema.mjs';
 import {contractIntegrity} from '../../sdk/contracts/validate.mjs';
 import {ACCESS_TABLES} from '../../core/identity/d1-store.ts';
 import {STORAGE_AUTHORITY_TABLES} from '../../core/storage-authority/models.ts';
+import {createStorageMutationPort} from '../../core/storage-authority/native-mutation.ts';
 import {prepareStorageRevocation,fenceStorageRoute,markStorageSourceAttempted}
   from '../../core/storage-authority/coordinator.ts';
 
@@ -67,7 +68,8 @@ async function fixture(t){
   const install=mode=>runLocalInstallation({mode,config,io,adapter,lock,engine});
   const schema=mode=>runLocalSchema({mode,config,io:{...io,readLine:async()=>after.planDigest},adapter,lock,engine});
   return {primary,a,b,buckets,config,engine,install,schema,
-    selectAfter(){selected=after;},selectLater(){selected=later;}};
+    selectAfter(){selected=after;},selectLater(){selected=later;},
+    retargetContext(contextId,db){map.set(contextId,db);}};
 }
 
 test('official zero-DDL adoption preserves owner, files and installed route provenance',
@@ -90,6 +92,58 @@ test('official zero-DDL adoption preserves owner, files and installed route prov
   assert.equal(await ownerCount(),1,'no second bootstrap');
   assert.equal(await (await f.buckets.get('tenant-a').get('owned.txt')).text(),'preserved');
   for(const db of [f.a,f.b])assert.equal((await db.prepare(`SELECT generation FROM ${routes}`).first()).generation,3);
+});
+
+test('official access epoch changes preserve the full routed installation and schema lineage',
+  {timeout:60000},async t=>{
+  const f=await fixture(t);
+  assert.equal((await f.install('install')).ok,true);
+  f.selectAfter();
+  assert.equal((await f.schema('apply')).ok,true);
+  const targets=resources.map((resource,index)=>({identity:{installationId,
+    contextId:resource.contextId,slot:resource.slot},db:index===0?f.a:f.b}));
+  const port=createStorageMutationPort(f.primary,targets);
+  const stateTable=`"${ACCESS_TABLES.authorization_state}"`;
+  for(const [index,kind] of ['grant','revoke'].entries()){
+    const initial=(await f.primary.prepare(`SELECT epoch FROM ${stateTable}
+      WHERE id='application'`).first()).epoch;
+    const next=initial+1;
+    const read=async()=> (await f.primary.prepare(`SELECT epoch FROM ${stateTable}
+      WHERE id='application'`).first()).epoch;
+    const outcome=await port.commit({kind:'policy.apply-delta',commandKey:`test-${kind}-${index}`,
+      sourceCommit:async()=>{
+        const changed=await f.primary.prepare(`UPDATE ${stateTable} SET epoch=?
+          WHERE id='application' AND epoch=?`).bind(next,initial).run();
+        assert.equal(changed.meta.changes,1);
+        return {epoch:next};
+      },committed:value=>value?.epoch===next,
+      inspectSource:async()=>await read()===next,
+      recoverValue:async()=>({epoch:await read()})});
+    assert.equal(outcome.state,'confirmed',JSON.stringify(outcome));
+    assert.equal((await f.install('inspect')).ok,true,kind);
+    assert.deepEqual((await f.install('inspect')).targets.map(item=>item.provenance),
+      ['installed','installed']);
+    assert.equal((await f.schema('inspect')).ok,true,kind);
+  }
+  const current=await f.a.prepare(`SELECT mutation_id AS id FROM ${routes}`).first();
+  assert.match(current.id,/^authority:/);
+  const original=await f.primary.prepare(`SELECT command_digest AS digest FROM ${mutations}
+    WHERE id=?`).bind(current.id).first();
+  assert.match(original.digest,/^sha256-[a-f0-9]{64}$/);
+  await f.primary.prepare(`UPDATE ${mutations} SET command_digest=? WHERE id=?`)
+    .bind(`sha256-${'0'.repeat(64)}`,current.id).run();
+  assert.deepEqual((await f.install('inspect')).targets.map(item=>item.provenance),
+    ['unproven','installed']);
+  assert.deepEqual(await f.install('install'),{ok:false,code:'target_unproven',effect:'none'});
+  assert.equal((await f.schema('inspect')).ok,false);
+  await f.primary.prepare(`UPDATE ${mutations} SET command_digest=? WHERE id=?`)
+    .bind(original.digest,current.id).run();
+  assert.deepEqual((await f.install('inspect')).targets.map(item=>item.provenance),
+    ['installed','installed']);
+  f.retargetContext('tenant-b',f.a);
+  assert.deepEqual((await f.install('inspect')).targets.map(item=>item.provenance),
+    ['installed','unproven']);
+  assert.deepEqual(await f.install('install'),{ok:false,code:'target_unproven',effect:'none'});
 });
 
 test('foreign, broken or retargeted adoption journal never authorizes install',

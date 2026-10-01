@@ -16,6 +16,7 @@ import type {RuntimeFrontView} from '../../sdk/runtime/ui';
 import type {FrontProjection, FrontThemeProps, PublicFrontViewProps} from '../../sdk/front/types';
 import {shouldNavigateFromPanel} from '../../sdk/front/navigation';
 import {currentProtectedSlot,protectedSlotNavigation} from './slot-navigation';
+import {isFrontHomeUrl} from './home-url';
 import {FrontAccessRefused, readFrontProjection} from './projection-client';
 import styles from './host.module.css';
 import {WidgetHostProvider} from '../../sdk/widgets/provider';
@@ -253,7 +254,7 @@ function BoundFront({access, initialUrl}: {access: AccessController; initialUrl?
   const Theme = FrontCustomTheme ?? frontTheme?.component;
   if (!Theme) return <p role="alert">Le thème front sélectionné est indisponible.</p>;
   let content: ReactNode;
-  if (!allLocation || !currentView) content = currentUrl === '/'
+  if (!allLocation || !currentView) content = isFrontHomeUrl(currentUrl)
     ? <p role="status">Choisissez une vue dans la navigation.</p>
     : <p role="alert">Vue front introuvable.</p>;
   else if (!currentPermitted && currentView.access === 'protected') content = !authenticated

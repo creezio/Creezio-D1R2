@@ -5,10 +5,11 @@ import {fileURLToPath} from 'node:url';
 import {loadLocalConfiguration} from './config.mjs';
 import {acquireLocalRuntimeLock} from './lock.mjs';
 import {openLocalAccessDatabase,openLocalStoragePair} from './database.mjs';
+import {installedRouteInput} from './install.mjs';
 import {createTerminalIO} from './tty.mjs';
 import {STORAGE_AUTHORITY_TABLES} from '../../core/storage-authority/models.ts';
 import {ACCESS_TABLES} from '../../core/identity/d1-store.ts';
-import {prepareStorageRevocation,fenceStorageRoute,readStorageMutation,
+import {prepareStorageRevocation,fenceStorageRoute,readStorageMutation,inspectStorageRevocation,
   claimStorageSourceAttemptBatch,confirmStorageSource,reopenStorageRoute,
   inspectStorageRouteOpen} from '../../core/storage-authority/coordinator.ts';
 
@@ -87,10 +88,18 @@ async function runRoutedSchema({mode,config,io,adapter,engine,lock}) {
         source_epoch AS sourceEpoch FROM ${routeTable}
         WHERE id=? AND installation_id=? AND slot=? LIMIT 2`)
         .bind(resource.contextId,config.storageInstallationId,resource.slot).first();
-      const generation = journal?.generation ?? row?.generation;
+      const authorityAdvanced=journal?.state==='open'&&row?.state==='active'
+        &&Number.isSafeInteger(row.generation)&&row.generation>journal.generation+1;
+      const lineage=authorityAdvanced
+        ?await installedRouteInput(primary.db,config,plan,resource,row):null;
+      const lineageState=lineage?await inspectStorageRevocation(primary.db,lineage):null;
+      if(authorityAdvanced&&(!lineage||row.sourceEpoch!==source.epoch
+        ||lineageState!=='open'))stop('route_unconfirmed');
+      const generation=authorityAdvanced?lineage.expectedGeneration
+        :journal?.generation??row?.generation;
       if (!Number.isSafeInteger(generation) || generation < 1) stop('route_unconfirmed');
-      const input = routedInput(config,plan,resource,generation);
-      const state = journal?.state ?? null;
+      const input = authorityAdvanced?lineage:routedInput(config,plan,resource,generation);
+      const state = authorityAdvanced?'open':journal?.state??null;
       if (!row || (state === null ? row.state !== 'active' || row.sourceEpoch !== source.epoch
         : !['prepared','fenced','source-attempted','source-confirmed','open'].includes(state)
           || !['active','deny'].includes(row.state)
