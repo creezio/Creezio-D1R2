@@ -4,6 +4,7 @@ import type {OperationRegistry} from '../operations/registry.ts';
 import type {ProviderTool} from '../../sdk/providers/types.ts';
 import {copyJson} from '../data/input.ts';
 import type {CompiledWidgetCatalog} from '../../sdk/widgets/catalog.ts';
+import type {ConnectorDescriptor} from '../../sdk/connectors/types.ts';
 
 export interface ProviderOperationSchema {
   readonly moduleId:string;readonly operationId:string;readonly inputSchema:unknown;
@@ -79,6 +80,7 @@ function providerToolBytes(tool:ProviderTool){
 /** The generated schema gives a shape; registry and fresh authorization give authority. */
 export async function projectAuthorizedReadTools(options:{readonly catalog:readonly ProviderOperationSchema[];
   readonly registry:OperationRegistry;readonly data:DataAccess;readonly request:ToolRequest;
+  readonly connectors?:readonly Pick<ConnectorDescriptor,'id'|'moduleId'|'resources'>[];
   readonly widgets?:CompiledWidgetCatalog}){
   const tools:ProjectedTool[]=[],diagnostics:string[]=[],names=new Set<string>();
   let toolsJsonBytes=2; // JSON array brackets.
@@ -93,8 +95,12 @@ export async function projectAuthorizedReadTools(options:{readonly catalog:reado
     try{registered=options.registry.resolve(candidate.moduleId,candidate.operationId);}
     catch{diagnostics.push(`${label}:inactive`);continue;}
     const op=registered.declaration;
+    const providerRead=op.effects.providers.length===1&&(options.connectors??[]).some(connector=>
+      connector.moduleId===candidate.moduleId&&connector.id===op.effects.providers[0]
+      &&connector.resources.some(resource=>resource.method==='GET'));
     if(op.kind!=='query'||op.approval.mode!=='none'||op.effects.writes.length||op.effects.emits.length
-      ||op.effects.calls.length||op.effects.providers.length||!op.audiences.includes(options.request.audience)
+      ||op.effects.calls.length||(op.effects.providers.length>0&&!providerRead)
+      ||!op.audiences.includes(options.request.audience)
       ||!op.actors.some(actor=>actor==='user'||actor==='delegated-user'))continue;
     const strict=strictToolSchema(candidate.inputSchema);
     if((!strict&&!supportedToolSchema(candidate.inputSchema,false))

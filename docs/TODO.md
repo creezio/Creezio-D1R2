@@ -1,5 +1,13 @@
 # Backlog de réalisation
 
+## Révision 66 — PR #86 intégrée et correction de la recherche dans le chat (1er octobre 2026)
+
+PR #86 est intégrée sur main `0b7ba2d73ab5ecde1110a3026f3e3e35f95d28b6`, arbre `49d1b1f12935c875a59219f06fd7f0b11a026b88`. Les CI de la candidate et de main qualifient 1 465 tests, 33 commandes et le runtime courant. Les reçus `CREEZIO-PR86-7C78855-CANDIDATE-CI-QUALIFIED-2026-10-01.json` et `CREEZIO-PR86-MAIN-QUALIFIED-0B7BA2D-2026-10-01.json` sont conservés hors dépôt. La livraison Linux et les recettes T22/SEO/T33 sont en cours ; la publication Cloudflare et le nouveau webhook Stripe ne sont pas déduits de la CI.
+
+T14/T15/T28 : la recherche native Meili réussit sous les droits courants, mais le projecteur du chat exclut toutes les requêtes déclarant un fournisseur. La conversation de recette a utilisé le widget Catalogue, ce qui ne qualifie pas Meili. Le correctif doit transmettre les connecteurs compilés au bridge et n'admettre que leurs lectures GET, avec revalidation avant invocation et contrôle normal par le moteur. Tests du projecteur et du bridge, revue, CI puis widget réel requis ; aucun élargissement des droits ni modification du contrat Meili pour contourner ce défaut.
+
+Les recettes fournisseurs explicitement différées, T39 et les validations futures demeurent inchangés. Les révisions suivantes sont historiques, leurs preuves restent conservées.
+
 ## Révision 65 — corrections regroupées et CI à requalifier (1er octobre 2026)
 
 Complément de la même livraison : une lecture Cloudflare `9ce856c` a reproduit la fermeture de Conversations après des refus 403 des lectures facultatives Analytics/Sidebar. Le correctif des deux hôtes conserve ces refus localement, sans purge des autres onglets ; il garde les refus de session et les autres revalidations. Les contrôles ciblés passent 8/8 ; sa CI et sa recette hébergée restent requises. Voir [T07](IMPLEMENTATION-T07.md).

@@ -1,5 +1,9 @@
 # T28 — Connexion et diagnostic d'une instance Meili externe
 
+## Recherche dans le chat — diagnostic du 1er octobre 2026
+
+Sur Linux `1dce54d`, la lecture de politique confirme les droits Meili et la recherche native renvoie les produits existants. Le tour de recette s'est toutefois rabattu sur le widget Catalogue : il ne constitue pas une preuve du widget Meili. La cause est le filtre du projecteur commun qui exclut les queries ayant un fournisseur déclaré, avant validation de leur schéma. Le correctif du cœur transmet les connecteurs compilés au pont et admet leurs lectures GET sous les gardes existantes ; le module Meili ne reçoit aucun droit supplémentaire et ne change pas de contrat. Les tests, la revue, la CI et la recette après livraison restent des étapes distinctes. Reçus hors dépôt : `CREEZIO-T28-CHAT-POLICY-SEARCH-1DCE-2026-10-01.json` et `CREEZIO-T28-CHAT-CATALOG-FALLBACK-1DCE-2026-10-01.json`.
+
 ## Correction de lecture UI sur Linux main `9ce856c` — 1er octobre 2026
 
 Dans la carte Meili de l'interface originale, la source `creezio.catalog:catalog-products` et la projection `ready` apparaissent à l'ouverture puis après rechargement, sans action « Actualiser ». Le reçu `CREEZIO-T28-MEILI-UI-9CE856C-2026-10-01.json` lie cette lecture à la source/image Linux ; il confirme la déconnexion. Aucune nouvelle tâche, mutation d'index ou recherche fournisseur n'a été émise par cette recette. La tâche réelle 166, les deux documents et la recherche native du produit à 12,99 EUR restent prouvés par le reçu Meili antérieur. Le widget de recherche et les autres scénarios restent ouverts.

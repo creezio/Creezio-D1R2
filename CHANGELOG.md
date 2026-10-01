@@ -1,4 +1,10 @@
 # Changelog
+
+## 1er octobre 2026 — PR #86 intégrée et lectures fournisseur dans le chat
+
+- PR #86 est intégrée sur `0b7ba2d73ab5ecde1110a3026f3e3e35f95d28b6` ; CI candidate et main : 1 465 tests et 33 commandes réussis. Les recettes Linux/Cloudflare des corrections décrites ci-dessous restent distinctes de cette qualification du code.
+- La recherche Meili native est autorisée et fonctionne, mais ses outils étaient exclus de la projection du chat à cause de leur effet fournisseur déclaré. Le correctif en préparation conserve le moteur commun, les permissions courantes et les lectures GET déclarées et bornées. Aucune nouvelle UI, dépendance SDK ou écriture fournisseur n'est introduite ; le widget réel attend la livraison et sa recette.
+
 ## Correctif candidat — refus des lectures facultatives
 
 - Un refus `forbidden` HTTP 403 des lectures facultatives Analytics et Sidebar reste local à cette lecture dans le workspace et le front. Il ne vide plus les onglets autorisés par une revalidation globale en boucle. Les refus de session, les autres refus d'opération et la révocation par une nouvelle projection conservent leurs contrôles. La recette Cloudflare ayant révélé la boucle reste distincte de la future vérification du correctif livré.

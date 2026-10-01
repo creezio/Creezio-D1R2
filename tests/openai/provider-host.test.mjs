@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {readProviderKeyring} from '../../core/providers/host.ts';
 import {projectAuthorizedReadTools,strictToolSchema} from '../../core/providers/tools.ts';
 
@@ -56,6 +57,46 @@ test('tool projection advertises only compatible authorized reads and never muta
   assert.ok(result.diagnostics.includes('denied.module:conversation.read:forbidden'));
   assert.ok(result.diagnostics.includes('creezio.conversations:malformed.read:unsupported_schema'));
   assert.ok(result.diagnostics.includes('creezio.conversations:reference.read:unsupported_schema'));
+});
+
+test('connector GET queries require a matching declared provider and fresh search authority',async()=>{
+  const manifest=JSON.parse(readFileSync(new URL('../../extensions/connectors/meili/module/manifest.json',import.meta.url),'utf8'));
+  const search=manifest.contracts.operations.find(item=>item.id==='index.search');
+  const command=manifest.contracts.operations.find(item=>item.id==='index.emit');
+  const schema=manifest.contracts.schemas.find(item=>item.id===search.input.schemaId).schema;
+  const digest='sha256-'+'a'.repeat(64),moduleId='creezio.meili';
+  const external={...search,id:'external.read',effects:{...search.effects,providers:['openai.responses.v1']}};
+  const declarations=new Map([[search.id,search],[command.id,command],[external.id,external]]);
+  const catalog=[search,command,external].map(item=>({moduleId,operationId:item.id,
+    inputSchema:schema,schemaDigest:digest,audiences:['admin']}));
+  const connectors=[{moduleId,id:'meili.api.v1',resources:[{id:'search',method:'GET'}]}];
+  let revoked=false;
+  const options={catalog,registry:{resolve(_moduleId,id){return {declaration:declarations.get(id),contractDigest:digest};}},
+    data:{async authorize(){if(revoked)throw new Error('revoked');return {};},dispose(){}},
+    request:{credential:{kind:'session',token:'opaque'},contextId:'ctx',audience:'admin'}};
+  const admitted=await projectAuthorizedReadTools({...options,connectors});
+  assert.deepEqual(admitted.tools.map(item=>item.operationId),['index.search']);
+  assert.equal(admitted.tools[0].provider.strict,false);
+  assert.equal(JSON.stringify(admitted.tools[0].provider.parameters),JSON.stringify(schema));
+  assert.deepEqual(admitted.diagnostics,[]);
+  const widget={moduleId,widgetId:'search-results',version:'1.0.0',resourceDigest:digest,
+    toolName:'meili_index_search',operationDigest:digest};
+  const widgets={widgets:[{...widget,audiences:['admin'],permissions:[],renderTools:[{
+    toolName:widget.toolName,operationModuleId:moduleId,operationId:search.id,
+    operationDigest:digest,audiences:['admin']}]}]};
+  const aliased=await projectAuthorizedReadTools({...options,catalog:[{...catalog[0],widget}],
+    connectors,widgets});
+  assert.deepEqual(aliased.tools.map(item=>item.provider.name),['meili_index_search']);
+  assert.deepEqual(aliased.diagnostics,[]);
+  assert.equal((await projectAuthorizedReadTools(options)).tools.length,0);
+  assert.equal((await projectAuthorizedReadTools({...options,connectors:[{...connectors[0],
+    resources:[{id:'search',method:'POST'}]}]})).tools.length,0);
+  assert.equal((await projectAuthorizedReadTools({...options,connectors:[{...connectors[0],
+    moduleId:'other.module'}]})).tools.length,0);
+  revoked=true;
+  const denied=await projectAuthorizedReadTools({...options,connectors});
+  assert.equal(denied.tools.length,0);
+  assert.deepEqual(denied.diagnostics,['creezio.meili:index.search:forbidden']);
 });
 
 test('tool projection admits reads past sixteen and reports only authorized count omissions',async()=>{
