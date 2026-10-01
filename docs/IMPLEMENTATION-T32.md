@@ -1,5 +1,9 @@
 # Réalisation T32 — livraison Docker local vers Cloudflare
 
+## Correctif candidat : sandbox à chaque mise à jour
+
+La première publication journalisait le Worker de sandbox, mais les mises à jour du Worker principal ne le republiaient ni ne l'inspectaient. Une application actualisée pouvait donc utiliser une ancienne CSP de widget. Le pipeline candidat retrouve le dernier reçu sandbox confirmé dans la chaîne des publications, y compris en remontant les anciens updates jusqu'au transfert initial. Il inspecte la version distante exacte, conserve le reçu précédent puis journalise la nouvelle intention avant l'upload du sandbox. Le Worker principal n'est publié qu'après confirmation du sandbox. Une issue inconnue après `upload-intent` se résout par inspection du même transfert, sans second upload ; `prepared` peut reprendre par le publicateur natif avant tout upload. Les parcours normal, routé, réconciliation et retry de l'artefact conservé partagent cette garde. Les phases supplémentaires restent internes au journal ; le transport SDK reçoit ses phases existantes. Ce correctif n'est pas encore livré sur Cloudflare et ne constitue pas une preuve d'affichage des images.
+
 ## Update Core `be89116` sur Cloudflare — 1er octobre 2026
 
 L'update `a0270e39-619a-4d6f-b0ea-5e6d955cdfa8` de Core main `be891160afc69813a676ecdb7eb56a39dc932393` est `delivered`, registre `synchronized` (`CREEZIO-T55-CORE-UPDATE-be891160afc69813a676ecdb7eb56a39dc932393-a0270e39-619a-4d6f-b0ea-5e6d955cdfa8-DELIVERY.json` hors dépôt). La lecture de préservation après livraison est `verified` et conserve les témoins antérieurs (`CREEZIO-T55-CF-PRESERVATION-be891160afc69813a676ecdb7eb56a39dc932393-a0270e39-619a-4d6f-b0ea-5e6d955cdfa8-AFTER.json` hors dépôt). Cette mise à jour concerne le couple principal Core ; elle ne qualifie pas le profil T33 à plusieurs couples.

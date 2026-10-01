@@ -1,5 +1,10 @@
 # Changelog
 
+## Correctif candidat T25/T32 — sandbox du Worker mis à jour
+
+- Les updates Cloudflare normal et routé journalisent et inspectent le sandbox des widgets avant de publier le Worker principal. La lignée remonte au reçu de première publication pour les updates historiques, et les reprises d'upload incertain n'émettent pas une seconde publication à l'aveugle.
+- Le retry d'un artefact conservé vérifie aussi le sandbox exact avant son nouveau POST. Les phases publiques du SDK ne changent pas. Livraison et rendu Blob Cloudflare restent à qualifier.
+
 ## Correctif candidat T33 — provenance après déconnexion routée
 
 - L'inspection d'installation reconnaît la mutation native `logout:` dans la lignée contiguë `local-install:`/`local-schema:`/`authority:`/`logout:`. Son identifiant utilise le digest de commande, le contexte et le slot, comme `authority:` ; elle doit être ouverte et ne change pas la dernière mutation structurelle.

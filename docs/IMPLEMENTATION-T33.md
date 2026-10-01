@@ -1,5 +1,7 @@
 # T-33 — Stockages distincts hors Sites
 
+Le correctif candidat de publication du sandbox s'applique aussi au cutover Cloudflare routé : son reçu distant exact précède l'upload du Worker principal et est recontrôlé avant la réouverture des routes. Les preuves locales A/B ne valent toujours pas publication T33 distante.
+
 ## Correctif candidat : lignée du logout natif — 1er octobre 2026
 
 Sur le profil T33 Linux isolé, l'inspection des deux routes A/B est devenue `unproven` après les mutations officielles de politique et de déconnexion, alors que le schéma et les données sont conservés. Le journal arrêté montre une chaîne contiguë de quatre types de mutation : `local-install:`, `local-schema:`, `authority:` et `logout:`. Le lecteur d'installation reconnaît désormais `logout:` comme mutation native ouverte, avec l'identifiant exact dérivé de `commandDigest`, `contextId` et `slot`, selon la même formule que `authority:` ; elle n'est pas traitée comme une mutation structurelle de schéma. Les contrôles de génération, installation, contexte, cible D1/R2 et reçu SQL restent requis. Le test ciblé crée une déconnexion routée officielle, retrouve A/B `installed`, puis refuse un digest altéré ou une cible B retargetée avec `effect:none`. Ce correctif limité à l'inspecteur et son test est candidat, sans réinitialisation ni DDL ; l'inspection Linux corrigée après livraison et la recette Cloudflare T33 restent ouvertes. Preuve hors dépôt : `CREEZIO-T33-NATIVE-LOGOUT-LINEAGE-PATCH-2026-10-01.json`.

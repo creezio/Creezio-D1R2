@@ -1,5 +1,7 @@
 # Backlog de réalisation
 
+T25/T32 : le sandbox Cloudflare de `eddf01a` sert encore une CSP sans `blob:` alors que la source SDK l'autorise. Le correctif candidat lie chaque update normal ou routé à une nouvelle preuve sandbox avant le Worker principal, avec réconciliation sans ré-upload inconnu. Livraison et affichage des images sur Cloudflare restent à vérifier ; la recette Sites v6 ne ferme pas ce point.
+
 ## Révision 69 — recettes Sites v6 et Cloudflare Meili (1er octobre 2026)
 
 T25 : Original Sites v6 (Site `42ddbf2`, Core `eddf01a`) conserve le produit Catalogue publié à 42,50 EUR et son image privée liée. Le front app affiche cette image 32 × 32 en grille et en fiche après rechargement ; la lecture native confirme 202 octets, le SHA-256 du fichier et le refus anonyme 401. Une nouvelle conversation app montre les deux widgets et leurs images après une reprise explicite unique puis rechargement ; recherche et actualisation directes terminent. La relecture native confirme ce tour app `succeeded`, ses deux résultats d'outil réussis, les deux messages widget et le checkpoint du reçu fournisseur. Les anciens tours admin incertains restent distincts. Le widget Cloudflare et ChatGPT externe restent ouverts. Voir [T25](#T-25) et les reçus `CREEZIO-T25-SITES-V6-CATALOG-MEDIA-UI-2026-10-01.json`, `CREEZIO-T09-ORIGINAL-CATALOG-MEDIA-DIAGNOSTIC-2026-10-01.json`, `CREEZIO-T25-SITES-V6-WIDGETS-UI-2026-10-01.json` et `CREEZIO-T25-SITES-V6-APP-TURN-FINAL-2026-10-01.json` hors dépôt.

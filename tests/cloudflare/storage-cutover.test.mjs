@@ -181,6 +181,30 @@ test('old Worker version changing after schema leaves every route denied',
   }finally{await f.dispose();}
 });
 
+test('routed publication cannot open a route when its sandbox prerequisite is unconfirmed',
+  {timeout:60000},async()=>{
+  const f=await fixture();
+  try{
+    const deliver=f.publication.deliver;
+    let sandboxConfirmed=false;
+    f.publication.deliver=async input=>{
+      assert.equal((await f.a.prepare(`SELECT state FROM ${routes}`).first()).state,'deny');
+      assert.equal((await f.b.prepare(`SELECT state FROM ${routes}`).first()).state,'deny');
+      assert.equal((await f.c.prepare(`SELECT state FROM ${routes}`).first()).state,'deny');
+      if(!sandboxConfirmed)throw new Error('sandbox receipt unconfirmed');
+      return deliver(input);
+    };
+    assert.deepEqual(await f.cutover().advance(),{state:'pending',phase:'publishing'});
+    assert.equal(f.deliveries,0);
+    for(const db of [f.a,f.b,f.c])
+      assert.equal((await db.prepare(`SELECT state FROM ${routes}`).first()).state,'deny');
+    sandboxConfirmed=true;
+    assert.deepEqual(await f.cutover().advance(),{state:'pending',phase:'publishing'},
+      'an unknown publication intent may only be inspected, never blindly uploaded');
+    assert.equal(f.deliveries,0);
+  }finally{await f.dispose();}
+});
+
 test('partial fence and partial DDL stay denied until each target is inspected',
   {timeout:60000},async()=>{
   const f=await fixture();

@@ -1,5 +1,9 @@
 # T25 — Catalogue métier commun
 
+## CSP des widgets sur Cloudflare — correctif candidat
+
+Sur le Worker Core Cloudflare `eddf01a`, les actions directes Recherche et fiche répondent 200, mais le sandbox servi conserve `img-src 'self' data:` : le navigateur refuse les images Blob malgré la source du SDK qui autorise `blob:`. Le sandbox est resté à la version de la première publication parce que les mises à jour du Worker principal ne l'incluaient pas. Le correctif candidat T32 publie et vérifie ce second composant avec une lignée et un journal durables. La preuve d'affichage des images sur Cloudflare reste ouverte jusqu'à livraison et recette navigateur ; les images Sites v6 déjà qualifiées sont distinctes.
+
 ## Images et widgets sur Original Sites v6 — 1er octobre 2026
 
 Original Sites v6 sert la source Site `42ddbf2` issue de Core `eddf01a`. L'éditeur admin a lié une seule fois un PNG de 202 octets au produit publié `T09-SITES-001` (révision 3 → 4, prix 42,50 EUR) ; le nom et la description sont conservés et le lien reste après rechargement. Le front app authentifié affiche et décode l'image 32 × 32 en grille et en fiche, également après rechargement de la grille. La lecture native du produit, de sa liste média et du fichier lié confirme les mêmes 202 octets et le SHA-256 `54fc933a66e82a89867171bea2648b76447e07ea1182cbab521ea937234f67d9` ; la réponse est privée sans cache, l'anonyme reçoit 401 et les deux sessions de lecture sont déconnectées. Preuves hors dépôt : `CREEZIO-T25-SITES-V6-CATALOG-MEDIA-UI-2026-10-01.json` et `CREEZIO-T09-ORIGINAL-CATALOG-MEDIA-DIAGNOSTIC-2026-10-01.json`.
