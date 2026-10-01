@@ -7,6 +7,7 @@ import {createCommandJournal,readPendingCommand,type PendingCommand} from '@cree
 import {panelData,readPanel,retainedSessionId,scopeChange,sessionVerified,
   type StripeScope,type StripeTab} from './panel-state.ts';
 import {externalConfigurationChanged,latestConfig,mergeRuns,reconcileRuns,sameConfiguration,
+  subscriptionLifecycleAction,
   type Collection,type Config,type Run} from './state.ts';
 import {formatStripeAmount,formatStripeFrequency} from './money.ts';
 import {Badge,Button,Card} from '@creezio/sdk/ui';
@@ -162,6 +163,10 @@ export function StripeAdminView(props:WorkspaceViewProps){
     }
     setLoading(old=>({...old,[collection]:false}));
   };
+  const refreshSubscriptions=(token:number)=>{
+    setPages(previous=>({...previous,subscriptions:undefined}));
+    void loadPage('subscriptions',token);
+  };
   const loadEvents=async(token:number,cursor:string|null=null,append=false)=>{
     const value=await read('event.list',{limit:25,...(cursor?{cursor}:{})},token);
     if(!current(token)||!value||!Array.isArray(value.items))return;
@@ -225,7 +230,8 @@ export function StripeAdminView(props:WorkspaceViewProps){
         if(operation.startsWith('config.key.')){setApiKey('');setWebhookSecret('');
           setWebhookServiceToken('');}}
       if(value.session)setCheckoutSession(value.session as CheckoutSession);
-      if(operation==='subscription.cancel.schedule')void loadPage('subscriptions',token);
+      if(operation==='subscription.cancel.set'||operation==='subscription.cancel.schedule')
+        refreshSubscriptions(token);
       if(operation.startsWith('config.key.')){invalidateLists();setRuns([]);setPages({});}
       if(value.state){const next=value.state as Run;setRuns(old=>mergeRuns(old,[next]));}
       if(operation==='sync.page'&&value.state)
@@ -250,7 +256,8 @@ export function StripeAdminView(props:WorkspaceViewProps){
       setEnableRevision(null);setCheckoutOrigin(next.checkoutReturnOrigin??'');
       setApiKey('');setWebhookSecret('');setWebhookServiceToken('');}
     if(value?.session)setCheckoutSession(value.session as CheckoutSession);
-    if(pending.intent==='subscription.cancel.schedule'&&value)void loadPage('subscriptions',token);
+    if((pending.intent==='subscription.cancel.set'||pending.intent==='subscription.cancel.schedule')&&value)
+      refreshSubscriptions(token);
     if(pending.intent?.startsWith('config.key.')&&value){invalidateLists();setRuns([]);setPages({});}
     if(value?.state){const next=value.state as Run;setRuns(old=>mergeRuns(old,[next]));}
     if(pending.intent==='sync.page'&&value?.state)
@@ -316,7 +323,9 @@ export function StripeAdminView(props:WorkspaceViewProps){
           <th className="py-2 pr-3">Client</th><th className="py-2 pr-3">Plan</th>
           <th className="py-2 pr-3">Montant</th><th className="py-2 pr-3">Statut</th>
           <th className="py-2">Prochaine échéance</th></tr></thead><tbody>
-          {rows.map(({customer,subscription},index)=><tr key={`${customer?.id??subscription?.customer_id}-${subscription?.id??index}`}
+          {rows.map(({customer,subscription},index)=>{
+            const lifecycle=subscription?subscriptionLifecycleAction(subscription):null;
+            return <tr key={`${customer?.id??subscription?.customer_id}-${subscription?.id??index}`}
             className="border-b last:border-0"><td className="py-2 pr-3"><div className="font-medium">{customer?.name||customer?.id||subscription?.customer_id}</div>
               <div className="text-xs text-muted-foreground">{customer?.id??'—'}</div></td>
             <td className="py-2 pr-3">{subscription?.price_id??'—'}</td>
@@ -324,13 +333,12 @@ export function StripeAdminView(props:WorkspaceViewProps){
             <td className="py-2 pr-3"><Badge variant={subVariant(subscription?.status??null)}>
               {subscription?.status?SUB_STATUT_LABEL[subscription.status]||subscription.status:'Sans abonnement'}</Badge>
               {subscription?.cancel_at_period_end?<div className="text-xs">Arrêt prévu</div>:null}
-              {subscription&&['active','trialing','past_due'].includes(subscription.status)&&
-                !subscription.cancel_at_period_end&&!subscription.livemode?
+              {lifecycle?
                 <Button className="mt-1" size="sm" variant="outline" type="button"
-                  disabled={busy||!!pending} onClick={()=>void mutate('subscription.cancel.schedule',
-                    {subscriptionId:subscription.id,revision:subscription.revision})}>
-                  Arrêter à l’échéance</Button>:null}</td>
-            <td className="py-2">{date(subscription?.period_end_at)}</td></tr>)}</tbody></table></div>}
+                  disabled={busy||!!pending||loading.subscriptions} onClick={()=>{
+                    if(window.confirm(lifecycle.confirmation))void mutate(lifecycle.operation,lifecycle.input);
+                  }}>{lifecycle.label}</Button>:null}</td>
+            <td className="py-2">{date(subscription?.period_end_at)}</td></tr>})}</tbody></table></div>}
       <div className="mt-3 flex gap-2">{(['customers','subscriptions'] as const).map(id=>pages[id]?.nextCursor?
         <Button key={id} size="sm" variant="outline" type="button" disabled={loading[id]}
           onClick={()=>void loadPage(id,generation.current,pages[id]!.nextCursor,true)}>Suite {titles[id].toLowerCase()}</Button>:null)}</div>

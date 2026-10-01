@@ -1,5 +1,9 @@
 # T21 — Pages et navigation
 
+## Canonical externe publié puis restauré sur Original Sites v7 — 2 octobre 2026
+
+La page témoin de la source Site `3bd36bc` liée à Core b9 a publié une URL canonique HTTP(S) externe à la révision publique 4. Le HTML public et le navigateur ont montré cette valeur, le titre, la description et l'image complète 32 × 32. Une nouvelle sauvegarde puis publication ont restauré le canonical d'origine à la révision publique 5 ; la lecture native et le navigateur l'ont confirmé sans perte du média. Les opérations de l'API ont fermé leurs sessions ; le contrôle navigateur autonome a fermé son contexte. L'ancien onglet IAB bloqué n'est pas qualifié comme fermé. Reçus hors dépôt : `CREEZIO-T21-SITES-V7-SEO-ROUNDTRIP-2026-10-02.json` et `CREEZIO-T21-SITES-V7-PLAYWRIGHT-RESTORED-2026-10-02.json`. Les limites des recettes antérieures ci-dessous sont datées de leurs sources.
+
 État courant au 1er octobre 2026 : le correctif SSR de l'URL canonique externe est intégré par la PR #86 sur Core main `0b7ba2d73ab5ecde1110a3026f3e3e35f95d28b6`. La recette Linux ci-dessous a vérifié titre, description et image publics sur une source antérieure ; la recette Original Sites v5 a vérifié le média public. Le rendu hébergé d'une URL canonique externe saisie après ce correctif reste à qualifier sur les cibles concernées.
 
 ## Média Pages public sur Original Sites v5 — 1er octobre 2026

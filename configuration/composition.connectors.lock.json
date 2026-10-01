@@ -8,7 +8,7 @@
     "version": "1.0.0",
     "integrity": "sha256-469b93af15a6dd7066e767f45af8587e613ee2f080d142ed076b00613acb5dfd"
   },
-  "compositionIntegrity": "sha256-a37f8c68c240bff5bb56375f5a4c7fba41410a5662d554dbcff0903a84895237",
+  "compositionIntegrity": "sha256-a8bd1bcb9223020d27ec1833f2ea5349652e9d7f51ec5e0fc65430810e04e8b4",
   "modules": [
     {
       "moduleId": "creezio.access",
@@ -417,25 +417,25 @@
     {
       "moduleId": "creezio.stripe",
       "origin": "https://github.com/creezio/Creezio-D1R2",
-      "version": "0.3.1",
+      "version": "0.4.0",
       "source": {
         "kind": "snapshot",
-        "revision": "t27-stripe-webhook-permissions-v1",
-        "integrity": "sha256-dff3414eb159f1cdf227a4e70a578274f5e61442469411127ac4ff7d204786ea"
+        "revision": "t27-stripe-subscription-cancellation-v1",
+        "integrity": "sha256-50d728e0bc8240a102997db76e0369fe2f9e632ce73f571a2986228243a14c84"
       },
-      "contractIntegrity": "sha256-2d334b02abee26cfc25809c6f3fa1e5021908b1bdfe5c8f7501ebe28d42ed6db",
+      "contractIntegrity": "sha256-8207e80c211b9cc3b7f71071e039d260f700163f944c15fee3492d97295579de",
       "runtime": {
-        "integrity": "sha256-b79d2ab0143c74e903fd37a4f0c685320045ce03a58ac608cb5d8ae343e040e7",
+        "integrity": "sha256-e19e2687167faabfda26a70cbc069ef5e124dee0e6bdca5a1ba6e72ada4bcfef",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.stripe/runtime-b79d2ab0143c74e903fd37a4f0c685320045ce03a58ac608cb5d8ae343e040e7.tgz"
+          "path": ".creezio/module-artifacts/creezio.stripe/runtime-e19e2687167faabfda26a70cbc069ef5e124dee0e6bdca5a1ba6e72ada4bcfef.tgz"
         }
       },
       "validation": {
-        "integrity": "sha256-4ea84f9514ebaeea96c873395b94e1774d8713fb8e4ba45b50bd9f166417ad70",
+        "integrity": "sha256-dc0a5db1b83ffcee2f92ca09b82fcccda6aceecaf4985ad4d659b44ab55e95ab",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.stripe/validation-4ea84f9514ebaeea96c873395b94e1774d8713fb8e4ba45b50bd9f166417ad70.tgz"
+          "path": ".creezio/module-artifacts/creezio.stripe/validation-dc0a5db1b83ffcee2f92ca09b82fcccda6aceecaf4985ad4d659b44ab55e95ab.tgz"
         }
       },
       "dependencies": [

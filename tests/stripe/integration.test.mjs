@@ -66,7 +66,7 @@ const failed=async(promise,code)=>{
 const customer=(id,account)=>({id,object:'customer',livemode:false,name:`${account}-${id}`,
   email:'not-projected@example.invalid',metadata:{token:'never-expose'}});
 
-test('Stripe GET-only connector commits pages atomically in D1 and scopes API/MCP projections',
+test('Stripe connector commits pages and cancellation changes atomically in D1 with scoped access',
   {timeout:90000},async()=>{
     const runtime=new Miniflare({host:'127.0.0.1',port:0,cf:false,modules:true,
       compatibilityDate:'2026-05-15',script:'export default {fetch(){return new Response(null,{status:404})}}',
@@ -105,6 +105,7 @@ test('Stripe GET-only connector commits pages atomically in D1 and scopes API/MC
       const keyring=createVaultKeyring({activeKeyId:'stripe-test',keys:{'stripe-test':new Uint8Array(32).fill(23)}});
       const requests=[];
       let pauseCustomer=null,checkoutCount=0,rotateOnCheckout=false,rotateCheckout;
+      let subscriptionWrites=0,failNextSubscription=false;
       const fetcher=async(url,init)=>{
         const parsed=new URL(url),credential=init.headers.get('Authorization');
         requests.push({url:String(url),method:init.method,redirect:init.redirect,credential,
@@ -117,6 +118,14 @@ test('Stripe GET-only connector commits pages atomically in D1 and scopes API/MC
             livemode:false,mode:form.get('mode'),status:'open',payment_status:'unpaid',
             url:`https://checkout.stripe.com/c/test_${checkoutCount}`,
             client_reference_id:form.get('client_reference_id')});
+        }
+        if(parsed.pathname==='/v1/subscriptions/sub_test'&&init.method==='POST'){
+          subscriptionWrites++;
+          if(failNextSubscription){failNextSubscription=false;return Response.json({error:'uncertain'},
+            {status:500});}
+          const cancel=new URLSearchParams(init.body).get('cancel_at_period_end');
+          return Response.json({id:'sub_test',object:'subscription',livemode:false,
+            customer:'cus_test',status:'active',cancel_at_period_end:cancel==='true'});
         }
         const account=credential==='Bearer synthetic-key-two'?'account-two':'account-one';
         if(parsed.pathname==='/v1/customers'){
@@ -321,6 +330,45 @@ test('Stripe GET-only connector commits pages atomically in D1 and scopes API/MC
       const checkoutReady=success(await invoke('config.set',{requestKey:'enable-three',enabled:true,
         checkoutReturnOrigin:'https://app.example.test',revision:tested.revision})).config;
       assert.equal(checkoutReady.revision,8);
+      const currentConnection=await db.prepare(`SELECT connection_id FROM "${generated.tables.connector_config}"
+        WHERE context_id=? AND id=?`).bind('application','stripe.api.v1').first();
+      await db.prepare(`INSERT INTO "${generated.tables.stripe_subscription}"
+        (context_id,id,connection_id,customer_id,status,cancel_at_period_end,period_end_at,
+          livemode,revision,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`)
+        .bind('application','sub_test',currentConnection.connection_id,'cus_test','active',0,
+          '2099-01-01T00:00:00.000Z',0,1,new Date().toISOString()).run();
+      const cancelInput={requestKey:'cancel-set-true',subscriptionId:'sub_test',revision:1,
+        cancelAtPeriodEnd:true};
+      assert.equal(success(await invoke('subscription.cancel.set',cancelInput)).cancelAtPeriodEnd,true);
+      assert.equal(subscriptionWrites,1);
+      assert.equal((await db.prepare(`SELECT cancel_at_period_end,revision FROM
+        "${generated.tables.stripe_subscription}" WHERE context_id=? AND id=?`)
+        .bind('application','sub_test').first()).revision,2);
+      const cancelReplay=await invoke('subscription.cancel.set',cancelInput);
+      assert.equal(cancelReplay.replayed,true);assert.equal(subscriptionWrites,1);
+      await failed(invoke('subscription.cancel.set',{...cancelInput,requestKey:'cancel-stale'}),'conflict');
+      await failed(invoke('subscription.cancel.set',{...cancelInput,requestKey:'cancel-foreign'},
+        {contextId:'other'}),'forbidden');
+      await assert.rejects(invoke('subscription.cancel.set',{...cancelInput,
+        requestKey:'cancel-webhook-machine'},{token:serviceToken,kind:'api-token'}),
+      {code:'forbidden'});
+      assert.equal(subscriptionWrites,1);
+      assert.equal(success(await invoke('subscription.cancel.set',{requestKey:'cancel-set-false',
+        subscriptionId:'sub_test',revision:2,cancelAtPeriodEnd:false})).cancelAtPeriodEnd,false);
+      assert.equal(subscriptionWrites,2);
+      const resumed=await db.prepare(`SELECT cancel_at_period_end,revision FROM
+        "${generated.tables.stripe_subscription}" WHERE context_id=? AND id=?`)
+        .bind('application','sub_test').first();
+      assert.equal(resumed.cancel_at_period_end,0);assert.equal(resumed.revision,3);
+      failNextSubscription=true;
+      const uncertainCancel=await invoke('subscription.cancel.set',{requestKey:'cancel-unknown',
+        subscriptionId:'sub_test',revision:3,cancelAtPeriodEnd:true}).catch(error=>error);
+      assert.notEqual(uncertainCancel.execution?.state,'succeeded');
+      assert.equal((await lookup('subscription.cancel.set','cancel-unknown'))?.state,'unknown');
+      const writesAfterUnknown=subscriptionWrites;
+      const replayUnknown=await invoke('subscription.cancel.set',{requestKey:'cancel-unknown',
+        subscriptionId:'sub_test',revision:3,cancelAtPeriodEnd:true});
+      assert.equal(replayUnknown.replayed,true);assert.equal(subscriptionWrites,writesAfterUnknown);
       const priceRun=success(await invoke('sync.start',{requestKey:'price-three-start',
         collection:'prices_active',runId:'price-three',revision:2})).state;
       success(await invoke('sync.page',{requestKey:'price-three-page',collection:'prices_active',

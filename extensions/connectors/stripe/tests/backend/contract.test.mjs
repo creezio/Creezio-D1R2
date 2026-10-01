@@ -4,7 +4,8 @@ import {manifest} from '../helpers.mjs';
 import {stripeConnectorDescriptor} from '../../module/storage.ts';
 import {projectStripePage} from '../../module/projection.ts';
 import {configSet,configKeySet,configKeyRevoke,syncStart,syncPage,syncState,connectionCheck,
-  checkoutPaymentCreate,checkoutSubscriptionCreate,checkoutRead,subscriptionCancelSchedule} from '../../module/service.ts';
+  checkoutPaymentCreate,checkoutSubscriptionCreate,checkoutRead,subscriptionCancelSchedule,
+  subscriptionCancelSet} from '../../module/service.ts';
 
 const config={id:'stripe.api.v1',origin:'https://api.stripe.com',key_ref:'secret-reference',
   secret_version:1,connection_id:'connection-a',enabled:true,revision:3,updated_at:'2026-09-29T00:00:00.000Z'};
@@ -223,4 +224,47 @@ test('Checkout read stays within the saved session and subscription cancel uses 
   assert.equal(h.calls.find(call=>call.patch).args.compare.expected,3);
   await assert.rejects(subscriptionCancelSchedule({subscriptionId:'sub_123',revision:2},h.context),
     {code:'conflict'});
+});
+test('subscription cancellation can be scheduled and withdrawn, preserving the old command',async()=>{
+  const projected=cancel_at_period_end=>({id:'sub_123',connection_id:config.connection_id,
+    livemode:false,customer_id:'cus_123',status:'active',revision:3,cancel_at_period_end});
+  const provider=cancel_at_period_end=>({id:'sub_123',object:'subscription',livemode:false,
+    customer:'cus_123',status:'active',cancel_at_period_end});
+  for(const [previous,desired] of [[false,true],[true,false]]){
+    const h=harness({projection:{sub_123:projected(previous)},body:provider(desired)});
+    const result=await subscriptionCancelSet({subscriptionId:'sub_123',revision:3,
+      cancelAtPeriodEnd:desired},h.context);
+    assert.deepEqual(result.output,{subscriptionId:'sub_123',cancelAtPeriodEnd:desired,livemode:false});
+    assert.deepEqual(h.calls.find(call=>call.mutation).mutation,
+      {resource:'subscription_schedule_cancel',id:'sub_123',fields:{cancelAtPeriodEnd:desired},
+        signal:h.context.signal});
+    assert.equal(h.calls.find(call=>call.patch).args.compare.expected,3);
+    assert.equal(h.calls.find(call=>call.patch).args.values.cancel_at_period_end,desired);
+  }
+  const legacy=harness({projection:{sub_123:projected(false)},body:provider(true)});
+  assert.equal((await subscriptionCancelSchedule({subscriptionId:'sub_123',revision:3},legacy.context))
+    .output.cancelAtPeriodEnd,true);
+  assert.equal(legacy.calls.find(call=>call.mutation).mutation.fields.cancelAtPeriodEnd,true);
+});
+test('subscription cancellation rejects stale, foreign, live or unknown state before supplier effect',async()=>{
+  const projected={id:'sub_123',connection_id:config.connection_id,livemode:false,
+    customer_id:'cus_123',status:'active',revision:3,cancel_at_period_end:true};
+  const input={subscriptionId:'sub_123',revision:3,cancelAtPeriodEnd:false};
+  for(const [row,request,code] of [
+    [projected,{...input,revision:2},'conflict'],
+    [{...projected,connection_id:'other'},input,'invalid_input'],
+    [{...projected,livemode:true},input,'invalid_input'],
+    [{...projected,status:'canceled'},input,'invalid_input'],
+    [{...projected,period_end_at:'2000-01-01T00:00:00.000Z'},input,'invalid_input'],
+    [{...projected,cancel_at_period_end:false},input,'invalid_input'],
+    [{...projected,cancel_at_period_end:null},input,'invalid_input'],
+    [projected,{...input,cancelAtPeriodEnd:'false'},'invalid_input']]){
+    const h=harness({projection:{sub_123:row}});
+    await assert.rejects(subscriptionCancelSet(request,h.context),{code});
+    assert.equal(h.calls.some(call=>call.mutation),false);
+  }
+  const h=harness({projection:{sub_123:projected},body:{id:'sub_123',object:'subscription',
+    livemode:false,customer:'cus_123',status:'canceled',cancel_at_period_end:false}});
+  await assert.rejects(subscriptionCancelSet(input,h.context),{code:'unknown'});
+  assert.equal(h.calls.some(call=>call.patch),false);
 });

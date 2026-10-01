@@ -1,5 +1,11 @@
 # T20 — CRM natif
 
+## Recette ciblée Original Sites v7/Core b9 — 2 octobre 2026
+
+Trois fiches dédiées `T20-B9-C17FB5FDD40F` (entreprise, contact et prospect) ont été créées et recherchées par API native. Le contact référence l'entreprise ; le prospect référence l'entreprise et le contact, stade `a_contacter`. Les trois vues ont été observées en navigateur. Un premier contrôle navigateur s'est arrêté après cette observation, sans diagnostic précis ; un second a confirmé le prospect et ses liens avant/après rechargement, puis la déconnexion 200/session 401. Les recherches des trois types sous le contexte non attribué `t20-foreign` ont refusé à 403 sans sortie. L'ancien contact révision 3 et le ticket Support révision 4 sont préservés. Cette preuve ne couvre pas un refus entre deux contextes vivants ni les refus de relation/export. Reçus hors dépôt : `CREEZIO-T20-SITES-B9-CRM-FINAL-2026-10-02.json`, `CREEZIO-T20-SITES-B9-PLAYWRIGHT-UI-2026-10-02.json` et `CREEZIO-T20-SITES-B9-PLAYWRIGHT-RELOAD-2026-10-02.json`.
+
+Les sections du 1er octobre ci-dessous restent historiques.
+
 ## Relation Support/CRM sur Original Sites v5 — 1er octobre 2026
 
 Le contact CRM préexistant `0347a984-4f37-4120-890e-b53a5bc1280d` a été lié explicitement au ticket Support `debf24c8-4c25-459a-ae4a-da082bde2de4` dans le workspace admin. Le rechargement admin conserve ce lien et les deux messages du fil. Une lecture native du port public Support `reference.contact.read` retrouve le même contact ; les lectures du ticket en admin et app confirment la même référence à la révision 4. Le front sans droit CRM refuse la recherche localement tout en conservant sa session et le ticket ; aucun code HTTP navigateur n'est revendiqué. Ce témoin qualifie le raccord CRM/Support sous droits actuels, sans qualifier les six widgets CRM ni une relation avec un message Messaging. Preuves hors dépôt : `outputs/CREEZIO-T19-SITES-UI-RECIPE-2026-10-01.json`, `outputs/CREEZIO-T09-ORIGINAL-SUPPORT-NATIVE-READ-2026-10-01.json`.

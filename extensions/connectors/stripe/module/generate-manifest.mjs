@@ -4,7 +4,7 @@ import {stripeConnectorDescriptor} from './storage.ts';
 
 const root=new URL('../',import.meta.url);
 const template=JSON.parse(readFileSync(new URL('module/manifest.json',root),'utf8'));
-const id='creezio.stripe',connectorId='stripe.api.v1',version='0.3.1',sourceRevision='t27-stripe-webhook-permissions-v1';
+const id='creezio.stripe',connectorId='stripe.api.v1',version='0.4.0',sourceRevision='t27-stripe-subscription-cancellation-v1';
 const ref=(kind,name)=>({moduleId:id,kind,id:name});
 const str=(max=128,min=1)=>({type:'string',minLength:min,maxLength:max});
 const integer=(min=0,max=Number.MAX_SAFE_INTEGER)=>({type:'integer',minimum:min,maximum:max});
@@ -188,6 +188,10 @@ const checkoutOutput=schema('checkout-output',obj({session:checkout}));
 const cancelInput=schema('subscription-cancel-input',obj({requestKey,subscriptionId:stripeId,revision:integer(1)}));
 const cancelOutput=schema('subscription-cancel-output',obj({subscriptionId:stripeId,
   cancelAtPeriodEnd:{const:true},livemode:{const:false}}));
+const cancelSetInput=schema('subscription-cancel-set-input',obj({requestKey,subscriptionId:stripeId,
+  revision:integer(1),cancelAtPeriodEnd:{type:'boolean'}}));
+const cancelSetOutput=schema('subscription-cancel-set-output',obj({subscriptionId:stripeId,
+  cancelAtPeriodEnd:{type:'boolean'},livemode:{const:false}}));
 const eventInput=schema('stripe-event-input',obj({requestKey,eventId:stripeId,bodyDigest:str(64,64),
   type:str(128),objectId:stripeId,livemode:{const:false},sessionMode:nullable({type:'string',enum:['payment','subscription']}),
   sessionStatus:nullable(str(32)),paymentStatus:nullable(str(32))}));
@@ -269,6 +273,9 @@ operation('checkout.read','Relire une session Checkout test','query',checkoutRea
 operation('subscription.cancel.schedule','Programmer l’arrêt d’un abonnement test','command',cancelInput,
   cancelOutput,'manage',['connector_config','connector_secret','stripe_subscription'],['stripe_subscription'],
   {exportName:'subscriptionCancelSchedule',remote:true,cas:true,maxItems:12});
+operation('subscription.cancel.set','Programmer ou retirer l’arrêt d’un abonnement test','command',cancelSetInput,
+  cancelSetOutput,'manage',['connector_config','connector_secret','stripe_subscription'],['stripe_subscription'],
+  {exportName:'subscriptionCancelSet',remote:true,cas:true,maxItems:12});
 operation('event.receive','Enregistrer un événement Stripe signé','command',eventInput,eventOutput,
   'webhook.receive',['connector_config','stripe_event','stripe_checkout'],['stripe_event','stripe_checkout'],
   {exportName:'eventReceive',maxItems:12});
@@ -358,6 +365,7 @@ m.contracts={schemas,models,files:[],events:[],connectors:[structuredClone(strip
       ref('operation','product.list'),ref('operation','price.list'),
       ref('operation','checkout.payment.create'),ref('operation','checkout.subscription.create'),
       ref('operation','checkout.read'),ref('operation','subscription.cancel.schedule'),
+      ref('operation','subscription.cancel.set'),
       ref('operation','event.list')],
       resources:['sync-status-ui'],integrity:skillIntegrity}]},
   ui:{views:[{id:'admin',title:'Facturation',surfaces:['workspace'],route:'/admin/billing',

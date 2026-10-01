@@ -1,5 +1,15 @@
 # Changelog
 
+## Candidate Stripe 0.4.0 — maintien d'un abonnement avant son échéance
+
+- Le connecteur permet de programmer ou de retirer l'arrêt en fin de période d'un abonnement TEST. La nouvelle opération `subscription.cancel.set` conserve le contrat `subscription.cancel.schedule` déjà distribué ; les droits administratifs et le journal commun restent applicables.
+- L'écran Facturation reprend la même interface et propose l'action correspondant à l'état confirmé. Un abonnement déjà terminé ne devient pas réactivable. Le mode live, les changements de tarif et les parcours d'achat client restent distincts de cette tranche ; sa recette fournisseur n'est pas encore effectuée.
+- Le suivi intègre les recettes hébergées récentes de Pages, CRM, Analytics et Meili ainsi que la conservation des témoins Linux T33. Les résultats de Core b9 restent liés à cette source et ne constituent pas une livraison de cette candidate.
+
+## Core b9 — livraisons et recettes du 2 octobre 2026
+
+Les correctifs de sandbox et de provenance ci-dessous sont intégrés par la PR #92 sur `b9a4562`, avec 1 490 tests et 33 commandes réussis en CI candidate puis main. Core b9 est livré sur Linux et Cloudflare ; Original Sites v7 utilise la source Site `3bd36bc`. Le rendu des deux images Catalogue Cloudflare, le canonical externe puis restauré sur Sites, les trois fiches CRM liées et le cycle Meili d'insertion/modification/retrait/reconstruction sont vérifiés dans leurs reçus propres. Les critères non exercés et les reports utilisateur restent suivis dans le TODO.
+
 ## Correctif candidat T25/T32 — sandbox du Worker mis à jour
 
 - Les updates Cloudflare normal et routé journalisent et inspectent le sandbox des widgets avant de publier le Worker principal. La lignée remonte au reçu de première publication pour les updates historiques, et les reprises d'upload incertain n'émettent pas une seconde publication à l'aveugle.

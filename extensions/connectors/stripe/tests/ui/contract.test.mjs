@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import Ajv2020 from 'ajv/dist/2020.js';
 import {manifest,read} from '../helpers.mjs';
 import {panelData,readPanel,retainedSessionId,sessionVerified,scopeChange} from '../../ui/panel-state.ts';
-import {externalConfigurationChanged,latestConfig,mergeRuns,reconcileRuns,sameConfiguration} from '../../ui/state.ts';
+import {externalConfigurationChanged,latestConfig,mergeRuns,reconcileRuns,sameConfiguration,
+  subscriptionLifecycleAction} from '../../ui/state.ts';
 import {formatStripeAmount,formatStripeFrequency} from '../../ui/money.ts';
 import {createCommandJournal,readPendingCommand} from '@creezio/sdk/operations/command-journal';
 
@@ -57,6 +58,71 @@ test('late reads cannot roll back a confirmed configuration or run',()=>{
   assert.equal(sameConfiguration(newer,externallyRotated),false,
     'config N, then old sync.state, then config N+1 must not reinstall the old run');
 });
+test('subscription lifecycle offers both test-mode directions only from a known eligible projection',()=>{
+  const row={id:'sub_test_1',status:'active',livemode:false,cancel_at_period_end:false,revision:7};
+  const schedule=subscriptionLifecycleAction(row);
+  assert.deepEqual(schedule.input,{subscriptionId:row.id,revision:7,cancelAtPeriodEnd:true});
+  assert.equal(schedule.operation,'subscription.cancel.set');
+  assert.equal(schedule.label,'Arrêter à l’échéance');
+  assert.match(schedule.confirmation,/Programmer l’arrêt/u);
+  const retain=subscriptionLifecycleAction({...row,cancel_at_period_end:true,revision:8});
+  assert.deepEqual(retain.input,{subscriptionId:row.id,revision:8,cancelAtPeriodEnd:false});
+  assert.equal(retain.label,'Maintenir l’abonnement');
+  assert.match(retain.confirmation,/Retirer l’arrêt programmé/u);
+  for(const status of ['trialing','past_due'])assert.ok(subscriptionLifecycleAction({...row,status}));
+  for(const invalid of [{livemode:true},{status:'canceled'},{cancel_at_period_end:null},
+    {revision:0},{revision:1.5},{id:''}])assert.equal(subscriptionLifecycleAction({...row,...invalid}),null);
+});
+test('an uncertain lifecycle command blocks its reverse until status resolves; each direction keeps its own CAS input',async()=>{
+  const scope={sessionId:'session-a',audience:'admin',contextId:'application'};
+  const controller=createCommandJournal(scope);
+  const calls=[];
+  const client={audience:'admin',
+    async invoke(command){calls.push(command);return calls.length===1?{kind:'unknown',code:'timeout'}:
+      {kind:'execution',execution:{state:'succeeded',output:{subscriptionId:'sub_test_1',
+        cancelAtPeriodEnd:false,livemode:false}}};},
+    async status(){return {kind:'execution',execution:{state:'succeeded',output:{
+      subscriptionId:'sub_test_1',cancelAtPeriodEnd:true,livemode:false}}};}};
+  let saved=null;
+  const persist=value=>{saved=value;return true;};
+  const send=(action,key)=>controller.execute(client,{...scope,bindingId:`creezio.stripe:admin.${action.operation}`,
+    requestKey:key,intent:action.operation},action.input,()=>true,persist);
+  const first=subscriptionLifecycleAction({id:'sub_test_1',status:'active',livemode:false,
+    cancel_at_period_end:false,revision:7});
+  assert.equal((await send(first,'schedule-key')).result.kind,'unknown');
+  assert.equal(saved.requestKey,'schedule-key');
+  const reverse=subscriptionLifecycleAction({id:'sub_test_1',status:'active',livemode:false,
+    cancel_at_period_end:true,revision:8});
+  assert.equal((await send(reverse,'reverse-key')).result.code,'in_progress');
+  assert.equal(calls.length,1,'no second supplier command before inspection');
+  assert.equal(calls[0].input.cancelAtPeriodEnd,true);
+  assert.equal(calls[0].input.revision,7);
+  assert.equal(calls[0].input.requestKey,'schedule-key');
+  assert.equal((await controller.inspect(client,()=>true,persist)).result.execution.state,'succeeded');
+  assert.equal(saved,null);
+  assert.equal((await send(reverse,'reverse-key')).result.execution.state,'succeeded');
+  assert.equal(calls.length,2);
+  assert.equal(calls[1].input.cancelAtPeriodEnd,false);
+  assert.equal(calls[1].input.revision,8);
+  assert.equal(calls[1].input.requestKey,'reverse-key');
+});
+test('a pending legacy schedule keeps its original binding and key for inspection without reissuing',async()=>{
+  const scope={sessionId:'session-a',audience:'admin',contextId:'application'};
+  const legacy={...scope,bindingId:'creezio.stripe:admin.subscription.cancel.schedule',
+    requestKey:'legacy-key',intent:'subscription.cancel.schedule'};
+  const restored=readPendingCommand(legacy,scope);
+  const controller=createCommandJournal(scope,restored);
+  let invoked=0,inspected=null,saved=restored;
+  const client={audience:'admin',async invoke(){invoked++;throw Error('unexpected mutation');},
+    async status(query){inspected=query;return {kind:'execution',execution:{state:'succeeded',
+      output:{subscriptionId:'sub_test_1',cancelAtPeriodEnd:true,livemode:false}}};}};
+  const result=await controller.inspect(client,()=>true,value=>{saved=value;return true;});
+  assert.equal(result.result.execution.state,'succeeded');
+  assert.equal(invoked,0);
+  assert.equal(inspected.bindingId,legacy.bindingId);
+  assert.equal(inspected.requestKey,legacy.requestKey);
+  assert.equal(saved,null);
+});
 test('Stripe charge units render as customer-facing amounts across currency exceptions',()=>{
   assert.match(formatStripeAmount(1299,'EUR'),/12,99\s*€/u);
   assert.match(formatStripeAmount(500,'JPY'),/500/u);
@@ -102,6 +168,9 @@ test('original billing cards/tables remain and signed events are visible',()=>{
     'a price must not inherit a product name from a separately loaded generation');
   assert.match(ui,/readPendingCommand/u);
   assert.match(ui,/controller\.inspect/u);
+  assert.match(ui,/window\.confirm\(lifecycle\.confirmation\)/u);
+  assert.match(ui,/refreshSubscriptions\(token\)/u);
+  assert.match(ui,/pending\.intent==='subscription\.cancel\.set'/u);
   assert.match(ui,/inFlight\.current=false;return/u);
   assert.match(ui,/setPending\(journal\.current\.pending\)/u);
   assert.doesNotMatch(ui,/fetch\(|localStorage|sessionStorage|stripe\.com\/v1/u);

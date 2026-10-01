@@ -153,22 +153,37 @@ export async function checkoutRead(value:JsonValue,context:OperationContext){
   if(session.id!==id)throw new OperationError('unavailable');
   return {output:{session}};
 }
-export async function subscriptionCancelSchedule(value:JsonValue,context:OperationContext){
+async function subscriptionCancellation(value:JsonValue,context:OperationContext,
+  cancelAtPeriodEnd:boolean,allowUnknownPrior=false){
   const input=args(value),id=identifier(input.subscriptionId),configuration=await config(context);
   const prior=await context.data.get('stripe_subscription',{key:{id}}) as Row|null;
   if(!id.startsWith('sub_')||!prior||prior.connection_id!==configuration?.connection_id
-    ||prior.livemode!==false||!['active','trialing','past_due'].includes(String(prior.status))
-    ||prior.cancel_at_period_end===true)throw new OperationError('invalid_input');
+    ||prior.livemode!==false||!['active','trialing','past_due'].includes(String(prior.status)))
+    throw new OperationError('invalid_input');
   const revision=rev(input.revision,prior);
+  if(prior.cancel_at_period_end===cancelAtPeriodEnd
+    ||(!allowUnknownPrior&&prior.cancel_at_period_end!==!cancelAtPeriodEnd))
+    throw new OperationError('invalid_input');
+  if(!cancelAtPeriodEnd&&typeof prior.period_end_at==='string'
+    &&Date.parse(prior.period_end_at)<=Date.now())throw new OperationError('invalid_input');
   const body=supplier(await mutation(context,{resource:'subscription_schedule_cancel',id,
-    fields:{cancelAtPeriodEnd:true}}));
+    fields:{cancelAtPeriodEnd}}));
   if(body.object!=='subscription'||body.id!==id||body.livemode!==false
-    ||body.cancel_at_period_end!==true||body.customer!==prior.customer_id)
+    ||body.cancel_at_period_end!==cancelAtPeriodEnd||body.customer!==prior.customer_id
+    ||(!cancelAtPeriodEnd&&!['active','trialing','past_due'].includes(String(body.status))))
     throw new OperationError('unknown');
   const plan=context.data.planPatch('stripe_subscription',{key:{id},
     compare:{field:'revision',expected:revision},
-    values:{cancel_at_period_end:true,updated_at:now()}});
-  return {output:{subscriptionId:id,cancelAtPeriodEnd:true,livemode:false},plans:[plan]};
+    values:{cancel_at_period_end:cancelAtPeriodEnd,updated_at:now()}});
+  return {output:{subscriptionId:id,cancelAtPeriodEnd,livemode:false},plans:[plan]};
+}
+export async function subscriptionCancelSchedule(value:JsonValue,context:OperationContext){
+  return subscriptionCancellation(value,context,true,true);
+}
+export async function subscriptionCancelSet(value:JsonValue,context:OperationContext){
+  const cancelAtPeriodEnd=args(value).cancelAtPeriodEnd;
+  if(typeof cancelAtPeriodEnd!=='boolean')throw new OperationError('invalid_input');
+  return subscriptionCancellation(value,context,cancelAtPeriodEnd);
 }
 export async function eventReceive(value:JsonValue,context:OperationContext){
   const input=args(value),eventId=identifier(input.eventId),objectId=identifier(input.objectId),

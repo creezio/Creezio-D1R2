@@ -1,8 +1,12 @@
 # Changelog Stripe
 
+## 0.4.0 — candidate de réversibilité de l’arrêt programmé
+
+Ajout non cassant de `subscription.cancel.set` (`cancelAtPeriodEnd` booléen) sur le POST Stripe déclaré, avec refus d’un état projeté identique, terminé, hors génération, live ou sans révision courante. L’état de retour est vérifié avant le CAS D1 ; le journal commun garde les issues inconnues sans nouveau POST. `subscription.cancel.schedule` demeure inchangé. UI/API/MCP admin sont raccordés au même contrat ; aucun tarif, quantité, abonnement déjà résilié, port app ou mode live n’est ajouté. Tests locaux seulement ; publication et recette fournisseur de cette version restent à qualifier. Voir [Stripe — arrêter ou retirer un arrêt programmé](https://docs.stripe.com/billing/subscriptions/cancel).
+
 ## 0.3.1 — correction du contrat de réception signée
 
-`webhook.receive` est déclaré sur `connector_config`, `stripe_event` et `stripe_checkout`, les trois modèles utilisés par son handler. Le coffre garde ses permissions propres : le jeton machine dédié ne reçoit aucun droit général de lecture ou gestion. Le garde hôte de ses références est limité à la préparation d'une lecture conditionnelle ; un échec de construction après le claim clôt l'exécution en échec au lieu de laisser un `running` orphelin. Le test local exerce un POST signé jusqu'au commit D1 et le refus après révocation de la configuration webhook. L'événement réel resté inconnu sous 0.3.0 n'est pas déclaré réparé ; livraison et recette de 0.3.1 restent ouvertes.
+`webhook.receive` est déclaré sur `connector_config`, `stripe_event` et `stripe_checkout`, les trois modèles utilisés par son handler. Le coffre garde ses permissions propres : le jeton machine dédié ne reçoit aucun droit général de lecture ou gestion. Le garde hôte de ses références est limité à la préparation d'une lecture conditionnelle ; un échec de construction après le claim clôt l'exécution en échec au lieu de laisser un `running` orphelin. Le test local exerce un POST signé jusqu'au commit D1 et le refus après révocation de la configuration webhook. La version est livrée et un nouvel événement réel signé a été projeté ; le reçu 0.3.0 resté inconnu n'est pas déclaré réparé et sa redélivrance reste ouverte.
 
 ## 0.3.0 — candidate Checkout test et événements signés
 
