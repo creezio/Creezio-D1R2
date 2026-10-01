@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {manifest,read} from '../helpers.mjs';
 
-test('documentation identifies anonymous host gap and conservative reset',()=>{
+test('documentation identifies explicit public exposure, private media and conservative reset',()=>{
   const docs=['README.md','prd.md','TODO.md','interview.md','FILES.md','CHANGELOG.md'];
   for(const name of docs)assert.ok(read(name).length>50,name);
   const all=docs.map(read).join('\n').toLowerCase();

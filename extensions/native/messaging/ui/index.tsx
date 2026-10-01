@@ -8,7 +8,7 @@ import type {PendingCommand,CommandOutcome} from '@creezio/sdk/operations/comman
 import type {OperationClientResult} from '@creezio/sdk/operations/client';
 import {createFileClient} from '@creezio/sdk/files/client';
 import type {WorkspaceViewProps as RuntimeViewProps} from '@creezio/sdk/workspace/types';
-import {call,readableError,folders,scopeChanged,messagingPanelData,panelMatchesScope,createLatestRequest,attachmentRevision,type Attachment,type Box,type Draft,type Folder,type Message,
+import {call,readableError,folders,scopeChanged,messagingPanelData,panelMatchesScope,createLatestRequest,attachmentRevision,type Attachment,type Box,type Draft,type Folder,type Message,type InboundSnapshot,
   type Outcome,type Page,type UiIdentity} from './contracts.ts';
 import {FoldersPanel,ListPanel,ReaderPanel,RecipientsInput,messagingButton,messagingField} from './presentation.tsx';
 import {RichEditor} from './rich-editor.tsx';
@@ -47,6 +47,9 @@ export function MessagingView(props:RuntimeViewProps) {
   const [busy,setBusy]=useState(false);
   const [pending,setPending]=useState<PendingCommand|null>(null);
   const [sendFollowup,setSendFollowup]=useState<PendingCommand|null>(null);
+  const [inboundInput,setInboundInput]=useState('');
+  const [inboundSnapshot,setInboundSnapshot]=useState<InboundSnapshot|null>(null);
+  const [inboundLoading,setInboundLoading]=useState(false);
   const [loading,setLoading]=useState(false);
   const [notice,setNotice]=useState('');
   const [composer,setComposer]=useState(false);
@@ -67,10 +70,12 @@ export function MessagingView(props:RuntimeViewProps) {
   const panelRestored=useRef(false);
   const restoreDraft=useRef<string|null>(null);
   const journal=useRef<ReturnType<typeof createCommandJournal>|null>(null);
+  const inboundActive=useRef('');
   const boxSerial=useRef(createLatestRequest()),listSerial=useRef(createLatestRequest());
   const selectionSerial=useRef(createLatestRequest()),threadSerial=useRef(createLatestRequest());
   const selectionIdentity=useRef(createLatestRequest());
   const busySerial=useRef(createLatestRequest());
+  const inboundSerial=useRef(createLatestRequest());
   const epoch=useRef(0),prior=useRef({sessionId:'',contextId:'',audience:'',active:false,
     authorized:false,client:null as RuntimeViewProps['client']|null,access:null as RuntimeViewProps['access']|null});
   if(prior.current.sessionId!==sessionId||prior.current.contextId!==props.contextId||
@@ -95,7 +100,8 @@ export function MessagingView(props:RuntimeViewProps) {
   const beginBusy=()=>{const serial=busySerial.current.begin();setBusy(true);return serial;};
   const finishBusy=(serial:number)=>{if(busySerial.current.accepts(serial))setBusy(false);};
   const invalidateReads=()=>{boxSerial.current.invalidate();listSerial.current.invalidate();
-    selectionSerial.current.invalidate();threadSerial.current.invalidate();setLoading(false);setThreadLoading(false);};
+    selectionSerial.current.invalidate();threadSerial.current.invalidate();inboundSerial.current.invalidate();
+    setLoading(false);setThreadLoading(false);setInboundLoading(false);};
   useRegisterWorkspaceMetadata(props.panelId,{title:'Messagerie',kind:'section',trail:[{label:'Messagerie'},
     ...(boxId?[{label:boxes.find(box=>box.id===boxId)?.name??'Boîte'}]:[])]});
 
@@ -119,6 +125,7 @@ export function MessagingView(props:RuntimeViewProps) {
       setHydratedScope('');
       setPending(null);setBoxes([]);setBoxId('');setFolder('inbox');setMessages([]);setDrafts([]);setSelectedId(null);
       setSendFollowup(null);
+      inboundActive.current='';setInboundInput('');setInboundSnapshot(null);setInboundLoading(false);
       setMessage(null);setDraft(null);setAttachments([]);setThread([]);setThreadCursor(null);
       setQuery('');setUnreadOnly(false);setNewBox(false);setBoxName('');setBoxAddress('');
       setComposer(false);setEditor(blank);setNotice('');
@@ -130,6 +137,9 @@ export function MessagingView(props:RuntimeViewProps) {
       const data=matching?saved?.data:undefined;
       const restoredBox=data?.boxId,restoredDraft=data?.draftId,
         restoredFolder=matching?saved?.activeSubview:undefined;
+      inboundActive.current=typeof data?.inboundEmailId==='string'
+        &&validId(data.inboundEmailId)?data.inboundEmailId:'';
+      setInboundInput(inboundActive.current);
       if(typeof restoredBox==='string'&&validId(restoredBox))setBoxId(restoredBox);
       if(folders.some(item=>item.id===restoredFolder))setFolder(restoredFolder as Folder);
       if(typeof restoredDraft==='string'&&validId(restoredDraft))restoreDraft.current=restoredDraft;
@@ -180,8 +190,28 @@ export function MessagingView(props:RuntimeViewProps) {
     setSelectedId(null);setMessage(null);setDraft(null);setAttachments([]);setThread([]);setThreadCursor(null);
   },[boxId,folder,sessionId]);
   useEffect(()=>{if(enabled&&boxId)void loadList();},[boxId,folder,enabled,sessionId,listRevision]);
+  useEffect(()=>{if(enabled&&boxId&&inboundActive.current&&!journal.current?.pending)
+    void loadInboundStatus();},[boxId,enabled,sessionId,pending]);
   useEffect(()=>{if(!enabled||!boxId)return;const timer=setTimeout(()=>void loadList(),180);
     return ()=>clearTimeout(timer);},[query,unreadOnly]);
+
+  async function loadInboundStatus(){
+    const emailId=inboundActive.current,requestedBox=boxId;
+    if(!emailId||!scoped(requestedBox))return;
+    const serial=inboundSerial.current.begin();
+    const same=()=>scoped(requestedBox)&&inboundActive.current===emailId
+      &&inboundSerial.current.accepts(serial);
+    setInboundLoading(true);
+    try{
+      const result=await call<{snapshot:InboundSnapshot}>(scope,'message.inbound.status',
+        {boxId:requestedBox,emailId},same);
+      if(!same())return;
+      if(result.kind==='ok'&&result.value.snapshot?.emailId===emailId)
+        setInboundSnapshot(result.value.snapshot);
+      else{setInboundSnapshot(null);setNotice(result.kind==='ok'
+        ?'État de réception invalide.':readableError(result.code));}
+    }finally{if(same())setInboundLoading(false);}
+  }
 
   const loadSelection=useCallback(async(id:string)=>{
     if(!scoped()||!boxId||!validId(id))return;
@@ -204,6 +234,11 @@ export function MessagingView(props:RuntimeViewProps) {
       if(selectionCurrent()&&files.kind==='ok')try{setAttachments(page<Attachment>(files.value).items);}catch{setNotice('Pièces jointes invalides.');}
     }else{const found=(result.value as {message?:Message}).message;
       if(!found||found.id!==id){setNotice('Message introuvable.');return;}setMessage(found);
+      const files=await call<Page<Attachment>>(scope,'message.attachment.list',
+        {boxId,messageId:id,limit:50},selectionCurrent);
+      if(selectionCurrent()&&files.kind==='ok')try{setAttachments(page<Attachment>(files.value).items);}
+      catch{setNotice('Pièces jointes du message invalides.');}
+      else if(selectionCurrent()&&files.kind!=='ok')setNotice(readableError(files.code));
       if(found.threadId){
         const related:Message[]=[];let next:string|null=null;
         for(let i=0;i<20;i++){
@@ -256,7 +291,7 @@ export function MessagingView(props:RuntimeViewProps) {
       live.current.audience!==props.audience)return false;
     return props.navigation.savePanelState({activeSubview:nextFolder,
       data:messagingPanelData({sessionId,audience:props.audience,contextId:props.contextId},
-        nextBox,draftId??null,nextPending,nextFollowup)});
+        nextBox,draftId??null,nextPending,nextFollowup,inboundActive.current)});
   }
   async function executeMutation<T>(operation:string,input:Record<string,unknown>,isCurrent:()=>boolean,
     targetId?:string):Promise<Outcome<T>|{kind:'queued';value:T;code:string;issued:PendingCommand}>{
@@ -281,7 +316,7 @@ export function MessagingView(props:RuntimeViewProps) {
       if(journal.current===activeJournal&&live.current.sessionId===sessionId){
         const retained=props.navigation.savePanelState({activeSubview:live.current.folder,
           data:messagingPanelData({sessionId,audience:props.audience,contextId:props.contextId},
-            live.current.boxId,null,null,issued)});
+            live.current.boxId,null,null,issued,inboundActive.current)});
         if(!retained)return {kind:'unknown',code:'client_state_unavailable'};
         setSendFollowup(issued);journal.current=createCommandJournal({sessionId,audience:props.audience,
           contextId:props.contextId});setPending(null);invalidateReads();
@@ -366,6 +401,7 @@ export function MessagingView(props:RuntimeViewProps) {
   function chooseFolder(next:Folder){if(next===folder)return;invalidateReads();selectionIdentity.current.invalidate();
     setFolder(next);savePosition(next,boxId);}
   function chooseBox(next:string){if(next===boxId)return;invalidateReads();selectionIdentity.current.invalidate();
+    inboundActive.current='';setInboundInput('');setInboundSnapshot(null);
     setBoxId(next);savePosition(folder,next);}
   function chooseItem(next:string){selectionSerial.current.invalidate();selectionIdentity.current.invalidate();
     threadSerial.current.invalidate();setThreadLoading(false);
@@ -490,6 +526,61 @@ export function MessagingView(props:RuntimeViewProps) {
         await loadBoxes();if(!current())return;chooseBox(result.value.box.id);}
       else setNotice(result.kind==='ok'?'Création non confirmée.':readableError(result.code));
     }finally{finishBusy(busyToken);}}
+  async function prepareInbound(){
+    const emailId=inboundInput.trim(),requestedBox=boxId;
+    if(!scoped(requestedBox)||busy||journal.current?.pending)return;
+    if(!emailId||emailId.length>128||!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(emailId)){
+      setNotice('Saisissez un identifiant de courriel valide.');return;
+    }
+    const busyToken=beginBusy();setNotice('');setInboundSnapshot(null);
+    inboundActive.current=emailId;savePosition(folder,requestedBox);
+    try{
+      const result=await executeMutation<{snapshot:InboundSnapshot}>('message.inbound.prepare',
+        {boxId:requestedBox,emailId},()=>scoped(requestedBox)&&inboundActive.current===emailId,
+        emailId);
+      if(!scoped(requestedBox)||inboundActive.current!==emailId)return;
+      if(result.kind!=='ok'||result.value.snapshot?.emailId!==emailId){
+        setNotice(result.kind==='ok'?'Préparation non confirmée.':readableError(result.code));return;
+      }
+      setInboundSnapshot(result.value.snapshot);
+      setNotice('Courriel préparé. Vérifiez les pièces avant l’import.');
+    }finally{finishBusy(busyToken);}
+  }
+  async function stageInbound(childId:string){
+    const emailId=inboundSnapshot?.emailId,requestedBox=boxId;
+    if(!emailId||!scoped(requestedBox)||busy||journal.current?.pending)return;
+    const busyToken=beginBusy();setNotice('');
+    try{
+      const result=await executeMutation<{childId:string;fileId:string;staged:boolean}>(
+        'message.inbound.attachment.stage',{boxId:requestedBox,emailId,childId},
+        ()=>scoped(requestedBox)&&inboundActive.current===emailId,childId);
+      if(!scoped(requestedBox)||inboundActive.current!==emailId)return;
+      if(result.kind!=='ok'||result.value.childId!==childId||!result.value.staged){
+        setNotice(result.kind==='ok'?'Pièce non confirmée.':readableError(result.code));return;
+      }
+      await loadInboundStatus();
+      if(scoped(requestedBox)&&inboundActive.current===emailId)setNotice('Pièce vérifiée et préparée.');
+    }finally{finishBusy(busyToken);}
+  }
+  async function importInbound(){
+    const snapshot=inboundSnapshot,requestedBox=boxId;
+    if(!snapshot||snapshot.imported||snapshot.attachments.length!==snapshot.stagedChildIds.length
+      ||!scoped(requestedBox)||busy||journal.current?.pending)return;
+    const emailId=snapshot.emailId,busyToken=beginBusy();setNotice('');
+    try{
+      const result=await executeMutation<{message:Message}>('message.inbound.import',
+        {boxId:requestedBox,emailId},()=>scoped(requestedBox)&&inboundActive.current===emailId,
+        emailId);
+      if(!scoped(requestedBox)||inboundActive.current!==emailId)return;
+      if(result.kind!=='ok'||result.value.message?.direction!=='inbound'){
+        setNotice(result.kind==='ok'?'Import non confirmé.':readableError(result.code));return;
+      }
+      await loadInboundStatus();
+      if(!scoped(requestedBox)||inboundActive.current!==emailId)return;
+      setFolder('inbox');setSelectedId(result.value.message.id);savePosition('inbox',requestedBox);
+      setListRevision(value=>value+1);setNotice('Message et pièces jointes importés.');
+    }finally{finishBusy(busyToken);}
+  }
   async function uploadFile(event:ChangeEvent<HTMLInputElement>){const file=event.target.files?.[0];event.target.value='';
     if(!file||!editor.id||!boxId||busy||journal.current?.pending)return;
     const busyToken=beginBusy();setNotice(`Téléversement de ${file.name}…`);
@@ -520,7 +611,7 @@ export function MessagingView(props:RuntimeViewProps) {
   if(hydratedScope!==scopeKey)return <div className="rounded-md border p-6 text-sm">Chargement de la messagerie…</div>;
   return <div className="flex h-[calc(100vh-8.5rem)] min-h-[420px] flex-col overflow-hidden rounded-2xl border border-[#e6e0d4] bg-white/80 shadow-sm">
     <div role="status" className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-950">
-      <span>La réception reste indisponible. L’envoi exige un transport Resend autorisé ; une intention en attente n’est pas un message envoyé.</span>
+      <span>L’import d’un courriel reçu demande une preuve Resend et une boîte autorisée. L’envoi exige aussi un transport autorisé.</span>
       <button type="button" className={messagingButton} disabled={!!pending||busy} onClick={()=>setNewBox(true)}>Nouvelle boîte</button>
     </div>
     {notice&&<div role="alert" className="border-b border-[#ebe4d8] px-4 py-2 text-sm text-[#3a4158]">{notice}</div>}
@@ -532,6 +623,27 @@ export function MessagingView(props:RuntimeViewProps) {
       <span>Une intention d’envoi attend un accusé. La boîte reste utilisable ; n’envoyez pas à nouveau ce brouillon.</span>
       <button type="button" disabled={busy} className={messagingButton} onClick={()=>void inspectSendFollowup()}>Vérifier l’envoi</button>
     </div>}
+    {boxId&&<section aria-label="Importer un courriel reçu" className="border-b border-[#ebe4d8] bg-[#fcfbf8] px-4 py-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor="messaging-inbound-id" className="font-medium">Courriel reçu</label>
+        <input id="messaging-inbound-id" className={`${messagingField} max-w-xs`} placeholder="Identifiant du courriel Resend"
+          value={inboundInput} disabled={busy||!!pending} onChange={event=>setInboundInput(event.target.value)}/>
+        <button type="button" className={messagingButton} disabled={busy||!!pending||!inboundInput.trim()}
+          onClick={()=>void prepareInbound()}>Préparer</button>
+        {inboundLoading&&<span role="status">Lecture de la préparation…</span>}
+      </div>
+      {inboundSnapshot&&<div className="mt-2 flex flex-wrap items-center gap-2">
+        <span>{inboundSnapshot.subject||'(sans objet)'} · {inboundSnapshot.from} · {inboundSnapshot.attachments.length} pièce(s)</span>
+        {inboundSnapshot.attachments.map(item=><button key={item.id} type="button" className={messagingButton}
+          disabled={busy||!!pending||inboundSnapshot.imported||inboundSnapshot.stagedChildIds.includes(item.id)}
+          onClick={()=>void stageInbound(item.id)}>
+          {inboundSnapshot.stagedChildIds.includes(item.id)?'Préparée':`Préparer ${item.filename}`}
+        </button>)}
+        <button type="button" className={messagingButton} disabled={busy||!!pending||inboundSnapshot.imported
+          ||inboundSnapshot.attachments.length!==inboundSnapshot.stagedChildIds.length}
+          onClick={()=>void importInbound()}>{inboundSnapshot.imported?'Importé':'Importer'}</button>
+      </div>}
+    </section>}
     <div className="flex min-h-0 flex-1" style={{gridTemplateColumns:`${widths[0]}% ${widths[1]}% 1fr`}}>
       <div style={{width:`${widths[0]}%`}} className="min-w-0"><FoldersPanel boxes={boxes} boxId={boxId} folder={folder} onBox={chooseBox} onFolder={chooseFolder} onCompose={()=>openCompose()} unread={messages.filter(item=>item.direction==='inbound'&&!item.read).length}/></div>
       <div role="separator" aria-orientation="vertical" onPointerDown={event=>beginResize(event,0)} className="w-1 cursor-col-resize bg-[#ebe4d8] hover:bg-sky-300"/>

@@ -68,6 +68,48 @@ CREATE TABLE "cz_637265657a696f2e6d6573736167696e67_66696c655f6d65746164617461" 
   PRIMARY KEY ("context_id", "file_id")
 ) WITHOUT ROWID;
 
+CREATE TABLE "cz_637265657a696f2e6d6573736167696e67_696e626f756e645f736e617073686f74" (
+  "attachments" TEXT NOT NULL CHECK ("attachments" IS NOT NULL AND (typeof("attachments") = 'text' AND json_valid("attachments") = 1)),
+  "box_address" TEXT NOT NULL CHECK ("box_address" IS NOT NULL AND (typeof("box_address") = 'text' AND instr("box_address", char(0)) = 0 AND length("box_address") >= 1 AND length("box_address") <= 320)),
+  "box_id" TEXT NOT NULL CHECK ("box_id" IS NOT NULL AND (typeof("box_id") = 'text' AND instr("box_id", char(0)) = 0 AND length("box_id") >= 1 AND length("box_id") <= 128)),
+  "box_revision" INTEGER NOT NULL CHECK ("box_revision" IS NOT NULL AND (typeof("box_revision") = 'integer' AND "box_revision" BETWEEN -9007199254740991 AND 9007199254740991 AND "box_revision" >= 1 AND "box_revision" <= 9007199254740991)),
+  "config_revision" INTEGER NOT NULL CHECK ("config_revision" IS NOT NULL AND (typeof("config_revision") = 'integer' AND "config_revision" BETWEEN -9007199254740991 AND 9007199254740991 AND "config_revision" >= 1 AND "config_revision" <= 9007199254740991)),
+  "connection_id" TEXT NOT NULL CHECK ("connection_id" IS NOT NULL AND (typeof("connection_id") = 'text' AND instr("connection_id", char(0)) = 0 AND length("connection_id") >= 1 AND length("connection_id") <= 128)),
+  "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "created_at" TEXT NOT NULL CHECK ("created_at" IS NOT NULL AND (typeof("created_at") = 'text' AND length("created_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "created_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "created_at") = "created_at")),
+  "email_id" TEXT NOT NULL CHECK ("email_id" IS NOT NULL AND (typeof("email_id") = 'text' AND instr("email_id", char(0)) = 0 AND length("email_id") >= 1 AND length("email_id") <= 128)),
+  "from_addr" TEXT NOT NULL CHECK ("from_addr" IS NOT NULL AND (typeof("from_addr") = 'text' AND instr("from_addr", char(0)) = 0 AND length("from_addr") >= 1 AND length("from_addr") <= 320)),
+  "html_body" TEXT NOT NULL CHECK ("html_body" IS NOT NULL AND (typeof("html_body") = 'text' AND instr("html_body", char(0)) = 0 AND length("html_body") >= 0 AND length("html_body") <= 32000)),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
+  "owner_id" TEXT NOT NULL CHECK ("owner_id" IS NOT NULL AND (typeof("owner_id") = 'text' AND instr("owner_id", char(0)) = 0 AND length("owner_id") >= 1 AND length("owner_id") <= 128)),
+  "received_at" TEXT NOT NULL CHECK ("received_at" IS NOT NULL AND (typeof("received_at") = 'text' AND length("received_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "received_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "received_at") = "received_at")),
+  "snapshot_digest" TEXT NOT NULL CHECK ("snapshot_digest" IS NOT NULL AND (typeof("snapshot_digest") = 'text' AND instr("snapshot_digest", char(0)) = 0 AND length("snapshot_digest") >= 64 AND length("snapshot_digest") <= 64)),
+  "subject" TEXT NOT NULL CHECK ("subject" IS NOT NULL AND (typeof("subject") = 'text' AND instr("subject", char(0)) = 0 AND length("subject") >= 0 AND length("subject") <= 240)),
+  "text_body" TEXT NOT NULL CHECK ("text_body" IS NOT NULL AND (typeof("text_body") = 'text' AND instr("text_body", char(0)) = 0 AND length("text_body") >= 0 AND length("text_body") <= 16000)),
+  "to_addr" TEXT NOT NULL CHECK ("to_addr" IS NOT NULL AND (typeof("to_addr") = 'text' AND instr("to_addr", char(0)) = 0 AND length("to_addr") >= 1 AND length("to_addr") <= 2048)),
+  PRIMARY KEY ("context_id", "owner_id", "box_id", "id"),
+  FOREIGN KEY ("context_id", "owner_id", "box_id") REFERENCES "cz_637265657a696f2e6d6573736167696e67_626f78" ("context_id", "owner_id", "id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e6d6573736167696e67_696e626f756e645f73746167655f72656365697074" (
+  "box_id" TEXT NOT NULL CHECK ("box_id" IS NOT NULL AND (typeof("box_id") = 'text' AND instr("box_id", char(0)) = 0 AND length("box_id") >= 1 AND length("box_id") <= 128)),
+  "byte_size" INTEGER NOT NULL CHECK ("byte_size" IS NOT NULL AND (typeof("byte_size") = 'integer' AND "byte_size" BETWEEN -9007199254740991 AND 9007199254740991 AND "byte_size" >= 0 AND "byte_size" <= 9007199254740991)),
+  "child_id" TEXT NOT NULL CHECK ("child_id" IS NOT NULL AND (typeof("child_id") = 'text' AND instr("child_id", char(0)) = 0 AND length("child_id") >= 1 AND length("child_id") <= 128)),
+  "content_type" TEXT NOT NULL CHECK ("content_type" IS NOT NULL AND (typeof("content_type") = 'text' AND instr("content_type", char(0)) = 0 AND length("content_type") >= 1 AND length("content_type") <= 128)),
+  "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "created_at" TEXT NOT NULL CHECK ("created_at" IS NOT NULL AND (typeof("created_at") = 'text' AND length("created_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "created_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "created_at") = "created_at")),
+  "digest" TEXT NOT NULL CHECK ("digest" IS NOT NULL AND (typeof("digest") = 'text' AND instr("digest", char(0)) = 0 AND length("digest") >= 64 AND length("digest") <= 64)),
+  "file_id" TEXT NOT NULL CHECK ("file_id" IS NOT NULL AND (typeof("file_id") = 'text' AND instr("file_id", char(0)) = 0 AND length("file_id") >= 1 AND length("file_id") <= 67)),
+  "filename" TEXT NOT NULL CHECK ("filename" IS NOT NULL AND (typeof("filename") = 'text' AND instr("filename", char(0)) = 0 AND length("filename") >= 1 AND length("filename") <= 255)),
+  "generation" TEXT NOT NULL CHECK ("generation" IS NOT NULL AND (typeof("generation") = 'text' AND instr("generation", char(0)) = 0 AND length("generation") >= 1 AND length("generation") <= 128)),
+  "intent_id" TEXT NOT NULL CHECK ("intent_id" IS NOT NULL AND (typeof("intent_id") = 'text' AND instr("intent_id", char(0)) = 0 AND length("intent_id") >= 1 AND length("intent_id") <= 128)),
+  "owner_id" TEXT NOT NULL CHECK ("owner_id" IS NOT NULL AND (typeof("owner_id") = 'text' AND instr("owner_id", char(0)) = 0 AND length("owner_id") >= 1 AND length("owner_id") <= 128)),
+  "snapshot_id" TEXT NOT NULL CHECK ("snapshot_id" IS NOT NULL AND (typeof("snapshot_id") = 'text' AND instr("snapshot_id", char(0)) = 0 AND length("snapshot_id") >= 1 AND length("snapshot_id") <= 128)),
+  PRIMARY KEY ("context_id", "owner_id", "box_id", "snapshot_id", "file_id"),
+  FOREIGN KEY ("context_id", "owner_id", "box_id") REFERENCES "cz_637265657a696f2e6d6573736167696e67_626f78" ("context_id", "owner_id", "id") ON DELETE RESTRICT,
+  FOREIGN KEY ("context_id", "owner_id", "box_id", "snapshot_id") REFERENCES "cz_637265657a696f2e6d6573736167696e67_696e626f756e645f736e617073686f74" ("context_id", "owner_id", "box_id", "id") ON DELETE RESTRICT
+) WITHOUT ROWID;
+
 CREATE TABLE "cz_637265657a696f2e6d6573736167696e67_6d657373616765" (
   "box_id" TEXT NOT NULL CHECK ("box_id" IS NOT NULL AND (typeof("box_id") = 'text' AND instr("box_id", char(0)) = 0 AND length("box_id") >= 1 AND length("box_id") <= 128)),
   "cc_addr" TEXT NOT NULL CHECK ("cc_addr" IS NOT NULL AND (typeof("cc_addr") = 'text' AND instr("cc_addr", char(0)) = 0 AND length("cc_addr") >= 0 AND length("cc_addr") <= 2048)),
@@ -143,6 +185,10 @@ CREATE INDEX "cz_637265657a696f2e6d6573736167696e67_64726166745f6174746163686d65
 CREATE UNIQUE INDEX "cz_637265657a696f2e6d6573736167696e67_66696c655f6d65746164617461_idx_696e74656e74" ON "cz_637265657a696f2e6d6573736167696e67_66696c655f6d65746164617461" ("context_id", "intent_id", "generation");
 
 CREATE UNIQUE INDEX "cz_637265657a696f2e6d6573736167696e67_66696c655f6d65746164617461_idx_6f626a6563742d6b6579" ON "cz_637265657a696f2e6d6573736167696e67_66696c655f6d65746164617461" ("context_id", "object_key");
+
+CREATE INDEX "cz_637265657a696f2e6d6573736167696e67_696e626f756e645f73746167655f72656365697074_idx_62792d736e617073686f74" ON "cz_637265657a696f2e6d6573736167696e67_696e626f756e645f73746167655f72656365697074" ("context_id", "owner_id", "box_id", "snapshot_id", "created_at", "file_id");
+
+CREATE UNIQUE INDEX "cz_637265657a696f2e6d6573736167696e67_696e626f756e645f73746167655f72656365697074_idx_6368696c64" ON "cz_637265657a696f2e6d6573736167696e67_696e626f756e645f73746167655f72656365697074" ("context_id", "owner_id", "box_id", "snapshot_id", "child_id");
 
 CREATE INDEX "cz_637265657a696f2e6d6573736167696e67_6d657373616765_idx_726563656e742d6d65737361676573" ON "cz_637265657a696f2e6d6573736167696e67_6d657373616765" ("context_id", "owner_id", "box_id", "created_at", "id");
 

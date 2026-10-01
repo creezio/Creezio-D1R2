@@ -187,6 +187,15 @@ export function createFileService(options: { data: DataAccess; catalog: RuntimeD
         compare: { field: m.version, expected: version(row) }, values: { [m.state]: 'available' } });
       return Object.freeze({plan,file:Object.freeze({fileId:ref.fileId,filename:String(row[m.filename]),contentType:String(row[m.contentType]),byteSize:Number(row[m.byteSize])})});
     },
+    async verifyStaged(lease: DataLease, value: StagedFile) {
+      const ref = captureRef(value), row = await read(lease, ref, 'update');
+      if (!['staged', 'available'].includes(String(row[m.state]))) throw new FileError('conflict');
+      await verifiedObject(row);
+      if (!await port(lease, 'update').get(modelId, { key: key(ref), where: snapshot(row) }))
+        throw new FileError('conflict');
+      return Object.freeze({ fileId: ref.fileId, filename: String(row[m.filename]),
+        contentType: String(row[m.contentType]), byteSize: Number(row[m.byteSize]) });
+    },
     async publicationProof(lease: DataLease, value: StagedFile): Promise<DataPlan> {
       return (await this.preparePublication(lease, value)).plan;
     },

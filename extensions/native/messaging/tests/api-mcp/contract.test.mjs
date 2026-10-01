@@ -13,7 +13,11 @@ test('message lookup exports only authorized read, not storage or transport',()=
 
 test('every native operation has separate admin/app HTTP and MCP bindings',()=>{
   const operations=manifest.contracts.operations;
-  assert.equal(operations.length,21);
+  assert.equal(operations.length,25);
+  assert.deepEqual(operations.filter(op=>op.id.startsWith('message.inbound.')).map(op=>
+    [op.id,op.kind]),[
+    ['message.inbound.prepare','command'],['message.inbound.status','query'],
+    ['message.inbound.attachment.stage','command'],['message.inbound.import','command']]);
   for(const op of operations){
     assert.deepEqual(op.audiences,['admin','app']);
     assert.deepEqual(op.actors,['user','delegated-user','machine']);
@@ -52,4 +56,19 @@ test('private attachments and composer skill are protected by module permission'
     .some(x=>x.kind==='file'&&x.id==='attachments'));
   assert.equal(manifest.contracts.files[0].public,false);
   assert.equal(manifest.contracts.mcp.skills[0].path,'plugin/skills/compose-message.md');
+});
+
+test('inbound attachment import declares the exact private models and an atomic file effect',()=>{
+  const stage=manifest.contracts.operations.find(op=>op.id==='message.inbound.attachment.stage');
+  const imported=manifest.contracts.operations.find(op=>op.id==='message.inbound.import');
+  assert.deepEqual(stage.effects.calls.map(ref=>[ref.moduleId,ref.id]),
+    [['creezio.resend','received.read']]);
+  assert.ok(stage.effects.writes.some(ref=>ref.kind==='file'&&ref.id==='attachments'));
+  assert.deepEqual(imported.effects.writes.map(ref=>ref.id),
+    ['message','message_attachment','attachments']);
+  assert.deepEqual(imported.effects.providers,[],'final import has no provider request');
+  assert.deepEqual(imported.effects.calls.map(ref=>[ref.moduleId,ref.id]),
+    [['creezio.resend','received.read']]);
+  assert.ok(manifest.contracts.models.some(model=>model.id==='inbound_snapshot'));
+  assert.ok(manifest.contracts.models.some(model=>model.id==='inbound_stage_receipt'));
 });

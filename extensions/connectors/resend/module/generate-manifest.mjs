@@ -4,7 +4,7 @@ import {resendConnectorDescriptor} from './storage.ts';
 
 const root=new URL('../',import.meta.url);
 const template=JSON.parse(readFileSync(new URL('module/manifest.json',root),'utf8'));
-const id='creezio.resend',connectorId='resend.api.v1',version='0.1.0',revision='t29-resend-config-v1';
+const id='creezio.resend',connectorId='resend.api.v1',version='0.2.0',revision='t29-resend-inbound-v2';
 const ref=(kind,name)=>({moduleId:id,kind,id:name});
 const str=(max=128,min=1)=>({type:'string',minLength:min,maxLength:max});
 const num=(min=0,max=Number.MAX_SAFE_INTEGER)=>({type:'integer',minimum:min,maximum:max});
@@ -69,10 +69,13 @@ const eventOutput=schema('webhook-event-output',obj({eventId:str(),recorded:{con
 const statusInput=schema('delivery-event-status-input',obj({emailId:str(256)}));
 const statusOutput=schema('delivery-event-status-output',obj({kind:{enum:['none','delivered','bounced','failed']},
   eventId:nullable(str()),occurredAt:nullable(str(40))}));
-const receivedInput=schema('received-email-read-input',obj({emailId:str(256)}));
-const receivedOutput=schema('received-email-read-output',obj({emailId:str(256),
+const receivedInput=schema('received-email-read-input',obj({emailId:str(128)}));
+const receivedOutput=schema('received-email-read-output',obj({emailId:str(128),
   to:{type:'array',items:str(320),minItems:1,maxItems:20},from:str(320),
   subject:str(240,0),text:str(16000,0),html:str(32000,0),receivedAt:str(40),
+  connectionId:str(128),configRevision:rev,
+  attachments:{type:'array',items:obj({id:str(128),filename:str(255),
+    contentType:str(128),byteSize:num(0,10*1024*1024)}),maxItems:50},
   attachmentCount:num(0,50)}));
 const domain=obj({id:str(),name:str(320),status:str(64)});
 const domainOutput=schema('domain-list-output',obj({domains:{type:'array',items:domain,maxItems:100}}));
@@ -155,7 +158,7 @@ const m=structuredClone(template);
 m.identity={id,title:'Connecteur Resend',publisher:'creezio',origin:'https://github.com/creezio/Creezio-D1R2',
   version,source:{kind:'snapshot',revision,integrity:`sha256-${createHash('sha256').update(revision).digest('hex')}`},
   license:{expression:'NOASSERTION',file:'LICENSE'}};
-m.compatibility={core:'^0.0.0',sdk:'^1.8.0',requiredCapabilities:['runtime.worker','data.d1.shared'],optionalCapabilities:[]};
+m.compatibility={core:'^0.0.0',sdk:'^1.9.0',requiredCapabilities:['runtime.worker','data.d1.shared'],optionalCapabilities:[]};
 m.entrypoints={server:{path:'module/entry.server.ts',export:'resend'},ui:{path:'ui/index.tsx',export:'ResendAdminView'},
   plugin:{manifest:'plugin/plugin.json',mcp:'plugin/mcp.json',
     contributions:{path:'plugin/contributions.ts',export:'contributions'}}};

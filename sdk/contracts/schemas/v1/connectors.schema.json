@@ -48,6 +48,9 @@
               },
               "updatedAt": {
                 "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
+              },
+              "connectionId": {
+                "$ref": "urn:creezio:contracts:v1:common#/$defs/id"
               }
             },
             "required": [
@@ -345,6 +348,37 @@
             "params"
           ],
           "additionalProperties": false
+        }
+      },
+      "binaryDownloads": {
+        "type": "array", "maxItems": 4,
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {"$ref": "urn:creezio:contracts:v1:common#/$defs/id"},
+            "proofOperationId": {"$ref": "urn:creezio:contracts:v1:common#/$defs/id"},
+            "metadataPath": {"type":"string","minLength":1,"maxLength":512,
+              "pattern":"^/[A-Za-z0-9_/{}/-]+$"},
+            "cdnOrigin": {"type":"string","format":"uri","maxLength":2048},
+            "cdnPath": {"type":"string","minLength":1,"maxLength":512,
+              "pattern":"^/[A-Za-z0-9_/{}/-]+$"},
+            "maxBytes": {"type":"integer","minimum":1,"maximum":10485760},
+            "event": {
+              "type":"object",
+              "properties": {
+                "modelId":{"$ref":"urn:creezio:contracts:v1:common#/$defs/id"},
+                "indexId":{"$ref":"urn:creezio:contracts:v1:common#/$defs/id"},
+                "connectionField":{"$ref":"urn:creezio:contracts:v1:common#/$defs/id"},
+                "parentField":{"$ref":"urn:creezio:contracts:v1:common#/$defs/id"},
+                "typeField":{"$ref":"urn:creezio:contracts:v1:common#/$defs/id"},
+                "typeValue":{"$ref":"urn:creezio:contracts:v1:common#/$defs/id"}
+              },
+              "required":["modelId","indexId","connectionField","parentField","typeField","typeValue"],
+              "additionalProperties":false
+            }
+          },
+          "required":["id","proofOperationId","metadataPath","cdnOrigin","cdnPath","maxBytes","event"],
+          "additionalProperties":false
         }
       }
     },

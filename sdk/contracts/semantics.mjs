@@ -323,6 +323,39 @@ export function checkModule(module, report) {
           report('connector.header',`${p}/resources/${j}/idempotencyHeader`,'The provider replay header cannot replace host or credential headers.');
       }
     });
+    const binary=connector.binaryDownloads??[];
+    if(binary.length){
+      const configModel=c.models.find(model=>model.id===connector.config.modelId);
+      const connectionField=configModel?.fields.find(field=>field.id===connector.config.fields.connectionId);
+      if(!connectionField||connectionField.type!=='string'||connectionField.computed)
+        report('connector.binary',`${p}/config/fields/connectionId`,
+          'Binary downloads require a persisted connection ID in the connector configuration.');
+    }
+    if(new Set(binary.map(item=>item.id)).size!==binary.length)
+      report('connector.binary',`${p}/binaryDownloads`,'Binary policy IDs must be unique.');
+    binary.forEach((policy,j)=>{
+      const path=`${p}/binaryDownloads/${j}`,proof=c.operations.find(op=>op.id===policy.proofOperationId);
+      const event=c.models.find(model=>model.id===policy.event.modelId);
+      const index=event?.indexes.find(item=>item.id===policy.event.indexId);
+      const pathValid=value=>typeof value==='string'&&/^\/(?:[A-Za-z0-9_-]+|\{parentId\}|\{childId\})(?:\/(?:[A-Za-z0-9_-]+|\{parentId\}|\{childId\}))*$/.test(value)
+        &&value.split('{parentId}').length===2&&value.split('{childId}').length===2;
+      let cdnValid=false;
+      try{const url=new URL(policy.cdnOrigin);cdnValid=url.protocol==='https:'&&url.origin===policy.cdnOrigin
+        &&!url.username&&!url.password&&!url.hostname.endsWith('.')
+        &&url.hostname!=='localhost'&&!/\.(?:localhost|local|internal)$/.test(url.hostname)
+        &&!url.hostname.includes(':')&&!/^\d+(?:\.\d+){3}$/.test(url.hostname);}catch{}
+      if(!proof||proof.kind!=='query'||!proof.public||!proof.permissions.length)
+        report('connector.binary',`${path}/proofOperationId`,
+          'A binary policy requires a public permissioned query of the same connector module.');
+      if(!pathValid(policy.metadataPath)||!pathValid(policy.cdnPath)||!cdnValid)
+        report('connector.binary',path,'API and CDN paths and HTTPS origin must be static and canonical.');
+      if(!event||!index||!event.contextField||!index.fields.includes(policy.event.connectionField)
+        ||!index.fields.includes(policy.event.parentField)
+        ||[policy.event.connectionField,policy.event.parentField,policy.event.typeField]
+          .some(id=>!event.fields.some(field=>field.id===id&&field.type==='string'&&!field.computed)))
+        report('connector.binary',`${path}/event`,
+          'A binary policy requires a concrete indexed signed-event model.');
+    });
   });
   c.operations.forEach((op, i) => {
     const p = `/contracts/operations/${i}`;

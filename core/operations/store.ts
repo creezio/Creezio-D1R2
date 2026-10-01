@@ -193,7 +193,7 @@ export function createOperationStore({ db, data }: OperationStoreOptions): Opera
       ||approvalStatements.length&&nativeStatements.length)return fail('invalid_input');
     const fileStatements=desc.fileStatements?.value??[];
     if(!Array.isArray(fileStatements)||fileStatements.length&&
-      (fileStatements.length!==3||nativeStatements.length||who.moduleId==='creezio.access'))
+      (![1,3].includes(fileStatements.length)||nativeStatements.length||who.moduleId==='creezio.access'))
       return fail('invalid_input');
     const statements: SqlStatement[] = [
       sql(`UPDATE ${T.executions} SET state=?,output=?,error_code=NULL,updated_at_ms=${NOW} WHERE id=? AND claim_nonce=?`,

@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {manifest,read} from '../helpers.mjs';
 import {safeHtml,boxCreate,draftCreate,draftSave,draftDelete,messageList,messageUpdate,
   attachmentLink,attachmentUnlink,transportStatus,messageSend,messageDeliveryPrepare,
-  boxPreviewList,messagePreviewList,draftPreviewList,messageInboundImport,
+  boxPreviewList,messagePreviewList,draftPreviewList,messageInboundPrepare,messageInboundStatus,
+  messageInboundAttachmentStage,messageInboundImport,
   messageDeliveryReconcile} from '../../module/service.ts';
 
 const box={id:'box-one',name:'Personnel',address:'',kind:'local',revision:1};
@@ -142,32 +143,115 @@ test('message search can return empty page with continuation; mutations are CAS'
   await assert.rejects(messageUpdate({requestKey:'fake-send',boxId:'box-one',messageId:'message-one',
     revision:1,folder:'sent'},h.context),{code:'invalid_input'});
 });
-test('explicit inbound import requires selected box recipient and refuses dropped attachments',async()=>{
+test('inbound prepare freezes an exact provider snapshot, then zero-file import has no network',async()=>{
   const selected={...box,address:'sender@example.test'};
   const mail={emailId:'mail-one',to:['sender@example.test'],from:'peer@example.test',
     subject:'Hello',text:'Line one\nLine two',html:'<p>Hello</p>',
-    receivedAt:'2026-09-30T10:00:00.000Z',attachmentCount:0};
+    receivedAt:'2026-09-30T10:00:00.000Z',connectionId:'connection-one',configRevision:3,
+    attachments:[],attachmentCount:0};
   const h=harness({box:selected});
   h.context.operations.query=async args=>{
     assert.deepEqual(args,{moduleId:'creezio.resend',operationId:'received.read',
       input:{emailId:'mail-one'}});
     return mail;
   };
-  const answer=await messageInboundImport({requestKey:'import-one',boxId:'box-one',emailId:'mail-one'},h.context);
+  const prepared=await messageInboundPrepare({requestKey:'prepare-one',boxId:'box-one',
+    emailId:'mail-one'},h.context);
+  assert.equal(prepared.output.snapshot.attachments.length,0);
+  assert.equal(prepared.plans.length,2);
+  assert.equal(h.calls.some(call=>call.model==='message'&&call.kind==='planCreate'),false);
+  const snapshot=h.calls.find(call=>call.model==='inbound_snapshot'&&call.kind==='planCreate').args.values;
+  const ready=harness({box:selected,inbound_snapshot:snapshot});
+  ready.context.operations.query=async()=>{throw Error('import must not read the provider');};
+  let batch;
+  ready.context.files={prepareBatchPublication:async(category,input)=>{batch={category,input};}};
+  assert.equal((await messageInboundStatus({boxId:'box-one',emailId:'mail-one'},ready.context))
+    .output.snapshot.imported,false);
+  const answer=await messageInboundImport({requestKey:'import-one',boxId:'box-one',
+    emailId:'mail-one'},ready.context);
   assert.equal(answer.output.message.folder,'inbox');
   assert.equal(answer.output.message.direction,'inbound');
-  assert.deepEqual(h.calls.find(call=>call.kind==='planGet').args.where,{address:selected.address});
-  assert.equal(h.calls.find(call=>call.kind==='planCreate').args.values.provider_message_id,'mail-one');
+  assert.equal(answer.plans.length,3);
+  assert.deepEqual(batch.input.attachments,[]);
+  assert.deepEqual(batch.input.sourceProof,{connectionId:'connection-one',configRevision:3});
+  assert.equal(ready.calls.find(call=>call.model==='message'&&call.kind==='planCreate')
+    .args.values.provider_message_id,'mail-one');
   const wrong=harness({box:{...selected,address:'other@example.test'}});
   wrong.context.operations.query=async()=>mail;
-  await assert.rejects(messageInboundImport({requestKey:'import-two',boxId:'box-one',emailId:'mail-one'},
+  await assert.rejects(messageInboundPrepare({requestKey:'prepare-two',boxId:'box-one',emailId:'mail-one'},
     wrong.context),{code:'unavailable'});
   assert.equal(wrong.calls.some(call=>call.kind==='planCreate'),false);
-  const attached=harness({box:selected});
-  attached.context.operations.query=async()=>({...mail,attachmentCount:1});
-  await assert.rejects(messageInboundImport({requestKey:'import-three',boxId:'box-one',emailId:'mail-one'},
-    attached.context),{code:'unavailable'});
-  assert.equal(attached.calls.some(call=>call.kind==='planCreate'),false);
+});
+
+test('one inbound attachment stages once and imports only after the durable receipt exists',async()=>{
+  const selected={...box,address:'sender@example.test'};
+  const child={id:'attachment-one',filename:'preuve.pdf',contentType:'application/pdf',byteSize:8};
+  const mail={emailId:'mail-two',to:[selected.address],from:'peer@example.test',
+    subject:'Pièce',text:'Voir pièce',html:'<p>Voir pièce</p>',
+    receivedAt:'2026-09-30T11:00:00.000Z',connectionId:'connection-one',configRevision:3,
+    attachments:[child],attachmentCount:1};
+  const prepared=harness({box:selected});
+  prepared.context.operations.query=async()=>mail;
+  await messageInboundPrepare({requestKey:'prepare-two',boxId:'box-one',emailId:'mail-two'},
+    prepared.context);
+  const snapshot=prepared.calls.find(call=>call.model==='inbound_snapshot'
+    &&call.kind==='planCreate').args.values;
+  const pending=harness({box:selected,inbound_snapshot:snapshot});
+  pending.context.files={prepareBatchPublication:async()=>{throw Error('must not reach batch');}};
+  await assert.rejects(messageInboundImport({requestKey:'early',boxId:'box-one',
+    emailId:'mail-two'},pending.context),{code:'conflict'});
+  assert.equal(pending.calls.some(call=>call.model==='message'&&call.kind==='planCreate'),false);
+  const staged=harness({box:selected,inbound_snapshot:snapshot});
+  let stageRequest;
+  staged.context.files={stageRemote:async(category,request)=>{
+    stageRequest={category,request};
+    return {ref:{fileId:'file-one',intentId:request.intentId,generation:request.generation,
+      digest:'a'.repeat(64)},file:{filename:child.filename,contentType:child.contentType,
+      byteSize:child.byteSize}};
+  }};
+  const result=await messageInboundAttachmentStage({requestKey:'stage-one',boxId:'box-one',
+    emailId:'mail-two',childId:child.id},staged.context);
+  assert.equal(result.output.staged,true);
+  assert.equal(result.plans.length,3);
+  assert.deepEqual(stageRequest.request.expected,{filename:child.filename,
+    contentType:child.contentType,byteSize:child.byteSize});
+  assert.deepEqual(stageRequest.request.sourceProof,
+    {connectionId:'connection-one',configRevision:3});
+  const receipt=staged.calls.find(call=>call.model==='inbound_stage_receipt'
+    &&call.kind==='planCreate').args.values;
+  const ready=harness({box:selected,inbound_snapshot:snapshot,
+    inbound_stage_receiptPage:{items:[receipt],nextAfter:null}});
+  ready.context.operations.query=async()=>{throw Error('import must not read provider');};
+  let batch;
+  ready.context.files={prepareBatchPublication:async(category,input)=>{batch={category,input};}};
+  const imported=await messageInboundImport({requestKey:'import-two',boxId:'box-one',
+    emailId:'mail-two'},ready.context);
+  assert.equal(imported.plans.length,3);
+  assert.equal(batch.input.attachments.length,1);
+  assert.equal(batch.input.attachments[0].fileId,'file-one');
+  assert.deepEqual(batch.input.sourceScope,{box_id:'box-one',snapshot_id:snapshot.id});
+  const resumed=harness({box:selected,inbound_snapshot:snapshot,
+    inbound_stage_receiptPage:{items:[receipt],nextAfter:null}});
+  resumed.context.files={stageRemote:async()=>{throw Error('must not download again');}};
+  const repeat=await messageInboundAttachmentStage({requestKey:'repeat',boxId:'box-one',
+    emailId:'mail-two',childId:child.id},resumed.context);
+  assert.equal(repeat.output.fileId,'file-one');
+  assert.equal(repeat.plans,undefined);
+});
+
+test('inbound snapshot rejects duplicate IDs, mismatched counts and size overflow',async()=>{
+  const selected={...box,address:'sender@example.test'};
+  const child={id:'attachment-one',filename:'a.pdf',contentType:'application/pdf',byteSize:8};
+  const mail={emailId:'mail-three',to:[selected.address],from:'peer@example.test',subject:'',
+    text:'',html:'',receivedAt:'2026-09-30T11:00:00.000Z',
+    connectionId:'connection-one',configRevision:3,attachments:[child,child],attachmentCount:2};
+  for(const changed of [mail,{...mail,attachmentCount:1},
+    {...mail,attachments:[{...child,byteSize:10*1024*1024+1}],attachmentCount:1}]){
+    const h=harness({box:selected});h.context.operations.query=async()=>changed;
+    await assert.rejects(messageInboundPrepare({requestKey:'bad',boxId:'box-one',
+      emailId:'mail-three'},h.context),{code:'unavailable'});
+    assert.equal(h.calls.some(call=>call.kind==='planCreate'),false);
+  }
 });
 
 test('absent transport cannot imply queued or sent',async()=>{

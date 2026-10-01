@@ -199,7 +199,7 @@ export async function eventReceive(value:JsonValue,context:OperationContext){
 }
 export async function eventStatus(value:JsonValue,context:OperationContext){
   const args=input(value),row=await current(context);
-  if(typeof args.emailId!=='string'||!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u.test(args.emailId))
+  if(typeof args.emailId!=='string'||!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u.test(args.emailId))
     throw new OperationError('invalid_input');
   if(!webhookReady(row))throw new OperationError('unavailable');
   const events=await context.data.list('webhook_event',{limit:50,
@@ -226,7 +226,11 @@ export async function receivedRead(value:JsonValue,context:OperationContext){
     order:{indexId:'by-email',direction:'desc'}});
   if(!events.items.some(item=>item.event_type==='email.received'))
     throw new OperationError(events.nextAfter?'unavailable':'not_found');
-  const answer=await ready(context).request({resource:'email.received',id:args.emailId,signal:context.signal});
+  if(typeof row?.connection_id!=='string'||!row.connection_id||!Number.isSafeInteger(row.revision))
+    throw new OperationError('unavailable');
+  const sourceProof={connectionId:row.connection_id,configRevision:Number(row.revision)};
+  const answer=await ready(context).request({resource:'email.received',id:args.emailId,
+    sourceProof,signal:context.signal});
   if(answer.kind!=='ok')throw new OperationError(answer.code==='remote_not_found'?'not_found':'unavailable');
   const body=object(answer.body);
   if(body.id!==args.emailId||!Array.isArray(body.to)||body.to.length<1||body.to.length>20
@@ -239,8 +243,19 @@ export async function receivedRead(value:JsonValue,context:OperationContext){
   const html=body.html===null||body.html===undefined?'':boundedBody(body.html,32000);
   const receivedAt=bounded(body.created_at,40);
   if(!Number.isFinite(Date.parse(receivedAt)))throw new OperationError('unavailable');
+  const attachments=body.attachments.map(value=>{
+    const item=object(value);
+    const id=bounded(item.id,128),filename=bounded(item.filename,255),contentType=bounded(item.content_type,128);
+    if(!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u.test(id))throw new OperationError('unavailable');
+    if(/[\\/]/u.test(filename))throw new OperationError('unavailable');
+    if(!Number.isSafeInteger(item.size)||Number(item.size)<0||Number(item.size)>10*1024*1024)
+      throw new OperationError('unavailable');
+    return {id,filename,contentType,byteSize:Number(item.size)};
+  });
+  if(new Set(attachments.map(item=>item.id)).size!==attachments.length)
+    throw new OperationError('unavailable');
   return {output:{emailId:args.emailId,to,from,subject,text,html,receivedAt,
-    attachmentCount:body.attachments.length}};
+    ...sourceProof,attachments,attachmentCount:attachments.length}};
 }
 /** Provider metadata only. Neither provider message content nor credentials are projected. */
 export async function domainList(_value:JsonValue,context:OperationContext){

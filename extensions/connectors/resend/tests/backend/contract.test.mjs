@@ -107,7 +107,11 @@ test('signed event status and received fetch stay within the active connection',
   const received=(await receivedRead({emailId:'mail-one'},h.context)).output;
   assert.equal(received.text,'Line one\nLine two');
   assert.equal(received.attachmentCount,0);
-  assert.deepEqual(h.calls.at(-1).request,{resource:'email.received',id:'mail-one',signal:h.context.signal});
+  assert.deepEqual(received.attachments,[]);
+  assert.equal(received.connectionId,'connection-one');
+  assert.equal(received.configRevision,4);
+  assert.deepEqual(h.calls.at(-1).request,{resource:'email.received',id:'mail-one',
+    sourceProof:{connectionId:'connection-one',configRevision:4},signal:h.context.signal});
   const missing=harness(active);
   missing.context.data.list=async()=>({items:[],nextAfter:null});
   await assert.rejects(receivedRead({emailId:'mail-one'},missing.context),{code:'not_found'});
