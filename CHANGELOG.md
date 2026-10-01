@@ -1,5 +1,16 @@
 # Changelog
 
+## Correctif candidat T33 — provenance de l’installation conservée
+
+- Après une adoption centrale de schéma sans DDL, l’inspection reconnaît les routes passées du journal d’installation au journal de schéma. Elle vérifie la chaîne complète par pages, les identités D1/R2 et le reçu courant ; un cutover fermé doit être repris par la commande de schéma.
+- Huit tests ciblés passent et la revue indépendante est favorable. La CI et la recette sur le volume Linux existant restent à qualifier ; aucun nouveau bootstrap ni changement de schéma n’est ajouté.
+
+## Correctif candidat T09/T14/T16 — choix de l'alias widget dans le chat natif
+
+- Sur Lab Sites version 3, un tour OpenAI réel a exécuté la lecture d'une demande, puis produit du texte sans widget. L'outbox montre que le modèle a choisi l'outil canonique `creezio.purchase-requests:request.get` plutôt que l'alias de rendu `purchase_request_get` ; le résultat d'outil a réussi. L'écart de montant dans la prose du modèle est un défaut distinct, sans preuve que la valeur retournée par l'outil était erronée.
+- Le correctif candidat projette les alias de rendu admissibles avant leur opération canonique et garde cette dernière en repli si l'alias manque, est refusé, est incompatible ou dépasse le budget. La sélection reste soumise aux droits et au schéma existants ; elle ne change ni API, ni MCP, ni SDK, ni données. Le correctif Lab est intégré par la PR #15 sur main `7c6dc10`, après 1 283 tests dans chacune des CI candidate et main ; la livraison du chat natif reste à qualifier. Le candidat Core est réservé à l'intégration groupée avec T33.
+- Le plugin ChatGPT du compte courant sur Lab Sites version 3 a affiché le widget de demande sous CSP et exercé lecture directe, préparation sans envoi et ajout/retrait du contexte. Cette recette ne qualifie pas le chat natif. Original Sites version 4 est publié depuis Core `2738bd0` et Site `a64331b`, avec registre synchronisé et CRM révision 3 conservé ; il ne contient pas ce correctif. Son ancien tour `59dd1fb8` reste `provider_unknown` et non résolu.
+
 ## 1er octobre 2026 — PR #86 intégrée et lectures fournisseur dans le chat
 
 - PR #86 est intégrée sur `0b7ba2d73ab5ecde1110a3026f3e3e35f95d28b6` ; CI candidate et main : 1 465 tests et 33 commandes réussis. Les recettes Linux/Cloudflare des corrections décrites ci-dessous restent distinctes de cette qualification du code.

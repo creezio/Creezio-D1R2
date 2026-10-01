@@ -1,5 +1,9 @@
 # T-33 — Stockages distincts hors Sites
 
+## Correctif candidat : provenance après adoption sans DDL
+
+L'adoption officielle des trois schémas T33 sur Linux `0b7ba2d` n'a exécuté aucun DDL, mais l'inspecteur d'installation a perdu la provenance des deux routes : il recomposait l'identifiant `local-install` avec le nouveau plan alors que le cutover avait avancé les routes sous `local-schema`. Le correctif candidat vérifie la chaîne durable, contiguë et paginée de ces mutations, les identités physiques D1/R2 et le reçu SQL courant avant de reconnaître l'installation conservée. Il n'autorise ni nouveau propriétaire ni réparation d'une cible étrangère ; une route encore fermée par le cutover reste à reprendre par `schema:apply`. Les tests éphémères couvrent la reprise après adoption 0 DDL et les refus ; l'intégration, la CI et la recette Linux A/B/R2 restent ouvertes.
+
 ## Installation avec le profil complet de modules
 
 Le contrôle de vacuité conserve un `NOT EXISTS` pour chacune des tables gérées, dans le même batch que les contrôles du schéma et du reçu. Sa conjonction est désormais construite par paires : la profondeur croît avec le logarithme du nombre de tables, au lieu d'une chaîne linéaire. La lecture préalable et les écritures de création du premier compte utilisent le même contrôle. Aucun modèle, table, reçu existant ou droit n'est modifié par cette correction.
