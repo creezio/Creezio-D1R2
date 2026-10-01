@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { writeFileSync, readFileSync, mkdirSync, renameSync, symlinkSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { inspectTap, tapFailureExcerpt, sourceIdentity, sameSourceIdentity, collectRequiredTests } from '../../scripts/quality/evidence.mjs';
+import { auditedParallelTests, inspectTap, inspectTapPhases, partitionRequiredTests,
+  remainingTestBudgetMs, tapFailureExcerpt, slowestTapSubtests, sourceIdentity,
+  sameSourceIdentity, collectRequiredTests } from '../../scripts/quality/evidence.mjs';
 import { temporaryDirectory } from './temporary.mjs';
 
 const tap = counts => Object.entries({ tests: 2, pass: 2, fail: 0, cancelled: 0, skipped: 0, todo: 0, ...counts })
@@ -37,6 +39,49 @@ test('nested failing subtests retain their actual diagnostic before the parent s
   assert.match(excerpt, /error: claim expired/);
   assert.match(excerpt, /error: 1 subtest failed/);
   assert.doesNotMatch(excerpt, /subsequent/);
+});
+
+test('slow TAP diagnostic is bounded and distinguishes parent and child durations', () => {
+  const output = `# Subtest: parent\n    # Subtest: child\n    ok 1 - child\n      ---\n      duration_ms: 20.5\n      ...\nok 1 - parent\n  ---\n  duration_ms: 30.5\n  ...\nok 2 - quick\n  ---\n  duration_ms: 1\n  ...\n`;
+  assert.deepEqual(slowestTapSubtests(output, 2), [
+    { name: 'parent', level: 0, durationMs: 30.5 },
+    { name: 'child', level: 1, durationMs: 20.5 },
+  ]);
+  assert.deepEqual(slowestTapSubtests('ok 1 - missing duration\n', 12), []);
+});
+
+test('audited parallel files are exact and all other required files stay serial', () => {
+  assert.equal(auditedParallelTests.length, 13);
+  assert.deepEqual(partitionRequiredTests(['a', 'b', 'c'], ['b']),
+    { parallel: ['b'], serial: ['a', 'c'] });
+  for (const [required, allowed] of [
+    [['a', 'a', 'b'], ['a']], [['a', 'b'], ['a', 'a']], [['a', 'b'], ['missing']],
+  ]) assert.throws(() => partitionRequiredTests(required, allowed), /Invalid parallel/);
+  assert.throws(() => partitionRequiredTests(['a'], ['a']), /Incomplete or overlapping/);
+});
+
+test('two disjoint complete TAP phases alone contribute combined counters', () => {
+  const required = ['a', 'b'];
+  const phases = [
+    { files: ['a'], tap: inspectTap(tap({}), 0) },
+    { files: ['b'], tap: inspectTap(tap({ tests: 3, pass: 3 }), 0) },
+  ];
+  assert.deepEqual(inspectTapPhases(phases, required), { success: true,
+    counts: { tests: 5, pass: 5, fail: 0, cancelled: 0, skipped: 0, todo: 0 }, reason: null });
+  for (const invalid of [phases.slice(0, 1),
+    [{ ...phases[0], files: ['a'] }, { ...phases[1], files: ['a'] }],
+    [{ ...phases[0], files: ['a'] }, { ...phases[1], files: ['unknown'] }],
+    [{ ...phases[0], files: [] }, phases[1]],
+    [phases[0], { ...phases[1], tap: inspectTap('ok 1 - incomplete', 0) }],
+    [phases[0], { ...phases[1], tap: inspectTap(tap({ pass: 1, skipped: 1 }), 0) }],
+  ]) {
+    const result = inspectTapPhases(invalid, required);
+    assert.equal(result.success, false);
+    assert.equal(result.counts, null);
+  }
+  assert.equal(remainingTestBudgetMs(900000, 0), 900000);
+  assert.equal(remainingTestBudgetMs(900000, 899999.9), 0);
+  assert.equal(remainingTestBudgetMs(900000, 900001), 0);
 });
 
 test('a commit change invalidates proof even with identical source bytes', () => {

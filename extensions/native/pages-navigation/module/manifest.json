@@ -8,8 +8,8 @@
     "version": "0.0.0",
     "source": {
       "kind": "snapshot",
-      "revision": "t21-pages-navigation-v4",
-      "integrity": "sha256-228f30b05d58d62c84626427a7b882957660ad2fe7c7752eecde32e284c84203"
+      "revision": "t21-pages-navigation-v5",
+      "integrity": "sha256-d88950e242107594c1ce5836f15cf08dfb7263fcf7eb0047dcd65e076c6702db"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -8503,7 +8503,7 @@
     },
     "versionBinding": {
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t21-pages-navigation-v4"
+      "sourceRevision": "t21-pages-navigation-v5"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -8642,7 +8642,7 @@
     "validationBinding": {
       "moduleId": "creezio.pages-navigation",
       "moduleVersion": "0.0.0",
-      "sourceRevision": "t21-pages-navigation-v4"
+      "sourceRevision": "t21-pages-navigation-v5"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",

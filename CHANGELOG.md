@@ -1,4 +1,10 @@
 # Changelog
+## Correctifs candidats — canonical SEO et coordination d'un test
+
+- Le renderer public Pages accepte le canonical HTTP(S) externe déjà autorisé par le module, avec les mêmes refus et l'échappement HTML. Les titre, description, image et retour protégé sont vérifiés sur Linux ; la correction du canonical attend sa recette après livraison.
+- Un test du moteur d'opérations observe maintenant une terminaison antérieure à l'entrée dans le handler et libère son attente même en cas d'échec. Les assertions d'annulation, de délai et d'absence d'écriture sont conservées ; le test ciblé passe 12/12. La cause précise du timeout de la CI `8e5d4a4` reste non établie, et cette ancienne CI n'est pas qualifiée.
+- Le contrôleur qualité expose les durées les plus longues et prépare deux phases : treize fichiers dont l'isolation a été revue tournent deux par deux, le reste en série. Chaque phase conserve ses compteurs TAP et son résultat ; leur budget total reste de 900 secondes. Aucun test requis, contrôle runtime ou contrôle de provenance n'est retiré.
+
 ## Correctif candidat Docker — origines locales configurées
 
 - Les ponts de l'application et de l'opérateur suivent les ports de la configuration locale, avec refus des collisions sur leurs ports réservés. Le sandbox conserve son port configuré et son mapping explicite dans Compose.
