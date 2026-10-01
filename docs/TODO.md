@@ -2,6 +2,8 @@
 
 ## Révision 65 — corrections regroupées et CI à requalifier (1er octobre 2026)
 
+Complément de la même livraison : une lecture Cloudflare `9ce856c` a reproduit la fermeture de Conversations après des refus 403 des lectures facultatives Analytics/Sidebar. Le correctif des deux hôtes conserve ces refus localement, sans purge des autres onglets ; il garde les refus de session et les autres revalidations. Les contrôles ciblés passent 8/8 ; sa CI et sa recette hébergée restent requises. Voir [T07](IMPLEMENTATION-T07.md).
+
 La candidate PR #86 `8e5d4a4` a atteint la limite globale de 900 secondes sans compteurs TAP finaux ; elle n'est ni fusionnée ni publiée. Les 33 commandes préalables réussissent. Le test d'annulation du moteur a été corrigé pour observer une terminaison avant l'entrée dans le handler et libérer ses attentes en cas d'échec ; il passe 12/12, sans établir à lui seul la cause exacte de l'arrêt CI. La nouvelle exécution complète reste obligatoire. Une liste limitée à treize fichiers relus pour leur isolation permet leur exécution deux par deux ; les autres fichiers restent séquentiels, avec un budget commun et tous les contrôles de résultat, de couverture et de provenance conservés.
 
 La recette Pages sur Linux `1dce54d` confirme titre, description et image publics, puis retour protégé et déconnexion. Le canonical externe a révélé un écart du renderer ; sa correction candidate passe les tests SSR (3/3) et les six verrous ainsi que la composition/schéma (39/39) sont vérifiés. Les changements Docker, Stripe, clics et SEO sont regroupés pour la prochaine livraison. Le code actif reste Linux `1dce54d` et Cloudflare `9ce856c`, avec SDK 1.9 public inchangé. Aucun critère Stripe, T33 ou T39 n'est clôturé par ces contrôles locaux.

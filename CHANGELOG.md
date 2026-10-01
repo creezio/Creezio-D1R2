@@ -1,4 +1,8 @@
 # Changelog
+## Correctif candidat — refus des lectures facultatives
+
+- Un refus `forbidden` HTTP 403 des lectures facultatives Analytics et Sidebar reste local à cette lecture dans le workspace et le front. Il ne vide plus les onglets autorisés par une revalidation globale en boucle. Les refus de session, les autres refus d'opération et la révocation par une nouvelle projection conservent leurs contrôles. La recette Cloudflare ayant révélé la boucle reste distincte de la future vérification du correctif livré.
+
 ## Correctifs candidats — canonical SEO et coordination d'un test
 
 - Le renderer public Pages accepte le canonical HTTP(S) externe déjà autorisé par le module, avec les mêmes refus et l'échappement HTML. Les titre, description, image et retour protégé sont vérifiés sur Linux ; la correction du canonical attend sa recette après livraison.

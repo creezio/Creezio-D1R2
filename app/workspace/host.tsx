@@ -14,6 +14,7 @@ import {WidgetHostProvider} from '../../sdk/widgets/provider';
 import {createLocalDeliveryTransport} from '../../admin/delivery/transport';
 import {resolveWorkspaceLocation} from '../../sdk/workspace/controller';
 import {startAnalyticsCollection} from '../analytics/collection';
+import {shouldRefreshHostAccess} from '../access/operation-refusal';
 
 export function WorkspaceHost({audience}: {audience: AccessAudience}) {
   const [access, setAccess] = useState<AccessController | null>(null);
@@ -59,20 +60,21 @@ function BoundWorkspace({access}: {access: AccessController}) {
   const client = useMemo(() => {
     const base = createOperationClient({origin: access.origin, audience: access.audience, access,
       bindings: httpBindings.filter(binding => binding.audience === access.audience && binding.auth.includes('session'))});
-    function rejectedAccess(result: Awaited<ReturnType<typeof base.invoke>>) {
-      if (result.kind === 'rejected' && ['unauthorized','forbidden','authentication_required'].includes(result.code)) {
+    function rejectedAccess(result: Awaited<ReturnType<typeof base.invoke>>, bindingId: string,
+      source: 'invoke' | 'status' = 'invoke') {
+      if (shouldRefreshHostAccess(result, bindingId, source)) {
         setRevocationVersion(value => value+1); setProjection(null); void access.refresh();
       }
     }
     return {...base, async invoke(request: Parameters<typeof base.invoke>[0]) {
       const initial = currentProjection.current;
       const result = await base.invoke({...request, isCurrent: () => !!initial && currentProjection.current === initial && (request.isCurrent?.() ?? true)});
-      rejectedAccess(result);
+      rejectedAccess(result, request.bindingId);
       return result;
     }, async status(request: Parameters<typeof base.status>[0]) {
       const initial = currentProjection.current;
       const result = await base.status({...request, isCurrent: () => !!initial && currentProjection.current === initial && (request.isCurrent?.() ?? true)});
-      rejectedAccess(result);
+      rejectedAccess(result, request.bindingId, 'status');
       return result;
     }};
   }, [access]);

@@ -1,5 +1,11 @@
 # Workspace et conservation des onglets — T-07
 
+## Refus facultatifs et onglets — correctif candidat du 1er octobre 2026
+
+Sur le Worker Cloudflare `9ce856c`, un compte autorisé à utiliser Conversations mais privé des permissions Analytics et Sidebar recevait des 403 sur leurs lectures facultatives. Le client hôte les assimilait à une révocation globale : projection retirée, onglets fermés et mêmes lectures relancées après revalidation. L'observation navigateur est conservée dans `CREEZIO-CF-WORKSPACE-PANEL-OBSERVATION-2026-10-01.json`, avec déconnexion 200 puis session 401.
+
+Le correctif candidat conserve le refus de ces seules lectures `collection.effective` et `sidebar.resolved` sans invalider les autres vues. Les 401, refus de session et autres opérations refusées continuent de demander la revalidation ; une projection mise à jour retire toujours les vues révoquées. Les deux hôtes utilisent le même garde. Huit tests ciblés du garde, du contrôleur d'onglets et de l'autorisation du front passent ; cela ne remplace pas la CI et la recette hébergée après livraison. L'interface, le SDK et les schémas restent inchangés.
+
 Cette tranche du [lot T-07](TODO.md#T-07) est intégrée par la PR #16 dans le main `56eb0159`, après revue du candidat `f091e971`. Elle consomme les contrats de vues, navigation, opérations, permissions et API sans changer les exigences [REQ-0701](EXIGENCES.md#REQ-0701), [REQ-0702](EXIGENCES.md#REQ-0702) et [REQ-0703](EXIGENCES.md#REQ-0703). Les contrôles finaux couvrent 779 tests, types, build et Worker ; CI candidat 36288745281 et main 36288949577 réussies. La recette navigateur finale inclut brouillons après reload, navigation query-only et toolbar, écriture D1 à réponse perdue puis réconciliation sans renvoi, verrouillage, portails et révocation. Les preuves initiales restent historiques ; cette validation locale ne vaut ni parité de tous les modules produit ni qualification Sites.
 
 ## Composition et droits
