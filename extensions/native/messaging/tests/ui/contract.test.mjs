@@ -125,7 +125,7 @@ test('panel restore survives first mount, while a real identity or context chang
 });
 
 test('panel schema stores scoped selection and bounded journal metadata',()=>{
-  assert.equal(manifest.compatibility.sdk,'^1.8.0');
+  assert.equal(manifest.compatibility.sdk,'^1.9.0');
   const view=manifest.contracts.ui.views.find(item=>item.id==='admin');
   const schema=manifest.contracts.schemas.find(item=>item.id===view.panel.stateSchema.schemaId).schema;
   assert.deepEqual(schema.required,['sessionId','audience','contextId']);

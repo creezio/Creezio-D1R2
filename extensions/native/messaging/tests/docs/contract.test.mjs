@@ -9,7 +9,8 @@ test('messaging documents belong to the installed module and describe transport 
     assert.ok(read(name).trim().length > 80, name);
   const readme = read('README.md');
   assert.match(readme, /transport/i);
-  assert.match(readme, /indisponible|unavailable/i);
+  assert.match(readme, /aucun appel réel au fournisseur n’est qualifié/i);
+  assert.match(readme, /message\.inbound\.prepare/);
   assert.match(read('prd.md'), /REQ-1801|T-18|T18/);
   assert.match(read('TODO.md'), /transport|fournisseur/i);
 });

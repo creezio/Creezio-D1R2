@@ -6,6 +6,8 @@ import {accepted,refused} from './helpers.mjs';
 
 const source=new URL('../../extensions/connectors/n8n/module/manifest.json',import.meta.url);
 const fixture=()=>JSON.parse(readFileSync(source,'utf8'));
+const resendSource=new URL('../../extensions/connectors/resend/module/manifest.json',import.meta.url);
+const resendFixture=()=>JSON.parse(readFileSync(resendSource,'utf8'));
 
 test('a declared n8n GET route is an outbound resource, not a package file reference',()=>{
   const module=fixture();
@@ -145,4 +147,19 @@ test('query mappings cannot shadow a dynamic parameter or enable undeclared inpu
     const module=fixture();mutate(module.contracts.connectors[0].resources[0]);
     refused(validateModule(module),'connector.query');
   }
+});
+
+test('binary downloads require fixed provenance, event index and CDN origin',()=>{
+  accepted(validateModule(resendFixture()));
+  for(const mutate of [
+    policy=>{policy.cdnOrigin='https://other.example.invalid/path';},
+    policy=>{policy.metadataPath='/mail/{parentId}/../{childId}';},
+    policy=>{policy.proofOperationId='domain.list';},
+    policy=>{policy.event.indexId='missing-index';},
+  ]){
+    const module=resendFixture();mutate(module.contracts.connectors[0].binaryDownloads[0]);
+    assert.ok(validateModule(module).errors.length>0);
+  }
+  const missing=resendFixture();delete missing.contracts.connectors[0].config.fields.connectionId;
+  refused(validateModule(missing),'connector.binary');
 });

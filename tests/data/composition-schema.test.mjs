@@ -33,7 +33,7 @@ test('composed compiler includes every selected native module and freezes the ru
   assert.equal(plan.lockDigest,contractIntegrity(input.lock));
   assert.deepEqual(plan.runtimeCatalog.modules.map(module => [module.moduleId, module.models.length]),
     [['creezio.access', 28], ['creezio.analytics', 4], ['creezio.conversations', 8],
-      ['creezio.crm', 3], ['creezio.delivery', 0], ['creezio.messaging', 7],
+      ['creezio.crm', 3], ['creezio.delivery', 0], ['creezio.messaging', 9],
       ['creezio.modules-settings', 4], ['creezio.openai', 2],
       ['creezio.pages-navigation', 8], ['creezio.support', 2]]);
   assert.deepEqual(plan.runtimeCatalog.modules.find(module=>module.moduleId==='creezio.analytics')
@@ -57,7 +57,8 @@ test('composed compiler includes every selected native module and freezes the ru
   assert.equal(describeD1Schema('creezio.conversations',conversations).objects.length,17);
   const messaging = input.modules.find(module => module.identity.id === 'creezio.messaging').contracts.models;
   assert.deepEqual(messaging.map(model => model.id).sort(),
-    ['box', 'draft', 'draft_attachment', 'file_metadata', 'message', 'message_attachment', 'send_snapshot']);
+    ['box', 'draft', 'draft_attachment', 'file_metadata', 'inbound_snapshot', 'inbound_stage_receipt',
+      'message', 'message_attachment', 'send_snapshot']);
   const crm=input.modules.find(module=>module.identity.id==='creezio.crm').contracts.models;
   const added=['creezio.support','creezio.pages-navigation','creezio.analytics']
     .map(id=>input.modules.find(module=>module.identity.id===id))

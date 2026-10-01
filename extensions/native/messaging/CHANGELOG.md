@@ -1,5 +1,7 @@
 # Changelog
 
+- T29 réception locale : `message.inbound.prepare` fige le courriel reçu et ses métadonnées après preuve webhook signée ; `message.inbound.attachment.stage` prépare chaque pièce vérifiée dans R2 privé ; `message.inbound.import` publie en un commit D1 le message et l’ensemble exact des liens. L’interface conserve la préparation, expose l’avancement et relit le statut après une issue incertaine. Le fournisseur réel reste à qualifier.
+
 - T29 local : snapshot texte/HTML, Cci et jusqu’à 50 références R2 privées (10 Mio) figés avec message et outbox ; octets transmis uniquement par le port hôte Resend. Accusés signés rapprochés par projection CAS ; import entrant explicite sans pièce jointe, refus intégral avec pièce jointe. Aucun fournisseur réel qualifié.
 
 - Complément T18 : une pièce jointe ne remplace plus la composition non enregistrée ; l'éditeur ne publie que du HTML nettoyé et des URL HTTP(S) analysées. Le port public `message-lookup` v1 expose `message.read` sans modèle privé. Les trois cartes refusent un résultat marqué en erreur.

@@ -316,7 +316,7 @@ test('composed data and the immutable receipt survive a local D1 adapter restart
 test('the four deployed model changes migrate old rows with their real table, index and FK definitions', async t => {
   const mf = new Miniflare({ host: '127.0.0.1', port: 0, cf: false, modules: true,
     script: 'export default { fetch() { return new Response(null, {status:404}); } };',
-    compatibilityDate: '2026-05-15', d1Databases: ['STRIPE', 'MESSAGING', 'SUPPORT'], d1Persist: false });
+    compatibilityDate: '2026-05-15', d1Databases: ['STRIPE', 'MESSAGING', 'MESSAGING-INBOUND', 'SUPPORT'], d1Persist: false });
   const cases = [
     { binding: 'STRIPE', moduleId: 'creezio.stripe', path: '../../extensions/connectors/stripe/module/models.json',
       added: { connector_config: ['checkout_return_origin', 'webhook_key_ref', 'webhook_secret_version',
@@ -362,6 +362,36 @@ test('the four deployed model changes migrate old rows with their real table, in
         assert.equal(physical.sql,
           (await database.prepare('SELECT sql FROM sqlite_schema WHERE name=?').bind(changed.name).first()).sql);
       }
+    });
+    await t.test('deployed Messaging seven-model data survives its exact two inbound tables and indexes', async () => {
+      const moduleId = 'creezio.messaging';
+      const current = json('../../extensions/native/messaging/module/models.json');
+      const inbound = new Set(['inbound_snapshot', 'inbound_stage_receipt']);
+      const prior = current.filter(item => !inbound.has(item.id));
+      assert.equal(prior.length, 7);
+      const oldPlan = planFor(prior, { moduleId });
+      const nextPlan = planFor(current, { moduleId });
+      const database = await mf.getD1Database('MESSAGING-INBOUND');
+      assert.equal((await apply(database, oldPlan)).ok, true);
+      await insertSample(database, oldPlan, moduleId, prior.find(item => item.id === 'box'));
+      const oldBox = await database.prepare(`SELECT * FROM "${table(oldPlan, 'box', moduleId)}" LIMIT 1`).first();
+      const before = await inspectManagedSchema(database);
+      const inspected = await inspectCompositionSchema(database, nextPlan);
+      assert.equal(inspected.state, 'additive');
+      assert.equal(inspected.columnAdditions.length, 0);
+      const inboundTables = new Set([...inbound].map(id => table(nextPlan, id, moduleId)));
+      const additions = inspected.additions.map(item => item.name).sort();
+      const expected = nextPlan.objects.filter(item => inboundTables.has(item.table))
+        .map(item => item.name).sort();
+      assert.deepEqual(inspected.additions.map(item => item.type).sort(), ['index', 'index', 'table', 'table']);
+      assert.deepEqual(additions, expected);
+      assert.equal((await apply(database, nextPlan)).ok, true);
+      const after = await inspectManagedSchema(database);
+      assert.equal(after.receipt.sequence, before.receipt.sequence + 1);
+      assert.equal(after.receipt.previousId, before.receiptId);
+      assert.equal((await inspectCompositionSchema(database, nextPlan)).state, 'ready');
+      assert.deepEqual(await database.prepare(`SELECT * FROM "${table(nextPlan, 'box', moduleId)}" LIMIT 1`).first(), oldBox);
+      for (const id of inbound) assert.equal((await database.prepare(`SELECT COUNT(*) AS n FROM "${table(nextPlan, id, moduleId)}"`).first()).n, 0);
     });
   } finally { await mf.dispose(); }
 });

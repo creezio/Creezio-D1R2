@@ -1,5 +1,6 @@
 import {OperationError} from '@creezio/sdk/operations/error';
 import type {OperationContext,JsonValue} from '@creezio/sdk/operations/handler';
+import type {OperationFilesPort} from '@creezio/sdk/files/types';
 import {projectDeliveryReceipt} from './delivery.ts';
 
 type Row=Record<string,JsonValue>;
@@ -202,7 +203,7 @@ export async function messageDeliveryReconcile(value:JsonValue,c:OperationContex
   const a=input(value);await box(c,a.boxId);
   if(!validId(a.messageId)||!Number.isSafeInteger(a.revision))fail('invalid_input');
   const operations=c.operations;
-  if(!operations)fail('unavailable');
+  if(!operations)throw new OperationError('unavailable');
   const row=await c.data.get('message',{key:messageKey(c,a.boxId,a.messageId)}) as Row|null;
   if(!row)throw new OperationError('not_found');
   if(row.revision!==a.revision)fail('conflict');
@@ -233,45 +234,181 @@ export async function messageDeliveryReconcile(value:JsonValue,c:OperationContex
   const next=plans.length?{...row,state:kind,folder:'sent',revision:Number(row.revision)+1}:row;
   return {output:{message:viewMessage(next)},plans};
 }
-/** An operator selects a box; a signed provider event alone never routes an inbound email. */
-export async function messageInboundImport(value:JsonValue,c:OperationContext){
-  const a=input(value),selected=await box(c,a.boxId),operations=c.operations;
-  if(typeof a.emailId!=='string'||!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u.test(a.emailId)
-    ||!validText(selected.address,320)||!address.test(String(selected.address)))
-    fail('invalid_input');
-  if(!operations)fail('unavailable');
-  const id=`in-${await digest([a.emailId])}`;
-  const key=messageKey(c,String(a.boxId),id);
-  const existing=await c.data.get('message',{key}) as Row|null;
-  if(existing){
-    if(existing.direction!=='inbound'||existing.provider_message_id!==a.emailId)fail('conflict');
-    return {output:{message:viewMessage(existing)}};
+const inboundEmailId=(v:unknown):v is string=>typeof v==='string'
+  &&/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u.test(v);
+const inboundChildId=(v:unknown):v is string=>typeof v==='string'
+  &&/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u.test(v);
+const inboundMimes=new Set(['text/plain','application/pdf','image/png','image/jpeg']);
+const inboundLimit=10*1024*1024;
+type InboundChild={id:string;filename:string;contentType:string;byteSize:number};
+const inboundKey=(c:OperationContext,boxId:string,id:string)=>({...scope(c),box_id:boxId,id});
+const inboundReceiptKey=(c:OperationContext,boxId:string,id:string,fileId:string)=>
+  ({...scope(c),box_id:boxId,snapshot_id:id,file_id:fileId});
+const inboundId=async(emailId:string)=>`in-${await digest([emailId])}`;
+const inboundView=(row:Row,stagedChildIds:string[],imported:boolean)=>({
+  id:row.id,boxId:row.box_id,emailId:row.email_id,from:row.from_addr,to:row.to_addr,
+  subject:row.subject,receivedAt:row.received_at,
+  attachments:row.attachments,stagedChildIds,imported});
+async function inboundSnapshot(c:OperationContext,boxId:string,emailId:string):Promise<Row|null>{
+  return await c.data.get('inbound_snapshot',{key:inboundKey(c,boxId,await inboundId(emailId))}) as Row|null;
+}
+async function inboundReceipts(c:OperationContext,boxId:string,id:string):Promise<Row[]>{
+  const page=await c.data.list('inbound_stage_receipt',{limit:50,
+    where:{...scope(c),box_id:boxId,snapshot_id:id},
+    order:{indexId:'by-snapshot',direction:'asc'}}) as Page;
+  if(page.nextAfter)fail('conflict');
+  return [...page.items];
+}
+async function inboundState(c:OperationContext,selected:Row,row:Row){
+  if(row.box_address!==selected.address||row.box_revision!==selected.revision)fail('conflict');
+  const receipts=await inboundReceipts(c,String(selected.id),String(row.id));
+  const children=Array.isArray(row.attachments)?row.attachments as InboundChild[]:fail('conflict');
+  const ids=new Set(children.map(child=>child.id));
+  if(children.length>50||ids.size!==children.length
+    ||receipts.some(receipt=>!ids.has(String(receipt.child_id))))fail('conflict');
+  const imported=await c.data.get('message',{key:messageKey(c,String(selected.id),String(row.id))}) as Row|null;
+  if(imported&&(imported.direction!=='inbound'||imported.provider_message_id!==row.email_id))
+    fail('conflict');
+  return {receipts,children,imported,output:inboundView(row,
+    receipts.map(receipt=>String(receipt.child_id)),!!imported)};
+}
+/** A signed received event is read only after the operator selects an authorized box. */
+export async function messageInboundPrepare(value:JsonValue,c:OperationContext){
+  const a=input(value),selected=await box(c,a.boxId);
+  if(!inboundEmailId(a.emailId)||!validText(selected.address,320)
+    ||!address.test(String(selected.address)))fail('invalid_input');
+  const previous=await inboundSnapshot(c,String(selected.id),a.emailId);
+  if(previous){
+    const state=await inboundState(c,selected,previous);
+    return {output:{snapshot:state.output}};
   }
-  const answer=await operations!.query({moduleId:'creezio.resend',operationId:'received.read',
+  const operations=c.operations;
+  if(!operations)throw new OperationError('unavailable');
+  const answer=await operations.query({moduleId:'creezio.resend',operationId:'received.read',
     input:{emailId:a.emailId}});
   if(!answer||typeof answer!=='object'||Array.isArray(answer))fail('unavailable');
-  const mail=answer as Record<string,unknown>;
+  const mail=answer as Record<string,unknown>,children=mail.attachments;
   if(mail.emailId!==a.emailId||!Array.isArray(mail.to)||mail.to.length<1
     ||mail.to.some(item=>typeof item!=='string'||!address.test(item))
     ||!mail.to.includes(selected.address)||!validText(mail.from,320)
     ||!validText(mail.subject,240)||!validText(mail.text,16000)||!validText(mail.html,32000)
     ||typeof mail.receivedAt!=='string'||!Number.isFinite(Date.parse(mail.receivedAt))
-    ||!Number.isSafeInteger(mail.attachmentCount)||Number(mail.attachmentCount)<0)fail('unavailable');
-  // Received binaries need an R2 ingest port bound to a fixed provider attachment resource.
-  // Refuse the whole import until that port exists; never silently drop attachments.
-  if(mail.attachmentCount!==0)fail('unavailable');
-  const received=mail as {to:string[];from:string;subject:string;text:string;html:string;
-    receivedAt:string};
-  const to=received.to.join(', ');
+    ||!validId(mail.connectionId)||!Number.isSafeInteger(mail.configRevision)
+    ||Number(mail.configRevision)<1||!Array.isArray(children)||children.length>50
+    ||mail.attachmentCount!==children.length)fail('unavailable');
+  const to=(mail.to as string[]).join(', ');
   if(to.length>2048)fail('unavailable');
-  const at=now(),row={...scope(c),box_id:selected.id,id,direction:'inbound',
-    from_addr:received.from,to_addr:to,cc_addr:'',subject:received.subject,text_body:received.text,
-    html_body:safeHtml(received.html),state:'received',folder:'inbox',read_at:null,
-    thread_id:null,reply_to:null,in_reply_to:null,provider_message_id:a.emailId,
-    received_at:new Date(received.receivedAt).toISOString(),sent_at:null,created_at:at,revision:1};
-  return {output:{message:viewMessage(row)},plans:[
-    c.data.planGet('box',{key:boxKey(c,String(selected.id)),where:{address:selected.address},required:true}),
-    c.data.planCreate('message',{values:row})]};
+  let total=0;
+  const exact:InboundChild[]=(children as unknown[]).map((value:unknown)=>{
+    if(!value||typeof value!=='object'||Array.isArray(value))fail('unavailable');
+    const child=value as Record<string,unknown>;
+    if(!inboundChildId(child.id)||!validText(child.filename,255)||!child.filename
+      ||typeof child.contentType!=='string'||!inboundMimes.has(child.contentType)
+      ||!Number.isSafeInteger(child.byteSize)||Number(child.byteSize)<0
+      ||(total+=Number(child.byteSize))>inboundLimit)fail('unavailable');
+    return {id:child.id as string,filename:child.filename as string,
+      contentType:child.contentType as string,
+      byteSize:Number(child.byteSize)};
+  }).sort((left:InboundChild,right:InboundChild)=>left.id.localeCompare(right.id));
+  if(new Set(exact.map(child=>child.id)).size!==exact.length)fail('unavailable');
+  const id=await inboundId(a.emailId),receivedAt=new Date(mail.receivedAt as string).toISOString();
+  const html=safeHtml(mail.html as string);
+  const snapshotDigest=await digest([id,selected.id,selected.address,selected.revision,
+    a.emailId,mail.connectionId,mail.configRevision,mail.from,to,mail.subject,mail.text,html,
+    receivedAt,exact]);
+  const row:Row={...scope(c),box_id:selected.id,id,email_id:a.emailId,
+    box_address:selected.address,box_revision:selected.revision,connection_id:mail.connectionId as string,
+    config_revision:mail.configRevision as number,from_addr:mail.from as string,to_addr:to,
+    subject:mail.subject as string,text_body:mail.text as string,html_body:html,received_at:receivedAt,attachments:exact,
+    snapshot_digest:snapshotDigest,created_at:now()};
+  return {output:{snapshot:inboundView(row,[],false)},plans:[
+    c.data.planGet('box',{key:boxKey(c,String(selected.id)),
+      where:{address:selected.address,revision:selected.revision},required:true}),
+    c.data.planCreate('inbound_snapshot',{values:row})]};
+}
+export async function messageInboundStatus(value:JsonValue,c:OperationContext){
+  const a=input(value),selected=await box(c,a.boxId);
+  if(!inboundEmailId(a.emailId))fail('invalid_input');
+  const row=await inboundSnapshot(c,String(selected.id),a.emailId)??fail('not_found');
+  return {output:{snapshot:(await inboundState(c,selected,row)).output}};
+}
+export async function messageInboundAttachmentStage(value:JsonValue,c:OperationContext){
+  const a=input(value),selected=await box(c,a.boxId);
+  if(!inboundEmailId(a.emailId)||!inboundChildId(a.childId))fail('invalid_input');
+  const row=await inboundSnapshot(c,String(selected.id),a.emailId)??fail('not_found');
+  const state=await inboundState(c,selected,row);
+  if(state.imported)fail('conflict');
+  const child=state.children.find(item=>item.id===a.childId)??fail('not_found');
+  const old=state.receipts.find(item=>item.child_id===child.id);
+  if(old)return {output:{childId:child.id,fileId:old.file_id,staged:true}};
+  const files=(c.files as OperationFilesPort|undefined)??fail('unavailable');
+  if(!files.stageRemote)fail('unavailable');
+  const generation=await digest([child.id]);
+  const intentId=`inbound-${await digest([c.principalId,selected.id,row.id,
+    row.connection_id,row.config_revision])}`;
+  const staged=await files.stageRemote('attachments',{remoteId:'email.received.attachment',
+    parentId:a.emailId,childId:child.id,expected:{filename:child.filename,
+      contentType:child.contentType,byteSize:child.byteSize},
+    sourceProof:{connectionId:String(row.connection_id),configRevision:Number(row.config_revision)},
+    intentId,generation});
+  if(staged.file.filename!==child.filename||staged.file.contentType!==child.contentType
+    ||staged.file.byteSize!==child.byteSize)fail('unavailable');
+  const receipt:Row={...scope(c),box_id:selected.id,snapshot_id:row.id,child_id:child.id,
+    file_id:staged.ref.fileId,filename:child.filename,content_type:child.contentType,
+    byte_size:child.byteSize,digest:staged.ref.digest,intent_id:staged.ref.intentId,
+    generation:staged.ref.generation,created_at:now()};
+  return {output:{childId:child.id,fileId:staged.ref.fileId,staged:true},plans:[
+    c.data.planGet('box',{key:boxKey(c,String(selected.id)),
+      where:{address:row.box_address,revision:row.box_revision},required:true}),
+    c.data.planGet('inbound_snapshot',{key:inboundKey(c,String(selected.id),String(row.id)),
+      where:{snapshot_digest:row.snapshot_digest},required:true}),
+    c.data.planCreate('inbound_stage_receipt',{values:receipt})]};
+}
+/** No provider read is allowed here: the immutable snapshot and all staged refs commit together. */
+export async function messageInboundImport(value:JsonValue,c:OperationContext){
+  const a=input(value),selected=await box(c,a.boxId);
+  if(!inboundEmailId(a.emailId))fail('invalid_input');
+  const row=await inboundSnapshot(c,String(selected.id),a.emailId)??fail('not_found');
+  const state=await inboundState(c,selected,row);
+  if(state.imported)return {output:{message:viewMessage(state.imported)}};
+  if(state.receipts.length!==state.children.length)fail('conflict');
+  const receiptById=new Map(state.receipts.map(receipt=>[String(receipt.child_id),receipt]));
+  const attachments=state.children.map(child=>{
+    const receipt=receiptById.get(child.id)??fail('conflict');
+    if(receipt.filename!==child.filename||receipt.content_type!==child.contentType
+      ||receipt.byte_size!==child.byteSize||!validId(receipt.file_id)
+      ||typeof receipt.digest!=='string'||!/^[0-9a-f]{64}$/u.test(receipt.digest)
+      ||!validId(receipt.intent_id)||!validId(receipt.generation))fail('conflict');
+    return {fileId:String(receipt.file_id),intentId:String(receipt.intent_id),
+      generation:String(receipt.generation),digest:String(receipt.digest),
+      filename:child.filename,contentType:child.contentType,byteSize:child.byteSize};
+  });
+  const files=(c.files as OperationFilesPort|undefined)??fail('unavailable');
+  if(!files.prepareBatchPublication)fail('unavailable');
+  await files.prepareBatchPublication('attachments',{remoteId:'email.received.attachment',
+    sourceProof:{connectionId:String(row.connection_id),configRevision:Number(row.config_revision)},
+    sourceModel:'inbound_stage_receipt',sourceScope:{box_id:String(selected.id),snapshot_id:String(row.id)},
+    destinationModel:'message_attachment',
+    destinationScope:{box_id:String(selected.id),message_id:String(row.id)},attachments});
+  const at=now(),message:Row={...scope(c),box_id:selected.id,id:row.id,direction:'inbound',
+    from_addr:row.from_addr,to_addr:row.to_addr,cc_addr:'',subject:row.subject,
+    text_body:row.text_body,html_body:row.html_body,state:'received',folder:'inbox',read_at:null,
+    thread_id:null,reply_to:null,in_reply_to:null,provider_message_id:row.email_id,
+    received_at:row.received_at,sent_at:null,created_at:at,revision:1};
+  return {output:{message:viewMessage(message)},plans:[
+    c.data.planGet('box',{key:boxKey(c,String(selected.id)),
+      where:{address:row.box_address,revision:row.box_revision},required:true}),
+    c.data.planGet('inbound_snapshot',{key:inboundKey(c,String(selected.id),String(row.id)),
+      where:{snapshot_digest:row.snapshot_digest},required:true}),
+    c.data.planCreate('message',{values:message})]};
+}
+export async function messageAttachmentList(value:JsonValue,c:OperationContext){
+  const a=input(value);await box(c,a.boxId);
+  if(!validId(a.messageId))fail('invalid_input');
+  const message=await c.data.get('message',{key:messageKey(c,a.boxId,a.messageId)});
+  if(!message)fail('not_found');
+  return list(c,'message_attachment',a,{...scope(c),box_id:a.boxId,message_id:a.messageId},
+    'by-message',viewAttachment);
 }
 export async function messageUpdate(value:JsonValue,c:OperationContext){
   const a=input(value);await box(c,a.boxId);

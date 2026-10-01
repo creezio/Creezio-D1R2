@@ -1,5 +1,11 @@
 # Changelog
 
+## 1er octobre 2026 — PR #82 intégrée et nouvelle preuve Pages Linux
+
+- PR #82 est fusionnée par squash sur Core main `7aeac0c295d5c3ce80ef211f8ae4022892e7a19e`, arbre `53325f6be2f84dc0158693a84fe4f5858ada4337`. Sa CI candidate et la CI main `36793351811` ont chacune passé 1 442/1 442 contrôles ; le Worker local main est vérifié. Les notes ci-dessous sur la PR en brouillon retracent une étape antérieure. SDK 1.8 reste non public ; Linux sert toujours l'image main `3d42489` et l'update Cloudflare Core demeure `delivery-unknown` révision 8 avec l'ancien Worker `cd2eeb2` servi. Reçu : `outputs/CREEZIO-PR82-MAIN-QUALIFIED-7AEAC0C-2026-10-01.json`.
+- Sur cette image Linux main `3d42489`, Pages T21 a passé d'une page protégée (HTTP anonyme 404) à un snapshot public (page et image 200, image 202 octets), puis à un snapshot protégé (page et images 404 sans cookie). Le titre et le canonical de repli ont été rendus côté serveur. Les champs SEO éditables description/canonical n'étaient pas renseignés ; Sites et Cloudflare ne sont pas qualifiés. Après révocation, le navigateur affichait encore l'ancien rendu, donc le refus visuel n'est pas prouvé. Reçu : `outputs/CREEZIO-T21-LINUX-PUBLIC-RECIPE-2026-10-01.json`.
+- La candidate locale SDK 1.9/Resend 0.2 ajoute au module Messaging la préparation, le staging R2 et la publication atomique des pièces entrantes. Les six suites du module et l'intégration synthétique D1/R2 0/1/50, avec refus des courses au commit et de la configuration révoquée, passent. Aucun fournisseur réel, navigateur ou hébergement n'est qualifié ; le reçu hors dépôt `outputs/CREEZIO-T18-T29-INBOUND-ATTACHMENTS-FREEZE-2026-10-01.json` fixe les fichiers exacts. Ce lot n'est pas inclus dans PR #82.
+
 ## 1er octobre 2026 — recettes Linux ciblées et PR #82 en correction
 
 - Sur Core main `3d4248960f4ff56d9fdf5e956abe26d6e202f174`, le workspace a recherché et relu un contact CRM, puis l'a lié à un ticket Support (révision 3→4). Le lien a persisté après rechargement ; les trois messages Support, deux boîtes Messaging et le brouillon à la révision 6 sont conservés. Aucun message réel dans les boîtes n'a permis de qualifier la relation Support→Messaging. Preuve : `outputs/CREEZIO-T18-T20-LINKS-RECIPE-2026-09-30.json`.

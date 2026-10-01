@@ -7,7 +7,7 @@ export const RESEND_ORIGIN='https://api.resend.com';
 export const resendConfigStorage:ConnectorConfigStorage=Object.freeze({
   moduleId:RESEND_MODULE_ID,modelId:'connector_config',contextField:'context_id',
   fields:Object.freeze({id:'id',origin:'origin',keyRef:'key_ref',secretVersion:'secret_version',
-    enabled:'enabled',revision:'revision',updatedAt:'updated_at'})
+    enabled:'enabled',revision:'revision',updatedAt:'updated_at',connectionId:'connection_id'})
 });
 export const resendVaultStorage:ConnectorVaultStorage=Object.freeze({
   moduleId:RESEND_MODULE_ID,modelId:'connector_secret',contextField:'context_id',
@@ -42,5 +42,11 @@ export const resendConnectorDescriptor:ConnectorDescriptor=Object.freeze({
         {name:'text',wireName:'text',kind:'string',maxBytes:16_000},
         {name:'html',wireName:'html',kind:'string',maxBytes:32_000}
       ] satisfies ConnectorBodyField[])})})
-  ])
+  ]),
+  binaryDownloads:Object.freeze([Object.freeze({id:'email.received.attachment',proofOperationId:'received.read',
+    metadataPath:'/emails/receiving/{parentId}/attachments/{childId}',
+    cdnOrigin:'https://inbound-cdn.resend.com',
+    cdnPath:'/{parentId}/attachments/{childId}',maxBytes:10*1024*1024,
+    event:Object.freeze({modelId:'webhook_event',indexId:'by-email',connectionField:'connection_id',
+      parentField:'email_id',typeField:'event_type',typeValue:'email.received'})})])
 });

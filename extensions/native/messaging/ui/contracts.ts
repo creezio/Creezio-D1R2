@@ -21,6 +21,9 @@ export function attachmentRevision<T extends {id:string|null;revision:number}>(e
 }
 export type Attachment = {fileId:string;filename:string;contentType:string;byteSize:number;
   reference:{fileId:string;intentId:string;generation:string;digest:string}};
+export type InboundSnapshot={id:string;boxId:string;emailId:string;from:string;to:string;
+  subject:string;receivedAt:string;attachments:{id:string;filename:string;
+    contentType:string;byteSize:number}[];stagedChildIds:string[];imported:boolean};
 export type Page<T> = {items:T[];nextCursor:string|null};
 export type Outcome<T> = {kind:'ok';value:T}|{kind:'rejected'|'unknown';code:string};
 export type MessagingScope = Pick<WorkspaceViewProps,'client'|'access'|'audience'|'contextId'>;
@@ -38,10 +41,10 @@ export function scopeChanged(previous:UiIdentity|null,current:UiIdentity):boolea
 }
 export function messagingPanelData(scope:{sessionId:string;audience:string;contextId:string},
   boxId:string,draftId:string|null,pending:PendingCommand|null,
-  sendFollowup:PendingCommand|null=null):Record<string,unknown>{
+  sendFollowup:PendingCommand|null=null,inboundEmailId:string|null=null):Record<string,unknown>{
   return {sessionId:scope.sessionId,audience:scope.audience,contextId:scope.contextId,
     ...(boxId?{boxId}:{}),...(draftId?{draftId}:{}),...(pending?{pending}:{}),
-    ...(sendFollowup?{sendFollowup}:{})};
+    ...(sendFollowup?{sendFollowup}:{}),...(inboundEmailId?{inboundEmailId}:{})};
 }
 export function panelMatchesScope(data:Readonly<Record<string,unknown>>|undefined,
   scope:{sessionId:string;audience:string;contextId:string}):boolean{

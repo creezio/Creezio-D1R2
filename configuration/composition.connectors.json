@@ -19,7 +19,7 @@
     ]
   },
   "sdk": {
-    "version": "1.8.0",
+    "version": "1.9.0",
     "coreVersion": "0.0.0",
     "policy": {
       "id": "creezio.local-contracts",
@@ -242,7 +242,7 @@
     {
       "moduleId": "creezio.resend",
       "origin": "https://github.com/creezio/Creezio-D1R2",
-      "versionRange": "^0.1.0",
+      "versionRange": "^0.2.0",
       "source": {
         "kind": "workspace",
         "path": "extensions/connectors/resend"

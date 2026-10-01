@@ -288,6 +288,25 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
           {guards:null,unknown:false,externalEffect:false};
         let fileStatements:readonly SqlStatement[]|undefined;
         let fileClaimed=false;
+        let remoteClaimed=false;
+        const remoteSource=(remoteId:string)=>{
+          const match=connectors.find(item=>item.descriptor.binaryDownloads?.some(policy=>
+            policy.id===remoteId&&op.effects.calls.some(ref=>ref.kind==='operation'
+              &&ref.moduleId===item.descriptor.moduleId
+              &&ref.id===policy.proofOperationId)));
+          if(!match)throw new OperationError('forbidden');
+          const policy=match.descriptor.binaryDownloads!.find(item=>item.id===remoteId)!;
+          const target=registry.resolve(match.descriptor.moduleId,policy.proofOperationId);
+          if(!target.declaration.public||!target.declaration.audiences.includes(identity.audience))
+            throw new OperationError('forbidden');
+          const scope={lease,credential:request.credential,executionId:start.execution.id,
+            contextId:identity.contextId,audience:identity.audience,
+            actors:target.declaration.actors.filter((actor):actor is AuthorizationActor=>
+              ['user','machine','delegated-user','impersonated-user'].includes(actor)),
+            requiredPermissionIds:target.declaration.permissions.map(ref=>`${ref.moduleId}:${ref.id}`),
+            signal:controller.signal,ensureActive:ensure};
+          return {host:match,scope};
+        };
         const registerConnectorGuards=(tokens:readonly DataPlan[])=>{
           ensure();
           if(!connectorCommand||connectorState.guards||!Array.isArray(tokens)||tokens.length!==2
@@ -378,9 +397,58 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
               audience:identity.audience,actors:op.actors.filter((actor):actor is AuthorizationActor=>
                 ['user','machine','delegated-user','impersonated-user'].includes(actor)),
               ensureActive:ensure})}:{}),
-          ...(options.files ? {files: Object.freeze({async freezeLinks(categoryId,raw) {
+          ...(options.files ? {files: Object.freeze({async stageRemote(categoryId,raw) {
             ensure();
-            if(op.kind!=='command'||fileClaimed||!raw||typeof raw!=='object'
+            if(op.kind!=='command'||remoteClaimed||fileClaimed||[...issued.values()].some(item=>item.file)
+              ||!raw||typeof raw!=='object'
+              ||!op.effects.writes.some(ref=>ref.kind==='file'&&ref.moduleId===operation.moduleId&&ref.id===categoryId))
+              throw new OperationError('forbidden');
+            remoteClaimed=true;
+            const captured=copyJson(raw,8192) as unknown as typeof raw;
+            spend(1);
+            const remote=remoteSource(captured.remoteId);
+            const category=resolveFileCategory(catalog,options.files!.catalog,operation.moduleId,
+              categoryId,identity.audience);
+            if(!category.mimeTypes.includes(captured.expected?.contentType)
+              ||!Number.isSafeInteger(captured.expected?.byteSize)
+              ||captured.expected.byteSize<0||captured.expected.byteSize>category.maxBytes)
+              throw new OperationError('invalid_input');
+            const ownerId=await fileOwnerId(identity.principalId,identity.audience,category.ownerScope);
+            const bytes=await remote.host.downloadBinary(remote.scope,captured);
+            ensure();
+            const service=createFileService({data,catalog,moduleId:operation.moduleId,category,
+              bucket:options.files!.bucket,ownerId});
+            const ref=await service.stage(lease,{ownerId,intentId:captured.intentId,
+              generation:captured.generation,filename:captured.expected.filename,
+              contentType:captured.expected.contentType,bytes});
+            ensure();
+            const guard=await remote.host.sourceGuard(remote.scope,captured);
+            fileStatements=Object.freeze([{sql:`SELECT CASE WHEN (${guard.condition}) THEN 1
+              ELSE json('creezio_file_source_conflict') END AS accepted`,bindings:[...guard.bindings]}]);
+            return Object.freeze({ref,file:Object.freeze({...captured.expected})});
+          },async prepareBatchPublication(categoryId,raw) {
+            ensure();
+            if(op.kind!=='command'||fileClaimed||remoteClaimed||[...issued.values()].some(item=>item.file)
+              ||!raw||typeof raw!=='object'
+              ||!op.effects.writes.some(ref=>ref.kind==='file'&&ref.moduleId===operation.moduleId&&ref.id===categoryId)
+              ||!op.effects.reads.some(ref=>ref.kind==='model'&&ref.moduleId===operation.moduleId&&ref.id===raw.sourceModel)
+              ||!op.effects.writes.some(ref=>ref.kind==='model'&&ref.moduleId===operation.moduleId&&ref.id===raw.destinationModel))
+              throw new OperationError('forbidden');
+            fileClaimed=true;
+            const captured=copyJson(raw,60_000) as unknown as typeof raw;
+            spend(1);
+            const remote=remoteSource(captured.remoteId);
+            const category=resolveFileCategory(catalog,options.files!.catalog,operation.moduleId,
+              categoryId,identity.audience);
+            const connectionGuard=await remote.host.sourceGuard(remote.scope,captured);
+            const statements=await prepareFrozenLinks({data,catalog,lease,moduleId:operation.moduleId,
+              category,bucket:options.files!.bucket,input:captured,publishStaged:true,connectionGuard});
+            ensure();
+            fileStatements=statements;
+          },async freezeLinks(categoryId,raw) {
+            ensure();
+            if(op.kind!=='command'||fileClaimed||remoteClaimed||[...issued.values()].some(item=>item.file)
+              ||!raw||typeof raw!=='object'
               ||!op.effects.writes.some(ref=>ref.kind==='file'&&ref.moduleId===operation.moduleId&&ref.id===categoryId)
               ||!op.effects.reads.some(ref=>ref.kind==='model'&&ref.moduleId===operation.moduleId&&ref.id===raw.sourceModel)
               ||!op.effects.writes.some(ref=>ref.kind==='model'&&ref.moduleId===operation.moduleId&&ref.id===raw.destinationModel))
@@ -395,7 +463,8 @@ export function createOperationEngine(options: { readonly db: IdentityDatabase; 
             ensure();fileStatements=statements;
           },async preparePublication(categoryId, reference) {
             ensure();
-            if (op.kind !== 'command' || !op.effects.writes.some(ref => ref.moduleId === operation.moduleId && ref.kind === 'file' && ref.id === categoryId))
+            if (op.kind !== 'command' || fileClaimed || remoteClaimed
+              || !op.effects.writes.some(ref => ref.moduleId === operation.moduleId && ref.kind === 'file' && ref.id === categoryId))
               throw new OperationError('forbidden');
             // Charge work before I/O, then recheck the plan budget after concurrent completions.
             spend(1);

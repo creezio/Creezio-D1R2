@@ -6,7 +6,7 @@ export interface ConnectorConfigStorage {
   readonly modelId:string;
   readonly contextField:string;
   readonly fields:Readonly<{id:string;origin:string;keyRef:string;secretVersion:string;
-    enabled:string;revision:string;updatedAt:string}>;
+    enabled:string;revision:string;updatedAt:string;connectionId?:string}>;
 }
 /** Public structural shape accepted by the trusted vault implementation. */
 export interface ConnectorVaultStorage {
@@ -44,6 +44,17 @@ export interface ConnectorResource {
   readonly successStatuses?:readonly number[];
   readonly responseBody?:'json'|'none';
 }
+/** Static host policy for one private attachment download. */
+export interface ConnectorBinaryDownload {
+  readonly id:string;
+  readonly proofOperationId:string;
+  readonly metadataPath:string;
+  readonly cdnOrigin:string;
+  readonly cdnPath:string;
+  readonly maxBytes:number;
+  readonly event:Readonly<{modelId:string;indexId:string;connectionField:string;
+    parentField:string;typeField:string;typeValue:string}>;
+}
 export interface ConnectorDescriptor {
   readonly id:string;
   readonly moduleId:string;
@@ -62,6 +73,7 @@ export interface ConnectorDescriptor {
     fields:Readonly<{connectionId:string;signingRef:string;signingVersion:string;
       previousRef:string;previousVersion:string;serviceTokenRef:string;serviceTokenVersion:string}>}>;
   readonly resources:readonly ConnectorResource[];
+  readonly binaryDownloads?:readonly ConnectorBinaryDownload[];
 }
 export interface ConnectorRequest {
   readonly resource:string;
@@ -70,6 +82,8 @@ export interface ConnectorRequest {
   readonly limit?:number;
   readonly fields?:Readonly<Record<string,JsonValue>>;
   readonly signal?:AbortSignal;
+  /** Binds a prior signed-event proof to the configuration used by this GET. */
+  readonly sourceProof?:Readonly<{connectionId:string;configRevision:number}>;
 }
 export interface ConnectorMutationRequest {
   readonly resource:string;

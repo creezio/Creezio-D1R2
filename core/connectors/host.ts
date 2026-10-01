@@ -12,6 +12,7 @@ const segment=/^[A-Za-z0-9_~-][A-Za-z0-9._~-]*$/;
 const MAX_BODY=1_048_576;
 const MAX_WRITE_BODY=65_536;
 const MAX_ATTACHMENT_BODY=14_500_000;
+const MAX_BINARY_CHUNKS=16_384;
 const MAX_CALLS=1;
 const TIMEOUT_MS=10_000;
 const queryName=(value:string)=>typeof value==='string'&&value.length<=64
@@ -160,6 +161,19 @@ export function captureConnectorDescriptor(value:ConnectorDescriptor):ConnectorD
     ||resources.some(item=>item.idempotencyHeader&&staticHeaders.some(header=>
       header.name.toLowerCase()===item.idempotencyHeader!.toLowerCase())))
     throw new VaultError('invalid_input');
+  const binaryDownloads=value.binaryDownloads??[];
+  if(!Array.isArray(binaryDownloads)||binaryDownloads.length>4
+    ||new Set(binaryDownloads.map(item=>item.id)).size!==binaryDownloads.length
+    ||binaryDownloads.some(item=>!item||!identifier.test(item.id)||!identifier.test(item.proofOperationId)
+      ||!value.config.fields.connectionId||!identifier.test(value.config.fields.connectionId)
+      ||typeof item.metadataPath!=='string'||!/^\/(?:[A-Za-z0-9_-]+|\{parentId\}|\{childId\})(?:\/(?:[A-Za-z0-9_-]+|\{parentId\}|\{childId\}))*$/.test(item.metadataPath)
+      ||item.metadataPath.split('{parentId}').length!==2||item.metadataPath.split('{childId}').length!==2
+      ||typeof item.cdnPath!=='string'||!/^\/(?:[A-Za-z0-9_-]+|\{parentId\}|\{childId\})(?:\/(?:[A-Za-z0-9_-]+|\{parentId\}|\{childId\}))*$/.test(item.cdnPath)
+      ||item.cdnPath.split('{parentId}').length!==2||item.cdnPath.split('{childId}').length!==2
+      ||!connectorOrigin(item.cdnOrigin)||item.cdnOrigin!==connectorOrigin(item.cdnOrigin)
+      ||!Number.isSafeInteger(item.maxBytes)||item.maxBytes<1||item.maxBytes>10*1024*1024
+      ||!item.event||Object.values(item.event).some(part=>typeof part!=='string'||!identifier.test(part))))
+    throw new VaultError('invalid_input');
   return Object.freeze({id:value.id,moduleId:value.moduleId,config:Object.freeze({...value.config,
     fields:Object.freeze({...value.config.fields})}),vault:Object.freeze({...value.vault,
     fields:Object.freeze({...value.vault.fields})}),auth:Object.freeze({...auth}),resources:Object.freeze(resources),
@@ -167,13 +181,15 @@ export function captureConnectorDescriptor(value:ConnectorDescriptor):ConnectorD
     ...(value.mutationSecretPrefix===undefined?{}:{mutationSecretPrefix:value.mutationSecretPrefix}),
     ...(webhook===undefined?{}:{webhook:Object.freeze({...webhook,
       mapper:Object.freeze({...webhook.mapper}),fields:Object.freeze({...webhook.fields})})}),
-    ...(value.staticHeaders===undefined?{}:{staticHeaders:Object.freeze(staticHeaders.map(item=>Object.freeze({...item})))})});
+    ...(value.staticHeaders===undefined?{}:{staticHeaders:Object.freeze(staticHeaders.map(item=>Object.freeze({...item})))}),
+    ...(value.binaryDownloads===undefined?{}:{binaryDownloads:Object.freeze(binaryDownloads.map(item=>
+      Object.freeze({...item,event:Object.freeze({...item.event})})))})});
 }
 
 function requestUrl(origin:string,resource:ConnectorResource,input:ConnectorRequest):URL|null{
   if(!input||input.resource!==resource.id)return null;
   const keys=Object.keys(input);
-  if(keys.some(key=>!['resource','id','cursor','limit','fields','signal'].includes(key)))return null;
+  if(keys.some(key=>!['resource','id','cursor','limit','fields','signal','sourceProof'].includes(key)))return null;
   for(const key of ['id','cursor','limit'] as const)if(input[key]!==undefined&&!resource.params.includes(key))return null;
   if(resource.params.includes('id')&&(!input.id||!identifier.test(input.id))
     ||input.id!==undefined&&!identifier.test(input.id)
@@ -248,6 +264,11 @@ export interface ConnectorOperationScope {
   /** Host-only: command GET proof is asserted in the same D1 batch as its projection. */
   readonly registerCommitGuards?:(plans:readonly DataPlan[])=>void;
 }
+export interface BinaryDownloadInput {
+  readonly remoteId:string;readonly parentId:string;readonly childId:string;
+  readonly sourceProof:Readonly<{connectionId:string;configRevision:number}>;
+  readonly expected:Readonly<{filename:string;contentType:string;byteSize:number}>;
+}
 
 function mutationBody(resource:ConnectorResource,input:ConnectorMutationRequest):string|null{
   const source=copyJson(input.fields,MAX_WRITE_BODY);
@@ -303,7 +324,8 @@ function mutationBody(resource:ConnectorResource,input:ConnectorMutationRequest)
 export function createConnectorHost(options:ConnectorHostOptions){
   const descriptor=captureConnectorDescriptor(options.descriptor),{data,catalog}=options;
   const cf=descriptor.config.fields;
-  const configFields=[descriptor.config.contextField,...Object.values(cf)];
+  const configFields=[descriptor.config.contextField,...Object.values(cf).filter((value):value is string=>
+    typeof value==='string')];
   const module=catalog.modules.find(item=>item.moduleId===descriptor.moduleId&&item.enabled);
   const configModel=module?.models.find(item=>item.modelId===descriptor.config.modelId)?.model;
   const vaultModel=module?.models.find(item=>item.modelId===descriptor.vault.modelId)?.model;
@@ -324,8 +346,144 @@ export function createConnectorHost(options:ConnectorHostOptions){
     const meta=await vault.metadata(lease,String(row[cf.keyRef]));
     return meta?.state==='active'&&meta.version===row[cf.secretVersion];
   };
+  const binaryPolicy=(id:string)=>descriptor.binaryDownloads?.find(item=>item.id===id);
+  const binaryId=(id:unknown)=>typeof id==='string'&&identifier.test(id);
+  const binaryPath=(template:string,parentId:string,childId:string)=>template
+    .replace('{parentId}',encodeURIComponent(parentId)).replace('{childId}',encodeURIComponent(childId));
+  async function checkedSource(scope:ConnectorOperationScope,input:Pick<BinaryDownloadInput,'remoteId'|'sourceProof'> &
+    Partial<Pick<BinaryDownloadInput,'parentId'|'childId'>>,checkEvent:boolean){
+    scope.ensureActive();
+    const policy=binaryPolicy(input.remoteId),proof=input.sourceProof;
+    if(!policy||!cf.connectionId||checkEvent&&(!binaryId(input.parentId)||!binaryId(input.childId))
+      ||!proof||!binaryId(proof.connectionId)||!Number.isSafeInteger(proof.configRevision)
+      ||proof.configRevision<1)throw new VaultError('invalid_input');
+    const original=data.describeLease(scope.lease);
+    const lease=await data.authorize(scope.credential,{contextId:scope.contextId,audience:scope.audience,
+      actors:scope.actors,requiredPermissionIds:scope.requiredPermissionIds,purpose:'operation'},
+      {moduleId:descriptor.moduleId});
+    try{
+      const identity=data.describeLease(lease);
+      if(identity.contextId!==original.contextId||identity.audience!==original.audience
+        ||identity.principalId!==original.principalId||identity.actorPrincipalId!==original.actorPrincipalId)
+        throw new VaultError('conflict');
+      const row=await read(lease);
+      if(!vault||!usable(row)||row![cf.connectionId]!==proof.connectionId
+        ||row![cf.revision]!==proof.configRevision
+        ||descriptor.fixedOrigin&&connectorOrigin(row![cf.origin])!==descriptor.fixedOrigin
+        ||!await matchingSecret(lease,row!))throw new VaultError('conflict');
+      if(checkEvent){
+        const e=policy.event;
+        const eventModel=module!.models.find(item=>item.modelId===e.modelId)?.model;
+        const eventIndex=eventModel?.indexes.find(item=>item.id===e.indexId);
+        if(!eventModel||!eventIndex)throw new VaultError('invalid_input');
+        const events=await data.internalPort(lease,{moduleId:descriptor.moduleId,modelId:e.modelId,
+          fields:[...new Set([e.connectionField,e.parentField,e.typeField,
+            ...eventIndex.fields,...eventModel.primaryKey])]}).list(e.modelId,{limit:50,
+          where:{[e.connectionField]:proof.connectionId,[e.parentField]:input.parentId!},
+          order:{indexId:e.indexId,direction:'desc'}});
+        if(!events.items.some(item=>item[e.typeField]===e.typeValue))throw new VaultError('conflict');
+      }
+      scope.ensureActive();
+      return {lease,row:row!,policy};
+    }catch(error){data.dispose(lease);throw error;}
+  }
+  function binaryGuard(scope:ConnectorOperationScope,input:Pick<BinaryDownloadInput,'remoteId'|'sourceProof'> &
+    Partial<Pick<BinaryDownloadInput,'parentId'>>,row:DataRecord){
+    const vf=descriptor.vault.fields,reference=String(row[cf.keyRef]),version=Number(row[cf.secretVersion]);
+    const table=(modelId:string)=>{
+      const value=module!.models.find(item=>item.modelId===modelId)?.table;
+      if(!value||!(/^[A-Za-z_][A-Za-z0-9_]*$/u).test(value))throw new VaultError('invalid_input');
+      return `"${value}"`;
+    };
+    const col=(value:string)=>{
+      if(!(/^[a-z][a-z0-9_]*$/u).test(value))throw new VaultError('invalid_input');
+      return `"${value}"`;
+    };
+    const configTable=table(descriptor.config.modelId),vaultTable=table(descriptor.vault.modelId);
+    const c=(value:string)=>`c.${col(value)}`,v=(value:string)=>`v.${col(value)}`;
+    let condition=`EXISTS(SELECT 1 FROM ${configTable} c JOIN ${vaultTable} v
+      ON ${v(descriptor.vault.contextField)}=${c(descriptor.config.contextField)}
+      AND ${v(vf.id)}=${c(cf.keyRef)} WHERE ${c(descriptor.config.contextField)}=?
+      AND ${c(cf.id)}=? AND ${c(cf.connectionId!)}=? AND ${c(cf.revision)}=?
+      AND ${c(cf.enabled)}=1 AND ${c(cf.origin)}=? AND ${c(cf.keyRef)}=?
+      AND ${c(cf.secretVersion)}=? AND ${v(vf.version)}=?
+      AND ${v(vf.state)}='active' AND ${v(vf.bindingId)}=?)`;
+    const bindings:(string|number|null)[]=[scope.contextId,descriptor.id,input.sourceProof.connectionId,
+      input.sourceProof.configRevision,String(row[cf.origin]),reference,version,version,descriptor.id];
+    if(input.parentId!==undefined){
+      const event=binaryPolicy(input.remoteId)!.event,eventTable=table(event.modelId);
+      const w=(value:string)=>`w.${col(value)}`;
+      condition+=` AND EXISTS(SELECT 1 FROM ${eventTable} w WHERE
+        ${w(descriptor.config.contextField)}=? AND ${w(event.connectionField)}=?
+        AND ${w(event.parentField)}=? AND ${w(event.typeField)}=?)`;
+      bindings.push(scope.contextId,input.sourceProof.connectionId,input.parentId,event.typeValue);
+    }
+    return Object.freeze({condition,bindings:Object.freeze(bindings)});
+  }
   return Object.freeze({
     descriptor,
+    async sourceGuard(scope:ConnectorOperationScope,input:Pick<BinaryDownloadInput,'remoteId'|'sourceProof'> &
+      Partial<Pick<BinaryDownloadInput,'parentId'|'childId'>>){
+      const checked=await checkedSource(scope,input,input.parentId!==undefined);
+      try{return binaryGuard(scope,input,checked.row);}finally{data.dispose(checked.lease);}
+    },
+    async downloadBinary(scope:ConnectorOperationScope,input:BinaryDownloadInput):Promise<Uint8Array>{
+      const expected=input.expected;
+      if(!expected||typeof expected.filename!=='string'||!expected.filename||expected.filename.length>255
+        ||!expected.filename.isWellFormed()||/[\\/\u0000-\u001f\u007f]/u.test(expected.filename)
+        ||new TextEncoder().encode(expected.filename).length>255
+        ||typeof expected.contentType!=='string'||!expected.contentType||expected.contentType.length>128
+        ||!expected.contentType.isWellFormed()||/[\u0000-\u001f\u007f]/u.test(expected.contentType)
+        ||!Number.isSafeInteger(expected.byteSize)||expected.byteSize<0
+        ||expected.byteSize>(binaryPolicy(input.remoteId)?.maxBytes??0))
+        throw new VaultError('invalid_input');
+      const first=await checkedSource(scope,input,true),policy=first.policy;
+      let metadata:Response;
+      try{
+        const url=new URL(binaryPath(policy.metadataPath,input.parentId,input.childId),String(first.row[cf.origin]));
+        const signal=AbortSignal.any([scope.signal,AbortSignal.timeout(TIMEOUT_MS)]);
+        metadata=await vault!.useSecret(first.lease,{reference:String(first.row[cf.keyRef]),bindingId:descriptor.id},
+          async secret=>{
+            const headers=new Headers({accept:'application/json'});
+            if(descriptor.auth.kind==='bearer')headers.set('Authorization',`Bearer ${secret}`);
+            else headers.set(descriptor.auth.name,secret);
+            return (options.fetcher??fetch)(url,{method:'GET',headers,redirect:'manual',credentials:'omit',
+              referrerPolicy:'no-referrer',cache:'no-store',signal});
+          });
+      }finally{data.dispose(first.lease);}
+      if(metadata.status!==200){void metadata.body?.cancel().catch(()=>{});throw new VaultError('unavailable');}
+      const body=await boundedJson(metadata);
+      if(!body.valid||!body.body||typeof body.body!=='object'||Array.isArray(body.body))
+        throw new VaultError('invalid_input');
+      const meta=body.body as Record<string,JsonValue>;
+      if(meta.id!==input.childId||meta.filename!==expected.filename
+        ||meta.content_type!==expected.contentType||meta.size!==expected.byteSize
+        ||typeof meta.download_url!=='string'||meta.download_url.length>8192)
+        throw new VaultError('conflict');
+      let cdn:URL;
+      try{cdn=new URL(meta.download_url);}catch{throw new VaultError('invalid_input');}
+      if(cdn.origin!==policy.cdnOrigin||cdn.pathname!==binaryPath(policy.cdnPath,input.parentId,input.childId)
+        ||cdn.username||cdn.password||cdn.hash||!cdn.search||cdn.href!==meta.download_url)
+        throw new VaultError('invalid_input');
+      const second=await checkedSource(scope,input,true);data.dispose(second.lease);
+      const response=await (options.fetcher??fetch)(cdn,{method:'GET',redirect:'manual',credentials:'omit',
+        referrerPolicy:'no-referrer',cache:'no-store',signal:AbortSignal.any([scope.signal,AbortSignal.timeout(TIMEOUT_MS)])});
+      if(response.status!==200||!response.body){void response.body?.cancel().catch(()=>{});throw new VaultError('unavailable');}
+      const length=response.headers.get('content-length');
+      if(length!==null&&Number(length)!==expected.byteSize){void response.body.cancel().catch(()=>{});throw new VaultError('conflict');}
+      const reader=response.body.getReader(),chunks:Uint8Array[]=[];let size=0;
+      try{for(;;){const item=await reader.read();if(item.done)break;
+        if(!(item.value instanceof Uint8Array)||chunks.length>=MAX_BINARY_CHUNKS
+          ||item.value.length>expected.byteSize-size
+          ||item.value.length>policy.maxBytes-size)throw new VaultError('conflict');
+        chunks.push(item.value);size+=item.value.length;
+      }}finally{void reader.cancel().catch(()=>{});reader.releaseLock();}
+      if(size!==expected.byteSize)throw new VaultError('conflict');
+      const bytes=new Uint8Array(size);let offset=0;
+      for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
+      const third=await checkedSource(scope,input,true);data.dispose(third.lease);
+      return bytes;
+    },
     async availability(lease:DataLease){
       const row=await read(lease);
       if(!row||row[cf.enabled]!==true||!row[cf.keyRef])return 'missing' as const;
@@ -364,6 +522,10 @@ export function createConnectorHost(options:ConnectorHostOptions){
           const row=await read(fresh);
           scope.ensureActive();
           if(!vault||!usable(row)||!await matchingSecret(fresh,row!))return error('not_configured');
+          if(input.sourceProof&&(!cf.connectionId||!identifier.test(input.sourceProof.connectionId)
+            ||!Number.isSafeInteger(input.sourceProof.configRevision)
+            ||row![cf.connectionId]!==input.sourceProof.connectionId
+            ||row![cf.revision]!==input.sourceProof.configRevision))return error('not_configured');
           scope.ensureActive();
           const origin=connectorOrigin(row![cf.origin]);
           if(descriptor.fixedOrigin&&origin!==descriptor.fixedOrigin)return error('not_configured');
@@ -375,6 +537,7 @@ export function createConnectorHost(options:ConnectorHostOptions){
             const current=await read(fresh!);
             if(!current||current[cf.revision]!==revision||current[cf.keyRef]!==reference
               ||current[cf.secretVersion]!==version||current[cf.enabled]!==true
+              ||cf.connectionId&&current[cf.connectionId]!==row![cf.connectionId]
               ||current[cf.origin]!==row![cf.origin]
               ||!await matchingSecret(fresh!,current))throw new VaultError('conflict');
             scope.ensureActive();

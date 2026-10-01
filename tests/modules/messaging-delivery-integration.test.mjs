@@ -60,7 +60,7 @@ function registry(overrides={}){
 }
 
 test('Messaging commits one immutable snapshot and canonical outbox intent against Resend readiness in real D1',
-  {timeout:120000},async()=>{
+  {timeout:240000},async()=>{
     const runtime=new Miniflare({host:'127.0.0.1',port:0,cf:false,modules:true,
       compatibilityDate:'2026-05-15',script:'export default {fetch(){return new Response(null,{status:404})}}',
       d1Databases:{DB:'creezio-messaging-delivery-proof'},r2Buckets:['BUCKET'],
@@ -100,18 +100,37 @@ test('Messaging commits one immutable snapshot and canonical outbox intent again
       const declaration=modules[0].manifest.contracts.deliveries[0];
       const receiptSchema=modules[0].manifest.contracts.schemas.find(item=>item.id===declaration.receipt.schemaId).schema;
       const validateReceipt=addFormats(new Ajv2020({strict:true})).compile(receiptSchema);
-      let calls=0,revokeOnCall=false,loseAck=false;
+      let calls=0,inboundGets=0,revokeOnCall=false,loseAck=false;
       const providerKeys=[],providerBodies=[];
+      const receivedFixtures=new Map([['received-proof-zero',{count:0}]]);
       const engineOptions={db,catalog,registry:registry(),permissions,
         files:{catalog:fileCatalog,bucket},
         providerAvailability:async(_request,providerId)=>({providerId,state:'ready',modelIds:[]}),
         connectors:[{descriptor:modules[1].manifest.contracts.connectors[0],keyring,
           fetcher:async(url,init)=>{
-            if(init.method==='GET'&&String(url).endsWith('/emails/receiving/received-proof-1'))
-              return Response.json({id:'received-proof-1',to:['sender@example.invalid'],
-                from:'peer@example.invalid',subject:'Courriel reçu',text:'Bonjour\nCreezio',
-                html:'<p>Bonjour</p><script>bad()</script>',
-                created_at:'2026-09-30T02:00:00.000Z',attachments:[]});
+            if(init.method==='GET'){
+              inboundGets++;
+              const parsed=new URL(String(url)),parts=parsed.pathname.split('/').filter(Boolean);
+              if(parsed.hostname==='api.resend.com'&&parts[0]==='emails'&&parts[1]==='receiving'){
+                const emailId=parts[2],fixture=receivedFixtures.get(emailId);
+                if(!fixture)return Response.json({message:'unknown email'},{status:404});
+                if(parts.length===3)return Response.json({id:emailId,to:['sender@example.invalid'],
+                  from:'peer@example.invalid',subject:'Courriel reçu',text:'Bonjour\nCreezio',
+                  html:'<p>Bonjour</p><script>bad()</script>',
+                  created_at:'2026-09-30T02:00:00.000Z',attachments:Array.from({length:fixture.count},(_,index)=>({
+                    id:`child-${index}`,filename:`proof-${index}.txt`,content_type:'text/plain',size:8}))});
+                if(parts[3]==='attachments'&&parts.length===5){
+                  const childId=parts[4];
+                  return Response.json({id:childId,filename:`proof-${Number(childId.slice(6))}.txt`,
+                    content_type:'text/plain',size:8,
+                    download_url:`https://inbound-cdn.resend.com/${emailId}/attachments/${childId}?token=synthetic`});
+                }
+              }
+              if(parsed.hostname==='inbound-cdn.resend.com'&&parts[1]==='attachments')
+                return new Response(new Uint8Array([112,114,111,111,102,45,48,49]),
+                  {status:200,headers:{'content-length':'8','content-type':'text/plain'}});
+              return Response.json({message:'unknown GET'},{status:404});
+            }
             calls++;
             assert.equal(init.method,'POST');
             providerKeys.push(init.headers.get('Idempotency-Key'));
@@ -185,15 +204,145 @@ test('Messaging commits one immutable snapshot and canonical outbox intent again
       assert.equal(calls,1,'signed receipt projection must not resend');
       await db.prepare(`INSERT INTO "${eventTable}" (context_id,id,connection_id,event_type,email_id,
         body_digest,occurred_at,received_at) VALUES(?,?,?,?,?,?,?,?)`).bind('application','evt-received',
-        'connection-proof','email.received','received-proof-1','b'.repeat(64),
+        'connection-proof','email.received','received-proof-zero','b'.repeat(64),
         '2026-09-30T02:00:00.000Z','2026-09-30T02:00:01.000Z').run();
+      const prepared=success(await invoke('message.inbound.prepare',{
+        requestKey:'delivery-prepare-one',boxId:box.id,emailId:'received-proof-zero'})).snapshot;
+      assert.equal(prepared.emailId,'received-proof-zero');
+      assert.deepEqual(prepared.attachments,[]);
+      assert.equal(prepared.imported,false);
       const imported=success(await invoke('message.inbound.import',{
-        requestKey:'delivery-import-one',boxId:box.id,emailId:'received-proof-1'})).message;
+        requestKey:'delivery-import-one',boxId:box.id,emailId:'received-proof-zero'})).message;
       assert.equal(imported.direction,'inbound');
       assert.equal(imported.folder,'inbox');
       assert.equal(imported.text,'Bonjour\nCreezio');
       assert.doesNotMatch(imported.html,/<script>/u);
+      const importedStatus=success(await invoke('message.inbound.status',{
+        boxId:box.id,emailId:'received-proof-zero'})).snapshot;
+      assert.equal(importedStatus.imported,true);
       assert.equal(calls,1,'inbound GET must not issue a send POST');
+      for(const count of [1,50]){
+        const emailId=`received-proof-${count}`,beforeGets=inboundGets;
+        receivedFixtures.set(emailId,{count});
+        await db.prepare(`INSERT INTO "${eventTable}" (context_id,id,connection_id,event_type,email_id,
+          body_digest,occurred_at,received_at) VALUES(?,?,?,?,?,?,?,?)`).bind('application',
+          `evt-received-${count}`,'connection-proof','email.received',emailId,
+          'c'.repeat(64),'2026-09-30T02:00:00.000Z','2026-09-30T02:00:01.000Z').run();
+        const before=await invoke('message.inbound.import',{
+          requestKey:`delivery-import-early-${count}`,boxId:box.id,emailId});
+        assert.equal(before.execution.state,'failed');
+        assert.equal(before.execution.errorCode,'not_found');
+        const ready=success(await invoke('message.inbound.prepare',{
+          requestKey:`delivery-prepare-${count}`,boxId:box.id,emailId})).snapshot;
+        assert.equal(ready.attachments.length,count);
+        assert.equal(ready.stagedChildIds.length,0);
+        for(const child of ready.attachments){
+          const stageResult=await invoke('message.inbound.attachment.stage',{
+            requestKey:`delivery-stage-${count}-${child.id}`,boxId:box.id,emailId,
+            childId:child.id});
+          assert.equal(stageResult.execution.state,'succeeded',JSON.stringify({stageResult,inboundGets}));
+          const stage=stageResult.execution.output;
+          assert.equal(stage.childId,child.id);
+          assert.equal(stage.staged,true);
+        }
+        const staged=success(await invoke('message.inbound.status',{boxId:box.id,emailId})).snapshot;
+        assert.equal(staged.stagedChildIds.length,count);
+        const stageGets=inboundGets;
+        const published=success(await invoke('message.inbound.import',{
+          requestKey:`delivery-import-${count}`,boxId:box.id,emailId})).message;
+        assert.equal(published.direction,'inbound');
+        assert.equal(inboundGets,stageGets,'import must use the frozen snapshot and receipts only');
+        const listed=success(await invoke('message.attachment.list',{
+          boxId:box.id,messageId:published.id,limit:50}));
+        assert.equal(listed.items.length,count);
+        assert.equal(listed.nextCursor,null);
+        assert.equal(new Set(listed.items.map(item=>item.fileId)).size,count);
+        const replay=success(await invoke('message.inbound.import',{
+          requestKey:`delivery-import-replay-${count}`,boxId:box.id,emailId})).message;
+        assert.equal(replay.id,published.id);
+        assert.equal(inboundGets,stageGets);
+        assert.ok(stageGets-beforeGets>=1+2*count);
+      }
+      const secondBox=success(await invoke('box.create',{requestKey:'delivery-second-box',
+        name:'Réception bis',address:'sender@example.invalid'})).box;
+      const secondSnapshot=success(await invoke('message.inbound.prepare',{
+        requestKey:'delivery-second-box-prepare',boxId:secondBox.id,
+        emailId:'received-proof-1'})).snapshot;
+      assert.equal(secondSnapshot.attachments.length,1);
+      const secondStage=success(await invoke('message.inbound.attachment.stage',{
+        requestKey:'delivery-second-box-stage',boxId:secondBox.id,
+        emailId:'received-proof-1',childId:'child-0'}));
+      const firstLink=success(await invoke('message.attachment.list',{
+        boxId:box.id,messageId:secondSnapshot.id,limit:50})).items[0];
+      assert.notEqual(secondStage.fileId,firstLink.fileId,
+        'the same received email and child in another box must have a distinct R2 identity');
+      const secondMessage=success(await invoke('message.inbound.import',{
+        requestKey:'delivery-second-box-import',boxId:secondBox.id,
+        emailId:'received-proof-1'})).message;
+      const secondLink=success(await invoke('message.attachment.list',{
+        boxId:secondBox.id,messageId:secondMessage.id,limit:50})).items[0];
+      assert.equal(secondLink.fileId,secondStage.fileId);
+      assert.notEqual(secondLink.fileId,firstLink.fileId);
+      const receiptTable=schemas['creezio.messaging'].tables.inbound_stage_receipt;
+      const attachmentTable=schemas['creezio.messaging'].tables.message_attachment;
+      const prepareFixture=async(emailId,count)=>{
+        receivedFixtures.set(emailId,{count});
+        await db.prepare(`INSERT INTO "${eventTable}" (context_id,id,connection_id,event_type,email_id,
+          body_digest,occurred_at,received_at) VALUES(?,?,?,?,?,?,?,?)`).bind('application',
+          `evt-${emailId}`,'connection-proof','email.received',emailId,
+          'd'.repeat(64),'2026-09-30T02:00:00.000Z','2026-09-30T02:00:01.000Z').run();
+        const snapshot=success(await invoke('message.inbound.prepare',{
+          requestKey:`prepare-${emailId}`,boxId:box.id,emailId})).snapshot;
+        for(const child of snapshot.attachments)success(await invoke('message.inbound.attachment.stage',{
+          requestKey:`stage-${emailId}-${child.id}`,boxId:box.id,emailId,childId:child.id}));
+        return snapshot;
+      };
+      let raceMode=null;
+      const inboundRaceEngine=createOperationEngine({...engineOptions,registry:registry({
+        'creezio.messaging:message.inbound.import':async(value,context)=>{
+          const result=await messagingHandlers.messageInboundImport(value,context);
+          if(raceMode?.kind==='extra')await db.prepare(`INSERT INTO "${receiptTable}"
+            (context_id,owner_id,box_id,snapshot_id,child_id,file_id,filename,content_type,
+              byte_size,digest,intent_id,generation,created_at)
+            SELECT context_id,owner_id,box_id,snapshot_id,'unexpected-child',?,filename,content_type,
+              byte_size,digest,intent_id,generation,created_at FROM "${receiptTable}"
+            WHERE snapshot_id=? LIMIT 1`).bind(`f1_${'d'.repeat(64)}`,raceMode.snapshotId).run();
+          if(raceMode?.kind==='substitute')await db.prepare(`UPDATE "${receiptTable}"
+            SET filename='substituted.txt' WHERE snapshot_id=?`).bind(raceMode.snapshotId).run();
+          if(raceMode?.kind==='remove')await db.prepare(`DELETE FROM "${receiptTable}"
+            WHERE snapshot_id=?`).bind(raceMode.snapshotId).run();
+          return result;
+        }})});
+      for(const kind of ['extra','substitute','remove']){
+        const emailId=`received-race-${kind}`,snapshot=await prepareFixture(emailId,1);
+        raceMode={kind,snapshotId:snapshot.id};
+        let failed=null,commitError=null;
+        try{failed=await invoke('message.inbound.import',{
+          requestKey:`import-race-${kind}`,boxId:box.id,emailId},inboundRaceEngine);}
+        catch(error){commitError=error;}
+        raceMode=null;
+        assert.ok(commitError||failed?.execution.state!=='succeeded',JSON.stringify(failed));
+        assert.equal(await db.prepare(`SELECT COUNT(*) AS n FROM "${messageTable}" WHERE id=?`)
+          .bind(snapshot.id).first().then(row=>row.n),0);
+        assert.equal(await db.prepare(`SELECT COUNT(*) AS n FROM "${attachmentTable}" WHERE message_id=?`)
+          .bind(snapshot.id).first().then(row=>row.n),0);
+      }
+      for(const kind of ['revision','secret']){
+        const emailId=`received-stale-${kind}`,snapshot=await prepareFixture(emailId,0);
+        if(kind==='revision')await db.prepare(`UPDATE "${resendTable}" SET revision=revision+1
+          WHERE context_id='application' AND id='resend.api.v1'`).run();
+        else await db.prepare(`UPDATE "${secretTable}" SET state='revoked'
+          WHERE context_id='application' AND id=?`).bind(reference).run();
+        const failed=await invoke('message.inbound.import',{
+          requestKey:`import-stale-${kind}`,boxId:box.id,emailId});
+        assert.equal(failed.execution.state,'failed',JSON.stringify(failed));
+        assert.equal(await db.prepare(`SELECT COUNT(*) AS n FROM "${messageTable}" WHERE id=?`)
+          .bind(snapshot.id).first().then(row=>row.n),0);
+        if(kind==='revision')await db.prepare(`UPDATE "${resendTable}" SET revision=4
+          WHERE context_id='application' AND id='resend.api.v1'`).run();
+        else await db.prepare(`UPDATE "${secretTable}" SET state='active'
+          WHERE context_id='application' AND id=?`).bind(reference).run();
+      }
       const deliveryReplay=await dispatch();
       assert.equal(deliveryReplay.replayed,true);assert.equal(calls,1);
       const secondDraft=success(await invoke('draft.create',{requestKey:'delivery-draft-two',boxId:box.id})).draft;

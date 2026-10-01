@@ -463,7 +463,7 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
         <button type="button" className={button} onClick={()=>changeTab('navigation')}>Navigation</button>
         <button type="button" className={button} onClick={()=>changeTab('sidebar')}>Sidebar</button></div></header>
     <p className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
-      La publication met à jour le snapshot applicatif. La lecture anonyme sur le Site et les médias publics attendent un port d’hébergement contrôlé.</p>
+      Publier enregistre une version de la page. Avec « Accès public sans connexion », cette version et les images qu’elle utilise sont visibles sans connexion ; sinon, elles restent réservées aux lecteurs autorisés.</p>
     {notice&&<p role="status" className="rounded-md border border-sky-200 bg-sky-50 p-2 text-sm">{notice}</p>}
     {pending&&<div role="status" className="flex items-center gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
       <p>Une action attend sa confirmation. Les nouvelles modifications sont suspendues.</p>
@@ -541,8 +541,8 @@ export function PagesNavigationAdminView(props:RuntimeViewProps){
             {id:crypto.randomUUID(),kind:newKind,position:edited.sections.length,enabled:true,content:{...defaults[newKind]}}]})}>
             <Plus size={14}/> Section</button></div>
         <section className={`${card} space-y-2`}><h3 className="font-semibold">Médias privés</h3>
-          <p className="text-xs text-slate-600">Téléversement R2 privé. Sélectionnez les images dans les champs existants ;
-            Jusqu’à cinq images différentes par page publiée. Aucun lien public n’est généré.</p>
+          <p className="text-xs text-slate-600">Vos fichiers restent privés. Sélectionnez les images dans les champs de la page ;
+            jusqu’à cinq images différentes peuvent apparaître dans une page publiée. Seules les images utilisées par une page avec accès public sont visibles sans connexion.</p>
           <label className={button}><ImagePlus size={14}/> Joindre un média<input hidden type="file" accept="image/png,image/jpeg,image/webp"
             disabled={busy||dirty} onChange={event=>void uploadMedia(event)}/></label>
           {media.map(item=><div key={item.fileId} className="flex items-center gap-2 text-sm"><span className="flex-1 truncate">{item.filename}

@@ -14,6 +14,7 @@ export interface FreezeLinksInput {
   readonly attachments:readonly Readonly<StagedFileReference & {
     filename:string;contentType:string;byteSize:number}>[];
 }
+export interface BatchPublicationInput extends FreezeLinksInput {}
 const name=(value:string)=>/^[a-z][a-z0-9_]*$/u.test(value)?`"${value}"`:(()=>{throw new FileError('invalid_input')})();
 const modelName=(value:string)=>/^[A-Za-z_][A-Za-z0-9_]*$/u.test(value)?`"${value}"`:(()=>{throw new FileError('invalid_mapping')})();
 const guard=(sql:string,bindings:(string|number|null)[]):SqlStatement=>({sql:
@@ -21,7 +22,9 @@ const guard=(sql:string,bindings:(string|number|null)[]):SqlStatement=>({sql:
 
 /** Host-owned bulk link guard. SQL identifiers come only from the compiled catalog. */
 export async function prepareFrozenLinks(options:{data:DataAccess;catalog:RuntimeDataCatalog;lease:DataLease;
-  moduleId:string;category:FileCategory;bucket:FileBucket;input:FreezeLinksInput}):Promise<readonly SqlStatement[]>{
+  moduleId:string;category:FileCategory;bucket:FileBucket;input:FreezeLinksInput;
+  publishStaged?:boolean;connectionGuard?:Readonly<{condition:string;
+    bindings:readonly (string|number|null)[]}>}):Promise<readonly SqlStatement[]>{
   const {data,catalog,lease,moduleId,category,input}=options;
   const identity=data.describeLease(lease);
   const installed=catalog.modules.find(item=>item.moduleId===moduleId&&item.enabled);
@@ -58,8 +61,11 @@ export async function prepareFrozenLinks(options:{data:DataAccess;catalog:Runtim
       ||typeof item.contentType!=='string'||!Number.isSafeInteger(item.byteSize)
       ||item.byteSize<0||(total+=item.byteSize)>10*1024*1024)throw new FileError('invalid_input');
     fileIds.add(item.fileId);
-    const file=await service.readPrivate(lease,{fileId:item.fileId,intentId:item.intentId,
-      generation:item.generation,digest:item.digest});
+    const file=options.publishStaged
+      ?await service.verifyStaged(lease,{fileId:item.fileId,intentId:item.intentId,
+        generation:item.generation,digest:item.digest})
+      :await service.readPrivate(lease,{fileId:item.fileId,intentId:item.intentId,
+        generation:item.generation,digest:item.digest});
     if(file.filename!==item.filename||file.contentType!==item.contentType||file.byteSize!==item.byteSize)
       throw new FileError('conflict');
   }
@@ -75,17 +81,24 @@ export async function prepareFrozenLinks(options:{data:DataAccess;catalog:Runtim
   const expectedMatch=[['fileId',m.id],['filename',m.filename],['contentType',m.contentType],
     ['byteSize',m.byteSize],['digest',m.digest],['intentId',m.intentId],
     ['generation',m.generation]].map(([jsonField,column])=>`s.${name(column)}=${j(jsonField)}`).join(' AND ');
-  const sourceExact=guard(`(SELECT COUNT(*) FROM ${sourceTable} s WHERE ${sourceWhere})=json_array_length(?)
+  const sourceCondition=`(SELECT COUNT(*) FROM ${sourceTable} s WHERE ${sourceWhere})=json_array_length(?)
     AND NOT EXISTS(SELECT 1 FROM json_each(?) e LEFT JOIN ${sourceTable} s ON ${sourceWhere}
-      AND ${expectedMatch} WHERE s.${name(m.id)} IS NULL)`,
-    [...sourceBindings,refs,refs,...sourceBindings]);
+      AND ${expectedMatch} WHERE s.${name(m.id)} IS NULL)`;
+  const sourceGuardBindings=[...sourceBindings,refs,refs,...sourceBindings];
   const metadataMatch=[`f.${name(category.contextField)}=?`,`f.${name(category.ownerField)}=?`,
-    `f.${name(m.id)}=${j('fileId')}`,`f.${name(m.state)}='available'`,
+    `f.${name(m.id)}=${j('fileId')}`,
+    options.publishStaged?`f.${name(m.state)} IN ('staged','available')`:`f.${name(m.state)}='available'`,
     ...[['digest',m.digest],['byteSize',m.byteSize],['filename',m.filename],
       ['contentType',m.contentType],['intentId',m.intentId],['generation',m.generation]]
       .map(([jsonField,column])=>`f.${name(column)}=${j(jsonField)}`)].join(' AND ');
-  const metadataExact=guard(`NOT EXISTS(SELECT 1 FROM json_each(?) e LEFT JOIN ${metadataTable} f
-    ON ${metadataMatch} WHERE f.${name(m.id)} IS NULL)`,[refs,identity.contextId,ownerId]);
+  const metadataCondition=`NOT EXISTS(SELECT 1 FROM json_each(?) e LEFT JOIN ${metadataTable} f
+    ON ${metadataMatch} WHERE f.${name(m.id)} IS NULL)`;
+  const metadataBindings=[refs,identity.contextId,ownerId];
+  const sourceExact=guard(options.publishStaged?`(${sourceCondition}) AND (${metadataCondition})
+    AND (${options.connectionGuard?.condition??'0'})`
+    :sourceCondition,options.publishStaged?[...sourceGuardBindings,...metadataBindings,
+      ...(options.connectionGuard?.bindings??[])]:sourceGuardBindings);
+  const metadataExact=guard(metadataCondition,metadataBindings);
   const destinationColumns=[contextField,'owner_id',...destinationKeys,...common,'created_at'];
   const selected=destinationColumns.map(field=>field===contextField?'?':field==='owner_id'?'?'
     :destinationKeys.includes(field)?'?':field==='created_at'?"strftime('%Y-%m-%dT%H:%M:%fZ','now')"
@@ -94,5 +107,11 @@ export async function prepareFrozenLinks(options:{data:DataAccess;catalog:Runtim
     SELECT ${selected.join(',')} FROM ${sourceTable} s WHERE ${sourceWhere}`,
     bindings:[identity.contextId,identity.principalId,
       ...destinationKeys.map(field=>input.destinationScope[field]),...sourceBindings]};
-  return Object.freeze([sourceExact,metadataExact,insert]);
+  if(!options.publishStaged)return Object.freeze([sourceExact,metadataExact,insert]);
+  const transition:SqlStatement={sql:`UPDATE ${metadataTable} SET ${name(m.state)}='available',
+    ${name(m.version)}=${name(m.version)}+1 WHERE ${name(category.contextField)}=?
+    AND ${name(category.ownerField)}=? AND ${name(m.state)}='staged'
+    AND ${name(m.id)} IN (SELECT ${j('fileId')} FROM json_each(?) e)`,
+    bindings:[identity.contextId,ownerId,refs]};
+  return Object.freeze([sourceExact,transition,insert]);
 }

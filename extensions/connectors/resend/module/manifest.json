@@ -5,11 +5,11 @@
     "title": "Connecteur Resend",
     "publisher": "creezio",
     "origin": "https://github.com/creezio/Creezio-D1R2",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "source": {
       "kind": "snapshot",
-      "revision": "t29-resend-config-v1",
-      "integrity": "sha256-93d7fe7d2f5b5312689dc25161a75ca57556cfc1d4eee4e54a953511f48623fd"
+      "revision": "t29-resend-inbound-v2",
+      "integrity": "sha256-83eae3112f4a0294c85acdaaaa2f20abd0bef32a5cda24c3d6f40cbd352f74be"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -18,7 +18,7 @@
   },
   "compatibility": {
     "core": "^0.0.0",
-    "sdk": "^1.8.0",
+    "sdk": "^1.9.0",
     "requiredCapabilities": [
       "runtime.worker",
       "data.d1.shared"
@@ -430,7 +430,7 @@
             "emailId": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 256
+              "maxLength": 128
             }
           },
           "required": [
@@ -447,7 +447,7 @@
             "emailId": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 256
+              "maxLength": 128
             },
             "to": {
               "type": "array",
@@ -484,6 +484,52 @@
               "minLength": 1,
               "maxLength": 40
             },
+            "connectionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "configRevision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "attachments": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "filename": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "contentType": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "byteSize": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10485760
+                  }
+                },
+                "required": [
+                  "id",
+                  "filename",
+                  "contentType",
+                  "byteSize"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 50
+            },
             "attachmentCount": {
               "type": "integer",
               "minimum": 0,
@@ -498,6 +544,9 @@
             "text",
             "html",
             "receivedAt",
+            "connectionId",
+            "configRevision",
+            "attachments",
             "attachmentCount"
           ],
           "additionalProperties": false
@@ -1137,7 +1186,8 @@
             "secretVersion": "secret_version",
             "enabled": "enabled",
             "revision": "revision",
-            "updatedAt": "updated_at"
+            "updatedAt": "updated_at",
+            "connectionId": "connection_id"
           }
         },
         "vault": {
@@ -1260,6 +1310,24 @@
                   "maxBytes": 32000
                 }
               ]
+            }
+          }
+        ],
+        "binaryDownloads": [
+          {
+            "id": "email.received.attachment",
+            "proofOperationId": "received.read",
+            "metadataPath": "/emails/receiving/{parentId}/attachments/{childId}",
+            "cdnOrigin": "https://inbound-cdn.resend.com",
+            "cdnPath": "/{parentId}/attachments/{childId}",
+            "maxBytes": 10485760,
+            "event": {
+              "modelId": "webhook_event",
+              "indexId": "by-email",
+              "connectionField": "connection_id",
+              "parentField": "email_id",
+              "typeField": "event_type",
+              "typeValue": "email.received"
             }
           }
         ]
@@ -3959,8 +4027,8 @@
       }
     },
     "versionBinding": {
-      "moduleVersion": "0.1.0",
-      "sourceRevision": "t29-resend-config-v1"
+      "moduleVersion": "0.2.0",
+      "sourceRevision": "t29-resend-inbound-v2"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -4085,8 +4153,8 @@
     },
     "validationBinding": {
       "moduleId": "creezio.resend",
-      "moduleVersion": "0.1.0",
-      "sourceRevision": "t29-resend-config-v1"
+      "moduleVersion": "0.2.0",
+      "sourceRevision": "t29-resend-inbound-v2"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",
