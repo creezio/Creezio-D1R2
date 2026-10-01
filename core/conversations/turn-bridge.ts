@@ -467,6 +467,13 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
                 {state:'running'});
               current=(await store.readDelivery(lease,{executionId:delivery.executionId,outboxId:delivery.id}))!;
             }
+            // A known receipt can already be terminal. Read it before opening a
+            // potentially long stream, while the request's bounded signal is live.
+            if(request.signal.aborted)throw new OperationError('timeout');
+            const prior=await transport.status(known.providerReference,request.signal);
+            if(request.signal.aborted)throw new OperationError('timeout');
+            if(await reconcileSnapshot(prior))return true;
+            if(request.signal.aborted)throw new OperationError('timeout');
             events=transport.resume(known.providerReference,known.cursor,request.signal);
           }
           else{
@@ -597,7 +604,12 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
           }
           const handle=receipt(current);
           if(!handle)return null;
-          return reconcileSnapshot(await transport.status(handle.providerReference,request.signal));
+          // The drive deadline also aborts the provider port. A status request with
+          // that same signal cannot reconcile anything; keep the durable unknown.
+          if(request.signal.aborted)throw new OperationError('timeout');
+          const finalSnapshot=await transport.status(handle.providerReference,request.signal);
+          if(request.signal.aborted)throw new OperationError('timeout');
+          return reconcileSnapshot(finalSnapshot);
         });
         if(result===null){
           // The provider remains active. A later client drive resumes by the durable cursor after claim expiry.

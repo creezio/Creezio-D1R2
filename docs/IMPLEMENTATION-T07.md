@@ -1,5 +1,9 @@
 # Workspace et conservation des onglets — T-07
 
+## Aperçu de rétention Analytics — complément en qualification
+
+Sur Original Sites v4, l'ouverture de `admin.retention.preview` par le compte ayant `analytics:read` mais pas `manage-retention` renvoie 403 `forbidden`. La session et la projection restent 200, mais le garde hôte déclenchait une revalidation globale qui fermait les onglets. Le correctif ajoute uniquement cette lecture à la liste des refus facultatifs. Les commandes de configuration/purge, les refus 401 et les refus du suivi d'opération conservent leurs contrôles. Les deux tests ciblés du garde passent ; la recette du correctif livré reste requise. Aucun changement de droits, de collecte, de données ou d'interface n'est ajouté.
+
 ## Refus facultatifs et onglets — correctif candidat du 1er octobre 2026
 
 Sur le Worker Cloudflare `9ce856c`, un compte autorisé à utiliser Conversations mais privé des permissions Analytics et Sidebar recevait des 403 sur leurs lectures facultatives. Le client hôte les assimilait à une révocation globale : projection retirée, onglets fermés et mêmes lectures relancées après revalidation. L'observation navigateur est conservée dans `CREEZIO-CF-WORKSPACE-PANEL-OBSERVATION-2026-10-01.json`, avec déconnexion 200 puis session 401.

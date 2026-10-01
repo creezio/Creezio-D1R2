@@ -169,7 +169,7 @@ test('client drive persists one confirmed assistant and never recreates an unkno
           yield {cursor:1,kind:'function_call',callId:'call_resumed_tool',name:'t_not_advertised',arguments:{}};
           yield {cursor:2,kind:'terminal',state:'succeeded'};
         },
-        async status(){throw new Error('status unavailable');},
+        async status(){return {responseId:'resp_resumed_tool',state:'running',cursor:null,events:[]};},
         async cancel(){throw new Error('Unexpected cancel');}
       },'model-a')}});
     const resumedRequest={...driveRequest,conversationId:resumedConversationId,turnId:resumedTurnId};
@@ -544,6 +544,124 @@ test('client drive persists one confirmed assistant and never recreates an unkno
       turnId:ackRequest.turnId,limit:50,afterSequence:0});
     assert.deepEqual(ackEvents.execution.output.items.filter(item=>item.kind==='text_delta')
       .map(item=>item.payload.text),['A'.repeat(512),'B']);
+
+    const statusTerminalRequest=await newTurn('known-terminal-status');
+    let terminalCreates=0,terminalStatuses=0,terminalResumes=0;
+    const statusTerminalBridge=createTurnBridge({engine,db,catalog,permissions,registry:reg,toolCatalog:[],
+      provider:{withTransport:async(_request,callback)=>callback({
+        async create(){terminalCreates++;return {receipt:{responseId:'resp_status_terminal',cursor:0},
+          events:(async function*(){throw new Error('stream interrupted');})()};},
+        async status(responseId,signal){terminalStatuses++;
+          assert.equal(responseId,'resp_status_terminal');assert.equal(signal.aborted,false);
+          return terminalStatuses===1
+            ?{responseId,state:'running',cursor:null,events:[]}
+            :{responseId,state:'succeeded',cursor:null,events:[
+              {cursor:0,kind:'text_delta',text:'Recovered without a second create'},
+              {cursor:0,kind:'terminal',state:'succeeded'}]};},
+        async *resume(){terminalResumes++;throw new Error('Unexpected resume');}
+      },'model-a')}});
+    assert.equal((await statusTerminalBridge.drive(statusTerminalRequest)).turn.state,'unknown');
+    assert.equal((await statusTerminalBridge.drive(statusTerminalRequest)).turn.state,'succeeded');
+    assert.deepEqual([terminalCreates,terminalStatuses,terminalResumes],[1,2,0]);
+    const terminalMessages=await invoke('message.list',{conversationId:statusTerminalRequest.conversationId,limit:50});
+    assert.equal(terminalMessages.execution.output.items.filter(item=>item.role==='assistant').length,1);
+    assert.equal(terminalMessages.execution.output.items.find(item=>item.role==='assistant').body,
+      'Recovered without a second create');
+
+    const statusRunningRequest=await newTurn('known-running-status');
+    let runningCreates=0,runningStatuses=0,runningResumes=0;
+    const statusRunningBridge=createTurnBridge({engine,db,catalog,permissions,registry:reg,toolCatalog:[],
+      provider:{withTransport:async(_request,callback)=>callback({
+        async create(){runningCreates++;return {receipt:{responseId:'resp_status_running',cursor:0},
+          events:(async function*(){throw new Error('stream interrupted');})()};},
+        async status(responseId){runningStatuses++;
+          return {responseId,state:'running',cursor:null,events:[]};},
+        async *resume(responseId,afterCursor,signal){runningResumes++;
+          assert.equal(responseId,'resp_status_running');assert.equal(afterCursor,0);
+          assert.equal(signal.aborted,false);
+          yield {cursor:1,kind:'text_delta',text:'Resumed'};
+          yield {cursor:2,kind:'terminal',state:'succeeded'};}
+      },'model-a')}});
+    assert.equal((await statusRunningBridge.drive(statusRunningRequest)).turn.state,'unknown');
+    assert.equal((await statusRunningBridge.drive(statusRunningRequest)).turn.state,'succeeded');
+    assert.deepEqual([runningCreates,runningStatuses,runningResumes],[1,2,1]);
+
+    const statusAbortRequest=await newTurn('known-aborted-stream');
+    const abortController=new AbortController();
+    let abortCreates=0,abortStatuses=0,abortResumes=0;
+    const statusAbortBridge=createTurnBridge({engine,db,catalog,permissions,registry:reg,toolCatalog:[],
+      provider:{withTransport:async(_request,callback)=>callback({
+        async create(){abortCreates++;return {receipt:{responseId:'resp_status_abort',cursor:0},
+          events:(async function*(){throw new Error('stream interrupted');})()};},
+        async status(responseId,signal){abortStatuses++;
+          assert.equal(signal.aborted,false);return {responseId,state:'running',cursor:null,events:[]};},
+        async *resume(){abortResumes++;abortController.abort();
+          yield {cursor:1,kind:'text_delta',text:'Must remain uncommitted'};}
+      },'model-a')}});
+    assert.equal((await statusAbortBridge.drive({...statusAbortRequest,
+      signal:abortController.signal})).turn.state,'unknown');
+    assert.equal((await statusAbortBridge.drive({...statusAbortRequest,
+      signal:abortController.signal})).turn.state,'unknown');
+    assert.deepEqual([abortCreates,abortStatuses,abortResumes],[1,2,1]);
+    const abortMessages=await invoke('message.list',{conversationId:statusAbortRequest.conversationId,limit:50});
+    assert.equal(abortMessages.execution.output.items.some(item=>item.role==='assistant'),false);
+
+    const expiredRequest=await newTurn('known-expired-status');
+    let expiredCreates=0,expiredStatuses=0,expiredResumes=0;
+    const expiredBridge=createTurnBridge({engine,db,catalog,permissions,registry:reg,toolCatalog:[],
+      provider:{withTransport:async(_request,callback)=>callback({
+        async create(){expiredCreates++;return {receipt:{responseId:'resp_status_expired',cursor:0},
+          events:(async function*(){throw new Error('stream interrupted');})()};},
+        async status(responseId){expiredStatuses++;
+          if(expiredStatuses===2)throw new Error('provider response unavailable (404)');
+          return {responseId,state:'running',cursor:null,events:[]};},
+        async *resume(){expiredResumes++;throw new Error('Unexpected resume');}
+      },'model-a')}});
+    assert.equal((await expiredBridge.drive(expiredRequest)).turn.state,'unknown');
+    assert.equal((await expiredBridge.drive(expiredRequest)).turn.state,'unknown');
+    assert.deepEqual([expiredCreates,expiredStatuses,expiredResumes],[1,2,0]);
+    const expiredMessages=await invoke('message.list',{conversationId:expiredRequest.conversationId,limit:50});
+    assert.equal(expiredMessages.execution.output.items.some(item=>item.role==='assistant'),false);
+
+    const preAbortedRequest=await newTurn('known-pre-aborted');
+    const preAbortedController=new AbortController();
+    let preAbortedCreates=0,preAbortedStatuses=0,preAbortedResumes=0;
+    const preAbortedBridge=createTurnBridge({engine,db,catalog,permissions,registry:reg,toolCatalog:[],
+      provider:{withTransport:async(_request,callback)=>callback({
+        async create(){preAbortedCreates++;return {receipt:{responseId:'resp_pre_aborted',cursor:0},
+          events:(async function*(){throw new Error('stream interrupted');})()};},
+        async status(responseId){preAbortedStatuses++;
+          return {responseId,state:'running',cursor:null,events:[]};},
+        async *resume(){preAbortedResumes++;throw new Error('Unexpected resume');}
+      },'model-a')}});
+    assert.equal((await preAbortedBridge.drive(preAbortedRequest)).turn.state,'unknown');
+    preAbortedController.abort();
+    assert.equal((await preAbortedBridge.drive({...preAbortedRequest,
+      signal:preAbortedController.signal})).turn.state,'unknown');
+    assert.deepEqual([preAbortedCreates,preAbortedStatuses,preAbortedResumes],[1,1,0]);
+
+    const lateTerminalRequest=await newTurn('known-late-terminal');
+    const lateTerminalController=new AbortController();
+    let lateTerminalCreates=0,lateTerminalStatuses=0,lateTerminalResumes=0;
+    const lateTerminalBridge=createTurnBridge({engine,db,catalog,permissions,registry:reg,toolCatalog:[],
+      provider:{withTransport:async(_request,callback)=>callback({
+        async create(){lateTerminalCreates++;return {receipt:{responseId:'resp_late_terminal',cursor:0},
+          events:(async function*(){throw new Error('stream interrupted');})()};},
+        async status(responseId){lateTerminalStatuses++;
+          if(lateTerminalStatuses===1)return {responseId,state:'running',cursor:null,events:[]};
+          lateTerminalController.abort();
+          return {responseId,state:'succeeded',cursor:null,events:[
+            {cursor:0,kind:'text_delta',text:'Too late'},
+            {cursor:0,kind:'terminal',state:'succeeded'}]};},
+        async *resume(){lateTerminalResumes++;throw new Error('Unexpected resume');}
+      },'model-a')}});
+    assert.equal((await lateTerminalBridge.drive(lateTerminalRequest)).turn.state,'unknown');
+    assert.equal((await lateTerminalBridge.drive({...lateTerminalRequest,
+      signal:lateTerminalController.signal})).turn.state,'unknown');
+    assert.deepEqual([lateTerminalCreates,lateTerminalStatuses,lateTerminalResumes],[1,2,0]);
+    const lateTerminalMessages=await invoke('message.list',{
+      conversationId:lateTerminalRequest.conversationId,limit:50});
+    assert.equal(lateTerminalMessages.execution.output.items.some(item=>item.role==='assistant'),false);
 
     const betweenRequest=await newTurn('cancel-between-flushes');
     let betweenCancels=0;

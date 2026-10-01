@@ -1,5 +1,20 @@
 # Changelog
 
+## Correctif T07/T22 — refus de l'aperçu de rétention
+
+- L'ouverture de l'aperçu de rétention avec le seul droit de lecture Analytics renvoyait un 403 et fermait les onglets du workspace. La recette Sites confirme que session et projection restaient valides. Ce refus reste désormais dans le panneau concerné ; les commandes, les 401 et les refus de session conservent leur traitement.
+- Les deux tests ciblés du garde passent. La correction rejoint la PR #90 pour une livraison groupée ; aucun droit de gestion de rétention, activation de collecte ou purge n'est ajouté. La vérification de l'interface après livraison reste requise.
+
+## Correctif T15 — statut d'une réponse connue avant reprise du flux
+
+- La reprise d'un tour possédant déjà un reçu OpenAI lit d'abord son statut : une réponse terminée peut être confirmée sans rouvrir un flux long. Une réponse encore active reprend le même flux ; aucune seconde création n'est émise.
+- Le délai et l'annulation restent applicables avant et après la lecture. Un résultat arrivé après expiration, ou un reçu devenu indisponible, conserve l'état inconnu. Les six scénarios ciblés passent dans la suite du pont ; CI et livraison restent à qualifier. L'ancien tour Original n'est pas déclaré récupéré.
+
+## 1er octobre 2026 — PR #89 et recettes Sites
+
+- PR #89 est intégrée sur `8d723ce`, avec 1 472 tests dans chacune des CI candidate et main, puis livrée sur Linux avec le même volume et sans DDL. L'isolation T33 reste à qualifier séparément.
+- Lab Sites v4 sert le correctif widget depuis `7c6dc10` : lecture directe, contexte, message préparé et conservation après rechargement sont vérifiés ; l'API confirme la demande à 42,50 € et son fichier inchangés. Un premier mauvais choix d'outil par le modèle reste documenté. Sur Original Sites, Catalogue et connexions Meili/Stripe sont vérifiés ; indexation et webhook restent distincts.
+
 ## Correctif candidat T33 — provenance de l’installation conservée
 
 - Après une adoption centrale de schéma sans DDL, l’inspection reconnaît les routes passées du journal d’installation au journal de schéma. Elle vérifie la chaîne complète par pages, les identités D1/R2 et le reçu courant ; un cutover fermé doit être repris par la commande de schéma.
