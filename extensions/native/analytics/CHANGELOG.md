@@ -1,5 +1,9 @@
 # Changelog
 
+## Non publié — deux actions de clic explicites
+
+Le bouton Actualiser du workspace Analytique porte `analytics.refresh` et la carte produit du front Catalogue porte `catalog.product.open`. Ces identifiants statiques alimentent la collecte de clics déjà désactivée par défaut ; aucun produit, texte de composant ou argument n'entre dans `actionId`. Le test client vérifie les attributs JSX des deux boutons puis le refus à politique désactivée et l'émission après activation. Recette navigateur hébergée encore ouverte.
+
 ## 0.0.0 — T22 collecte optionnelle et refus avant moteur
 
 - Politique d’installation désactivée par défaut, avec interrupteurs indépendants navigation, clics et refus ; configuration administrateur protégée par `analytics.configure` et révision D1.

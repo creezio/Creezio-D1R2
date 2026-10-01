@@ -260,7 +260,8 @@ export function AnalyticsAdminView(props:RuntimeViewProps){
       <div className="flex flex-wrap items-center gap-2"><label className="flex items-center gap-1.5 text-xs text-slate-600">
         <input type="checkbox" checked={autoRefresh} onChange={event=>setAutoRefresh(event.target.checked)}
           className="rounded border-slate-300"/>Auto-refresh</label>
-        <button className={button} type="button" onClick={()=>void refresh()} disabled={busy}>
+        <button className={button} type="button" data-creezio-analytics-id="analytics.refresh"
+          onClick={()=>void refresh()} disabled={busy}>
           <RefreshCw className={`h-3.5 w-3.5 ${busy?'animate-spin':''}`}/>Actualiser</button>
         <button className={`${button} text-rose-600`} type="button" aria-expanded={retentionOpen}
           onClick={()=>setRetentionOpen(value=>!value)}>

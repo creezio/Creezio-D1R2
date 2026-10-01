@@ -1,5 +1,11 @@
 # T22 — Analytics et diagnostics
 
+## Actions d'interface déclarées — candidate du 1er octobre
+
+Le bouton Actualiser du workspace Analytics déclare `analytics.refresh` et l'ouverture d'une fiche du front Catalogue déclare `catalog.product.open`. Le collecteur commun utilise ces identifiants statiques seulement quand la politique de collecte des clics est activée. La charge ne contient ni libellé, ni identifiant produit, ni prix ; elle utilise la route déclarée et l'audience de la vue. Les handlers, le rendu et la navigation existants restent inchangés.
+
+Le test du collecteur lit ces déclarations dans les boutons JSX réels et vérifie le refus d'émission quand la collecte est désactivée, puis la charge autorisée dans les deux audiences. Les deux tests de collecte, les suites Analytics (22 contrôles) et Catalogue (29 contrôles), ainsi que les 39 tests de schéma/composition passent localement. Catalogue devient la candidate 0.1.3, compatible avec le SDK 1.9 public ; aucun nouveau SDK n'est nécessaire. Les six verrous concernés ont été régénérés et vérifiés après la dernière édition. La CI, la livraison et les clics réellement enregistrés depuis un navigateur restent à qualifier ; cette tranche ne couvre pas toutes les actions des autres modules.
+
 ## Intégration PR #81 et recette Linux du 30 septembre
 
 La rétention est intégrée sur Core main `3d4248960f4ff56d9fdf5e956abe26d6e202f174`, CI main 1 428/1 428, puis dans l'image Linux `sha256:caff5af853c3670c43cc9d64f4955af10d7b456c79e28bf9dd2fc286864cf523` avec schéma additif adopté sans remplacer le volume. La vue originale a enregistré une politique de 3 650 jours, révision 1 ; l'aperçu a retourné zéro événement admissible. Aucune purge n'a été exécutée. Le reçu `CREEZIO-T21-T22-LINUX-UI-RECIPE-3D42489-2026-09-30.json` et la capture `CREEZIO-T22-LINUX-RETENTION-CONFIRMED-2026-09-30.png` distinguent ce réglage de la purge et des mesures de productivité. Le navigateur et l'API ont été déconnectés. Instrumentation automatique, refus avant moteur, données anciennes à purger, recette Sites/Cloudflare et Work T17 restent ouverts.

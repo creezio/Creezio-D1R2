@@ -1,4 +1,9 @@
 # Changelog
+## Collecte de clics — candidate Analytics et Catalogue
+
+- Deux boutons existants déclarent des identifiants d'action statiques : Actualiser dans Analytics et ouverture d'une fiche du front Catalogue. Leur collecte reste conditionnée par la politique du contexte, sans contenu métier dans l'événement et sans modification du rendu.
+- Catalogue 0.1.3 et les verrous des six compositions concernées sont préparés. Les tests ciblés passent ; la livraison et la recette navigateur de ces nouveaux clics restent ouvertes.
+
 ## Correctif d'installation — schémas comportant de nombreux modules
 
 - Les contrôles de vacuité de l'installateur utilisent une conjonction équilibrée. Le profil connecteurs à 114 tables peut être inspecté et installer son premier compte dans D1 sans dépasser la profondeur d'expression du moteur ; les gardes atomiques de schéma, reçu et données sont conservées.

@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 
 const root=new URL('../',import.meta.url);
 const template=JSON.parse(readFileSync(new URL('module/manifest.json',root),'utf8'));
-const id='creezio.catalog',version='0.1.2',revision='t25-catalog-v3';
+const id='creezio.catalog',version='0.1.3',revision='t25-catalog-v4';
 const ref=(kind,name)=>({moduleId:id,kind,id:name});
 const length=(max,min=1)=>({minLength:min,maxLength:max});
 const int=(min=0,max=Number.MAX_SAFE_INTEGER)=>({minimum:min,maximum:max});

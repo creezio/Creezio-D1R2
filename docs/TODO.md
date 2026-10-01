@@ -427,6 +427,8 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 <a id="T-22"></a>
 ## T-22 — Analytics et diagnostics
 
+- Candidate complémentaire du 1er octobre : deux boutons réels du workspace Analytics et du front Catalogue déclarent des actions statiques pour le collecteur commun. Deux tests de collecte, suites Analytics 22/22, Catalogue 29/29 et schéma/composition 39/39 réussis ; six verrous vérifiés. Catalogue 0.1.3 reste candidat. CI, livraison et recette navigateur de ces clics encore ouvertes ; ni instrumentation exhaustive des modules ni productivité Work revendiquée.
+
 - Lot : **P5** ; état : **en cours — rétention intégrée et configurée sur Linux, instrumentation et purge non qualifiées** ; responsable : root avec les agents Sol.
 - Dépendances : [T-11](#T-11), [T-17](#T-17).
 - Travail/livrables : Module analytics, consultation de l’audit, productivité/usage et exports limités.

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3 — témoin de clic front pour T22 (candidat non publié)
+
+La carte produit authentifiée expose l’identifiant statique `catalog.product.open` pour la collecte optionnelle Analytics. Le même identifiant vaut pour toutes les cartes, sans SKU, ID, nom ni prix. Aucun comportement Catalogue, modèle, droit, opération ou port public ne change ; l’activation Analytics reste une décision administrative séparée. La recette navigateur hébergée de ce clic est ouverte.
+
 ## Non publié — identifiant des outils Catalogue
 
 Les schémas et le guide conversationnel précisent qu'une recherche accepte un nom ou SKU, tandis que `product.get.id` attend l'ID interne renvoyé par `product.search.items[].id`. Cette clarification répond au témoin T25 où un SKU passé à `product.get` donnait `not_found` ; les opérations, droits et données restent inchangés.

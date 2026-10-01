@@ -68,7 +68,8 @@ function ProductImage({productId,item,scope,isCurrent,className,gate}:{productId
 function ProductCard({item,onOpen,scope,isCurrent,gate}:{item:ProductSummary;onOpen:()=>void;
   scope:Pick<RuntimeViewProps,'client'|'access'|'audience'|'contextId'>;isCurrent:()=>boolean;
   gate:ImageGate}){
-  return <button type="button" onClick={onOpen} className="overflow-hidden rounded-lg border border-slate-200 bg-white text-left shadow-sm hover:border-indigo-400">
+  return <button type="button" onClick={onOpen} data-creezio-analytics-id="catalog.product.open"
+    className="overflow-hidden rounded-lg border border-slate-200 bg-white text-left shadow-sm hover:border-indigo-400">
     <ProductImage productId={item.id} scope={scope} isCurrent={isCurrent} gate={gate}
       className="flex aspect-square items-center justify-center overflow-hidden bg-slate-100"/>
     <div className="space-y-1 p-3"><p className="text-xs text-slate-500">{item.sku}</p>
