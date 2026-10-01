@@ -540,7 +540,7 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 <a id="T-27"></a>
 ## T-27 — Connecteur Stripe
 
-- Recette Cloudflare du 1er octobre sur Core `9ce856c` : création native d'un Checkout, paiement fictif et relecture `complete`/`paid` acquis ; quatre abonnements préexistants inchangés, refus de signature/droits/prix vérifiés. Le webhook historique reste incertain. Le correctif candidat 0.3.1 passe le chemin signé HTTP→D1 et ses refus locaux ; nouvelle recette distante, déduplication et clôture du test encore ouvertes ; voir [T27](IMPLEMENTATION-T27.md).
+- Recette Cloudflare du 1er octobre : second paiement TEST sur Core `be89116` confirmé `complete`/`paid`, nouvel événement projeté et six abonnements relus dont quatre historiques inchangés ; témoins annulés à échéance et ressources dédiées fermées. L'ancien webhook reste incertain et son reçu demeure intact. Le retour front avec paramètres est corrigé dans cette candidate ; sa livraison et sa recette UI restent ouvertes. Le code HTTP 204 fournisseur n'a pas été observé directement ; voir [T27](IMPLEMENTATION-T27.md).
 
 - Lot : **P5** ; état : **en cours — produits/prix 0.2.0 intégrés, compléments ouverts** ; responsable : root avec les agents Sol.
 - Dépendances : [T-11](#T-11), [T-16](#T-16).

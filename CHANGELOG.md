@@ -1,5 +1,10 @@
 # Changelog
 
+## Correctif du retour vers le front
+
+- Les paramètres de retour Checkout sur la racine n'entraînent plus une fausse vue introuvable. Le front affiche son accueil neutre sans déduire un paiement des paramètres de l'URL.
+- Le nouveau paiement Stripe TEST sur Core be89116 est confirmé, avec nouvel événement et projection des abonnements ; l'ancien webhook incertain conserve sa preuve distincte. La recette du retour corrigé attend sa livraison.
+
 ## Correctif T07/T22 — refus de l'aperçu de rétention
 
 - L'ouverture de l'aperçu de rétention avec le seul droit de lecture Analytics renvoyait un 403 et fermait les onglets du workspace. La recette Sites confirme que session et projection restaient valides. Ce refus reste désormais dans le panneau concerné ; les commandes, les 401 et les refus de session conservent leur traitement.

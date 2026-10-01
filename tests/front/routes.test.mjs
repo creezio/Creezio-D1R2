@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createWorkspaceController,createWorkspaceLocation,resolveWorkspaceLocation} from '../../sdk/workspace/controller.ts';
+import {isFrontHomeUrl} from '../../app/front/home-url.ts';
 
 const digest=`sha256-${'a'.repeat(64)}`;
 const view=(id,route,identityFields=[])=>({id:`example.notes:${id}`,moduleId:'example.notes',
@@ -20,6 +21,18 @@ test('front routes reuse canonical workspace params, query validation and ambigu
   assert.equal(resolveWorkspaceLocation(location.url,views,allowed),null,'workspace does not see front-only routes');
   assert.equal(resolveWorkspaceLocation('/notes/a', [...views,view('duplicate','/notes/{id}')],
     new Set([...allowed,'example.notes:duplicate']),'front'),null);
+});
+
+test('external Checkout query returns to neutral front home without trusting its result',()=>{
+  const returned='/?checkout=success&session_id=cs_test_untrusted';
+  assert.equal(resolveWorkspaceLocation(returned,views,allowed,'front'),null);
+  assert.equal(isFrontHomeUrl(returned),true);
+  assert.equal(isFrontHomeUrl('/?checkout=cancel'),true);
+  assert.equal(isFrontHomeUrl('/?checkout=anything'),true);
+  assert.equal(isFrontHomeUrl('/?session_id=forged'),true);
+  assert.equal(isFrontHomeUrl('/notes?checkout=success'),false);
+  assert.equal(isFrontHomeUrl('/notes/a?section=details'),false);
+  assert.equal(isFrontHomeUrl('//example.test/?checkout=success'),false);
 });
 
 test('retained front panels use the app audience and reject stale projections',()=>{
