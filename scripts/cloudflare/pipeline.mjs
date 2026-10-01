@@ -33,7 +33,7 @@ const stages=['intent','prepared','starting','capturing','captured','built','pre
   'verified','sandbox-ready','publishing','delivery-unknown','opening','delivered'];
 const rank=stage=>stages.indexOf(stage);
 const updateStages=['intent','prepared','building','built','preflight','schema-applying','schema-ready',
-  'publishing','delivery-unknown','rejected','delivered'];
+  'sandbox-publishing','sandbox-ready','publishing','delivery-unknown','rejected','delivered'];
 const updateRank=stage=>updateStages.indexOf(stage);
 const publicationKey=record=>record.publicationAttemptKey??record.updateId;
 const validationRejected=record=>record.publicationFailure?.phase==='wrangler'
@@ -137,7 +137,8 @@ function updateStatusOf(record){
     :['fencing','schema-applying'].includes(cutoverPhase)?'schema-applying'
     :cutoverPhase==='schema-ready'?'schema-ready'
     :['publishing','attesting','opening','open'].includes(cutoverPhase)?'delivery-unknown'
-    :record.stage;
+    :record.stage==='sandbox-publishing'?'delivery-unknown'
+    :record.stage==='sandbox-ready'?'schema-ready':record.stage;
   const failure=record.publicationFailure;
   const diagnostic=Array.isArray(failure?.apiCodes)&&failure.apiCodes.includes(10021)
     &&!failure.validationIssue
@@ -621,6 +622,95 @@ export function createCloudflareDeliveryPipeline(options){
       ||!sameArtifact(current.prior.artifact,record.previousArtifact))fail('deployment_changed',409);
     return current;
   }
+  function sandboxPort(record,selected){
+    return sandboxFactory({target:record.nextTarget??record.target,token:selected.token,
+      controlPlane:selected.control});
+  }
+  function exactSandboxReceipt(receipt,record,transferId){
+    return receipt?.transferId===transferId
+      &&receipt.workerName===`${record.workerName}-widgets`
+      &&receipt.origin===record.target.widgetSandboxOrigin
+      &&receipt.appOrigin===record.target.origin
+      &&/^[a-f0-9]{40}$/.test(receipt.sourceSha??'')
+      &&SHA.test(receipt.artifactDigest??'')
+      &&Number.isSafeInteger(receipt.artifactBytes)&&receipt.artifactBytes>0
+      &&typeof receipt.deploymentId==='string'&&typeof receipt.versionId==='string';
+  }
+  async function previousSandboxReceipt(record,port){
+    let publicationId=record.previousPublicationId,expectedArtifact=record.previousArtifact;
+    const seen=new Set();
+    for(let depth=0;depth<1024;depth++){
+      if(!ID.test(publicationId??'')||seen.has(publicationId))fail('sandbox_lineage_changed',409);
+      seen.add(publicationId);
+      const [initial,updated]=await Promise.all([planJournal.load(publicationId),
+        updateJournal.load(publicationId)]);
+      if(Boolean(initial)===Boolean(updated))fail('sandbox_lineage_changed',409);
+      const prior=initial??updated;
+      if(prior.stage!=='delivered'||prior.owner!==record.owner
+        ||prior.accountId!==record.accountId||prior.workerName!==record.workerName
+        ||prior.target?.origin!==record.target.origin
+        ||prior.target?.widgetSandboxOrigin!==record.target.widgetSandboxOrigin
+        ||!sameArtifact(prior.artifact,expectedArtifact))fail('sandbox_lineage_changed',409);
+      if(initial||updated.sandboxReceipt){
+        const transferId=updated?.sandboxReceipt?.transferId??publicationId;
+        if((updated&&transferId!==publicationId)||
+          updated?.sandboxReceipt&&!exactSandboxReceipt(updated.sandboxReceipt,record,transferId))
+          fail('sandbox_lineage_changed',409);
+        const inspected=await port.inspectSandbox({transferId});
+        if(inspected?.state!=='confirmed'||!exactSandboxReceipt(inspected.receipt,record,transferId)
+          ||updated?.sandboxReceipt&&!same(inspected.receipt,updated.sandboxReceipt))
+          fail('sandbox_unknown',409);
+        return inspected.receipt;
+      }
+      publicationId=updated.previousPublicationId;
+      expectedArtifact=updated.previousArtifact;
+    }
+    fail('sandbox_lineage_changed',409);
+  }
+  async function ensureSandbox(initial,selected){
+    let record=initial;
+    const appOutcomeUnknown=record.stage==='delivery-unknown';
+    const port=sandboxPort(record,selected);
+    if(record.sandboxReceipt){
+      if(!exactSandboxReceipt(record.sandboxReceipt,record,record.updateId)
+        ||record.sandboxReceipt.sourceSha!==record.sourceSha)
+        fail('sandbox_lineage_changed',409);
+      const inspected=await port.inspectSandbox({transferId:record.updateId});
+      if(inspected?.state!=='confirmed'||!same(inspected.receipt,record.sandboxReceipt))
+        fail('sandbox_unknown',409);
+      return {record,ready:true};
+    }
+    if(record.stage==='sandbox-ready')fail('sandbox_lineage_changed',409);
+    if(!record.sandboxPreviousReceipt){
+      const previousReceipt=await previousSandboxReceipt(record,port);
+      record=await saveUpdate(record,{stage:appOutcomeUnknown?'delivery-unknown':'sandbox-publishing',
+        sandboxPreviousReceipt:previousReceipt});
+    }
+    if(!exactSandboxReceipt(record.sandboxPreviousReceipt,record,
+      record.sandboxPreviousReceipt?.transferId))fail('sandbox_lineage_changed',409);
+    const existing=await options.sandboxJournal?.load(record.updateId);
+    if(!existing||existing.stage==='prepared'){
+      const source=identity(config.root);
+      if(source.dirty||source.head!==record.sourceSha)fail('source_changed',409);
+      await assertPrevious(record,selected,await registryPorts());
+    }
+    const result=existing&&existing.stage!=='prepared'
+      ?await port.inspectSandbox({transferId:record.updateId})
+      :await port.publishSandbox({transferId:record.updateId,
+        previousReceipt:record.sandboxPreviousReceipt});
+    if(result?.state!=='confirmed')return {record,ready:false};
+    if(!exactSandboxReceipt(result.receipt,record,record.updateId)
+      ||result.receipt.sourceSha!==record.sourceSha)
+      fail('sandbox_unknown',409);
+    record=await saveUpdate(record,{stage:appOutcomeUnknown?'delivery-unknown':'sandbox-ready',
+      sandboxReceipt:result.receipt});
+    return {record,ready:true};
+  }
+  async function assertSandboxConfirmed(record,selected){
+    if(!record.sandboxReceipt)fail('sandbox_unknown',409);
+    const result=await ensureSandbox(record,selected);
+    if(!result.ready)fail('sandbox_unknown',409);
+  }
   async function updateProjectionFor(record){
     const source=identity(config.root);
     if(source.dirty||source.head!==record.sourceSha||source.sha256!==record.sourceFingerprint)
@@ -959,6 +1049,7 @@ export function createCloudflareDeliveryPipeline(options){
         }catch{return null;}
       },
       async deliver(){
+        await assertSandboxConfirmed(await updateJournal.load(record.updateId),selected);
         await registry.publicationGate.publish(request,publicationKey(record),
           ()=>publisher.deliver({transferId:record.updateId,artifact:record.artifact,
             expectedPreviousVersionId:record.previousVersionId,
@@ -1000,6 +1091,8 @@ export function createCloudflareDeliveryPipeline(options){
     const result=await cutover.advance();
     record=await updateJournal.load(record.updateId);
     if(result.state==='ready'){
+      const sandbox=await ensureSandbox(record,selected);
+      if(!sandbox.ready)return updateStatusOf(record);
       const gate=await registry.publicationJournal.get(publicationKey(record));
       record=await saveUpdate(record,{stage:'delivered',finalUrl:gate.declaration.url});
     }
@@ -1029,8 +1122,11 @@ export function createCloudflareDeliveryPipeline(options){
         ||Date.parse(receipt.expiresAt)<=Date.now())fail('registry_preflight',409);
       record=await saveUpdate(record,{stage:'preflight',initialPreflight:receipt.preflightId});
     }
-    if(record.target.schemaVersion===3)
-      return runRoutedCutover(record,selected,projection,registry,artifactRoot,request);
+    if(record.target.schemaVersion===3){
+      const sandbox=await ensureSandbox(record,selected);
+      if(!sandbox.ready)return updateStatusOf(sandbox.record);
+      return runRoutedCutover(sandbox.record,selected,projection,registry,artifactRoot,request);
+    }
     if(updateRank(record.stage)<updateRank('schema-ready')){
       await assertPrevious(record,selected,registry);
       const db=await updateDatabase(record,selected),observed=await inspectSchema(db,projection.targetPlan);
@@ -1047,6 +1143,12 @@ export function createCloudflareDeliveryPipeline(options){
       const db=await updateDatabase(record,selected),observed=await inspectSchema(db,projection.targetPlan);
       if(observed?.state!=='ready'||observed.receiptId!==record.schemaReceiptId)
         fail('schema_unavailable',409);
+    }
+    const sandbox=await ensureSandbox(record,selected);
+    record=sandbox.record;
+    if(!sandbox.ready)return updateStatusOf(record);
+    if(updateRank(record.stage)<=updateRank('sandbox-ready')){
+      await assertPrevious(record,selected,registry);
       record=await saveUpdate(record,{stage:'publishing'});
     }
     await assertPrevious(record,selected,registry);
@@ -1054,7 +1156,9 @@ export function createCloudflareDeliveryPipeline(options){
       controlPlane:selected.control,artifactRoot});
     let failure=null;
     const outcome=await registry.publicationGate.publish(request,publicationKey(record),
-      async()=>{try{return await publisher.deliver({transferId:record.updateId,artifact:record.artifact,
+      async()=>{try{
+        await assertSandboxConfirmed(await updateJournal.load(record.updateId),selected);
+        return await publisher.deliver({transferId:record.updateId,artifact:record.artifact,
         expectedPreviousVersionId:record.previousVersionId,
         expectedPreviousDeploymentId:record.previousDeploymentId});}
       catch(error){failure=publicationFailure(error);throw error;}});
@@ -1089,9 +1193,13 @@ export function createCloudflareDeliveryPipeline(options){
     if(record.target?.schemaVersion===3)return runUpdate(record);
     const registry=await registryPorts(),gateRecord=await registry.publicationJournal.get(publicationKey(record));
     if(gateRecord){
+      const selected=await connected(record);
+      const sandbox=await ensureSandbox(record,selected);
+      if(!sandbox.ready)return updateStatusOf(sandbox.record);
+      record=sandbox.record;
       let outcome;
       if(gateRecord.state==='prepared'){
-        const selected=await connected(record),publisher=publisherFactory({target:record.target,
+        const publisher=publisherFactory({target:record.target,
           token:selected.token,controlPlane:selected.control,
           artifactRoot:updateArtifactRoot(config.root,record.updateId)});
         let receipt;
@@ -1179,11 +1287,16 @@ export function createCloudflareDeliveryPipeline(options){
       record=await saveUpdate(record,{publicationAttemptKey:nextKey,
         publicationRetryCount:count+1,publicationFailure:null});
     }
+    const sandbox=await ensureSandbox(record,selected);
+    record=sandbox.record;
+    if(!sandbox.ready)return updateStatusOf(record);
     const request={projectId:record.registryProjectId,
       installationId:record.registryInstallationId,target:'cloudflare',artifact:record.artifact};
     let failure=null;
     const outcome=await registry.publicationGate.publish(request,publicationKey(record),
-      async()=>{try{return await publisher.deliverPreservedUpdate({transferId:record.updateId,
+      async()=>{try{
+        await assertSandboxConfirmed(await updateJournal.load(record.updateId),selected);
+        return await publisher.deliverPreservedUpdate({transferId:record.updateId,
         artifact:record.artifact,sourceFingerprint:record.sourceFingerprint,
         expectedPreviousVersionId:record.previousVersionId,
         expectedPreviousDeploymentId:record.previousDeploymentId});}

@@ -61,11 +61,60 @@ function fixture({unknownUpload=false,failedUploadNoRemote=false,rejectedUploadN
   declarationFailsOnce=false,driftAfterBuild=false,
   lostSchemaReplyOnce=false,routedTarget=false,cutoverFactory=null}={}){
   const events=[],planJournal=journal('transferId'),updateJournal=journal('updateId'),
-    gateJournal=publicationJournal();
+    gateJournal=publicationJournal(),sandboxJournal=journal('transferId');
   const initial={schemaVersion:1,revision:1,transferId:'transfer-one',owner:context.principalId,
     stage:'delivered',accountId,workerName,tokenId,target:routedTarget?routed:target,artifact:originalArtifact,
     registryProjectId:'project-one',registryInstallationId:'installation-one'};
   planJournal.records.set(initial.transferId,initial);
+  const initialSandbox={transferId:initial.transferId,workerName:`${workerName}-widgets`,
+    origin:initial.target.widgetSandboxOrigin,appOrigin:initial.target.origin,
+    sourceSha:originalArtifact.sourceSha,artifactDigest:`sha256-${'1'.repeat(64)}`,
+    artifactBytes:512,deploymentId:'sandbox-original',versionId:'sandbox-version-original'};
+  sandboxJournal.records.set(initial.transferId,{schemaVersion:1,revision:1,
+    stage:'confirmed',...initialSandbox});
+  let remoteSandbox=initialSandbox,sandboxUploads=0,pauseSandboxPrepared=false,
+    loseSandboxReply=false;
+  const sandboxReceipt=transferId=>({transferId,workerName:`${workerName}-widgets`,
+    origin:initial.target.widgetSandboxOrigin,appOrigin:initial.target.origin,
+    sourceSha,artifactDigest:`sha256-${(transferId==='update-two'?'2':'3').repeat(64)}`,
+    artifactBytes:513,deploymentId:`sandbox-${transferId}`,
+    versionId:`sandbox-version-${transferId}`});
+  const sandboxFactory=({target:requestedTarget})=>{
+    assert.equal(requestedTarget.widgetSandboxOrigin,initial.target.widgetSandboxOrigin);
+    return {
+      async inspectSandbox({transferId}){
+        events.push(`sandbox-inspect:${transferId}`);
+        const saved=await sandboxJournal.load(transferId);
+        const {schemaVersion,revision,stage,...expected}=saved??{};
+        return saved&&schemaVersion===1&&revision>=1
+          &&['prepared','upload-intent','confirmed'].includes(stage)
+          &&remoteSandbox?.transferId===transferId
+          &&JSON.stringify(remoteSandbox)===JSON.stringify(expected)
+          ?{state:'confirmed',receipt:structuredClone(remoteSandbox)}:{state:'unknown'};
+      },
+      async publishSandbox({transferId,previousReceipt}){
+        events.push(`sandbox-publish:${transferId}`);
+        assert.deepEqual(previousReceipt,remoteSandbox,
+          'the exact confirmed remote predecessor guards sandbox replacement');
+        let saved=await sandboxJournal.load(transferId);
+        if(!saved){
+          saved={schemaVersion:1,revision:1,stage:'prepared',...sandboxReceipt(transferId)};
+          await sandboxJournal.create(saved);
+        }
+        assert.equal(saved.stage,'prepared','an upload intent may only be inspected');
+        if(pauseSandboxPrepared){pauseSandboxPrepared=false;
+          throw new Error('sandbox stopped after prepared journal');}
+        const intent={...saved,revision:saved.revision+1,stage:'upload-intent'};
+        await sandboxJournal.compareAndSave(saved,intent);
+        sandboxUploads++;events.push(`sandbox-upload:${transferId}`);
+        remoteSandbox=sandboxReceipt(transferId);
+        if(loseSandboxReply){loseSandboxReply=false;return {state:'unknown'};}
+        const confirmed={...intent,revision:intent.revision+1,stage:'confirmed'};
+        await sandboxJournal.compareAndSave(intent,confirmed);
+        return {state:'confirmed',receipt:structuredClone(remoteSandbox)};
+      }
+    };
+  };
   gateJournal.records.set(initial.transferId,{state:'synchronized',declaration:{
     deploymentId:'deployment-original',url:new URL(initial.target.origin).href,
     publishedSha:originalArtifact.sourceSha,artifact:originalArtifact}});
@@ -113,6 +162,7 @@ function fixture({unknownUpload=false,failedUploadNoRemote=false,rejectedUploadN
       databaseId:'local-tenant-a',databaseName:'local-tenant-a',
       bucketName:'local-tenant-a'}]}:{})},
     planJournal,updateJournal,provisionJournal:journal('transferId'),
+    sandboxJournal,sandboxFactory,
     transferJournal:{load:async()=>null},publicationJournal:gateJournal,
     registryClient:client,publicationGate:gate,
     registryIdentity:{projectId:'project-one',installationId:'installation-one'},
@@ -145,7 +195,7 @@ function fixture({unknownUpload=false,failedUploadNoRemote=false,rejectedUploadN
       if(lostSchemaReplyOnce&&schemaEffects===1&&events.filter(item=>item==='schema').length===1)
         throw new Error('schema acknowledgement lost');
       return {ok:true,observedState:'ready',receiptId:schemaReceiptId};},
-    publishSandbox(){assert.fail('update must not republish sandbox');},
+    publishSandbox(){assert.fail('updates use the existing journalled sandbox publisher');},
     publisherFactory:({artifactRoot})=>({
       async deliver(input){events.push('publish');uploadCount++;
         assert.equal(artifactRoot,path.join(root,'.wrangler','delivery','updates','update-one','artifact'));
@@ -177,7 +227,27 @@ function fixture({unknownUpload=false,failedUploadNoRemote=false,rejectedUploadN
   const configure=()=>pipeline.configure({target:{accountId,workerName},
     credentials:{apiToken:token}},context);
   return {pipeline,configure,events,current,control,options,updateJournal,gateJournal,
+    sandboxJournal,initialSandbox,
+    setPauseSandboxPrepared(){pauseSandboxPrepared=true;},
+    setLoseSandboxReply(){loseSandboxReply=true;},
+    setRemoteSandbox(value){remoteSandbox=value;},
+    get remoteSandbox(){return remoteSandbox;},
+    get sandboxUploads(){return sandboxUploads;},
     get uploadCount(){return uploadCount;},get schemaEffects(){return schemaEffects;}};
+}
+
+async function legacyUnknownWorkerFixture(){
+  const f=fixture();await f.configure();
+  const prepared=await f.pipeline.prepareUpdate({},context);
+  const old=f.updateJournal.records.get('update-one');
+  f.updateJournal.records.set('update-one',{...old,revision:old.revision+1,
+    stage:'delivery-unknown',artifact,schemaReceiptId:`sha256-${'7'.repeat(64)}`,
+    publicationFailure:{phase:'unknown',reason:'unavailable',exitCode:null,apiCodes:[]}});
+  const request={projectId:'project-one',installationId:'installation-one',
+    target:'cloudflare',artifact};
+  f.gateJournal.records.set('update-one',{state:'prepared',requestKey:'update-one',request,
+    preflight:await f.options.registryClient.preflight(request)});
+  return {f,prepared};
 }
 
 test('routed update without local inventory stops before build, schema, or upload',async()=>{
@@ -194,6 +264,9 @@ test('routed update hands exact previous and next targets to the cutover publica
   let called=0,f;
   const cutoverFactory=input=>({async advance(){
     called++;
+    assert.equal(f.sandboxUploads,1,'sandbox must be confirmed before routed cutover');
+    assert.deepEqual(f.updateJournal.records.get('update-one').sandboxReceipt,
+      f.remoteSandbox);
     assert.deepEqual(input.previousTarget,routed);
     assert.deepEqual(input.nextTarget,routed);
     assert.equal(input.plan.planDigest,`sha256-${'8'.repeat(64)}`);
@@ -215,7 +288,26 @@ test('routed update hands exact previous and next targets to the cutover publica
   assert.equal(result.phase,'delivered');
   assert.equal(result.registryStatus,'effective');
   assert.equal(called,1);assert.equal(f.uploadCount,1);
+  assert.ok(f.events.indexOf('sandbox-upload:update-one')<f.events.indexOf('publish'));
   assert.equal(f.schemaEffects,0,'cutover owns additive schema effects');
+});
+
+test('routed sandbox ACK loss cannot fence routes or publish Worker before reconciliation',async()=>{
+  let cutoverCalls=0;
+  const f=fixture({routedTarget:true,cutoverFactory:input=>({async advance(){
+    cutoverCalls++;
+    await input.publication.deliver();
+    assert.ok(await input.publication.inspect());
+    return {state:'ready',phase:'open'};
+  }})});
+  await f.configure();f.setLoseSandboxReply();
+  const prepared=await f.pipeline.prepareUpdate({},context);
+  assert.equal((await f.pipeline.startUpdate(prepared,context)).phase,'delivery-unknown');
+  assert.equal(f.updateJournal.records.get('update-one').stage,'sandbox-publishing');
+  assert.equal(cutoverCalls,0);assert.equal(f.uploadCount,0);
+  assert.equal(f.sandboxUploads,1);
+  assert.equal((await f.pipeline.reconcileUpdate(prepared,context)).phase,'delivered');
+  assert.equal(cutoverCalls,1);assert.equal(f.sandboxUploads,1);
 });
 
 for(const [field,value] of [
@@ -249,7 +341,7 @@ for(const [field,value] of [
     const prepared=await f.pipeline.prepareUpdate({},context);
     const result=await f.pipeline.startUpdate(prepared,context);
     assert.notEqual(result.phase,'delivered');
-    assert.equal(f.updateJournal.records.get('update-one').stage,'preflight');
+    assert.equal(f.updateJournal.records.get('update-one').stage,'sandbox-ready');
     assert.equal(f.uploadCount,1);
   });
 
@@ -377,6 +469,12 @@ test('compatible update preserves production ports and publishes once after addi
   const result=await f.pipeline.startUpdate(input,context);
   assert.equal(result.phase,'delivered');assert.equal(result.registryStatus,'effective');
   assert.equal(f.schemaEffects,1);assert.equal(f.uploadCount,1);
+  assert.equal(f.sandboxUploads,1);
+  assert.deepEqual(f.updateJournal.records.get('update-one').sandboxPreviousReceipt,
+    f.initialSandbox);
+  assert.deepEqual(f.updateJournal.records.get('update-one').sandboxReceipt,f.remoteSandbox);
+  assert.equal(f.updateJournal.records.get('update-one').sandboxReceipt.sourceSha,sourceSha);
+  assert.ok(f.events.indexOf('sandbox-upload:update-one')<f.events.indexOf('publish'));
   assert.deepEqual(f.events.filter(item=>['build','preflight','schema','publish','declare'].includes(item)),
     ['build','preflight','schema','preflight','publish','declare']);
   assert.equal((await f.pipeline.statusUpdate('update-one',context)).phase,'delivered');
@@ -428,6 +526,86 @@ test('explicit retry refuses newer remote version without an upload',async()=>{
   await assert.rejects(f.pipeline.retryUpdate(input,context),{code:'delivery_unknown'});
   assert.equal(f.uploadCount,1);
   assert.equal(f.gateJournal.records.has('update-one.retry.1'),false);
+});
+
+test('retry refuses a changed sandbox head before a second Worker upload',async()=>{
+  const f=fixture({failedUploadNoRemote:true});await f.configure();
+  const prepared=await f.pipeline.prepareUpdate({},context);
+  assert.equal((await f.pipeline.startUpdate(prepared,context)).phase,'delivery-unknown');
+  assert.equal(f.sandboxUploads,1);assert.equal(f.uploadCount,1);
+  f.setRemoteSandbox({...f.remoteSandbox,versionId:'foreign-sandbox-version'});
+  await assert.rejects(f.pipeline.retryUpdate(prepared,context),
+    error=>['sandbox_unknown','sandbox_lineage_changed'].includes(error.code));
+  assert.equal(f.uploadCount,1);
+  assert.equal(f.events.filter(item=>item==='retry-publish').length,0);
+  assert.equal(f.gateJournal.records.has('update-one.retry.1'),false);
+});
+
+test('Worker 10021 cannot become a retry after sandbox drift',async()=>{
+  const f=fixture({rejectedUploadNoRemote:true});await f.configure();
+  const prepared=await f.pipeline.prepareUpdate({},context);
+  assert.equal((await f.pipeline.startUpdate(prepared,context)).phase,'delivery-unknown');
+  assert.equal(f.updateJournal.records.get('update-one').publicationFailure.apiCodes[0],10021);
+  f.setRemoteSandbox({...f.remoteSandbox,versionId:'foreign-sandbox-version'});
+  await assert.rejects(f.pipeline.retryUpdate(prepared,context),{code:'update_not_ready'});
+  assert.equal(f.sandboxUploads,1);assert.equal(f.uploadCount,1);
+  assert.equal(f.gateJournal.records.has('update-one.retry.1'),false);
+});
+
+test('retry of a legacy unknown Worker delivery publishes its missing sandbox before Worker',async()=>{
+  const {f,prepared}=await legacyUnknownWorkerFixture();
+  assert.equal(f.sandboxJournal.records.has('update-one'),false);
+  assert.equal(f.sandboxUploads,0);
+  const result=await f.pipeline.retryUpdate(prepared,context);
+  assert.equal(result.phase,'delivered');
+  assert.equal(f.sandboxUploads,1);assert.equal(f.uploadCount,1);
+  assert.deepEqual(f.updateJournal.records.get('update-one').sandboxPreviousReceipt,
+    f.initialSandbox);
+  assert.deepEqual(f.updateJournal.records.get('update-one').sandboxReceipt,f.remoteSandbox);
+  assert.ok(f.events.indexOf('sandbox-upload:update-one')<
+    f.events.indexOf('retry-publish'));
+});
+
+for(const guard of ['gate','artifact','limit'])
+  test(`legacy retry refuses ${guard} before any sandbox upload`,async()=>{
+    const {f,prepared}=await legacyUnknownWorkerFixture();
+    let pipeline=f.pipeline;
+    if(guard==='gate'){
+      const saved=f.gateJournal.records.get('update-one');
+      f.gateJournal.records.set('update-one',{...saved,state:'delivered'});
+    }
+    if(guard==='limit'){
+      const saved=f.updateJournal.records.get('update-one');
+      f.updateJournal.records.set('update-one',{...saved,publicationRetryCount:3});
+    }
+    if(guard==='artifact'){
+      const original=f.options.publisherFactory;
+      f.options.publisherFactory=input=>({...original(input),verifyPreservedUpdate(){
+        throw Object.assign(new Error('preserved artifact changed'),{code:'artifact_changed'});
+      }});
+      pipeline=createCloudflareDeliveryPipeline(f.options);
+      await pipeline.configure({target:{accountId,workerName},credentials:{apiToken:token}},context);
+    }
+    await assert.rejects(pipeline.retryUpdate(prepared,context),
+      {code:guard==='gate'?'update_not_ready':guard==='limit'?'retry_limit':'artifact_changed'});
+    assert.equal(f.sandboxUploads,0);assert.equal(f.uploadCount,0);
+    assert.equal(f.sandboxJournal.records.has('update-one'),false);
+    assert.equal(f.gateJournal.records.has('update-one.retry.1'),false);
+  });
+
+test('changed main Worker head just before sandbox upload refuses without a sandbox effect',async()=>{
+  const f=fixture();await f.configure();
+  const prepared=await f.pipeline.prepareUpdate({},context);
+  const load=f.sandboxJournal.load;
+  f.sandboxJournal.load=async id=>{
+    const record=await load(id);
+    if(id==='update-one')f.current.versionId='44444444-4444-4444-8444-444444444444';
+    return record;
+  };
+  await assert.rejects(f.pipeline.startUpdate(prepared,context),{code:'deployment_changed'});
+  assert.equal(f.schemaEffects,1);
+  assert.equal(f.sandboxUploads,0);assert.equal(f.uploadCount,0);
+  assert.equal(f.sandboxJournal.records.has('update-one'),false);
 });
 
 test('explicit rejection requires Cloudflare 10021 and preserves the old Worker and additive schema',async()=>{
@@ -567,6 +745,145 @@ test('a second update uses the currently verified publication as its predecessor
   assert.equal(second.updateId,'update-two');
   assert.equal(f.updateJournal.records.get('update-two').previousPublicationId,'update-one');
   assert.equal(f.updateJournal.records.get('update-two').previousVersionId,updatedVersion);
+});
+
+test('a legacy update finds the initial sandbox receipt and a later update follows the new receipt',async()=>{
+  const f=fixture();await f.configure();
+  const first=await f.pipeline.prepareUpdate({},context);
+  await f.pipeline.startUpdate(first,context);
+  const firstReceipt=f.updateJournal.records.get('update-one').sandboxReceipt;
+  assert.deepEqual(f.updateJournal.records.get('update-one').sandboxPreviousReceipt,
+    f.initialSandbox);
+  f.options.updateIdFactory=()=> 'update-two';
+  const originalBuild=f.options.buildUpdateTarget;
+  f.options.buildUpdateTarget=async input=>input.updateId==='update-two'
+    ?(f.events.push('build-two'),artifact):originalBuild(input);
+  const originalPublisher=f.options.publisherFactory;
+  f.options.publisherFactory=input=>input.artifactRoot.includes(`${path.sep}update-two${path.sep}`)
+    ?{async deliver(request){
+      f.events.push('publish-two');
+      assert.equal(request.expectedPreviousDeploymentId,'deployment-updated');
+      assert.equal(request.expectedPreviousVersionId,updatedVersion);
+      f.current.deploymentId='deployment-second';
+      f.current.versionId='44444444-4444-4444-8444-444444444444';
+      f.current.tag='cz-update-two';
+      return {deploymentId:'deployment-second',url:origin,publishedSha:sourceSha,artifact};
+    },async inspect(){return {deploymentId:'deployment-second',url:origin,
+      publishedSha:sourceSha,artifact};},
+    async inspectCurrent(){return {deploymentId:f.current.deploymentId,
+      versionId:f.current.versionId,bindings:f.current.bindings};}}:originalPublisher(input);
+  const next=createCloudflareDeliveryPipeline(f.options);
+  await next.configure({target:{accountId,workerName},credentials:{apiToken:token}},context);
+  const second=await next.prepareUpdate({},context);
+  assert.equal((await next.startUpdate(second,context)).phase,'delivered');
+  const record=f.updateJournal.records.get('update-two');
+  assert.equal(record.previousPublicationId,'update-one');
+  assert.deepEqual(record.sandboxPreviousReceipt,firstReceipt);
+  assert.deepEqual(record.sandboxReceipt,f.remoteSandbox);
+  assert.equal(f.sandboxUploads,2);
+  assert.ok(f.events.indexOf('sandbox-upload:update-two')<f.events.indexOf('publish-two'));
+});
+
+test('legacy delivered updates without sandbox receipts trace back to the initial publication',async()=>{
+  const f=fixture();await f.configure();
+  for(const [id,prior,priorArtifact] of [
+    ['update-legacy-one','transfer-one',originalArtifact],
+    ['update-legacy-two','update-legacy-one',artifact]
+  ]){
+    f.updateJournal.records.set(id,{schemaVersion:1,revision:7,
+      updateId:id,owner:context.principalId,stage:'delivered',
+      accountId,workerName,tokenId,target,artifact,
+      previousPublicationId:prior,previousArtifact:priorArtifact,
+      registryProjectId:'project-one',registryInstallationId:'installation-one'});
+    f.gateJournal.records.set(id,{state:'synchronized',declaration:{
+      deploymentId:`deployment-${id}`,url:new URL(origin).href,publishedSha:sourceSha,
+      artifact}});
+  }
+  f.current.deploymentId='deployment-update-legacy-two';
+  f.current.versionId='44444444-4444-4444-8444-444444444444';
+  f.current.tag='cz-update-legacy-two';
+  f.current.message=`Creezio ${artifact.artifactDigest} ${artifact.sourceSha}`;
+  const prepared=await f.pipeline.prepareUpdate({},context);
+  assert.equal(f.updateJournal.records.get('update-one').previousPublicationId,
+    'update-legacy-two');
+  const originalPublisher=f.options.publisherFactory;
+  f.options.publisherFactory=input=>({
+    ...originalPublisher(input),
+    async deliver(request){
+      f.events.push('publish-legacy-successor');
+      assert.equal(request.expectedPreviousDeploymentId,'deployment-update-legacy-two');
+      assert.equal(request.expectedPreviousVersionId,
+        '44444444-4444-4444-8444-444444444444');
+      f.current.deploymentId='deployment-updated';f.current.versionId=updatedVersion;
+      f.current.tag='cz-update-one';
+      f.current.message=`Creezio ${artifact.artifactDigest} ${artifact.sourceSha}`;
+      return {deploymentId:'deployment-updated',url:origin,publishedSha:sourceSha,artifact};
+    }
+  });
+  const successor=createCloudflareDeliveryPipeline(f.options);
+  await successor.configure({target:{accountId,workerName},credentials:{apiToken:token}},context);
+  assert.equal((await successor.startUpdate(prepared,context)).phase,'delivered');
+  assert.deepEqual(f.updateJournal.records.get('update-one').sandboxPreviousReceipt,
+    f.initialSandbox);
+  assert.equal(f.sandboxUploads,1);
+  assert.ok(f.events.indexOf('sandbox-upload:update-one')<
+    f.events.indexOf('publish-legacy-successor'));
+});
+
+test('sandbox upload ACK loss reconciles without a second upload or early Worker publication',async()=>{
+  const f=fixture();await f.configure();f.setLoseSandboxReply();
+  const prepared=await f.pipeline.prepareUpdate({},context);
+  const first=await f.pipeline.startUpdate(prepared,context);
+  assert.equal(first.phase,'delivery-unknown');
+  assert.equal(f.updateJournal.records.get('update-one').stage,'sandbox-publishing');
+  assert.equal(f.sandboxJournal.records.get('update-one').stage,'upload-intent');
+  assert.equal(f.sandboxUploads,1);assert.equal(f.uploadCount,0);
+  assert.equal(f.events.includes('publish'),false);
+  const resumed=await f.pipeline.reconcileUpdate(prepared,context);
+  assert.equal(resumed.phase,'delivered');
+  assert.equal(f.sandboxUploads,1);assert.equal(f.uploadCount,1);
+  assert.deepEqual(f.updateJournal.records.get('update-one').sandboxReceipt,f.remoteSandbox);
+});
+
+test('a prepared sandbox journal resumes through publishSandbox before upload intent',async()=>{
+  const f=fixture();await f.configure();f.setPauseSandboxPrepared();
+  const prepared=await f.pipeline.prepareUpdate({},context);
+  await assert.rejects(f.pipeline.startUpdate(prepared,context),
+    /sandbox stopped after prepared journal/);
+  assert.equal(f.updateJournal.records.get('update-one').stage,'sandbox-publishing');
+  assert.equal(f.sandboxJournal.records.get('update-one').stage,'prepared');
+  assert.equal(f.sandboxUploads,0);assert.equal(f.uploadCount,0);
+  assert.equal((await f.pipeline.statusUpdate('update-one',context)).phase,'delivery-unknown');
+  assert.equal((await f.pipeline.reconcileUpdate(prepared,context)).phase,'delivered');
+  assert.equal(f.sandboxUploads,1);assert.equal(f.uploadCount,1);
+});
+
+test('a divergent remote sandbox blocks Worker upload and keeps the update unresolved',async()=>{
+  const f=fixture();await f.configure();
+  const prepared=await f.pipeline.prepareUpdate({},context);
+  f.setRemoteSandbox({...f.initialSandbox,versionId:'foreign-version'});
+  await assert.rejects(f.pipeline.startUpdate(prepared,context),
+    error=>['sandbox_unknown','sandbox_lineage_changed'].includes(error.code));
+  assert.equal(f.sandboxUploads,0);assert.equal(f.uploadCount,0);
+  assert.equal(f.events.includes('publish'),false);
+});
+
+test('a sandbox receipt with a different source SHA never authorizes Worker publication',async()=>{
+  const f=fixture();
+  const original=f.options.sandboxFactory;
+  f.options.sandboxFactory=input=>{
+    const port=original(input);
+    return {...port,async publishSandbox(args){
+      const result=await port.publishSandbox(args);
+      return {...result,receipt:{...result.receipt,sourceSha:'f'.repeat(40)}};
+    }};
+  };
+  const pipeline=createCloudflareDeliveryPipeline(f.options);
+  await pipeline.configure({target:{accountId,workerName},credentials:{apiToken:token}},context);
+  const prepared=await pipeline.prepareUpdate({},context);
+  await assert.rejects(pipeline.startUpdate(prepared,context),{code:'sandbox_unknown'});
+  assert.equal(f.sandboxUploads,1);assert.equal(f.uploadCount,0);
+  assert.equal(f.updateJournal.records.get('update-one').sandboxReceipt,undefined);
 });
 
 test('missing production vault binding blocks preparation without local reads',async()=>{

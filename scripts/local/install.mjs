@@ -60,8 +60,10 @@ export async function installedRouteInput(source,config,plan,resource,row){
       const journal=item;
       const prefix=generation===0?'local-install:'
         :journal.id.startsWith('local-schema:')?'local-schema:'
-          :journal.id.startsWith('authority:')?'authority:':null;
-      const identity=prefix==='authority:'
+          :journal.id.startsWith('authority:')?'authority:'
+            :journal.id.startsWith('logout:')?'logout:':null;
+      const nativeMutation=prefix==='authority:'||prefix==='logout:';
+      const identity=nativeMutation
         ?[journal.commandDigest,resource.contextId,resource.slot]
         :[journal.commandDigest,resource.contextId,resource.slot,
           resource.databaseId,resource.bucketName];
@@ -69,9 +71,9 @@ export async function installedRouteInput(source,config,plan,resource,row){
         ||journal.contextId!==resource.contextId||journal.generation!==item.generation
         ||!/^sha256-[a-f0-9]{64}$/.test(journal.commandDigest)
         ||!prefix||journal.id!==`${prefix}${hash(identity).slice(0,48)}`
-        ||(prefix==='authority:'&&journal.state!=='open')
+        ||(nativeMutation&&journal.state!=='open')
         ||(generation<lastGeneration-1&&journal.state!=='open'))return null;
-      if(prefix!=='authority:')lastStructural=journal;
+      if(!nativeMutation)lastStructural=journal;
       last=journal;generation++;cursorGeneration=item.generation;cursorId=item.id;
     }
   }

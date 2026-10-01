@@ -1,5 +1,15 @@
 # Changelog
 
+## Correctif candidat T25/T32 — sandbox du Worker mis à jour
+
+- Les updates Cloudflare normal et routé journalisent et inspectent le sandbox des widgets avant de publier le Worker principal. La lignée remonte au reçu de première publication pour les updates historiques, et les reprises d'upload incertain n'émettent pas une seconde publication à l'aveugle.
+- Le retry d'un artefact conservé vérifie aussi le sandbox exact avant son nouveau POST. Les phases publiques du SDK ne changent pas. Livraison et rendu Blob Cloudflare restent à qualifier.
+
+## Correctif candidat T33 — provenance après déconnexion routée
+
+- L'inspection d'installation reconnaît la mutation native `logout:` dans la lignée contiguë `local-install:`/`local-schema:`/`authority:`/`logout:`. Son identifiant utilise le digest de commande, le contexte et le slot, comme `authority:` ; elle doit être ouverte et ne change pas la dernière mutation structurelle.
+- Un test ciblé confirme la provenance A/B après déconnexion routée officielle, puis le refus d'un digest altéré et d'une cible retargetée. Aucun bootstrap, DDL ou réparation live n'est déclenché ; livraison, CI et inspection T33 sur Linux restent à qualifier.
+
 ## Correctif du retour vers le front
 
 - Les paramètres de retour Checkout sur la racine n'entraînent plus une fausse vue introuvable. Le front affiche son accueil neutre sans déduire un paiement des paramètres de l'URL.

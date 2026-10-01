@@ -1,6 +1,8 @@
 # T28 — Connexion et diagnostic d’une instance Meili externe
 
-Sur Original Sites v4, l’index du Catalogue est `ready` à la révision 5 et la recherche native retrouve le seul produit témoin à 42,50 € après start, prepare, emit, reconcile et prepare final (`CREEZIO-T09-ORIGINAL-MEILI-INDEX-QUALIFIED-2026-10-01.json` hors dépôt). Original Sites v5 est publié, mais le nouveau tour de chat est resté `provider_unknown` après une reprise explicite : le widget de recherche Meili n'est pas qualifié par cette tentative. Les autres reconstructions et la recherche globale T05 restent ouvertes.
+Sur le Worker Core Cloudflare `eddf01a`, la recette fournisseur a confirmé une connexion Meili authentifiée, la source Catalogue `creezio.catalog:catalog-products`, une génération isolée `ready` à la révision 5 et la tâche fournisseur 168. La recherche native sous droits actuels retrouve un produit à 12,99 EUR, sans résultat périmé ; les commandes n'ont plus d'issue inconnue et les sessions sont déconnectées. Le navigateur `/admin/meili` retrouve la source et l'état `ready` à l'ouverture et après rechargement, sans rafraîchissement manuel ni nouvelle mutation d'index. Son libellé de connexion « Non vérifié » reste distinct du contrôle natif connecté/authentifié. Preuves hors dépôt : `CREEZIO-T28-CF-MEILI-EDDF-FINAL-2026-10-01.json` et `CREEZIO-T28-CF-EDDF-MEILI-UI-2026-10-01.json`.
+
+Sur Original Sites v4, l’index du Catalogue est `ready` à la révision 5 et la recherche native retrouve le seul produit témoin à 42,50 € après start, prepare, emit, reconcile et prepare final (`CREEZIO-T09-ORIGINAL-MEILI-INDEX-QUALIFIED-2026-10-01.json` hors dépôt). Sur Sites v5, le tour de chat Meili est resté `provider_unknown` après une reprise explicite : le widget Meili n'est pas qualifié par cette tentative. Le rendu du widget sur Cloudflare/Sites, les autres reconstructions et la recherche globale T05 restent ouverts.
 
 ## Recherche dans le chat — diagnostic du 1er octobre 2026
 
