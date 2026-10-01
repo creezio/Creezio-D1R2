@@ -1,4 +1,6 @@
-# T28 — Connexion et diagnostic d'une instance Meili externe
+# T28 — Connexion et diagnostic d’une instance Meili externe
+
+Sur Original Sites v4, l’index du Catalogue est `ready` à la révision 5 et la recherche native retrouve le seul produit témoin à 42,50 € après start, prepare, emit, reconcile et prepare final (`CREEZIO-T09-ORIGINAL-MEILI-INDEX-QUALIFIED-2026-10-01.json` hors dépôt). Original Sites v5 est publié, mais le nouveau tour de chat est resté `provider_unknown` après une reprise explicite : le widget de recherche Meili n'est pas qualifié par cette tentative. Les autres reconstructions et la recherche globale T05 restent ouvertes.
 
 ## Recherche dans le chat — diagnostic du 1er octobre 2026
 

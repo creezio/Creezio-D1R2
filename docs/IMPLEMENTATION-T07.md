@@ -1,8 +1,8 @@
 # Workspace et conservation des onglets — T-07
 
-## Aperçu de rétention Analytics — complément en qualification
+## Aperçu de rétention Analytics — correctif intégré et vérifié sur Original Sites v5
 
-Sur Original Sites v4, l'ouverture de `admin.retention.preview` par le compte ayant `analytics:read` mais pas `manage-retention` renvoie 403 `forbidden`. La session et la projection restent 200, mais le garde hôte déclenchait une revalidation globale qui fermait les onglets. Le correctif ajoute uniquement cette lecture à la liste des refus facultatifs. Les commandes de configuration/purge, les refus 401 et les refus du suivi d'opération conservent leurs contrôles. Les deux tests ciblés du garde passent ; la recette du correctif livré reste requise. Aucun changement de droits, de collecte, de données ou d'interface n'est ajouté.
+Sur Original Sites v4, `admin.retention.preview` renvoyait 403 `forbidden` au compte ayant `analytics:read` sans `manage-retention`, alors que session et projection restaient 200. Le garde ne ferme plus les autres onglets pour ce refus facultatif ; il est intégré par la PR #90 sur main `be89116`, avec CI candidate et main réussies (1 472/1 472 tests chacune). Sur Original Sites v5 lié à ce Core, l'alerte de droit `analytics.purge` apparaît dans Rétention, tandis que Support, Conversations et Analytique restent ouverts, le chat accessible, la session active et les deux clics antérieurs visibles (`CREEZIO-T22-ORIGINAL-RETENTION-LOCAL-BE89116.json` hors dépôt). Les commandes de configuration/purge, les refus 401 et ceux du suivi d'opération conservent leurs contrôles. Aucun droit, collecte, politique ou purge n'a été ajouté.
 
 ## Refus facultatifs et onglets — correctif candidat du 1er octobre 2026
 

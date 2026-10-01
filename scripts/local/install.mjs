@@ -40,11 +40,11 @@ const routeInput=(config,plan,resource)=>{
 };
 // A schema cutover keeps the installation but advances the target route's mutation.
 // Prove the complete local journal lineage instead of recomputing an old plan digest.
-async function installedRouteInput(source,config,plan,resource,row){
+export async function installedRouteInput(source,config,plan,resource,row){
   if(!row||!Number.isSafeInteger(row.generation)||row.generation<2
     ||!['deny','active'].includes(row.state))return null;
   const lastGeneration=row.generation-1;
-  let last,generation=0,cursorGeneration=0,cursorId='';
+  let last,lastStructural,generation=0,cursorGeneration=0,cursorId='';
   while(true){
     const listed=await source.prepare(`SELECT id,installation_id AS installationId,
       context_id AS contextId,generation,command_digest AS commandDigest,state FROM ${mutationTable}
@@ -58,23 +58,30 @@ async function installedRouteInput(source,config,plan,resource,row){
     for(const item of listed.results){
       if(item.generation!==generation+1)return null;
       const journal=item;
-      const prefix=generation===0?'local-install:':'local-schema:';
+      const prefix=generation===0?'local-install:'
+        :journal.id.startsWith('local-schema:')?'local-schema:'
+          :journal.id.startsWith('authority:')?'authority:':null;
+      const identity=prefix==='authority:'
+        ?[journal.commandDigest,resource.contextId,resource.slot]
+        :[journal.commandDigest,resource.contextId,resource.slot,
+          resource.databaseId,resource.bucketName];
       if(journal?.installationId!==config.storageInstallationId
         ||journal.contextId!==resource.contextId||journal.generation!==item.generation
         ||!/^sha256-[a-f0-9]{64}$/.test(journal.commandDigest)
-        ||journal.id!==`${prefix}${hash([journal.commandDigest,resource.contextId,
-          resource.slot,resource.databaseId,resource.bucketName]).slice(0,48)}`
+        ||!prefix||journal.id!==`${prefix}${hash(identity).slice(0,48)}`
+        ||(prefix==='authority:'&&journal.state!=='open')
         ||(generation<lastGeneration-1&&journal.state!=='open'))return null;
+      if(prefix!=='authority:')lastStructural=journal;
       last=journal;generation++;cursorGeneration=item.generation;cursorId=item.id;
     }
   }
   if(generation!==lastGeneration)return null;
   if(last?.id!==row.mutationId)return null;
-  const expectedDigest=lastGeneration===1?routeInput(config,plan,resource).commandDigest
+  const expectedDigest=lastStructural?.generation===1?routeInput(config,plan,resource).commandDigest
     :`sha256-${hash(['local.schema.apply',config.storageInstallationId,plan.planDigest,
       config.storageResources.map(item=>[item.contextId,item.slot,item.status,
         item.databaseId,item.bucketName])])}`;
-  if(last.commandDigest!==expectedDigest)return null;
+  if(lastStructural?.commandDigest!==expectedDigest)return null;
   return {installationId:config.storageInstallationId,contextId:resource.contextId,
     slot:resource.slot,mutationId:last.id,commandDigest:last.commandDigest,
     expectedGeneration:last.generation};
