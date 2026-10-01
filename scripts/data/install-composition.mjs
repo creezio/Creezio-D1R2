@@ -31,6 +31,19 @@ async function verifiedPhysicalObjects(db,plan,receiptId){
 }
 const installerDataTables=objects=>objects.filter(object=>object.type==='table'
   &&![SCHEMA_RECEIPT_TABLE,ACCESS_TABLES.bootstrap,ACCESS_TABLES.auth_throttles].includes(object.name));
+// Keep one atomic guard over every table without a linear-depth AND expression.
+const emptyInstallerData=objects=>{
+  let terms=installerDataTables(objects).map(object=>
+    `NOT EXISTS (SELECT 1 FROM ${quote(object.name)} LIMIT 1)`);
+  if(!terms.length)return '1';
+  while(terms.length>1){
+    const paired=[];
+    for(let index=0;index<terms.length;index+=2)
+      paired.push(index+1<terms.length?`(${terms[index]} AND ${terms[index+1]})`:terms[index]);
+    terms=paired;
+  }
+  return terms[0];
+};
 
 function guardedRead(db,physicalObjects,receiptId,sql){
   return db.batch([managedSchemaGuard(db,physicalObjects),
@@ -41,8 +54,7 @@ function guardedRead(db,physicalObjects,receiptId,sql){
 async function inspectReady(db,plan,receiptId){
   const physicalObjects=await verifiedPhysicalObjects(db,plan,receiptId);
   if(!physicalObjects)return state('blocked','schema_changed',plan);
-  const tables=installerDataTables(physicalObjects);
-  const empty=tables.map(object=>`NOT EXISTS (SELECT 1 FROM ${quote(object.name)} LIMIT 1)`).join(' AND ');
+  const empty=emptyInstallerData(physicalObjects);
   const checks=await guardedRead(db,physicalObjects,receiptId,
     `SELECT (SELECT COUNT(*) FROM ${quote(ACCESS_TABLES.bootstrap)}) AS markerCount,
       (SELECT capability_digest FROM ${quote(ACCESS_TABLES.bootstrap)} WHERE id='installation') AS markerDigest,
@@ -93,8 +105,8 @@ export async function inspectComposedInstallation(db,plan){
 
 function guardedDatabase(db,physicalObjects,receiptId){
   const statements=new WeakMap();
-  const rows=installerDataTables(physicalObjects);
-  const emptyGuard=()=>db.prepare(`SELECT CASE WHEN ${rows.map(object=>`NOT EXISTS (SELECT 1 FROM ${quote(object.name)} LIMIT 1)`).join(' AND ')}
+  const empty=emptyInstallerData(physicalObjects);
+  const emptyGuard=()=>db.prepare(`SELECT CASE WHEN ${empty}
     THEN 1 ELSE json('creezio-install-data-present') END AS approved`);
   const receiptGuard=()=>db.prepare(`SELECT CASE WHEN (SELECT id FROM ${quote(SCHEMA_RECEIPT_TABLE)} ORDER BY sequence DESC LIMIT 1) = ?
     THEN 1 ELSE json('creezio-install-receipt-changed') END AS approved`).bind(receiptId);

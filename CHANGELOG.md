@@ -1,4 +1,13 @@
 # Changelog
+## Correctif d'installation — schémas comportant de nombreux modules
+
+- Les contrôles de vacuité de l'installateur utilisent une conjonction équilibrée. Le profil connecteurs à 114 tables peut être inspecté et installer son premier compte dans D1 sans dépasser la profondeur d'expression du moteur ; les gardes atomiques de schéma, reçu et données sont conservées.
+- Les cinq tests d'installation passent sur Linux avec le moteur réel, dont reprise après création du schéma, refus du rejeu et conservation des données étrangères. Cela ne constitue pas encore la recette des ressources T33 réelles ni leur publication Cloudflare.
+## 1er octobre 2026 — SDK 1.9 public et Core 9ce856c livré
+
+- PR #84 est intégrée sur `9ce856cb1cbb2f9fa576c5fae0f7b4be09488cb9` ; les CI de la candidate et de main passent 1 454 tests sans omission. Le SDK [1.9.0 public](https://github.com/creezio/Creezio-D1R2/releases/download/sdk-v1.9.0/creezio-sdk-1.9.0.tgz) correspond à cette source : archive SHA-256 `b10cc8ca47bad85d3f22124e0b3da214cea15610330fc650a8c107cba189eb2a`, 88 108 octets, 93 fichiers. Douze consommateurs ont passé 296 tests dans 72 suites, dont quatre déclarées non applicables.
+- La même source est active sur Linux et Cloudflare. L'ancien update refusé `cc8a33af` est clôturé par le rejet natif ; le nouvel update `c01a71c4-94f7-4883-9efd-66a64d5aea85` est livré, version Worker `0cba68a9-2e4b-4732-ba47-1bfd334a4587`, registre synchronisé. La vérification distante couvre 101 modules et 72 assets ; les comptes, droits antérieurs, brouillons et fichiers témoins sont conservés. Reçus : `outputs/CREEZIO-PR84-MAIN-QUALIFIED-9CE856C-2026-10-01.json`, `outputs/CREEZIO-SDK19-PUBLIC-RELEASE-2026-10-01.json` et `outputs/CREEZIO-T55-CORE-UPDATE-9ce856cb1cbb2f9fa576c5fae0f7b4be09488cb9-c01a71c4-94f7-4883-9efd-66a64d5aea85-DELIVERY.json`.
+- L'interface Meili charge désormais sa source Catalogue dès l'ouverture et après rechargement, sans rafraîchissement manuel ni nouvelle indexation fournisseur. La recette API CRM Linux confirme création, pagination et archivage réversible de contacts témoins, avec conservation des autres fiches. Les widgets Meili, le lien Support vers un message fournisseur, le rendu public des nouveaux champs SEO et les recettes Stripe/T33 conservent leurs critères propres ; ces preuves ne ferment pas leurs lots exhaustifs.
 
 ## 1er octobre 2026 — SDK 1.8 public, Linux 7aeac0c et PR #83 intégrée
 
