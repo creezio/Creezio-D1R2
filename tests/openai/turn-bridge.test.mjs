@@ -13,6 +13,7 @@ import {createOperationRegistry} from '../../core/operations/registry.ts';
 import {createOperationEngine} from '../../core/operations/service.ts';
 import {createTurnBridge} from '../../core/conversations/turn-bridge.ts';
 import {ProviderTransportError} from '../../sdk/providers/errors.ts';
+import {meiliConnectorDescriptor} from '../../extensions/connectors/meili/module/storage.ts';
 import * as handlers from '../../extensions/native/conversations/module/operations.ts';
 
 const manifest=JSON.parse(readFileSync(new URL('../../extensions/native/conversations/module/manifest.json',import.meta.url),'utf8'));
@@ -873,5 +874,83 @@ test('client drive persists one confirmed assistant and never recreates an unkno
     assert.equal((await hostAcl.replacePolicy(login.token,{expectedEpoch:hostCurrent.epoch,policy:revokedPolicy})).ok,true);
     assert.equal((await driveHost(deniedRequest,false)).error,'forbidden');
     assert.equal(hostCalls,1);
+
+    // A declared connector GET may be called by the native chat; the same tool
+    // is withheld without its descriptor and refused after a permission change.
+    const meiliManifest=JSON.parse(readFileSync(new URL(
+      '../../extensions/connectors/meili/module/manifest.json',import.meta.url),'utf8'));
+    const meiliId='creezio.meili',searchPermission=`${meiliId}:search`;
+    const searchOp=meiliManifest.contracts.operations.find(item=>item.id==='index.search');
+    const searchSchema=meiliManifest.contracts.schemas.find(item=>item.id===searchOp.input.schemaId).schema;
+    const searchDeclaration={moduleId:meiliId,declaration:searchOp,contractDigest:digest,
+      validateInput:value=>typeof value?.q==='string'&&Number.isSafeInteger(value?.limit)
+        &&Number.isSafeInteger(value?.offset)&&typeof value?.source==='string'};
+    const providerRegistry={compositionDigest:digest,resolve:(moduleId,operationId)=>
+      moduleId===meiliId&&operationId==='index.search'?searchDeclaration:hostRegistry.resolve(moduleId,operationId)};
+    const providerPermissions=[...hostPermissions,{id:searchPermission,audiences:['admin'],
+      actors:['user','delegated-user']}];
+    const providerCatalog={...hostCatalog,modules:[...hostCatalog.modules,{moduleId:meiliId,
+      version:meiliManifest.identity.version,enabled:true,permissions:[],models:[]}]};
+    const meiliAllowedRequest=await newTurn('meili-allowed');
+    const meiliUnboundRequest=await newTurn('meili-unbound');
+    const meiliRevokedRequest=await newTurn('meili-revoked');
+    const providerAcl=createAuthorizationService(db,{permissions:providerPermissions});
+    const providerBefore=await providerAcl.readPolicy(login.token);assert.equal(providerBefore.ok,true);
+    const providerPolicy=structuredClone(providerBefore.policy);
+    providerPolicy.roles.find(role=>role.id==='bridge-role').permissionIds.push(searchPermission);
+    assert.equal((await providerAcl.replacePolicy(login.token,{expectedEpoch:providerBefore.epoch,
+      policy:providerPolicy})).ok,true);
+    const searchArgs={q:'Produit image T25',source:'creezio.catalog:catalog-products',limit:5,offset:0};
+    const searchOutput={source:searchArgs.source,items:[{id:'product-t25',fields:{name:'Produit image T25'}}],
+      facets:[],pageCount:1,nextOffset:null,stale:false};
+    let providerCalls=0,searchToolName;
+    const providerEngine={async invoke(request){
+      assert.equal(request.moduleId,meiliId);assert.equal(request.operationId,'index.search');
+      assert.equal(request.contextId,'application');assert.equal(request.audience,'admin');
+      assert.deepEqual({...request.input},searchArgs);providerCalls++;
+      return {execution:{id:`meili-search-${providerCalls}`,state:'succeeded',output:searchOutput,
+        errorCode:null},replayed:false};
+    }};
+    const searchTool={moduleId:meiliId,operationId:'index.search',inputSchema:searchSchema,
+      schemaDigest:digest,audiences:['admin']};
+    const driveProvider=async(request,mode)=>{
+      let creates=0,continued;
+      const provider={withTransport:async(_request,callback)=>callback({async create(input){
+        creates++;
+        if(creates===1){
+          const name=input.tools.find(item=>item.bindingId===`${meiliId}:index.search`)?.name;
+          if(mode!=='allowed')assert.equal(name,undefined);
+          else {assert.ok(name);searchToolName=name;}
+          return {receipt:{responseId:`meili_${mode}_1`,cursor:0},events:(async function*(){
+            yield {cursor:1,kind:'function_call',callId:`meili_call_${mode}`,
+              name:name??searchToolName,arguments:searchArgs};
+            yield {cursor:2,kind:'terminal',state:'succeeded'};
+          })()};
+        }
+        continued=input.inputItems;
+        if(mode!=='allowed')assert.equal(input.tools.some(item=>item.bindingId===`${meiliId}:index.search`),false);
+        return {receipt:{responseId:`meili_${mode}_2`,cursor:0},events:(async function*(){
+          yield {cursor:1,kind:'terminal',state:'succeeded'};})()};
+      },async *resume(){throw new Error('Unexpected resume');},async status(){throw new Error('Unexpected status');}},'model-a')};
+      const bridge=createTurnBridge({engine:providerEngine,db,catalog:providerCatalog,
+        permissions:providerPermissions,provider,registry:providerRegistry,toolCatalog:[searchTool],
+        connectors:mode==='unbound'?[]:[meiliConnectorDescriptor]});
+      assert.equal((await bridge.drive(request)).turn.state,'running');
+      assert.equal((await bridge.drive(request)).turn.state,'succeeded');
+      assert.equal(creates,2);
+      return JSON.parse(continued.find(item=>item.type==='function_call_output').output);
+    };
+    assert.deepEqual((await driveProvider(meiliAllowedRequest,'allowed')).output,searchOutput);
+    assert.equal(providerCalls,1);
+    assert.equal((await driveProvider(meiliUnboundRequest,'unbound')).error,'forbidden');
+    assert.equal(providerCalls,1);
+    const providerCurrent=await providerAcl.readPolicy(login.token);assert.equal(providerCurrent.ok,true);
+    const withoutSearch=structuredClone(providerCurrent.policy);
+    withoutSearch.roles.find(role=>role.id==='bridge-role').permissionIds=
+      withoutSearch.roles.find(role=>role.id==='bridge-role').permissionIds.filter(id=>id!==searchPermission);
+    assert.equal((await providerAcl.replacePolicy(login.token,{expectedEpoch:providerCurrent.epoch,
+      policy:withoutSearch})).ok,true);
+    assert.equal((await driveProvider(meiliRevokedRequest,'revoked')).error,'forbidden');
+    assert.equal(providerCalls,1);
   }finally{await runtime.dispose();}
 });

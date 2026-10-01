@@ -377,7 +377,7 @@ export function createDeclaredHttpDispatcher(options: {readonly registry: Operat
         const selected=host.forContext(contextId);
         if(!selected.provider)return failure('runtime_unavailable',503,requestId);
         const bridge=createTurnBridge({...selected,provider:selected.provider,registry:options.registry,
-          toolCatalog:options.toolCatalog??[],
+          toolCatalog:options.toolCatalog??[],connectors:options.connectors??[],
           ...(options.widgetCatalog && options.widgetValidators ? {widgets:{catalog:options.widgetCatalog,validators:options.widgetValidators}} : {})});
         const driveSignal=new AbortController(),onAbort=()=>driveSignal.abort();
         if(request.signal.aborted)onAbort();else request.signal.addEventListener('abort',onAbort,{once:true});

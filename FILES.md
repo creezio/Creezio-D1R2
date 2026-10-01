@@ -1,5 +1,7 @@
 # Repères du dépôt
 
+La projection des lectures du chat est dans `core/providers/tools.ts`. `core/operations/http.ts` transmet les connecteurs compilés à `core/conversations/turn-bridge.ts`, qui reprojette les outils avant leur invocation. Les tests `tests/openai/provider-host.test.mjs` et `tests/openai/turn-bridge.test.mjs` couvrent ce chemin ; aucune nouvelle implémentation de connecteur, de moteur ou de module n'est créée pour le correctif Meili.
+
 `app/access/operation-refusal.ts` distingue les refus des lectures facultatives du workspace/front des erreurs exigeant une revalidation globale. Ses appelants restent `app/workspace/host.tsx` et `app/front/host.tsx` ; `tests/workspace/operation-refusal.test.mjs` couvre les refus facultatifs, les vrais refus de session et les autres opérations. Aucun contrat SDK, modèle ou manifeste de module ne change.
 
 Relevé du 1er octobre 2026 : PR #82 est intégrée par squash sur main `7aeac0c295d5c3ce80ef211f8ae4022892e7a19e` (arbre `53325f6be2f84dc0158693a84fe4f5858ada4337`), avec 1 442/1 442 contrôles sur la CI candidate et la CI main `36793351811` ; le Worker local main est vérifié. Les paragraphes historiques ci-dessous qui la disent en brouillon décrivent son état précédent. SDK 1.8 reste non public. L'image Linux active demeure main `3d42489` ; Cloudflare Core garde son update `delivery-unknown` révision 8 et sert l'ancien Worker `cd2eeb2`. Reçu : `outputs/CREEZIO-PR82-MAIN-QUALIFIED-7AEAC0C-2026-10-01.json`.

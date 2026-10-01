@@ -16,6 +16,7 @@ import type {CompiledWidgetCatalog,WidgetValidatorMap} from '../../sdk/widgets/c
 import {createWidgetOperationPort} from '../widgets/host.ts';
 import {widgetKey} from '../../sdk/widgets/catalog.ts';
 import {operationDigest} from '../operations/digest.ts';
+import type {ConnectorDescriptor} from '../../sdk/connectors/types.ts';
 
 const ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const PROVIDER='openai.responses.v1';
@@ -32,6 +33,7 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
   readonly authorityDb?:IdentityDatabase;readonly storageRoute?:StorageRouteIdentity;
   readonly permissions:readonly PermissionDefinition[];readonly provider:ReturnType<typeof createOpenAiProviderHost>;
   readonly registry:OperationRegistry;readonly toolCatalog:readonly ProviderOperationSchema[];
+  readonly connectors?:readonly ConnectorDescriptor[];
   readonly engine:ReturnType<typeof createOperationEngine>;
   readonly widgets?:{readonly catalog:CompiledWidgetCatalog;readonly validators:WidgetValidatorMap}}){
   const data=createDataAccess(options.db,{catalog:options.catalog,permissions:options.permissions,
@@ -187,7 +189,7 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
       ?item as PendingTool:null;
   };
   const project=(request:Request)=>projectAuthorizedReadTools({catalog:options.toolCatalog,
-    registry:options.registry,data,request,
+    registry:options.registry,data,request,connectors:options.connectors,
     ...(options.widgets?{widgets:options.widgets.catalog}:{})});
   const invokeTool=async(request:Request,name:string,args:JsonValue):Promise<{result:JsonValue;render?:ToolRender}>=>{
     const projected=await project(request),selected=projected.tools.find(item=>item.provider.name===name);
