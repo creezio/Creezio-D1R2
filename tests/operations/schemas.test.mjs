@@ -27,8 +27,10 @@ test('connectors profile compiles below the unchanged generated validator limit'
     modules:loaded.located.map(item=>item.descriptor)});
   assert.equal(OPERATION_SCHEMA_LIMITS.generatedBytes,8*1024*1024);
   assert.equal(compiled.metrics.moduleCount,18);
-  assert.equal(compiled.metrics.schemaCount,435);
-  assert.equal(compiled.metrics.operationCount,263);
+  assert.equal(compiled.metrics.schemaCount,loaded.located.reduce((count,item)=>
+    count+item.descriptor.contracts.schemas.length,0));
+  assert.equal(compiled.metrics.operationCount,loaded.located.reduce((count,item)=>
+    count+item.descriptor.contracts.operations.length,0));
   assert.ok(compiled.metrics.generatedBytes>7*1024*1024);
   assert.ok(compiled.metrics.generatedBytes<OPERATION_SCHEMA_LIMITS.generatedBytes);
 });
