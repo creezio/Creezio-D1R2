@@ -1,5 +1,10 @@
 # Changelog
 
+## Correctif T07/T22 — refus de l'aperçu de rétention
+
+- L'ouverture de l'aperçu de rétention avec le seul droit de lecture Analytics renvoyait un 403 et fermait les onglets du workspace. La recette Sites confirme que session et projection restaient valides. Ce refus reste désormais dans le panneau concerné ; les commandes, les 401 et les refus de session conservent leur traitement.
+- Les deux tests ciblés du garde passent. La correction rejoint la PR #90 pour une livraison groupée ; aucun droit de gestion de rétention, activation de collecte ou purge n'est ajouté. La vérification de l'interface après livraison reste requise.
+
 ## Correctif T15 — statut d'une réponse connue avant reprise du flux
 
 - La reprise d'un tour possédant déjà un reçu OpenAI lit d'abord son statut : une réponse terminée peut être confirmée sans rouvrir un flux long. Une réponse encore active reprend le même flux ; aucune seconde création n'est émise.

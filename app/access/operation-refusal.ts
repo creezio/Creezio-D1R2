@@ -5,6 +5,7 @@ import type {OperationClientResult} from '../../sdk/operations/client';
 const optionalReads = new Set([
   'creezio.analytics:admin.collection.effective',
   'creezio.analytics:app.collection.effective',
+  'creezio.analytics:admin.retention.preview',
   'creezio.pages-navigation:admin.sidebar.resolved',
   'creezio.pages-navigation:app.sidebar.resolved',
 ]);

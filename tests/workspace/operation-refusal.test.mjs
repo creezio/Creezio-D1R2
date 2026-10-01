@@ -6,6 +6,7 @@ const denied=code=>({kind:'rejected',code,status:code==='authentication_required
 const optional=[
   'creezio.analytics:admin.collection.effective',
   'creezio.analytics:app.collection.effective',
+  'creezio.analytics:admin.retention.preview',
   'creezio.pages-navigation:admin.sidebar.resolved',
   'creezio.pages-navigation:app.sidebar.resolved',
 ];
@@ -23,6 +24,11 @@ test('an optional operation refusal cannot revoke unrelated workspace or front p
 test('other forbidden operations still revalidate access and non-refusals do not',()=>{
   assert.equal(shouldRefreshHostAccess(denied('forbidden'),
     'creezio.conversations:admin.conversation.list'),true);
+  for(const binding of ['creezio.analytics:admin.retention.configure',
+    'creezio.analytics:admin.retention.purge',
+    'creezio.analytics:admin.collection.configure']){
+    assert.equal(shouldRefreshHostAccess(denied('forbidden'),binding),true,binding);
+  }
   assert.equal(shouldRefreshHostAccess({kind:'unknown',code:'outcome_unknown'},optional[0]),false);
   assert.equal(shouldRefreshHostAccess({kind:'execution',execution:{state:'succeeded'}},optional[0]),false);
 });
