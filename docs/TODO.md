@@ -1,5 +1,15 @@
 # Backlog de réalisation
 
+## Révision 68 — reprise OpenAI et recettes après publication (1er octobre 2026)
+
+T15 : le correctif candidat consulte le statut d'un reçu connu avant de reprendre le flux, sous le même délai. Il ne crée pas une nouvelle réponse. Les cas terminal, actif, interruption, indisponibilité, signal déjà annulé et annulation pendant la lecture sont vérifiés dans la suite ciblée. CI, intégration et livraison restent requises ; le tour historique Original reste inconnu, sans promesse de récupération après expiration du reçu.
+
+T09/T14/T16/T37 : Lab v4 est publié depuis `7c6dc10` (source Site `3fd0c46`) et déclaré au registre. Le widget du chat natif, la lecture directe sans tour IA, le contexte ajouté puis retiré, le message préparé sans envoi et la conservation après rechargement sont vérifiés. La demande à 42,50 € et le fichier sont inchangés ; voir `CREEZIO-T09-LAB-WIDGET-POSTPUBLICATION-READ-CONFIRMED-2026-10-01.json` hors dépôt. Un premier choix d'outil erroné demeure documenté. Le widget ChatGPT sous CSP constitue une recette séparée déjà acquise.
+
+T25/T27/T28 : Original Sites v4 a qualifié le produit Catalogue publié, son brouillon entre onglets et sa lecture front. Les connexions réelles Meili et Stripe sont vérifiées ; cela ne clôture ni l'indexation/recherche Sites ni le nouveau webhook Stripe. T33 : PR #89 passe les CI candidate et main (1 472/1 472) ; Core Linux est actif sur `8d723ce`, sans DDL, et la recette du profil à bases séparées reste ouverte.
+
+Les recettes fournisseurs différées, T39 et les accords futurs restent inchangés. Les entrées suivantes décrivent les états historiques.
+
 ## Révision 67 — qualification distincte des Sites et du widget natif T09/T14/T16 (1er octobre 2026)
 
 T09 : Original du compte courant est publié en version 4 depuis Core `2738bd0b50fd2a6889c026c3f2562ff3ee3bdc67` et Site `a64331b0afa719ddf0d6716f14d3e7a0f04ffe33` ; son registre est synchronisé et le contact CRM témoin reste à la révision 3. Cette publication ne modifie pas le tour Original `59dd1fb8`, toujours `provider_unknown` et `outcome_unknown` après l'unique reprise native, sans réponse ni widget établis. Conserver ce critère ouvert ; voir `CREEZIO-T09-ORIGINAL-TURN-59DD-NATIVE-RESUME-RESULT-2026-10-01.json` hors dépôt.

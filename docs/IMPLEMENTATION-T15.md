@@ -16,6 +16,12 @@ Le catalogue d'outils est compilé depuis les schémas d'entrée exacts des opé
 
 Le SDK et le panneau Conversations original assurent l'envoi, l'observation, l'arrêt demandé et la reprise. Un état fournisseur inconnu suspend la boucle automatique ; seule une action explicite peut demander une reprise. Après expiration d'un claim sans reçu, la projection retrouve cet état sans recréer l'émission, y compris si l'arrêt a été demandé après la première incertitude ou pendant sa projection. Le front utilise les mêmes opérations que le workspace. OAuth/MCP et HTTP injectent le même moteur et les mêmes capacités serveur ; une identité GPT ne remplace pas les comptes applicatifs.
 
+## Reprise d'un reçu connu — correctif en qualification
+
+La reprise consulte le statut fournisseur avant de rouvrir le flux du même reçu. Le pont réutilise la réconciliation existante du texte, des outils et de l'usage si la réponse est déjà terminale ; sinon il reprend au curseur enregistré. Le signal borné est vérifié avant et après cette lecture et avant reprise. Un reçu indisponible ou un résultat arrivé après expiration reste inconnu, sans nouvelle création. Les chemins d'annulation et d'outil en attente gardent leur priorité.
+
+Six scénarios ciblés couvrent réponse terminale, réponse active, interruption du flux, statut indisponible, signal déjà annulé et statut terminal retourné après annulation. La suite ciblée passe ; la recette du correctif livré reste distincte. Le mode background ne fournit qu'une disponibilité temporaire du reçu : cette correction ne promet pas de récupérer un ancien tour expiré.
+
 ## Catalogue de lectures des modules — correctif en qualification
 
 La limite initiale de seize outils masquait des opérations pourtant autorisées lorsque plusieurs modules étaient actifs. La correction conserve l'ordre stable, les alias widgets et la revalidation des droits ; elle admet jusqu'à 128 définitions avec une borne cumulative de 64 Kio sur leur JSON UTF-8 réellement envoyé. Les outils omis et la raison sont comptés après autorisation dans le diagnostic existant. Ces valeurs bornent l'application ; elles ne représentent ni un quota universel des modèles ni une promesse de sélection parfaite du bon outil. Le nombre d'étapes d'un tour reste inchangé.
