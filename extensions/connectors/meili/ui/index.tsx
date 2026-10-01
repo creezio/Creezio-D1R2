@@ -6,7 +6,8 @@ import {useWorkspaceActivity} from '@creezio/sdk/workspace/components';
 import type {WorkspaceViewProps} from '@creezio/sdk/workspace/types';
 import {createCommandJournal,type PendingCommand} from '@creezio/sdk/operations/command-journal';
 import {Button,Card,CardContent,CardDescription,CardHeader,CardTitle} from '@creezio/sdk/ui';
-import {configRevisionChanged,indexPageFrom,panelData,preferFreshConfig,readPanel,retainedSessionId,
+import {configRevisionChanged,indexPageFrom,panelData,preferFreshConfig,readConfigThenIndex,
+  readPanel,retainedSessionId,
   scopeChange,sessionVerified,type IndexPage,type MeiliScope} from './panel-state.ts';
 
 type Config={origin:string|null;enabled:boolean;hasKey:boolean;
@@ -56,6 +57,7 @@ export function MeiliAdminView(props:WorkspaceViewProps){
   const [indexLoading,setIndexLoading]=useState(false);
   const [pending,setPending]=useState<PendingCommand|null>(null);
   const configSnapshot=useRef<Config|null>(null);
+  const sourceSnapshot=useRef('');
   const originDirty=useRef(false),enabledDirty=useRef(false),keyVersion=useRef(0);
   const pendingKeyVersion=useRef<number|null>(null);
   const editRevision=useRef<number|null>(null),keyRevision=useRef<number|null>(null);
@@ -76,40 +78,49 @@ export function MeiliAdminView(props:WorkspaceViewProps){
     props.navigation.savePanelState({data:panelData(scope,value)});
   const output=(result:Awaited<ReturnType<WorkspaceViewProps['client']['invoke']>>)=>
     result.kind==='execution'&&result.execution.state==='succeeded'?record(result.execution.output):null;
-  const read=async(token:number)=>{
+  const read=async(token:number):Promise<{source:string}|null>=>{
     const serial=++readSerial.current;
-    if(!current(token))return;
+    if(!current(token))return null;
+    let indexSource=sourceSnapshot.current;
     setLoading(true);
     try{
       const result=await props.client.invoke({bindingId:binding('config.read'),contextId:props.contextId,
         input:{},isCurrent:()=>current(token)});
-      if(!current(token)||serial!==readSerial.current)return;
+      if(!current(token)||serial!==readSerial.current)return null;
       const next=configFrom(output(result)?.config);
-      if(!next){setNotice('Configuration indisponible ou accès refusé.');return;}
-      if(preferFreshConfig(configSnapshot.current,next)===next){
+      if(!next){setNotice('Configuration indisponible ou accès refusé.');return null;}
+      else if(preferFreshConfig(configSnapshot.current,next)!==next)return null;
+      else{
+        indexSource=sourceSnapshot.current;
         if(configRevisionChanged(configSnapshot.current,next)){
           checkSerial.current++;setChecking(false);setConnection(null);
           indexSerial.current++;setIndexLoading(false);setIndexPage(null);setIndexState(null);
+          setSources([]);setSource('');sourceSnapshot.current='';indexSource='';
         }
         configSnapshot.current=next;setConfig(next);
         if(!originDirty.current)setOrigin(next.origin??'');
         if(!enabledDirty.current)setEnabled(next.enabled);
       }
-    }catch{if(current(token)&&serial===readSerial.current)setNotice('Configuration indisponible.');}
+    }catch{if(current(token)&&serial===readSerial.current)setNotice('Configuration indisponible.');
+      return null;}
     finally{if(current(token)&&serial===readSerial.current)setLoading(false);}
+    return current(token)&&serial===readSerial.current?{source:indexSource}:null;
   };
-  const loadIndex=async(token:number)=>{
+  const loadIndex=async(token:number,selectedSource=sourceSnapshot.current)=>{
     const serial=++indexSerial.current;
     if(!current(token))return;
     try{
       const result=await props.client.invoke({bindingId:binding('index.read'),contextId:props.contextId,
-        input:source?{source}:{},isCurrent:()=>current(token)});
+        input:selectedSource?{source:selectedSource}:{},isCurrent:()=>current(token)});
       if(current(token)&&serial===indexSerial.current){
         const body=output(result),available=body?.sources;
         if(Array.isArray(available)&&available.every(item=>typeof item==='string')){
           setSources(available as string[]);
-          if(!source&&available.length>0){setSource(String(available[0]));return;}
-          if(source&&!available.includes(source)){setSource('');setIndexState(null);return;}
+          if(!selectedSource&&available.length>0){
+            sourceSnapshot.current=available[0];setSource(available[0]);return;}
+          if(selectedSource&&!available.includes(selectedSource)){
+            sourceSnapshot.current=available[0]??'';
+            setSource(sourceSnapshot.current);setIndexState(null);return;}
         }
         setIndexState(indexFrom(body?.index));
       }
@@ -120,6 +131,7 @@ export function MeiliAdminView(props:WorkspaceViewProps){
     const transition=scopeChange(prior.current,next,access.pending?'loading':access.phase);
     readSerial.current++;checkSerial.current++;indexSerial.current++;mutationSerial.current++;
     if(transition.purge){configSnapshot.current=null;setConfig(null);setIndexState(null);setSources([]);setSource('');
+      sourceSnapshot.current='';
       setOrigin('');setApiKey('');setEnabled(false);
       setConnection(null);setIndexPage(null);setNotice('');setPending(null);setBusy(false);
       originDirty.current=false;enabledDirty.current=false;editRevision.current=null;
@@ -137,7 +149,8 @@ export function MeiliAdminView(props:WorkspaceViewProps){
       setPending(journal.current.pending);
       initial.current=null;
     }
-    void read(generation.current);void loadIndex(generation.current);
+    const token=generation.current;
+    void readConfigThenIndex(()=>read(token),value=>loadIndex(token,value.source),()=>current(token));
   },[allowed,sessionId,access.phase,access.pending,props.client,props.access,
     props.audience,props.contextId,props.panelId]);
   useEffect(()=>{if(source&&allowed)void loadIndex(generation.current);},[source]);
@@ -147,7 +160,9 @@ export function MeiliAdminView(props:WorkspaceViewProps){
     configSnapshot.current=next;setConfig(next);setOrigin(next.origin??'');setEnabled(next.enabled);
     originDirty.current=false;enabledDirty.current=false;editRevision.current=null;keyRevision.current=null;
     setConnection(null);indexSerial.current++;setIndexLoading(false);setIndexPage(null);
-    if(configRevisionChanged(previous,next))setIndexState(null);
+    const changed=configRevisionChanged(previous,next);
+    if(changed){setIndexState(null);setSources([]);setSource('');sourceSnapshot.current='';}
+    void loadIndex(generation.current,sourceSnapshot.current);
     return true;};
   const mutate=async(name:'config.set'|'config.key.set'|'config.key.revoke',input:Record<string,unknown>)=>{
     const controller=journal.current,token=generation.current;
@@ -308,7 +323,9 @@ export function MeiliAdminView(props:WorkspaceViewProps){
         <div className="flex flex-wrap gap-2">
           <label className="grid gap-1 text-sm">Source déclarée
             <select className="rounded-md border px-3 py-2 text-sm" value={source}
-              disabled={busy||!!pending} onChange={event=>{setSource(event.target.value);setIndexState(null);}}>
+              disabled={busy||!!pending} onChange={event=>{
+                sourceSnapshot.current=event.target.value;
+                setSource(event.target.value);setIndexState(null);}}>
               {sources.length===0?<option value="">Aucune source</option>:null}
               {sources.map(item=><option key={item} value={item}>{item}</option>)}
             </select></label>
@@ -317,7 +334,9 @@ export function MeiliAdminView(props:WorkspaceViewProps){
             onClick={()=>void indexCommand('index.rebuild.start')}>
             <RefreshCw className="mr-2 h-4 w-4" /> Nouvelle génération Catalogue</Button>
           <Button type="button" variant="outline" disabled={loading||busy||checking}
-            onClick={()=>{void read(generation.current);void loadIndex(generation.current);}}>
+            onClick={()=>{const token=generation.current;
+              void readConfigThenIndex(()=>read(token),value=>loadIndex(token,value.source),
+                ()=>current(token));}}>
             {loading?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:null}
             Actualiser l’état</Button>
         </div>

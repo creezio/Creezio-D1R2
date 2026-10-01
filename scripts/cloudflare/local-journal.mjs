@@ -72,7 +72,8 @@ export function createLocalControlJournal(directory,prefix){
       if(stat.isSymbolicLink()||!stat.isFile()||stat.size>LIMIT)fail('invalid_state');
       const value=JSON.parse(await readFile(file,'utf8'));
       const {id}=checked(value);if(key(id)!==file)fail('invalid_state');
-      if(value.owner!==owner||value.stage==='delivered')continue;
+      if(value.owner!==owner||value.stage==='delivered'
+        ||prefix==='update'&&value.stage==='rejected')continue;
       if(found)fail('transfer_conflict');found=value;
     }
     return found?.transferId??found?.updateId??null;

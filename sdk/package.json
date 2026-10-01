@@ -61,6 +61,26 @@
       "types": "./dist/types/sdk/delivery/transport.d.ts",
       "import": "./dist/esm/delivery/transport.js"
     },
+    "./delivery/types": {
+      "types": "./dist/types/sdk/delivery/types.d.ts",
+      "import": "./dist/esm/delivery/types.js"
+    },
+    "./delivery/controller": {
+      "types": "./dist/types/sdk/delivery/controller.d.ts",
+      "import": "./dist/esm/delivery/controller.js"
+    },
+    "./delivery/view-model": {
+      "types": "./dist/types/sdk/delivery/view-model.d.ts",
+      "import": "./dist/esm/delivery/view-model.js"
+    },
+    "./delivery/update-controller": {
+      "types": "./dist/types/sdk/delivery/update-controller.d.ts",
+      "import": "./dist/esm/delivery/update-controller.js"
+    },
+    "./delivery/update-view-model": {
+      "types": "./dist/types/sdk/delivery/update-view-model.d.ts",
+      "import": "./dist/esm/delivery/update-view-model.js"
+    },
     "./files/types": {
       "types": "./dist/types/sdk/files/types.d.ts",
       "import": "./dist/esm/files/types.js"

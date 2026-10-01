@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {readFileSync, writeFileSync} from 'node:fs';
 
 const root = new URL('../', import.meta.url);
-const template = JSON.parse(readFileSync(new URL('../openai/module/manifest.json', root), 'utf8'));
+const template = JSON.parse(readFileSync(new URL('module/manifest.json', root), 'utf8'));
 const moduleId = 'creezio.delivery', revision = 't32-local-delivery-v1';
 const ref = (kind, id) => ({moduleId, kind, id});
 const absence = (reason, policyRule) => ({reason, policyRule});
@@ -14,7 +14,7 @@ m.identity = {id: moduleId, title: 'Livraison Cloudflare locale', publisher: 'cr
   source: {kind: 'snapshot', revision,
     integrity: `sha256-${createHash('sha256').update(revision).digest('hex')}`},
   license: {expression: 'NOASSERTION', file: 'LICENSE'}};
-m.compatibility = {core: '^0.0.0', sdk: '^1.8.0', requiredCapabilities: ['runtime.worker'], optionalCapabilities: []};
+m.compatibility = {core: '^0.0.0', sdk: '^1.9.0', requiredCapabilities: ['runtime.worker'], optionalCapabilities: []};
 m.entrypoints = {server: {path: 'module/entry.server.ts', export: 'delivery'},
   ui: {path: 'ui/index.tsx', export: 'DeliveryAdminView'},
   plugin: {manifest: 'plugin/plugin.json', mcp: 'plugin/mcp.json',

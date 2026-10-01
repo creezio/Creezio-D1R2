@@ -13,6 +13,7 @@ export interface DeliveryUpdateViewModel {
   readonly canRefresh: boolean;
   readonly canReconcile: boolean;
   readonly canRetry: boolean;
+  readonly canReject: boolean;
 }
 const steps = Object.freeze([
   {id: 'build', label: 'Construire la nouvelle version'},
@@ -23,7 +24,7 @@ const steps = Object.freeze([
 const phaseStep: Record<DeliveryUpdatePhase, number> = {
   prepared: 0, building: 0, built: 1, preflight: 1,
   'schema-applying': 2, 'schema-ready': 3, publishing: 3,
-  'delivery-unknown': 3, delivered: 3,
+  'delivery-unknown': 3, rejected: 3, delivered: 3,
 };
 
 export function deliveryUpdateViewModel(input: DeliveryUpdateSnapshot): DeliveryUpdateViewModel {
@@ -36,13 +37,20 @@ export function deliveryUpdateViewModel(input: DeliveryUpdateSnapshot): Delivery
   let headline = 'Préparer une mise à jour', detail = 'Vérifiez le plan de la nouvelle version avant sa publication.';
   if (!connected) {
     headline = 'Service local indisponible';
-    detail = updateId ? 'Reconnectez le service local puis vérifiez cette mise à jour identifiée.'
+    detail = phase === 'rejected'
+      ? 'Dernier état confirmé : publication refusée. Reconnectez le service local avant de préparer un nouveau plan.'
+      : updateId ? 'Reconnectez le service local puis vérifiez cette mise à jour identifiée.'
       : 'Reconnectez le service local pour examiner la publication courante.';
   } else if (phase === 'delivery-unknown') {
     headline = 'Publication à vérifier';
-    detail = input.update?.retryEligible === true
+    detail = input.update?.diagnostic?.apiCodes.includes(10021)
+      ? 'Cloudflare a signalé un refus de validation. Vérifiez que l’ancienne version reste active avant de préparer un nouveau plan.'
+      : input.update?.retryEligible === true
       ? 'Le résultat est incertain. Vérifiez la publication avant de demander une nouvelle tentative explicite du même artefact.'
       : 'Le résultat est incertain. Vérifiez cette même mise à jour.';
+  } else if (phase === 'rejected') {
+    headline = 'Publication refusée et vérifiée';
+    detail = 'La nouvelle version a été refusée. L’ancienne reste publiée ; le schéma D1 déjà appliqué et les données sont conservés. Corrigez la source, puis préparez un nouveau plan.';
   } else if (phase === 'delivered') {
     headline = 'Mise à jour confirmée';
     detail = 'La nouvelle version du Worker a été publiée et vérifiée.';
@@ -62,14 +70,16 @@ export function deliveryUpdateViewModel(input: DeliveryUpdateSnapshot): Delivery
         : phase === undefined ? 'waiting' as const
         : index < phaseStep[phase] ? 'done' as const
         : index > phaseStep[phase] ? 'waiting' as const
-        : phase === 'delivery-unknown' ? 'attention' as const : 'current' as const}))),
+        : phase === 'delivery-unknown' || phase === 'rejected' ? 'attention' as const : 'current' as const}))),
     canPrepare: connected && input.inspection?.readiness === 'ready'
-      && !input.inspection.activeUpdateId && (!input.saved || phase === 'delivered'),
+      && !input.inspection.activeUpdateId && (!input.saved || phase === 'delivered' || phase === 'rejected'),
     canConfigure: connected && input.inspection?.readiness === 'needed',
     canStart: connected && input.inspection?.readiness === 'ready' && prepared,
     canRefresh: true,
-    canReconcile: connected && !!input.saved?.started && phase !== 'delivered',
+    canReconcile: connected && !!input.saved?.started && phase !== 'delivered' && phase !== 'rejected',
     canRetry: connected && !!input.saved?.started && phase === 'delivery-unknown'
-      && input.update?.retryEligible === true,
+      && input.update?.retryEligible === true && !input.update.diagnostic?.apiCodes.includes(10021),
+    canReject: input.rejectAvailable === true && connected && !!input.saved?.started && phase === 'delivery-unknown'
+      && !!input.update?.diagnostic?.apiCodes.includes(10021),
   });
 }

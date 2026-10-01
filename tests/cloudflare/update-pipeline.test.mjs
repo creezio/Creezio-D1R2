@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createCloudflareDeliveryPipeline} from '../../scripts/cloudflare/pipeline.mjs';
+import {CloudflarePublicationError} from '../../scripts/cloudflare/publisher.mjs';
 import {cloudflareWorkerConfiguration} from '../../scripts/cloudflare/config.mjs';
 import {createPublicationGate} from '../../core/registry/publication.ts';
 import {Miniflare,Log,LogLevel} from 'miniflare';
@@ -36,11 +37,11 @@ function journal(idField){
   const records=new Map();
   return {records,async load(id){return structuredClone(records.get(id)??null);},
     async findActive(owner){return [...records.values()].find(item=>item.owner===owner
-      &&item.stage!=='delivered')?.[idField]??null;},
+      &&!['delivered','rejected'].includes(item.stage))?.[idField]??null;},
     async create(next){assert.equal(records.has(next[idField]),false);
       records.set(next[idField],structuredClone(next));},
     async createActive(next){assert.equal([...records.values()].some(item=>item.owner===next.owner
-      &&item.stage!=='delivered'),false);
+      &&!['delivered','rejected'].includes(item.stage)),false);
       await this.create(next);},
     async compareAndSave(previous,next){assert.deepEqual(records.get(next[idField]),previous);
       assert.equal(next.revision,previous.revision+1);
@@ -56,7 +57,8 @@ function publicationJournal(){
     async saveSynchronized(record){assert.equal(records.get(record.requestKey).state,'delivered');
       records.set(record.requestKey,record);}};
 }
-function fixture({unknownUpload=false,failedUploadNoRemote=false,declarationFailsOnce=false,driftAfterBuild=false,
+function fixture({unknownUpload=false,failedUploadNoRemote=false,rejectedUploadNoRemote=false,
+  declarationFailsOnce=false,driftAfterBuild=false,
   lostSchemaReplyOnce=false,routedTarget=false,cutoverFactory=null}={}){
   const events=[],planJournal=journal('transferId'),updateJournal=journal('updateId'),
     gateJournal=publicationJournal();
@@ -77,7 +79,7 @@ function fixture({unknownUpload=false,failedUploadNoRemote=false,declarationFail
     tag:'cz-transfer-one',message:`Creezio ${originalArtifact.artifactDigest} ${originalArtifact.sourceSha}`,
     bindings:structuredClone(installedBindings)};
   let schemaState='additive',schemaReceiptId=`sha256-${'7'.repeat(64)}`;
-  let uploadCount=0,schemaEffects=0,declareCount=0;
+  let uploadCount=0,schemaEffects=0,declareCount=0,updateIds=0;
   const targetPlan={applicationId:'application',planDigest:`sha256-${'8'.repeat(64)}`,
     compositionDigest,lockDigest:`sha256-${'2'.repeat(64)}`,
     modelDigest:`sha256-${'9'.repeat(64)}`,sqlDigest:`sha256-${'a'.repeat(64)}`,
@@ -116,7 +118,7 @@ function fixture({unknownUpload=false,failedUploadNoRemote=false,declarationFail
     registryIdentity:{projectId:'project-one',installationId:'installation-one'},
     ...(cutoverFactory?{storageCutoverFactory:cutoverFactory}:{}),
     sourceIdentity:()=>({head:sourceSha,tree:'f'.repeat(40),sha256:'1'.repeat(64),dirty:false}),
-    project:()=>projection,updateIdFactory:()=> 'update-one',
+    project:()=>projection,updateIdFactory:()=> `update-${++updateIds===1?'one':'two'}`,
     controlFactory:()=>control,secretConnections:async()=>[],sourceKeyring:async()=>null,
     provisionerFactory:()=>({async provision(request){events.push('provision');return {
       state:'ready',target:{accountId,workerName,origin,bucketName:request.bucketName,
@@ -150,6 +152,8 @@ function fixture({unknownUpload=false,failedUploadNoRemote=false,declarationFail
         assert.equal(input.expectedPreviousDeploymentId,'deployment-original');
         assert.equal(input.expectedPreviousVersionId,originalVersion);
         assert.equal(Object.hasOwn(input,'secretsPath'),false);
+        if(rejectedUploadNoRemote)throw new CloudflarePublicationError('outcome_unknown',
+          {phase:'wrangler',reason:'exit_nonzero',exitCode:1,apiCodes:[10021]});
         if(failedUploadNoRemote)throw new Error('upload failed before remote effect');
         current.deploymentId=receipt.deploymentId;current.versionId=updatedVersion;
         current.tag='cz-update-one';
@@ -424,6 +428,71 @@ test('explicit retry refuses newer remote version without an upload',async()=>{
   await assert.rejects(f.pipeline.retryUpdate(input,context),{code:'delivery_unknown'});
   assert.equal(f.uploadCount,1);
   assert.equal(f.gateJournal.records.has('update-one.retry.1'),false);
+});
+
+test('explicit rejection requires Cloudflare 10021 and preserves the old Worker and additive schema',async()=>{
+  const f=fixture({rejectedUploadNoRemote:true});await f.configure();
+  const prepared=await f.pipeline.prepareUpdate({},context);
+  const input={updateId:prepared.updateId,planDigest:prepared.planDigest};
+  const unknown=await f.pipeline.startUpdate(input,context);
+  assert.equal(unknown.phase,'delivery-unknown');
+  assert.equal(unknown.retryEligible,false);
+  assert.deepEqual(unknown.diagnostic,{phase:'wrangler',reason:'exit_nonzero',exitCode:1,
+    apiCodes:[10021],validationIssue:'unknown_validation'});
+  await assert.rejects(f.pipeline.retryUpdate(input,context),{code:'update_not_ready'});
+  assert.equal(f.uploadCount,1);
+  const rejected=await f.pipeline.rejectUpdate(input,context);
+  assert.equal(rejected.phase,'rejected');
+  assert.equal(rejected.registryStatus,'pending');
+  assert.equal(rejected.retryEligible,false);
+  assert.equal(f.updateJournal.records.get('update-one').rejectionProof.previousVersionId,originalVersion);
+  assert.equal(f.gateJournal.records.get('update-one').state,'prepared');
+  assert.equal(f.current.deploymentId,'deployment-original');
+  assert.equal(f.uploadCount,1);
+  assert.equal(f.schemaEffects,1);
+  assert.equal((await f.pipeline.reconcileUpdate(input,context)).phase,'rejected');
+  assert.equal((await f.pipeline.rejectUpdate(input,context)).phase,'rejected');
+  await assert.rejects(f.pipeline.startUpdate(input,context),{code:'update_in_progress'});
+  await assert.rejects(f.pipeline.retryUpdate(input,context),{code:'update_not_ready'});
+  assert.equal((await f.pipeline.inspectUpdate(context)).activeUpdateId,null);
+  const next=await f.pipeline.prepareUpdate({},context);
+  assert.equal(next.updateId,'update-two');
+  assert.equal(f.uploadCount,1);
+  assert.equal(f.schemaEffects,1);
+});
+
+test('rejection fails closed on changed remote head, gate artifact, owner, or journal CAS',async()=>{
+  for(const changed of ['head','deployment','gate','artifact','owner','cas']){
+    const f=fixture({rejectedUploadNoRemote:true});await f.configure();
+    const prepared=await f.pipeline.prepareUpdate({},context);
+    const input={updateId:prepared.updateId,planDigest:prepared.planDigest};
+    assert.equal((await f.pipeline.startUpdate(input,context)).phase,'delivery-unknown');
+    if(changed==='head')f.control.latestVersion=async()=>({id:updatedVersion});
+    if(changed==='deployment')f.current.deploymentId='deployment-foreign';
+    if(changed==='gate')f.gateJournal.records.set('update-one',
+      {...f.gateJournal.records.get('update-one'),state:'delivered'});
+    if(changed==='artifact'){
+      const gate=f.gateJournal.records.get('update-one');
+      f.gateJournal.records.set('update-one',{...gate,request:{...gate.request,
+        artifact:{...gate.request.artifact,artifactDigest:`sha256-${'f'.repeat(64)}`}}});
+    }
+    if(changed==='cas')f.updateJournal.compareAndSave=async()=>{throw new Error('conflict');};
+    await assert.rejects(f.pipeline.rejectUpdate(input,changed==='owner'
+      ?{...context,principalId:'other'}:context));
+    assert.equal(f.updateJournal.records.get('update-one').stage,'delivery-unknown');
+    assert.equal(f.uploadCount,1);
+    assert.equal(f.schemaEffects,1);
+  }
+});
+
+test('an ambiguous upload without a 10021 refusal cannot be rejected',async()=>{
+  const f=fixture({failedUploadNoRemote:true});await f.configure();
+  const prepared=await f.pipeline.prepareUpdate({},context);
+  const input={updateId:prepared.updateId,planDigest:prepared.planDigest};
+  assert.equal((await f.pipeline.startUpdate(input,context)).phase,'delivery-unknown');
+  await assert.rejects(f.pipeline.rejectUpdate(input,context),{code:'update_not_ready'});
+  assert.equal((await f.pipeline.inspectUpdate(context)).activeUpdateId,'update-one');
+  assert.equal(f.uploadCount,1);
 });
 
 test('preflight failure leaves a durable retry key that can resume without allocating another',async()=>{

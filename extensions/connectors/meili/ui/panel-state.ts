@@ -60,3 +60,10 @@ export function preferFreshConfig<T extends {revision:number}>(current:T|null,ne
 export function configRevisionChanged(current:{revision:number}|null,next:{revision:number}):boolean{
   return current?.revision!==next.revision;
 }
+
+/** Index reads follow the accepted configuration read; stale reads start no follow-up. */
+export async function readConfigThenIndex<T>(readConfig:()=>Promise<T|null>,
+  readIndex:(accepted:T)=>Promise<void>,isCurrent:()=>boolean):Promise<void>{
+  const accepted=await readConfig();
+  if(accepted!==null&&isCurrent())await readIndex(accepted);
+}

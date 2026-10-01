@@ -93,6 +93,8 @@ test('original billing cards/tables remain and signed events are visible',()=>{
   assert.match(ui,/subVariant\(/u);assert.match(ui,/invoiceVariant\(/u);
   assert.match(ui,/Calcul non disponible sur ce parcours partiel/u);
   assert.match(ui,/Aucun événement signé reçu dans cette connexion/u);
+  assert.match(ui,/seul droit creezio\.stripe:webhook\.receive/u);
+  assert.doesNotMatch(ui,/droit Stripe manage/u);
   assert.match(ui,/event\.list/u);
   assert.match(ui,/createCommandJournal/u);
   assert.match(ui,/Nom non rapproché/u);

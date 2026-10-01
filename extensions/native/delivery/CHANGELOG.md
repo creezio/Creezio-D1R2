@@ -1,5 +1,12 @@
 # Changelog
 
+## Candidate locale — refus Cloudflare 10021 vérifié
+
+- Le paquet Delivery utilise les sous-chemins publics des contrôleurs et modèles de vue du SDK 1.9 candidat ; son générateur de manifeste relit son propre manifeste archivé. La compatibilité déclarée passe à `^1.9.0`.
+- Le diagnostic de validation expose une catégorie fermée sans journal fournisseur brut. Une action d'administration vérifie explicitement que la version et le déploiement actifs restent sur la publication précédente avant d'afficher `rejected` ; une issue non prouvée reste incertaine.
+- `rejectUpdate` reste une capacité facultative du transport SDK : les anciens adaptateurs masquent l'action et le contrôleur refuse son appel avec `service_unavailable`. Un diagnostic Cloudflare `10021` ne peut pas déclencher une nouvelle tentative, même si un ancien adaptateur annonce `retryEligible`.
+- Le reçu terminal permet de préparer un nouveau plan après correction, avec un nouvel identifiant. Le schéma D1 déjà appliqué, les données, les secrets et l'artefact restent conservés ; aucun rollback ni nouvel upload automatique n'est déclenché. Les tests d'interface et de transport sont locaux ; aucune publication Cloudflare corrigée n'est qualifiée ici.
+
 ## 0.0.0
 
 - Vue d’administration locale pour préparer, lancer, suivre et reprendre un transfert Cloudflare identifié.

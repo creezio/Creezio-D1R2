@@ -1,8 +1,8 @@
 'use client';
 
 import {Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle} from '@creezio/sdk/ui';
-import type {DeliveryStepStatus, DeliveryViewModel} from '../../../../sdk/delivery/types.ts';
-import type {DeliveryUpdateViewModel} from '../../../../sdk/delivery/update-view-model.ts';
+import type {DeliveryStepStatus, DeliveryViewModel} from '@creezio/sdk/delivery/types';
+import type {DeliveryUpdateViewModel} from '@creezio/sdk/delivery/update-view-model';
 
 export interface DeliveryOverviewProps {
   readonly model: DeliveryViewModel;
@@ -65,9 +65,10 @@ export function DeliveryOverview({model, busy = false, onConfigure, onPrepare, o
 }
 
 export function DeliveryUpdateOverview({model, busy = false, onPrepare, onStart,
-  onRefresh, onReconcile, onConfigure, onRetry}: Omit<DeliveryOverviewProps, 'model'> & {
+  onRefresh, onReconcile, onConfigure, onRetry, onReject}: Omit<DeliveryOverviewProps, 'model'> & {
     readonly model: DeliveryUpdateViewModel;
     readonly onRetry: () => void;
+    readonly onReject: () => void;
   }) {
   return <div className="space-y-4 p-6">
     <div className="flex flex-wrap items-center gap-2">
@@ -87,6 +88,8 @@ export function DeliveryUpdateOverview({model, busy = false, onPrepare, onStart,
           onClick={onReconcile}>Vérifier cette mise à jour</Button>}
         {model.canRetry && <Button size="sm" variant="outline" disabled={busy}
           onClick={onRetry}>Nouvelle tentative explicite</Button>}
+        {model.canReject && <Button size="sm" variant="outline" disabled={busy}
+          onClick={onReject}>Vérifier le refus signalé</Button>}
       </CardContent></Card>
     <Card><CardHeader><CardTitle className="text-base">Plan explicite</CardTitle>
       <CardDescription>La mise à jour conserve les données D1/R2 et les secrets de la cible.</CardDescription></CardHeader>

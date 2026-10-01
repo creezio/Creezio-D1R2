@@ -387,3 +387,43 @@ test('update routes bind an exact plan and recover ownership through status',
     assert.equal(result.response.status,403);
     assert.equal(starts,1);
   });
+
+test('explicit update rejection requires the bound capability and returns a closed diagnostic',
+  {timeout:30000},async t=>{
+    const port=await unusedPort(),native=(await issueOpaqueToken('session')).token;
+    const updateId='update-one',planDigest=digest;
+    const unknown={kind:'update',updateId,planDigest,phase:'delivery-unknown',summary:null,
+      finalUrl:null,registryStatus:'unknown',retryEligible:true,
+      diagnostic:{phase:'wrangler',reason:'exit_nonzero',exitCode:1,apiCodes:[10021],
+        validationIssue:'unknown_validation'}};
+    const rejected={...unknown,phase:'rejected',registryStatus:'pending',retryEligible:false};
+    let calls=0,phase='delivery-unknown';
+    const fetcher=async()=>Response.json({principalId:'principal-one',sessionId:'session-one',
+      epoch:1,expiresAtMs:Date.now()+3_600_000,
+      operatorOrigin:`http://127.0.0.1:${port}`});
+    const operations={inspect:async()=>inspection,configure:async()=>inspection,
+      prepare:async()=>prepared,start:async()=>transfer,status:async()=>transfer,
+      reconcile:async()=>transfer,
+      statusUpdate:async()=>phase==='rejected'?rejected:unknown,
+      rejectUpdate:async input=>{assert.deepEqual(input,{updateId,planDigest});calls++;
+        phase='rejected';return rejected;},
+      prepareUpdate:async()=>({kind:'update',updateId:'update-two',planDigest,
+        summary:{title:'Next',details:[],warnings:[]}})};
+    const server=createLocalDeliveryServer({config:{origin:appOrigin},port,operations,fetcher});
+    await server.listen();t.after(()=>server.close());
+    const initial=await post(server.origin,'session',`creezio-local-admin=${native}`);
+    const cookies=`creezio-local-admin=${native}; ${initial.response.headers.get('set-cookie').split(';')[0]}`;
+    let result=await get(server.origin,`update/status?updateId=${updateId}`,cookies);
+    assert.equal(result.response.status,200);
+    result=await post(server.origin,'update/reject',cookies,{updateId:'other',planDigest});
+    assert.equal(result.response.status,403);assert.equal(calls,0);
+    result=await post(server.origin,'update/reject',cookies,{updateId,planDigest});
+    assert.equal(result.response.status,202);
+    await new Promise(resolve=>setImmediate(resolve));
+    result=await get(server.origin,`jobs/${result.body.jobId}`,cookies);
+    assert.equal(result.response.status,200);
+    assert.deepEqual(result.body.value,rejected);
+    assert.equal(calls,1);
+    result=await post(server.origin,'update/prepare',cookies,{});
+    assert.equal(result.response.status,202);
+  });

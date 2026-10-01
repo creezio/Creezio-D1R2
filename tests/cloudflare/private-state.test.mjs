@@ -61,3 +61,17 @@ test('simultaneous update preparations claim only one active plan for an owner',
   assert.equal(Number((await updates.load('update-one'))!==null)
     +Number((await updates.load('update-two'))!==null),1);
 });
+
+test('a rejected update remains readable and releases the active update slot',async t=>{
+  const directory=await fixture(t),updates=createLocalControlJournal(directory,'update');
+  const first={schemaVersion:1,revision:1,updateId:'update-one',owner:'principal-one',
+    stage:'delivery-unknown'};
+  await updates.createActive(first);
+  const rejected={...first,revision:2,stage:'rejected'};
+  await updates.compareAndSave(first,rejected);
+  assert.equal(await updates.findActive('principal-one'),null);
+  const next={...first,updateId:'update-two',stage:'prepared'};
+  await updates.createActive(next);
+  assert.deepEqual(await updates.load('update-one'),rejected);
+  assert.equal(await updates.findActive('principal-one'),'update-two');
+});

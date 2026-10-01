@@ -4,8 +4,10 @@ import {execFileSync} from 'node:child_process';
 import {mkdtempSync,mkdirSync,writeFileSync,rmSync,readFileSync,renameSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
+import {EventEmitter} from 'node:events';
 import {measureRuntimeArtifacts} from '../../scripts/quality/runtime.mjs';
 import {inspectCloudflareDelivery,inspectCloudflareCurrent,createCloudflarePublisher,
+  runCloudflareUpload,
   CloudflarePublicationError,publicationFailure} from '../../scripts/cloudflare/publisher.mjs';
 import {cloudflareArtifactRoot} from '../../scripts/cloudflare/artifact-path.mjs';
 import {cloudflareWorkerConfiguration} from '../../scripts/cloudflare/config.mjs';
@@ -24,6 +26,29 @@ test('publication diagnostics expose only bounded scalars',()=>{
     exitCode:1,apiCodes:[10001,10002,10003,10004]});
   assert.deepEqual(publicationFailure(new Error('Bearer very-secret-token')),
     {phase:'unknown',reason:'unavailable',exitCode:null,apiCodes:[]});
+});
+test('Wrangler 10021 extracts only a closed validation issue across stderr chunks',async t=>{
+  const root=mkdtempSync(path.join(tmpdir(),'creezio-wrangler-diagnostic-'));
+  t.after(()=>rmSync(root,{recursive:true,force:true}));
+  mkdirSync(path.join(root,'node_modules/wrangler/bin'),{recursive:true});
+  writeFileSync(path.join(root,'node_modules/wrangler/bin/wrangler.js'),'');
+  const child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();
+  const spawnChild=()=>{queueMicrotask(()=>{
+    child.stderr.emit('data',Buffer.from('Bearer secret-value https://host.invalid/?token=secret'));
+    child.stderr.emit('data',Buffer.from(' Script startup exceeded CPU'));
+    child.stderr.emit('data',Buffer.from(' time limit (code: 10021)'));
+    child.emit('close',1);
+  });return child;};
+  let error;
+  try{await runCloudflareUpload({root,configPath:'wrangler.json',transferId:'update-one',
+    artifact:{artifactDigest:`sha256-${'a'.repeat(64)}`,sourceSha:'b'.repeat(40),
+      compositionDigest:`sha256-${'c'.repeat(64)}`},token:'x'.repeat(24),accountId:'a'.repeat(32)},
+    spawnChild);}catch(cause){error=cause;}
+  assert.equal(error?.code,'outcome_unknown');
+  const diagnostic=publicationFailure(error);
+  assert.deepEqual(diagnostic,{phase:'wrangler',reason:'exit_nonzero',exitCode:1,
+    apiCodes:[10021],validationIssue:'startup_cpu_limit'});
+  assert.equal(JSON.stringify(diagnostic).includes('secret'),false);
 });
 function fixture(t){
   const root=mkdtempSync(path.join(tmpdir(),'creezio-publisher-'));

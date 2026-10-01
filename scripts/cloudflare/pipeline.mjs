@@ -33,9 +33,13 @@ const stages=['intent','prepared','starting','capturing','captured','built','pre
   'verified','sandbox-ready','publishing','delivery-unknown','opening','delivered'];
 const rank=stage=>stages.indexOf(stage);
 const updateStages=['intent','prepared','building','built','preflight','schema-applying','schema-ready',
-  'publishing','delivery-unknown','delivered'];
+  'publishing','delivery-unknown','rejected','delivered'];
 const updateRank=stage=>updateStages.indexOf(stage);
 const publicationKey=record=>record.publicationAttemptKey??record.updateId;
+const validationRejected=record=>record.publicationFailure?.phase==='wrangler'
+  &&record.publicationFailure?.reason==='exit_nonzero'
+  &&Array.isArray(record.publicationFailure?.apiCodes)
+  &&record.publicationFailure.apiCodes.includes(10021);
 const fail=(code,status=503)=>{throw Object.assign(new Error(`Delivery pipeline ${code}.`),{code,status});};
 const exact=(value,keys)=>value&&typeof value==='object'&&!Array.isArray(value)
   &&[Object.prototype,null].includes(Object.getPrototypeOf(value))
@@ -134,14 +138,19 @@ function updateStatusOf(record){
     :cutoverPhase==='schema-ready'?'schema-ready'
     :['publishing','attesting','opening','open'].includes(cutoverPhase)?'delivery-unknown'
     :record.stage;
+  const failure=record.publicationFailure;
+  const diagnostic=Array.isArray(failure?.apiCodes)&&failure.apiCodes.includes(10021)
+    &&!failure.validationIssue
+    ?{...failure,validationIssue:'unknown_validation'}:failure;
   return Object.freeze({kind:'update',updateId:record.updateId,planDigest:record.planDigest,
     phase,summary:record.stage==='prepared'?record.summary:null,
     finalUrl:record.finalUrl??null,
     registryStatus:record.stage==='delivered'?'effective'
       :phase==='delivery-unknown'?'unknown':'pending',
     retryEligible:record.stage==='delivery-unknown'
-      &&record.target?.schemaVersion===1&&!!record.artifact&&!!record.schemaReceiptId,
-    ...(record.publicationFailure?{diagnostic:record.publicationFailure}:{})});
+      &&record.target?.schemaVersion===1&&!!record.artifact&&!!record.schemaReceiptId
+      &&!validationRejected(record),
+    ...(diagnostic?{diagnostic}:{})});
 }
 function updateArtifactRoot(root,updateId){
   if(typeof updateId!=='string'||!UPDATE_ID.test(updateId))fail('invalid_update',400);
@@ -1076,7 +1085,7 @@ export function createCloudflareDeliveryPipeline(options){
   async function reconcileUpdate(input,context){
     let record=await updateRecordFor(input?.updateId,input?.planDigest,context);
     if(record.stage==='prepared')fail('update_not_started',409);
-    if(record.stage==='delivered')return updateStatusOf(record);
+    if(record.stage==='delivered'||record.stage==='rejected')return updateStatusOf(record);
     if(record.target?.schemaVersion===3)return runUpdate(record);
     const registry=await registryPorts(),gateRecord=await registry.publicationJournal.get(publicationKey(record));
     if(gateRecord){
@@ -1099,11 +1108,45 @@ export function createCloudflareDeliveryPipeline(options){
     if(record.stage==='delivery-unknown')fail('delivery_unknown',409);
     return runUpdate(record);
   }
+  /** Explicitly close a rejected upload only after proving the old Worker is still the head. */
+  async function rejectUpdate(input,context){
+    const record=await updateRecordFor(input?.updateId,input?.planDigest,context);
+    if(record.stage==='rejected')return updateStatusOf(record);
+    if(record.stage!=='delivery-unknown'||record.target?.schemaVersion!==1
+      ||!validationRejected(record))fail('update_not_ready',409);
+    const registry=await registryPorts();
+    if(registry.registryIdentity.projectId!==record.registryProjectId
+      ||registry.registryIdentity.installationId!==record.registryInstallationId)
+      fail('registry_changed',409);
+    const preparedGate=gate=>gate?.state==='prepared'
+      &&gate.requestKey===publicationKey(record)
+      &&gate.request?.projectId===record.registryProjectId
+      &&gate.request?.installationId===record.registryInstallationId
+      &&gate.request?.target==='cloudflare'
+      &&sameArtifact(gate.request?.artifact,record.artifact);
+    if(!preparedGate(await registry.publicationJournal.get(publicationKey(record))))
+      fail('delivery_unknown',409);
+    const selected=await connected(record);
+    await assertPrevious(record,selected,registry);
+    if((await selected.control.latestVersion(record.workerName))?.id!==record.previousVersionId)
+      fail('delivery_unknown',409);
+    // Recheck directly before the local CAS. Cloudflare has no cross-system transaction.
+    await assertPrevious(record,selected,registry);
+    if((await selected.control.latestVersion(record.workerName))?.id!==record.previousVersionId
+      ||!preparedGate(await registry.publicationJournal.get(publicationKey(record))))
+      fail('delivery_unknown',409);
+    return updateStatusOf(await saveUpdate(record,{stage:'rejected',rejectionProof:{
+      publicationAttemptKey:publicationKey(record),
+      previousVersionId:record.previousVersionId,
+      previousDeploymentId:record.previousDeploymentId,
+      apiCode:10021}}));
+  }
   /** A new, explicit publication attempt of the preserved artifact after negative remote proof. */
   async function retryUpdate(input,context){
     let record=await updateRecordFor(input?.updateId,input?.planDigest,context);
     if(record.stage!=='delivery-unknown'||record.target?.schemaVersion!==1
-      ||!record.artifact||!record.schemaReceiptId)fail('update_not_ready',409);
+      ||!record.artifact||!record.schemaReceiptId||validationRejected(record))
+      fail('update_not_ready',409);
     const registry=await registryPorts();
     if(registry.registryIdentity.projectId!==record.registryProjectId
       ||registry.registryIdentity.installationId!==record.registryInstallationId)
@@ -1151,5 +1194,5 @@ export function createCloudflareDeliveryPipeline(options){
     return updateStatusOf(record);
   }
   return Object.freeze({inspect,configure,prepare,start,status,reconcile,
-    inspectUpdate,prepareUpdate,startUpdate,statusUpdate,reconcileUpdate,retryUpdate});
+    inspectUpdate,prepareUpdate,startUpdate,statusUpdate,reconcileUpdate,retryUpdate,rejectUpdate});
 }

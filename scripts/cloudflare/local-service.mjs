@@ -279,7 +279,7 @@ export function createLocalRegistryContext(config,journal){
 }
 export function superviseDeliveryOperations(pipeline,supervisor){
   const operations={...pipeline};
-  for(const kind of ['start','reconcile','startUpdate','reconcileUpdate','retryUpdate']){
+  for(const kind of ['start','reconcile','startUpdate','reconcileUpdate','retryUpdate','rejectUpdate']){
     if(typeof pipeline[kind]!=='function')continue;
     operations[kind]=async(...args)=>{
     let recoveryRequired=false;
