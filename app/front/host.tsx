@@ -20,6 +20,7 @@ import {FrontAccessRefused, readFrontProjection} from './projection-client';
 import styles from './host.module.css';
 import {WidgetHostProvider} from '../../sdk/widgets/provider';
 import {startAnalyticsCollection} from '../analytics/collection';
+import {shouldRefreshHostAccess} from '../access/operation-refusal';
 
 const contextId = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(frontContextId) ? frontContextId : '';
 const emptyInput: WorkspaceInput = Object.freeze({});
@@ -141,8 +142,9 @@ function BoundFront({access, initialUrl}: {access: AccessController; initialUrl?
   const client = useMemo(() => {
     const base = createOperationClient({origin: access.origin, audience: 'app', access,
       bindings: httpBindings.filter(binding => binding.audience === 'app' && binding.auth.includes('session'))});
-    const rejection = (result: Awaited<ReturnType<typeof base.invoke>>) => {
-      if (result.kind === 'rejected' && ['unauthorized','forbidden','authentication_required'].includes(result.code)) {
+    const rejection = (result: Awaited<ReturnType<typeof base.invoke>>, bindingId: string,
+      source: 'invoke' | 'status' = 'invoke') => {
+      if (shouldRefreshHostAccess(result, bindingId, source)) {
         setProjection(null); setRevocationVersion(value => value + 1); void access.refresh();
       }
     };
@@ -151,13 +153,13 @@ function BoundFront({access, initialUrl}: {access: AccessController; initialUrl?
         const initial = currentProjection.current;
         const result = await base.invoke({...request, isCurrent: () => !!initial && currentProjection.current === initial
           && (request.isCurrent?.() ?? true)});
-        rejection(result); return result;
+        rejection(result, request.bindingId); return result;
       },
       async status(request: Parameters<typeof base.status>[0]) {
         const initial = currentProjection.current;
         const result = await base.status({...request, isCurrent: () => !!initial && currentProjection.current === initial
           && (request.isCurrent?.() ?? true)});
-        rejection(result); return result;
+        rejection(result, request.bindingId, 'status'); return result;
       },
     };
   }, [access]);

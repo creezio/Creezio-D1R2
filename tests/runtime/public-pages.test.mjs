@@ -40,6 +40,22 @@ const sections=[{id:'hero',kind:'hero',position:0,enabled:true,content:{title:'P
 const settings={brandName:'Creezio'};
 const seo={title:'Indexable title',description:'Published description'};
 const request=(path,options)=>new Request(`${origin}${path}`,options);
+test('public SSR canonical follows safe published URLs and escapes the HTML attribute',()=>{
+  const rendered=canonical=>renderPublicPage({slug:'/',title:'Public page',sections:[],settings:{},
+    seo:{canonical},publishedRevision:1},[],origin,'');
+  const href=canonical=>rendered(canonical).match(/<link rel="canonical" href="([^"]+)"/)?.[1];
+  const ownUrl='https://pages.example.invalid/p?slug=%2F';
+  assert.equal(href('https://example.com/qualification-creezio'),
+    'https://example.com/qualification-creezio');
+  assert.equal(href('http://example.com/qualification-creezio'),
+    'http://example.com/qualification-creezio');
+  assert.equal(href('/qualification-creezio'),
+    'https://pages.example.invalid/qualification-creezio');
+  assert.equal(href('https://example.com/?a=1&b=2'),
+    'https://example.com/?a=1&amp;b=2');
+  for(const unsafe of ['javascript:alert(1)','https://user:pass@example.com/',
+    '//example.com/qualification-creezio',''])assert.equal(href(unsafe),ownUrl,unsafe);
+});
 async function insert(db,model,values){const fields=Object.keys(values);
   await db.prepare(`INSERT INTO "${schema.tables[model]}" (${fields.map(field=>`"${field}"`).join(',')}) VALUES (${fields.map(()=>'?').join(',')})`)
     .bind(...Object.values(values)).run();}

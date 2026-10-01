@@ -8,6 +8,8 @@ import type {NavItem,PublishedPage} from './contracts.ts';
 const color=(value:unknown):string|undefined=>typeof value==='string'&&
   /^#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?$/u.test(value)?value:undefined;
 const path=(slug:string)=>`/p?slug=${encodeURIComponent(slug)}`;
+const safeCanonical=(value:string)=>!/[\\\u0000-\u001f]/u.test(value)&&
+  (value.startsWith('/')&&!value.startsWith('//')||/^https?:\/\//u.test(value));
 
 /** Static HTML uses the same five editorial prefabs as the authenticated front. */
 export function PublicPageDocument({page,navigation,origin,css}: {
@@ -18,8 +20,11 @@ export function PublicPageDocument({page,navigation,origin,css}: {
   const ownUrl=new URL(path(page.slug),origin).href;
   let canonical=ownUrl;
   try{
-    const requested=new URL(page.seo.canonical?.trim()||ownUrl,origin);
-    if(requested.origin===origin&&!requested.username&&!requested.password)canonical=requested.href;
+    const rawCanonical=page.seo.canonical??'';
+    const requested=new URL(rawCanonical.trim()||ownUrl,origin);
+    if((!rawCanonical.trim()||safeCanonical(rawCanonical))
+      &&['http:','https:'].includes(requested.protocol)
+      &&!requested.username&&!requested.password)canonical=requested.href;
   }catch{/* The current page remains its own canonical URL. */}
   const images=Object.fromEntries(publishedImageIds(page).map(fileId=>[fileId,{status:'ready' as const,
     url:`/api/public/pages-navigation/media?slug=${encodeURIComponent(page.slug)}&file_id=${encodeURIComponent(fileId)}&revision=${page.publishedRevision}`} ]));

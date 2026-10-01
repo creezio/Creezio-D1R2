@@ -127,19 +127,29 @@ test('canonical operation engine uses real D1 and native authority across intern
         { signal: cancelled.signal })), { code: 'cancelled' });
       assert.equal(await count(fixture.db, 'executions'), before);
       for (const mode of ['cancelled', 'timeout']) {
-        const started = deferred(), release = deferred(), finished = deferred(), controller = new AbortController(); let lateError;
+        const started = deferred(), release = deferred(), finished = deferred(), controller = new AbortController();
+        let lateError, handlerStarted = false;
         const controlled = await create({ overrides: { async create_record(input, context) {
-          started.resolve(); await release.promise;
+          handlerStarted = true; started.resolve(); await release.promise;
           try { return { output: { id: input.id, title: input.title, revision: 0 }, plans: [context.data.planCreate('record',
             { values: { id: input.id, title: input.title, revision: 0 } })] }; }
           catch (error) { lateError = error.code; throw error; }
           finally { finished.resolve(); }
         } } });
-        const id = `late-${mode}`, pending = controlled.engine.invoke(request('create_record', { id, title: 'Late planner', request_id: id }, { signal: controller.signal }));
-        await started.promise; if (mode === 'cancelled') controller.abort();
-        try { const result = await pending; assert.equal(result.execution.state, 'failed'); assert.equal(result.execution.errorCode, mode); }
-        catch (error) { assert.equal(error.code, mode); }
-        release.resolve(); await finished.promise;
+        const id = `late-${mode}`;
+        const pending = controlled.engine.invoke(request('create_record', { id, title: 'Late planner', request_id: id },
+          { signal: controller.signal })).then(result => ({ result }), error => ({ error }));
+        let outcome;
+        try {
+          await Promise.race([started.promise, pending.then(() => { throw new Error('Operation terminated before reaching its planner.'); })]);
+          if (mode === 'cancelled') controller.abort();
+          outcome = await pending;
+        } finally {
+          release.resolve();
+          if (handlerStarted) await finished.promise;
+        }
+        if (outcome.error) assert.equal(outcome.error.code, mode);
+        else { assert.equal(outcome.result.execution.state, 'failed'); assert.equal(outcome.result.execution.errorCode, mode); }
         assert.equal(lateError, mode); assert.equal(await fixture.record(id), null);
       }
     });

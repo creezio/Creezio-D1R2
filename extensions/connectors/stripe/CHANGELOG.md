@@ -1,5 +1,9 @@
 # Changelog Stripe
 
+## 0.3.1 — correction du contrat de réception signée
+
+`webhook.receive` est déclaré sur `connector_config`, `stripe_event` et `stripe_checkout`, les trois modèles utilisés par son handler. Le coffre garde ses permissions propres : le jeton machine dédié ne reçoit aucun droit général de lecture ou gestion. Le garde hôte de ses références est limité à la préparation d'une lecture conditionnelle ; un échec de construction après le claim clôt l'exécution en échec au lieu de laisser un `running` orphelin. Le test local exerce un POST signé jusqu'au commit D1 et le refus après révocation de la configuration webhook. L'événement réel resté inconnu sous 0.3.0 n'est pas déclaré réparé ; livraison et recette de 0.3.1 restent ouvertes.
+
 ## 0.3.0 — candidate Checkout test et événements signés
 
 La réception signée possède le droit machine distinct `creezio.stripe:webhook.receive`. Il couvre seulement les modèles lus ou écrits par `event.receive` ; il ne confère ni gestion Stripe, ni création Checkout, ni gestion des clés. Le texte de configuration du jeton dans l'interface indique ce droit dédié. La qualification Stripe réelle reste ouverte.

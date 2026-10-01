@@ -1,4 +1,29 @@
 # Changelog
+## Correctif candidat — refus des lectures facultatives
+
+- Un refus `forbidden` HTTP 403 des lectures facultatives Analytics et Sidebar reste local à cette lecture dans le workspace et le front. Il ne vide plus les onglets autorisés par une revalidation globale en boucle. Les refus de session, les autres refus d'opération et la révocation par une nouvelle projection conservent leurs contrôles. La recette Cloudflare ayant révélé la boucle reste distincte de la future vérification du correctif livré.
+
+## Correctifs candidats — canonical SEO et coordination d'un test
+
+- Le renderer public Pages accepte le canonical HTTP(S) externe déjà autorisé par le module, avec les mêmes refus et l'échappement HTML. Les titre, description, image et retour protégé sont vérifiés sur Linux ; la correction du canonical attend sa recette après livraison.
+- Un test du moteur d'opérations observe maintenant une terminaison antérieure à l'entrée dans le handler et libère son attente même en cas d'échec. Les assertions d'annulation, de délai et d'absence d'écriture sont conservées ; le test ciblé passe 12/12. La cause précise du timeout de la CI `8e5d4a4` reste non établie, et cette ancienne CI n'est pas qualifiée.
+- Le contrôleur qualité expose les durées les plus longues et prépare deux phases : treize fichiers dont l'isolation a été revue tournent deux par deux, le reste en série. Chaque phase conserve ses compteurs TAP et son résultat ; leur budget total reste de 900 secondes. Aucun test requis, contrôle runtime ou contrôle de provenance n'est retiré.
+
+## Correctif candidat Docker — origines locales configurées
+
+- Les ponts de l'application et de l'opérateur suivent les ports de la configuration locale, avec refus des collisions sur leurs ports réservés. Le sandbox conserve son port configuré et son mapping explicite dans Compose.
+- Le propriétaire de l'installation T33 est confirmé sur son volume conservé et les trois D1 sont prêts. La recette HTTP de cette installation a révélé ce défaut de ports ; l'isolation métier et la publication Cloudflare restent à qualifier après livraison du correctif.
+
+## Correctif candidat Stripe 0.3.1 — réception des événements signés
+
+- Le compte de service webhook accède aux trois modèles métier déclarés nécessaires, sans recevoir de droit de lecture du coffre. L'hôte garde la vérification atomique des secrets et termine proprement une erreur de préparation des gardes.
+- Le test positif traverse le pont signé jusqu'à la projection D1 ; les refus du jeton limité et les révocations restent vérifiés. Le paiement fictif distant de la version précédente est acquis, mais son webhook historique reste incertain ; la nouvelle version attend sa CI et sa recette après livraison.
+
+## Collecte de clics — candidate Analytics et Catalogue
+
+- Deux boutons existants déclarent des identifiants d'action statiques : Actualiser dans Analytics et ouverture d'une fiche du front Catalogue. Leur collecte reste conditionnée par la politique du contexte, sans contenu métier dans l'événement et sans modification du rendu.
+- Catalogue 0.1.3 et les verrous des six compositions concernées sont préparés. Les tests ciblés passent ; la livraison et la recette navigateur de ces nouveaux clics restent ouvertes.
+
 ## Correctif d'installation — schémas comportant de nombreux modules
 
 - Les contrôles de vacuité de l'installateur utilisent une conjonction équilibrée. Le profil connecteurs à 114 tables peut être inspecté et installer son premier compte dans D1 sans dépasser la profondeur d'expression du moteur ; les gardes atomiques de schéma, reçu et données sont conservées.

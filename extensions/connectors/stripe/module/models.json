@@ -185,6 +185,11 @@
         "moduleId": "creezio.stripe",
         "kind": "permission",
         "id": "read"
+      },
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "webhook.receive"
       }
     ],
     "deletion": {
@@ -1510,6 +1515,11 @@
         "moduleId": "creezio.stripe",
         "kind": "permission",
         "id": "read"
+      },
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "webhook.receive"
       }
     ],
     "deletion": {
@@ -1641,6 +1651,11 @@
         "moduleId": "creezio.stripe",
         "kind": "permission",
         "id": "read"
+      },
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "webhook.receive"
       }
     ],
     "deletion": {

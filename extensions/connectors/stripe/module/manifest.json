@@ -5,11 +5,11 @@
     "title": "Connecteur Stripe",
     "publisher": "creezio",
     "origin": "https://github.com/creezio/Creezio-D1R2",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "source": {
       "kind": "snapshot",
-      "revision": "t27-stripe-checkout-test-v1",
-      "integrity": "sha256-f8ca30dd33c1576852d204d001ee4398dff3162b0b05a096b54d4e8bf06edc8c"
+      "revision": "t27-stripe-webhook-permissions-v1",
+      "integrity": "sha256-dff3414eb159f1cdf227a4e70a578274f5e61442469411127ac4ff7d204786ea"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -1920,6 +1920,11 @@
             "moduleId": "creezio.stripe",
             "kind": "permission",
             "id": "read"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "webhook.receive"
           }
         ],
         "deletion": {
@@ -3245,6 +3250,11 @@
             "moduleId": "creezio.stripe",
             "kind": "permission",
             "id": "read"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "webhook.receive"
           }
         ],
         "deletion": {
@@ -3376,6 +3386,11 @@
             "moduleId": "creezio.stripe",
             "kind": "permission",
             "id": "read"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "webhook.receive"
           }
         ],
         "deletion": {
@@ -8772,8 +8787,8 @@
       }
     },
     "versionBinding": {
-      "moduleVersion": "0.3.0",
-      "sourceRevision": "t27-stripe-checkout-test-v1"
+      "moduleVersion": "0.3.1",
+      "sourceRevision": "t27-stripe-webhook-permissions-v1"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -8900,8 +8915,8 @@
     },
     "validationBinding": {
       "moduleId": "creezio.stripe",
-      "moduleVersion": "0.3.0",
-      "sourceRevision": "t27-stripe-checkout-test-v1"
+      "moduleVersion": "0.3.1",
+      "sourceRevision": "t27-stripe-webhook-permissions-v1"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",

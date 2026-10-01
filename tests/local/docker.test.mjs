@@ -7,6 +7,7 @@ import {existsSync,mkdirSync,writeFileSync} from 'node:fs';
 import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {createLocalProxy} from '../../adapters/docker/proxy.mjs';
+import {dockerProxyTargets,serveDockerApplication} from '../../adapters/docker/serve.mjs';
 import {LOCAL_BINDINGS, loadLocalConfiguration} from '../../scripts/local/config.mjs';
 import {acquireLocalRuntimeLock} from '../../scripts/local/lock.mjs';
 import {closeLocalApplication,serveLocalApplication} from '../../scripts/local/serve.mjs';
@@ -45,6 +46,45 @@ test('Docker dev profile reuses the native origin, bindings and one persistent s
     '**/.quality','**/.dev.vars*','**/.npmrc']) assert.ok(ignore.split(/\r?\n/).includes(excluded));
   assert.match(ignore, /\.creezio\/\*\r?\n!\.creezio\/docker-source\.json/);
   assert.equal(ignore.includes('.openai'), false, 'the local binding contract must enter the image');
+});
+
+test('Docker bridges target the configured local origins while the sandbox keeps its own port', () => {
+  const standard=loadLocalConfiguration({root});
+  assert.deepEqual(dockerProxyTargets(standard),{app:5173,operator:5176});
+  assert.equal(standard.sandboxPort,5175);
+  const isolated=loadLocalConfiguration({root,
+    origin:'http://127.0.0.1:5273',
+    operatorOrigin:'http://127.0.0.1:5276',
+    sandboxOrigin:'http://127.0.0.1:5275',
+    sandboxBindHost:'0.0.0.0'});
+  assert.deepEqual(dockerProxyTargets(isolated),{app:5273,operator:5276});
+  assert.equal(isolated.sandboxPort,5275);
+  for(const origins of [
+    {origin:'http://127.0.0.1:5174'},
+    {operatorOrigin:'http://127.0.0.1:5177'},
+    {sandboxOrigin:'http://127.0.0.1:5174'},
+  ])assert.throws(()=>dockerProxyTargets(loadLocalConfiguration({root,...origins})),
+    /reserved Docker bridge port/);
+});
+
+test('Docker runtime uses shifted bridge targets and closes both bridges on operator close failure', async () => {
+  const config=loadLocalConfiguration({root,
+    origin:'http://127.0.0.1:5273',
+    operatorOrigin:'http://127.0.0.1:5276',
+    sandboxOrigin:'http://127.0.0.1:5275'});
+  const opened=[],closed=[];
+  await assert.rejects(serveDockerApplication({config,
+    async createProxy(options){
+      opened.push(options);
+      const index=opened.length;
+      return {async close(){closed.push(index);if(index===2)throw new Error('operator close failed');}};
+    },
+    async serve(options){
+      assert.equal(options.config,config);
+      assert.deepEqual(options.shutdownSignals,['SIGUSR2']);
+    }}),/operator close failed/);
+  assert.deepEqual(opened,[{targetPort:5273},{listenPort:5177,targetPort:5276}]);
+  assert.deepEqual(closed,[2,1]);
 });
 
 test('Docker stop signal closes the official runtime and releases its real storage lock', async t => {

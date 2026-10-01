@@ -1,5 +1,9 @@
 # Changelog
 
+## T21 — canonical SEO public (correctif candidat)
+
+Le renderer serveur reprend désormais le canonical HTTP(S) externe ou le chemin local publié, selon les formes déjà admises par `page.save` et le front authentifié. Les URL de protocole hostile, avec identifiants ou commençant par `//` reviennent à l'URL publique de la page ; React échappe l'attribut HTML. La révision source candidate passe de `t21-pages-navigation-v4` à `t21-pages-navigation-v5`, sans changer la version du module `0.0.0` ni prétendre qu'une archive a été publiée. Le verrou de composition et les archives devront être régénérés sur le main qualifié avant livraison.
+
 ## T21 — libellés et recette de l’accès public
 
 L’éditeur explique que l’accès sans connexion résulte d’un choix explicite à la publication. Les fichiers joints restent privés ; seules les images utilisées par la version rendue publique sont visibles sans connexion. Sur Linux main `3d42489`, la recette navigateur et HTTP sans cookie a vérifié page et image publiques, puis leur refus après republication protégée. Cette preuve ne qualifie ni Sites ni Cloudflare ; les nouveaux libellés ne faisaient pas partie de cette image Linux.

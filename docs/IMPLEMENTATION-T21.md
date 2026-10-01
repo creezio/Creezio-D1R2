@@ -1,5 +1,11 @@
 # T21 — Pages et navigation
 
+## SEO public vérifié et canonical corrigé en candidate — 1er octobre 2026
+
+La relecture native de la publication sur Linux `1dce54d` a levé l'incertitude du dialogue décrit ci-dessous, sans réémettre la commande. Le snapshot public v12/publication 6 sert le titre et la description saisis ainsi que l'image décodée en 32 × 32. La page a ensuite été republiée protégée v13/publication 7 : page et ancienne image publiques répondent 404 sans cookie, puis la session a été déconnectée. Le reçu `CREEZIO-T21-SEO-LINUX-RECIPE-1DCE54D-2026-10-01.json` lie ces preuves et captures.
+
+Un écart reste établi sur cette source : le renderer serveur remplace l'URL canonique externe publiée par l'URL locale, alors que le contrat et le front authentifié acceptent déjà cette URL HTTP(S). La révision source candidate `t21-pages-navigation-v5` aligne seulement le renderer sur les formes admises, avec repli pour les valeurs invalides et échappement HTML. Les tests SSR passent 3/3, les six verrous sont régénérés et vérifiés, et les tests de composition/schéma passent 39/39. Aucune interface, permission ou table ne change. Cette correction attend la nouvelle CI et sa livraison ; les recettes publiques Sites/Cloudflare restent distinctes.
+
 ## Saisie SEO partielle sur Linux main `9ce856c` — 1er octobre 2026
 
 Sur la page témoin existante, titre, description et URL canonique ont été saisis et enregistrés au brouillon v10 ; une publication **protégée** a été confirmée (publication v5, brouillon v11). Une tentative de publication publique suivante a affiché sa confirmation, mais son acceptation n'a pas été observée : GET anonyme 404 après la tentative. Le contrôle du dialogue/onglet navigateur a échoué, la session n'est pas déconnectée et aucun nouvel appui sur Publier ne doit être déduit de ce reçu. Celui-ci ne qualifie ni le HTML SEO public ni le rendu de la description/canonical saisis. La recette publique antérieure sur `3d42489` reste distincte et valide pour son autre révision.

@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 
 const root=new URL('../',import.meta.url);
 const template=JSON.parse(readFileSync(new URL('module/manifest.json',root),'utf8'));
-const id='creezio.pages-navigation',sourceRevision='t21-pages-navigation-v4',
+const id='creezio.pages-navigation',sourceRevision='t21-pages-navigation-v5',
   ref=(kind,name)=>({moduleId:id,kind,id:name});
 const S=(max=128,min=1)=>({minLength:min,maxLength:max});
 const I=(min=0)=>({minimum:min,maximum:Number.MAX_SAFE_INTEGER});

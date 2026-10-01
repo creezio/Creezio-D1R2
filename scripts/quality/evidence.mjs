@@ -17,6 +17,81 @@ export function inspectTap(output, exitCode) {
   return { success, counts, reason: success ? null : 'Nonzero exit, missing, failed or unexecuted test' };
 }
 
+/** Split only an audited allowlist; every required file must run exactly once. */
+export const auditedParallelTests = Object.freeze([
+  'tests/crm/integration.test.mjs',
+  'tests/meili/integration.test.mjs',
+  'tests/catalog/integration.test.mjs',
+  'tests/analytics/integration.test.mjs',
+  'tests/support/integration.test.mjs',
+  'tests/stripe/integration.test.mjs',
+  'tests/granola/integration.test.mjs',
+  'tests/n8n/integration.test.mjs',
+  'tests/pages-navigation/integration.test.mjs',
+  'tests/connectors/resend-integration.test.mjs',
+  'tests/connectors/hermes-integration.test.mjs',
+  'tests/modules/crm-transports.test.mjs',
+  'tests/modules/support-links-integration.test.mjs',
+]);
+
+export function partitionRequiredTests(required, parallelAllowlist) {
+  if (new Set(required).size !== required.length ||
+      new Set(parallelAllowlist).size !== parallelAllowlist.length ||
+      parallelAllowlist.some(file => !required.includes(file))) {
+    throw new Error('Invalid parallel test allowlist or required manifest');
+  }
+  const allowed = new Set(parallelAllowlist);
+  const parallel = required.filter(file => allowed.has(file));
+  const serial = required.filter(file => !allowed.has(file));
+  if (!parallel.length || !serial.length || parallel.length + serial.length !== required.length ||
+      new Set([...parallel, ...serial]).size !== required.length) {
+    throw new Error('Incomplete or overlapping test partition');
+  }
+  return { parallel, serial };
+}
+
+/** Count only two complete, disjoint TAP phases; never infer success from fragments. */
+export function inspectTapPhases(phases, required) {
+  if (phases.length !== 2 || phases.some(phase => !phase.tap?.success)) {
+    return { success: false, counts: null, reason: 'Missing or incomplete TAP phase' };
+  }
+  const files = phases.flatMap(phase => phase.files);
+  if (files.length !== required.length || new Set(files).size !== required.length ||
+      files.some(file => !required.includes(file))) {
+    return { success: false, counts: null, reason: 'Phase file manifest mismatch' };
+  }
+  const counts = Object.fromEntries(['tests', 'pass', 'fail', 'cancelled', 'skipped', 'todo']
+    .map(key => [key, phases.reduce((sum, phase) => sum + phase.tap.counts[key], 0)]));
+  const success = counts.tests > 0 && counts.pass === counts.tests &&
+    ['fail', 'cancelled', 'skipped', 'todo'].every(key => counts[key] === 0);
+  return { success, counts: success ? counts : null,
+    reason: success ? null : 'Incomplete or skipped test counts' };
+}
+
+export function remainingTestBudgetMs(deadline, now) {
+  return Math.max(0, Math.floor(deadline - now));
+}
+
+/** Diagnostic only: parent TAP durations can contain their children's time. */
+export function slowestTapSubtests(output, limit = 12) {
+  const rows = [];
+  const lines = output.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index++) {
+    const match = /^( *)(?:ok|not ok) \d+ - (.+)$/.exec(lines[index]);
+    if (!match || match[1].length % 4 !== 0 || lines[index + 1] !== `${match[1]}  ---`) continue;
+    for (let next = index + 2; next < Math.min(lines.length, index + 16); next++) {
+      if (lines[next] === `${match[1]}  ...`) break;
+      const duration = new RegExp(`^${match[1]}  duration_ms: (\\d+(?:\\.\\d+)?)$`).exec(lines[next]);
+      if (duration) {
+        rows.push({ name: match[2].slice(0, 180), level: match[1].length / 4,
+          durationMs: Number(duration[1]) });
+        break;
+      }
+    }
+  }
+  return rows.sort((a, b) => b.durationMs - a.durationMs).slice(0, limit);
+}
+
 /** Surface early failures that the aggregate's console tail would otherwise hide. */
 export function tapFailureExcerpt(output, {maxFailures = 5, maxChars = 12000} = {}) {
   const lines = output.split(/\r?\n/);
