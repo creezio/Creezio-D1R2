@@ -83,14 +83,22 @@ export async function projectAuthorizedReadTools(options:{readonly catalog:reado
   readonly connectors?:readonly Pick<ConnectorDescriptor,'id'|'moduleId'|'resources'>[];
   readonly widgets?:CompiledWidgetCatalog}){
   const tools:ProjectedTool[]=[],diagnostics:string[]=[],names=new Set<string>();
+  const representedByWidget=new Set<string>();
   let toolsJsonBytes=2; // JSON array brackets.
   if(options.catalog.length>1000)diagnostics.push('catalog:catalog_limit');
-  for(const candidate of options.catalog.slice(0,1000)){
+  const bounded=options.catalog.slice(0,1000);
+  // Admit render aliases before their canonical counterpart so the same read
+  // cannot consume a tool slot twice. A rejected alias leaves its fallback.
+  const candidates=[...bounded.filter(candidate=>candidate.widget),
+    ...bounded.filter(candidate=>!candidate.widget)];
+  for(const candidate of candidates){
     const label=`${candidate.moduleId}:${candidate.operationId}`;
     if(!ID.test(candidate.moduleId)||!ID.test(candidate.operationId)||!digest.test(candidate.schemaDigest)){
       diagnostics.push(`${label}:invalid_catalog`);continue;
     }
     if(!Array.isArray(candidate.audiences)||!candidate.audiences.includes(options.request.audience))continue;
+    const binding=`${label}\0${candidate.schemaDigest}`;
+    if(!candidate.widget&&representedByWidget.has(binding))continue;
     let registered;
     try{registered=options.registry.resolve(candidate.moduleId,candidate.operationId);}
     catch{diagnostics.push(`${label}:inactive`);continue;}
@@ -142,6 +150,7 @@ export async function projectAuthorizedReadTools(options:{readonly catalog:reado
     tools.push({provider,
       moduleId:candidate.moduleId,operationId:candidate.operationId,
       ...(candidate.widget?{widget:candidate.widget}:{})});
+    if(candidate.widget)representedByWidget.add(binding);
   }
   return Object.freeze({tools:Object.freeze(tools),diagnostics:Object.freeze(diagnostics)});
 }

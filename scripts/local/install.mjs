@@ -21,6 +21,7 @@ const safeCode = value => typeof value === 'string' && /^[a-z][a-z0-9_]{0,63}(?!
 const refusal = (code, effect = 'none') => Object.freeze({ ok: false, code, effect });
 const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const routeTable=`"${STORAGE_AUTHORITY_TABLES.storage_routes}"`;
+const mutationTable=`"${STORAGE_AUTHORITY_TABLES.storage_mutations}"`;
 const authState=`"${ACCESS_TABLES.authorization_state}"`;
 const exactSchema=(managed,plan)=>managed?.ok===true&&managed.receipt
   &&managed.receipt.planDigest===plan.planDigest
@@ -37,6 +38,47 @@ const routeInput=(config,plan,resource)=>{
       resource.slot,resource.databaseId,resource.bucketName]).slice(0,48)}`,
     commandDigest,expectedGeneration:1};
 };
+// A schema cutover keeps the installation but advances the target route's mutation.
+// Prove the complete local journal lineage instead of recomputing an old plan digest.
+async function installedRouteInput(source,config,plan,resource,row){
+  if(!row||!Number.isSafeInteger(row.generation)||row.generation<2
+    ||!['deny','active'].includes(row.state))return null;
+  const lastGeneration=row.generation-1;
+  let last,generation=0,cursorGeneration=0,cursorId='';
+  while(true){
+    const listed=await source.prepare(`SELECT id,installation_id AS installationId,
+      context_id AS contextId,generation,command_digest AS commandDigest,state FROM ${mutationTable}
+      WHERE installation_id=? AND context_id=? AND generation<=?
+        AND (generation>? OR (generation=? AND id>?))
+      ORDER BY generation,id LIMIT 64`)
+      .bind(config.storageInstallationId,resource.contextId,lastGeneration,
+        cursorGeneration,cursorGeneration,cursorId).all();
+    if(!Array.isArray(listed.results)||listed.results.length>64)return null;
+    if(listed.results.length===0)break;
+    for(const item of listed.results){
+      if(item.generation!==generation+1)return null;
+      const journal=item;
+      const prefix=generation===0?'local-install:':'local-schema:';
+      if(journal?.installationId!==config.storageInstallationId
+        ||journal.contextId!==resource.contextId||journal.generation!==item.generation
+        ||!/^sha256-[a-f0-9]{64}$/.test(journal.commandDigest)
+        ||journal.id!==`${prefix}${hash([journal.commandDigest,resource.contextId,
+          resource.slot,resource.databaseId,resource.bucketName]).slice(0,48)}`
+        ||(generation<lastGeneration-1&&journal.state!=='open'))return null;
+      last=journal;generation++;cursorGeneration=item.generation;cursorId=item.id;
+    }
+  }
+  if(generation!==lastGeneration)return null;
+  if(last?.id!==row.mutationId)return null;
+  const expectedDigest=lastGeneration===1?routeInput(config,plan,resource).commandDigest
+    :`sha256-${hash(['local.schema.apply',config.storageInstallationId,plan.planDigest,
+      config.storageResources.map(item=>[item.contextId,item.slot,item.status,
+        item.databaseId,item.bucketName])])}`;
+  if(last.commandDigest!==expectedDigest)return null;
+  return {installationId:config.storageInstallationId,contextId:resource.contextId,
+    slot:resource.slot,mutationId:last.id,commandDigest:last.commandDigest,
+    expectedGeneration:last.generation};
+}
 
 /** Routed installation uses the same central plan, but bootstraps accounts only in DB. */
 async function runRoutedInstallation({mode,config,io,adapter,engine,lock}){
@@ -66,6 +108,8 @@ async function runRoutedInstallation({mode,config,io,adapter,engine,lock}){
     io.write(`Cible primaire : ${config.bindings.databaseId} ; installation : ${config.storageInstallationId}`);
     io.write(`Plan central : ${plan.planDigest} ; ${active.length} paire(s) actives.`);
     const inspections=[];
+    const installedInputs=new Map();
+    let schemaCutoverPending=false;
     const primaryManaged=primaryInspection.state==='initialized'
       ?await engine.inspectManagedSchema(primary.db):null;
     const sourceProven=primaryInspection.state==='initialized'&&exactSchema(primaryManaged,plan);
@@ -79,17 +123,21 @@ async function runRoutedInstallation({mode,config,io,adapter,engine,lock}){
       let provenance=false;
       if(sourceProven&&Number.isSafeInteger(sourceEpoch?.epoch)&&sourceEpoch.epoch>=1
         &&schema.state==='ready'&&exactSchema(await engine.inspectManagedSchema(connection.db),plan)){
-        const input=routeInput(config,plan,resource);
         try{
-          const journal=await inspectStorageRevocation(primary.db,input);
           const row=await connection.db.prepare(`SELECT state,mutation_id AS mutationId,
             generation,source_epoch AS sourceEpoch FROM ${routeTable}
             WHERE id=? AND installation_id=? AND slot=? LIMIT 2`)
-            .bind(resource.contextId,input.installationId,resource.slot).first();
-          provenance=row?.mutationId===input.mutationId&&row.generation===2
+            .bind(resource.contextId,config.storageInstallationId,resource.slot).first();
+          const input=await installedRouteInput(primary.db,config,plan,resource,row);
+          const journal=input?await inspectStorageRevocation(primary.db,input):null;
+          provenance=!!input&&row.generation===input.expectedGeneration+1
             &&row.sourceEpoch===sourceEpoch.epoch
             &&(row.state==='deny'&&['fenced','source-attempted','source-confirmed'].includes(journal)
               ||row.state==='active'&&['source-confirmed','open'].includes(journal));
+          if(provenance){
+            installedInputs.set(resource.contextId,input);
+            if(row.state==='deny'&&input.expectedGeneration>1)schemaCutoverPending=true;
+          }
         }catch{/* A missing or foreign route never authorizes adoption. */}
       }
       let virgin=false;
@@ -106,11 +154,13 @@ async function runRoutedInstallation({mode,config,io,adapter,engine,lock}){
     }
     if(mode==='inspect'){
       result=Object.freeze({ok:!['blocked','unavailable'].includes(primaryInspection.state)
+        &&!schemaCutoverPending
         &&inspections.every(item=>!['blocked','unavailable'].includes(item.state)
           &&item.provenance!=='unproven'),
         code:'inspected',effect:'none',state:primaryInspection.state,targets:inspections});
     }else if(inspections.some(item=>item.provenance==='unproven'))
       result=refusal('target_unproven');
+    else if(schemaCutoverPending)result=refusal('schema_cutover_pending');
     else if(!['fresh','schema_ready','bootstrap_expired','initialized'].includes(primaryInspection.state)
       ||inspections.some(item=>!['ready','additive'].includes(item.state)))
       result=refusal('installation_blocked');
@@ -166,7 +216,7 @@ async function runRoutedInstallation({mode,config,io,adapter,engine,lock}){
           if(!Number.isSafeInteger(source?.epoch)||source.epoch<1)
             stop('source_unconfirmed');
           for(const {resource,connection} of targets){
-            const input=routeInput(config,plan,resource);
+            const input=installedInputs.get(resource.contextId)??routeInput(config,plan,resource);
             const state=await inspectStorageRevocation(primary.db,input);
             if(state==='open'){
               if(!await inspectStorageRouteOpen(connection.db,input,source.epoch))
@@ -183,12 +233,12 @@ async function runRoutedInstallation({mode,config,io,adapter,engine,lock}){
               ||!exactSchema(await engine.inspectManagedSchema(primary.db),plan))return false;
             for(const {resource,connection} of targets){
               if(!exactSchema(await engine.inspectManagedSchema(connection.db),plan))return false;
-              const input=routeInput(config,plan,resource);
+              const input=installedInputs.get(resource.contextId)??routeInput(config,plan,resource);
               const row=await connection.db.prepare(`SELECT state,mutation_id AS mutationId,generation
                 FROM ${routeTable} WHERE id=? AND installation_id=? AND slot=? LIMIT 2`)
                 .bind(resource.contextId,input.installationId,resource.slot).first();
               const state=await inspectStorageRevocation(primary.db,input);
-              if(row?.mutationId!==input.mutationId||row.generation!==2
+              if(row?.mutationId!==input.mutationId||row.generation!==input.expectedGeneration+1
                 ||!['deny','active'].includes(row.state)
                 ||!['fenced','source-attempted','source-confirmed','open'].includes(state))return false;
             }
@@ -196,14 +246,14 @@ async function runRoutedInstallation({mode,config,io,adapter,engine,lock}){
           };
           if(!await allReady())stop('route_unconfirmed','unknown');
           for(const {resource} of targets){
-            const input=routeInput(config,plan,resource);
+            const input=installedInputs.get(resource.contextId)??routeInput(config,plan,resource);
             const state=await inspectStorageRevocation(primary.db,input);
             if(state==='fenced')await markStorageSourceAttempted(primary.db,input);
             if(await inspectStorageRevocation(primary.db,input)==='source-attempted')
               await confirmStorageSource(primary.db,input,allReady);
           }
           for(const {resource,connection} of targets){
-            const input=routeInput(config,plan,resource);
+            const input=installedInputs.get(resource.contextId)??routeInput(config,plan,resource);
             await reopenStorageRoute(primary.db,connection.db,input,source.epoch);
             if(!await inspectStorageRouteOpen(connection.db,input,source.epoch))
               stop('route_unconfirmed','unknown');

@@ -312,9 +312,12 @@ test('client drive persists one confirmed assistant and never recreates an unkno
     const widgetTools=['card','picker'].map(widgetId=>({moduleId:id,operationId:'draft.read',
       inputSchema:readSchema,schemaDigest:digest,audiences:['admin'],widget:{moduleId:id,widgetId,
         version:'1.0.0',resourceDigest:digest,toolName:`witness_${widgetId}_read`,operationDigest:digest}}));
+    const canonicalWidgetTool={moduleId:id,operationId:'draft.read',inputSchema:readSchema,
+      schemaDigest:digest,audiences:['admin']};
     const multiRequest=await newTurn('two-widgets');
     const multiInputs=[];
-    const multiBridge=createTurnBridge({engine:widgetEngine,db,catalog,permissions,registry:reg,widgets,toolCatalog:widgetTools,
+    const multiBridge=createTurnBridge({engine:widgetEngine,db,catalog,permissions,registry:reg,widgets,
+      toolCatalog:[canonicalWidgetTool,...widgetTools],
       provider:{withTransport:async(_request,callback)=>callback({async create(input){
         multiInputs.push(input);
         const index=multiInputs.length;
@@ -335,6 +338,8 @@ test('client drive persists one confirmed assistant and never recreates an unkno
     assert.equal((await multiBridge.drive(multiRequest)).turn.state,'succeeded');
     assert.equal((await multiBridge.drive(multiRequest)).turn.state,'succeeded');
     assert.equal(multiInputs.length,3);
+    assert.ok(multiInputs.every(input=>
+      input.tools.map(tool=>tool.name).join(',')==='witness_card_read,witness_picker_read'));
     assert.deepEqual(multiInputs.map(input=>input.inputItems.filter(item=>item.type==='function_call').length),[0,1,2]);
     assert.deepEqual(multiInputs.map(input=>input.inputItems.filter(item=>item.type==='function_call_output').length),[0,1,2]);
     assert.ok(multiInputs.every(input=>input.limits.maxToolCalls===1));
