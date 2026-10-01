@@ -9,6 +9,7 @@ import {fileURLToPath} from 'node:url';
 import {stageSitesMetadata} from '../../scripts/sites/artifacts.mjs';
 import {measureRuntimeArtifacts} from '../../scripts/quality/runtime.mjs';
 import {sourceIdentity} from '../../scripts/quality/evidence.mjs';
+import {contractIntegrity} from '../../sdk/contracts/validate.mjs';
 import {planSitesSource,prepareSitesSource,verifySitesSource} from '../../scripts/sites/source.mjs';
 
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
@@ -34,12 +35,14 @@ function dispose(root,boundary=root){
   }
   rmdirSync(root);
 }
-function fixture({previous=false,unknown=false}={}){
+function fixture({previous=false,unknown=false,qualification=false}={}){
   const home=mkdtempSync(path.join(tmpdir(),'creezio-sites-source-'));
   const core=path.join(home,'core'),site=path.join(home,'descriptor'),stage=path.join(home,'stage');
   for(const root of [core,site,stage])mkdirSync(root);
   const hosting=JSON.stringify({project_id:'appgprj_test',d1:'DB',r2:'BUCKET'})+'\n';
-  const compositionDigest='sha256-'+'a'.repeat(64);
+  const nativeComposition={host:{profile:'sites'},modules:[]};
+  const selectedComposition=qualification?{...nativeComposition,modules:[{moduleId:'example.qualification'}]}:nativeComposition;
+  const compositionDigest=contractIntegrity(selectedComposition);
   put(site,'.openai/hosting.json',hosting);
   const historyFiles=['drizzle/0000_base.sql','drizzle/meta/0000_snapshot.json','drizzle/meta/_journal.json']
     .map((name,index)=>({path:name,digest:digest(Buffer.from(`generation-${index}\n`))}));
@@ -51,8 +54,12 @@ function fixture({previous=false,unknown=false}={}){
   put(core,'.gitignore','dist/\n.quality/\n');
   put(core,'package.json',JSON.stringify({name:'example',scripts:{build:'node build.js'}},null,2)+'\n');
   put(core,'scripts/sites/build.mjs','export {};\n');
-  put(core,'configuration/composition.sites.json','{}\n');
+  put(core,'configuration/composition.sites.json',JSON.stringify(nativeComposition)+'\n');
   put(core,'configuration/composition.sites.lock.json','{}\n');
+  if(qualification){
+    put(core,'configuration/composition.sites-qualification.json',JSON.stringify(selectedComposition)+'\n');
+    put(core,'configuration/composition.sites-qualification.lock.json','{}\n');
+  }
   put(core,'app.js','export default "source";\n');
   git(core,'init','-q');commit(core,'synthetic Core source');
   put(core,'dist/server/index.js','export default "Worker";\n');
@@ -110,6 +117,27 @@ test('Sites source plan prepares only attested files and verifies the separate s
     git(f.stage,'checkout','--orphan','unrelated');
     commit(f.stage,'unrelated history with identical bytes');
     assert.throws(()=>verifySitesSource(f.planFile,f.receiptFile),/does not descend/);
+  }finally{dispose(f.home);}
+});
+test('Sites source selects the qualified profile only when it matches the built composition',()=>{
+  const f=fixture({qualification:true});
+  try{
+    const compositionPath='configuration/composition.sites-qualification.json';
+    assert.throws(()=>planSitesSource({applicationRoot:f.core,siteRoot:f.site,
+      stageRoot:f.stage}),/differs from the built profile/);
+    assert.throws(()=>planSitesSource({applicationRoot:f.core,siteRoot:f.site,
+      stageRoot:f.stage,compositionPath:'configuration/composition.connectors.json'}),
+      /Unsupported Sites source composition/);
+    const plan=planSitesSource({applicationRoot:f.core,siteRoot:f.site,
+      stageRoot:f.stage,compositionPath});
+    assert.equal(plan.compositionPath,compositionPath);
+    const packageFile=plan.files.find(file=>file.path==='package.json');
+    assert(packageFile);
+    writeFileSync(f.planFile,JSON.stringify(plan,null,2)+'\n',{flag:'wx'});
+    prepareSitesSource(plan,f.planFile,f.receiptFile);
+    const pkg=JSON.parse(readFileSync(path.join(f.stage,'package.json'),'utf8'));
+    assert.match(pkg.scripts.build,/composition\.sites-qualification\.json/);
+    assert.match(pkg.scripts.build,/composition\.sites-qualification\.lock\.json/);
   }finally{dispose(f.home);}
 });
 test('Sites source refuses unowned tracked staging files before writing',()=>{

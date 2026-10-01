@@ -7,8 +7,12 @@ import {fileURLToPath} from 'node:url';
 import {sourceIdentity,sameSourceIdentity} from '../quality/evidence.mjs';
 import {inspectSitesMetadata} from './artifacts.mjs';
 import {planSitesExport} from './export.mjs';
+import {contractIntegrity} from '../../sdk/contracts/validate.mjs';
 
 const here=fileURLToPath(new URL('../../',import.meta.url));
+const nativeComposition='configuration/composition.sites.json';
+const qualificationComposition='configuration/composition.sites-qualification.json';
+const allowedCompositions=[nativeComposition,qualificationComposition];
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 const canonical=value=>JSON.stringify(value);
 const rootKey=value=>{
@@ -68,7 +72,12 @@ function measured(root,relative){
   const bytes=readFileSync(safe(root,relative));
   return {path:relative,bytes:bytes.length,sha256:sha(bytes)};
 }
-function selection(source,site,projectId,compositionDigest){
+function selection(source,site,projectId,compositionDigest,compositionPath=nativeComposition){
+  if(!allowedCompositions.includes(compositionPath))throw new Error('Unsupported Sites source composition.');
+  const lockPath=compositionPath.replace(/\.json$/,'.lock.json');
+  const composition=boundedJson(safe(source.root,compositionPath));
+  if(composition.host?.profile!=='sites'||contractIntegrity(composition)!==compositionDigest)
+    throw new Error('Sites source composition differs from the built profile.');
   const metadata=inspectSitesMetadata(site,{projectId,compositionDigest});
   const sourceFiles=source.files.filter(file=>file.sha256!==null&&file.path!=='.openai/hosting.json');
   if(sourceFiles.some(file=>!relativePath(file.path)||
@@ -78,8 +87,8 @@ function selection(source,site,projectId,compositionDigest){
     throw new Error('Core source includes a disallowed Sites file.');
   if(!sourceFiles.some(file=>file.path==='package.json')||
     !sourceFiles.some(file=>file.path==='scripts/sites/build.mjs')||
-    !sourceFiles.some(file=>file.path==='configuration/composition.sites.json')||
-    !sourceFiles.some(file=>file.path==='configuration/composition.sites.lock.json'))
+    !sourceFiles.some(file=>file.path===compositionPath)||
+    !sourceFiles.some(file=>file.path===lockPath))
     throw new Error('Core source lacks the Sites build profile.');
   const build=boundedJson(safe(source.root,'.quality/sites-build.json'));
   if(build.projectId!==projectId||build.compositionDigest!==compositionDigest||
@@ -102,9 +111,9 @@ function selection(source,site,projectId,compositionDigest){
   const pkg=JSON.parse(readFileSync(safe(source.root,'package.json'),'utf8'));
   if(!pkg||typeof pkg!=='object'||!pkg.scripts||typeof pkg.scripts!=='object')
     throw new Error('Core package lacks build scripts.');
-  pkg.scripts.build='node --eval "process.env.CREEZIO_COMPOSITION=\'configuration/composition.sites.json\';'
-    +'process.env.CREEZIO_COMPOSITION_LOCK=\'configuration/composition.sites.lock.json\';'
-    +'import(\'./scripts/sites/build.mjs\')"';
+  pkg.scripts.build=`node --eval "process.env.CREEZIO_COMPOSITION='${compositionPath}';`
+    +`process.env.CREEZIO_COMPOSITION_LOCK='${lockPath}';`
+    +`import('./scripts/sites/build.mjs')"`;
   const packageBytes=Buffer.from(JSON.stringify(pkg,null,2)+'\n');
   selected.set('package.json',{path:'package.json',bytes:packageBytes.length,
     sha256:sha(packageBytes),from:'transformed'});
@@ -137,7 +146,7 @@ function prior(stage,projectId){
   }
   return {...value,files};
 }
-function planned({applicationRoot=here,siteRoot,stageRoot}){
+function planned({applicationRoot=here,siteRoot,stageRoot,compositionPath=nativeComposition}){
   const core=rootDirectory(applicationRoot),site=rootDirectory(siteRoot),stage=rootDirectory(stageRoot);
   const roots=[core,site,stage].map(rootKey);
   if(roots.some((root,index)=>roots.some((other,otherIndex)=>otherIndex!==index&&
@@ -147,7 +156,7 @@ function planned({applicationRoot=here,siteRoot,stageRoot}){
   if(source.dirty||stageSource.dirty)throw new Error('Core and Sites staging must be clean Git sources.');
   const exportPlan=planSitesExport('app',site,{applicationRoot:core});
   const {metadata,files}=selection(source,site,exportPlan.projectId,
-    boundedJson(safe(core,'.quality/sites-build.json')).compositionDigest);
+    boundedJson(safe(core,'.quality/sites-build.json')).compositionDigest,compositionPath);
   if(metadata.digest!==exportPlan.metadataDigest)throw new Error('Sites metadata differs from built archive plan.');
   if(files.length>4096)throw new Error('Sites source inventory exceeds its bound.');
   const previous=prior(stage,exportPlan.projectId);
@@ -186,13 +195,15 @@ function planned({applicationRoot=here,siteRoot,stageRoot}){
   return {schemaVersion:1,projectId:exportPlan.projectId,core,site,stage,
     coreSource:identity,stageBase:stageIdentity,
     compositionDigest:metadata.compositionDigest,metadataDigest:metadata.digest,
+    ...(compositionPath===nativeComposition?{}:{compositionPath}),
     artifactDigest:exportPlan.artifactDigest,files,removed:removed.sort(),
     previousProvenanceSha256:previous?sha(readFileSync(safe(stage,'sites-source-provenance.json'))):null};
 }
 /** Read-only planning; the caller persists the plan before any staging mutation. */
 export function planSitesSource(options){return planned(options);}
 function verifyPlan(plan){
-  const current=planned({applicationRoot:plan.core,siteRoot:plan.site,stageRoot:plan.stage});
+  const current=planned({applicationRoot:plan.core,siteRoot:plan.site,stageRoot:plan.stage,
+    compositionPath:plan.compositionPath??nativeComposition});
   if(canonical(current)!==canonical(plan))throw new Error('Sites source changed since its durable plan.');
 }
 function evidenceOutside(plan,file){
@@ -213,7 +224,7 @@ export function prepareSitesSource(plan,planFile,receiptFile){
   verifyPlan(plan);
   const files=plan.files.filter(file=>file.path!=='.openai/hosting.json');
   const packageBytes=selection({...sourceIdentity(plan.core),root:plan.core},plan.site,
-    plan.projectId,plan.compositionDigest).packageBytes;
+    plan.projectId,plan.compositionDigest,plan.compositionPath??nativeComposition).packageBytes;
   for(const file of files){
     const from=file.from==='core'?plan.core:plan.site;
     if(file.from==='transformed')continue;
@@ -290,8 +301,8 @@ function args(argv){
     throw new Error('Use plan|prepare|verify with absolute Sites source and evidence paths.');
   for(let i=0;i<argv.length;i+=2){
     const key=argv[i],value=argv[i+1];
-    if(!['--core','--site','--stage','--plan','--receipt','--verification'].includes(key)||
-      result[key]||!path.isAbsolute(value))
+    if(!['--core','--site','--stage','--plan','--receipt','--verification','--composition'].includes(key)||
+      result[key]||!(key==='--composition'?allowedCompositions.includes(value):path.isAbsolute(value)))
       throw new Error('Invalid Sites source argument.');
     result[key]=value;
   }
@@ -299,7 +310,7 @@ function args(argv){
     mode==='prepare'&&(!result['--plan']||!result['--receipt'])||
     mode==='verify'&&(!result['--plan']||!result['--receipt']||!result['--verification']))
     throw new Error('Missing Sites source argument.');
-  if(Object.keys(result).some(key=>!({plan:['--core','--site','--stage','--plan'],
+  if(Object.keys(result).some(key=>!({plan:['--core','--site','--stage','--plan','--composition'],
     prepare:['--plan','--receipt'],verify:['--plan','--receipt','--verification']}[mode].includes(key))))
     throw new Error('Unexpected Sites source argument.');
   return {mode,result};
@@ -308,7 +319,8 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
   const {mode,result}=args(process.argv.slice(2));
   if(mode==='plan'){
     const plan=planSitesSource({applicationRoot:result['--core']??here,
-      siteRoot:result['--site'],stageRoot:result['--stage']});
+      siteRoot:result['--site'],stageRoot:result['--stage'],
+      compositionPath:result['--composition']??nativeComposition});
     const file=evidenceOutside(plan,result['--plan']);
     writeFileSync(file,JSON.stringify(plan,null,2)+'\n',{flag:'wx'});
     console.log(JSON.stringify({mode,projectId:plan.projectId,coreHead:plan.coreSource.head,
