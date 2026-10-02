@@ -162,10 +162,11 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
     snapshot?.draft?.conversationId === selectedIdForEffect;
   useEffect(() => {
     const wanted = draftRequested.current;
-    if (!controller || !activity.current || !selectedIdForEffect || wanted?.id !== selectedIdForEffect) return;
+    if (!controller || !activity.current || !selectedHydratedForEffect ||
+      wanted?.id !== selectedIdForEffect) return;
     if (draftTimer.current) clearTimeout(draftTimer.current);
     draftTimer.current = setTimeout(() => resumeDraft.current?.(wanted.id), 200);
-  }, [controller, selectedIdForEffect]);
+  }, [controller, selectedIdForEffect, selectedHydratedForEffect]);
   useEffect(() => {
     setModelIds([]);setSelectedModelId(null);setProviderStatus('checking');
     if(!controller||!activeNow)return;
@@ -258,7 +259,9 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
     const wanted = draftRequested.current;
     if (!wanted) return true;
     if (wanted.id !== id || live.current !== controller ||
-      controller.getSnapshot().selected?.id !== id || controller.getSnapshot().unknown || !activity.current) return false;
+      controller.getSnapshot().selected?.id !== id ||
+      controller.getSnapshot().draft?.conversationId !== id ||
+      controller.getSnapshot().unknown || !activity.current) return false;
     const inFlight = draftSaving.current;
     if (inFlight?.controller === controller) {
       await inFlight.promise;
@@ -368,9 +371,11 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
       content:message.body, widgetContent:message.content??null, createdAt:message.createdAt}))}
     onWidgetContextAction={controller.changeWidgetContext}
     draft={snapshot.draft?.conversationId === selectedId ? snapshot.draft.text : ''}
+    draftReady={selectedHydratedForEffect}
     modelOptions={modelIds.map(id=>({id,label:id}))} selectedModelId={selectedModelId}
     onModelChange={id=>setSelectedModelId(modelIds.includes(id)?id:null)}
-    onSend={providerStatus==='ready'&&selectedModelId&&modelIds.includes(selectedModelId)&&selectedId&&!runningTurn?()=>{void beforeTransition(async()=>{
+    onSend={providerStatus==='ready'&&selectedModelId&&modelIds.includes(selectedModelId)&&
+      selectedHydratedForEffect&&selectedId&&!runningTurn?()=>{void beforeTransition(async()=>{
       const current=controller.getSnapshot(),body=current.draft?.conversationId===selectedId?current.draft.text:'';
       if(!body.trim()||!modelIds.includes(selectedModelId))return;
       const result=await controller.startTurn(selectedId,body,selectedModelId);
@@ -398,7 +403,8 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
     assistantPreview={runningTurn?progress.preview:''} progressSteps={runningTurn?progress.steps:[]}
     toolDiagnostics={selectedTurn?progress.toolDiagnostics:null}
     onDraftChange={text => {
-      if (!selectedId) return;
+      if (!selectedId || controller.getSnapshot().selected?.id!==selectedId ||
+        controller.getSnapshot().draft?.conversationId!==selectedId) return;
       controller.setDraft(selectedId,text);
       draftRequested.current = {id:selectedId,text};
       if (draftTimer.current) clearTimeout(draftTimer.current);

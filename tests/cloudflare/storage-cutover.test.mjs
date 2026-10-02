@@ -63,7 +63,7 @@ async function fixture(){
     const sourceSha='b'.repeat(40),sourceFingerprint='c'.repeat(64);
     let sourceCurrent={head:sourceSha,sha256:sourceFingerprint,dirty:false};
     const saved={schemaVersion:1,revision:1,updateId:'cutover-one',stage:'prepared',
-      target:previous,targetPlanDigest:plan.planDigest,
+      target:previous,nextTarget:next,artifact,targetPlanDigest:plan.planDigest,
       targetCompositionDigest:plan.compositionDigest,sourceSha,sourceFingerprint,
       previousDeploymentId:'deployment-previous',previousVersionId:'version-previous',
       previousArtifact};
@@ -285,6 +285,23 @@ test('lost schema and publication replies are inspected without replay',
     assert.equal((await f.cutover().advance()).state,'ready');
     assert.equal(f.deliveries,1);
     assert.equal(f.applies.get(f.c),1);
+  }finally{await f.dispose();}
+});
+
+test('routed retry checks the preserved fenced routes and receipts without effects',
+  {timeout:60000},async()=>{
+  const f=await fixture();
+  try{
+    f.publication.inspect=async()=>null;
+    assert.deepEqual(await f.cutover().advance(),{state:'pending',phase:'publishing'});
+    assert.equal(f.deliveries,1);
+    assert.equal(await f.cutover().assertRetryReady(),true);
+    assert.equal(f.deliveries,1);
+    for(const db of [f.a,f.b,f.c])
+      assert.equal((await db.prepare(`SELECT state FROM ${routes}`).first()).state,'deny');
+    await f.a.prepare(`UPDATE ${routes} SET state='active'`).run();
+    await assert.rejects(f.cutover().assertRetryReady(),{code:'retry_not_ready'});
+    assert.equal(f.deliveries,1);
   }finally{await f.dispose();}
 });
 

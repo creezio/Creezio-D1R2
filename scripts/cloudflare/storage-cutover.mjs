@@ -249,7 +249,25 @@ export function createStorageCompositionCutover({updateJournal,updateId,previous
     }
     return inspectFinalRoutes();
   }
-  return Object.freeze({async advance(){
+  return Object.freeze({async assertRetryReady(){
+    sourceDb=await database(next.databaseId);
+    const record=await load();
+    if(record.cutover?.phase!=='publishing'||!same(record.nextTarget,next)
+      ||!sameArtifact(record.artifact,artifact)
+      ||record.cutover.receipts?.length!==1+newActive.length)
+      fail('retry_not_ready');
+    for(const entry of all.filter(item=>item.kind!=='new')){
+      const saved=record.cutover.generations?.find(item=>item.resourceKey===key(entry.resource));
+      if(!Number.isSafeInteger(saved?.generation)||saved.generation<1)
+        fail('cutover_changed');
+      entry.generation=saved.generation;
+      const existing=await readStorageMutation(sourceDb,command(entry).mutationId);
+      if(existing&&existing.generation!==entry.generation)fail('cutover_changed');
+    }
+    if(!await exactPrevious(record)||!await inspectFences()
+      ||!same(await verifySchema(),record.cutover.receipts))fail('retry_not_ready');
+    return true;
+  },async advance(){
     // The source journal is always the physically verified primary D1 binding.
     sourceDb=await database(next.databaseId);
     let record=await load();

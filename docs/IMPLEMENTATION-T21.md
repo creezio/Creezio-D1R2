@@ -6,6 +6,8 @@ Sur le Site actuel PR #97 (source `3a1b34842d6f985b956c3e519336451f4c65ee71`), l
 
 Cette preuve cible la navigation éditoriale sur ce Site ; elle ne qualifie ni images Pages, ni édition exhaustive des sections, ni autre hébergement.
 
+Sur cette seule page fictive déjà publique, le brouillon a été sauvegardé avec un sous-titre temporaire (révision 3→4), puis son aperçu a été lu par API et dans l'éditeur navigateur sans publication. Le HTML public, son canonical et les deux listes de navigation sont restés identiques au snapshot initial. L'opération native `page.reset` a restauré le brouillon depuis la publication (révision 4→5), et API/navigateur ont retrouvé le sous-titre initial. Aucune autre page ni navigation n'a changé ; logout 200/session 401 et fermeture du navigateur sont confirmés. Reçus hors dépôt : `CREEZIO-T21-OCT2-PREVIEW-RESET-FINAL.json`, `CREEZIO-T21-OCT2-PREVIEW-RESET-BROWSER-PREVIEW-RETRY2.json` et `CREEZIO-T21-OCT2-PREVIEW-RESET-BROWSER-RESTORED.json`. Cette recette n'ajoute ni image ni qualification exhaustive des sections.
+
 
 ## Canonical externe publié puis restauré sur Original Sites v7 — 2 octobre 2026
 
