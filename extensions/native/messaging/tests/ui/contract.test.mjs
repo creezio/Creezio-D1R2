@@ -72,6 +72,17 @@ test('message reader isolates incoming HTML in a strict sandbox',()=>{
   assert.match(html,/Marquer lu/);
   assert.match(html,/Archiver/);
   assert.match(html,/Corbeille/);
+  const trash=renderToStaticMarkup(React.createElement(view.ReaderPanel,{message:{...message,folder:'trash'},
+    draft:null,thread:[],threadHasMore:false,threadLoading:false,onThreadMore:()=>{},attachments:[],
+    loading:false,busy:false,onReply:()=>{},onEdit:()=>{},onDownload:()=>{},onUpdate:()=>{},
+    onDeleteDraft:()=>{},onDeleteMessage:()=>{},onThreadSelect:()=>{}}));
+  assert.match(trash,/Supprimer définitivement/);
+  const sent=renderToStaticMarkup(React.createElement(view.ReaderPanel,{message:{...message,
+    direction:'outbound',folder:'trash'},draft:null,thread:[],threadHasMore:false,threadLoading:false,
+    onThreadMore:()=>{},attachments:[],loading:false,busy:false,onReply:()=>{},onEdit:()=>{},
+    onDownload:()=>{},onUpdate:()=>{},onDeleteDraft:()=>{},onDeleteMessage:()=>{},onThreadSelect:()=>{}}));
+  assert.match(sent,/Historique d’envoi et accusés conservés/);
+  assert.match(sent,/disabled=""[^>]*>.*Supprimer définitivement/s);
 });
 
 test('long threads and searched lists expose their continuation instead of appearing complete',()=>{

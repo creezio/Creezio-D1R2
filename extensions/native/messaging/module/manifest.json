@@ -877,6 +877,75 @@
         }
       },
       {
+        "id": "message-delete-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "boxId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "messageId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "boxId",
+            "messageId",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "message-delete-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "deleted": {
+              "type": "boolean"
+            },
+            "revision": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "removed": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 13
+            }
+          },
+          "required": [
+            "deleted",
+            "revision",
+            "removed"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
         "id": "message-delivery-reconcile-input",
         "schema": {
           "type": "object",
@@ -4087,7 +4156,7 @@
           }
         ],
         "deletion": {
-          "mode": "soft",
+          "mode": "hard",
           "requiresApproval": false
         },
         "public": false
@@ -4896,7 +4965,7 @@
           }
         ],
         "deletion": {
-          "mode": "soft",
+          "mode": "hard",
           "requiresApproval": false
         },
         "public": false
@@ -5072,6 +5141,13 @@
             "id": "attachments",
             "type": "json",
             "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "deleted_at",
+            "type": "date-time",
+            "nullable": true,
             "protected": false,
             "computed": false
           },
@@ -6582,6 +6658,162 @@
         "concurrency": {
           "mode": "object-version",
           "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 100,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "to",
+            "cc",
+            "bcc",
+            "subject",
+            "text",
+            "html",
+            "address"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "message.delete",
+        "title": "Supprimer définitivement un message reçu dans la corbeille",
+        "kind": "command",
+        "input": {
+          "schemaId": "message-delete-input"
+        },
+        "output": {
+          "schemaId": "message-delete-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.messaging",
+            "kind": "permission",
+            "id": "use"
+          }
+        ],
+        "audiences": [
+          "admin",
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "messageDelete"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "model",
+              "id": "box"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "model",
+              "id": "message"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "model",
+              "id": "message_attachment"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "model",
+              "id": "inbound_snapshot"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "model",
+              "id": "send_snapshot"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "model",
+              "id": "message"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "model",
+              "id": "message_attachment"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "model",
+              "id": "inbound_snapshot"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
         },
         "execution": {
           "maxDurationMs": 10000,
@@ -9388,6 +9620,33 @@
         }
       },
       {
+        "id": "admin.message.delete",
+        "method": "POST",
+        "path": "/api/admin/messaging/message/delete",
+        "operation": {
+          "moduleId": "creezio.messaging",
+          "kind": "operation",
+          "id": "message.delete"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "message-delete-input"
+        },
+        "output": {
+          "schemaId": "message-delete-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
         "id": "admin.message.delivery.reconcile",
         "method": "POST",
         "path": "/api/admin/messaging/message/delivery/reconcile",
@@ -10298,6 +10557,33 @@
         },
         "output": {
           "schemaId": "message-output"
+        },
+        "rateLimit": {
+          "requests": 60,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.message.delete",
+        "method": "POST",
+        "path": "/api/app/messaging/message/delete",
+        "operation": {
+          "moduleId": "creezio.messaging",
+          "kind": "operation",
+          "id": "message.delete"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "message-delete-input"
+        },
+        "output": {
+          "schemaId": "message-delete-output"
         },
         "rateLimit": {
           "requests": 60,
@@ -11220,6 +11506,36 @@
           "textFallback": true
         },
         {
+          "id": "message.delete",
+          "name": "messaging_message_delete",
+          "operation": {
+            "moduleId": "creezio.messaging",
+            "kind": "operation",
+            "id": "message.delete"
+          },
+          "audiences": [
+            "admin",
+            "app"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "message-delete-input"
+          },
+          "output": {
+            "schemaId": "message-delete-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": true,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
           "id": "message.delivery.reconcile",
           "name": "messaging_message_delivery_reconcile",
           "operation": {
@@ -11984,6 +12300,11 @@
             {
               "moduleId": "creezio.messaging",
               "kind": "operation",
+              "id": "message.delete"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "operation",
               "id": "message.inbound.status"
             },
             {
@@ -12103,6 +12424,11 @@
               "moduleId": "creezio.messaging",
               "kind": "operation",
               "id": "message.update"
+            },
+            {
+              "moduleId": "creezio.messaging",
+              "kind": "operation",
+              "id": "message.delete"
             },
             {
               "moduleId": "creezio.messaging",

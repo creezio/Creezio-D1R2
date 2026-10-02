@@ -1,4 +1,4 @@
-export {boxList,boxPreviewList,boxCreate,messageList,messagePreviewList,messageRead,messageUpdate,
+export {boxList,boxPreviewList,boxCreate,messageList,messagePreviewList,messageRead,messageUpdate,messageDelete,
   messageDeliveryReconcile,messageInboundPrepare,messageInboundStatus,
   messageInboundAttachmentStage,messageInboundImport,messageAttachmentList,
   draftList,draftPreviewList,draftCreate,draftRead,draftSave,
