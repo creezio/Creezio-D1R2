@@ -310,6 +310,79 @@ test('routed sandbox ACK loss cannot fence routes or publish Worker before recon
   assert.equal(cutoverCalls,1);assert.equal(f.sandboxUploads,1);
 });
 
+async function routedUnknownFixture({rejected=false}={}){
+  let f,proofReady=true;
+  const cutoverFactory=input=>({
+    async assertRetryReady(){
+      assert.equal(input.nextTarget.schemaVersion,3);
+      if(!proofReady)throw Object.assign(new Error('fences changed'),{code:'retry_not_ready'});
+      return true;
+    },
+    async advance(){
+      const old=await input.updateJournal.load('update-one');
+      if(!old.cutover){
+        await input.updateJournal.compareAndSave(old,{...old,revision:old.revision+1,
+          cutover:{phase:'publishing',receipts:[
+            {databaseId:routed.databaseId,receiptId:`sha256-${'1'.repeat(64)}`},
+            {databaseId:routed.resources[0].databaseId,receiptId:`sha256-${'2'.repeat(64)}`} ]}});
+        await input.publication.deliver();
+      }
+      if(f.current.deploymentId==='deployment-updated'
+        &&await input.publication.inspect())return {state:'ready',phase:'open'};
+      return {state:'pending',phase:'publishing'};
+    }});
+  f=fixture({routedTarget:true,cutoverFactory,
+    ...(rejected?{rejectedUploadNoRemote:true}:{failedUploadNoRemote:true})});
+  await f.configure();
+  const prepared=await f.pipeline.prepareUpdate({},context);
+  const unknown=await f.pipeline.startUpdate(prepared,context);
+  assert.equal(unknown.phase,'delivery-unknown');
+  assert.equal(f.uploadCount,1);
+  assert.equal(f.gateJournal.records.get('update-one').state,'prepared');
+  return {f,prepared,unknown,setProofReady:value=>{proofReady=value;}};
+}
+
+test('routed upload diagnostic reaches status and explicit retry opens the same cutover',async()=>{
+  const {f,prepared,unknown}=await routedUnknownFixture();
+  assert.equal(unknown.retryEligible,true);
+  assert.deepEqual(unknown.diagnostic,{phase:'unknown',reason:'unavailable',
+    exitCode:null,apiCodes:[]});
+  assert.equal((await f.pipeline.statusUpdate(prepared.updateId,context)).retryEligible,true);
+  const inspected=await f.pipeline.reconcileUpdate(prepared,context);
+  assert.equal(inspected.phase,'delivery-unknown');
+  assert.deepEqual(inspected.diagnostic,unknown.diagnostic);
+  assert.equal(f.uploadCount,1,'reconcile only inspects the uncertain routed upload');
+  const delivered=await f.pipeline.retryUpdate(prepared,context);
+  assert.equal(delivered.phase,'delivered');
+  assert.equal(delivered.retryEligible,false);
+  assert.equal(f.uploadCount,2);
+  assert.equal(f.events.filter(item=>item==='build').length,1);
+  assert.equal(f.schemaEffects,0);
+  assert.equal(f.updateJournal.records.get('update-one').publicationAttemptKey,'update-one.retry.1');
+  assert.equal(f.gateJournal.records.get('update-one.retry.1').state,'synchronized');
+});
+
+test('routed retry refuses changed remote head or fenced-route proof before upload',async()=>{
+  for(const drift of ['latest','fences']){
+    const {f,prepared,setProofReady}=await routedUnknownFixture();
+    if(drift==='latest')f.control.latestVersion=async()=>({id:updatedVersion});
+    else setProofReady(false);
+    await assert.rejects(f.pipeline.retryUpdate(prepared,context),
+      {code:drift==='latest'?'delivery_unknown':'retry_not_ready'});
+    assert.equal(f.uploadCount,1);
+    assert.equal(f.gateJournal.records.has('update-one.retry.1'),false);
+  }
+});
+
+test('routed validation refusal keeps diagnostic and disables retry',async()=>{
+  const {f,prepared,unknown}=await routedUnknownFixture({rejected:true});
+  assert.deepEqual(unknown.diagnostic,{phase:'wrangler',reason:'exit_nonzero',exitCode:1,
+    apiCodes:[10021],validationIssue:'unknown_validation'});
+  assert.equal(unknown.retryEligible,false);
+  await assert.rejects(f.pipeline.retryUpdate(prepared,context),{code:'update_not_ready'});
+  assert.equal(f.uploadCount,1);
+});
+
 for(const [field,value] of [
   ['url','https://wrong.example/'],['publishedSha','f'.repeat(40)]])
   test(`routed update refuses a divergent previous declaration ${field} before fencing`,async()=>{
