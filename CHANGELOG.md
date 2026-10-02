@@ -1,5 +1,15 @@
 # Changelog
 
+## Guides de contribution et de diagnostic — 2 octobre 2026
+
+- Les missions explicitent leur exigence, résultat attendu, sources réutilisables et condition de fin. Les revues distinguent défaut de conformité et amélioration facultative ; les critères produit, l'interface Creezio originale et les reports utilisateur restent inchangés.
+- Le guide de recette demande une étape et une erreur exploitable avant tout nouvel essai ; le parcours clavier exige l'observation du focus. Les anciennes notes d'AGENTS sont séparées de l'état courant du TODO. Les contrôleurs, la CI et les contrats runtime ne sont pas modifiés.
+
+## Livraisons et recettes ciblées — 2 octobre 2026
+
+- PR #100 est intégrée sur `d7e117a` après CI candidate et main, chacune à 1 513/1 513 tests. La même source applicative est livrée sur Linux, Cloudflare et Original domix v6 ; les registres sont synchronisés et les données témoins conservées. La relecture navigateur Original retrouve le même fil, brouillon, réponse et fichier après rechargement, sans nouveau tour.
+- CRM : déplacement et édition du prospect témoin dans le kanban, puis restauration de son contenu métier, qualifiés sur Original. Pages : image privée publiée dans deux sections, lecture anonyme exacte et anciennes références refusées. Ces recettes ne ferment pas les autres critères des modules, le parcours clavier du widget ou la validation utilisateur T39.
+
 ## Correctif candidat T16 — confirmation de lien au clavier après revalidation
 
 - Une proposition `app.openLink` affichée dans le panneau est conservée brièvement en mémoire lorsque Tab depuis l'iframe déclenche une relecture d'accès. Elle ne revient qu'après vérification de la même session, du principal, du contexte, de l'instance et du catalogue ; un nouveau geste explicite reste nécessaire pour ouvrir le lien.
