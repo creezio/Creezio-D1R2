@@ -1,5 +1,10 @@
 # Changelog
 
+## Correctif candidat T16 — confirmation de lien au clavier après revalidation
+
+- Une proposition `app.openLink` affichée dans le panneau est conservée brièvement en mémoire lorsque Tab depuis l'iframe déclenche une relecture d'accès. Elle ne revient qu'après vérification de la même session, du principal, du contexte, de l'instance et du catalogue ; un nouveau geste explicite reste nécessaire pour ouvrir le lien.
+- Fermeture ou changement de conversation, révocation et ressource incompatible annulent cette reprise, même si le démontage du widget arrive après la fermeture. Les contrôles ciblés et un reproducteur Chromium sans réseau passent ; la recette sur l'application hébergée reste ouverte. Le paquet SDK public et les contrats MCP ne changent pas.
+
 ## Correctif candidat T16 — restauration du fil après rechargement
 
 - Le contrôleur Conversations reprend les lectures de messages et de brouillon interrompues après l’affichage du titre, sous l’accès courant ; une sélection manuelle plus récente conserve la priorité. Le panneau attend cette restauration pour lister les pièces jointes.
