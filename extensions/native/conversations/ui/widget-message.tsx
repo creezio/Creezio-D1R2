@@ -3,6 +3,8 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import type {CallToolRequest, CallToolResult} from '@modelcontextprotocol/client';
 import {createMcpAppsBridge, type McpAppsBridge} from '../../../../sdk/widgets/mcp-apps-bridge.ts';
+import {createHostOpenLinkGate, type HostOpenLinkGate,
+  type HostOpenLinkPrompt} from '../../../../sdk/widgets/host-open-link.ts';
 import {linkedImageToolResult} from '../../../../sdk/widgets/private-image.ts';
 import {useWidgetHost} from '../../../../sdk/widgets/provider.tsx';
 import {createFileClient} from '../../../../sdk/files/client.ts';
@@ -43,6 +45,8 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
   const [approval, setApproval] = useState<PendingApproval | null>(null);
   const approvalDraftRef = useRef<WidgetApprovalDraft | null>(null);
   const [approvalBusy, setApprovalBusy] = useState(false);
+  const [linkPrompt, setLinkPrompt] = useState<HostOpenLinkPrompt | null>(null);
+  const linkGate = useRef<HostOpenLinkGate | null>(null);
   const instanceSignature = JSON.stringify(props.instance);
   const config = host?.configuration;
   const entry = config?.widgets.find(item => item.moduleId === props.instance.moduleId &&
@@ -164,6 +168,8 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
       host.access.getSnapshot().phase === 'authenticated' &&
       host.access.getSnapshot().session?.id === sessionId &&
       host.configuration === config;
+    const links = createHostOpenLinkGate({isCurrent, show: setLinkPrompt});
+    linkGate.current = links;
     const callTool = async (params: CallToolRequest['params']): Promise<CallToolResult> => {
       if (!isCurrent()) return toolResult('rejected', 'widget_inactive');
       const tool = entry.serverTools.find(item => item.toolName === params.name &&
@@ -324,6 +330,9 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
             audience: host.audience},
           ...(initialResult ? {toolResult: initialResult} : {}),
           isCurrent, callTool,
+          openLink: async (url, signal) => {if (!isCurrent()) return false;
+            setStatus('Ce widget demande l’ouverture d’un lien externe. Confirmez dans Creezio.');
+            return links.request(url, signal);},
           ...(proposeRef.current ? {proposeMessage: async text => {
             if (!isCurrent()) return false;
             proposeRef.current?.(text); setStatus('Message proposé. Envoyez-le volontairement.');
@@ -352,7 +361,9 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
           approvalDraftRef.current ? 'Confirmation à vérifier…' : 'Widget prêt.');
       } catch {if (!cancelled) setStatus('Widget indisponible.');}
     })();
-    return () => {cancelled = true; const current = bridge.current; bridge.current = null;
+    return () => {cancelled = true;
+      links.dispose();if (linkGate.current === links) linkGate.current = null;
+      const current = bridge.current; bridge.current = null;
       if (current) void current.dispose();};
   }, [host, config, entry, resource, sessionId, instanceSignature, props.messageId,
     props.conversationId, props.active, journal, approvalJournal]);
@@ -457,6 +468,22 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
     aria-label={`Widget ${props.instance.widgetId}`} data-widget-instance={props.instance.instanceId}>
     <iframe ref={iframe} title={`Widget ${props.instance.widgetId}`}
       className="h-64 w-full rounded-md border border-slate-100" />
+    {linkPrompt && <section className="mt-2 rounded-md border border-sky-300 bg-sky-50 p-2"
+      aria-label="Ouverture d’un lien externe">
+      <p className="text-xs font-medium text-sky-950">Ce widget demande l’ouverture d’un site externe :</p>
+      <p className="mt-1 break-all text-[11px] text-sky-950">{linkPrompt.url}</p>
+      <div className="mt-2 flex gap-3 text-xs">
+        <a href={linkPrompt.url} target="_blank" rel="noopener noreferrer"
+          className="rounded bg-sky-700 px-2 py-1 text-white"
+          onClick={event => {
+            const current = linkGate.current?.accept(linkPrompt.id) ?? false;
+            if (!current) event.preventDefault();
+            setStatus(current ? 'Ouverture demandée au navigateur.' : 'Lien refusé : widget inactif.');
+          }}>Ouvrir le lien</a>
+        <button type="button" className="rounded border border-sky-400 px-2 py-1"
+          onClick={() => {linkGate.current?.cancel(linkPrompt.id);setStatus('Lien refusé.');}}>Annuler</button>
+      </div>
+    </section>}
     {approval && <section className="mt-2 rounded-md border border-amber-300 bg-amber-50 p-2"
       aria-label="Confirmation de l’opération">
       <p className="font-medium text-amber-950">{approval.preview.operation.title}</p>

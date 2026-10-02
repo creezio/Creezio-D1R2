@@ -5,11 +5,11 @@
     "title": "Connecteur Stripe",
     "publisher": "creezio",
     "origin": "https://github.com/creezio/Creezio-D1R2",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "source": {
       "kind": "snapshot",
-      "revision": "t27-stripe-subscription-cancellation-v1",
-      "integrity": "sha256-50d728e0bc8240a102997db76e0369fe2f9e632ce73f571a2986228243a14c84"
+      "revision": "t27-stripe-app-offer-checkout-v1",
+      "integrity": "sha256-013c0efdde4f63c391886666a249d6d3d6e1fe816be402c1afdc6480e39bdeea"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -95,6 +95,11 @@
                     }
                   ]
                 },
+                "checkoutAppReturnPath": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
                 "hasWebhookSecret": {
                   "type": "boolean"
                 },
@@ -120,6 +125,7 @@
                 "enabled",
                 "hasKey",
                 "checkoutReturnOrigin",
+                "checkoutAppReturnPath",
                 "hasWebhookSecret",
                 "hasWebhookService",
                 "revision",
@@ -158,6 +164,18 @@
                   "type": "string",
                   "minLength": 8,
                   "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "checkoutAppReturnPath": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
                 },
                 {
                   "type": "null"
@@ -1284,6 +1302,428 @@
         }
       },
       {
+        "id": "offer-set-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "offerId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "productId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "priceId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "requestKey",
+            "productId",
+            "priceId",
+            "enabled",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "offer-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "offer": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "productId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "priceId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "payment",
+                    "subscription"
+                  ]
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "unitAmountMinor": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "currency": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 3
+                },
+                "interval": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 16
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "intervalCount": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "id",
+                "productId",
+                "priceId",
+                "name",
+                "mode",
+                "enabled",
+                "unitAmountMinor",
+                "currency",
+                "interval",
+                "intervalCount",
+                "revision"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "offer"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "offer-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "offer-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "productId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "priceId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "payment",
+                      "subscription"
+                    ]
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "unitAmountMinor": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 3
+                  },
+                  "interval": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 16
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "intervalCount": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "id",
+                  "productId",
+                  "priceId",
+                  "name",
+                  "mode",
+                  "enabled",
+                  "unitAmountMinor",
+                  "currency",
+                  "interval",
+                  "intervalCount",
+                  "revision"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 8
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "app-offer-list-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "app-offer-list-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "productId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "priceId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "payment",
+                      "subscription"
+                    ]
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "unitAmountMinor": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 3
+                  },
+                  "interval": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 16
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "intervalCount": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "id",
+                  "productId",
+                  "priceId",
+                  "name",
+                  "mode",
+                  "enabled",
+                  "unitAmountMinor",
+                  "currency",
+                  "interval",
+                  "intervalCount",
+                  "revision"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 8
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
         "id": "checkout-create-input",
         "schema": {
           "type": "object",
@@ -1393,6 +1833,117 @@
           },
           "required": [
             "session"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "app-checkout-create-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "offerId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "requestKey",
+            "offerId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "app-checkout-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "offerId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "productId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "session": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "url": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 8,
+                      "maxLength": 2048
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "payment",
+                    "subscription"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 32
+                },
+                "paymentStatus": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 32
+                },
+                "livemode": {
+                  "const": false
+                }
+              },
+              "required": [
+                "id",
+                "url",
+                "mode",
+                "status",
+                "paymentStatus",
+                "livemode"
+              ],
+              "additionalProperties": false
+            },
+            "subscriptionId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "offerId",
+            "productId",
+            "session",
+            "subscriptionId"
           ],
           "additionalProperties": false
         }
@@ -1579,6 +2130,30 @@
                   "type": "null"
                 }
               ]
+            },
+            "customerId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "subscriptionId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -1718,6 +2293,7 @@
                 "invoices",
                 "products",
                 "prices",
+                "offers",
                 "checkout",
                 "settings"
               ]
@@ -1774,10 +2350,105 @@
         }
       },
       {
+        "id": "stripe-app-panel-state",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "audience": {
+              "const": "app"
+            },
+            "contextId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "checkoutSessionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "pending": {
+              "type": "object",
+              "properties": {
+                "sessionId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "audience": {
+                  "const": "app"
+                },
+                "contextId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "bindingId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 257
+                },
+                "requestKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                "intent": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "required": [
+                "sessionId",
+                "audience",
+                "contextId",
+                "bindingId",
+                "requestKey"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "sessionId",
+            "audience",
+            "contextId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
         "id": "stripe-view-input",
         "schema": {
           "type": "object",
           "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "stripe-offers-view-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "checkout": {
+              "type": "string",
+              "enum": [
+                "success",
+                "cancel"
+              ]
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
           "required": [],
           "additionalProperties": false
         }
@@ -1872,6 +2543,17 @@
             "constraints": {
               "minLength": 8,
               "maxLength": 512
+            }
+          },
+          {
+            "id": "checkout_app_return_path",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 256
             }
           },
           {
@@ -1983,6 +2665,16 @@
             "moduleId": "creezio.stripe",
             "kind": "permission",
             "id": "webhook.receive"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "purchase"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "purchase.read"
           }
         ],
         "deletion": {
@@ -2087,6 +2779,16 @@
             "moduleId": "creezio.stripe",
             "kind": "permission",
             "id": "manage"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "purchase"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "purchase.read"
           }
         ],
         "deletion": {
@@ -2907,6 +3609,16 @@
             "moduleId": "creezio.stripe",
             "kind": "permission",
             "id": "read"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "purchase"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "purchase.read"
           }
         ],
         "deletion": {
@@ -3131,6 +3843,212 @@
             "moduleId": "creezio.stripe",
             "kind": "permission",
             "id": "read"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "purchase"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "purchase.read"
+          }
+        ],
+        "deletion": {
+          "mode": "soft",
+          "requiresApproval": false
+        },
+        "public": false
+      },
+      {
+        "id": "stripe_offer",
+        "title": "Offre d’achat Stripe",
+        "scope": "context",
+        "contextField": "context_id",
+        "fields": [
+          {
+            "id": "context_id",
+            "type": "string",
+            "nullable": false,
+            "protected": true,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "connection_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "product_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "price_id",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "product_name",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 500
+            }
+          },
+          {
+            "id": "unit_amount_minor",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "currency",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 3,
+              "maxLength": 3
+            }
+          },
+          {
+            "id": "interval",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 16
+            }
+          },
+          {
+            "id": "interval_count",
+            "type": "integer",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "mode",
+            "type": "string",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "enum": [
+                "payment",
+                "subscription"
+              ]
+            }
+          },
+          {
+            "id": "enabled",
+            "type": "boolean",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          },
+          {
+            "id": "revision",
+            "type": "integer",
+            "nullable": false,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "updated_at",
+            "type": "date-time",
+            "nullable": false,
+            "protected": false,
+            "computed": false
+          }
+        ],
+        "primaryKey": [
+          "context_id",
+          "id"
+        ],
+        "indexes": [
+          {
+            "id": "by-connection",
+            "fields": [
+              "context_id",
+              "connection_id",
+              "id"
+            ],
+            "unique": false
+          }
+        ],
+        "relations": [],
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "read"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "purchase"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "purchase.read"
           }
         ],
         "deletion": {
@@ -3258,6 +4176,71 @@
             }
           },
           {
+            "id": "owner_principal_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "offer_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "offer_revision",
+            "type": "integer",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minimum": 1
+            }
+          },
+          {
+            "id": "product_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "customer_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "id": "subscription_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
             "id": "livemode",
             "type": "boolean",
             "nullable": false,
@@ -3313,6 +4296,16 @@
             "moduleId": "creezio.stripe",
             "kind": "permission",
             "id": "webhook.receive"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "purchase"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "purchase.read"
           }
         ],
         "deletion": {
@@ -3863,6 +4856,11 @@
           {
             "moduleId": "creezio.stripe",
             "kind": "model",
+            "id": "stripe_offer"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
             "id": "stripe_checkout"
           },
           {
@@ -3943,6 +4941,11 @@
           {
             "moduleId": "creezio.stripe",
             "kind": "model",
+            "id": "stripe_offer"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
             "id": "stripe_checkout"
           },
           {
@@ -3996,6 +4999,121 @@
           "read",
           "create",
           "update",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      },
+      {
+        "id": "purchase",
+        "title": "Acheter une offre Stripe",
+        "audiences": [
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "scopes": [
+          "stripe.purchase"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "connector_config"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "connector_secret"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "stripe_offer"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "stripe_product"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "stripe_price"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "stripe_checkout"
+          }
+        ],
+        "actions": [
+          "read",
+          "create",
+          "execute"
+        ],
+        "enforcement": {
+          "request": true,
+          "commit": true
+        },
+        "public": false
+      },
+      {
+        "id": "purchase.read",
+        "title": "Lire ses achats Stripe",
+        "audiences": [
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "scopes": [
+          "stripe.purchase.read"
+        ],
+        "context": "required",
+        "default": "deny",
+        "resources": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "connector_config"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "connector_secret"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "stripe_offer"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "stripe_product"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "stripe_price"
+          },
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "model",
+            "id": "stripe_checkout"
+          }
+        ],
+        "actions": [
+          "read",
           "execute"
         ],
         "enforcement": {
@@ -5112,6 +6230,681 @@
               "moduleId": "creezio.stripe",
               "kind": "model",
               "id": "connector_secret"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "stripe.api.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 15000,
+          "maxItems": 8,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "offer.set",
+        "title": "Configurer une offre Stripe test",
+        "kind": "command",
+        "input": {
+          "schemaId": "offer-set-input"
+        },
+        "output": {
+          "schemaId": "offer-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "offerSet"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_offer"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_product"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_price"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_offer"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 12,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "offer.list",
+        "title": "Lister les offres Stripe",
+        "kind": "query",
+        "input": {
+          "schemaId": "offer-list-input"
+        },
+        "output": {
+          "schemaId": "offer-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "read"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "offerList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_offer"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 8
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 10,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "app.offer.list",
+        "title": "Lister les offres achetables",
+        "kind": "query",
+        "input": {
+          "schemaId": "app-offer-list-input"
+        },
+        "output": {
+          "schemaId": "app-offer-list-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "purchase.read"
+          }
+        ],
+        "audiences": [
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "appOfferList"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_offer"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_product"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_price"
+            }
+          ],
+          "writes": [],
+          "emits": [],
+          "calls": [],
+          "providers": []
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "cursor",
+          "cursorField": "cursor",
+          "limitField": "limit",
+          "maxItems": 8
+        },
+        "idempotency": {
+          "mode": "none"
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 10000,
+          "maxItems": 30,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "app.checkout.create",
+        "title": "Acheter une offre Stripe test",
+        "kind": "command",
+        "input": {
+          "schemaId": "app-checkout-create-input"
+        },
+        "output": {
+          "schemaId": "app-checkout-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "purchase"
+          }
+        ],
+        "audiences": [
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "appCheckoutCreate"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_offer"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_product"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_price"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_checkout"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "stripe.api.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "none"
+        },
+        "execution": {
+          "maxDurationMs": 15000,
+          "maxItems": 15,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
+        "id": "app.checkout.read",
+        "title": "Relire son achat Stripe",
+        "kind": "query",
+        "input": {
+          "schemaId": "checkout-read-input"
+        },
+        "output": {
+          "schemaId": "app-checkout-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "purchase.read"
+          }
+        ],
+        "audiences": [
+          "app"
+        ],
+        "actors": [
+          "user",
+          "delegated-user"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "appCheckoutRead"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_checkout"
             }
           ],
           "writes": [],
@@ -7480,6 +9273,171 @@
         }
       },
       {
+        "id": "admin.offer.set",
+        "method": "POST",
+        "path": "/api/admin/stripe/offer/set",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "offer.set"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "offer-set-input"
+        },
+        "output": {
+          "schemaId": "offer-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "admin.offer.list",
+        "method": "GET",
+        "path": "/api/admin/stripe/offer/list",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "offer.list"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "offer-list-input"
+        },
+        "output": {
+          "schemaId": "offer-list-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.offer.list",
+        "method": "GET",
+        "path": "/api/app/stripe/offer/list",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "app.offer.list"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "inputField": "limit",
+            "required": true
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "inputField": "cursor",
+            "required": false
+          }
+        ],
+        "input": {
+          "schemaId": "app-offer-list-input"
+        },
+        "output": {
+          "schemaId": "app-offer-list-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.checkout.create",
+        "method": "POST",
+        "path": "/api/app/stripe/checkout/create",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "app.checkout.create"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "app-checkout-create-input"
+        },
+        "output": {
+          "schemaId": "app-checkout-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
+        "id": "app.checkout.read",
+        "method": "GET",
+        "path": "/api/app/stripe/checkout/read",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "app.checkout.read"
+        },
+        "audience": "app",
+        "auth": [
+          "session",
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "query",
+            "inputField": "sessionId",
+            "required": true
+          }
+        ],
+        "input": {
+          "schemaId": "checkout-read-input"
+        },
+        "output": {
+          "schemaId": "app-checkout-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
         "id": "admin.checkout.payment.create",
         "method": "POST",
         "path": "/api/admin/stripe/checkout/payment/create",
@@ -8232,6 +10190,177 @@
           "textFallback": true
         },
         {
+          "id": "offer.set",
+          "name": "stripe_offer_set",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "offer.set"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "offer-set-input"
+          },
+          "output": {
+            "schemaId": "offer-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "offer.list",
+          "name": "stripe_offer_list",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "offer.list"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "offer-list-input"
+          },
+          "output": {
+            "schemaId": "offer-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true
+        },
+        {
+          "id": "app.offer.list",
+          "name": "stripe_app_offer_list",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "app.offer.list"
+          },
+          "audiences": [
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "app-offer-list-input"
+          },
+          "output": {
+            "schemaId": "app-offer-list-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": false
+          },
+          "textFallback": true,
+          "widget": {
+            "moduleId": "creezio.stripe",
+            "kind": "widget",
+            "id": "offers"
+          }
+        },
+        {
+          "id": "app.checkout.create",
+          "name": "stripe_app_checkout_create",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "app.checkout.create"
+          },
+          "audiences": [
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "app-checkout-create-input"
+          },
+          "output": {
+            "schemaId": "app-checkout-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": true
+          },
+          "textFallback": true,
+          "widget": {
+            "moduleId": "creezio.stripe",
+            "kind": "widget",
+            "id": "checkout-status"
+          },
+          "widgetCalls": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "widget",
+              "id": "offers"
+            }
+          ]
+        },
+        {
+          "id": "app.checkout.read",
+          "name": "stripe_app_checkout_read",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "app.checkout.read"
+          },
+          "audiences": [
+            "app"
+          ],
+          "auth": [
+            "oauth"
+          ],
+          "input": {
+            "schemaId": "checkout-read-input"
+          },
+          "output": {
+            "schemaId": "app-checkout-output"
+          },
+          "annotations": {
+            "readOnly": true,
+            "destructive": false,
+            "idempotent": true,
+            "openWorld": true
+          },
+          "textFallback": true,
+          "widget": {
+            "moduleId": "creezio.stripe",
+            "kind": "widget",
+            "id": "checkout-status"
+          },
+          "widgetCalls": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "widget",
+              "id": "offers"
+            }
+          ]
+        },
+        {
           "id": "checkout.payment.create",
           "name": "stripe_checkout_payment_create",
           "operation": {
@@ -8677,6 +10806,74 @@
             "permissions": {},
             "prefersBorder": true
           }
+        },
+        {
+          "id": "offers-ui",
+          "uri": "ui://creezio.stripe/offers",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "permission",
+              "id": "purchase.read"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/offers.html"
+          },
+          "widget": {
+            "moduleId": "creezio.stripe",
+            "kind": "widget",
+            "id": "offers"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
+        },
+        {
+          "id": "checkout-status-ui",
+          "uri": "ui://creezio.stripe/checkout-status",
+          "mimeType": "text/html;profile=mcp-app",
+          "audiences": [
+            "app"
+          ],
+          "permissions": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "permission",
+              "id": "purchase.read"
+            }
+          ],
+          "source": {
+            "kind": "asset",
+            "path": "ui/widgets/checkout-status.html"
+          },
+          "widget": {
+            "moduleId": "creezio.stripe",
+            "kind": "widget",
+            "id": "checkout-status"
+          },
+          "ui": {
+            "csp": {
+              "connectDomains": [],
+              "resourceDomains": [],
+              "frameDomains": [],
+              "baseUriDomains": []
+            },
+            "permissions": {},
+            "prefersBorder": true
+          }
         }
       ],
       "prompts": [],
@@ -8752,7 +10949,36 @@
           "resources": [
             "sync-status-ui"
           ],
-          "integrity": "sha256-e146eb3a2a0b11191a248cc2b1bc00fe07643397e465dc3ec19c1b8cc29d2bfa"
+          "integrity": "sha256-6847a3d15d7626afe12767285efde9735b31355bd4874fb2dd34298e49dc56da"
+        },
+        {
+          "id": "stripe-purchase",
+          "path": "plugin/skills/stripe-purchase.md",
+          "audiences": [
+            "app"
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "app.offer.list"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "app.checkout.create"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "app.checkout.read"
+            }
+          ],
+          "resources": [
+            "offers-ui",
+            "checkout-status-ui"
+          ],
+          "integrity": "sha256-2b665ef1a3d0908a93e3fe71f572b0fde23c054a280aa1b6635e3241d4f28bdc"
         }
       ]
     },
@@ -8821,6 +11047,16 @@
               "moduleId": "creezio.stripe",
               "kind": "operation",
               "id": "connection.check"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "offer.set"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "offer.list"
             },
             {
               "moduleId": "creezio.stripe",
@@ -8905,6 +11141,54 @@
               "schemaId": "stripe-panel-state"
             }
           }
+        },
+        {
+          "id": "offers",
+          "title": "Offres",
+          "surfaces": [
+            "front"
+          ],
+          "route": "/offers",
+          "component": {
+            "path": "ui/front.tsx",
+            "export": "StripeOffersView"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "permission",
+              "id": "purchase.read"
+            }
+          ],
+          "operations": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "app.offer.list"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "app.checkout.create"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "app.checkout.read"
+            }
+          ],
+          "input": {
+            "schemaId": "stripe-offers-view-input"
+          },
+          "panel": {
+            "identityFields": [],
+            "navigation": "sdk",
+            "retention": "preserve",
+            "inactiveEffects": "suspend",
+            "stateSchema": {
+              "schemaId": "stripe-app-panel-state"
+            }
+          }
         }
       ],
       "navigation": [
@@ -8927,15 +11211,31 @@
             "workspace"
           ],
           "order": 80
+        },
+        {
+          "id": "stripe-offers",
+          "title": "Offres",
+          "view": {
+            "moduleId": "creezio.stripe",
+            "kind": "view",
+            "id": "offers"
+          },
+          "permissions": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "permission",
+              "id": "purchase.read"
+            }
+          ],
+          "surfaces": [
+            "front"
+          ],
+          "order": 80
         }
       ],
       "slots": [],
       "front": {
-        "mode": "absent",
-        "justification": {
-          "reason": "Checkout URLs are issued by an authorized administrative operation; this module does not render a customer checkout page.",
-          "policyRule": "stripe.admin-checkout-api"
-        }
+        "mode": "provided"
       },
       "themes": [],
       "styles": []
@@ -9005,6 +11305,172 @@
           "uncertainResult": "reconcile-before-retry",
           "fallbackDispatch": "before-first-dispatch-only"
         }
+      },
+      {
+        "id": "offers",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "offers-ui",
+        "renderer": {
+          "path": "ui/widgets/offers.ts",
+          "export": "startOffers"
+        },
+        "input": {
+          "schemaId": "app-offer-list-output"
+        },
+        "state": {
+          "schemaId": "empty-input"
+        },
+        "result": {
+          "schemaId": "app-offer-list-output"
+        },
+        "audiences": [
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "purchase.read"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "refresh",
+            "label": "Relire les offres",
+            "input": {
+              "schemaId": "app-offer-list-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.stripe",
+                "kind": "operation",
+                "id": "app.offer.list"
+              }
+            }
+          },
+          {
+            "id": "buy",
+            "label": "Créer un Checkout test",
+            "input": {
+              "schemaId": "app-checkout-create-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.stripe",
+                "kind": "operation",
+                "id": "app.checkout.create"
+              }
+            }
+          },
+          {
+            "id": "read-checkout",
+            "label": "Relire mon achat",
+            "input": {
+              "schemaId": "checkout-read-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.stripe",
+                "kind": "operation",
+                "id": "app.checkout.read"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 65536,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
+      },
+      {
+        "id": "checkout-status",
+        "version": "1.0.0",
+        "compatibility": "^1.0.0",
+        "resource": "checkout-status-ui",
+        "renderer": {
+          "path": "ui/widgets/checkout-status.ts",
+          "export": "startCheckoutStatus"
+        },
+        "input": {
+          "schemaId": "app-checkout-output"
+        },
+        "state": {
+          "schemaId": "empty-input"
+        },
+        "result": {
+          "schemaId": "app-checkout-output"
+        },
+        "audiences": [
+          "app"
+        ],
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "purchase.read"
+          }
+        ],
+        "requiredCapabilities": [],
+        "assets": [],
+        "actions": [
+          {
+            "id": "refresh",
+            "label": "Relire mon achat",
+            "input": {
+              "schemaId": "checkout-read-input"
+            },
+            "requiredCapabilities": [],
+            "fallback": "unavailable",
+            "mode": "direct",
+            "target": {
+              "kind": "operation",
+              "operation": {
+                "moduleId": "creezio.stripe",
+                "kind": "operation",
+                "id": "app.checkout.read"
+              }
+            }
+          }
+        ],
+        "instance": {
+          "identity": "host-generated",
+          "revision": "monotonic",
+          "correlation": "request-instance-conversation",
+          "objectVersion": "distinct",
+          "lateResponse": "reject-stale"
+        },
+        "transport": {
+          "protocol": "mcp-apps",
+          "maxPayloadBytes": 65536,
+          "timeoutMs": 15000,
+          "uncertainResult": "reconcile-before-retry",
+          "fallbackDispatch": "before-first-dispatch-only"
+        }
       }
     ],
     "publicContracts": []
@@ -9050,8 +11516,8 @@
       }
     },
     "versionBinding": {
-      "moduleVersion": "0.4.0",
-      "sourceRevision": "t27-stripe-subscription-cancellation-v1"
+      "moduleVersion": "0.5.0",
+      "sourceRevision": "t27-stripe-app-offer-checkout-v1"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -9135,11 +11601,17 @@
         "module/projection.ts",
         "module/webhook.ts",
         "ui/index.tsx",
+        "ui/front.tsx",
         "ui/panel-state.ts",
         "ui/state.ts",
         "ui/money.ts",
         "ui/widgets/sync-status.ts",
         "ui/widgets/sync-status.html",
+        "ui/widgets/commerce.ts",
+        "ui/widgets/offers.ts",
+        "ui/widgets/offers.html",
+        "ui/widgets/checkout-status.ts",
+        "ui/widgets/checkout-status.html",
         "README.md",
         "prd.md",
         "CHANGELOG.md",
@@ -9147,7 +11619,8 @@
         "plugin/plugin.json",
         "plugin/mcp.json",
         "plugin/contributions.ts",
-        "plugin/skills/stripe.md"
+        "plugin/skills/stripe.md",
+        "plugin/skills/stripe-purchase.md"
       ],
       "references": []
     },
@@ -9178,8 +11651,8 @@
     },
     "validationBinding": {
       "moduleId": "creezio.stripe",
-      "moduleVersion": "0.4.0",
-      "sourceRevision": "t27-stripe-subscription-cancellation-v1"
+      "moduleVersion": "0.5.0",
+      "sourceRevision": "t27-stripe-app-offer-checkout-v1"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",

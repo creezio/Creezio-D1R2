@@ -206,7 +206,7 @@
     {
       "moduleId": "creezio.stripe",
       "origin": "https://github.com/creezio/Creezio-D1R2",
-      "versionRange": "^0.4.0",
+      "versionRange": "^0.5.0",
       "source": {
         "kind": "workspace",
         "path": "extensions/connectors/stripe"
@@ -307,6 +307,7 @@
         "creezio.granola",
         "creezio.resend",
         "creezio.hermes",
+        "creezio.stripe",
         "creezio.meili"
       ]
     }

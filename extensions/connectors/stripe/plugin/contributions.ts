@@ -1,2 +1,3 @@
-/** Read-only status widget; Stripe synchronization is never issued from the iframe. */
-export const contributions=Object.freeze({moduleId:'creezio.stripe',widgets:['sync-status']});
+/** Admin sync status and app purchase views use separate permissions and operations. */
+export const contributions=Object.freeze({moduleId:'creezio.stripe',widgets:[
+  'sync-status','offers','checkout-status']});

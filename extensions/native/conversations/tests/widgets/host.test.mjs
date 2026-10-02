@@ -23,6 +23,20 @@ test('initial chat render uses the same host instance passed to the widget bridg
   assert.match(source,/createMcpAppsBridge\(\{iframe:[\s\S]*?instance:\s*instanceRef,/u);
 });
 
+test('external links require an active host confirmation and a click on the host anchor',()=>{
+  const source=readFileSync(new URL('../../ui/widget-message.tsx',import.meta.url),'utf8');
+  const bridge=readFileSync(new URL('../../../../../sdk/widgets/mcp-apps-bridge.ts',import.meta.url),'utf8');
+  assert.match(bridge,/openLinks: \{\}/u);
+  assert.match(bridge,/bridge\.onopenlink = async \(params, extra\)/u);
+  assert.match(bridge,/normalizeWidgetOpenLink\(params\.url\)/u);
+  assert.match(source,/createHostOpenLinkGate\(\{isCurrent, show: setLinkPrompt\}\)/u);
+  assert.match(source,/openLink: async \(url, signal\) =>/u);
+  assert.match(source,/<a href=\{linkPrompt\.url\} target="_blank" rel="noopener noreferrer"/u);
+  assert.match(source,/linkGate\.current\?\.accept\(linkPrompt\.id\)/u);
+  assert.match(source,/if \(!current\) event\.preventDefault\(\)/u);
+  assert.match(source,/links\.dispose\(\)/u);
+});
+
 test('widget snapshot accepts a pinned multi-instance message and rejects identity substitution', () => {
   assert.equal(validWidgetMessageContent(content), true);
   assert.equal(validWidgetMessageContent({...content, instances: [...content.instances,

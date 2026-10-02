@@ -3,6 +3,7 @@
 -- Inspect before applying to a new database. No automatic repair.
 
 CREATE TABLE "cz_637265657a696f2e737472697065_636f6e6e6563746f725f636f6e666967" (
+  "checkout_app_return_path" TEXT CHECK ("checkout_app_return_path" IS NULL OR (typeof("checkout_app_return_path") = 'text' AND instr("checkout_app_return_path", char(0)) = 0 AND length("checkout_app_return_path") >= 1 AND length("checkout_app_return_path") <= 256)),
   "checkout_return_origin" TEXT CHECK ("checkout_return_origin" IS NULL OR (typeof("checkout_return_origin") = 'text' AND instr("checkout_return_origin", char(0)) = 0 AND length("checkout_return_origin") >= 8 AND length("checkout_return_origin") <= 512)),
   "connection_id" TEXT CHECK ("connection_id" IS NULL OR (typeof("connection_id") = 'text' AND instr("connection_id", char(0)) = 0 AND length("connection_id") >= 1 AND length("connection_id") <= 128)),
   "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
@@ -48,15 +49,21 @@ CREATE TABLE "cz_637265657a696f2e737472697065_7374726970655f636174616c6f675f7379
 CREATE TABLE "cz_637265657a696f2e737472697065_7374726970655f636865636b6f7574" (
   "connection_id" TEXT NOT NULL CHECK ("connection_id" IS NOT NULL AND (typeof("connection_id") = 'text' AND instr("connection_id", char(0)) = 0 AND length("connection_id") >= 1 AND length("connection_id") <= 128)),
   "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "customer_id" TEXT CHECK ("customer_id" IS NULL OR (typeof("customer_id") = 'text' AND instr("customer_id", char(0)) = 0 AND length("customer_id") >= 1 AND length("customer_id") <= 128)),
   "execution_id" TEXT NOT NULL CHECK ("execution_id" IS NOT NULL AND (typeof("execution_id") = 'text' AND instr("execution_id", char(0)) = 0 AND length("execution_id") >= 1 AND length("execution_id") <= 128)),
   "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
   "livemode" INTEGER NOT NULL CHECK ("livemode" IS NOT NULL AND (typeof("livemode") = 'integer' AND "livemode" IN (0, 1))),
   "mode" TEXT NOT NULL CHECK ("mode" IS NOT NULL AND (typeof("mode") = 'text' AND instr("mode", char(0)) = 0 AND "mode" IN ('payment', 'subscription'))),
+  "offer_id" TEXT CHECK ("offer_id" IS NULL OR (typeof("offer_id") = 'text' AND instr("offer_id", char(0)) = 0 AND length("offer_id") >= 1 AND length("offer_id") <= 128)),
+  "offer_revision" INTEGER CHECK ("offer_revision" IS NULL OR (typeof("offer_revision") = 'integer' AND "offer_revision" BETWEEN -9007199254740991 AND 9007199254740991 AND "offer_revision" >= 1)),
+  "owner_principal_id" TEXT CHECK ("owner_principal_id" IS NULL OR (typeof("owner_principal_id") = 'text' AND instr("owner_principal_id", char(0)) = 0 AND length("owner_principal_id") >= 1 AND length("owner_principal_id") <= 128)),
   "payment_status" TEXT NOT NULL CHECK ("payment_status" IS NOT NULL AND (typeof("payment_status") = 'text' AND instr("payment_status", char(0)) = 0 AND length("payment_status") >= 1 AND length("payment_status") <= 32)),
   "price_id" TEXT NOT NULL CHECK ("price_id" IS NOT NULL AND (typeof("price_id") = 'text' AND instr("price_id", char(0)) = 0 AND length("price_id") >= 1 AND length("price_id") <= 128)),
+  "product_id" TEXT CHECK ("product_id" IS NULL OR (typeof("product_id") = 'text' AND instr("product_id", char(0)) = 0 AND length("product_id") >= 1 AND length("product_id") <= 128)),
   "quantity" INTEGER NOT NULL CHECK ("quantity" IS NOT NULL AND (typeof("quantity") = 'integer' AND "quantity" BETWEEN -9007199254740991 AND 9007199254740991 AND "quantity" >= 1 AND "quantity" <= 100)),
   "revision" INTEGER NOT NULL CHECK ("revision" IS NOT NULL AND (typeof("revision") = 'integer' AND "revision" BETWEEN -9007199254740991 AND 9007199254740991 AND "revision" >= 1)),
   "status" TEXT NOT NULL CHECK ("status" IS NOT NULL AND (typeof("status") = 'text' AND instr("status", char(0)) = 0 AND length("status") >= 1 AND length("status") <= 32)),
+  "subscription_id" TEXT CHECK ("subscription_id" IS NULL OR (typeof("subscription_id") = 'text' AND instr("subscription_id", char(0)) = 0 AND length("subscription_id") >= 1 AND length("subscription_id") <= 128)),
   "updated_at" TEXT NOT NULL CHECK ("updated_at" IS NOT NULL AND (typeof("updated_at") = 'text' AND length("updated_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "updated_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "updated_at") = "updated_at")),
   "url" TEXT CHECK ("url" IS NULL OR (typeof("url") = 'text' AND instr("url", char(0)) = 0 AND length("url") >= 8 AND length("url") <= 2048)),
   PRIMARY KEY ("context_id", "id")
@@ -98,6 +105,24 @@ CREATE TABLE "cz_637265657a696f2e737472697065_7374726970655f696e766f696365" (
   "period_start_at" TEXT CHECK ("period_start_at" IS NULL OR (typeof("period_start_at") = 'text' AND length("period_start_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "period_start_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "period_start_at") = "period_start_at")),
   "revision" INTEGER NOT NULL CHECK ("revision" IS NOT NULL AND (typeof("revision") = 'integer' AND "revision" BETWEEN -9007199254740991 AND 9007199254740991 AND "revision" >= 1)),
   "status" TEXT CHECK ("status" IS NULL OR (typeof("status") = 'text' AND instr("status", char(0)) = 0 AND length("status") >= 1 AND length("status") <= 64)),
+  "updated_at" TEXT NOT NULL CHECK ("updated_at" IS NOT NULL AND (typeof("updated_at") = 'text' AND length("updated_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "updated_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "updated_at") = "updated_at")),
+  PRIMARY KEY ("context_id", "id")
+) WITHOUT ROWID;
+
+CREATE TABLE "cz_637265657a696f2e737472697065_7374726970655f6f66666572" (
+  "connection_id" TEXT NOT NULL CHECK ("connection_id" IS NOT NULL AND (typeof("connection_id") = 'text' AND instr("connection_id", char(0)) = 0 AND length("connection_id") >= 1 AND length("connection_id") <= 128)),
+  "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
+  "currency" TEXT NOT NULL CHECK ("currency" IS NOT NULL AND (typeof("currency") = 'text' AND instr("currency", char(0)) = 0 AND length("currency") >= 3 AND length("currency") <= 3)),
+  "enabled" INTEGER NOT NULL CHECK ("enabled" IS NOT NULL AND (typeof("enabled") = 'integer' AND "enabled" IN (0, 1))),
+  "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
+  "interval" TEXT CHECK ("interval" IS NULL OR (typeof("interval") = 'text' AND instr("interval", char(0)) = 0 AND length("interval") >= 1 AND length("interval") <= 16)),
+  "interval_count" INTEGER CHECK ("interval_count" IS NULL OR (typeof("interval_count") = 'integer' AND "interval_count" BETWEEN -9007199254740991 AND 9007199254740991 AND "interval_count" >= 1)),
+  "mode" TEXT NOT NULL CHECK ("mode" IS NOT NULL AND (typeof("mode") = 'text' AND instr("mode", char(0)) = 0 AND "mode" IN ('payment', 'subscription'))),
+  "price_id" TEXT NOT NULL CHECK ("price_id" IS NOT NULL AND (typeof("price_id") = 'text' AND instr("price_id", char(0)) = 0 AND length("price_id") >= 1 AND length("price_id") <= 128)),
+  "product_id" TEXT NOT NULL CHECK ("product_id" IS NOT NULL AND (typeof("product_id") = 'text' AND instr("product_id", char(0)) = 0 AND length("product_id") >= 1 AND length("product_id") <= 128)),
+  "product_name" TEXT NOT NULL CHECK ("product_name" IS NOT NULL AND (typeof("product_name") = 'text' AND instr("product_name", char(0)) = 0 AND length("product_name") >= 1 AND length("product_name") <= 500)),
+  "revision" INTEGER NOT NULL CHECK ("revision" IS NOT NULL AND (typeof("revision") = 'integer' AND "revision" BETWEEN -9007199254740991 AND 9007199254740991 AND "revision" >= 1)),
+  "unit_amount_minor" INTEGER NOT NULL CHECK ("unit_amount_minor" IS NOT NULL AND (typeof("unit_amount_minor") = 'integer' AND "unit_amount_minor" BETWEEN -9007199254740991 AND 9007199254740991 AND "unit_amount_minor" >= 1)),
   "updated_at" TEXT NOT NULL CHECK ("updated_at" IS NOT NULL AND (typeof("updated_at") = 'text' AND length("updated_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "updated_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "updated_at") = "updated_at")),
   PRIMARY KEY ("context_id", "id")
 ) WITHOUT ROWID;
@@ -176,6 +201,8 @@ CREATE INDEX "cz_637265657a696f2e737472697065_7374726970655f637573746f6d6572_idx
 CREATE INDEX "cz_637265657a696f2e737472697065_7374726970655f6576656e74_idx_62792d636f6e6e656374696f6e" ON "cz_637265657a696f2e737472697065_7374726970655f6576656e74" ("context_id", "connection_id", "id");
 
 CREATE INDEX "cz_637265657a696f2e737472697065_7374726970655f696e766f696365_idx_62792d636f6e6e656374696f6e" ON "cz_637265657a696f2e737472697065_7374726970655f696e766f696365" ("context_id", "connection_id", "id");
+
+CREATE INDEX "cz_637265657a696f2e737472697065_7374726970655f6f66666572_idx_62792d636f6e6e656374696f6e" ON "cz_637265657a696f2e737472697065_7374726970655f6f66666572" ("context_id", "connection_id", "id");
 
 CREATE INDEX "cz_637265657a696f2e737472697065_7374726970655f7072696365_idx_62792d636f6e6e656374696f6e" ON "cz_637265657a696f2e737472697065_7374726970655f7072696365" ("context_id", "connection_id", "id");
 

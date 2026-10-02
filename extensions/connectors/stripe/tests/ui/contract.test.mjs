@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import Ajv2020 from 'ajv/dist/2020.js';
 import {manifest,read} from '../helpers.mjs';
-import {panelData,readPanel,retainedSessionId,sessionVerified,scopeChange} from '../../ui/panel-state.ts';
+import {appPanelData,panelData,readAppPanel,readPanel,retainedSessionId,sessionVerified,scopeChange} from '../../ui/panel-state.ts';
 import {externalConfigurationChanged,latestConfig,mergeRuns,reconcileRuns,sameConfiguration,
-  subscriptionLifecycleAction} from '../../ui/state.ts';
+  offerPriceEligible,subscriptionLifecycleAction} from '../../ui/state.ts';
 import {formatStripeAmount,formatStripeFrequency} from '../../ui/money.ts';
 import {createCommandJournal,readPendingCommand} from '@creezio/sdk/operations/command-journal';
 
@@ -57,6 +57,9 @@ test('late reads cannot roll back a confirmed configuration or run',()=>{
     'failed state read still hides the old account after rotation');
   assert.equal(sameConfiguration(newer,externallyRotated),false,
     'config N, then old sync.state, then config N+1 must not reinstall the old run');
+  assert.equal(sameConfiguration({...newer,checkoutAppReturnPath:'/offers'},
+    {...newer,checkoutAppReturnPath:'/store'}),false,
+    'a changed app return route must invalidate the mixed configuration read');
 });
 test('subscription lifecycle offers both test-mode directions only from a known eligible projection',()=>{
   const row={id:'sub_test_1',status:'active',livemode:false,cancel_at_period_end:false,revision:7};
@@ -174,4 +177,53 @@ test('original billing cards/tables remain and signed events are visible',()=>{
   assert.match(ui,/inFlight\.current=false;return/u);
   assert.match(ui,/setPending\(journal\.current\.pending\)/u);
   assert.doesNotMatch(ui,/fetch\(|localStorage|sessionStorage|stripe\.com\/v1/u);
+});
+test('admin offer picker excludes live, inactive, free-form and metered prices before server validation',()=>{
+  const product={id:'prod_test',active:true,livemode:false};
+  const price={product_id:product.id,active:true,livemode:false,billing_scheme:'per_unit',
+    custom_amount:false,usage_type:null,unit_amount_minor:1299};
+  assert.equal(offerPriceEligible(price,[product]),true);
+  for(const change of [{active:false},{livemode:true},{billing_scheme:'tiered'},
+    {custom_amount:true},{usage_type:'metered'},{unit_amount_minor:null},
+    {unit_amount_minor:0},{unit_amount_minor:1.5},{product_id:'other'}])
+    assert.equal(offerPriceEligible({...price,...change},[product]),false,JSON.stringify(change));
+  assert.equal(offerPriceEligible(price,[{...product,active:false}]),false);
+  assert.equal(offerPriceEligible(price,[{...product,livemode:true}]),false);
+  assert.equal(readPanel(panelData({sessionId:'s',audience:'admin',contextId:'application',panelId:'p'},
+    'offers',null),{sessionId:'s',audience:'admin',contextId:'application',panelId:'p'}).tab,'offers');
+});
+test('app panel persists only scoped checkout ID and the canonical pending purchase binding',async()=>{
+  const scope={sessionId:'session-a',audience:'app',contextId:'application',panelId:'offers-panel'};
+  const pending={sessionId:scope.sessionId,audience:'app',contextId:scope.contextId,
+    bindingId:'creezio.stripe:app.checkout.create',requestKey:'purchase-key',intent:'app.checkout.create'};
+  const data=appPanelData(scope,pending,'cs_test_abc123');
+  const schema=manifest.contracts.schemas.find(row=>row.id==='stripe-app-panel-state').schema;
+  const validate=new Ajv2020({strict:true}).compile(schema);
+  assert.equal(validate(data),true,JSON.stringify(validate.errors));
+  assert.deepEqual(readAppPanel(data,scope),data);
+  assert.equal(readAppPanel(data,{...scope,sessionId:'other'}),null);
+  assert.equal(readAppPanel(data,{...scope,audience:'admin'}),null);
+  assert.equal(readAppPanel(appPanelData(scope,null,'https://evil.example'),scope).checkoutSessionId,undefined);
+  const controller=createCommandJournal(scope,pending);
+  const calls=[];let saved=pending;
+  const client={audience:'app',async invoke(input){calls.push(input);return {kind:'unknown',code:'timeout'};},
+    async status(input){calls.push(input);return {kind:'execution',execution:{state:'succeeded',
+      output:{offerId:'offer_a',productId:'prod_a',session:{id:'cs_test_abc123'}}}};}};
+  const command={...pending,requestKey:'second-key'};
+  const result=await controller.execute(client,command,{offerId:'offer_a'},()=>true,value=>{saved=value;return true;});
+  assert.equal(result.result.code,'in_progress');assert.equal(calls.length,0);
+  assert.equal((await controller.inspect(client,()=>true,value=>{saved=value;return true;})).result.execution.state,
+    'succeeded');
+  assert.equal(saved,null);assert.equal(calls.length,1);
+  assert.equal(calls[0].bindingId,'creezio.stripe:app.checkout.create');
+  assert.equal(calls[0].requestKey,'purchase-key');
+  const front=read('ui/front.tsx');
+  assert.match(front,/const binding=\(operation:string\)=>`creezio\.stripe:\$\{operation\}`/u);
+  assert.doesNotMatch(front,/creezio\.stripe:app\.\$\{operation\}|app\.app\./u);
+  assert.match(front,/read\('app\.checkout\.read',\{sessionId:id\}/u);
+  assert.match(front,/props\.input\.session_id/u);
+  assert.doesNotMatch(front,/checkout==='success'|checkout==='cancel'/u);
+  const admin=read('ui/index.tsx');
+  assert.match(admin,/checkoutAppReturnPath:checkoutAppReturnPath\|\|null/u);
+  assert.match(admin,/Page de retour des achats de l’app/u);
 });

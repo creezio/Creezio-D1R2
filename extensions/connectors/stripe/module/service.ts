@@ -43,12 +43,21 @@ const returnOrigin=(value:unknown):string|null=>{
     ||!url.hostname.includes('.'))throw new OperationError('invalid_input');
   return value;
 };
+const appReturnPath=(value:unknown):string|null=>{
+  if(value===null)return null;
+  if(typeof value!=='string'||value.length>256||!value.isWellFormed()
+    ||!/^\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/u.test(value))
+    throw new OperationError('invalid_input');
+  return value;
+};
 const now=()=>new Date().toISOString();
 const configView=(row:Row|null)=>({origin:STRIPE_ORIGIN,enabled:row?.enabled===true,
   hasKey:typeof row?.key_ref==='string',
   hasWebhookSecret:typeof row?.webhook_key_ref==='string',
   hasWebhookService:typeof row?.webhook_service_token_ref==='string',
   checkoutReturnOrigin:typeof row?.checkout_return_origin==='string'?row.checkout_return_origin:null,
+  checkoutAppReturnPath:typeof row?.checkout_app_return_path==='string'
+    ?row.checkout_app_return_path:'/offers',
   revision:typeof row?.revision==='number'?row.revision:0,
   state:!row||!row.key_ref?'missing':row.enabled===true?'unverified':'configured'});
 const runView=(row:Row|null,id:Collection)=>({collection:id,runId:typeof row?.run_id==='string'?row.run_id:null,
@@ -97,18 +106,56 @@ const testCheckout=(value:JsonValue,expectedMode:'payment'|'subscription')=>{
   return {id,url:typeof url==='string'?url:null,mode:expectedMode,
     status:String(row.status),paymentStatus:String(row.payment_status),livemode:false as const};
 };
-const checkoutReady=async(context:OperationContext,priceId:unknown,mode:'payment'|'subscription',
-  quantity:unknown,customerId:unknown)=>{
-  const id=identifier(priceId),count=Number(quantity),configuration=await config(context);
-  if(!id.startsWith('price_')||!Number.isSafeInteger(count)||count<1||count>100
-    ||!configuration||configuration.enabled!==true||typeof configuration.connection_id!=='string'
-    ||typeof configuration.checkout_return_origin!=='string')throw new OperationError('invalid_input');
+const linkedId=(value:unknown,prefix:string):string|null=>{
+  if(value===null||value===undefined)return null;
+  const id=identifier(value);
+  if(!id.startsWith(prefix))throw new OperationError('unavailable');
+  return id;
+};
+const offerView=(row:Row)=>({id:row.id,productId:row.product_id,priceId:row.price_id,
+  name:row.product_name,mode:row.mode,enabled:row.enabled,unitAmountMinor:row.unit_amount_minor,
+  currency:row.currency,interval:row.interval,intervalCount:row.interval_count,
+  revision:row.revision});
+const fixedPrice=async(context:OperationContext,id:string,mode:'payment'|'subscription',
+  configuration:Row)=>{
   const price=await context.data.get('stripe_price',{key:{id}}) as Row|null;
   if(!price||price.connection_id!==configuration.connection_id||price.active!==true
     ||price.livemode!==false||price.type!==(mode==='payment'?'one_time':'recurring')
     ||price.billing_scheme!=='per_unit'||price.custom_amount!==false
     ||price.usage_type==='metered'||!Number.isSafeInteger(price.unit_amount_minor)
     ||Number(price.unit_amount_minor)<1)throw new OperationError('invalid_input');
+  return price;
+};
+const offerProduct=async(context:OperationContext,price:Row,configuration:Row)=>{
+  const id=identifier(price.product_id),product=await context.data.get('stripe_product',
+    {key:{id}}) as Row|null;
+  if(!product||product.connection_id!==configuration.connection_id||product.active!==true
+    ||product.livemode!==false||typeof product.name!=='string'||!product.name)
+    throw new OperationError('invalid_input');
+  return product;
+};
+const offerReady=async(context:OperationContext,offerId:unknown)=>{
+  const id=identifier(offerId),configuration=await config(context);
+  if(!configuration||configuration.enabled!==true||typeof configuration.connection_id!=='string'
+    ||typeof configuration.checkout_return_origin!=='string')throw new OperationError('invalid_input');
+  const offer=await context.data.get('stripe_offer',{key:{id}}) as Row|null;
+  if(!offer||offer.enabled!==true||offer.connection_id!==configuration.connection_id
+    ||!['payment','subscription'].includes(String(offer.mode)))throw new OperationError('not_found');
+  const price=await fixedPrice(context,String(offer.price_id),offer.mode as 'payment'|'subscription',configuration);
+  const product=await offerProduct(context,price,configuration);
+  if(price.product_id!==offer.product_id||product.id!==offer.product_id
+    ||price.unit_amount_minor!==offer.unit_amount_minor||price.currency!==offer.currency
+    ||price.interval!==offer.interval||price.interval_count!==offer.interval_count)
+    throw new OperationError('invalid_input');
+  return {configuration,offer,price,product};
+};
+const checkoutReady=async(context:OperationContext,priceId:unknown,mode:'payment'|'subscription',
+  quantity:unknown,customerId:unknown)=>{
+  const id=identifier(priceId),count=Number(quantity),configuration=await config(context);
+  if(!id.startsWith('price_')||!Number.isSafeInteger(count)||count<1||count>100
+    ||!configuration||configuration.enabled!==true||typeof configuration.connection_id!=='string'
+    ||typeof configuration.checkout_return_origin!=='string')throw new OperationError('invalid_input');
+  await fixedPrice(context,id,mode,configuration);
   let customer:string|undefined;
   if(customerId!==undefined){
     customer=identifier(customerId);
@@ -119,6 +166,119 @@ const checkoutReady=async(context:OperationContext,priceId:unknown,mode:'payment
   }
   return {configuration,id,count,customer};
 };
+export async function offerSet(value:JsonValue,context:OperationContext){
+  const input=args(value),configuration=await config(context),at=now();
+  if(!configuration||typeof configuration.connection_id!=='string'
+    ||typeof input.enabled!=='boolean')throw new OperationError('invalid_input');
+  const id=input.offerId===undefined?crypto.randomUUID():identifier(input.offerId);
+  const prior=input.offerId===undefined?null:await context.data.get('stripe_offer',{key:{id}}) as Row|null;
+  const revision=rev(input.revision,prior);
+  if((prior===null)!==(input.offerId===undefined))throw new OperationError('conflict');
+  const productId=identifier(input.productId),priceId=identifier(input.priceId);
+  if(!productId.startsWith('prod_')||!priceId.startsWith('price_'))throw new OperationError('invalid_input');
+  let values:Row;
+  const plans=[];
+  if(!input.enabled&&prior){
+    if(prior.product_id!==productId||prior.price_id!==priceId
+      ||prior.connection_id!==configuration.connection_id)throw new OperationError('invalid_input');
+    values={enabled:false,updated_at:at};
+  }else{
+    const price=await context.data.get('stripe_price',{key:{id:priceId}}) as Row|null;
+    if(!price||!['one_time','recurring'].includes(String(price.type)))
+      throw new OperationError('invalid_input');
+    const mode=price.type==='one_time'?'payment':'subscription';
+    await fixedPrice(context,priceId,mode,configuration);
+    const product=await offerProduct(context,price,configuration);
+    if(price.product_id!==productId||product.id!==productId)throw new OperationError('invalid_input');
+    values={connection_id:configuration.connection_id,product_id:productId,price_id:priceId,
+      product_name:product.name,unit_amount_minor:price.unit_amount_minor,currency:price.currency,
+      interval:price.interval,interval_count:price.interval_count,mode,enabled:input.enabled,updated_at:at};
+    plans.push(context.data.planGet('stripe_price',{key:{id:priceId},required:true,
+      where:{connection_id:configuration.connection_id,active:true,livemode:false,
+        product_id:productId,unit_amount_minor:price.unit_amount_minor,currency:price.currency,
+        type:price.type,billing_scheme:'per_unit',custom_amount:false,
+        usage_type:price.usage_type??null,interval:price.interval??null,
+        interval_count:price.interval_count??null}}));
+    plans.push(context.data.planGet('stripe_product',{key:{id:productId},required:true,
+      where:{connection_id:configuration.connection_id,active:true,livemode:false}}));
+  }
+  plans.push(context.data.planGet('connector_config',{key:configKey(),required:true,
+    where:{connection_id:configuration.connection_id,revision:configuration.revision}}));
+  plans.push(prior?context.data.planPatch('stripe_offer',{key:{id},
+    compare:{field:'revision',expected:revision},values}):
+    context.data.planCreate('stripe_offer',{values:{id,...values,revision:1}}));
+  return {output:{offer:offerView({...(prior??{}),id,...values,revision:revision+1})},plans};
+}
+export async function offerList(value:JsonValue,context:OperationContext){
+  const input=listInput(value),generation=connectionId(await config(context));
+  if(input.limit>8)throw new OperationError('invalid_input');
+  if(!generation)return {output:{items:[],nextCursor:null}};
+  const page=await context.data.list('stripe_offer',{limit:input.limit,where:{connection_id:generation},
+    ...(input.cursor?{after:{id:input.cursor}}:{})});
+  return {output:{items:page.items.map(offerView),nextCursor:page.nextAfter?.id??null}};
+}
+export async function appOfferList(value:JsonValue,context:OperationContext){
+  const input=listInput(value),generation=connectionId(await config(context));
+  if(input.limit>8)throw new OperationError('invalid_input');
+  if(!generation)return {output:{items:[],nextCursor:null}};
+  const page=await context.data.list('stripe_offer',{limit:input.limit,
+    where:{connection_id:generation,enabled:true},
+    ...(input.cursor?{after:{id:input.cursor}}:{})});
+  const items=[];
+  for(const row of page.items){
+    try{await offerReady(context,row.id);items.push(offerView(row));}
+    catch(error){if(!(error instanceof OperationError))throw error;}
+  }
+  if(connectionId(await config(context))!==generation)throw new OperationError('conflict');
+  return {output:{items,nextCursor:page.nextAfter?.id??null}};
+}
+export async function appCheckoutCreate(value:JsonValue,context:OperationContext){
+  const input=args(value),{configuration,offer,price,product}=await offerReady(context,input.offerId);
+  const mode=offer.mode as 'payment'|'subscription',returnUrl=String(configuration.checkout_return_origin)
+    +(typeof configuration.checkout_app_return_path==='string'
+      ?appReturnPath(configuration.checkout_app_return_path)??'/offers':'/offers');
+  const body=await mutation(context,{resource:mode==='payment'?'checkout_payment_create':
+    'checkout_subscription_create',fields:{priceId:offer.price_id,quantity:1,
+    successUrl:`${returnUrl}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl:`${returnUrl}?checkout=cancel`,clientReferenceId:context.executionId}});
+  const session=testCheckout(body,mode);
+  if(session.status!=='open'||session.paymentStatus!=='unpaid'||!session.url
+    ||supplier(body).client_reference_id!==context.executionId)throw new OperationError('unknown');
+  const plans=[context.data.planGet('connector_config',{key:configKey(),required:true,
+    where:{connection_id:configuration.connection_id,enabled:true,revision:configuration.revision}}),
+  context.data.planGet('stripe_offer',{key:{id:offer.id},required:true,
+    where:{connection_id:configuration.connection_id,enabled:true,revision:offer.revision,
+      product_id:product.id,price_id:price.id}}),
+  context.data.planGet('stripe_price',{key:{id:price.id},required:true,
+    where:{connection_id:configuration.connection_id,active:true,livemode:false,
+      product_id:product.id,unit_amount_minor:offer.unit_amount_minor,currency:offer.currency,
+      type:price.type,billing_scheme:'per_unit',custom_amount:false,
+      usage_type:price.usage_type??null,interval:offer.interval??null,
+      interval_count:offer.interval_count??null}}),
+  context.data.planGet('stripe_product',{key:{id:product.id},required:true,
+    where:{connection_id:configuration.connection_id,active:true,livemode:false}}),
+  context.data.planCreate('stripe_checkout',{values:{id:session.id,
+    connection_id:configuration.connection_id,execution_id:context.executionId,
+    price_id:price.id,quantity:1,mode,status:session.status,
+    payment_status:session.paymentStatus,url:session.url,owner_principal_id:context.principalId,
+    offer_id:offer.id,offer_revision:offer.revision,product_id:product.id,
+    customer_id:null,subscription_id:null,livemode:false,revision:1,updated_at:now()}})];
+  return {output:{offerId:offer.id,productId:product.id,session,subscriptionId:null},plans};
+}
+export async function appCheckoutRead(value:JsonValue,context:OperationContext){
+  const id=identifier(args(value).sessionId),configuration=await config(context);
+  const local=await context.data.get('stripe_checkout',{key:{id}}) as Row|null;
+  if(!id.startsWith('cs_test_')||!local||local.connection_id!==configuration?.connection_id
+    ||local.owner_principal_id!==context.principalId||typeof local.offer_id!=='string'
+    ||typeof local.product_id!=='string'||!['payment','subscription'].includes(String(local.mode)))
+    throw new OperationError('not_found');
+  const body=await remote(context,{resource:'checkout_session',id});
+  const session=testCheckout(body,local.mode as 'payment'|'subscription');
+  if(session.id!==id)throw new OperationError('unavailable');
+  const subscriptionId=linkedId(supplier(body).subscription,'sub_')
+    ??linkedId(local.subscription_id,'sub_');
+  return {output:{offerId:local.offer_id,productId:local.product_id,session,subscriptionId}};
+}
 async function checkoutCreate(value:JsonValue,context:OperationContext,mode:'payment'|'subscription'){
   const input=args(value),ready=await checkoutReady(context,input.priceId,mode,input.quantity,input.customerId);
   const returnUrl=String(ready.configuration.checkout_return_origin);
@@ -215,9 +375,17 @@ export async function eventReceive(value:JsonValue,context:OperationContext){
       &&paymentRank[String(input.paymentStatus)]!==undefined
       &&statusRank[String(input.sessionStatus)]>=statusRank[String(session.status)]
       &&paymentRank[String(input.paymentStatus)]>=paymentRank[String(session.payment_status)]){
+      const customerId=linkedId(input.customerId,'cus_'),subscriptionId=
+        input.sessionMode==='subscription'?linkedId(input.subscriptionId,'sub_'):null;
+      if(session.owner_principal_id&&((session.customer_id&&customerId&&session.customer_id!==customerId)
+        ||(session.subscription_id&&subscriptionId&&session.subscription_id!==subscriptionId)))
+        throw new OperationError('conflict');
       plans.push(context.data.planPatch('stripe_checkout',{key:{id:objectId},
         compare:{field:'revision',expected:Number(session.revision)},
         values:{status:String(input.sessionStatus),payment_status:String(input.paymentStatus),
+          ...(session.owner_principal_id?{
+            customer_id:customerId??session.customer_id??null,
+            subscription_id:subscriptionId??session.subscription_id??null}:{}),
           updated_at:now()}}));
       checkoutUpdated=true;
     }
@@ -235,8 +403,11 @@ export async function configSet(value:JsonValue,context:OperationContext){
   const checkoutOrigin=input.checkoutReturnOrigin===undefined
     ?typeof prior?.checkout_return_origin==='string'?prior.checkout_return_origin:null
     :returnOrigin(input.checkoutReturnOrigin);
+  const checkoutAppPath=input.checkoutAppReturnPath===undefined
+    ?typeof prior?.checkout_app_return_path==='string'?prior.checkout_app_return_path:null
+    :appReturnPath(input.checkoutAppReturnPath);
   const changes={origin:STRIPE_ORIGIN,enabled:input.enabled,
-    checkout_return_origin:checkoutOrigin,updated_at:now()};
+    checkout_return_origin:checkoutOrigin,checkout_app_return_path:checkoutAppPath,updated_at:now()};
   const plan=prior?context.data.planPatch('connector_config',{key:configKey(),
     compare:{field:'revision',expected:revision},values:changes}):
     context.data.planCreate('connector_config',{values:{id:STRIPE_CONNECTOR_ID,...changes,

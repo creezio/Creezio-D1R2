@@ -1,1 +1,1 @@
-{"name":"creezio-stripe","version":"0.1.0","description":"Lecture bornée des données de facturation Stripe projetées dans Creezio.","mcpServers":{}}
+{"name":"creezio-stripe","version":"0.5.0","description":"Facturation Stripe test : offres administrées, achats app et lecture de Checkout.","mcpServers":{}}

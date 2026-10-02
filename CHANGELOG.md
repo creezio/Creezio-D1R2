@@ -1,5 +1,12 @@
 # Changelog
 
+## Tranche candidate T27 — offres et achat app
+
+- Le module Stripe 0.5 ajoute des offres administrées, une vue front dynamique `/offers` et deux widgets pour consulter les offres et relire un Checkout. API, MCP app et interfaces utilisent les mêmes opérations, avec des droits distincts de Facturation.
+- L'achat utilise le prix et le propriétaire déterminés par le serveur. Les sessions administratives historiques restent privées ; le retour du navigateur déclenche une lecture authentifiée et ne déclare jamais seul un paiement réussi.
+- Le schéma central conserve les données antérieures et ajoute les rattachements facultatifs. Cette tranche ne dépend pas de Catalogue ; sa qualification et sa livraison restent ouvertes.
+- Le chat natif raccorde la capacité standard MCP Apps d'ouverture de lien à une confirmation dans l'hôte. Les widgets n'ont besoin ni de dialogues ni de fenêtres surgissantes dans leur iframe ; le sandbox reste inchangé.
+
 ## Candidate Stripe 0.4.0 — maintien d'un abonnement avant son échéance
 
 - Le connecteur permet de programmer ou de retirer l'arrêt en fin de période d'un abonnement TEST. La nouvelle opération `subscription.cancel.set` conserve le contrat `subscription.cancel.schedule` déjà distribué ; les droits administratifs et le journal commun restent applicables.

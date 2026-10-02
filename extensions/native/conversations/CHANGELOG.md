@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.0 — T27, ouverture de lien MCP Apps dans l’hôte
+
+- Le pont interne annonce `openLinks` quand Conversations fournit une confirmation native. Il accepte une URL HTTPS absolue et bornée, refuse identifiants intégrés et caractères de contrôle, puis vérifie encore l’instance et la session après la décision.
+- Le panneau affiche l’URL dans son propre DOM ; seul un clic explicite sur l’ancre de l’hôte ouvre un nouvel onglet. Annulation, expiration, changement de session et démontage refusent la demande. La sandbox reste inchangée. Le pont n’est pas un export du paquet SDK public et aucun contrat serveur Conversations ne change.
+
 ## 0.0.0 — T16, reprise d'un contexte retiré (correctif local)
 
 - La lecture d'un contexte de widget retiré conserve sa révision et signale `removed: true` avec une valeur nulle. Une nouvelle sélection peut ainsi remplacer la ligne retirée avec sa vraie révision, sans conflit artificiel.

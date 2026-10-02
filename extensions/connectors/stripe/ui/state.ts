@@ -3,8 +3,19 @@ export type Run={collection:Collection;runId:string|null;cursor:string|null;
   status:'partial'|'pages_exhausted';revision:number;updatedAt:string|null};
 export type Config={origin:string;enabled:boolean;hasKey:boolean;hasWebhookSecret:boolean;
   hasWebhookService:boolean;
-  checkoutReturnOrigin:string|null;
+  checkoutReturnOrigin:string|null;checkoutAppReturnPath:string;
   revision:number;state:string};
+
+type OfferPriceCandidate={active:boolean;livemode:boolean;billing_scheme:string;custom_amount:boolean;
+  usage_type:string|null;unit_amount_minor:number|null;product_id:string};
+type OfferProductCandidate={id:string;active:boolean;livemode:boolean};
+/** The server rechecks one projection generation; this only narrows the admin picker. */
+export function offerPriceEligible(price:OfferPriceCandidate,products:readonly OfferProductCandidate[]):boolean{
+  return price.active&&!price.livemode&&price.billing_scheme==='per_unit'&&!price.custom_amount&&
+    price.usage_type!=='metered'&&price.unit_amount_minor!==null&&
+    Number.isSafeInteger(price.unit_amount_minor)&&price.unit_amount_minor>0&&
+    products.some(product=>product.id===price.product_id&&product.active&&!product.livemode);
+}
 
 type SubscriptionLifecycle={id:string;status:string;livemode:boolean;
   cancel_at_period_end:boolean|null;revision:number};
@@ -38,7 +49,8 @@ export function externalConfigurationChanged(knownRevision:number,next:Config):b
 }
 export function sameConfiguration(first:Config,verified:Config):boolean{
   return first.revision===verified.revision&&first.hasKey===verified.hasKey&&
-    first.enabled===verified.enabled&&first.checkoutReturnOrigin===verified.checkoutReturnOrigin;
+    first.enabled===verified.enabled&&first.checkoutReturnOrigin===verified.checkoutReturnOrigin&&
+    first.checkoutAppReturnPath===verified.checkoutAppReturnPath;
 }
 export function reconcileRuns(previous:readonly Run[],candidates:readonly Run[],configChanged:boolean):Run[]{
   return mergeRuns(configChanged?[]:previous,candidates);

@@ -82,6 +82,17 @@
         }
       },
       {
+        "id": "checkout_app_return_path",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      {
         "id": "webhook_key_ref",
         "type": "string",
         "nullable": true,
@@ -190,6 +201,16 @@
         "moduleId": "creezio.stripe",
         "kind": "permission",
         "id": "webhook.receive"
+      },
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "purchase"
+      },
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "purchase.read"
       }
     ],
     "deletion": {
@@ -294,6 +315,16 @@
         "moduleId": "creezio.stripe",
         "kind": "permission",
         "id": "manage"
+      },
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "purchase"
+      },
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "purchase.read"
       }
     ],
     "deletion": {
@@ -1114,6 +1145,16 @@
         "moduleId": "creezio.stripe",
         "kind": "permission",
         "id": "read"
+      },
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "purchase"
+      },
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "purchase.read"
       }
     ],
     "deletion": {
@@ -1338,6 +1379,212 @@
         "moduleId": "creezio.stripe",
         "kind": "permission",
         "id": "read"
+      },
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "purchase"
+      },
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "purchase.read"
+      }
+    ],
+    "deletion": {
+      "mode": "soft",
+      "requiresApproval": false
+    },
+    "public": false
+  },
+  {
+    "id": "stripe_offer",
+    "title": "Offre d’achat Stripe",
+    "scope": "context",
+    "contextField": "context_id",
+    "fields": [
+      {
+        "id": "context_id",
+        "type": "string",
+        "nullable": false,
+        "protected": true,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "connection_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "product_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "price_id",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "product_name",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 500
+        }
+      },
+      {
+        "id": "unit_amount_minor",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "currency",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 3,
+          "maxLength": 3
+        }
+      },
+      {
+        "id": "interval",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 16
+        }
+      },
+      {
+        "id": "interval_count",
+        "type": "integer",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "mode",
+        "type": "string",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "enum": [
+            "payment",
+            "subscription"
+          ]
+        }
+      },
+      {
+        "id": "enabled",
+        "type": "boolean",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "revision",
+        "type": "integer",
+        "nullable": false,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "updated_at",
+        "type": "date-time",
+        "nullable": false,
+        "protected": false,
+        "computed": false
+      }
+    ],
+    "primaryKey": [
+      "context_id",
+      "id"
+    ],
+    "indexes": [
+      {
+        "id": "by-connection",
+        "fields": [
+          "context_id",
+          "connection_id",
+          "id"
+        ],
+        "unique": false
+      }
+    ],
+    "relations": [],
+    "permissions": [
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "manage"
+      },
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "read"
+      },
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "purchase"
+      },
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "purchase.read"
       }
     ],
     "deletion": {
@@ -1465,6 +1712,71 @@
         }
       },
       {
+        "id": "owner_principal_id",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "offer_id",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "offer_revision",
+        "type": "integer",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minimum": 1
+        }
+      },
+      {
+        "id": "product_id",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "customer_id",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
+        "id": "subscription_id",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
         "id": "livemode",
         "type": "boolean",
         "nullable": false,
@@ -1520,6 +1832,16 @@
         "moduleId": "creezio.stripe",
         "kind": "permission",
         "id": "webhook.receive"
+      },
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "purchase"
+      },
+      {
+        "moduleId": "creezio.stripe",
+        "kind": "permission",
+        "id": "purchase.read"
       }
     ],
     "deletion": {

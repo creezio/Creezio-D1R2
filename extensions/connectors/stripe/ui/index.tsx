@@ -7,7 +7,7 @@ import {createCommandJournal,readPendingCommand,type PendingCommand} from '@cree
 import {panelData,readPanel,retainedSessionId,scopeChange,sessionVerified,
   type StripeScope,type StripeTab} from './panel-state.ts';
 import {externalConfigurationChanged,latestConfig,mergeRuns,reconcileRuns,sameConfiguration,
-  subscriptionLifecycleAction,
+  offerPriceEligible,subscriptionLifecycleAction,
   type Collection,type Config,type Run} from './state.ts';
 import {formatStripeAmount,formatStripeFrequency} from './money.ts';
 import {Badge,Button,Card} from '@creezio/sdk/ui';
@@ -26,13 +26,16 @@ type Price={id:string;product_id:string;active:boolean;livemode:boolean;currency
   type:'one_time'|'recurring';billing_scheme:'per_unit'|'tiered';unit_amount_minor:number|null;
   unit_amount_decimal:string|null;interval:string|null;interval_count:number|null;
   usage_type:string|null;tiers_mode:string|null;custom_amount:boolean};
+type Offer={id:string;productId:string;priceId:string;name:string;mode:'payment'|'subscription';
+  enabled:boolean;unitAmountMinor:number;currency:string;interval:string|null;
+  intervalCount:number|null;revision:number};
 type ListCollection='customers'|'subscriptions'|'invoices'|'products'|'prices';
 type Page={items:(Customer|Subscription|Invoice|Product|Price)[];nextCursor:string|null};
 const collections:Collection[]=['customers','subscriptions','invoices','products','prices_active','prices_inactive'];
 const listCollections:ListCollection[]=['customers','subscriptions','invoices','products','prices'];
 const overviewCollections:ListCollection[]=['customers','subscriptions','invoices'];
 const titles:Record<Collection|string,string>={customers:'Clients',subscriptions:'Abonnements',invoices:'Factures',
-  products:'Produits',prices:'Prix',prices_active:'Prix actifs',prices_inactive:'Prix inactifs',checkout:'Checkout'};
+  products:'Produits',prices:'Prix',offers:'Offres',prices_active:'Prix actifs',prices_inactive:'Prix inactifs',checkout:'Checkout'};
 const SUB_STATUT_LABEL:Record<string,string>={active:'Actif',trialing:'Essai',past_due:'Impayé',
   canceled:'Résilié',unpaid:'Impayé',incomplete:'Incomplet'};
 const INVOICE_STATUT_LABEL:Record<string,string>={paid:'Payée',open:'En attente',payment_failed:'Échouée',
@@ -74,10 +77,13 @@ export function StripeAdminView(props:WorkspaceViewProps){
   const [webhookSecret,setWebhookSecret]=useState('');
   const [webhookServiceToken,setWebhookServiceToken]=useState('');
   const [checkoutOrigin,setCheckoutOrigin]=useState(''),[checkoutPriceId,setCheckoutPriceId]=useState('');
+  const [checkoutAppReturnPath,setCheckoutAppReturnPath]=useState('/offers');
   const [checkoutQuantity,setCheckoutQuantity]=useState(1),[checkoutCustomerId,setCheckoutCustomerId]=useState('');
   const [checkoutSession,setCheckoutSession]=useState<CheckoutSession|null>(null),
     [lookupSessionId,setLookupSessionId]=useState('');
   const [events,setEvents]=useState<StripeEvent[]>([]),[eventCursor,setEventCursor]=useState<string|null>(null);
+  const [offers,setOffers]=useState<Offer[]>([]),[offerCursor,setOfferCursor]=useState<string|null>(null),
+    [offerPriceId,setOfferPriceId]=useState(''),[offersLoading,setOffersLoading]=useState(false);
   const [enabled,setEnabled]=useState(false),[enableRevision,setEnableRevision]=useState<number|null>(null);
   const [runs,setRuns]=useState<Run[]>([]),[pages,setPages]=useState<Partial<Record<ListCollection,Page>>>({});
   const [busy,setBusy]=useState(false),[checking,setChecking]=useState(false);
@@ -146,7 +152,9 @@ export function StripeAdminView(props:WorkspaceViewProps){
         else if(listCollections.includes(tabRef.current as ListCollection))void loadPage(tabRef.current as ListCollection,token);}
       configVersion.current=next.revision;
       setConfig(old=>latestConfig(old,next));if(enableRevision===null)setEnabled(next.enabled);
-      if(tabRef.current!=='settings')setCheckoutOrigin(next.checkoutReturnOrigin??'');}
+      if(tabRef.current!=='settings'){
+        setCheckoutOrigin(next.checkoutReturnOrigin??'');
+        setCheckoutAppReturnPath(next.checkoutAppReturnPath??'/offers');}}
     setRuns(old=>reconcileRuns(old,Array.isArray(states?.states)?states.states as Run[]:[],rotated));
   };
   const loadPage=async(collection:ListCollection,token:number,cursor:string|null=null,append=false)=>{
@@ -174,6 +182,17 @@ export function StripeAdminView(props:WorkspaceViewProps){
     setEvents(previous=>append?[...previous,...rows.filter(row=>!previous.some(old=>old.id===row.id))]:rows);
     setEventCursor(typeof value.nextCursor==='string'?value.nextCursor:null);
   };
+  const loadOffers=async(token:number,cursor:string|null=null,append=false)=>{
+    setOffersLoading(true);
+    const value=await read('offer.list',{limit:8,...(cursor?{cursor}:{})},token);
+    if(!current(token))return;
+    if(value&&Array.isArray(value.items)){
+      const rows=value.items as Offer[];
+      setOffers(previous=>append?[...previous,...rows.filter(row=>!previous.some(old=>old.id===row.id))]:rows);
+      setOfferCursor(typeof value.nextCursor==='string'?value.nextCursor:null);
+    }
+    setOffersLoading(false);
+  };
   useEffect(()=>{
     const phase=access.pending?'loading':access.phase;
     const transition=scopeChange(prior.current,scope,phase);
@@ -181,8 +200,10 @@ export function StripeAdminView(props:WorkspaceViewProps){
       setTab('overview');tabRef.current='overview';setConfig(null);setApiKey('');setWebhookSecret('');
       setWebhookServiceToken('');
       setCheckoutOrigin('');setCheckoutPriceId('');setCheckoutCustomerId('');
+      setCheckoutAppReturnPath('/offers');
       setCheckoutSession(null);setLookupSessionId('');
       setEvents([]);setEventCursor(null);
+      setOffers([]);setOfferCursor(null);setOfferPriceId('');setOffersLoading(false);
       setEnabled(false);setEnableRevision(null);setRuns([]);setPages({});setPending(null);setNotice('');
       setShowSync(false);invalidateLists();
       journal.current=null;journalScope.current={sessionId:'',audience:props.audience,contextId:props.contextId};}
@@ -204,6 +225,8 @@ export function StripeAdminView(props:WorkspaceViewProps){
     if(tabRef.current==='overview')for(const id of overviewCollections)void loadPage(id,token);
     if(tabRef.current==='overview')void loadEvents(token);
     else if(listCollections.includes(tabRef.current as ListCollection))void loadPage(tabRef.current as ListCollection,token);
+    else if(tabRef.current==='offers'){
+      void loadOffers(token);void loadPage('products',token);void loadPage('prices',token);}
   },[active,sessionId,access.phase,access.pending,props.client,props.access,props.audience,props.contextId,props.panelId]);
   const changeTab=(next:StripeTab)=>{
     setTab(next);tabRef.current=next;
@@ -211,6 +234,9 @@ export function StripeAdminView(props:WorkspaceViewProps){
     if(next==='overview')for(const id of overviewCollections)void loadPage(id,generation.current);
     if(next==='overview')void loadEvents(generation.current);
     else if(listCollections.includes(next as ListCollection))void loadPage(next as ListCollection,generation.current);
+    else if(next==='offers'){
+      void loadOffers(generation.current);void loadPage('products',generation.current);
+      void loadPage('prices',generation.current);}
   };
   const mutate=async(operation:string,input:Record<string,unknown>)=>{
     const controller=journal.current,token=generation.current;
@@ -227,11 +253,13 @@ export function StripeAdminView(props:WorkspaceViewProps){
       if(value.config){const next=value.config as Config;configVersion.current=next.revision;
         setConfig(old=>latestConfig(old,next));setEnabled(next.enabled);
         setEnableRevision(null);setCheckoutOrigin(next.checkoutReturnOrigin??'');
+        setCheckoutAppReturnPath(next.checkoutAppReturnPath??'/offers');
         if(operation.startsWith('config.key.')){setApiKey('');setWebhookSecret('');
           setWebhookServiceToken('');}}
       if(value.session)setCheckoutSession(value.session as CheckoutSession);
       if(operation==='subscription.cancel.set'||operation==='subscription.cancel.schedule')
         refreshSubscriptions(token);
+      if(operation==='offer.set')void loadOffers(token);
       if(operation.startsWith('config.key.')){invalidateLists();setRuns([]);setPages({});}
       if(value.state){const next=value.state as Run;setRuns(old=>mergeRuns(old,[next]));}
       if(operation==='sync.page'&&value.state)
@@ -254,10 +282,12 @@ export function StripeAdminView(props:WorkspaceViewProps){
     if(value?.config){const next=value.config as Config;configVersion.current=next.revision;
       setConfig(old=>latestConfig(old,next));setEnabled(next.enabled);
       setEnableRevision(null);setCheckoutOrigin(next.checkoutReturnOrigin??'');
+      setCheckoutAppReturnPath(next.checkoutAppReturnPath??'/offers');
       setApiKey('');setWebhookSecret('');setWebhookServiceToken('');}
     if(value?.session)setCheckoutSession(value.session as CheckoutSession);
     if((pending.intent==='subscription.cancel.set'||pending.intent==='subscription.cancel.schedule')&&value)
       refreshSubscriptions(token);
+    if(pending.intent==='offer.set'&&value)void loadOffers(token);
     if(pending.intent?.startsWith('config.key.')&&value){invalidateLists();setRuns([]);setPages({});}
     if(value?.state){const next=value.state as Run;setRuns(old=>mergeRuns(old,[next]));}
     if(pending.intent==='sync.page'&&value?.state)
@@ -275,6 +305,8 @@ export function StripeAdminView(props:WorkspaceViewProps){
   const invoices=(pages.invoices?.items??[]) as Invoice[];
   const products=(pages.products?.items??[]) as Product[];
   const prices=(pages.prices?.items??[]) as Price[];
+  const eligiblePrices=prices.filter(price=>offerPriceEligible(price,products));
+  const offerPrice=eligiblePrices.find(price=>price.id===offerPriceId);
   const rows=[...customers.flatMap<{customer:Customer|null;subscription:Subscription|null}>(customer=>{
     const linked=subscriptions.filter(subscription=>subscription.customer_id===customer.id);
     return linked.length?linked.map(subscription=>({customer,subscription})):[{customer,subscription:null}];
@@ -287,7 +319,7 @@ export function StripeAdminView(props:WorkspaceViewProps){
       <p className="text-sm text-muted-foreground">Abonnements et factures Stripe.</p></div>
       <div className="flex items-center gap-2"><Button size="sm" onClick={()=>setShowSync(value=>!value)}>
         Resynchroniser Stripe</Button></div></div>
-    <nav className="flex flex-wrap gap-2" aria-label="Sections facturation">{(['overview',...listCollections,'checkout','settings'] as StripeTab[]).map(value=>
+    <nav className="flex flex-wrap gap-2" aria-label="Sections facturation">{(['overview',...listCollections,'offers','checkout','settings'] as StripeTab[]).map(value=>
       <Button key={value} type="button" size="sm" variant={tab===value?'default':'outline'}
         aria-current={tab===value?'page':undefined} onClick={()=>changeTab(value)}>
         {value==='overview'?'Vue générale':value==='settings'?'Connexion':titles[value]}</Button>)}</nav>
@@ -406,6 +438,44 @@ export function StripeAdminView(props:WorkspaceViewProps){
         Suite prix</Button>:null}
       <p className="mt-2 text-xs text-muted-foreground">Prix actifs et inactifs ont deux parcours Stripe distincts ; cette liste peut rester partielle. Le produit indiqué est son identifiant Stripe, sans rapprochement supposé.</p>
     </Card>:null}
+    {tab==='offers'?<Card className="p-4"><div className="mb-3 flex items-center justify-between gap-2">
+      <div><h2 className="text-base font-semibold">Offres d’achat test</h2>
+        <p className="text-sm text-muted-foreground">Chaque offre reprend un produit et un prix fixe actifs déjà projetés. Le serveur vérifie leur génération avant publication.</p></div>
+      <Button size="sm" variant="outline" type="button" disabled={offersLoading}
+        onClick={()=>void loadOffers(generation.current)}>Actualiser</Button></div>
+      <div className="flex flex-wrap items-end gap-2"><label className="grid gap-1 text-sm">Prix d’une nouvelle offre
+        <select className="rounded-md border px-3 py-2" value={offerPriceId}
+          onChange={event=>setOfferPriceId(event.target.value)} disabled={busy||!!pending}>
+          <option value="">Choisir un prix fixe actif</option>
+          {eligiblePrices.map(price=><option key={price.id} value={price.id}>
+            {price.product_id} · {formatStripeAmount(price.unit_amount_minor,price.currency)} · {formatStripeFrequency(price.type,price.interval,price.interval_count)}
+          </option>)}</select></label>
+        <Button size="sm" type="button" disabled={!offerPrice||busy||!!pending||!config?.enabled}
+          onClick={()=>{if(offerPrice&&window.confirm(`Publier une offre test pour le prix ${offerPrice.id} ?`))
+            void mutate('offer.set',{productId:offerPrice.product_id,priceId:offerPrice.id,enabled:true,revision:0});}}>
+          Publier l’offre</Button></div>
+      <p className="mt-2 text-xs text-muted-foreground">Un prix absent de cette page peut nécessiter la suite des projections. Aucun montant libre n’est accepté.</p>
+      <div className="mt-3 flex gap-2">{(['products','prices'] as const).map(id=>pages[id]?.nextCursor?
+        <Button key={id} size="sm" variant="outline" type="button" disabled={loading[id]}
+          onClick={()=>void loadPage(id,generation.current,pages[id]!.nextCursor,true)}>Suite {titles[id].toLowerCase()}</Button>:null)}</div>
+      {offersLoading?<p className="mt-3 text-sm">Chargement des offres…</p>:null}
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">{offers.map(offer=><div key={offer.id}
+        className="rounded-md border p-3 text-sm"><div className="flex items-start justify-between gap-2">
+        <div><strong className="font-medium">{offer.name}</strong><p className="text-xs text-muted-foreground">{offer.id}</p></div>
+        <Badge variant={offer.enabled?'default':'secondary'}>{offer.enabled?'Publiée':'Suspendue'}</Badge></div>
+        <p className="mt-2">{formatStripeAmount(offer.unitAmountMinor,offer.currency)} · {formatStripeFrequency(
+          offer.mode==='payment'?'one_time':'recurring',offer.interval,offer.intervalCount)}</p>
+        <p className="text-xs text-muted-foreground">Produit {offer.productId} · prix {offer.priceId}</p>
+        <Button className="mt-3" size="sm" variant="outline" type="button"
+          disabled={busy||!!pending||offersLoading} onClick={()=>{
+            if(window.confirm(offer.enabled?`Suspendre l’offre ${offer.name} ?`:`Réactiver l’offre ${offer.name} ?`))
+              void mutate('offer.set',{offerId:offer.id,productId:offer.productId,priceId:offer.priceId,
+                enabled:!offer.enabled,revision:offer.revision});
+          }}>{offer.enabled?'Suspendre':'Réactiver'}</Button></div>)}</div>
+      {!offersLoading&&offers.length===0?<p className="mt-3 text-sm text-muted-foreground">Aucune offre configurée.</p>:null}
+      {offerCursor?<Button className="mt-3" size="sm" variant="outline" type="button" disabled={offersLoading}
+        onClick={()=>void loadOffers(generation.current,offerCursor,true)}>Suite offres</Button>:null}
+    </Card>:null}
     {tab==='checkout'?<Card className="p-4"><h2 className="mb-3 text-base font-semibold">Checkout Stripe test</h2>
       <p className="mb-3 text-sm text-muted-foreground">Choisissez un prix fixe actif déjà synchronisé. Le montant vient du prix Stripe, jamais de ce formulaire.</p>
       <div className="grid gap-3 sm:grid-cols-3">
@@ -460,12 +530,19 @@ export function StripeAdminView(props:WorkspaceViewProps){
         <input className="rounded-md border px-3 py-2" type="url" value={checkoutOrigin}
           placeholder="https://app.example.com" maxLength={512} disabled={busy||!!pending}
           onChange={event=>setCheckoutOrigin(event.target.value)}/></label>
+      <label className="mb-3 grid gap-1 text-sm">Page de retour des achats de l’app
+        <input className="rounded-md border px-3 py-2" type="text" value={checkoutAppReturnPath}
+          placeholder="/offers" maxLength={256} disabled={busy||!!pending}
+          onChange={event=>setCheckoutAppReturnPath(event.target.value)}/></label>
+      <p className="mb-3 text-xs text-muted-foreground">Chemin local du front, par exemple /offers. Le serveur construit l’URL de retour ; aucun lien n’est fourni par l’acheteur.</p>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={enabled}
         disabled={busy||!!pending||!config?.hasKey} onChange={event=>{if(enableRevision===null)setEnableRevision(config?.revision??0);
           setEnabled(event.target.checked);}}/>Connexion active</label>
       <Button className="mt-2" size="sm" variant="outline" type="button"
-        disabled={busy||!!pending||enabled&&!config?.hasKey}
+        disabled={busy||!!pending||enabled&&!config?.hasKey||
+          !!checkoutAppReturnPath&&!/^\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/u.test(checkoutAppReturnPath)}
         onClick={()=>void mutate('config.set',{enabled,checkoutReturnOrigin:checkoutOrigin||null,
+          checkoutAppReturnPath:checkoutAppReturnPath||null,
           revision:enableRevision??config?.revision??0})}>
         Enregistrer la configuration</Button>
       <div className="mt-4 flex flex-wrap items-end gap-2"><label className="grid gap-1 text-sm">Clé secrète Stripe

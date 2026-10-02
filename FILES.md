@@ -1,5 +1,9 @@
 # Repères du dépôt
 
+`sdk/widgets/mcp-apps-bridge.ts` raccorde les capacités MCP Apps de l'hôte interne. Le panneau natif `extensions/native/conversations/ui/widget-message.tsx` prend en charge les demandes d'ouverture de lien ; le sandbox conserve ses permissions. Ce bridge interne n'est pas un export du paquet public SDK ; voir [T16](docs/IMPLEMENTATION-T16.md).
+
+Le parcours d'achat Stripe utilise les opérations du même `extensions/connectors/stripe/module/service.ts`. `ui/front.tsx` expose la vue dynamique des offres ; `ui/widgets/offers.ts`, `checkout-status.ts` et `commerce.ts` portent les interfaces conversationnelles partagées avec MCP app. Le manifeste distingue les droits administratifs et les achats app. `tests/stripe/integration.test.mjs` vérifie leur raccord D1 et les refus entre principaux ; `data/schema/stripe.sql` reste généré centralement. Voir [T27](docs/IMPLEMENTATION-T27.md) pour les preuves et limites.
+
 La projection des lectures du chat est dans `core/providers/tools.ts`. `core/operations/http.ts` transmet les connecteurs compilés à `core/conversations/turn-bridge.ts`, qui reprojette les outils avant leur invocation. Les tests `tests/openai/provider-host.test.mjs` et `tests/openai/turn-bridge.test.mjs` couvrent ce chemin ; aucune nouvelle implémentation de connecteur, de moteur ou de module n'est créée pour le correctif Meili.
 
 `app/access/operation-refusal.ts` distingue les refus des lectures facultatives du workspace/front des erreurs exigeant une revalidation globale. Ses appelants restent `app/workspace/host.tsx` et `app/front/host.tsx` ; `tests/workspace/operation-refusal.test.mjs` couvre les refus facultatifs, les vrais refus de session et les autres opérations. Aucun contrat SDK, modèle ou manifeste de module ne change.
