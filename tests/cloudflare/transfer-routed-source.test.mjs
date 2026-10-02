@@ -2,8 +2,10 @@ import '../../scripts/local-environment.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdirSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {Miniflare} from 'miniflare';
 import {temporaryDirectory} from '../quality/temporary.mjs';
 import {loadLocalConfiguration} from '../../scripts/local/config.mjs';
 import {createStorageInstallationIdentity,createLocalStorageInventory} from '../../scripts/local/storage-installation.mjs';
@@ -13,10 +15,14 @@ import {applyCompositionSchema} from '../../scripts/data/apply-schema.mjs';
 import {STORAGE_AUTHORITY_TABLES} from '../../core/storage-authority/models.ts';
 import {captureLocalTransfer,captureLocalTransferGroup,loadCapturedTransfer,readCapturedTable}
   from '../../scripts/cloudflare/transfer/source.ts';
+import {createFileTransferJournal} from '../../scripts/cloudflare/transfer/journal.ts';
+import {importCapturedTransfer,verifyCapturedTransfer} from '../../scripts/cloudflare/transfer/destination.ts';
 
 const repository=fileURLToPath(new URL('../../',import.meta.url));
 const plan=await loadCompositionSchema({root:repository,
   compositionPath:'configuration/composition.widgets-local.json'});
+const targetPlan=await loadCompositionSchema({root:repository,
+  compositionPath:'configuration/composition.widgets-sites.json'});
 const routes=`"${STORAGE_AUTHORITY_TABLES.storage_routes}"`;
 
 test('routed capture preserves its pair and imports only a denied route snapshot',
@@ -78,4 +84,49 @@ test('routed capture preserves its pair and imports only a denied route snapshot
   assert.equal(grouped.length,2);
   assert.equal(grouped[0].manifest.identity.sourceContextId,undefined);
   assert.equal(grouped[1].manifest.identity.sourceContextId,'tenant-a');
+  const journalDirectory=path.join(root,'.wrangler','delivery');
+  mkdirSync(journalDirectory,{recursive:true});
+  const journal=createFileTransferJournal(journalDirectory);
+  for(const capture of grouped){
+    const checkpoint={schemaVersion:1,revision:1,identity:capture.manifest.identity,
+      manifestDigest:capture.manifest.manifestDigest,phase:'captured',tableCursor:null,
+      objectCursor:null,multipart:null,targetSchemaReceiptId:null,targetDeploymentId:null};
+    await journal.create(checkpoint);
+    assert.deepEqual(await journal.load(capture.manifest.identity.transferId),checkpoint);
+  }
+  const runtime=new Miniflare({host:'127.0.0.1',port:0,cf:false,modules:true,
+    compatibilityDate:'2026-05-15',d1Databases:{DB:'routed-destination'},d1Persist:false,
+    script:'export default {fetch(){return new Response(null,{status:404})}}'});
+  t.after(async()=>{await runtime.dispose();});
+  const db=await runtime.getD1Database('DB');
+  assert.equal((await applyCompositionSchema(db,targetPlan,
+    {expectedPlanDigest:targetPlan.planDigest})).ok,true);
+  const saved=new Map();let uploads=0;
+  const objects={
+    async inspectObject(entry){
+      const bytes=saved.get(entry.key);
+      if(!bytes)return 'absent';
+      return createHash('sha256').update(bytes).digest('hex')===entry.sha256
+        &&bytes.length===entry.size?'matching':'conflict';
+    },
+    async putObjectIfAbsent(entry,source){
+      if(saved.has(entry.key))return 'unknown';
+      const chunks=[];for await(const chunk of source)chunks.push(Buffer.from(chunk));
+      saved.set(entry.key,Buffer.concat(chunks));uploads++;return 'created';
+    },
+    async *listObjectKeys(){for(const key of saved.keys())yield key;},
+  };
+  const routed=grouped[1],args={config,directory:path.join(root,'.wrangler','transfers',
+    'group-target'),manifest:routed.manifest,targetPlan,db,objects,journal,
+    expectedTarget:target,expectedContextId:'tenant-a'};
+  const verified=await importCapturedTransfer(args);
+  assert.equal(verified.phase,'verified');
+  assert.equal(uploads,1);
+  assert.equal((await verifyCapturedTransfer(args)).ok,true);
+  const repeated=await importCapturedTransfer(args);
+  assert.equal(repeated.revision,verified.revision);
+  assert.equal(uploads,1);
+  assert.equal((await journal.load('group-primary')).revision,1);
+  assert.equal((await db.prepare(`SELECT state,generation FROM ${routes} WHERE id='tenant-a'`)
+    .first()).state,'deny');
 });

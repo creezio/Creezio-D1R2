@@ -6,6 +6,9 @@
 - L'achat utilise le prix et le propriétaire déterminés par le serveur. Les sessions administratives historiques restent privées ; le retour du navigateur déclenche une lecture authentifiée et ne déclare jamais seul un paiement réussi.
 - Le schéma central conserve les données antérieures et ajoute les rattachements facultatifs. Cette tranche ne dépend pas de Catalogue ; sa qualification et sa livraison restent ouvertes.
 - Le chat natif raccorde la capacité standard MCP Apps d'ouverture de lien à une confirmation dans l'hôte. Les widgets n'ont besoin ni de dialogues ni de fenêtres surgissantes dans leur iframe ; le sandbox reste inchangé.
+## Correctif candidat T33 — checkpoint de transfert routé
+
+- Le journal accepte l'identité de capture routée uniquement avec `sourceContextId` et `routeFence` cohérents ; l'identité du couple principal reste exacte. Trois tests ciblés passent dans une image Linux isolée, dont capture/import/vérification et reprise sans second upload. L'entrée Docker `--application-root` vérifie une source applicative distincte et le même verrou de dépendances avant les proxys ; 12 tests locaux ciblés passent. La reprise du transfert Cloudflare b9 attend la qualification du déploiement opérateur/source séparés.
 
 ## Candidate Stripe 0.4.0 — maintien d'un abonnement avant son échéance
 

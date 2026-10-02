@@ -27,6 +27,24 @@ const plain=(value:unknown):value is Record<string,unknown>=>!!value&&typeof val
   &&!Array.isArray(value)&&[Object.prototype,null].includes(Object.getPrototypeOf(value));
 const exact=(value:Record<string,unknown>,keys:readonly string[])=>Object.keys(value).sort().join(',')
   ===[...keys].sort().join(',');
+const identityKeys=['transferId','applicationId','sourceSha','compositionDigest','lockDigest',
+  'modelDigest','schemaObjectsDigest','planDigest','sourceSchemaReceiptId','target'];
+function validIdentity(value:unknown):value is TransferCheckpoint['identity'] {
+  if(!plain(value))return false;
+  const routed=Object.hasOwn(value,'sourceContextId')||Object.hasOwn(value,'routeFence');
+  if(!exact(value,routed?[...identityKeys,'sourceContextId','routeFence']:identityKeys))return false;
+  if(!routed)return true;
+  const context=value.sourceContextId,fence=value.routeFence;
+  return typeof context==='string'&&ID.test(context)&&context!=='application'
+    &&plain(fence)&&exact(fence,['installationId','contextId','slot','mutationId',
+      'commandDigest','expectedGeneration'])
+    &&fence.contextId===context&&typeof fence.installationId==='string'
+    &&ID.test(fence.installationId)&&typeof fence.mutationId==='string'
+    &&ID.test(fence.mutationId)&&typeof fence.commandDigest==='string'
+    &&HASH.test(fence.commandDigest)
+    &&Number.isSafeInteger(fence.slot)&&Number(fence.slot)>=1
+    &&Number.isSafeInteger(fence.expectedGeneration)&&Number(fence.expectedGeneration)>=1;
+}
 function validMultipart(value:unknown):boolean {
   if(!plain(value)||!(exact(value,['key','uploadId','completedParts'])
     ||exact(value,['key','uploadId','completedParts','pendingPart']))
@@ -47,8 +65,7 @@ function checked(value:unknown):TransferCheckpoint {
   if(!plain(value)||!exact(value,['schemaVersion','revision','identity','manifestDigest','phase',
     'tableCursor','objectCursor','multipart','targetSchemaReceiptId','targetDeploymentId'])
     ||value.schemaVersion!==1||!Number.isSafeInteger(value.revision)||Number(value.revision)<1
-    ||!plain(value.identity)||!exact(value.identity,['transferId','applicationId','sourceSha',
-      'compositionDigest','lockDigest','modelDigest','schemaObjectsDigest','planDigest','sourceSchemaReceiptId','target'])
+    ||!validIdentity(value.identity)
     ||!plain(value.identity.target)||!exact(value.identity.target,['accountId','workerName','databaseId',
       'bucketName','origin'])||!ID.test(String(value.identity.transferId))
     ||!HASH.test(String(value.manifestDigest))||!HASH.test(String(value.identity.planDigest))

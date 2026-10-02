@@ -3,11 +3,15 @@ import assert from 'node:assert/strict';
 import net from 'node:net';
 import path from 'node:path';
 import {EventEmitter} from 'node:events';
-import {existsSync,mkdirSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+import {copyFileSync,existsSync,mkdirSync,readFileSync,symlinkSync,unlinkSync,writeFileSync}
+  from 'node:fs';
 import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {createLocalProxy} from '../../adapters/docker/proxy.mjs';
-import {dockerProxyTargets,serveDockerApplication} from '../../adapters/docker/serve.mjs';
+import {dockerApplicationConfiguration,dockerProxyTargets,serveDockerApplication}
+  from '../../adapters/docker/serve.mjs';
 import {LOCAL_BINDINGS, loadLocalConfiguration} from '../../scripts/local/config.mjs';
 import {acquireLocalRuntimeLock} from '../../scripts/local/lock.mjs';
 import {closeLocalApplication,serveLocalApplication} from '../../scripts/local/serve.mjs';
@@ -15,6 +19,81 @@ import {temporaryDirectory} from '../quality/temporary.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const source = name => readFile(new URL(`../../adapters/docker/${name}`, import.meta.url), 'utf8');
+
+function applicationSource(t){
+  const parent=temporaryDirectory(t,'creezio-docker-application-root-');
+  const application=path.join(parent,'application');
+  mkdirSync(path.join(application,'.openai'),{recursive:true});
+  writeFileSync(path.join(application,'.openai','hosting.json'),JSON.stringify({d1:'DB',r2:'BUCKET'}));
+  writeFileSync(path.join(application,'application.mjs'),'export const application = true;\n');
+  copyFileSync(path.join(root,'package-lock.json'),path.join(application,'package-lock.json'));
+  const git=(...args)=>execFileSync('git',args,{cwd:application,stdio:'pipe'});
+  git('init','-q');git('config','user.email','test@example.invalid');
+  git('config','user.name','Synthetic Fixture');git('add','.');git('commit','-qm','fixture');
+  return {parent,application};
+}
+
+function portableApplicationSource(t){
+  const parent=temporaryDirectory(t,'creezio-docker-portable-root-');
+  const application=path.join(parent,'application');
+  mkdirSync(path.join(application,'.openai'),{recursive:true});
+  mkdirSync(path.join(application,'.creezio'));
+  writeFileSync(path.join(application,'.openai','hosting.json'),JSON.stringify({d1:'DB',r2:'BUCKET'}));
+  writeFileSync(path.join(application,'application.mjs'),'export const application = true;\n');
+  copyFileSync(path.join(root,'package-lock.json'),path.join(application,'package-lock.json'));
+  const names=['.openai/hosting.json','application.mjs','package-lock.json'];
+  const aggregate=createHash('sha256'),files=names.map(name=>{
+    const sha256=createHash('sha256').update(readFileSync(path.join(application,name))).digest('hex');
+    aggregate.update(JSON.stringify([name,sha256])+'\n');return {path:name,sha256};
+  });
+  writeFileSync(path.join(application,'.creezio','docker-source.json'),JSON.stringify({
+    schemaVersion:1,source:{head:'a'.repeat(40),tree:'b'.repeat(40),dirty:false,
+      sha256:aggregate.digest('hex'),archiveDigest:'c'.repeat(64),files}})+'\n');
+  return application;
+}
+
+test('explicit Docker portable application root verifies bytes and refuses later alteration',t=>{
+  const application=portableApplicationSource(t);
+  assert.equal(dockerApplicationConfiguration(['--application-root',application]).root,application);
+  writeFileSync(path.join(application,'application.mjs'),'export const application = false;\n');
+  assert.throws(()=>dockerApplicationConfiguration(['--application-root',application]),
+    error=>error.code==='source_changed');
+});
+
+test('explicit Docker application root is verified before proxies and passed to the runtime',async t=>{
+  const {application}=applicationSource(t),opened=[];
+  const config=dockerApplicationConfiguration(['--application-root',application]);
+  assert.equal(config.root,application);
+  await serveDockerApplication({config,
+    async createProxy(options){opened.push(options);return {async close(){}};},
+    async serve(options){assert.equal(options.config.root,application);}});
+  assert.deepEqual(opened,[{targetPort:5173},{listenPort:5177,targetPort:5176}]);
+  assert.throws(()=>dockerApplicationConfiguration(['--application-root','relative/path']),
+    /absolute path/);
+  assert.throws(()=>dockerApplicationConfiguration(['--application-root',application,'extra']),
+    /absolute path/);
+  writeFileSync(path.join(application,'application.mjs'),'export const application = false;\n');
+  assert.throws(()=>dockerApplicationConfiguration(['--application-root',application]),
+    /Unverified application source/);
+});
+
+test('explicit Docker application root refuses a clean source with a different dependency lock',t=>{
+  const {application}=applicationSource(t);
+  writeFileSync(path.join(application,'package-lock.json'),'{}\n');
+  const git=(...args)=>execFileSync('git',args,{cwd:application,stdio:'pipe'});
+  git('add','package-lock.json');git('commit','-qm','different lock');
+  assert.throws(()=>dockerApplicationConfiguration(['--application-root',application]),
+    /dependency lock differs/);
+});
+
+test('explicit Docker application root refuses a linked path before any proxy',t=>{
+  const {parent,application}=applicationSource(t),linked=path.join(parent,'linked-application');
+  try{
+    symlinkSync(application,linked,process.platform==='win32'?'junction':'dir');
+    assert.throws(()=>dockerApplicationConfiguration(['--application-root',linked]),
+      /Linked application source path/);
+  }finally{if(existsSync(linked))unlinkSync(linked);}
+});
 
 test('Docker dev profile reuses the native origin, bindings and one persistent state root', async () => {
   const [compose, dockerfile, ignore] = await Promise.all([source('compose.yaml'), source('Dockerfile'),
