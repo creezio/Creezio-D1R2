@@ -13,7 +13,7 @@ test('message lookup exports only authorized read, not storage or transport',()=
 
 test('every native operation has separate admin/app HTTP and MCP bindings',()=>{
   const operations=manifest.contracts.operations;
-  assert.equal(operations.length,25);
+  assert.equal(operations.length,26);
   assert.deepEqual(operations.filter(op=>op.id.startsWith('message.inbound.')).map(op=>
     [op.id,op.kind]),[
     ['message.inbound.prepare','command'],['message.inbound.status','query'],
@@ -32,6 +32,11 @@ test('every native operation has separate admin/app HTTP and MCP bindings',()=>{
     operations.filter(x=>x.id!=='message.delivery.prepare').map(x=>x.id));
   assert.ok(manifest.contracts.mcp.tools.every(x=>x.auth.includes('oauth')&&x.auth.includes('api-token')
     &&x.textFallback));
+  const deletion=operations.find(op=>op.id==='message.delete');
+  assert.equal(deletion.kind,'command');
+  assert.deepEqual(deletion.effects.writes.map(ref=>ref.id),
+    ['message','message_attachment','inbound_snapshot']);
+  assert.equal(manifest.contracts.mcp.tools.find(tool=>tool.id==='message.delete').annotations.destructive,true);
 });
 
 test('send declares durable snapshot, optional Resend readiness and provider intent',()=>{

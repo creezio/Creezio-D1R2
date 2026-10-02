@@ -77,6 +77,7 @@ CREATE TABLE "cz_637265657a696f2e6d6573736167696e67_696e626f756e645f736e61707368
   "connection_id" TEXT NOT NULL CHECK ("connection_id" IS NOT NULL AND (typeof("connection_id") = 'text' AND instr("connection_id", char(0)) = 0 AND length("connection_id") >= 1 AND length("connection_id") <= 128)),
   "context_id" TEXT NOT NULL CHECK ("context_id" IS NOT NULL AND (typeof("context_id") = 'text' AND instr("context_id", char(0)) = 0 AND length("context_id") >= 1 AND length("context_id") <= 128)),
   "created_at" TEXT NOT NULL CHECK ("created_at" IS NOT NULL AND (typeof("created_at") = 'text' AND length("created_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "created_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "created_at") = "created_at")),
+  "deleted_at" TEXT CHECK ("deleted_at" IS NULL OR (typeof("deleted_at") = 'text' AND length("deleted_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "deleted_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "deleted_at") = "deleted_at")),
   "email_id" TEXT NOT NULL CHECK ("email_id" IS NOT NULL AND (typeof("email_id") = 'text' AND instr("email_id", char(0)) = 0 AND length("email_id") >= 1 AND length("email_id") <= 128)),
   "from_addr" TEXT NOT NULL CHECK ("from_addr" IS NOT NULL AND (typeof("from_addr") = 'text' AND instr("from_addr", char(0)) = 0 AND length("from_addr") >= 1 AND length("from_addr") <= 320)),
   "html_body" TEXT NOT NULL CHECK ("html_body" IS NOT NULL AND (typeof("html_body") = 'text' AND instr("html_body", char(0)) = 0 AND length("html_body") >= 0 AND length("html_body") <= 32000)),

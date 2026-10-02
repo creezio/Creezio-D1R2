@@ -260,6 +260,7 @@ async function inboundReceipts(c:OperationContext,boxId:string,id:string):Promis
   return [...page.items];
 }
 async function inboundState(c:OperationContext,selected:Row,row:Row){
+  if(row.deleted_at!==null&&row.deleted_at!==undefined)fail('not_found');
   if(row.box_address!==selected.address||row.box_revision!==selected.revision)fail('conflict');
   const receipts=await inboundReceipts(c,String(selected.id),String(row.id));
   const children=Array.isArray(row.attachments)?row.attachments as InboundChild[]:fail('conflict');
@@ -320,7 +321,7 @@ export async function messageInboundPrepare(value:JsonValue,c:OperationContext){
     box_address:selected.address,box_revision:selected.revision,connection_id:mail.connectionId as string,
     config_revision:mail.configRevision as number,from_addr:mail.from as string,to_addr:to,
     subject:mail.subject as string,text_body:mail.text as string,html_body:html,received_at:receivedAt,attachments:exact,
-    snapshot_digest:snapshotDigest,created_at:now()};
+    snapshot_digest:snapshotDigest,deleted_at:null,created_at:now()};
   return {output:{snapshot:inboundView(row,[],false)},plans:[
     c.data.planGet('box',{key:boxKey(c,String(selected.id)),
       where:{address:selected.address,revision:selected.revision},required:true}),
@@ -361,7 +362,7 @@ export async function messageInboundAttachmentStage(value:JsonValue,c:OperationC
     c.data.planGet('box',{key:boxKey(c,String(selected.id)),
       where:{address:row.box_address,revision:row.box_revision},required:true}),
     c.data.planGet('inbound_snapshot',{key:inboundKey(c,String(selected.id),String(row.id)),
-      where:{snapshot_digest:row.snapshot_digest},required:true}),
+      where:{snapshot_digest:row.snapshot_digest,deleted_at:null},required:true}),
     c.data.planCreate('inbound_stage_receipt',{values:receipt})]};
 }
 /** No provider read is allowed here: the immutable snapshot and all staged refs commit together. */
@@ -399,7 +400,7 @@ export async function messageInboundImport(value:JsonValue,c:OperationContext){
     c.data.planGet('box',{key:boxKey(c,String(selected.id)),
       where:{address:row.box_address,revision:row.box_revision},required:true}),
     c.data.planGet('inbound_snapshot',{key:inboundKey(c,String(selected.id),String(row.id)),
-      where:{snapshot_digest:row.snapshot_digest},required:true}),
+      where:{snapshot_digest:row.snapshot_digest,deleted_at:null},required:true}),
     c.data.planCreate('message',{values:message})]};
 }
 export async function messageAttachmentList(value:JsonValue,c:OperationContext){
@@ -429,6 +430,38 @@ export async function messageUpdate(value:JsonValue,c:OperationContext){
   return {output:{message:viewMessage({...row,...changes,revision:rev+1})},plans:[
     c.data.planPatch('message',{key:messageKey(c,a.boxId,a.messageId),
       compare:{field:'revision',expected:rev},values:changes})]};
+}
+/** One bounded step; a confirmed caller may continue with the returned revision. */
+export async function messageDelete(value:JsonValue,c:OperationContext){
+  const a=input(value);await box(c,a.boxId);
+  if(!validId(a.messageId))fail('invalid_input');
+  const key=messageKey(c,a.boxId,a.messageId);
+  const row=(await c.data.get('message',{key}) as Row|null)??fail('not_found');
+  const revision=Number(a.revision);
+  if(!Number.isSafeInteger(revision)||revision!==row.revision)fail('conflict');
+  if(row.folder!=='trash'||row.direction!=='inbound')fail('conflict');
+  // Outbox receipts and their frozen payload are never discarded through this path.
+  if(await c.data.get('send_snapshot',{key}))fail('conflict');
+  const snapshot=(await c.data.get('inbound_snapshot',{key}) as Row|null)??fail('conflict');
+  // A legacy/orphan inbound row has no provenance to tombstone and must stay intact.
+  if(snapshot.deleted_at!==null&&snapshot.deleted_at!==undefined
+    ||snapshot.email_id!==row.provider_message_id)fail('conflict');
+  // Sixteen plans per execution: thirteen link deletes plus the row and tombstone.
+  const page=await c.data.list('message_attachment',{limit:13,
+    where:{...scope(c),box_id:a.boxId,message_id:a.messageId},
+    order:{indexId:'by-message',direction:'asc'}}) as Page;
+  const plans=page.items.map(link=>c.data.planDelete('message_attachment',{
+    key:{...scope(c),box_id:a.boxId,message_id:a.messageId,file_id:link.file_id}}));
+  if(page.nextAfter){
+    plans.push(c.data.planPatch('message',{key,compare:{field:'revision',expected:revision},
+      values:{folder:'trash'}}));
+    return {output:{deleted:false,revision:revision+1,removed:page.items.length},plans};
+  }
+  plans.push(c.data.planDelete('message',{key,compare:{field:'revision',expected:revision}}));
+  plans.push(c.data.planPatch('inbound_snapshot',{key,
+    where:{deleted_at:null,snapshot_digest:snapshot.snapshot_digest},
+    values:{deleted_at:now(),subject:'',text_body:'',html_body:'',attachments:[]}}));
+  return {output:{deleted:true,revision:null,removed:page.items.length},plans};
 }
 export async function draftList(value:JsonValue,c:OperationContext){
   const a=input(value),b=await box(c,a.boxId);

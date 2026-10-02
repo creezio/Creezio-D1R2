@@ -1,5 +1,13 @@
 # Qualification de GPT Sites
 
+## État courant — 2 octobre 2026
+
+Sur le compte courant, Original est publié sur `https://creezio-original.domix429943.chatgpt.site` en version 4 (source Site `3a1b34842d6f985b956c3e519336451f4c65ee71`, environnement 4) et Lab sur `https://creezio-lab.domix429943.chatgpt.site` en version 2 (environnement 3). Les deux déclarations au registre sont synchronisées. Leurs données, ressources et recettes restent distinctes.
+
+Original a conservé avant mise à jour le témoin conversation (réponse OpenAI réelle, brouillon et fichier) et les fiches CRM cloisonnées entre les contextes A/B. Après PR #97, Core main `6921f5debd4a07801bbe2d87744a0555a08954db` et sa CI 1 501/1 501, une recette navigateur sur Original version 4 a relu le même brouillon, la même réponse et les octets du fichier après un seul rechargement, sans resélection ni nouveau tour ; déconnexion 200 et session 401 confirmées. La conservation CRM après cette publication n'est pas requalifiée par ce contrôle navigateur. Voir les reçus hors dépôt `CREEZIO-T20-OCT2-ORIGINAL-PREUPDATE-FINAL.json`, `CREEZIO-T09-OCT2-ORIGINAL-PR97-{PUBLISHED,REGISTRY}.json` et `CREEZIO-T09-OCT2-ORIGINAL-PR97-RELOAD-2026-10-02T1430Z.json`.
+
+Sur Lab version 2, la recette a qualifié lectures, navigation et déconnexion, sans nouveau tour LLM. Le plugin ChatGPT de ces Sites sur le compte courant n'est pas qualifié ; les preuves ChatGPT historiques portent sur d'autres cibles et gardent leur portée propre.
+
 État au 27 septembre 2026 : le Worker commun Creezio est publié sur une nouvelle cible publique du compte courant, les anciennes cibles restant préservées. La recette du candidat intermédiaire T15 `c133bf1` a vérifié la connexion native, le workspace original, le front ChatGPT-like, une vraie réponse OpenAI sur chaque interface, le brouillon, la pièce jointe R2 et le PRD livré. La publication finale `af63cb3c` a conservé ces données et corrigé le statut du catalogue ; PR #24 intégrée, main `42efa820` et CI 993/993. Les API et les deux MCP refusent l'accès anonyme ; la route de l'opérateur temporaire renvoie 404. Le fork n'est pas encore créé ; la connexion réelle ChatGPT et les widgets restent T16. Les résultats de sonde du 26 septembre ci-dessous gardent leur portée distincte. Voir le [parcours d'installation Sites](INSTALLATION-SITES.md) et la [réalisation T15](IMPLEMENTATION-T15.md).
 
 ## Périmètre retenu

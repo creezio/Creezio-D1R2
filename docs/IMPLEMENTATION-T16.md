@@ -1,10 +1,10 @@
 # Réalisation T16 — widgets des modules
 
-## Correctif candidat — reprise du fil sélectionné, 2 octobre 2026
+## Correctif intégré — reprise du fil sélectionné, 2 octobre 2026
 
 Sur Original, la recette navigateur a retrouvé le titre du fil après rechargement, mais pas son brouillon ni sa pièce jointe pendant 20 secondes ; une nouvelle sélection manuelle a relu les données conservées. Le contrôleur publiait le titre avant les lectures de messages et de brouillon. Une transition d’accès ou d’activité pouvait invalider ces lectures en gardant la sélection partielle, sans nouvelle tentative. Le correctif relit ce même fil sous la session, l’audience et le contexte courants lorsque l’accès redevient prêt ; une sélection manuelle plus récente garde la priorité. La liste des pièces jointes attend la fin de cette lecture. Aucune commande métier, aucun tour et aucun appel au fournisseur ne sont rejoués.
 
-Le test du contrôleur reproduit le défaut avant correction, puis vérifie la reprise et la priorité d’un nouveau choix ; 15 tests ciblés et les six suites du module passent localement. Le commit candidat `d4a7909` ne vaut ni livraison sur Original ni recette navigateur corrigée. La qualification CI, la publication et la relecture du témoin hébergé restent ouvertes.
+Le test du contrôleur reproduit le défaut avant correction, puis vérifie la reprise et la priorité d’un nouveau choix ; 15 tests ciblés et les six suites du module passent localement. Le candidat `d4a7909` est intégré par PR #97 dans Core main `6921f5debd4a07801bbe2d87744a0555a08954db` (CI main 1 501/1 501). Original version 4 sert la source Site `3a1b34842d6f985b956c3e519336451f4c65ee71`, avec publication et registre synchronisé. Le témoin hébergé a retrouvé après un seul rechargement, sans nouvelle sélection, le brouillon, la réponse et les octets téléchargés de la pièce jointe aux empreintes antérieures ; déconnexion 200 et session 401. Le reçu hors dépôt `CREEZIO-T09-OCT2-ORIGINAL-PR97-RELOAD-2026-10-02T1430Z.json` qualifie cette reprise UI, sans nouveau tour IA ni mutation métier.
 
 ## Correctif candidat — historique sans droit OpenAI, 2 octobre 2026
 

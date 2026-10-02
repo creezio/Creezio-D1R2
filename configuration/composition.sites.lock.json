@@ -190,19 +190,19 @@
         "revision": "t18-messaging-widgets-v1",
         "integrity": "sha256-f73ba5a50bd6d90c1313beb01dc61d278a1d6a0cd9b43384e44f052bb6dcbdc9"
       },
-      "contractIntegrity": "sha256-cf8cdd10ec7b45e8f0209313ededb5e3a103e33e2d54725dd98dd679ffb6df32",
+      "contractIntegrity": "sha256-4f5e65a59a2406bea450dc52e0a64a350b18be7307c3a0d75acac5d4d07fda41",
       "runtime": {
-        "integrity": "sha256-1b14484e012eae7ba631892ca5de4ca6191a14746531ea8bf4721c2886984113",
+        "integrity": "sha256-a9f309bdbcf562a6ead6f9947d117f441b5d4b1b18ba333cfdb8d44af7224c59",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.messaging/runtime-1b14484e012eae7ba631892ca5de4ca6191a14746531ea8bf4721c2886984113.tgz"
+          "path": ".creezio/module-artifacts/creezio.messaging/runtime-a9f309bdbcf562a6ead6f9947d117f441b5d4b1b18ba333cfdb8d44af7224c59.tgz"
         }
       },
       "validation": {
-        "integrity": "sha256-a5811de94239cd03a1373fc459373c82ac450f3e5db09b3929e0001dc95baa93",
+        "integrity": "sha256-63f2372c6826fd7275df9352482d0e15d62d170a1e214c965bf5db0c80a6d728",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.messaging/validation-a5811de94239cd03a1373fc459373c82ac450f3e5db09b3929e0001dc95baa93.tgz"
+          "path": ".creezio/module-artifacts/creezio.messaging/validation-63f2372c6826fd7275df9352482d0e15d62d170a1e214c965bf5db0c80a6d728.tgz"
         }
       },
       "dependencies": [

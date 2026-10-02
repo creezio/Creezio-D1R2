@@ -2,7 +2,7 @@
 
 - `module/` : manifeste, modèles D1 dont snapshot et reçus d’ingestion, catégorie R2, opérations communes et service métier borné.
 - `ui/contracts.ts` : contrats de présentation, identité du panneau et pont de lecture `client.invoke` vers les opérations du module.
-- `ui/index.tsx` : orchestration du workspace, navigation, identité, recherche, brouillon, fichiers, préparation des courriels reçus et commandes journalisées par le SDK public.
+- `ui/index.tsx` : orchestration du workspace, navigation, identité, recherche, brouillon, fichiers, préparation des courriels reçus, suppression bornée depuis la corbeille et commandes journalisées par le SDK public.
 - `ui/presentation.tsx` : dossiers, liste, lecteur en trois panneaux et destinataires issus du webmail original.
 - `ui/rich-editor.tsx` : éditeur visuel natif, vocabulaire HTML étroit et barre de mise en forme.
 - `ui/widgets/` : trois rendus MCP Apps de lecture, issus des composants et couleurs du webmail natif ; aperçu borné puis détail explicite.

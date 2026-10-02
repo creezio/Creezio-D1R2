@@ -1,5 +1,22 @@
 # Backlog de réalisation
 
+## État vérifié du 2 octobre 2026 — compte Sites domix
+
+- **Original Sites** : Core `6921f5d` (PR #97, CI main 1 501/1 501) est publié en version 4, source Site `3a1b348`, registre synchronisé. Le navigateur retrouve après un seul rechargement le même fil, sa réponse, son brouillon et son fichier exacts, sans resélection ni nouvel appel OpenAI. Le reçu `CREEZIO-T09-OCT2-ORIGINAL-PR97-RELOAD-2026-10-02T1430Z.json` qualifie ce correctif.
+- **Lab Sites** : version 2 du nouveau compte, source `22e1637` depuis Lab `7c6dc10`, registre synchronisé. Connexion native, navigation admin/front et rechargement vérifiés ; aucun nouveau tour Lab ni nouvelle connexion du plugin ChatGPT sur ce compte. Les preuves ChatGPT des autres comptes gardent leur portée historique.
+- **Stripe 0.5** : livré sur Linux et Core Cloudflare `7b606f5`. Le produit/prix TEST actif de préparation a été créé directement chez Stripe, puis les synchronisations natives, la création d'offre et un seul Checkout app ont réussi : onze intentions nouvelles confirmées. La lecture native et `/offers` montrent `open`/`unpaid`, sans paiement ni abonnement nouveau. L'ancien Checkout inconnu est préservé. Voir [T27](IMPLEMENTATION-T27.md) et `CREEZIO-T27-05-ACTIVE-FINAL-2026-10-02.json` ; le pont de lien des widgets et les compléments de REQ-2701 restent distincts.
+- **T19/T21/T25 ciblés** : sur Original Sites PR #97 v4, un ticket Support fictif a suivi création app, attribution/réponse/résolution admin puis lecture API/UI app, et une navigation éditoriale publiée a été restaurée exactement après constat navigateur ; la page fictive reste publique. Sur Linux `7b606f5`, une catégorie et un produit Catalogue fictifs ont parcouru publication, prix, détachement et archivage avec refus app et UI avant archivage. Reçus : `CREEZIO-T19-OCT2-SUPPORT-FINAL-2026-10-02.json`, `CREEZIO-T21-OCT2-NAVIGATION-FINAL-2026-10-02.json`, `CREEZIO-T25-LINUX-CYCLE-7B606F57-2026-10-02.json`. Relations Support restantes, autres vues Pages, ChatGPT externe et parité exhaustive demeurent ouverts.
+- **T33 livré** : Core `6921f5d` sert le Worker `c214e731-70fe-4c52-ab90-542498d5308c`, registre synchronisé après réconciliation de la publication. Les trois D1 restent prêtes ; B conserve son brouillon et son fichier après rechargement, A reste refusé. La récupération ponctuelle ne qualifie pas le nouveau retry natif routé, proposé séparément dans la PR #99. Deux réponses 500 transitoires lors du rechargement sont consignées, puis les lectures ont abouti. Reçus hors dépôt : `CREEZIO-T33-OCT2-MAIN-CF-NATIVE-READ-2026-10-02.json`, `CREEZIO-T33-OCT2-MAIN-CF-PLAYWRIGHT-B-RELOAD-2026-10-02.json` et `CREEZIO-T33-OCT2-MAIN-RELOAD-500-OBSERVATION-2026-10-02.json`.
+- **Travail courant** : suppression T18 depuis la corbeille développée et contrôlée localement, CI complète encore requise. Le run PR #98 `37024644900` a dépassé 900 secondes avec TAP série incomplet : il reste en échec. La fixture réutilise désormais 49 références de fichiers déjà préparées, sans retirer d'assertion. Trois tests supplémentaires rejoignent la phase parallèle auditée : Messaging, turn-bridge et le seul test identity impersonation (les autres partagent son répertoire et restent dans la phase série suivante). Concurrence 2, budget commun de 900 secondes et exécution exacte de tous les fichiers restent inchangés. Les reports utilisateur et le retour attendu T39 ne changent pas.
+
+Les états des paragraphes datés suivants sont historiques lorsqu'une preuve plus récente ci-dessus les remplace ; les critères d'acceptation et les limites des recettes restent applicables.
+
+## Révision du 2 octobre 2026 — T33 Cloudflare et T20 Original
+
+- T33 : update Core `7b606f5` livré ; trois D1/R2 conservés `ready`, Worker exact à 100 % et registre synchronisé. API : B préservé, A refusé ; UI : B visible initialement sans OpenAI. La PR #97 est intégrée sur main, non encore livrée T33 ; rechargement à qualifier. Voir [T33](IMPLEMENTATION-T33.md#livraison-cloudflare-multi-couple-et-lecture-bornee--2-octobre-2026) et les reçus hors dépôt `CREEZIO-T33-OCT2-FINAL-OBSERVE-10c2705d-e5f8-49ea-ae15-0f5737841e98-e194d1f4-2d89-45c7-b176-0d9e067d2548.json`, `CREEZIO-T33-OCT2-CF-NATIVE-READ-2026-10-02.json`, `CREEZIO-T33-OCT2-CF-PLAYWRIGHT-B-INITIAL-2026-10-02.json`.
+- T20 : Original Sites version 3, avant PR #97, a qualifié quatre fiches entreprise/contact et leurs relations dans deux contextes logiques du même D1 ; lectures et relations croisées refusées, UI A/B et B après rechargement. Export et routage physique distinct non exercés. Voir [T20](IMPLEMENTATION-T20.md#deux-contextes-logiques-sur-original-sites--2-octobre-2026) et `CREEZIO-T20-OCT2-ORIGINAL-FINAL.json` hors dépôt.
+
+
 ## T16 — reprise automatique du fil sur Original, 2 octobre 2026
 
 Le navigateur montre le titre après rechargement, mais pas le brouillon ni la pièce jointe ; la re-sélection retrouve les données. Le correctif local `d4a7909` reprend les lectures interrompues du fil sélectionné et attend leur fin avant les pièces jointes. Tests ciblés et six suites Conversations passent ; CI, livraison et recette navigateur après correction restent à faire. Voir [T16](IMPLEMENTATION-T16.md).
@@ -178,20 +195,20 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-06 — Opérations | Registre/exécuteur intégrés PR #15 ; bindings HTTP et suivi par clé PR #16 | Événements, approbations, interopérations et autres transports | Fondations disponibles ; compléments au backlog |
 | T-07 — Workspace | Composants originaux adaptés ; panneaux observés sur A/B et vues métier sur B, avec conservation ciblée après mise à jour Lab | Autres modules et comportements workspace non exercés sur Sites | Tranche locale et Sites A/B qualifiée dans ce périmètre |
 | T-08 — Registre central | Registre publié ; propriétaire vérifié, projet Lab et installations Sites/Cloudflare créés ; jetons chiffrés ; publication Sites Lab synchronisée | Parcours email et autres raccords | Sites et Cloudflare Lab déclarés |
-| T-09 — Sites | Cibles historiques préservées ; Original du compte courant version 4 depuis Core `2738bd0`/Site `a64331b`, registre synchronisé et CRM révision 3 conservé ; Lab version 3 avec widget ChatGPT sous CSP | Tour Original `59dd1fb8` inconnu, correctif du chat natif Lab et autres critères hébergés | Cibles, versions et chats distingués par leurs reçus |
+| T-09 — Sites | Compte domix : Original v4 depuis Core `6921f5d`, Lab v2 depuis Lab `7c6dc10`, registres synchronisés ; témoin Original conservé après mise à jour et reload | Connexion ChatGPT du compte courant et critères hébergés restants ; anciennes issues inconnues préservées | Deux Sites publiés, recettes de chaque compte distinguées |
 | T-10 — MCP/OAuth | Catalogues admin/app distincts ; admin ChatGPT qualifié historiquement ; MCP app Lab 0.1.2 connecté, carte/liste et modes direct/contexte/message exercés | Approbations et parcours de refus hébergés ; limite du picker documentée en T40 | Recette MCP app réalisée dans ce périmètre |
 | T-11 — Modules | Catalogue, dépendances, plans D1, UI originale et adoption 0.1.2 ; cycle durable intégré ; anciens plans clôturés honnêtement | Autres recettes du cycle de modules | Tranche ciblée intégrée et qualifiée |
 | T-12 — Documentation | PR #21 : README/PRD/changelog exacts, UI/API/MCP et recettes locales/CI, 923 tests | Recettes hébergées transversales ; édition des PRD de travail en T-23 | Documents installés vérifiés localement |
 | T-13 — Fronts et thèmes | PR #22 : deux thèmes, projection native app, headless et CI ; front Lab ChatGPT-like et vues du module 0.1.2 conservés sur Site B version 5 | Autres profils et interactions de thèmes/fronts | Tranche locale et Site B qualifiée dans ce périmètre |
-| T-14 — Conversations | PR #23 : chat original, historique, brouillons D1, fichiers R2, autorisations ; recette Sites avec T15 | Correctif candidat de sélection de l'alias widget, tour natif hébergé et autres compléments | Livrable local et Sites disponible ; nouveau correctif en attente |
+| T-14 — Conversations | Chat original, historique, brouillons D1, fichiers R2 ; PR #97 publiée sur Original, réponse/brouillon/fichier restaurés après reload sans resélection | Autres parcours et profils conservent leurs recettes propres | Correction de restauration qualifiée sur Original Sites |
 | T-15 — OpenAI | PR #24 intégrée ; réponses réelles locales/Sites A/B, front/workspace ; reprise et arrêt locaux ; témoin Site A post-correction | Autres modèles, fournisseurs et voix non exercés | Première tranche locale et Sites qualifiée |
-| T-16 — Widgets | Trois modes exercés dans Linux Lab et ChatGPT ; Lab Sites version 3 affiche le widget ChatGPT sous CSP avec lecture et contexte ; frontière APP/ADMIN vérifiée historiquement | Alias dans le chat natif Lab, tour Original inconnu, interactions restantes et approbations | Recettes ChatGPT et chat natif distinguées ; Lab PR #15 intégrée, livraison ouverte |
+| T-16 — Widgets | Trois modes exercés historiquement dans Linux Lab et ChatGPT ; frontières APP/ADMIN et CSP vérifiées sur leurs versions ; PR #97 restaure le fil Original après reload | Pont de liens Stripe, connexion ChatGPT du compte domix, interactions et approbations restantes | Recettes du chat natif et de ChatGPT suivies séparément |
 | T-18 — Messagerie native | Boîtes, brouillons, pièces privées et partage workspace/front qualifiés sur Linux ; intention Resend et contrat des pièces entrantes intégrés par PR #82/#83 | Envoi fournisseur réel, réception avec pièce jointe, widgets et recettes hébergées | Tranches intégrées, lot incomplet |
-| T-20 — CRM | Vues et écritures partagées qualifiées sur Linux ; recette API native `9ce856c` de pagination par curseur et archivage logique | Pagination/archivage dans le navigateur et les widgets, relations intermodules restantes, recettes hébergées | API native qualifiée dans ce périmètre, lot incomplet |
+| T-20 — CRM | Vues partagées Linux ; pagination/archivage API ; quatre fiches et relations dans deux contextes logiques sur Original, refus croisés et UI A/B vérifiés | Parcours navigateur/widgets et relations intermodules restants ; export non qualifié | Isolation logique Sites qualifiée, lot incomplet |
 | T-28 — Meili | Indexation et recherche natives réelles qualifiées sur Linux ; l’écran affiche la source Catalogue et `ready` au chargement et après rechargement | Widget de recherche, reconstruction exhaustive, Cloudflare/Sites et T-05 global | Recettes ciblées qualifiées, lot incomplet |
 | T-30 — SDK/starter | SDK `sdk-v1.9.0` et starter `module-v0.1.3` publics ; archive SDK 1.9 exacte vérifiée sur douze consommateurs, 72 suites dont 68 réussies et quatre non applicables, 296 tests | Autres critères de distribution et interactions ; chaque adoption applicative exige sa propre qualification | Distribution publique qualifiée, lot incomplet |
 | T-31 — Docker local | Installation, persistance, arrêt/redémarrage/recréation et restauration | Requalifier les changements pertinents lors de leur livraison | Vérifié — Docker dev/test persistant |
-| T-32 — Cloudflare direct | Original Core mis à jour depuis `9ce856c` : update `c01a71c4` livré, registre synchronisé, version Worker `0cba68a9`, déploiement `cc10daf5`, 101 modules et 72 assets vérifiés ; témoins D1/R2 conservés. Lab reste publié dans son profil distinct | Démo, autres reprises, affichage distant des images de widgets et exactitude de la prose IA historique ; changements ultérieurs à livrer séparément | Update Core qualifié dans ce périmètre, lot incomplet |
+| T-32 — Cloudflare direct | Core `7b606f5` livré sur T32, update `33437a0c` terminal et registre synchronisé ; Stripe app TEST qualifié ; Lab conserve sa publication distincte | Autres reprises et critères de livraison ; nouveaux changements à qualifier par cible | Publication Core qualifiée dans ce périmètre, lot incomplet |
 | Autres lots T-17 à T-39 | Voir les prérequis déjà fournis ci-dessus | Modules, publications et recette finale | À réaliser selon le jalon prioritaire |
 
 ## Règles de suivi
@@ -229,17 +246,17 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-06](#T-06) | P2 | Opérations, événements et exécutions bornées | [T-04](#T-04), [T-05](#T-05) | En cours |
 | [T-07](#T-07) | P1 | Workspace et conservation des onglets | [T-03](#T-03), [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | En cours |
 | [T-08](#T-08) | P1 | Registre minimal et identité de publication | [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | En cours |
-| [T-09](#T-09) | P1 | Première tranche sur Sites | [T-07](#T-07), [T-08](#T-08) | En cours — adaptateur et nouvelle cible |
+| [T-09](#T-09) | P1 | Première tranche sur Sites | [T-07](#T-07), [T-08](#T-08) | Original v4/Lab v2 du compte domix publiés ; recettes natives ciblées qualifiées, compléments ouverts |
 | [T-10](#T-10) | P2 | MCP, OAuth et accès machine | [T-06](#T-06) ; recette Sites : [T-09](#T-09) | En cours — code local |
 | [T-11](#T-11) | P3 | SDK et cycle de vie des modules | [T-02](#T-02), [T-06](#T-06), [T-10](#T-10) | En cours — code local |
 | [T-12](#T-12) | P3 | Documentation vivante des modules | [T-11](#T-11) | Vérifié |
 | [T-13](#T-13) | P4 | Fronts, thèmes et headless | [T-07](#T-07), [T-11](#T-11) | En cours |
-| [T-14](#T-14) | P4 | Conversations et progression persistante | [T-06](#T-06), [T-07](#T-07), [T-11](#T-11) | En cours |
+| [T-14](#T-14) | P4 | Conversations et progression persistante | [T-06](#T-06), [T-07](#T-07), [T-11](#T-11) | Chat natif livré ; restauration après reload qualifiée sur Original v4, compléments ouverts |
 | [T-15](#T-15) | P4 | Module OpenAI et contrat fournisseur | [T-14](#T-14) | En cours — première tranche qualifiée, compléments différés |
 | [T-16](#T-16) | P4 | Widgets et plugins conversationnels compatibles GPT | [T-10](#T-10), [T-13](#T-13), [T-15](#T-15) | Tranche intégrée — qualification hébergée |
 | [T-30](#T-30) | P3 | Starter, paquets et extension externe | [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-16](#T-16) | En cours — distribution initiale publique et recette locale acquises, autres critères ouverts |
 | [T-31](#T-31) | P1 | Docker local persistant | [T-03](#T-03), [T-05](#T-05), [T-07](#T-07) | Vérifié — Docker dev/test persistant |
-| [T-32](#T-32) | P6 | Publication complète Cloudflare | [T-08](#T-08), [T-30](#T-30), [T-31](#T-31) | En cours — original publié et mis à jour, SDK 1.1.0 public, démo ouverte |
+| [T-32](#T-32) | P6 | Publication complète Cloudflare | [T-08](#T-08), [T-30](#T-30), [T-31](#T-31) | Core 7b livré sur T32 ; Lab publié séparément, autres reprises et critères ouverts |
 | [T-36](#T-36) | P7 | Version initiale de l’original, puis compléments | Jalon initial : [T-08](#T-08), [T-09](#T-09), [T-10](#T-10), [T-11](#T-11), [T-12](#T-12), [T-13](#T-13), [T-14](#T-14), [T-15](#T-15), [T-16](#T-16), tranche témoin [T-30](#T-30), [T-31](#T-31), [T-32](#T-32) | En cours — jalon `app/v0.0.1` public et Site A qualifié, recette complète ouverte |
 | [T-37](#T-37) | P7 | Vrai fork Creezio Lab et Site B | Version initiale publiée de [T-36](#T-36) | En cours — fork, Sites, Docker et publication Cloudflare Lab qualifiés dans leur périmètre ; critères restants ouverts |
 | [T-38](#T-38) | P8 | Adoption des mises à jour et contributions | Fork initial de [T-37](#T-37) | En cours — SDK 1.4.1/module 0.1.3 adopté sur Sites, Linux et Cloudflare ; refus retrait/désactivation qualifiés, incompatibilité de version et autres critères ouverts |
@@ -247,17 +264,17 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-17](#T-17) | P5 | Tâches humaines et travail | [T-11](#T-11), [T-14](#T-14) | À faire — dernier bloc |
 | [T-18](#T-18) | P5 | Messagerie native | [T-11](#T-11), [T-14](#T-14) | PR #42/#44 intégrées ; partage admin/front vérifié sur Linux et Original Sites v4, transport réel ouvert |
 | [T-19](#T-19) | P5 | Support | [T-11](#T-11), [T-17](#T-17), [T-18](#T-18) | En cours — première tranche intégrée, compléments ouverts |
-| [T-20](#T-20) | P5 | CRM | [T-11](#T-11) | Tranche locale intégrée PR #43 ; six widgets de lecture en qualification, compléments ouverts |
+| [T-20](#T-20) | P5 | CRM | [T-11](#T-11) | En cours — tranche intégrée ; recettes Sites v7 et deux contextes logiques Original qualifiées, widgets et compléments ouverts |
 | [T-21](#T-21) | P5 | Pages et navigation | [T-11](#T-11), [T-13](#T-13) | Pages PR #79 et Sidebar PR #81 intégrées ; recette Linux de navigation acquise, parcours hébergé exhaustif ouvert |
 | [T-22](#T-22) | P5 | Analytics et diagnostics | [T-11](#T-11), [T-17](#T-17) | Rétention PR #81 et garde PR #90 intégrés ; clics Sites en cinq étapes et refus facultatif v5 vérifiés, purge et portée exhaustive ouvertes |
 | [T-23](#T-23) | P5 | Intentions et développement piloté | [T-12](#T-12), [T-17](#T-17) | À faire — dernier bloc, plan et accord explicite préalables |
 | [T-24](#T-24) | P5 | Règles et automatisation sans scheduler | [T-11](#T-11), [T-17](#T-17) | À faire — dernier bloc, plan et accord explicite préalables |
 | [T-25](#T-25) | P5 | Catalogue métier réutilisable complet | [T-11](#T-11), [T-13](#T-13), [T-16](#T-16) | Front et images des widgets qualifiés sur Linux, Sites et Cloudflare ; ChatGPT externe et compléments ouverts |
 | [T-26](#T-26) | P5 | Connecteur n8n | [T-10](#T-10), [T-11](#T-11), [T-16](#T-16), [T-24](#T-24) | Port externe intégré ; webhook/widgets revus localement, recette réelle différée |
-| [T-27](#T-27) | P5 | Connecteur Stripe | [T-11](#T-11), [T-16](#T-16) | 0.4 livré et cycle réversible TEST qualifié ; offres et achat app 0.5 en développement, compléments de REQ-2701 ouverts |
+| [T-27](#T-27) | P5 | Connecteur Stripe | [T-11](#T-11), [T-16](#T-16) | 0.4 et cycle réversible TEST qualifiés ; 0.5 livré, offre et Checkout app open/unpaid qualifiés ; compléments ouverts |
 | [T-28](#T-28) | P5 | Connecteur Meili | [T-05](#T-05), [T-11](#T-11) | Connexion/recherche qualifiées Linux/Sites/Cloudflare ; widget Cloudflare et cycle incrémental b9 vérifiés ; widget Sites et recherche globale T05 ouverts |
 | [T-29](#T-29) | P5 | Autres connecteurs et frontières externes | [T-11](#T-11), [T-16](#T-16), [T-18](#T-18), [T-23](#T-23) | En développement — Hermes widgets revus ; Granola/Mail et recettes réelles ouverts |
-| [T-33](#T-33) | P6 | Stockages distincts hors Sites | [T-32](#T-32) | Profil Linux isolé : témoins API/R2 A/B et révocation A acquis sur source 8d ; inspection post-RBAC `unproven`, correctif de lignée candidat, Cloudflare T33 ouvert |
+| [T-33](#T-33) | P6 | Stockages distincts hors Sites | [T-32](#T-32) | En cours — trois couples qualifiés sur 7b ; update 6921 en reprise avec routes fermées, puis reload UI et critères exhaustifs ouverts |
 | [T-34](#T-34) | P6 | Éditions, politiques et activation | [T-08](#T-08), [T-11](#T-11), [T-27](#T-27) | À faire — accord explicite futur préalable |
 | [T-35](#T-35) | P6 | Accompagnement avec accès consenti | [T-23](#T-23), [T-34](#T-34) | À faire — accord explicite futur préalable |
 
@@ -475,7 +492,7 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 <a id="T-19"></a>
 ## T-19 — Support
 
-- Lot : **P5** ; état : **première tranche intégrée ; widgets du chat en qualification** ; responsable : root avec les agents Sol.
+- Lot : **P5** ; état : **en cours — cycle API/UI Support confirmé sur Original PR #97 ; widgets et relations restantes ouverts** ; responsable : root avec les agents Sol.
 - Dépendances : [T-11](#T-11), [T-17](#T-17), [T-18](#T-18).
 - Travail/livrables : Module support et relations autorisées avec contacts/messages/tâches.
 - Widgets intégrés : PR #57/main `f99a455`, CI 1 257/1 257, SDK 1.4.1 public. Le même code tourne sur Linux sans DDL ajouté ; ticket et deux messages témoins relus avec mêmes identifiants et révision dans admin/app. La recette des quatre cartes et d'une réponse directe a ensuite été confirmée séparément de la recette API.
@@ -487,7 +504,7 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 <a id="T-20"></a>
 ## T-20 — CRM
 
-- Lot : **P5** ; état : **en cours** ; responsable : root, réalisation/revues avec les agents Sol ; complément `module/crm/t20-chat-widgets` après la tranche `core/t20-native-crm` intégrée.
+- Lot : **P5** ; état : **en cours — tranche intégrée, recettes Sites v7 et isolation logique de deux contextes Original qualifiées ; widgets et compléments ouverts** ; responsable : root, réalisation/revues avec les agents Sol ; complément `module/crm/t20-chat-widgets` après la tranche `core/t20-native-crm` intégrée.
 - Dépendances : [T-11](#T-11).
 - Travail/livrables : Module crm, entités/relations/recherche et vues. Première tranche : trois modèles, vingt et une opérations, front et workspace déclarés, révisions de formulaire et suivi des mutations incertaines.
 - Acquis ciblés : PR #43 fusionnée sur `c566fc1`, arbre identique au candidat `76327f8`, revue indépendante et CI candidate 1 188/1 188 sans omission. Intégration réelle D1 et HTTP/MCP, partage ADMIN/APP autorisé, refus de scope, révocation, cohérence des relations et course concurrente. Le navigateur vérifie kanban, fiches liées, archives, conservation des brouillons par sous-vue et mise à jour partagée workspace/front standard. La CI main 36473024844 a également réussi 1 188/1 188 tests ; restent profils hébergés, widgets visuels et autres contrats intermodules. Voir [T20](IMPLEMENTATION-T20.md).
@@ -501,7 +518,7 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 <a id="T-21"></a>
 ## T-21 — Pages et navigation
 
-- Lot : **P5** ; état : **en cours — Sidebar intégrée et vérifiée sur Linux, parcours exhaustif ouvert** ; responsable : root avec les agents Sol.
+- Lot : **P5** ; état : **en cours — navigation éditoriale publiée/restaurée sur Original PR #97 ; parcours exhaustif ouvert** ; responsable : root avec les agents Sol.
 - Dépendances : [T-11](#T-11), [T-13](#T-13).
 - Travail/livrables : Module pages-navigation, médias/SEO/édition et reset contrôlé.
 - Complément PR #79 : choix explicite de publication publique, HTML serveur utilisant les mêmes préfabriqués et accès aux seules images du snapshot publié. Les tests D1/R2 et refus de révocation passent localement ; la compilation a été qualifiée par la CI intégrée. La recette publique sur Site ou Cloudflare reste distincte de la Sidebar Linux.
@@ -552,7 +569,8 @@ Priorité : dernier bloc après T-17. Expliquer fonctions, effets, limites, plan
 <a id="T-25"></a>
 ## T-25 — Catalogue métier réutilisable
 
-- Lot : **P5** ; état : **en cours — images qualifiées sur Linux, Original Sites v6 et widgets Cloudflare b9 ; ChatGPT externe ouvert** ; responsable : root avec les agents Sol.
+- Lot : **P5** ; état : **en cours — cycle Catalogue synthétique Linux et images/widgets hébergés qualifiés ; ChatGPT externe ouvert** ; responsable : root avec les agents Sol.
+- Cycle Linux du 2 octobre : sur le volume T32 préservé et la source `7b606f5`, une catégorie et un produit fictifs ont exercé publication, recherche/fiche app, prix actualisé, refus d’archiver une catégorie liée, détachement et archivage ; le produit archivé reste en lecture admin mais disparaît en app. Grille et fiche avant archivage ont été vues en navigateur, sessions fermées. Reçu `CREEZIO-T25-LINUX-CYCLE-7B606F57-2026-10-02.json` hors dépôt ; aucun fournisseur ni parcours marchand.
 - Complément Cloudflare du 2 octobre : le sandbox livré avec Core b9 affiche les images Blob 32 × 32 dans les deux widgets Catalogue après rechargement du même tour, sans nouveau prompt ni reprise. Déconnexion HTTP 200 puis session 401 ; données conservées. Le reçu `CREEZIO-T25-CF-B9-WIDGET-IMAGES-2026-10-02.json` clôt ce rendu distant, précédemment ouvert dans les étapes historiques ci-dessous ; ChatGPT externe reste distinct.
 - Dépendances : [T-11](#T-11), [T-13](#T-13), [T-16](#T-16).
 - Travail/livrables : Module catalogue, données produit et ports publics de référence.
@@ -657,16 +675,16 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 <a id="T-33"></a>
 ## T-33 — Stockages distincts hors Sites
 
-- Correctif d'installation des profils larges intégré par PR #85 : garde de vacuité équilibrée, cinq tests Linux sur au moins 114 tables, puis propriétaire T33 réel installé et trois D1 prêts. Les données sont conservées. Le correctif des ports Docker attend son intégration avant la recette API/R2 des deux contextes ; voir [le contrat et ses preuves](IMPLEMENTATION-T33.md#installation-avec-le-profil-complet-de-modules).
+- Installation des profils larges intégrée par PR #85 : propriétaire T33 installé, trois D1 conservés ; l'update Cloudflare multi-couple Core `7b606f5` est livré avec trois schémas prêts. Les étapes de correction des ports et de lignée décrites plus bas restent historiques ; voir [le contrat et ses preuves](IMPLEMENTATION-T33.md#livraison-cloudflare-multi-couple-et-lecture-bornee--2-octobre-2026).
 
 
-- Lot : **P6** ; état : **en cours — témoins API/R2 A/B et révocation A qualifiés sur Linux isolé 8d ; correctif candidat de lignée logout, inspection Linux après livraison et Cloudflare T33 ouverts** ; responsabilités : intégration Git/livraison, installation/revue locale, configuration persistée et recette réelle traitées par des responsables distincts.
+- Lot : **P6** ; état : **en cours — trois D1/R2 Cloudflare livrés et prêts, B conservé et A refusé ; UI B initiale qualifiée, rechargement après PR #97 et critères exhaustifs ouverts** ; responsabilités : intégration Git/livraison, installation/revue locale, configuration persistée et recette réelle traitées par des responsables distincts.
 - Dépendances : [T-32](#T-32).
 - Travail/livrables : Résolveur de ressources autorisées, provisionnement/bindings et qualification des quotas.
-- PR #79 intègre le mapping des contextes vers D1/R2 ; PR #80 intègre le routage et l'autorité cible ; PR #81 intègre installation locale, capture/import multi-paires, cutover et schéma additif. L'installation T33 isolée conserve son propriétaire et ses trois D1 ; les témoins API/R2 A/B et la révocation A sont qualifiés sur source `8d723ce`. Après les mutations RBAC, `install.inspect` retourne `unproven` pour A/B malgré le schéma prêt ; le correctif de lignée `authority:` est candidat (cinq tests Miniflare et un test négatif filtré), sans nouvelle recette Linux. Core Cloudflare `be89116` est livré pour son couple principal avec registre synchronisé ; cela ne publie aucun couple T33. Voir [T33](IMPLEMENTATION-T33.md).
+- PR #79 à #81 intègrent le routage, l'autorité cible, l'installation et le cutover. L'ancien état `unproven` post-RBAC sur Linux 8d et la première tentative Cloudflare b9 restent historiques. L'update native `10c2705d-e5f8-49ea-ae15-0f5737841e98` de Core `7b606f5` est livrée sur les trois couples conservés ; voir [T33](IMPLEMENTATION-T33.md#livraison-cloudflare-multi-couple-et-lecture-bornee--2-octobre-2026).
 - Besoin : [US-33](USER-STORIES.md#US-33). Acceptation : [REQ-3301](EXIGENCES.md#REQ-3301).
 - Validation : implémenter puis exécuter les recettes liées, sur **local puis Cloudflare direct** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : API/R2 A/B et révocation A acquises sur le profil Linux T33 isolé ; le dernier inspecteur natif reste `unproven` après RBAC. Intégration/CI du correctif, reprise d'inspection, quotas et recette Cloudflare multi-couple restent ouverts.
+- Preuves : trois schémas D1 `ready` et ressources physiques inchangées, Worker exact à 100 %, registre synchronisé ; API B conservé/A refusé et UI B à l'affichage initial sans OpenAI. Le correctif PR #97 est intégré mais non livré sur T33 ; rechargement, quotas et portée exhaustive restent ouverts.
 
 <a id="T-34"></a>
 ## T-34 — Éditions, politiques et activation

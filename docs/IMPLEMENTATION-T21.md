@@ -1,5 +1,12 @@
 # T21 — Pages et navigation
 
+## Navigation éditoriale publiée puis restaurée sur Original Sites v4 — 2 octobre 2026
+
+Sur le Site actuel PR #97 (source `3a1b34842d6f985b956c3e519336451f4c65ee71`), les droits Pages admin édition/lecture et app lecture ont été accordés au propriétaire existant par deux mutations CAS, sans retirer les autres droits (époques 5 → 7). Le snapshot initial comptait zéro page et des listes de navigation brouillon/publiée vides. Une seule page fictive `/recette-t21-navigation` a été créée et publiée publiquement, sans image ; le lien a été ajouté puis publié dans la navigation. L'API, le HTML public et le navigateur app ont montré la page et le lien. Les opérations officielles ont ensuite restauré exactement les deux listes de navigation vides ; le navigateur a constaté l'absence du lien. Les révisions natives ont avancé à 4 pour le brouillon et 2 pour la publication. La page témoin demeure publique. Toutes les sessions ont été fermées et contrôlées à 401 ; les deux captures navigateur sont conservées. Reçu hors dépôt : `CREEZIO-T21-OCT2-NAVIGATION-FINAL-2026-10-02.json`.
+
+Cette preuve cible la navigation éditoriale sur ce Site ; elle ne qualifie ni images Pages, ni édition exhaustive des sections, ni autre hébergement.
+
+
 ## Canonical externe publié puis restauré sur Original Sites v7 — 2 octobre 2026
 
 La page témoin de la source Site `3bd36bc` liée à Core b9 a publié une URL canonique HTTP(S) externe à la révision publique 4. Le HTML public et le navigateur ont montré cette valeur, le titre, la description et l'image complète 32 × 32. Une nouvelle sauvegarde puis publication ont restauré le canonical d'origine à la révision publique 5 ; la lecture native et le navigateur l'ont confirmé sans perte du média. Les opérations de l'API ont fermé leurs sessions ; le contrôle navigateur autonome a fermé son contexte. L'ancien onglet IAB bloqué n'est pas qualifié comme fermé. Reçus hors dépôt : `CREEZIO-T21-SITES-V7-SEO-ROUNDTRIP-2026-10-02.json` et `CREEZIO-T21-SITES-V7-PLAYWRIGHT-RESTORED-2026-10-02.json`. Les limites des recettes antérieures ci-dessous sont datées de leurs sources.

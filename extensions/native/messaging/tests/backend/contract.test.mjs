@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {manifest,read} from '../helpers.mjs';
-import {safeHtml,boxCreate,draftCreate,draftSave,draftDelete,messageList,messageUpdate,
+import {safeHtml,boxCreate,draftCreate,draftSave,draftDelete,messageList,messageUpdate,messageDelete,
   attachmentLink,attachmentUnlink,transportStatus,messageSend,messageDeliveryPrepare,
   boxPreviewList,messagePreviewList,draftPreviewList,messageInboundPrepare,messageInboundStatus,
   messageInboundAttachmentStage,messageInboundImport,
@@ -61,6 +61,54 @@ test('business models use owner and context keys across authorized audiences',()
     ['context_id','owner_id','box_id','draft_id']);
   assert.ok(models.every(model=>!model.fields.some(field=>field.id==='audience')));
   assert.equal(manifest.contracts.files[0].ownerScope,'principal');
+});
+
+test('permanent message deletion is trash-only, bounded and tombstones inbound provenance',async()=>{
+  const message={id:'mail-one',box_id:'box-one',direction:'inbound',folder:'trash',revision:3,
+    provider_message_id:'provider-one'};
+  const snapshot={id:'mail-one',email_id:'provider-one',deleted_at:null,
+    snapshot_digest:'a'.repeat(64)};
+  const links=Array.from({length:13},(_,i)=>({file_id:`file-${i}`}));
+  const partial=harness({box,message,inbound_snapshot:snapshot,
+    message_attachmentPage:{items:links,nextAfter:{file_id:'later'}}});
+  const first=await messageDelete({requestKey:'delete-one',boxId:'box-one',messageId:'mail-one',revision:3},
+    partial.context);
+  assert.deepEqual(first.output,{deleted:false,revision:4,removed:13});
+  assert.equal(first.plans.length,14);
+  assert.deepEqual(partial.calls.find(call=>call.kind==='planPatch'&&call.model==='message').args.compare,
+    {field:'revision',expected:3});
+  assert.equal(partial.calls.some(call=>call.kind==='planDelete'&&call.model==='message'),false);
+  const final=harness({box,message:{...message,revision:4},inbound_snapshot:snapshot,
+    message_attachmentPage:{items:links.slice(0,1),nextAfter:null}});
+  const last=await messageDelete({requestKey:'delete-two',boxId:'box-one',messageId:'mail-one',revision:4},
+    final.context);
+  assert.deepEqual(last.output,{deleted:true,revision:null,removed:1});
+  assert.equal(last.plans.length,3);
+  assert.deepEqual(final.calls.find(call=>call.kind==='planDelete'&&call.model==='message').args.compare,
+    {field:'revision',expected:4});
+  const tombstone=final.calls.find(call=>call.kind==='planPatch'&&call.model==='inbound_snapshot').args;
+  assert.deepEqual(tombstone.where,{deleted_at:null,snapshot_digest:'a'.repeat(64)});
+  assert.deepEqual([tombstone.values.subject,tombstone.values.text_body,tombstone.values.html_body,
+    tombstone.values.attachments],['','','',[]]);
+  assert.match(tombstone.values.deleted_at,/^\d{4}-\d\d-\d\dT/);
+  for(const changed of [{...message,folder:'inbox'},{...message,direction:'outbound'}]){
+    const denied=harness({box,message:changed});
+    await assert.rejects(messageDelete({requestKey:'denied',boxId:'box-one',messageId:'mail-one',revision:3},
+      denied.context),{code:'conflict'});
+    assert.equal(denied.calls.some(call=>call.kind==='planDelete'),false);
+  }
+  await assert.rejects(messageDelete({requestKey:'stale',boxId:'box-one',messageId:'mail-one',revision:2},
+    final.context),{code:'conflict'});
+  const frozen=harness({box,message,send_snapshot:{id:'mail-one'}});
+  await assert.rejects(messageDelete({requestKey:'frozen',boxId:'box-one',messageId:'mail-one',revision:3},
+    frozen.context),{code:'conflict'});
+  for(const source of [null,{...snapshot,email_id:'different-provider'}]){
+    const legacy=harness({box,message,inbound_snapshot:source,
+      message_attachmentPage:{items:links,nextAfter:null}});
+    await assert.rejects(messageDelete({requestKey:'legacy',boxId:'box-one',messageId:'mail-one',revision:3},
+      legacy.context),{code:'conflict'});
+    assert.equal(legacy.calls.some(call=>call.kind==='planDelete'||call.kind==='planPatch'),false);
+  }
 });
 
 test('HTML is safe and stable across save/read/save, links retain only HTTPS or HTTP',()=>{
