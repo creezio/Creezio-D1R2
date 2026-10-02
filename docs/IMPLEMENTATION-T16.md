@@ -1,10 +1,16 @@
 # Réalisation T16 — widgets des modules
 
+## Correctif candidat — continuité de la confirmation au clavier, 2 octobre 2026
+
+Le retour par Tab depuis l'iframe provoque toujours une relecture réelle de session. Le panneau conserve alors pendant 60 secondes au plus l'URL HTTPS proposée, uniquement en mémoire. Après accès frais et montage réussi de la ressource et du pont, il réaffiche sa confirmation si session, principal, audience, contexte, conversation, message, instance et catalogue concordent. Le lien exige encore un clic ou Entrée explicite ; aucune requête MCP, commande métier, ouverture automatique ou écriture en stockage navigateur n'est rejouée. Un changement de fil ou sa fermeture invalide aussi le démontage tardif de l'ancien widget ; une révocation, un catalogue indisponible ou incompatible et l'expiration refusent la reprise.
+
+Les 5 tests de continuité, 8 tests hôte Conversations et 15 tests du contrôleur d'accès passent après fusion locale avec Core main `252791f`. Le reproducteur React/Chromium hors réseau vérifie Tab puis Entrée, le retour externe avec relecture, la fermeture pendant le chargement et la révocation ; aucun navigateur hébergé n'a été relancé. La revue indépendante n'a plus de finding. La recette sur le Worker après livraison de cette candidate reste à faire. `sdk/widgets/provider.tsx` est interne à l'hôte : il ne figure ni dans les entrées de compilation ni dans les exports du paquet SDK public. Reçu hors dépôt : `CREEZIO-T16-WIDGET-LINK-CONTINUITY-2026-10-02.json`.
+
 ## Correctif candidat — confirmation du lien après interaction avec un widget
 
 Sur Core Cloudflare `7b606f5`, le retour de focus de l’iframe vers le lien proposé par l’hôte déclenchait une vérification de session. Celle-ci démontait le widget avant le clic et supprimait la confirmation. Le diagnostic réseau et le reproducteur Chromium utilisant le vrai contrôleur établissent cette cause ; aucun nouveau Checkout ni paiement n’a été créé. Le correctif distingue uniquement un transfert de pointeur utilisateur au sein du document resté visible et actif. Les vrais retours externes, changements de visibilité, reprises de page et invalidations de session conservent leur vérification.
 
-Les 17 tests d’accès et les 8 tests du pont passent, avec ouverture au pointeur, relecture sur retour externe et révocation vers une session anonyme vérifiées dans Chromium hors réseau. Le retour clavier par Tab continue de déclencher la relecture et de retirer la confirmation : ce chemin reste à corriger. Le correctif pointeur n’est pas encore livré ni qualifié sur le Worker distant. Reçus hors dépôt : `CREEZIO-T27-05-WIDGET-NAVIGATION-DIAGNOSIS-2026-10-02.json` et `CREEZIO-T27-05-ACCESS-FOCUS-PATCH-2026-10-02.json`.
+Les 17 tests d’accès et les 8 tests du pont passent, avec ouverture au pointeur, relecture sur retour externe et révocation vers une session anonyme vérifiées dans Chromium hors réseau. À cette étape, le retour clavier par Tab déclenchait encore la relecture et retirait la confirmation ; le correctif candidat ci-dessus traite ce chemin séparément. Le correctif pointeur n’est pas encore livré ni qualifié sur le Worker distant. Reçus hors dépôt : `CREEZIO-T27-05-WIDGET-NAVIGATION-DIAGNOSIS-2026-10-02.json` et `CREEZIO-T27-05-ACCESS-FOCUS-PATCH-2026-10-02.json`.
 
 ## Correctif candidat — brouillon protégé pendant la reprise du fil
 

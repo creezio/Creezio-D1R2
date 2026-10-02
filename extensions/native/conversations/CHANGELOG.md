@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.0 — T16, confirmation de lien conservée pendant une relecture d'accès
+
+- Le panneau garde en mémoire une proposition HTTPS déjà affichée lorsque le retour clavier depuis l'iframe impose une relecture de session. Après montage du widget courant et vérification du catalogue, il propose de nouveau le lien sans l'ouvrir automatiquement ni rejouer `app.openLink`.
+- Fermeture ou changement de fil, changement d'instance et révocation invalident l'intention, y compris si l'ancien widget se démonte plus tard. Tests ciblés et navigateur Chromium hors réseau acquis ; recette hébergée à faire.
+
 ## 0.0.0 — T14/T16, lecture du brouillon avant saisie (correctif candidat)
 
 - Le panneau attend la lecture du brouillon du fil sélectionné avant d’activer la saisie et l’envoi. Une lecture refusée ou incomplète ne fabrique plus une révision 0 et ne peut plus écrire à la place d’un brouillon D1 existant.

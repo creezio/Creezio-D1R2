@@ -7,6 +7,16 @@ import {canonicalAccessOrigin, type AccessAudience, type AccessController,
 import type {OperationClient} from '../operations/client.ts';
 import type {CompiledWidgetResource, WidgetCatalogEntry} from './catalog.ts';
 import {createWidgetApprovalClient, type WidgetApprovalClient} from './approval-client.ts';
+import {normalizeWidgetOpenLink} from './host-open-link.ts';
+
+export interface WidgetLinkScope {
+  readonly sessionId: string; readonly principalId: string; readonly audience: AccessAudience;
+  readonly contextId: string; readonly conversationId: string; readonly messageId: string;
+  readonly instanceId: string; readonly instanceRevision: number; readonly instanceSignature: string;
+  readonly moduleId: string; readonly widgetId: string;
+  readonly widgetVersion: string; readonly resourceUri: string; readonly resourceDigest: string;
+  readonly catalogEpoch: number;
+}
 
 export interface WidgetHostConfiguration {
   readonly sandboxOrigin: string;
@@ -33,6 +43,10 @@ export interface WidgetHostValue extends WidgetHostState {
   readonly approvalClient: WidgetApprovalClient | null;
   refresh(): Promise<void>;
   loadResource(uri: string, digest: string, profileId: string): Promise<CompiledWidgetResource | null>;
+  linkGeneration(): number;
+  retainLink(scope: WidgetLinkScope, url: string, previous: WidgetHostConfiguration, generation: number): boolean;
+  takeLink(scope: WidgetLinkScope): string | null;
+  discardLinksForConversation(conversationId: string): void;
 }
 
 const WidgetHostContext = createContext<WidgetHostValue | null>(null);
@@ -52,6 +66,70 @@ const exactSandboxOrigin = (value: unknown, appOrigin: string) => {
   const normalized = canonicalAccessOrigin(value);
   return normalized && normalized !== appOrigin ? normalized : null;
 };
+
+const linkScopeKey = (scope: WidgetLinkScope) => JSON.stringify([
+  scope.sessionId, scope.principalId, scope.audience, scope.contextId, scope.conversationId,
+  scope.messageId, scope.instanceId, scope.instanceRevision, scope.instanceSignature,
+  scope.moduleId, scope.widgetId, scope.widgetVersion,
+  scope.resourceUri, scope.resourceDigest, scope.catalogEpoch]);
+const linkCatalogSignature = (scope: WidgetLinkScope, config: WidgetHostConfiguration): string | null => {
+  if (config.sessionId !== scope.sessionId || config.principalId !== scope.principalId ||
+    config.audience !== scope.audience || config.contextId !== scope.contextId ||
+    config.epoch !== scope.catalogEpoch) return null;
+  const widget = config.widgets.find(item => item.moduleId === scope.moduleId && item.widgetId === scope.widgetId &&
+    item.version === scope.widgetVersion && item.resourceUri === scope.resourceUri &&
+    item.resourceDigest === scope.resourceDigest && item.audiences.includes(scope.audience));
+  const resource = config.resources.find(item => item.moduleId === scope.moduleId && item.widgetId === scope.widgetId &&
+    item.version === scope.widgetVersion && item.uri === scope.resourceUri &&
+    item.digest === scope.resourceDigest && item.audiences.includes(scope.audience));
+  return widget && resource ? JSON.stringify([config.sandboxOrigin, widget, resource]) : null;
+};
+
+/** A short-lived, memory-only host intent; it never grants a widget operation or replays its MCP request. */
+export function createWidgetLinkContinuity(options: {now?: () => number;
+  schedule?: (callback: () => void, ms: number) => ReturnType<typeof setTimeout>;
+  unschedule?: (timer: ReturnType<typeof setTimeout>) => void} = {}) {
+  const now = options.now ?? Date.now, schedule = options.schedule ?? setTimeout;
+  const unschedule = options.unschedule ?? clearTimeout;
+  const held = new Map<string, {scope: WidgetLinkScope; url: string; catalogSignature: string; expiresAt: number;
+    timer: ReturnType<typeof setTimeout>}>();
+  let generation = 0;
+  const remove = (key: string) => {const item = held.get(key); if (item) {unschedule(item.timer); held.delete(key);}};
+  return {
+    generation: () => generation,
+    retain(scope: WidgetLinkScope, url: string, previous: WidgetHostConfiguration, expectedGeneration: number): boolean {
+      const normalized = normalizeWidgetOpenLink(url), key = linkScopeKey(scope);
+      const catalogSignature = linkCatalogSignature(scope, previous);
+      if (expectedGeneration !== generation || !normalized || normalized !== url || !catalogSignature) return false;
+      for (const [oldKey, item] of held) if (oldKey !== key &&
+        item.scope.conversationId === scope.conversationId && item.scope.messageId === scope.messageId &&
+        item.scope.instanceId === scope.instanceId) remove(oldKey);
+      if (held.size >= 8 && !held.has(key)) return false;
+      remove(key);
+      const expiresAt = now() + 60_000;
+      const timer = schedule(() => {held.delete(key);}, 60_000);
+      held.set(key, {scope, url, catalogSignature, expiresAt, timer});
+      return true;
+    },
+    take(scope: WidgetLinkScope, config: WidgetHostConfiguration | null, session: AccessSession | null): string | null {
+      const key = linkScopeKey(scope), item = held.get(key);
+      for (const [oldKey, old] of held) if (oldKey !== key &&
+        old.scope.conversationId === scope.conversationId && old.scope.messageId === scope.messageId &&
+        old.scope.instanceId === scope.instanceId) remove(oldKey);
+      if (!item) return null;
+      remove(key);
+      return config && session && now() < item.expiresAt &&
+        session.id === scope.sessionId && session.principalId === scope.principalId &&
+        session.audience === scope.audience &&
+        linkCatalogSignature(scope, config) === item.catalogSignature ? item.url : null;
+    },
+    discardConversation(conversationId: string) {
+      generation++;
+      for (const [key, item] of held) if (item.scope.conversationId === conversationId) remove(key);
+    },
+    clear() {generation++;for (const key of held.keys()) remove(key);},
+  };
+}
 
 /** Validate the light projection. HTML bytes are fetched only on widget mount. */
 export function getWidgetHostConfiguration(value: unknown, scope: {origin: string;
@@ -115,18 +193,26 @@ export function WidgetHostProvider(props: {origin: string; audience: AccessAudie
   const resolveOperationBinding = useCallback<WidgetHostValue['resolveOperationBinding']>(
     input => resolverRef.current(input), []);
   const [state, setState] = useState<WidgetHostState>({phase: 'loading', configuration: null, error: null});
+  const linkContinuity = useMemo(() => createWidgetLinkContinuity(),
+    [props.access, props.audience, props.contextId]);
   const [revision, setRevision] = useState(0);
   const requestGeneration = useRef(0);
   const configurationRef = useRef<WidgetHostConfiguration | null>(null);
   configurationRef.current = state.configuration;
-  useEffect(() => props.access.subscribe(() => setRevision(value => value + 1)), [props.access]);
+  useEffect(() => props.access.subscribe(() => {
+    const snapshot = props.access.getSnapshot();
+    if (snapshot.pending || snapshot.phase === 'anonymous' || snapshot.phase === 'unavailable')
+      linkContinuity.clear();
+    setRevision(value => value + 1);
+  }), [props.access, linkContinuity]);
+  useEffect(() => () => linkContinuity.clear(), [linkContinuity]);
   const session = sessionNow(props.access);
   const sessionKey = session ? `${session.id}:${session.principalId}` : '';
   const refresh = useCallback(async () => {
     const generation = ++requestGeneration.current;
     const before = sessionNow(props.access);
     configurationRef.current = null;
-    if (!id(props.contextId)) {setState({phase: 'unavailable', configuration: null,
+    if (!id(props.contextId)) {linkContinuity.clear();setState({phase: 'unavailable', configuration: null,
       error: 'Contexte de widgets invalide.'}); return;}
     if (!before) {setState({phase: 'anonymous', configuration: null, error: null}); return;}
     setState({phase: 'loading', configuration: null, error: null});
@@ -140,13 +226,16 @@ export function WidgetHostProvider(props: {origin: string; audience: AccessAudie
       if (generation !== requestGeneration.current || !sameSession(before, sessionNow(props.access))) return;
       const config = response.status === 200 ? getWidgetHostConfiguration(body,
         {origin, audience: props.audience, contextId: props.contextId, session: before}) : null;
+      if (!config) linkContinuity.clear();
       setState(config ? {phase: 'ready', configuration: config, error: null} :
         {phase: 'unavailable', configuration: null, error: 'Catalogue de widgets indisponible.'});
     } catch {
-      if (generation === requestGeneration.current && sameSession(before, sessionNow(props.access)))
+      if (generation === requestGeneration.current && sameSession(before, sessionNow(props.access))) {
+        linkContinuity.clear();
         setState({phase: 'unavailable', configuration: null, error: 'Catalogue de widgets indisponible.'});
+      }
     }
-  }, [props.access, props.audience, props.contextId, fetcher, origin]);
+  }, [props.access, props.audience, props.contextId, fetcher, origin, linkContinuity]);
   useEffect(() => {void refresh(); return () => {requestGeneration.current++;};}, [refresh, sessionKey, revision]);
   const loadResource = useCallback(async (uri: string, wantedDigest: string, profileId: string) => {
     const before = sessionNow(props.access), config = state.configuration;
@@ -175,11 +264,22 @@ export function WidgetHostProvider(props: {origin: string; audience: AccessAudie
       return resource as unknown as CompiledWidgetResource;
     } catch {return null;}
   }, [props.access, props.audience, props.contextId, fetcher, origin, state]);
+  const linkGeneration = useCallback(() => linkContinuity.generation(), [linkContinuity]);
+  const retainLink = useCallback((scope: WidgetLinkScope, url: string,
+    previous: WidgetHostConfiguration, generation: number) =>
+    linkContinuity.retain(scope, url, previous, generation), [linkContinuity]);
+  const takeLink = useCallback((scope: WidgetLinkScope) =>
+    linkContinuity.take(scope, state.phase === 'ready' ? state.configuration : null,
+      sessionNow(props.access)), [linkContinuity, state, props.access]);
+  const discardLinksForConversation = useCallback((conversationId: string) =>
+    linkContinuity.discardConversation(conversationId), [linkContinuity]);
   const value = useMemo<WidgetHostValue>(() => ({...state, audience: props.audience,
     contextId: props.contextId, access: props.access, operationClient: props.operationClient,
-    resolveOperationBinding, approvalClient, refresh, loadResource}),
+    resolveOperationBinding, approvalClient, refresh, loadResource,
+    linkGeneration, retainLink, takeLink, discardLinksForConversation}),
     [state, props.audience, props.contextId, props.access, props.operationClient,
-      resolveOperationBinding, approvalClient, refresh, loadResource]);
+      resolveOperationBinding, approvalClient, refresh, loadResource,
+      linkGeneration, retainLink, takeLink, discardLinksForConversation]);
   return <WidgetHostContext.Provider value={value}>{props.children}</WidgetHostContext.Provider>;
 }
 

@@ -28,6 +28,8 @@ L'ouverture d'une page externe utilise la capacité MCP Apps `openLinks` et `app
 
 Le raccord natif Creezio en qualification borne les URL HTTPS et propose l'ouverture dans l'interface de l'hôte, sous la session et l'instance courantes. Il conserve le sandbox et requiert un clic explicite ; il ne télécharge pas l'URL côté serveur. Une navigation Stripe ne confirme pas un achat : le module relit ensuite la session par son opération authentifiée. L'état de réalisation et les recettes de ce raccord figurent dans [T16](IMPLEMENTATION-T16.md) et [T27](IMPLEMENTATION-T27.md).
 
+Si le passage au clavier depuis l'iframe déclenche une relecture d'accès, l'hôte peut garder brièvement en mémoire la proposition de lien. Il ne la réaffiche qu'après une session et un catalogue frais avec le même principal, contexte, conversation, message et instance. Un nouveau geste explicite reste nécessaire pour ouvrir l'URL ; une révocation, un changement de portée ou la fermeture de la conversation annule la proposition. L'URL n'est pas conservée dans le stockage du navigateur.
+
 ## Choisir le mode selon la demande
 
 - **Données structurées et opération déterminée** : privilégier `direct` pour les interactions usuelles d'une application. Changer une quantité ne nécessite pas de demander au LLM de réinterpréter la quantité.
