@@ -426,6 +426,16 @@ test('Stripe connector commits pages and cancellation changes atomically in D1 w
       const appHttpOffers=await appWire('/api/app/stripe/offer/list?limit=8');
       assert.equal(appHttpOffers.status,200,await appHttpOffers.clone().text());
       assert.equal((await appHttpOffers.json()).execution.output.items[0].id,offer.id);
+      const offerIds=new Set([offer.id]);
+      for(let index=1;index<8;index++){
+        const extra=success(await invoke('offer.set',{requestKey:`offer-create-${index}`,
+          productId:'prod_catalog',priceId:'price_active',enabled:true,revision:0})).offer;
+        offerIds.add(extra.id);
+      }
+      assert.equal(offerIds.size,8);
+      const fullPage=success(await invoke('app.offer.list',{limit:8},appOptions));
+      assert.equal(fullPage.items.length,8,'a full app page stays within the operation read budget');
+      assert.deepEqual(new Set(fullPage.items.map(item=>item.id)),offerIds);
       await failed(invoke('app.checkout.create',{requestKey:'app-invalid',offerId:offer.id,
         priceId:'price_inactive'},appOptions),'invalid_input');
       const appInput={requestKey:'app-buy-one',offerId:offer.id};

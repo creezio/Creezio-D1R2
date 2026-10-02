@@ -390,10 +390,10 @@
       },
       "contractIntegrity": "sha256-ca31d8c47e641e3585b59c77451b1112e89e928f74ef4dc7475cf74df8f05f6d",
       "runtime": {
-        "integrity": "sha256-6622561d1245fb75677265346ed5a7433d3473a5666bf2282b29f70754f584e0",
+        "integrity": "sha256-964b88f52aeea357f0993e7741621878cda35ac01e49c922bd83466e4fc5db2f",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.stripe/runtime-6622561d1245fb75677265346ed5a7433d3473a5666bf2282b29f70754f584e0.tgz"
+          "path": ".creezio/module-artifacts/creezio.stripe/runtime-964b88f52aeea357f0993e7741621878cda35ac01e49c922bd83466e4fc5db2f.tgz"
         }
       },
       "validation": {

@@ -134,11 +134,9 @@ const offerProduct=async(context:OperationContext,price:Row,configuration:Row)=>
     throw new OperationError('invalid_input');
   return product;
 };
-const offerReady=async(context:OperationContext,offerId:unknown)=>{
-  const id=identifier(offerId),configuration=await config(context);
+const offerProjectionReady=async(context:OperationContext,configuration:Row|null,offer:Row|null)=>{
   if(!configuration||configuration.enabled!==true||typeof configuration.connection_id!=='string'
     ||typeof configuration.checkout_return_origin!=='string')throw new OperationError('invalid_input');
-  const offer=await context.data.get('stripe_offer',{key:{id}}) as Row|null;
   if(!offer||offer.enabled!==true||offer.connection_id!==configuration.connection_id
     ||!['payment','subscription'].includes(String(offer.mode)))throw new OperationError('not_found');
   const price=await fixedPrice(context,String(offer.price_id),offer.mode as 'payment'|'subscription',configuration);
@@ -148,6 +146,11 @@ const offerReady=async(context:OperationContext,offerId:unknown)=>{
     ||price.interval!==offer.interval||price.interval_count!==offer.interval_count)
     throw new OperationError('invalid_input');
   return {configuration,offer,price,product};
+};
+const offerReady=async(context:OperationContext,offerId:unknown)=>{
+  const id=identifier(offerId),configuration=await config(context);
+  const offer=await context.data.get('stripe_offer',{key:{id}}) as Row|null;
+  return offerProjectionReady(context,configuration,offer);
 };
 const checkoutReady=async(context:OperationContext,priceId:unknown,mode:'payment'|'subscription',
   quantity:unknown,customerId:unknown)=>{
@@ -218,7 +221,7 @@ export async function offerList(value:JsonValue,context:OperationContext){
   return {output:{items:page.items.map(offerView),nextCursor:page.nextAfter?.id??null}};
 }
 export async function appOfferList(value:JsonValue,context:OperationContext){
-  const input=listInput(value),generation=connectionId(await config(context));
+  const input=listInput(value),configuration=await config(context),generation=connectionId(configuration);
   if(input.limit>8)throw new OperationError('invalid_input');
   if(!generation)return {output:{items:[],nextCursor:null}};
   const page=await context.data.list('stripe_offer',{limit:input.limit,
@@ -226,10 +229,12 @@ export async function appOfferList(value:JsonValue,context:OperationContext){
     ...(input.cursor?{after:{id:input.cursor}}:{})});
   const items=[];
   for(const row of page.items){
-    try{await offerReady(context,row.id);items.push(offerView(row));}
+    try{await offerProjectionReady(context,configuration,row);items.push(offerView(row));}
     catch(error){if(!(error instanceof OperationError))throw error;}
   }
-  if(connectionId(await config(context))!==generation)throw new OperationError('conflict');
+  const final=await config(context);
+  if(connectionId(final)!==generation||final?.revision!==configuration?.revision
+    ||final?.enabled!==configuration?.enabled)throw new OperationError('conflict');
   return {output:{items,nextCursor:page.nextAfter?.id??null}};
 }
 export async function appCheckoutCreate(value:JsonValue,context:OperationContext){
