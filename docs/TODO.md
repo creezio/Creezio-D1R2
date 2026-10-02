@@ -1,5 +1,9 @@
 # Backlog de réalisation
 
+## Correctif candidat T16/T33 — historique sans droit OpenAI, 2 octobre 2026
+
+Le refus 403 de la lecture facultative OpenAI fermait les onglets malgré un accès Conversations valide. Le correctif garde ces onglets et rend la disponibilité du fournisseur neutre après contrôle de la session et du contexte ; le transport et les nouveaux tours exigent toujours le droit OpenAI. Les tests ciblés workspace et D1/R2 couvrent brouillon, messages, fichier privé, refus du tour et révocation de session. La recette navigateur après livraison reste ouverte ; aucun droit OpenAI n'est accordé au témoin T33.
+
 ## Correctif candidat T33 — journal routé, 2 octobre 2026
 
 Le transfert Cloudflare préparé sur Core b9 reste `schema-ready` : checkpoint primaire `verified`, captures et schémas A/B présents, aucun checkpoint A/B. Le journal refusait l'identité routée avec `sourceContextId` et `routeFence`. Le correctif candidat passe trois tests ciblés dans l'image Linux isolée, dont capture/import/vérification et reprise sans second upload. L'entrée Docker explicite pour source applicative séparée et verrou de dépendances identique passe 12 tests locaux ciblés. Qualifier la disposition image opérateur corrigé/source b9 portable/volume conservé avant une nouvelle réconciliation réelle, sans réimporter le primaire. Voir [T33](IMPLEMENTATION-T33.md#correctif-candidat-du-journal-de-transfert-routé--2-octobre-2026).

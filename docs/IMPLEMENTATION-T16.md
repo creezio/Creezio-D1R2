@@ -1,5 +1,9 @@
 # Réalisation T16 — widgets des modules
 
+## Correctif candidat — historique sans droit OpenAI, 2 octobre 2026
+
+Une lecture facultative de configuration OpenAI refusée à 403 ne doit pas révoquer les onglets du workspace quand la session et les droits Conversations restent valides. Le même principe couvre la liste facultative des modèles, pour les audiences admin et app. La lecture de l'historique Conversations peut interroger la disponibilité du fournisseur sans droit `creezio.openai:use` : après vérification de la session, du contexte et de la route courante, elle reçoit seulement `unavailable` et une liste de modèles vide. Le contenu de configuration et les secrets ne sont pas lus. L'ouverture d'un transport OpenAI conserve l'autorisation `creezio.openai:use` et ses contrôles frais ; un nouveau tour ne démarre pas sans fournisseur disponible. Les refus de session et les refus des opérations Conversations continuent à déclencher la revalidation globale. Les tests ciblés D1/R2 et workspace couvrent ces frontières ; la recette navigateur du cas T33 reste à faire après livraison.
+
 ## Raccord candidat T27 — ouverture de liens MCP Apps
 
 Le pont interne peut annoncer `openLinks` et recevoir `app.openLink` lorsque l'hôte fournit cette capacité. La demande reste liée à l'instance et à la session courantes ; seule une URL HTTPS bornée peut être proposée. Le panneau du chat présente la destination et demande un clic explicite avant ouverture, avec refus, expiration et abandon lors d'un changement de contexte. Le widget ne gagne aucun droit de popup ou de navigation dans son sandbox. Le bridge interne n'est pas un export du paquet public SDK 1.9 ; les contrats métier et les trois modes d'action restent inchangés. Tests, livraison et recette navigateur de ce raccord sont à qualifier avec [Stripe 0.5](IMPLEMENTATION-T27.md).
