@@ -1,5 +1,10 @@
 # Changelog
 
+## Correctif candidat T16 — restauration du fil après rechargement
+
+- Le contrôleur Conversations reprend les lectures de messages et de brouillon interrompues après l’affichage du titre, sous l’accès courant ; une sélection manuelle plus récente conserve la priorité. Le panneau attend cette restauration pour lister les pièces jointes.
+- Le test de régression et les six suites du module passent localement. La livraison et la recette navigateur sur Original restent ouvertes ; aucun tour ni appel fournisseur n’est rejoué par le correctif.
+
 ## Correctif candidat T16/T33 — consultation sans droit OpenAI
 
 - Les refus 403 des lectures facultatives de configuration et modèles OpenAI ne vident plus les onglets du workspace. La disponibilité du fournisseur retourne un état sans détails après vérification de la session et du contexte ; l'historique Conversations, le brouillon et les fichiers restent lisibles sous leurs propres droits.

@@ -158,6 +158,8 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
     return () => {if (searchTimer.current) clearTimeout(searchTimer.current);};
   }, [controller, query, snapshot?.searchQuery]);
   const selectedIdForEffect = snapshot?.selected?.id ?? null;
+  const selectedHydratedForEffect = !!selectedIdForEffect &&
+    snapshot?.draft?.conversationId === selectedIdForEffect;
   useEffect(() => {
     const wanted = draftRequested.current;
     if (!controller || !activity.current || !selectedIdForEffect || wanted?.id !== selectedIdForEffect) return;
@@ -231,15 +233,15 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
     return ()=>{loop.stop();if(driveLoop.current?.loop===loop)driveLoop.current=null;};
   },[controller,activeNow,runningTurn?.id,sessionId]);
   useEffect(() => {
-    setAttachments([]); setAttachmentsNextCursor(null);
-    if (!controller || !selectedIdForEffect) return;
+    setAttachments([]); setAttachmentsNextCursor(null); setLoadingAttachments(false);
+    if (!controller || !selectedIdForEffect || !selectedHydratedForEffect) return;
     let current = true;
     setLoadingAttachments(true);
     void controller.listAttachments(selectedIdForEffect).then(page => {
       if (current && page) {setAttachments(page.items);setAttachmentsNextCursor(page.nextCursor);}
     }).finally(() => {if (current) setLoadingAttachments(false);});
     return () => {current = false;};
-  }, [controller, selectedIdForEffect]);
+  }, [controller, selectedIdForEffect, selectedHydratedForEffect]);
 
   if (!controller || !snapshot || snapshot.phase !== 'ready') return floating ? null :
     <p role="status" className="p-4 text-sm text-slate-600">Chargement des conversations…</p>;

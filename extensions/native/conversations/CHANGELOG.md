@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.0 — T09, reprise du fil après rechargement (correctif candidat)
+
+- Si une transition d’accès ou d’activité interrompt la lecture après affichage du titre, le contrôleur relit le fil sélectionné sous la session et le contexte courants pour restaurer messages et brouillon. Une nouvelle sélection explicite garde la priorité ; aucune opération métier ni appel au fournisseur n’est rejoué.
+- Le panneau charge les pièces jointes après cette restauration. Les tests ciblés reproduisent l’interruption des lectures et la reprise. La recette sur Original hébergé reste distincte de ce correctif local.
+
 ## 0.0.0 — T27, ouverture de lien MCP Apps dans l’hôte
 
 - Le pont interne annonce `openLinks` quand Conversations fournit une confirmation native. Il accepte une URL HTTPS absolue et bornée, refuse identifiants intégrés et caractères de contrôle, puis vérifie encore l’instance et la session après la décision.

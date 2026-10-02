@@ -78,10 +78,10 @@
       },
       "contractIntegrity": "sha256-aab3242cd349c79c77f896fc3eea6cb00a8db807a5a40035ae4871c332c7b57f",
       "runtime": {
-        "integrity": "sha256-eed20624f2ecc797d81bdf2b594be2faa4c0babfe7389a6038b80004c811681a",
+        "integrity": "sha256-57ede07ada800ba050202ca9f408841d1c880d184f7217fcb3d4792b539bfee9",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.conversations/runtime-eed20624f2ecc797d81bdf2b594be2faa4c0babfe7389a6038b80004c811681a.tgz"
+          "path": ".creezio/module-artifacts/creezio.conversations/runtime-57ede07ada800ba050202ca9f408841d1c880d184f7217fcb3d4792b539bfee9.tgz"
         }
       },
       "validation": {
