@@ -232,7 +232,7 @@ test('Messaging commits one immutable snapshot and canonical outbox intent again
       assert.equal(legacyDelete.execution.errorCode,'conflict');
       assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM "${messageTable}" WHERE id=?`)
         .bind(imported.id).first()).n,1,'legacy row without snapshot cannot be removed');
-      let fiftyMessage=null,fiftyFile=null;
+      let fiftyMessage=null,fiftyFile=null,fiftyInboundRefs=[];
       for(const count of [1,50]){
         const emailId=`received-proof-${count}`,beforeGets=inboundGets;
         receivedFixtures.set(emailId,{count});
@@ -269,7 +269,11 @@ test('Messaging commits one immutable snapshot and canonical outbox intent again
         assert.equal(listed.items.length,count);
         assert.equal(listed.nextCursor,null);
         assert.equal(new Set(listed.items.map(item=>item.fileId)).size,count);
-        if(count===50){fiftyMessage=published;fiftyFile=listed.items[0].fileId;}
+        if(count===50){
+          fiftyMessage=published;
+          fiftyFile=listed.items[0].fileId;
+          fiftyInboundRefs=listed.items.map(item=>item.reference);
+        }
         const replay=success(await invoke('message.inbound.import',{
           requestKey:`delivery-import-replay-${count}`,boxId:box.id,emailId})).message;
         assert.equal(replay.id,published.id);
@@ -538,17 +542,8 @@ test('Messaging commits one immutable snapshot and canonical outbox intent again
       assert.equal(preserved.send_intent_id,null);
       let attachedLinked=success(await invoke('attachment.link',{requestKey:'delivery-link-attached',
         boxId:box.id,draftId:attachedDraft.id,revision:attachedSaved.revision,staged})).draft;
-      const stagedFiles=[staged];
-      for(let index=1;index<50;index++){
-        const nextLease=await data.authorize({kind:'session',token:admin.token},{contextId:'application',
-          audience:'admin',actors:['user'],requiredPermissionIds:['creezio.messaging:use'],
-          purpose:'operation'},{moduleId:'creezio.messaging'});
-        let next;
-        try{next=await createFileService({data,catalog,moduleId:'creezio.messaging',category,
-          bucket,ownerId}).stage(nextLease,{ownerId,intentId:`delivery-binary-${index}`,generation:'one',
-          filename:`preuve-${index}.bin`,contentType:'application/pdf',bytes:new Uint8Array([index])});}
-        finally{data.dispose(nextLease);}
-        stagedFiles.push(next);
+      const stagedFiles=[staged,...fiftyInboundRefs.slice(0,49)];
+      for(const [index,next] of fiftyInboundRefs.slice(0,49).entries()){
         attachedLinked=success(await invoke('attachment.link',{requestKey:`delivery-link-${index}`,
           boxId:box.id,draftId:attachedDraft.id,revision:attachedLinked.revision,staged:next})).draft;
       }
