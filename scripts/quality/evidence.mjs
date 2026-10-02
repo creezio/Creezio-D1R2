@@ -19,6 +19,12 @@ export function inspectTap(output, exitCode) {
 
 /** Split only an audited allowlist; every required file must run exactly once. */
 export const auditedParallelTests = Object.freeze([
+  // The only identity file in this phase: its guarded persistent test directory
+  // is shared with the identity files that remain in the later serial phase.
+  'tests/identity/d1-impersonation.test.mjs',
+  // Private Miniflare D1/R2, ephemeral ports, injected provider transports.
+  'tests/modules/messaging-delivery-integration.test.mjs',
+  'tests/openai/turn-bridge.test.mjs',
   'tests/crm/integration.test.mjs',
   'tests/meili/integration.test.mjs',
   'tests/catalog/integration.test.mjs',

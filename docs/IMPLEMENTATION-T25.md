@@ -1,5 +1,12 @@
 # T25 — Catalogue métier commun
 
+## Cycle métier natif sur Linux conservé — 2 octobre 2026
+
+Sur le runtime T32 Linux existant au code `7b606f579d3a813742cde48c375ec0ebb7e43d8d`, une seule catégorie et un seul produit fictifs ont exercé le cycle Catalogue sous intentions journalisées, sans build, schéma, déploiement ni fournisseur. Le brouillon était refusé en app ; la publication a permis recherche et fiche app. L'archivage de la catégorie liée a été refusé par conflit. Le prix du produit publié est passé à 1 499 unités mineures, visible côté app en révision 3 ; la route admin est refusée avec le cookie app. Après détachement, catégorie puis produit ont été archivés : le produit reste relisible en admin, devient `not_found` en fiche app et disparaît de la recherche ; la catégorie archivée disparaît de la liste app complète bornée. Le navigateur app a montré grille et fiche avant archivage, avec SKU, prix et description. Sessions API et navigateur fermées, données historiques et volume conservés. Reçu hors dépôt : `CREEZIO-T25-LINUX-CYCLE-7B606F57-2026-10-02.json`.
+
+Ce cycle synthétique est distinct des recettes d'images/widgets Sites et Cloudflare ci-dessous. Il ne prouve pas un parcours marchand, ChatGPT externe ou la parité exhaustive de REQ-2501.
+
+
 ## Images des widgets Cloudflare — recette b9 du 2 octobre
 
 Le sandbox publié avec Core `b9a4562` affiche et décode les images Blob 32 × 32 dans `product-list` et `product-detail`, après rechargement du même tour existant. Cette lecture n'a créé aucun prompt, aucune reprise et aucune mutation de produit. Les actions directes avaient leur recette antérieure ; elles n'ont pas été répétées. La déconnexion répond 200 et la session suivante 401. Le reçu hors dépôt `CREEZIO-T25-CF-B9-WIDGET-IMAGES-2026-10-02.json` lie cette observation au Worker, au sandbox et à la preuve de conservation D1/R2. Le rendu Cloudflare précédemment ouvert est donc qualifié ; le widget Catalogue dans ChatGPT externe reste à exercer.

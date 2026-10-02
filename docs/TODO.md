@@ -5,7 +5,9 @@
 - **Original Sites** : Core `6921f5d` (PR #97, CI main 1 501/1 501) est publié en version 4, source Site `3a1b348`, registre synchronisé. Le navigateur retrouve après un seul rechargement le même fil, sa réponse, son brouillon et son fichier exacts, sans resélection ni nouvel appel OpenAI. Le reçu `CREEZIO-T09-OCT2-ORIGINAL-PR97-RELOAD-2026-10-02T1430Z.json` qualifie ce correctif.
 - **Lab Sites** : version 2 du nouveau compte, source `22e1637` depuis Lab `7c6dc10`, registre synchronisé. Connexion native, navigation admin/front et rechargement vérifiés ; aucun nouveau tour Lab ni nouvelle connexion du plugin ChatGPT sur ce compte. Les preuves ChatGPT des autres comptes gardent leur portée historique.
 - **Stripe 0.5** : livré sur Linux et Core Cloudflare `7b606f5`. Le produit/prix TEST actif de préparation a été créé directement chez Stripe, puis les synchronisations natives, la création d'offre et un seul Checkout app ont réussi : onze intentions nouvelles confirmées. La lecture native et `/offers` montrent `open`/`unpaid`, sans paiement ni abonnement nouveau. L'ancien Checkout inconnu est préservé. Voir [T27](IMPLEMENTATION-T27.md) et `CREEZIO-T27-05-ACTIVE-FINAL-2026-10-02.json` ; le pont de lien des widgets et les compléments de REQ-2701 restent distincts.
-- **Travail courant** : suppression T18 depuis la corbeille développée et contrôlée localement, CI de la candidate à qualifier ; nouvelle livraison T33 `6921f5d` en cours après adoption locale des trois bases avec zéro DDL. La publication T33 reste non confirmée, avec ses routes temporairement fermées ; sa reprise native reste à compléter. Les recettes T20 et T33 `7b606f5` ci-dessous restent acquises. Les reports utilisateur et le retour attendu T39 ne changent pas.
+- **T19/T21/T25 ciblés** : sur Original Sites PR #97 v4, un ticket Support fictif a suivi création app, attribution/réponse/résolution admin puis lecture API/UI app, et une navigation éditoriale publiée a été restaurée exactement après constat navigateur ; la page fictive reste publique. Sur Linux `7b606f5`, une catégorie et un produit Catalogue fictifs ont parcouru publication, prix, détachement et archivage avec refus app et UI avant archivage. Reçus : `CREEZIO-T19-OCT2-SUPPORT-FINAL-2026-10-02.json`, `CREEZIO-T21-OCT2-NAVIGATION-FINAL-2026-10-02.json`, `CREEZIO-T25-LINUX-CYCLE-7B606F57-2026-10-02.json`. Relations Support restantes, autres vues Pages, ChatGPT externe et parité exhaustive demeurent ouverts.
+- **T33 livré** : Core `6921f5d` sert le Worker `c214e731-70fe-4c52-ab90-542498d5308c`, registre synchronisé après réconciliation de la publication. Les trois D1 restent prêtes ; B conserve son brouillon et son fichier après rechargement, A reste refusé. La récupération ponctuelle ne qualifie pas le nouveau retry natif routé, proposé séparément dans la PR #99. Deux réponses 500 transitoires lors du rechargement sont consignées, puis les lectures ont abouti. Reçus hors dépôt : `CREEZIO-T33-OCT2-MAIN-CF-NATIVE-READ-2026-10-02.json`, `CREEZIO-T33-OCT2-MAIN-CF-PLAYWRIGHT-B-RELOAD-2026-10-02.json` et `CREEZIO-T33-OCT2-MAIN-RELOAD-500-OBSERVATION-2026-10-02.json`.
+- **Travail courant** : suppression T18 depuis la corbeille développée et contrôlée localement, CI complète encore requise. Le run PR #98 `37024644900` a dépassé 900 secondes avec TAP série incomplet : il reste en échec. La fixture réutilise désormais 49 références de fichiers déjà préparées, sans retirer d'assertion. Trois tests supplémentaires rejoignent la phase parallèle auditée : Messaging, turn-bridge et le seul test identity impersonation (les autres partagent son répertoire et restent dans la phase série suivante). Concurrence 2, budget commun de 900 secondes et exécution exacte de tous les fichiers restent inchangés. Les reports utilisateur et le retour attendu T39 ne changent pas.
 
 Les états des paragraphes datés suivants sont historiques lorsqu'une preuve plus récente ci-dessus les remplace ; les critères d'acceptation et les limites des recettes restent applicables.
 
@@ -490,7 +492,7 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 <a id="T-19"></a>
 ## T-19 — Support
 
-- Lot : **P5** ; état : **première tranche intégrée ; widgets du chat en qualification** ; responsable : root avec les agents Sol.
+- Lot : **P5** ; état : **en cours — cycle API/UI Support confirmé sur Original PR #97 ; widgets et relations restantes ouverts** ; responsable : root avec les agents Sol.
 - Dépendances : [T-11](#T-11), [T-17](#T-17), [T-18](#T-18).
 - Travail/livrables : Module support et relations autorisées avec contacts/messages/tâches.
 - Widgets intégrés : PR #57/main `f99a455`, CI 1 257/1 257, SDK 1.4.1 public. Le même code tourne sur Linux sans DDL ajouté ; ticket et deux messages témoins relus avec mêmes identifiants et révision dans admin/app. La recette des quatre cartes et d'une réponse directe a ensuite été confirmée séparément de la recette API.
@@ -516,7 +518,7 @@ Priorité : dernier bloc après les travaux indépendants ; aucune nouvelle appr
 <a id="T-21"></a>
 ## T-21 — Pages et navigation
 
-- Lot : **P5** ; état : **en cours — Sidebar intégrée et vérifiée sur Linux, parcours exhaustif ouvert** ; responsable : root avec les agents Sol.
+- Lot : **P5** ; état : **en cours — navigation éditoriale publiée/restaurée sur Original PR #97 ; parcours exhaustif ouvert** ; responsable : root avec les agents Sol.
 - Dépendances : [T-11](#T-11), [T-13](#T-13).
 - Travail/livrables : Module pages-navigation, médias/SEO/édition et reset contrôlé.
 - Complément PR #79 : choix explicite de publication publique, HTML serveur utilisant les mêmes préfabriqués et accès aux seules images du snapshot publié. Les tests D1/R2 et refus de révocation passent localement ; la compilation a été qualifiée par la CI intégrée. La recette publique sur Site ou Cloudflare reste distincte de la Sidebar Linux.
@@ -567,7 +569,8 @@ Priorité : dernier bloc après T-17. Expliquer fonctions, effets, limites, plan
 <a id="T-25"></a>
 ## T-25 — Catalogue métier réutilisable
 
-- Lot : **P5** ; état : **en cours — images qualifiées sur Linux, Original Sites v6 et widgets Cloudflare b9 ; ChatGPT externe ouvert** ; responsable : root avec les agents Sol.
+- Lot : **P5** ; état : **en cours — cycle Catalogue synthétique Linux et images/widgets hébergés qualifiés ; ChatGPT externe ouvert** ; responsable : root avec les agents Sol.
+- Cycle Linux du 2 octobre : sur le volume T32 préservé et la source `7b606f5`, une catégorie et un produit fictifs ont exercé publication, recherche/fiche app, prix actualisé, refus d’archiver une catégorie liée, détachement et archivage ; le produit archivé reste en lecture admin mais disparaît en app. Grille et fiche avant archivage ont été vues en navigateur, sessions fermées. Reçu `CREEZIO-T25-LINUX-CYCLE-7B606F57-2026-10-02.json` hors dépôt ; aucun fournisseur ni parcours marchand.
 - Complément Cloudflare du 2 octobre : le sandbox livré avec Core b9 affiche les images Blob 32 × 32 dans les deux widgets Catalogue après rechargement du même tour, sans nouveau prompt ni reprise. Déconnexion HTTP 200 puis session 401 ; données conservées. Le reçu `CREEZIO-T25-CF-B9-WIDGET-IMAGES-2026-10-02.json` clôt ce rendu distant, précédemment ouvert dans les étapes historiques ci-dessous ; ChatGPT externe reste distinct.
 - Dépendances : [T-11](#T-11), [T-13](#T-13), [T-16](#T-16).
 - Travail/livrables : Module catalogue, données produit et ports publics de référence.

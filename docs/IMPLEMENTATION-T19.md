@@ -1,5 +1,12 @@
 # T19 — Support natif
 
+## Cycle natif sur Original Sites du compte actuel — 2 octobre 2026
+
+Sur Original Sites PR #97 v4 (source Site `3a1b34842d6f985b956c3e519336451f4c65ee71`), les droits du propriétaire existant ont été étendus par politique native et CAS : `creezio.support:use`/`manage` en admin, `use` seul en app, époques 7 → 8 → 9 ; les autres droits et rôles sont conservés. L'inventaire courant était vide dans les deux audiences. Un seul ticket explicitement fictif (`a6a8a616-67c0-45f3-ac9a-fcb2d459c3f4`) a été créé côté app, pris en charge, répondu puis résolu côté admin, aux révisions 1 à 4. Admin et app relisent deux mêmes messages ; la fiche app masque l'attribution et son cookie reçoit 401 sur la route admin. Le front app affiche le ticket, l'état résolu et les deux messages. Déconnexions et sessions 401 sont confirmées, navigateur fermé. Reçu hors dépôt : `CREEZIO-T19-OCT2-SUPPORT-FINAL-2026-10-02.json`.
+
+Cette recette n'a sollicité ni e-mail/Resend, ni n8n, ni Messaging, ni fournisseur. Le transport était `unavailable` dans les deux audiences ; aucun lien CRM ou message n'a été ajouté. Le ticket de l'ancien Site lisibi cité plus bas appartient à une autre base. Les widgets externes, les relations restantes et la parité exhaustive de REQ-1901 demeurent distincts.
+
+
 Le contrôle de composition sur les vrais descripteurs vérifie aussi le retrait de CRM/Messagerie : Support et ses vues restent actifs, les opérations de lecture/liaison dépendantes disparaissent, les retraits de liens restent possibles. Un contrat public manquant est refusé lorsque l'intégration est activée. Ces deux cas de graphe complètent la recette D1 ; ils ne prétendent pas exécuter des archives ni qualifier une interface hébergée.
 
 Les quatre widgets sont intégrés par PR #57 sur main `f99a455356120f89a0ed35a7f64fe38c06299c4d`, avec 1 257/1 257 tests CI sans omission. Le SDK 1.4.1 est public et ses consommateurs sont vérifiés, voir [T30](IMPLEMENTATION-T30.md). Linux utilise cette version ; les Sites et Workers Cloudflare déjà publiés conservent leur version propre jusqu'à leur mise à jour qualifiée.
