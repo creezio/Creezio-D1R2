@@ -6,6 +6,8 @@ Sur Original avant la mise à jour PR #97 (source Site `be34e8d`, version 3), `t
 
 Cette recette établit l'isolation logique CRM entre deux contextes actifs sur Sites. Elle n'exerce pas l'export CRM, ne crée pas de prospect et ne qualifie pas le routage T33 vers des D1/R2 physiques distincts. La recette v7/b9 à trois fiches décrite ensuite reste un témoin séparé.
 
+Sur le même Original après PR #97, un cycle borné a réutilisé ces quatre fiches. L'archivage de l'entreprise A encore liée a répondu `conflict` sans effet ; le contact A puis l'entreprise A ont été archivés, puis l'entreprise et le contact restaurés par les opérations natives et leurs révisions CAS. Le contenu métier et le lien local sont revenus exactement à leur état initial ; seules les révisions/dates de A ont progressé (entreprise 2→5, contact 1→3). Les deux fiches B, leurs révisions et dates sont inchangées. Le navigateur relit les contacts et entreprises A/B après restauration ; sessions API/navigateur fermées (logout 200, session 401). Reçus hors dépôt : `CREEZIO-T20-OCT2-EXISTING-CYCLE-FINAL.json` et `CREEZIO-T20-OCT2-EXISTING-CYCLE-BROWSER.json`. Il n'y a eu ni nouvelle fiche ni suppression physique ; ce cycle ne qualifie ni les widgets, ni l'export, ni le routage T33.
+
 
 ## Recette ciblée Original Sites v7/Core b9 — 2 octobre 2026
 
