@@ -8,6 +8,10 @@ const optionalReads = new Set([
   'creezio.analytics:admin.retention.preview',
   'creezio.pages-navigation:admin.sidebar.resolved',
   'creezio.pages-navigation:app.sidebar.resolved',
+  'creezio.openai:admin.config.read',
+  'creezio.openai:app.config.read',
+  'creezio.openai:admin.models.list',
+  'creezio.openai:app.models.list',
 ]);
 
 export function shouldRefreshHostAccess(result: OperationClientResult, bindingId: string,

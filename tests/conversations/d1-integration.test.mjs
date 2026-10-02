@@ -20,13 +20,19 @@ import {compileMcpBindings} from '../../scripts/mcp/bindings.mjs';
 import {createMcpHttpTransport} from '../../core/mcp/http.ts';
 import {fileOwnerId} from '../../core/files/catalog.ts';
 import {createWidgetSnapshot} from '../../core/widgets/snapshot.ts';
+import {createOpenAiProviderHost} from '../../core/providers/host.ts';
+import {createVaultKeyring} from '../../core/vault/crypto.ts';
+import {createOpenAITransport} from '../../extensions/native/openai/module/transport.ts';
+import {openAiConfigStorage,openAiVaultStorage} from '../../extensions/native/openai/module/storage.ts';
 import * as handlers from '../../extensions/native/conversations/module/operations.ts';
 
 const manifest=JSON.parse(readFileSync(new URL('../../extensions/native/conversations/module/manifest.json',import.meta.url),'utf8'));
+const openAiManifest=JSON.parse(readFileSync(new URL('../../extensions/native/openai/module/manifest.json',import.meta.url),'utf8'));
 const accessModels=JSON.parse(readFileSync(new URL('../../extensions/native/access/module/models.json',import.meta.url),'utf8'));
 const accessSchema=generateD1Schema('creezio.access',accessModels);
 const moduleId=manifest.identity.id, digest=`sha256-${'c'.repeat(64)}`;
 const generated=generateD1Schema(moduleId,manifest.contracts.models);
+const openAiSchema=generateD1Schema(openAiManifest.identity.id,openAiManifest.contracts.models);
 const technical=generateD1Schema(OPERATION_STORAGE_MODULE_ID,OPERATION_MODELS);
 const permission=manifest.contracts.permissions.find(item=>item.id==='use');
 const permissions=[{id:`${moduleId}:use`,audiences:permission.audiences,actors:permission.actors}];
@@ -56,7 +62,8 @@ test('Conversations operations use real D1 authority, CAS, cursors and atomic fi
     d1Databases:{DB:'creezio-conversations-integration'},r2Buckets:['BUCKET'],d1Persist:false,r2Persist:false});
   try{
     const db=await runtime.getD1Database('DB'),bucket=await runtime.getR2Bucket('BUCKET');
-    await db.batch([...accessSchema.statements,...technical.statements,...generated.statements].map(sql=>db.prepare(sql)));
+    await db.batch([...accessSchema.statements,...technical.statements,...generated.statements,
+      ...openAiSchema.statements].map(sql=>db.prepare(sql)));
     const accounts=createAccountService(db),bootstrap=await provisionBootstrapCapability(db);
     const password='Synthetic conversations integration password';
     const owner=good(await accounts.bootstrap({token:bootstrap.token,loginIdentifier:'conversations-owner@example.invalid',
@@ -153,6 +160,58 @@ test('Conversations operations use real D1 authority, CAS, cursors and atomic fi
     const metadataTable=`"${generated.tables.file_metadata}"`;
     const metadata=await db.prepare(`SELECT state FROM ${metadataTable} WHERE file_id=?`).bind(staged.fileId).first();
     assert.equal(metadata.state,'available');
+    const openAiPermission=openAiManifest.contracts.permissions.find(item=>item.id==='use');
+    const scopedPermissions=[...permissions,{id:'creezio.openai:use',
+      audiences:openAiPermission.audiences,actors:openAiPermission.actors}];
+    const scopedCatalog={...catalog,modules:[...catalog.modules,{
+      moduleId:'creezio.openai',version:openAiManifest.identity.version,enabled:true,
+      permissions:[openAiPermission],models:openAiManifest.contracts.models.map(model=>({modelId:model.id,
+        table:openAiSchema.tables[model.id],model}))}]};
+    const provider=createOpenAiProviderHost({db,catalog:scopedCatalog,permissions:scopedPermissions,
+      config:openAiConfigStorage,vault:openAiVaultStorage,
+      keyring:createVaultKeyring({activeKeyId:'test',keys:{test:new Uint8Array(32).fill(29)}}),
+      transport:createOpenAITransport});
+    const providerRequest={credential:{kind:'session',token:ownerAdmin.token},contextId:'application',
+      audience:'admin'};
+    assert.deepEqual(await provider.availability(providerRequest),{
+      providerId:'openai.responses.v1',state:'unavailable',modelIds:[]});
+    await assert.rejects(provider.availability({...providerRequest,contextId:'unknown-context'}),
+      {code:'forbidden'});
+    let transportEntered=false;
+    await assert.rejects(provider.withTransport(providerRequest,async()=>{
+      transportEntered=true;return null;
+    }),{code:'forbidden'});
+    assert.equal(transportEntered,false);
+    const scopedEngine=createOperationEngine({db,catalog:scopedCatalog,registry:registry(),
+      permissions:scopedPermissions,files:{catalog:fileCatalog,bucket},
+      providerAvailability:request=>provider.availability(request)});
+    const scopedInvoke=(operationId,input)=>scopedEngine.invoke({credential:providerRequest.credential,
+      moduleId,operationId,contextId:'application',audience:'admin',input});
+    assert.equal(success(await scopedInvoke('conversation.read',{conversationId:first.id})).provider,'no_provider');
+    assert.equal(success(await scopedInvoke('draft.read',{conversationId:first.id})).text,'Brouillon repris');
+    assert.deepEqual(success(await scopedInvoke('message.list',{conversationId:first.id,limit:1})).items
+      .map(item=>item.id),['user-message-1']);
+    assert.equal(success(await scopedInvoke('attachment.list',{conversationId:first.id,limit:10})).items[0]
+      .fileId,staged.fileId);
+    const privateFile=await dispatchFileHttp(new Request(
+      `http://127.0.0.1:8787/api/files/admin/${moduleId}/attachments?${new URLSearchParams(staged)}`,{
+        headers:{cookie:`creezio-local-admin=${ownerAdmin.token}`,'x-creezio-context':'application'}}),
+      {profile:'local',bindings:{DB:db,BUCKET:bucket}},{CREEZIO_APP_ORIGIN:'http://127.0.0.1:8787'},
+      'conversation-without-openai',{catalog:scopedCatalog,files:fileCatalog,permissions:scopedPermissions});
+    assert.equal(privateFile.status,200);
+    assert.equal(await privateFile.text(),'private note');
+    const deniedTurn=await scopedInvoke('turn.start',{requestKey:'turn-without-openai',
+      conversationId:first.id,messageId:'denied-turn-message',body:'Sans fournisseur',
+      revision:6,draftRevision:2,modelId:'model-a'}).catch(error=>error);
+    assert.equal(deniedTurn?.execution?.state,'failed');
+    assert.equal(deniedTurn.execution.errorCode,'unavailable');
+    assert.equal(success(await scopedInvoke('conversation.read',{conversationId:first.id})).conversation.revision,6);
+    assert.equal((await db.prepare(`SELECT COUNT(*) AS total FROM "${technical.tables.outbox}"`).first()).total,0);
+    const revoked=good(await accounts.login({loginIdentifier:'conversations-owner@example.invalid',
+      password,audience:'admin'}));
+    assert.equal(await accounts.logout(revoked.token,'admin'),true);
+    await assert.rejects(provider.availability({...providerRequest,
+      credential:{kind:'session',token:revoked.token}}),{code:'unauthorized'});
     const crossAudienceFile=await dispatchFileHttp(new Request(
       `http://127.0.0.1:8787/api/files/app/${moduleId}/attachments?${new URLSearchParams(staged)}`,{
         headers:{cookie:`creezio-local-app=${ownerApp.token}`,'x-creezio-context':'application'}}),

@@ -1,5 +1,10 @@
 # Changelog
 
+## Correctif candidat T16/T33 — consultation sans droit OpenAI
+
+- Les refus 403 des lectures facultatives de configuration et modèles OpenAI ne vident plus les onglets du workspace. La disponibilité du fournisseur retourne un état sans détails après vérification de la session et du contexte ; l'historique Conversations, le brouillon et les fichiers restent lisibles sous leurs propres droits.
+- Le transport OpenAI et les nouveaux tours restent interdits sans le droit `creezio.openai:use`. Les erreurs de session et les refus Conversations conservent la revalidation globale ; tests ciblés acquis, recette navigateur après livraison ouverte.
+
 ## Tranche candidate T27 — offres et achat app
 
 - Le module Stripe 0.5 ajoute des offres administrées, une vue front dynamique `/offers` et deux widgets pour consulter les offres et relire un Checkout. API, MCP app et interfaces utilisent les mêmes opérations, avec des droits distincts de Facturation.

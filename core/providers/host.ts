@@ -1,5 +1,6 @@
 import {createDataAccess} from '../data/service.ts';
-import type {DataCredential,DataLease,DataRecord,PermissionDefinition,RuntimeDataCatalog} from '../data/types.ts';
+import {DataAccessError,type DataCredential,type DataLease,type DataRecord,
+  type PermissionDefinition,type RuntimeDataCatalog} from '../data/types.ts';
 import type {IdentityDatabase} from '../identity/d1-store.ts';
 import type {StorageRouteIdentity} from '../storage-authority/target.ts';
 import {createVaultKeyring,isVaultReference,plainRecord,VaultError,type VaultKeyring} from '../vault/crypto.ts';
@@ -69,7 +70,19 @@ export function createOpenAiProviderHost(options:{readonly db:IdentityDatabase;r
   };
   return Object.freeze({
     async availability(request:Request){
-      const active=await lease(request);
+      let active:DataLease;
+      try{active=await lease(request);}
+      catch(error){
+        if(!(error instanceof DataAccessError)||error.code!=='forbidden')throw error;
+        // A Conversations read can use this optional status without OpenAI rights.
+        // Recheck identity and context without the OpenAI grant: a revoked scope
+        // must still fail instead of being reported as an unavailable provider.
+        const identity=await data.authorize(request.credential,{contextId:request.contextId,
+          audience:request.audience,actors:['user','delegated-user'],requiredPermissionIds:[],
+          purpose:'operation'},{moduleId:'creezio.openai'});
+        data.dispose(identity);
+        return {providerId:ID,state:'unavailable' as const,modelIds:[]};
+      }
       try{
         const row=await read(active);
         if(!row||row[cf.enabled]!==true||!row[cf.apiKeyRef])return {providerId:ID,state:'missing' as const,modelIds:[]};
