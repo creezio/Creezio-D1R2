@@ -1,5 +1,9 @@
 # Réalisation T16 — widgets des modules
 
+## Correctif candidat — brouillon protégé pendant la reprise du fil
+
+Le panneau commun n’active plus sa saisie ni l’envoi tant que `draft.read` n’a pas confirmé la révision du fil sélectionné. Une erreur de lecture laisse le texte local en mémoire sans sauvegarde ni démarrage de tour ; une nouvelle ouverture peut le reprendre avec la révision D1 courante. Les widgets et les autres fils ne reçoivent pas ce texte par défaut. Ce correctif UI et contrôleur ne change ni les contrats serveur, ni la disponibilité du fournisseur ; sa qualification navigateur après intégration reste distincte de la reprise du titre déjà vérifiée.
+
 ## Correctif candidat — reprise du fil sélectionné, 2 octobre 2026
 
 Sur Original, la recette navigateur a retrouvé le titre du fil après rechargement, mais pas son brouillon ni sa pièce jointe pendant 20 secondes ; une nouvelle sélection manuelle a relu les données conservées. Le contrôleur publiait le titre avant les lectures de messages et de brouillon. Une transition d’accès ou d’activité pouvait invalider ces lectures en gardant la sélection partielle, sans nouvelle tentative. Le correctif relit ce même fil sous la session, l’audience et le contexte courants lorsque l’accès redevient prêt ; une sélection manuelle plus récente garde la priorité. La liste des pièces jointes attend la fin de cette lecture. Aucune commande métier, aucun tour et aucun appel au fournisseur ne sont rejoués.

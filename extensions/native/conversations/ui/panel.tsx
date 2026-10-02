@@ -36,6 +36,7 @@ export type ConversationPanelProps = Readonly<{
   conversations: readonly ConversationSummary[];
   messages: readonly ConversationMessage[];
   draft: string;
+  draftReady: boolean;
   onDraftChange: (draft: string) => void;
   onWidgetContextAction?: ConversationsController['changeWidgetContext'];
   modelOptions?: readonly ConversationModelOption[];
@@ -294,7 +295,7 @@ export function ConversationPanel(props: ConversationPanelProps) {
                   !!props.selectedArchived || !!props.onRetryUpload ||
                   props.attachmentState?.phase === 'uploading' || props.attachmentState?.phase === 'linking'}
                 onClick={() => fileInput.current?.click()}><Paperclip className="h-4 w-4" /></Button></>}
-            <input value={props.draft} maxLength={16000} disabled={!props.selectedId || !!props.selectedArchived}
+            <input value={props.draft} maxLength={16000} disabled={!props.selectedId || !props.draftReady || !!props.selectedArchived}
               onChange={event => props.onDraftChange(event.target.value)}
               aria-label="Brouillon de message" placeholder="Écrivez un message…"
               className="h-9 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-3 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400" />
@@ -305,7 +306,7 @@ export function ConversationPanel(props: ConversationPanelProps) {
             </Button> : <Button type="submit" size="icon"
               disabled={!props.onSend || props.providerStatus !== 'ready' || !props.selectedModelId ||
                 !props.modelOptions?.some(model => model.id === props.selectedModelId) ||
-                !props.selectedId || !!props.selectedArchived || !!props.busy || !!props.turnState || !props.draft.trim()}
+                !props.selectedId || !props.draftReady || !!props.selectedArchived || !!props.busy || !!props.turnState || !props.draft.trim()}
               aria-label={props.providerStatus === 'ready' ? 'Envoyer le message' : 'Envoyer — fournisseur indisponible'}
               title={props.providerStatus === 'ready' ? 'Envoyer le message'
                 :props.providerStatus === 'no_provider'?'Fournisseur IA non configuré':'Fournisseur IA indisponible'}>

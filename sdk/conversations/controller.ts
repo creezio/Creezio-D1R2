@@ -307,12 +307,18 @@ export function createConversationsController(options:ConversationsControllerOpt
         if(olderCursor===cursor)break;
       }
       const storedDraft=object(draft);
-      let local=localDrafts.get(conversationId);
-      if(local===undefined)try{local=storage?.getItem(storageKey(`draft:${conversationId}`))??undefined;}catch{}
-      update({messages:Object.freeze([...msg].reverse()),messagesNextCursor:olderCursor,
-        draft:{conversationId,text:local??(typeof storedDraft?.text==='string'?storedDraft.text:''),
-          updatedAt:typeof storedDraft?.updatedAt==='string'?storedDraft.updatedAt:null,
-          revision:typeof storedDraft?.revision==='number'?storedDraft.revision:0}});
+      if(!storedDraft||storedDraft.conversationId!==conversationId||
+        typeof storedDraft.text!=='string'||!Number.isSafeInteger(storedDraft.revision)||
+        Number(storedDraft.revision)<0){
+        update({messages:Object.freeze([...msg].reverse()),messagesNextCursor:olderCursor});
+      }else{
+        let local=localDrafts.get(conversationId);
+        if(local===undefined)try{local=storage?.getItem(storageKey(`draft:${conversationId}`))??undefined;}catch{}
+        update({messages:Object.freeze([...msg].reverse()),messagesNextCursor:olderCursor,
+          draft:{conversationId,text:local??(storedDraft.text as string),
+            updatedAt:typeof storedDraft.updatedAt==='string'?storedDraft.updatedAt:null,
+            revision:storedDraft.revision as number}});
+      }
       let remembered:string|null=turnIds.get(conversationId)??null;
       if(!remembered)try{const value=storage?.getItem(storageKey(`turn:${conversationId}`));remembered=id(value)?value:null;}catch{}
       if(remembered&&current(stamp)&&serial===openGeneration)await controller.refreshTurn(conversationId,remembered);
@@ -369,10 +375,11 @@ export function createConversationsController(options:ConversationsControllerOpt
       return {kind:'ok',value:message as unknown as ConversationMessage};
     },
     async startTurn(conversationId,body,modelId){
-      if(snapshot.selected?.id!==conversationId||snapshot.selected.archivedAt!==null||!text(body,16000)
+      if(snapshot.selected?.id!==conversationId||snapshot.selected.archivedAt!==null||
+        snapshot.draft?.conversationId!==conversationId||!text(body,16000)
         ||!body.trim()||!id(modelId))return {kind:'rejected',code:'invalid_input'};
       const wanted=body,revision=cache.get(conversationId)?.revision??snapshot.selected.revision;
-      const draftRevision=snapshot.draft?.conversationId===conversationId?snapshot.draft.revision:0;
+      const draftRevision=snapshot.draft.revision;
       const result=await invoke('turn.start',{conversationId,messageId:crypto.randomUUID(),body:wanted,
         revision,draftRevision,modelId},true);
       if(result.kind!=='ok')return result;
@@ -498,15 +505,18 @@ export function createConversationsController(options:ConversationsControllerOpt
       return row;
     },
     setDraft(conversationId,text){
-      if(!id(conversationId)||!text.isWellFormed()||text.length>16000||snapshot.selected?.id!==conversationId)return;
+      if(!id(conversationId)||!text.isWellFormed()||text.length>16000||
+        snapshot.selected?.id!==conversationId||snapshot.draft?.conversationId!==conversationId)return;
       localDrafts.set(conversationId,text);
       try{storage?.setItem(storageKey(`draft:${conversationId}`),text);}catch{}
-      update({draft:{conversationId,text,updatedAt:snapshot.draft?.updatedAt??null,revision:snapshot.draft?.revision??0}});
+      update({draft:{...snapshot.draft,text}});
     },
     async saveDraft(conversationId,text){
       const value=text??localDrafts.get(conversationId)??snapshot.draft?.text??'';
       if(!id(conversationId)||!value.isWellFormed()||value.length>16000)return {kind:'rejected',code:'invalid_input'};
-      const result=await invoke('draft.save',{conversationId,text:value,revision:snapshot.draft?.revision??0},true);
+      if(snapshot.selected?.id!==conversationId||snapshot.draft?.conversationId!==conversationId)
+        return {kind:'rejected',code:'stale'};
+      const result=await invoke('draft.save',{conversationId,text:value,revision:snapshot.draft.revision},true);
       if(result.kind!=='ok')return result;
       const draft=result.value as unknown as ConversationDraft;
       const newer=localDrafts.get(conversationId);
