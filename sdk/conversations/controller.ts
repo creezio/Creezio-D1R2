@@ -101,6 +101,22 @@ export function createConversationsController(options:ConversationsControllerOpt
     return state.phase==='authenticated'&&session?`${session.id}:${session.principalId}:${options.audience}:${options.contextId}`:'';
   };
   const storageKey=(name:string)=>`creezio.conversations.v1:${identity}:${name}`;
+  let resumeQueued=false,resumeOpenGeneration=0;
+  const resumeIncompleteSelection=()=>{
+    if(!active||snapshot.phase!=='ready'||!identity)return;
+    const selectedId=snapshot.selected?.id??restoreSelection;
+    if(!selectedId||snapshot.draft?.conversationId===selectedId)return;
+    resumeOpenGeneration=openGeneration;
+    if(resumeQueued)return;
+    resumeQueued=true;
+    queueMicrotask(()=>{
+      resumeQueued=false;
+      if(disposed||!active||snapshot.phase!=='ready'||scope()!==identity
+        ||openGeneration!==resumeOpenGeneration)return;
+      const wanted=snapshot.selected?.id??restoreSelection;
+      if(wanted&&snapshot.draft?.conversationId!==wanted)void controller.open(wanted);
+    });
+  };
   const update=(change:Partial<ConversationsSnapshot>)=>{
     if(disposed)return;
     snapshot=Object.freeze({...snapshot,...change});
@@ -143,7 +159,10 @@ export function createConversationsController(options:ConversationsControllerOpt
       }catch{/* malformed optional state */}
       try {const remembered=storage?.getItem(storageKey('selected'));
         restoreSelection=id(remembered)?remembered:null;}catch{restoreSelection=null;}
-    } else if(snapshot.phase!=='ready')update({phase:'ready'});
+      resumeIncompleteSelection();
+    } else if(snapshot.phase!=='ready'){
+      update({phase:'ready'});resumeIncompleteSelection();
+    }
   };
   const unsubscribe=options.access.subscribe(observe);observe();
   const current=(stamp:number)=>!disposed&&active&&stamp===generation&&snapshot.phase==='ready'&&scope()===identity;
@@ -246,7 +265,7 @@ export function createConversationsController(options:ConversationsControllerOpt
       if(!value){for(const request of driveRequests)request.abort();driveRequests.clear();}
       active=value;generation++;listGeneration++;openGeneration++;turnRefreshGeneration++;
       if(!active&&snapshot.pending)update({pending:false,error:'outcome_unknown'});
-      if(active&&restoreSelection&&!snapshot.selected){const remembered=restoreSelection;void controller.open(remembered);}
+      if(active)resumeIncompleteSelection();
     },
     async refresh(){if(snapshot.phase!=='ready')return;await list({query:snapshot.searchQuery,archived:snapshot.archived},false);},
     async loadMore(){if(snapshot.nextCursor)await list({query:snapshot.searchQuery,archived:snapshot.archived,cursor:snapshot.nextCursor},true);},
@@ -561,6 +580,6 @@ export function createConversationsController(options:ConversationsControllerOpt
       for(const request of driveRequests)request.abort();driveRequests.clear();
       unsubscribe();listeners.clear();}
   };
-  if(active&&restoreSelection)queueMicrotask(()=>{if(!disposed&&restoreSelection&&active)void controller.open(restoreSelection);});
+  resumeIncompleteSelection();
   return Object.freeze(controller);
 }

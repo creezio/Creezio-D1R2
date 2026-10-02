@@ -123,6 +123,68 @@ test('selected conversation is restored only after a scoped server read and clea
   }finally{if(previous===undefined)delete globalThis.sessionStorage;else globalThis.sessionStorage=previous;}
 });
 
+test('an interrupted selected conversation resumes its draft and messages when access or activity returns',async()=>{
+  for(const interruption of ['access','activity']){
+    const a=access(), firstDraft=deferred();let draftReads=0,commands=0;
+    const client={invoke:({bindingId,input})=>{
+      if(bindingId.endsWith('conversation.read'))return Promise.resolve(execution({
+        conversation:summary(input.conversationId),provider:'no_provider'}));
+      if(bindingId.endsWith('message.list'))return Promise.resolve(execution({
+        items:[message('saved-message')],nextCursor:null}));
+      if(bindingId.endsWith('draft.read'))return ++draftReads===1?firstDraft.promise:
+        Promise.resolve(execution({conversationId:input.conversationId,text:'Brouillon conservé',
+          updatedAt:null,revision:2}));
+      commands++;throw new Error(bindingId);
+    }};
+    const controller=createConversationsController({access:a,client,audience:'app',
+      contextId:'application',active:true});
+    const opening=controller.open('thread');
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(controller.getSnapshot().selected?.title,'thread');
+    assert.equal(controller.getSnapshot().draft,null);
+    if(interruption==='access'){
+      a.set({phase:'loading',session:null,pending:null});
+      a.set({phase:'authenticated',session:{id:'session',principalId:'alice',audience:'app'},pending:null});
+    }else{controller.setActive(false);controller.setActive(true);}
+    firstDraft.resolve(execution({conversationId:'thread',text:'Ancien résultat',updatedAt:null,revision:1}));
+    await opening;
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(controller.getSnapshot().phase,'ready');
+    assert.equal(controller.getSnapshot().selected?.id,'thread');
+    assert.equal(controller.getSnapshot().draft?.text,'Brouillon conservé');
+    assert.deepEqual(controller.getSnapshot().messages.map(item=>item.id),['saved-message']);
+    assert.equal(draftReads,2);
+    assert.equal(commands,0);
+    controller.dispose();
+  }
+});
+
+test('a new selection wins over a queued restoration after access returns',async()=>{
+  const a=access(), oldDraft=deferred();
+  const client={invoke:({bindingId,input})=>{
+    if(bindingId.endsWith('conversation.read'))return Promise.resolve(execution({
+      conversation:summary(input.conversationId),provider:'no_provider'}));
+    if(bindingId.endsWith('message.list'))return Promise.resolve(execution({items:[],nextCursor:null}));
+    if(bindingId.endsWith('draft.read'))return input.conversationId==='old'?oldDraft.promise:
+      Promise.resolve(execution({conversationId:'new',text:'Nouveau brouillon',updatedAt:null,revision:1}));
+    throw new Error(bindingId);
+  }};
+  const controller=createConversationsController({access:a,client,audience:'app',
+    contextId:'application',active:true});
+  const interrupted=controller.open('old');
+  await new Promise(resolve=>setImmediate(resolve));
+  a.set({phase:'loading',session:null,pending:null});
+  a.set({phase:'authenticated',session:{id:'session',principalId:'alice',audience:'app'},pending:null});
+  const selected=controller.open('new');
+  await selected;
+  oldDraft.resolve(execution({conversationId:'old',text:'Ancien brouillon',updatedAt:null,revision:1}));
+  await interrupted;
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(controller.getSnapshot().selected?.id,'new');
+  assert.equal(controller.getSnapshot().draft?.text,'Nouveau brouillon');
+  controller.dispose();
+});
+
 test('message pages open on the newest messages and prepend older messages once',async()=>{
   const a=access(), pages=[
     {items:[message('m4')],nextCursor:'older-1'},
