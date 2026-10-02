@@ -402,6 +402,21 @@ test('routed preflight outage retains the last upload diagnostic and retry key',
   assert.equal(f.uploadCount,2);
 });
 
+test('routed sandbox drift inside the retry gate cannot erase the last upload diagnostic',async()=>{
+  const {f,prepared,unknown}=await routedUnknownFixture();
+  const preflight=f.options.registryClient.preflight;
+  f.options.registryClient.preflight=async request=>{
+    const result=await preflight(request);
+    f.setRemoteSandbox({...f.remoteSandbox,versionId:'foreign-sandbox-version'});
+    return result;
+  };
+  const pending=await f.pipeline.retryUpdate(prepared,context);
+  assert.equal(pending.phase,'delivery-unknown');
+  assert.deepEqual(pending.diagnostic,unknown.diagnostic);
+  assert.equal(f.uploadCount,1);
+  assert.equal(f.gateJournal.records.get('update-one.retry.1').state,'prepared');
+});
+
 for(const [field,value] of [
   ['url','https://wrong.example/'],['publishedSha','f'.repeat(40)]])
   test(`routed update refuses a divergent previous declaration ${field} before fencing`,async()=>{

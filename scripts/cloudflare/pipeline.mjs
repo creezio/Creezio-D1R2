@@ -1104,6 +1104,13 @@ export function createCloudflareDeliveryPipeline(options){
     const cutover=await routedCutover(record,selected,projection,registry,artifactRoot,request);
     const result=await cutover.advance();
     record=await updateJournal.load(record.updateId);
+    if(result.state!=='ready'&&record.publicationFailure
+      &&['attesting','opening','open'].includes(record.cutover?.phase)){
+      const gate=await registry.publicationJournal.get(publicationKey(record));
+      if(gate?.state==='synchronized'
+        &&exactDeclaration(gate.declaration,record.artifact,record.nextTarget.origin))
+        record=await saveUpdate(record,{publicationFailure:null});
+    }
     if(result.state==='ready'){
       const sandbox=await ensureSandbox(record,selected);
       if(!sandbox.ready)return updateStatusOf(record);
@@ -1315,16 +1322,19 @@ export function createCloudflareDeliveryPipeline(options){
     if(!sandbox.ready)return updateStatusOf(record);
     let failure=null;
     const outcome=await registry.publicationGate.publish(request,publicationKey(record),
-      async()=>{try{
+      async()=>{
         await assertSandboxConfirmed(await updateJournal.load(record.updateId),selected);
-        return await publisher.deliverPreservedUpdate({transferId:record.updateId,
-          artifact:record.artifact,sourceFingerprint:record.sourceFingerprint,
-          expectedPreviousVersionId:record.previousVersionId,
-          expectedPreviousDeploymentId:record.previousDeploymentId});
-      }catch(error){failure=publicationFailure(error);throw error;}});
+        try{
+          return await publisher.deliverPreservedUpdate({transferId:record.updateId,
+            artifact:record.artifact,sourceFingerprint:record.sourceFingerprint,
+            expectedPreviousVersionId:record.previousVersionId,
+            expectedPreviousDeploymentId:record.previousDeploymentId});
+        }catch(error){failure=publicationFailure(error);throw error;}});
     if(failure)record=await saveUpdate(record,{publicationFailure:failure});
-    if(outcome.state==='synchronized')return runRoutedCutover(record,selected,projection,
-      registry,artifactRoot,request);
+    if(outcome.state==='synchronized'){
+      if(record.publicationFailure)record=await saveUpdate(record,{publicationFailure:null});
+      return runRoutedCutover(record,selected,projection,registry,artifactRoot,request);
+    }
     return updateStatusOf(record);
   }
   /** A new, explicit publication attempt of the preserved artifact after negative remote proof. */
@@ -1363,13 +1373,14 @@ export function createCloudflareDeliveryPipeline(options){
       installationId:record.registryInstallationId,target:'cloudflare',artifact:record.artifact};
     let failure=null;
     const outcome=await registry.publicationGate.publish(request,publicationKey(record),
-      async()=>{try{
+      async()=>{
         await assertSandboxConfirmed(await updateJournal.load(record.updateId),selected);
-        return await publisher.deliverPreservedUpdate({transferId:record.updateId,
-        artifact:record.artifact,sourceFingerprint:record.sourceFingerprint,
-        expectedPreviousVersionId:record.previousVersionId,
-        expectedPreviousDeploymentId:record.previousDeploymentId});}
-      catch(error){failure=publicationFailure(error);throw error;}});
+        try{
+          return await publisher.deliverPreservedUpdate({transferId:record.updateId,
+            artifact:record.artifact,sourceFingerprint:record.sourceFingerprint,
+            expectedPreviousVersionId:record.previousVersionId,
+            expectedPreviousDeploymentId:record.previousDeploymentId});
+        }catch(error){failure=publicationFailure(error);throw error;}});
     if(outcome.state==='synchronized')record=await saveUpdate(record,
       {stage:'delivered',finalUrl:outcome.record.declaration.url,publicationFailure:null});
     else if(failure)record=await saveUpdate(record,{publicationFailure:failure});
