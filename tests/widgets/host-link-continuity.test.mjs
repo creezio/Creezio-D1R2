@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createWidgetLinkContinuity} from '../../sdk/widgets/provider.tsx';
+import {createRequire} from 'node:module';
+import {fileURLToPath} from 'node:url';
+import {build} from 'esbuild';
+
+const require=createRequire(import.meta.url);
+const bundle=await build({entryPoints:[fileURLToPath(new URL('../../sdk/widgets/provider.tsx',import.meta.url))],
+  bundle:true,platform:'node',format:'cjs',packages:'external',write:false,logLevel:'silent'});
+const module={exports:{}};
+new Function('require','module','exports',bundle.outputFiles[0].text)(require,module,module.exports);
+const {createWidgetLinkContinuity}=module.exports;
 
 const digest=`sha256-${'a'.repeat(64)}`;
 const scope=()=>({sessionId:'session_1',principalId:'principal_1',audience:'app',contextId:'application',
