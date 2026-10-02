@@ -1,5 +1,11 @@
 # T21 — Pages et navigation
 
+## Révocation et restauration publiques sur Original domix — 2 octobre 2026
+
+La page fictive existante `/recette-t21-navigation`, déjà publiée avec le PNG de 202 octets décrit ci-dessous, a servi de témoin sur l'Original domix courant. Son point de départ était brouillon révision 8, publication révision 2. Une publication native `protected` a porté le brouillon à 9 et la publication à 3 : sans cookie, la page et l'ancienne URL média ont répondu 404, tandis que le fichier privé restait lisible avec le même SHA-256. La republication `public` a porté le brouillon à 10 et la publication à 4. La page et la nouvelle URL média répondent 200 ; l'ancienne URL de révision 2 reste à 404. Sections, paramètres, SEO, fichier et navigation vide (brouillon 4/publication 2) sont identiques au point de départ ; le HTML public ne change que par la révision de l'URL média. Le navigateur a chargé les deux images en 32 × 32 et a été fermé.
+
+Le premier helper a pris l'incrément automatique de la révision du brouillon pour un changement de contenu après le succès de la publication protégée. Une lecture seule a établi l'absence de différence métier ; le lookup de la clé exacte a confirmé le succès et réconcilié le journal sans second `POST`. Une seule publication protégée et une seule restauration publique ont été émises ; les sessions API ont été déconnectées et relues à 401. Reçu hors dépôt `CREEZIO-T21-OCT2-PUBLIC-REVOCATION-FINAL.json` (SHA-256 `be85653f5e29a1258d4324b8407adcbbc6fe87904b7b5ae23d519371f0b333b7`), lié aux reçus de chaque phase et à la capture navigateur. Cette recette porte sur une page, un fichier et un contexte précis ; elle ne qualifie ni les autres formats ni une course de révocation pendant une lecture R2.
+
 ## Image privée et sections publiées sur Original — 2 octobre 2026
 
 Sur la page fictive existante d'Original domix v5/Core `252791f`, un PNG privé de 202 octets a été envoyé une fois et lié au hero ainsi qu'à une section `features`. Le brouillon passe à la révision 8, la publication à 2. Avant publication, l'image est inaccessible anonymement ; après, le HTML public conserve le canonical et la navigation vide 4/2, la route d'image rend les octets exacts et l'ancienne révision répond 404. Le navigateur anonyme affiche les deux images complètes de 32 × 32 et les deux sections, puis se ferme.

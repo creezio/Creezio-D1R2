@@ -1,5 +1,13 @@
 # Réalisation T16 — widgets des modules
 
+## Correctif candidat — focus de la confirmation après Tab et revalidation
+
+La recette Core Cloudflare d7 a trouvé les sept messages, le widget et la confirmation de lien, puis un cycle de neuf Tab sans focus sur l'ancre. Le DOM d7 rendait pourtant une ancre native focalisable immédiatement après l'iframe : le Tab lançait la relecture d'accès, démontait la confirmation, puis la continuité la recréait avec le focus retombé sur `BODY`. Le reçu hors dépôt `CREEZIO-T27-05-WIDGET-PR100-KEYBOARD-ONLY-20261002T203648512Z-c3f7486a-724b-4a0e-8825-7ba025876116.json` conserve cette limite, sans Entrée ni navigation, avec zéro POST métier et nettoyage confirmé.
+
+Le candidat attache à la continuité existante une intention de focus limitée au lien adjacent à l'iframe. Elle n'est confirmée que par un véritable `keyup` Tab avant reçu dans l'hôte après le démontage, puis annulée par toute interaction ou perte de visibilité/focus avant restauration. Le panneau ne focalise la nouvelle ancre qu'après la vérification inchangée de session, principal, audience, contexte, conversation, message, instance, ressource et catalogue, si le document est encore visible, focalisé et sans autre cible active. Entrée ou clic reste un deuxième geste nécessaire ; aucune navigation, requête MCP ou mutation n'est relancée.
+
+Le test React/Chromium hors réseau utilise le vrai composant, contrôleur et provider : Tab entraîne une relecture de session/catalogue et retire temporairement le lien, puis la nouvelle ancre reçoit le focus et Entrée ouvre l'URL locale attendue. Il couvre aussi le pointeur sans relecture, une interaction ultérieure conservant son propre focus, une revalidation non clavier sans restitution et une révocation qui supprime le lien. Ces contrôles locaux ne qualifient pas encore l'application hébergée ni un vrai changement d'onglet sous Chromium headless. Le provider de widgets reste interne à l'hôte, hors exports du SDK public.
+
 ## PR #100 livrée, conservation du fil qualifiée — 2 octobre 2026
 
 Le correctif de continuité de confirmation est intégré sur Core `d7e117a05f6a357a21caa8910bfb864287b71765`, arbre `efc40ef3dfccddf51d4fec48e6b5afce6cd5fb26`. Les CI candidate et main réussissent chacune 1 513/1 513 tests et 33 commandes. Linux et Cloudflare servent cette source, avec les mêmes D1/R2 et témoins conservés. Original domix v6 publie la source Site `a1d3c7718f7719f36f1f2b30d1ae17147489fb73`, construite depuis ce Core ; son registre est synchronisé.

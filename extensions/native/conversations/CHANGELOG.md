@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.0 — T16, focus de confirmation au retour clavier (correctif candidat)
+
+- Le retour par Tab depuis l'iframe conserve sa revalidation de session et de catalogue. Si la même proposition est restaurée, son ancre hôte reprend le focus uniquement après un Tab avant confirmé, sans ouverture automatique ; un nouveau geste Entrée reste requis.
+- Un geste intervenu pendant la relecture, la révocation ou un autre contexte supprime cette restitution de focus. Le pointeur et les gardes du lien conservent leur comportement ; la recette hébergée reste à faire.
+
 ## 0.0.0 — T16, confirmation de lien conservée pendant une relecture d'accès
 
 - Le panneau garde en mémoire une proposition HTTPS déjà affichée lorsque le retour clavier depuis l'iframe impose une relecture de session. Après montage du widget courant et vérification du catalogue, il propose de nouveau le lien sans l'ouvrir automatiquement ni rejouer `app.openLink`.
