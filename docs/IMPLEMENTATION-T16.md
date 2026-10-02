@@ -1,5 +1,13 @@
 # Réalisation T16 — widgets des modules
 
+## PR #103 livrée et geste clavier observé — 3 octobre 2026
+
+Le correctif décrit dans la section suivante est intégré sur main `8756f0082c0048e771afd4f487afd0f2844b3ed2` (CI 1 524/1 524 tests et 33 commandes). Linux, Original Sites v7 et Core Cloudflare le servent. La recette navigateur Cloudflare réutilise les sept messages et le widget Checkout TEST existants, sans nouveau tour IA ni nouvelle session d'achat. Un vrai Tab depuis l'iframe déclenche les relectures session/catalogue, chacune à 200 ; l'ancre recréée reçoit réellement le focus et conserve le `href` exact de la session relue. Entrée ouvre ensuite une popup Stripe. Le Checkout reste `open`/`unpaid`, sans abonnement, avec zéro POST métier et déconnexion confirmée.
+
+Le reçu de cette recette reste **`stopped`** : son assertion finale attendait une empreinte d'URL complète que le collecteur de requêtes n'a pas enregistrée. Requête de navigation et popup correspondent toutes deux à l'URL attendue sans fragment ; leurs empreintes complètes diffèrent. Le transfert de focus, la revalidation et l'ouverture volontaire sont donc observés, mais l'égalité complète des URL n'est pas attestée. Cette limite du helper n'ajoute aucun critère au cahier des charges. Aucun nouveau parcours ni correctif produit n'a été lancé pour cette seule assertion.
+
+Preuves hors dépôt : `CREEZIO-T27-LIVE-PR103-20261002T223816405Z-d8489c5c-c5af-426e-993d-f2f32387adce.json` (Worker `b0583aa8`, déploiement `9e671964`, 100 %) ; `CREEZIO-T27-05-WIDGET-PR103-KEYBOARD-ONLY-20261002T223825998Z-ccdb6726-dfd0-447e-a3d2-eb119a543b58.json`, SHA-256 `b9366e852c2f139169db2dac45ab4a1ebc746568b1ef23501d556c058426761e` ; conclusion `CREEZIO-T16-PR103-KEYBOARD-ONLY-RESULT-2026-10-02.md`. Les autres modes, approbations et critères T16 conservent leurs recettes distinctes.
+
 ## Correctif candidat — focus de la confirmation après Tab et revalidation
 
 La recette Core Cloudflare d7 a trouvé les sept messages, le widget et la confirmation de lien, puis un cycle de neuf Tab sans focus sur l'ancre. Le DOM d7 rendait pourtant une ancre native focalisable immédiatement après l'iframe : le Tab lançait la relecture d'accès, démontait la confirmation, puis la continuité la recréait avec le focus retombé sur `BODY`. Le reçu hors dépôt `CREEZIO-T27-05-WIDGET-PR100-KEYBOARD-ONLY-20261002T203648512Z-c3f7486a-724b-4a0e-8825-7ba025876116.json` conserve cette limite, sans Entrée ni navigation, avec zéro POST métier et nettoyage confirmé.
