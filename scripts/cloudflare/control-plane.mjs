@@ -5,13 +5,22 @@ const NAME = /^[a-z][a-z0-9-]{1,62}[a-z0-9]$/;
 const MAX_RESULT = 2 * 1024 * 1024;
 
 export class CloudflareControlError extends Error {
-  constructor(code, status = null) {
+  constructor(code, status = null, providerCodes = [], explicitRefusal = false) {
     super(`Cloudflare control plane ${code}.`);
     this.name = 'CloudflareControlError'; this.code = code; this.status = status;
+    this.providerCodes = Object.freeze([...providerCodes]); this.explicitRefusal = explicitRefusal;
   }
 }
-const fail = (code, status) => { throw new CloudflareControlError(code, status); };
+const fail = (code, status, providerCodes, explicitRefusal) => {
+  throw new CloudflareControlError(code, status, providerCodes, explicitRefusal);
+};
 const nameOK = value => typeof value === 'string' && NAME.test(value);
+function refusalCodes(value) {
+  const errors = value?.errors;
+  return value?.success === false && Array.isArray(errors) && errors.length > 0 && errors.length <= 8
+    && errors.every(item => Number.isSafeInteger(item?.code) && item.code >= 1000 && item.code <= 999999999)
+    ? [...new Set(errors.map(item => item.code))] : [];
+}
 
 async function readJson(response) {
   const reader = response.body?.getReader();
@@ -52,7 +61,14 @@ export function createCloudflareControlPlane({accountId, token, fetcher = fetch}
     if (!response || response.redirected || response.status >= 300 && response.status < 400) fail('refused', response?.status);
     if (missing && response.status === 404) return null;
     const value = await readJson(response);
-    if (!response.ok || value?.success !== true) fail('refused', response.status);
+    if (!response.ok || value?.success !== true) {
+      const providerCodes = refusalCodes(value);
+      // A structured 4xx response is a definite provider refusal, not necessarily a quota refusal.
+      // Timeouts, rate limits, malformed envelopes and server errors remain uncertain.
+      const explicitRefusal = response.status >= 400 && response.status < 500
+        && response.status !== 408 && response.status !== 429 && providerCodes.length > 0;
+      fail('refused', response.status, providerCodes, explicitRefusal);
+    }
     return value;
   }
   async function verifyToken(scope) {

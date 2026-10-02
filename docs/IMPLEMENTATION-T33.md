@@ -1,5 +1,11 @@
 # T-33 — Stockages distincts hors Sites
 
+## Refus fournisseur pendant le provisionnement T32/T33 — 2 octobre 2026
+
+Une réponse Cloudflare 4xx structurée avec `success:false` et des codes numériques d'erreur est conservée comme refus fournisseur **seulement si** la lecture suivante confirme l'absence de la D1 ou du bucket demandé. Le journal garde l'intention, le statut HTTP, les codes numériques non secrets et, lors d'un refus R2, l'identité de la D1 déjà créée. L'opérateur reçoit `provision_d1_refused` ou `provision_r2_refused` (409) ; aucune autre création, publication, affectation de binding, suppression ou bascule vers Sites n'est déclenchée. Une réponse perdue, un 408/429/5xx, une enveloppe non reconnue, une inspection en échec ou l'apparition d'une ressource restent `provision_unknown` et interdisent également un second POST implicite. Une reprise ultérieure relit les ressources : si une ressource apparaît après un refus initial, le résultat redevient inconnu.
+
+Ce refus n'est **pas** classé « quota épuisé » : aucun code de quota de création D1/R2 suffisamment établi n'est utilisé. Le provisionneur ne mesure ni la capacité restante du compte ni les quotas personnalisés. Une D1 créée avant un refus R2 reste une allocation partielle identifiée par son journal, à traiter par une décision opérateur distincte ; elle n'est pas supprimée automatiquement. Les tests utilisent des réponses fournisseur simulées et ne prouvent aucun refus quota réel.
+
 ## État réel du 2 octobre 2026 — installation T33 isolée
 
 L'installation T33 utilise le même volume Linux, l'UUID de stockage et les trois couples D1/R2 déjà inscrits ; T32 demeure séparé. Après la livraison intermédiaire du Core `7b606f579d3a813742cde48c375ec0ebb7e43d8d`, l'image issue de `main` `6921f5debd4a07801bbe2d87744a0555a08954db` (arbre `5e7bb465e969d94d1cb5997283d8091cb67fbc33`) a été activée sur ce volume. Le plan SQL a été appliqué par la commande native sur le principal et les deux cibles, avec zéro nouvelle table, colonne ou index ; aucun SQL manuel, transfert de données ou réinitialisation n'a été nécessaire.

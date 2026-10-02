@@ -1,5 +1,10 @@
 # Changelog
 
+## Refus de provisionnement Cloudflare — 2 octobre 2026
+
+- Les refus structurés de création D1/R2 sont distingués des réponses perdues lorsque l'absence de la ressource est confirmée. Le journal conserve les codes numériques et toute D1 déjà créée ; l'opérateur reçoit un code de refus propre à la ressource.
+- Une inspection indisponible ou une ressource apparue conserve un résultat inconnu. Aucune seconde création, suppression ou publication n'est déclenchée automatiquement. Ce diagnostic ne prétend pas mesurer les quotas disponibles.
+
 ## Guides de contribution et de diagnostic — 2 octobre 2026
 
 - Les missions explicitent leur exigence, résultat attendu, sources réutilisables et condition de fin. Les revues distinguent défaut de conformité et amélioration facultative ; les critères produit, l'interface Creezio originale et les reports utilisateur restent inchangés.

@@ -1,5 +1,15 @@
 # Backlog de réalisation
 
+## Compléments vérifiés le 2 octobre 2026 après PR #101
+
+- **Guides intégrés** : PR #101/main `275a846`, CI après fusion vérifiée à 1 513/1 513 tests et 33 commandes réussies. Les conventions rappellent la référence UI originale, les missions bornées, les contrôles adaptés au changement et le diagnostic avant répétition. Cette fusion documentaire n'exige aucun redéploiement.
+- **T18** : l'inventaire natif des deux boîtes Linux T32 sous Core `d7e117a` ne contient aucun message. La suppression hébergée et le lien Support vers un message réel restent en attente de réception ; aucun fournisseur reporté n'est réactivé pour fabriquer ce témoin. Reçu `CREEZIO-T18-OCT2-LINUX-INVENTORY-V2.json`.
+- **T22** : export JSON et CSV d'un événement existant vérifié sur Linux T32, avec mêmes données et contrôles de session ; voir [la portée de cette recette](IMPLEMENTATION-T22.md#export-non-vide-sur-linux--2-octobre-2026). L'instrumentation plus large et Work restent distincts.
+- **T20/T28** : les six ressources widget CRM sont servies et relues, sans preuve de rendu chat déduite de leur présence. L'historique Linux de recherche contient un widget Catalogue et aucun widget Meili ; les recettes visuelles correspondantes sont en cours, sans répéter indexation, kanban ou relations déjà vérifiés.
+- **T33** : la lecture B, son fichier et son brouillon sont conservés ; A reste désactivé. La lecture primaire refuse cette identité à 403. Les lectures du compte établissent une capacité nominale, sans garantir une allocation future. Le diagnostic du traitement des refus fournisseur a établi un manque : ils sont actuellement confondus avec les réponses perdues. Correction ciblée en préparation, sans nouvelle allocation ni reprise artificielle d'un déploiement livré.
+
+Les preuves ci-dessous restent applicables à leurs versions et périmètres. Les reports utilisateur et la validation T39 ne changent pas.
+
 ## État vérifié du 2 octobre 2026 — livraisons PR #100
 
 - **Source intégrée** : PR #100/main `d7e117a`, arbre `efc40ef3`, CI candidate et main à 1 513/1 513 tests et 33 commandes réussies. Aucun nouveau SDK public n'est publié par cette tranche.

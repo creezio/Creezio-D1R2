@@ -41,6 +41,12 @@ const validationRejected=record=>record.publicationFailure?.phase==='wrangler'
   &&Array.isArray(record.publicationFailure?.apiCodes)
   &&record.publicationFailure.apiCodes.includes(10021);
 const fail=(code,status=503)=>{throw Object.assign(new Error(`Delivery pipeline ${code}.`),{code,status});};
+function requireProvisioned(result){
+  if(result?.state==='refused'&&['d1','r2'].includes(result.resource))
+    fail(`provision_${result.resource}_refused`,409);
+  if(result?.state!=='ready')fail('provision_unknown',409);
+  return result;
+}
 const exact=(value,keys)=>value&&typeof value==='object'&&!Array.isArray(value)
   &&[Object.prototype,null].includes(Object.getPrototypeOf(value))
   &&Object.keys(value).sort().join(',')===[...keys].sort().join(',');
@@ -327,8 +333,7 @@ export function createCloudflareDeliveryPipeline(options){
       ||connection.workerName!==record.workerName||connection.tokenId!==record.tokenId)
       fail('connection_changed',409);
     const p=provisionPlan(connection,record.transferId);
-    const ready=await provisionerFactory({control:connection.control}).provision(p);
-    if(ready.state!=='ready')fail('provision_unknown',409);
+    const ready=requireProvisioned(await provisionerFactory({control:connection.control}).provision(p));
     let target=targetFromProvision(p,ready,connection.subdomain);
     if(config.storageInstallationId){
       if(!Array.isArray(config.storageResources)||!config.storageResources.length
@@ -337,8 +342,7 @@ export function createCloudflareDeliveryPipeline(options){
       const resources=[];
       for(const resource of config.storageResources){
         const pairPlan=routedProvisionPlan(connection,record.transferId,resource);
-        const pairReady=await provisionerFactory({control:connection.control}).provision(pairPlan);
-        if(pairReady.state!=='ready')fail('provision_unknown',409);
+        const pairReady=requireProvisioned(await provisionerFactory({control:connection.control}).provision(pairPlan));
         const pair=checkedProvision(pairPlan,pairReady,connection.subdomain);
         resources.push({contextId:resource.contextId,slot:resource.slot,status:'active',
           databaseId:pair.databaseId,databaseName:pairPlan.databaseName,bucketName:pairPlan.bucketName});
@@ -929,9 +933,8 @@ export function createCloudflareDeliveryPipeline(options){
       }
       if(local.status!=='active')fail('storage_inventory_changed',409);
       const p=routedProvisionPlan(selected,record.updateId,local);
-      const ready=await provisionerFactory({control:selected.control,
-        assertWorker:async()=>{await assertPrevious(record,selected,registry);}}).provision(p);
-      if(ready.state!=='ready')fail('provision_unknown',409);
+      const ready=requireProvisioned(await provisionerFactory({control:selected.control,
+        assertWorker:async()=>{await assertPrevious(record,selected,registry);}}).provision(p));
       const pair=checkedProvision(p,ready,selected.subdomain);
       resources.push({contextId:local.contextId,slot:local.slot,status:'active',
         databaseId:pair.databaseId,databaseName:p.databaseName,bucketName:p.bucketName});
