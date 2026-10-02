@@ -1,5 +1,9 @@
 # Repères du dépôt
 
+`scripts/cloudflare/transfer/journal.ts` valide les checkpoints du couple principal et des captures routées, y compris leur contexte et leur clôture de route ; `tests/cloudflare/transfer-journal.test.mjs` vérifie le CAS et les refus de forme, et `tests/cloudflare/transfer-routed-source.test.mjs` couvre capture, import, vérification et reprise idempotente. Cette correction candidate T33 ne modifie ni la source applicative b9 ni les journaux distants ; voir [T33](docs/IMPLEMENTATION-T33.md).
+
+`adapters/docker/serve.mjs` expose `--application-root <absolute path>` pour placer la source applicative vérifiée hors du code de l'opérateur ; `tests/local/docker.test.mjs` couvre refus de chemin, source altérée et verrou de dépendances différent avant les proxys, puis transmission du root exact. Le démarrage Docker sans option conserve son comportement courant.
+
 La projection des lectures du chat est dans `core/providers/tools.ts`. `core/operations/http.ts` transmet les connecteurs compilés à `core/conversations/turn-bridge.ts`, qui reprojette les outils avant leur invocation. Les tests `tests/openai/provider-host.test.mjs` et `tests/openai/turn-bridge.test.mjs` couvrent ce chemin ; aucune nouvelle implémentation de connecteur, de moteur ou de module n'est créée pour le correctif Meili.
 
 `app/access/operation-refusal.ts` distingue les refus des lectures facultatives du workspace/front des erreurs exigeant une revalidation globale. Ses appelants restent `app/workspace/host.tsx` et `app/front/host.tsx` ; `tests/workspace/operation-refusal.test.mjs` couvre les refus facultatifs, les vrais refus de session et les autres opérations. Aucun contrat SDK, modèle ou manifeste de module ne change.

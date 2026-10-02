@@ -34,3 +34,30 @@ test('transfer checkpoints are bounded, atomic and compare-and-swap guarded',asy
     multipart:{...pending.multipart,pendingPart:{...pending.multipart.pendingPart,md5:'invalid'}}}),
   error=>error.code==='invalid_state');
 });
+
+test('routed checkpoint retains its exact context and fence across CAS',async t=>{
+  const directory=temporaryDirectory(t,'creezio-routed-journal-');
+  const journal=createFileTransferJournal(directory);
+  const routeFence={installationId:'installation-one',contextId:'tenant-a',slot:1,
+    mutationId:'mutation-one',commandDigest:hash,expectedGeneration:3};
+  const routedIdentity={...identity,transferId:'transfer-routed:s1',
+    sourceContextId:'tenant-a',routeFence};
+  const routed={...first,identity:routedIdentity};
+  await journal.create(routed);
+  assert.deepEqual(await journal.load(routedIdentity.transferId),routed);
+  const next={...routed,revision:2,phase:'schema-ready',targetSchemaReceiptId:hash};
+  await journal.compareAndSave(routed,next);
+  assert.deepEqual(await journal.load(routedIdentity.transferId),next);
+  await assert.rejects(journal.create({...routed,identity:{...routedIdentity,
+    transferId:'invalid-context:s1',sourceContextId:'tenant-b'}}),
+  error=>error.code==='invalid_state');
+  await assert.rejects(journal.create({...routed,identity:{...routedIdentity,
+    transferId:'missing-fence:s1',routeFence:undefined}}),
+  error=>error.code==='invalid_state');
+  await assert.rejects(journal.create({...routed,identity:{...routedIdentity,
+    transferId:'foreign-field:s1',unexpected:'field'}}),
+  error=>error.code==='invalid_state');
+  await assert.rejects(journal.create({...routed,identity:{...routedIdentity,
+    transferId:'numeric-fence:s1',routeFence:{...routeFence,installationId:123}}}),
+  error=>error.code==='invalid_state');
+});

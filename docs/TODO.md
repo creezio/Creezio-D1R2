@@ -1,5 +1,9 @@
 # Backlog de réalisation
 
+## Correctif candidat T33 — journal routé, 2 octobre 2026
+
+Le transfert Cloudflare préparé sur Core b9 reste `schema-ready` : checkpoint primaire `verified`, captures et schémas A/B présents, aucun checkpoint A/B. Le journal refusait l'identité routée avec `sourceContextId` et `routeFence`. Le correctif candidat passe trois tests ciblés dans l'image Linux isolée, dont capture/import/vérification et reprise sans second upload. L'entrée Docker explicite pour source applicative séparée et verrou de dépendances identique passe 12 tests locaux ciblés. Qualifier la disposition image opérateur corrigé/source b9 portable/volume conservé avant une nouvelle réconciliation réelle, sans réimporter le primaire. Voir [T33](IMPLEMENTATION-T33.md#correctif-candidat-du-journal-de-transfert-routé--2-octobre-2026).
+
 ## Révision du 2 octobre 2026 — preuves bornées de Core b9 et Original Sites v7
 
 - T27 : la candidate 0.4.0 ajoute la commande administrative réversible `subscription.cancel.set` et conserve `subscription.cancel.schedule`. Les paiements TEST, l'événement projeté et les deux arrêts programmés sous 0.3.1 restent acquis ; le maintien avant échéance doit recevoir sa propre recette après livraison. Mode live, prix/quantité et parcours d'achat client restent hors de cette tranche.
