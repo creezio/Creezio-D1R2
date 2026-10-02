@@ -1,5 +1,11 @@
 # Réalisation T16 — widgets des modules
 
+## Correctif candidat — reprise du fil sélectionné, 2 octobre 2026
+
+Sur Original, la recette navigateur a retrouvé le titre du fil après rechargement, mais pas son brouillon ni sa pièce jointe pendant 20 secondes ; une nouvelle sélection manuelle a relu les données conservées. Le contrôleur publiait le titre avant les lectures de messages et de brouillon. Une transition d’accès ou d’activité pouvait invalider ces lectures en gardant la sélection partielle, sans nouvelle tentative. Le correctif relit ce même fil sous la session, l’audience et le contexte courants lorsque l’accès redevient prêt ; une sélection manuelle plus récente garde la priorité. La liste des pièces jointes attend la fin de cette lecture. Aucune commande métier, aucun tour et aucun appel au fournisseur ne sont rejoués.
+
+Le test du contrôleur reproduit le défaut avant correction, puis vérifie la reprise et la priorité d’un nouveau choix ; 15 tests ciblés et les six suites du module passent localement. Le commit candidat `d4a7909` ne vaut ni livraison sur Original ni recette navigateur corrigée. La qualification CI, la publication et la relecture du témoin hébergé restent ouvertes.
+
 ## Correctif candidat — historique sans droit OpenAI, 2 octobre 2026
 
 Une lecture facultative de configuration OpenAI refusée à 403 ne doit pas révoquer les onglets du workspace quand la session et les droits Conversations restent valides. Le même principe couvre la liste facultative des modèles, pour les audiences admin et app. La lecture de l'historique Conversations peut interroger la disponibilité du fournisseur sans droit `creezio.openai:use` : après vérification de la session, du contexte et de la route courante, elle reçoit seulement `unavailable` et une liste de modèles vide. Le contenu de configuration et les secrets ne sont pas lus. L'ouverture d'un transport OpenAI conserve l'autorisation `creezio.openai:use` et ses contrôles frais ; un nouveau tour ne démarre pas sans fournisseur disponible. Les refus de session et les refus des opérations Conversations continuent à déclencher la revalidation globale. Les tests ciblés D1/R2 et workspace couvrent ces frontières ; la recette navigateur du cas T33 reste à faire après livraison.
