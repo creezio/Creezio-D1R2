@@ -1,5 +1,9 @@
 # Changelog
 
+## Correctif candidat T33 — checkpoint de transfert routé
+
+- Le journal accepte l'identité de capture routée uniquement avec `sourceContextId` et `routeFence` cohérents ; l'identité du couple principal reste exacte. Trois tests ciblés passent dans une image Linux isolée, dont capture/import/vérification et reprise sans second upload. L'entrée Docker `--application-root` vérifie une source applicative distincte et le même verrou de dépendances avant les proxys ; 12 tests locaux ciblés passent. La reprise du transfert Cloudflare b9 attend la qualification du déploiement opérateur/source séparés.
+
 ## Candidate Stripe 0.4.0 — maintien d'un abonnement avant son échéance
 
 - Le connecteur permet de programmer ou de retirer l'arrêt en fin de période d'un abonnement TEST. La nouvelle opération `subscription.cancel.set` conserve le contrat `subscription.cancel.schedule` déjà distribué ; les droits administratifs et le journal commun restent applicables.
