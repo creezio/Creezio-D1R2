@@ -34,6 +34,10 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
   onContextAction?: ConversationsController['changeWidgetContext']}) {
   const host = useWidgetHost();
   const iframe = useRef<HTMLIFrameElement>(null);
+  const linkAnchor = useRef<HTMLAnchorElement>(null);
+  const restoredLinkFocus = useRef<string | null>(null);
+  const restoreFocusGuard = useRef<(() => void) | null>(null);
+  const keyboardTabCandidate = useRef<string | null>(null);
   const bridge = useRef<McpAppsBridge | null>(null);
   const proposeRef = useRef(props.onProposeText);
   const contextRef = useRef(props.onContextAction);
@@ -50,6 +54,20 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
   const linkGate = useRef<HostOpenLinkGate | null>(null);
   const instanceSignature = JSON.stringify(props.instance);
   const config = host?.configuration;
+  useEffect(() => {
+    if (!linkPrompt) {keyboardTabCandidate.current = null; return;}
+    const frame = iframe.current, link = linkAnchor.current;
+    if (frame && link && document.activeElement === frame && link.tabIndex === 0 &&
+      frame.nextElementSibling?.querySelector('a[href],button,[tabindex]') === link &&
+      !link.closest('[inert],[aria-hidden="true"]')) keyboardTabCandidate.current = linkPrompt.id;
+    if (restoredLinkFocus.current !== linkPrompt.url) return;
+    restoreFocusGuard.current?.();
+    restoredLinkFocus.current = null;
+    if (props.active && host?.phase === 'ready' && host.access.getSnapshot().phase === 'authenticated' &&
+      document.visibilityState === 'visible' && document.hasFocus() &&
+      document.activeElement === document.body && linkAnchor.current?.isConnected)
+      linkAnchor.current.focus({preventScroll: true});
+  }, [linkPrompt, host, props.active]);
   const entry = config?.widgets.find(item => item.moduleId === props.instance.moduleId &&
     item.widgetId === props.instance.widgetId && item.version === props.instance.widgetVersion &&
     item.resourceUri === props.instance.resourceUri && item.resourceDigest === props.instance.resourceDigest &&
@@ -182,6 +200,17 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
       linkPromptRef.current = prompt; setLinkPrompt(prompt);
     }});
     linkGate.current = links;
+    const onWindowBlur = (event: FocusEvent) => {
+      const link = linkAnchor.current, prompt = linkPromptRef.current;
+      // The confirmation link is the first host tab stop following this iframe.
+      const next = node.nextElementSibling?.querySelector('a[href],button,[tabindex]');
+      const eligible = event.isTrusted && prompt && link && next === link &&
+        document.activeElement === node && link.tabIndex === 0 &&
+        !link.closest('[inert],[aria-hidden="true"]') &&
+        document.visibilityState === 'visible' && document.hasFocus();
+      keyboardTabCandidate.current = eligible ? prompt.id : null;
+    };
+    window.addEventListener('blur', onWindowBlur, true);
     const callTool = async (params: CallToolRequest['params']): Promise<CallToolResult> => {
       if (!isCurrent()) return toolResult('rejected', 'widget_inactive');
       const tool = entry.serverTools.find(item => item.toolName === params.name &&
@@ -371,17 +400,40 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
         bridge.current = mounted;
         setStatus(pendingRef.current ? 'Résultat incertain. Vérifiez avant de réessayer.' :
           approvalDraftRef.current ? 'Confirmation à vérifier…' : 'Widget prêt.');
+        const resumeKeyboardFocus = host.keyboardLinkFocus(linkScope);
         const continued = host.takeLink(linkScope);
         if (continued) {
+          if (resumeKeyboardFocus) {
+            restoredLinkFocus.current = continued;
+            const cancelFocus = () => {restoredLinkFocus.current = null; cleanupFocusGuard();};
+            const cleanupFocusGuard = () => {
+              document.removeEventListener('keydown', cancelFocus, true);
+              document.removeEventListener('pointerdown', cancelFocus, true);
+              document.removeEventListener('focusin', cancelFocus, true);
+              document.removeEventListener('visibilitychange', cancelFocus);
+              window.removeEventListener('blur', cancelFocus);
+              restoreFocusGuard.current = null;
+            };
+            restoreFocusGuard.current = cleanupFocusGuard;
+            document.addEventListener('keydown', cancelFocus, true);
+            document.addEventListener('pointerdown', cancelFocus, true);
+            document.addEventListener('focusin', cancelFocus, true);
+            document.addEventListener('visibilitychange', cancelFocus);
+            window.addEventListener('blur', cancelFocus);
+          }
           setStatus('Ce widget demande l’ouverture d’un lien externe. Confirmez dans Creezio.');
           void links.request(continued);
         }
       } catch {if (!cancelled) setStatus('Widget indisponible.');}
     })();
     return () => {
+      restoreFocusGuard.current?.();
       const prompt = linkPromptRef.current, snapshot = host.access.getSnapshot();
       if (prompt && snapshot.phase === 'loading' && !snapshot.pending)
-        host.retainLink(linkScope, prompt.url, config, linkGeneration);
+        host.retainLink(linkScope, prompt.url, config, linkGeneration,
+          keyboardTabCandidate.current === prompt.id && document.visibilityState === 'visible' &&
+          document.hasFocus());
+      window.removeEventListener('blur', onWindowBlur, true);
       cancelled = true;
       links.dispose();if (linkGate.current === links) linkGate.current = null;
       const current = bridge.current; bridge.current = null;
@@ -495,6 +547,7 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
       <p className="mt-1 break-all text-[11px] text-sky-950">{linkPrompt.url}</p>
       <div className="mt-2 flex gap-3 text-xs">
         <a href={linkPrompt.url} target="_blank" rel="noopener noreferrer"
+          ref={linkAnchor}
           className="rounded bg-sky-700 px-2 py-1 text-white"
           onClick={event => {
             const current = linkGate.current?.accept(linkPrompt.id) ?? false;

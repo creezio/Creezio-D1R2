@@ -35,7 +35,8 @@ test('external links require an active host confirmation and a click on the host
   assert.ok(source.indexOf('bridge.current = mounted;') < source.indexOf('host.takeLink(linkScope)'),
     'a held link is offered only after the fresh widget resource and bridge mount');
   assert.match(source,/const linkGeneration = host\.linkGeneration\(\)/u);
-  assert.match(source,/host\.retainLink\(linkScope, prompt\.url, config, linkGeneration\)/u);
+  assert.match(source,/host\.retainLink\(linkScope, prompt\.url, config, linkGeneration,/u);
+  assert.match(source,/host\.keyboardLinkFocus\(linkScope\)/u);
   assert.match(source,/openLink: async \(url, signal\) =>/u);
   assert.match(source,/<a href=\{linkPrompt\.url\} target="_blank" rel="noopener noreferrer"/u);
   assert.match(source,/linkGate\.current\?\.accept\(linkPrompt\.id\)/u);

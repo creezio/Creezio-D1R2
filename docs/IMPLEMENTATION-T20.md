@@ -1,5 +1,13 @@
 # T20 — CRM natif
 
+## État récent sur Original domix — 2 octobre 2026
+
+Dans le contexte `t20-oct2-a`, les widgets natifs `company-list` et `prospect-detail` ont été affichés dans le chat Original, puis relus par leurs actions directes et après rechargement. Leurs sources sont les lectures `crm_company_search` et `crm_prospect_read` des fiches fictives existantes. Reçu hors dépôt : `CREEZIO-T20-ORIGINAL-WIDGETS-UI-READBACK-VERIFY.json` (SHA-256 `5fecaa8e22bb5d7dcd44a617a91e425a3a4f9c14622b54f1ee3beb3757ecb6e8`). Cette preuve concerne ces deux widgets dans le chat Original ; elle ne couvre pas les quatre autres widgets ni un client MCP externe.
+
+Le conflit de formulaire a ensuite été observé sur l'entreprise A existante avec deux onglets : l'enregistrement récent a été conservé, l'envoi fondé sur une révision périmée a été refusé, puis le contenu métier initial a été restauré. La référence de lecture actuelle en A est entreprise révision 9, contact révision 6 et prospect révision 6 ; B reste inchangé. Reçu `CREEZIO-T20-ORIGINAL-CRM-UI-CONFLICT.json` (SHA-256 `c7165f048687f89e387ba638b7983552da49ae8135e488c49daeca63309417ae`). Les sessions et navigateurs de ces recettes sont fermés.
+
+Le prévol MCP hébergé sur ce même Original a trouvé la métadonnée OAuth de `/mcp/app` (200), avec `creezio.crm:use`, et le refus de `initialize` anonyme (401 `authentication_required`). Aucun bearer OAuth ou API token MCP déjà utilisable pour ce contexte n'est enregistré dans le dossier de cette tâche ; le grant du chat n'en fournit que les métadonnées. Les lectures authentifiées des deux outils, leurs ressources et les refus hors droit ou hors contexte n'ont donc pas été exécutés. Aucun nouveau credential, droit ou compte n'a été créé. Reçus hors dépôt : `CREEZIO-T20-OCT2-ORIGINAL-MCP-PREFLIGHT.json` et `CREEZIO-T20-OCT2-ORIGINAL-MCP-GAP.md`.
+
 ## Relations par les sélecteurs et refus croisés — 2 octobre 2026
 
 Sur Original domix v6/Core `d7e117a`, les formulaires existants du contact et du prospect A ont effectué quatre mises à jour : retrait puis rétablissement de l'entreprise du contact, ajout puis retrait des deux liens du prospect. Les recherches et sélections des références ont été effectuées dans l'interface. Deux tentatives API de liaison vers B ont été refusées avec `not_found`, sans changement ; les quatre mutations autorisées et les deux refus ont chacun une intention conservée, sans rejeu.

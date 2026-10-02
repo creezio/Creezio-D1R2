@@ -44,7 +44,9 @@ export interface WidgetHostValue extends WidgetHostState {
   refresh(): Promise<void>;
   loadResource(uri: string, digest: string, profileId: string): Promise<CompiledWidgetResource | null>;
   linkGeneration(): number;
-  retainLink(scope: WidgetLinkScope, url: string, previous: WidgetHostConfiguration, generation: number): boolean;
+  retainLink(scope: WidgetLinkScope, url: string, previous: WidgetHostConfiguration,
+    generation: number, keyboardCandidate?: boolean): boolean;
+  keyboardLinkFocus(scope: WidgetLinkScope): boolean;
   takeLink(scope: WidgetLinkScope): string | null;
   discardLinksForConversation(conversationId: string): void;
 }
@@ -92,12 +94,13 @@ export function createWidgetLinkContinuity(options: {now?: () => number;
   const now = options.now ?? Date.now, schedule = options.schedule ?? setTimeout;
   const unschedule = options.unschedule ?? clearTimeout;
   const held = new Map<string, {scope: WidgetLinkScope; url: string; catalogSignature: string; expiresAt: number;
-    timer: ReturnType<typeof setTimeout>}>();
+    timer: ReturnType<typeof setTimeout>; keyboardUntil: number; restoreFocus: boolean}>();
   let generation = 0;
   const remove = (key: string) => {const item = held.get(key); if (item) {unschedule(item.timer); held.delete(key);}};
   return {
     generation: () => generation,
-    retain(scope: WidgetLinkScope, url: string, previous: WidgetHostConfiguration, expectedGeneration: number): boolean {
+    retain(scope: WidgetLinkScope, url: string, previous: WidgetHostConfiguration,
+      expectedGeneration: number, keyboardCandidate = false): boolean {
       const normalized = normalizeWidgetOpenLink(url), key = linkScopeKey(scope);
       const catalogSignature = linkCatalogSignature(scope, previous);
       if (expectedGeneration !== generation || !normalized || normalized !== url || !catalogSignature) return false;
@@ -108,8 +111,21 @@ export function createWidgetLinkContinuity(options: {now?: () => number;
       remove(key);
       const expiresAt = now() + 60_000;
       const timer = schedule(() => {held.delete(key);}, 60_000);
-      held.set(key, {scope, url, catalogSignature, expiresAt, timer});
+      held.set(key, {scope, url, catalogSignature, expiresAt, timer,
+        keyboardUntil: keyboardCandidate ? now() + 1000 : 0, restoreFocus: false});
       return true;
+    },
+    confirmForwardTab() {
+      for (const item of held.values()) if (item.keyboardUntil && now() <= item.keyboardUntil) {
+        item.keyboardUntil = 0; item.restoreFocus = true;
+      }
+    },
+    cancelFocus() {
+      for (const item of held.values()) {item.keyboardUntil = 0; item.restoreFocus = false;}
+    },
+    keyboardFocus(scope: WidgetLinkScope): boolean {
+      const item = held.get(linkScopeKey(scope));
+      return !!item?.restoreFocus && now() < item.expiresAt;
     },
     take(scope: WidgetLinkScope, config: WidgetHostConfiguration | null, session: AccessSession | null): string | null {
       const key = linkScopeKey(scope), item = held.get(key);
@@ -206,6 +222,32 @@ export function WidgetHostProvider(props: {origin: string; audience: AccessAudie
     setRevision(value => value + 1);
   }), [props.access, linkContinuity]);
   useEffect(() => () => linkContinuity.clear(), [linkContinuity]);
+  useEffect(() => {
+    const cancel = () => linkContinuity.cancelFocus();
+    const keyDown = (event: KeyboardEvent) => {if (event.isTrusted) cancel();};
+    const keyUp = (event: KeyboardEvent) => {
+      if (!event.isTrusted) return;
+      if (event.key === 'Tab' && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey &&
+        document.visibilityState === 'visible' &&
+        document.hasFocus() && document.activeElement === document.body)
+        linkContinuity.confirmForwardTab();
+      else cancel();
+    };
+    document.addEventListener('keydown', keyDown, true);
+    document.addEventListener('keyup', keyUp, true);
+    document.addEventListener('pointerdown', cancel, true);
+    document.addEventListener('focusin', cancel, true);
+    document.addEventListener('visibilitychange', cancel);
+    window.addEventListener('blur', cancel);
+    return () => {
+      document.removeEventListener('keydown', keyDown, true);
+      document.removeEventListener('keyup', keyUp, true);
+      document.removeEventListener('pointerdown', cancel, true);
+      document.removeEventListener('focusin', cancel, true);
+      document.removeEventListener('visibilitychange', cancel);
+      window.removeEventListener('blur', cancel);
+    };
+  }, [linkContinuity]);
   const session = sessionNow(props.access);
   const sessionKey = session ? `${session.id}:${session.principalId}` : '';
   const refresh = useCallback(async () => {
@@ -266,8 +308,10 @@ export function WidgetHostProvider(props: {origin: string; audience: AccessAudie
   }, [props.access, props.audience, props.contextId, fetcher, origin, state]);
   const linkGeneration = useCallback(() => linkContinuity.generation(), [linkContinuity]);
   const retainLink = useCallback((scope: WidgetLinkScope, url: string,
-    previous: WidgetHostConfiguration, generation: number) =>
-    linkContinuity.retain(scope, url, previous, generation), [linkContinuity]);
+    previous: WidgetHostConfiguration, generation: number, keyboardCandidate = false) =>
+    linkContinuity.retain(scope, url, previous, generation, keyboardCandidate), [linkContinuity]);
+  const keyboardLinkFocus = useCallback((scope: WidgetLinkScope) =>
+    linkContinuity.keyboardFocus(scope), [linkContinuity]);
   const takeLink = useCallback((scope: WidgetLinkScope) =>
     linkContinuity.take(scope, state.phase === 'ready' ? state.configuration : null,
       sessionNow(props.access)), [linkContinuity, state, props.access]);
@@ -276,10 +320,10 @@ export function WidgetHostProvider(props: {origin: string; audience: AccessAudie
   const value = useMemo<WidgetHostValue>(() => ({...state, audience: props.audience,
     contextId: props.contextId, access: props.access, operationClient: props.operationClient,
     resolveOperationBinding, approvalClient, refresh, loadResource,
-    linkGeneration, retainLink, takeLink, discardLinksForConversation}),
+    linkGeneration, retainLink, keyboardLinkFocus, takeLink, discardLinksForConversation}),
     [state, props.audience, props.contextId, props.access, props.operationClient,
       resolveOperationBinding, approvalClient, refresh, loadResource,
-      linkGeneration, retainLink, takeLink, discardLinksForConversation]);
+      linkGeneration, retainLink, keyboardLinkFocus, takeLink, discardLinksForConversation]);
   return <WidgetHostContext.Provider value={value}>{props.children}</WidgetHostContext.Provider>;
 }
 

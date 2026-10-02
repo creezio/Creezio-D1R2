@@ -39,6 +39,23 @@ test('a suspended host link resumes once only after the same fresh session, scop
   continuity.clear();
 });
 
+test('keyboard focus intent needs a forward Tab and is cancelled by later interaction',()=>{
+  let time=1000;
+  const continuity=createWidgetLinkContinuity({now:()=>time});
+  assert.equal(continuity.retain(scope(),url,config(),continuity.generation(),true),true);
+  assert.equal(continuity.keyboardFocus(scope()),false);
+  continuity.confirmForwardTab();
+  assert.equal(continuity.keyboardFocus(scope()),true);
+  continuity.cancelFocus();
+  assert.equal(continuity.keyboardFocus(scope()),false);
+  assert.equal(continuity.take(scope(),config(),session()),url);
+  assert.equal(continuity.retain(scope(),url,config(),continuity.generation(),true),true);
+  time+=1001;
+  continuity.confirmForwardTab();
+  assert.equal(continuity.keyboardFocus(scope()),false);
+  continuity.clear();
+});
+
 test('continuation refuses changed identity, instance, resource, epoch and missing permission',()=>{
   const variants=[
     {name:'session',session:{...session(),id:'session_2'}},

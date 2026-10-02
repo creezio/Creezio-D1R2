@@ -1,5 +1,10 @@
 # Changelog
 
+## Correctif candidat T16 — focus du lien après revalidation clavier
+
+- Un Tab avant quittant l'iframe vers la confirmation hôte déclenche toujours la relecture d'accès. Si la même proposition HTTPS revient après vérification de la session, du principal, du contexte, de l'instance et du catalogue, le focus revient sur sa nouvelle ancre ; Entrée reste nécessaire pour l'ouvrir.
+- Un autre geste pendant la lecture, une révocation, un retour externe ou une autre proposition ne restaure pas ce focus. Aucun contrat métier, droit, URL ou export du SDK public ne change ; la recette hébergée reste distincte des contrôles locaux.
+
 ## Refus de provisionnement Cloudflare — 2 octobre 2026
 
 - Les refus structurés de création D1/R2 sont distingués des réponses perdues lorsque l'absence de la ressource est confirmée. Le journal conserve les codes numériques et toute D1 déjà créée ; l'opérateur reçoit un code de refus propre à la ressource.
