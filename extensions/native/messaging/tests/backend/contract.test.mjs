@@ -102,6 +102,13 @@ test('permanent message deletion is trash-only, bounded and tombstones inbound p
   const frozen=harness({box,message,send_snapshot:{id:'mail-one'}});
   await assert.rejects(messageDelete({requestKey:'frozen',boxId:'box-one',messageId:'mail-one',revision:3},
     frozen.context),{code:'conflict'});
+  for(const source of [null,{...snapshot,email_id:'different-provider'}]){
+    const legacy=harness({box,message,inbound_snapshot:source,
+      message_attachmentPage:{items:links,nextAfter:null}});
+    await assert.rejects(messageDelete({requestKey:'legacy',boxId:'box-one',messageId:'mail-one',revision:3},
+      legacy.context),{code:'conflict'});
+    assert.equal(legacy.calls.some(call=>call.kind==='planDelete'||call.kind==='planPatch'),false);
+  }
 });
 
 test('HTML is safe and stable across save/read/save, links retain only HTTPS or HTTP',()=>{

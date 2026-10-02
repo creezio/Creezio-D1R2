@@ -221,6 +221,17 @@ test('Messaging commits one immutable snapshot and canonical outbox intent again
         boxId:box.id,emailId:'received-proof-zero'})).snapshot;
       assert.equal(importedStatus.imported,true);
       assert.equal(calls,1,'inbound GET must not issue a send POST');
+      const inboundSnapshotTable=schemas['creezio.messaging'].tables.inbound_snapshot;
+      await db.prepare(`DELETE FROM "${inboundSnapshotTable}" WHERE id=?`).bind(imported.id).run();
+      const legacyTrash=success(await invoke('message.update',{
+        requestKey:'received-legacy-trash',boxId:box.id,messageId:imported.id,
+        revision:imported.revision,folder:'trash'})).message;
+      const legacyDelete=await invoke('message.delete',{
+        requestKey:'received-legacy-delete-denied',boxId:box.id,
+        messageId:legacyTrash.id,revision:legacyTrash.revision});
+      assert.equal(legacyDelete.execution.errorCode,'conflict');
+      assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM "${messageTable}" WHERE id=?`)
+        .bind(imported.id).first()).n,1,'legacy row without snapshot cannot be removed');
       let fiftyMessage=null,fiftyFile=null;
       for(const count of [1,50]){
         const emailId=`received-proof-${count}`,beforeGets=inboundGets;
@@ -294,7 +305,6 @@ test('Messaging commits one immutable snapshot and canonical outbox intent again
         .bind(trashed.id).first()).n,0);
       const deletedRead=await invoke('message.read',{boxId:box.id,messageId:trashed.id});
       assert.equal(deletedRead.execution.errorCode,'not_found');
-      const inboundSnapshotTable=schemas['creezio.messaging'].tables.inbound_snapshot;
       const tombstone=await db.prepare(`SELECT deleted_at,subject,text_body,html_body,attachments
         FROM "${inboundSnapshotTable}" WHERE id=?`).bind(trashed.id).first();
       assert.match(tombstone.deleted_at,/^\d{4}-\d\d-\d\dT/);

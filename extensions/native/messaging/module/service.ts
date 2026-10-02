@@ -442,9 +442,10 @@ export async function messageDelete(value:JsonValue,c:OperationContext){
   if(row.folder!=='trash'||row.direction!=='inbound')fail('conflict');
   // Outbox receipts and their frozen payload are never discarded through this path.
   if(await c.data.get('send_snapshot',{key}))fail('conflict');
-  const snapshot=await c.data.get('inbound_snapshot',{key}) as Row|null;
-  if(snapshot&&(snapshot.deleted_at!==null&&snapshot.deleted_at!==undefined
-    ||snapshot.email_id!==row.provider_message_id))fail('conflict');
+  const snapshot=(await c.data.get('inbound_snapshot',{key}) as Row|null)??fail('conflict');
+  // A legacy/orphan inbound row has no provenance to tombstone and must stay intact.
+  if(snapshot.deleted_at!==null&&snapshot.deleted_at!==undefined
+    ||snapshot.email_id!==row.provider_message_id)fail('conflict');
   // Sixteen plans per execution: thirteen link deletes plus the row and tombstone.
   const page=await c.data.list('message_attachment',{limit:13,
     where:{...scope(c),box_id:a.boxId,message_id:a.messageId},
@@ -457,7 +458,7 @@ export async function messageDelete(value:JsonValue,c:OperationContext){
     return {output:{deleted:false,revision:revision+1,removed:page.items.length},plans};
   }
   plans.push(c.data.planDelete('message',{key,compare:{field:'revision',expected:revision}}));
-  if(snapshot)plans.push(c.data.planPatch('inbound_snapshot',{key,
+  plans.push(c.data.planPatch('inbound_snapshot',{key,
     where:{deleted_at:null,snapshot_digest:snapshot.snapshot_digest},
     values:{deleted_at:now(),subject:'',text_body:'',html_body:'',attachments:[]}}));
   return {output:{deleted:true,revision:null,removed:page.items.length},plans};
