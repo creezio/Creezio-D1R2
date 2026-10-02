@@ -1,5 +1,11 @@
 # T22 — Analytics et diagnostics
 
+## Export non vide sur Linux — 2 octobre 2026
+
+Sur Core `d7e117a`, la lecture native sous le compte administrateur du contexte `application` retrouve un événement existant dans une page complète. Les exports JSON et CSV contiennent chacun cette même ligne ; les périodes et la projection restent celles du module. Aucun événement, droit, politique de collecte ou purge n'a été créé pour cette recette. Accès anonyme 401, connexion 200, déconnexion 200 et session suivante 401. Reçu hors dépôt : `CREEZIO-T22-LINUX-EVENT-EXPORT-COOKIE-FIX-2026-10-02.json`.
+
+Le script de la première tentative n'avait pas reconnu le cookie local `creezio-local-admin`. Son échec est conservé séparément ; la déconnexion de la nouvelle session ne prouve pas la révocation de cette ancienne session éventuelle. Le correctif concerne le script de qualification, sans modification du produit. Rétention, instrumentation plus large et mesures dépendantes de Work gardent leur portée propre ; cet export ne les qualifie pas.
+
 ## Échec existant lu sur Cloudflare — 2 octobre 2026
 
 Sur l’application Cloudflare servie depuis Core `7b606f5`, un droit `creezio.analytics:read` a été accordé uniquement à l’owner admin du contexte d’application, par CAS epoch 7→8, avec la politique et les autres droits conservés. La lecture native `diagnostics.executions` a parcouru quatre pages/200 lignes bornées à neuf champs et retrouvé un échec déjà présent : `creezio.conversations` / `draft.save`, audience app, état `failed`, code `conflict`, à 15:08:19 UTC. Le Journal UI a affiché la même ligne après navigation en lecture seule. L’échec provient de la recette T27 antérieure ; aucune erreur, opération de chat ou purge n’a été provoquée pour cette vérification. Les sessions API et UI ont été fermées (logout 200/session 401). Reçu consolidé hors dépôt : `CREEZIO-T22-CF-EXISTING-FAILED-FINAL-2026-10-02.json`, avec références aux reçus de grant, lecture native et UI. Cette preuve porte sur cet échec unique ; la comparaison MCP, l’instrumentation exhaustive et les mesures Work restent ouvertes.

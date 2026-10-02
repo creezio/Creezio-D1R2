@@ -87,3 +87,23 @@ test('control plane create calls use exact names and do not retry lost responses
   assert.deepEqual(JSON.parse(posts[1].init.body), {name: 'creezio-bucket'});
   assert.equal(posts[1].init.headers['cf-r2-jurisdiction'], 'default');
 });
+
+test('only a structured provider 4xx is a definite refusal; no response text is retained', async () => {
+  for (const [status, envelope, expected] of [
+    [400, {success:false, errors:[{code:1000,message:'private provider detail'}]}, true],
+    [403, {success:false, errors:[]}, false],
+    [429, {success:false, errors:[{code:1000}]}, false],
+    [500, {success:false, errors:[{code:1000}]}, false]
+  ]) {
+    const control=client(async()=>Response.json(envelope,{status}));
+    await assert.rejects(control.createD1('creezio-db'),error=>{
+      assert.ok(error instanceof CloudflareControlError);
+      assert.equal(error.code,'refused');
+      assert.equal(error.status,status);
+      assert.equal(error.explicitRefusal,expected);
+      assert.deepEqual(error.providerCodes,envelope.errors.map(item=>item.code));
+      assert.equal(error.message.includes('private provider detail'),false);
+      return true;
+    });
+  }
+});

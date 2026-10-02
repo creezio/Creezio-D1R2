@@ -1,4 +1,5 @@
 /** T32 first-publication provisioning. Journal writes are durable before every POST. */
+import {CloudflareControlError} from './control-plane.mjs';
 const ACCOUNT = /^[a-f0-9]{32}$/;
 const UUID = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 const NAME = /^[a-z][a-z0-9-]{1,62}[a-z0-9]$/;
@@ -53,6 +54,28 @@ export function createCloudflareProvisioner({control, journal, assertWorker}) {
     ]);
     return {database, bucket, workerExists: settings !== null || deployment !== null};
   }
+  const explicitRefusal = error => error instanceof CloudflareControlError
+    && error.code === 'refused' && error.explicitRefusal === true;
+  const refused = record => ({state: 'refused', resource: record.refusal.resource,
+    httpStatus: record.refusal.httpStatus, providerCodes: [...record.refusal.providerCodes]});
+  const unknown = (resource, observed, inspectionFailed = false) => ({state: 'unknown', resource,
+    ...(resource === 'd1' ? {candidateId: observed?.id ?? null}
+      : {candidateName: observed?.name ?? null}),
+    ...(inspectionFailed ? {inspection: 'failed'} : {})});
+  async function inspectAfterPost(record, resource, error) {
+    let observed;
+    try {
+      observed = resource === 'd1' ? await control.findD1(record.plan.databaseName)
+        : await control.bucket(record.plan.bucketName, record.plan.jurisdiction);
+    } catch { return {record, result: unknown(resource, null, true)}; }
+    if (explicitRefusal(error) && observed === null) {
+      const refusal = {resource, httpStatus: error.status,
+        providerCodes: [...error.providerCodes], observedAt: new Date().toISOString()};
+      const saved = await save(record, {refusal});
+      return {record: saved, result: refused(saved)};
+    }
+    return {record, result: unknown(resource, observed)};
+  }
   async function prepare(input) {
     const plan = checkedPlan(input, control.accountId);
     const existing = await journal.load(plan.transferId);
@@ -80,21 +103,25 @@ export function createCloudflareProvisioner({control, journal, assertWorker}) {
     const verified = await control.verifyToken(plan.tokenScope);
     if (verified.id !== record.tokenId) fail('token_changed');
     if (await control.workerSubdomain() !== record.subdomain) fail('subdomain_changed');
-    let probe = await inspected(record);
+    let probe;
+    try { probe = await inspected(record); }
+    catch (error) {
+      if (record.stage === 'd1-intent') return unknown('d1', null, true);
+      if (record.stage === 'r2-intent') return unknown('r2', null, true);
+      throw error;
+    }
     await checkedWorker(probe);
-    if (record.stage === 'd1-intent') return {state: 'unknown',
-      resource: 'd1', candidateId: probe.database?.id ?? null};
-    if (record.stage === 'r2-intent') return {state: 'unknown',
-      resource: 'r2', candidateName: probe.bucket?.name ?? null};
+    if (record.stage === 'd1-intent') return record.refusal?.resource === 'd1'
+      && !probe.database && !probe.bucket ? refused(record) : unknown('d1', probe.database);
+    if (record.stage === 'r2-intent') return record.refusal?.resource === 'r2'
+      && probe.database?.id === record.databaseId && !probe.bucket
+      ? refused(record) : unknown('r2', probe.bucket);
     if (record.stage === 'prepared') {
       if (probe.database || probe.bucket) fail('resource_exists');
       record = await save(record, {stage: 'd1-intent', intentAt: new Date().toISOString()});
       let created;
       try { created = await control.createD1(plan.databaseName, plan.jurisdiction); }
-      catch {
-        const observed = await control.findD1(plan.databaseName).catch(() => null);
-        return {state: 'unknown', resource: 'd1', candidateId: observed?.id ?? null};
-      }
+      catch (error) { return (await inspectAfterPost(record, 'd1', error)).result; }
       if (!UUID.test(created.id ?? '') || created.name !== plan.databaseName) fail('invalid_receipt');
       record = await save(record, {stage: 'd1-created', databaseId: created.id, intentAt: null});
       probe = await inspected(record);
@@ -106,10 +133,7 @@ export function createCloudflareProvisioner({control, journal, assertWorker}) {
       record = await save(record, {stage: 'r2-intent', intentAt: new Date().toISOString()});
       let created;
       try { created = await control.createBucket(plan.bucketName, plan.jurisdiction); }
-      catch {
-        const observed = await control.bucket(plan.bucketName, plan.jurisdiction).catch(() => null);
-        return {state: 'unknown', resource: 'r2', candidateName: observed?.name ?? null};
-      }
+      catch (error) { return (await inspectAfterPost(record, 'r2', error)).result; }
       if (created.name !== plan.bucketName) fail('invalid_receipt');
       const bucket = await control.bucket(plan.bucketName, plan.jurisdiction);
       if (!bucket || !bucket.private) fail('bucket_not_private');

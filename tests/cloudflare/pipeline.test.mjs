@@ -35,7 +35,7 @@ function registryJournal(){
       records.set(record.requestKey,record);}};
 }
 function fixture({unknownPublish=false,failImportOnce=false,provisionUnknownOnce=false,
-  routed=false}={}){
+  provisionRefusalAt=0, provisionRefusalResource='d1', routed=false}={}){
   const events=[],planJournal=journal(),provisionJournal=journal(),transferJournal={load:async()=>null},
     publicationJournal=registryJournal();
   const origin=`https://${workerName}.example.workers.dev`,sandboxOrigin=
@@ -73,6 +73,8 @@ function fixture({unknownPublish=false,failImportOnce=false,provisionUnknownOnce
         workersSubdomain:'example'};},
       async bucket(){events.push('bucket');return {private:true};}};},
     provisionerFactory:()=>({async provision(plan){events.push('provision');
+      if(provisionRefusalAt===events.filter(item=>item==='provision').length)
+        return {state:'refused',resource:provisionRefusalResource,httpStatus:400,providerCodes:[1000]};
       if(provisionUnknownOnce&&events.filter(item=>item==='provision').length===1)return {state:'unknown'};
       return {state:'ready',
       target:{accountId,workerName,
@@ -215,6 +217,17 @@ test('a restarted preparation resumes its recorded provisioning intent',async()=
   assert.equal(f.planJournal.records.size,1);
   assert.equal(f.events.filter(item=>item==='provision').length,2);
   assert.equal(f.events.includes('stop'),false);
+});
+
+for(const routed of [false,true])for(const resource of ['d1','r2'])
+  test(`${resource.toUpperCase()} provider refusal during ${routed?'routed':'primary'} preparation stays unpublished`,async()=>{
+  const f=fixture({routed,provisionRefusalAt:routed?2:1,provisionRefusalResource:resource}),pipeline=f.create();
+  await pipeline.configure({target:{accountId,workerName},credentials:{apiToken:token}},context);
+  await assert.rejects(pipeline.prepare({secretSelections:[]},context),
+    error=>error.code===`provision_${resource}_refused`&&error.status===409);
+  assert.equal(f.planJournal.records.get('transfer-one').stage,'intent');
+  assert.equal(f.events.includes('stop'),false);
+  assert.equal(f.events.includes('publish'),false);
 });
 
 test('an interrupted intent keeps exact secret choices and refuses a changed retry',async()=>{
