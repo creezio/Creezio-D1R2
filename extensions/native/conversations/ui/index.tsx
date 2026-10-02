@@ -12,6 +12,7 @@ import {useAssistantUiOptional} from '@creezio/sdk/ui/assistant-provider';
 import {ConversationPanel, type ConversationMode, type ConversationPanelProps} from './panel.tsx';
 import {projectTurnEvents} from './turn-projection.ts';
 import {startTurnDriveLoop} from './drive-loop.ts';
+import {useWidgetHost} from '../../../../sdk/widgets/provider.tsx';
 
 type AttachmentState = NonNullable<ConversationPanelProps['attachmentState']>;
 type ProviderStatus = ConversationPanelProps['providerStatus'];
@@ -92,6 +93,7 @@ function useConversations(props: WorkspaceViewProps) {
 }
 
 function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin' | 'front'}) {
+  const widgetHost = useWidgetHost();
   const workspaceActive=useWorkspaceActivity();
   const {controller, snapshot, retained, sessionId, live, accessPhase} = useConversations(props);
   const activity = useRef(false);
@@ -101,6 +103,21 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
   activity.current = activeNow;
   const assistantUi = useAssistantUiOptional();
   const floating = props.surface === 'admin' && props.input.presentation === 'assistant' && !!assistantUi;
+  const lastConversation = useRef<string | null>(null);
+  const lastInputConversation = useRef(props.input.conversationId ?? null);
+  useEffect(() => {
+    const next = props.input.conversationId ?? null;
+    if (lastInputConversation.current !== next && lastConversation.current &&
+      lastConversation.current !== next) widgetHost?.discardLinksForConversation(lastConversation.current);
+    lastInputConversation.current = next;
+  }, [props.input.conversationId, widgetHost?.discardLinksForConversation]);
+  useEffect(() => {
+    if (accessPhase !== 'authenticated' || snapshot?.phase !== 'ready') return;
+    const next = snapshot.selected?.id ?? null;
+    if (lastConversation.current && lastConversation.current !== next)
+      widgetHost?.discardLinksForConversation(lastConversation.current);
+    lastConversation.current = next;
+  }, [accessPhase, snapshot?.phase, snapshot?.selected?.id, widgetHost?.discardLinksForConversation]);
   const [mode, setMode] = useState<ConversationMode>('chat');
   const [query, setQuery] = useState('');
   const [busyList, setBusyList] = useState(false);
@@ -354,7 +371,10 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
     void uploadPending(pending);
   };
   const content = <ConversationPanel variant={floating ? 'floating' : 'embedded'}
-    open={floating ? !!assistantUi?.open : true} onOpenChange={open => assistantUi?.setOpen(open)}
+    open={floating ? !!assistantUi?.open : true} onOpenChange={open => {
+      if (!open && selectedId) widgetHost?.discardLinksForConversation(selectedId);
+      assistantUi?.setOpen(open);
+    }}
     mode={snapshot.selected?.mode ?? mode} onModeChange={next => {void beforeTransition(async () => {
       setMode(next);
       if (snapshot.selected?.mode !== next) {
@@ -405,12 +425,17 @@ function ConversationsView(props: WorkspaceViewProps & {readonly surface: 'admin
       draftTimer.current = setTimeout(() => {void flushDraft(selectedId);}, 600);
     }}
     onCreate={next => {void beforeTransition(async () => {
+      if (selectedId) widgetHost?.discardLinksForConversation(selectedId);
       const result = await controller.create({mode:next});
       ready(result); if (result.kind === 'ok') await controller.open(result.value.id);
     });}}
-    onSelect={id => {void beforeTransition(async () => {setAttachmentState(null);await controller.open(id);});}}
+    onSelect={id => {void beforeTransition(async () => {
+      if (selectedId && selectedId !== id) widgetHost?.discardLinksForConversation(selectedId);
+      setAttachmentState(null);await controller.open(id);
+    });}}
     onArchive={id => {void beforeTransition(async () => {const result = await controller.archive(id);ready(result);
       if (result.kind === 'ok' && selectedId === id) {
+        widgetHost?.discardLinksForConversation(id);
         setAttachmentState(null);
         await controller.search({query,archived:true});
       }

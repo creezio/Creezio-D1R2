@@ -25,16 +25,24 @@ test('initial chat render uses the same host instance passed to the widget bridg
 
 test('external links require an active host confirmation and a click on the host anchor',()=>{
   const source=readFileSync(new URL('../../ui/widget-message.tsx',import.meta.url),'utf8');
+  const conversation=readFileSync(new URL('../../ui/index.tsx',import.meta.url),'utf8');
   const bridge=readFileSync(new URL('../../../../../sdk/widgets/mcp-apps-bridge.ts',import.meta.url),'utf8');
   assert.match(bridge,/openLinks: \{\}/u);
   assert.match(bridge,/bridge\.onopenlink = async \(params, extra\)/u);
   assert.match(bridge,/normalizeWidgetOpenLink\(params\.url\)/u);
-  assert.match(source,/createHostOpenLinkGate\(\{isCurrent, show: setLinkPrompt\}\)/u);
+  assert.match(source,/createHostOpenLinkGate\(\{isCurrent, show: prompt => \{/u);
+  assert.match(source,/host\.takeLink\(linkScope\)/u);
+  assert.ok(source.indexOf('bridge.current = mounted;') < source.indexOf('host.takeLink(linkScope)'),
+    'a held link is offered only after the fresh widget resource and bridge mount');
+  assert.match(source,/const linkGeneration = host\.linkGeneration\(\)/u);
+  assert.match(source,/host\.retainLink\(linkScope, prompt\.url, config, linkGeneration\)/u);
   assert.match(source,/openLink: async \(url, signal\) =>/u);
   assert.match(source,/<a href=\{linkPrompt\.url\} target="_blank" rel="noopener noreferrer"/u);
   assert.match(source,/linkGate\.current\?\.accept\(linkPrompt\.id\)/u);
   assert.match(source,/if \(!current\) event\.preventDefault\(\)/u);
   assert.match(source,/links\.dispose\(\)/u);
+  assert.match(conversation,/widgetHost\?\.discardLinksForConversation\(lastConversation\.current\)/u);
+  assert.match(conversation,/widgetHost\?\.discardLinksForConversation\(selectedId\)/u);
 });
 
 test('widget snapshot accepts a pinned multi-instance message and rejects identity substitution', () => {

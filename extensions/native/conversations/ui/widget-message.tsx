@@ -6,7 +6,7 @@ import {createMcpAppsBridge, type McpAppsBridge} from '../../../../sdk/widgets/m
 import {createHostOpenLinkGate, type HostOpenLinkGate,
   type HostOpenLinkPrompt} from '../../../../sdk/widgets/host-open-link.ts';
 import {linkedImageToolResult} from '../../../../sdk/widgets/private-image.ts';
-import {useWidgetHost} from '../../../../sdk/widgets/provider.tsx';
+import {useWidgetHost, type WidgetLinkScope} from '../../../../sdk/widgets/provider.tsx';
 import {createFileClient} from '../../../../sdk/files/client.ts';
 import type {StagedFileReference} from '../../../../sdk/files/types.ts';
 import type {WidgetApprovalPreview} from '../../../../sdk/widgets/approval-client.ts';
@@ -46,6 +46,7 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
   const approvalDraftRef = useRef<WidgetApprovalDraft | null>(null);
   const [approvalBusy, setApprovalBusy] = useState(false);
   const [linkPrompt, setLinkPrompt] = useState<HostOpenLinkPrompt | null>(null);
+  const linkPromptRef = useRef<HostOpenLinkPrompt | null>(null);
   const linkGate = useRef<HostOpenLinkGate | null>(null);
   const instanceSignature = JSON.stringify(props.instance);
   const config = host?.configuration;
@@ -152,7 +153,7 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
   }, [approvalJournal, journal, host, entry, sessionId, props.active]);
   useEffect(() => {
     const node = iframe.current;
-    if (!host || !node || !props.active || host.phase !== 'ready' || !config || !entry || !resource || !sessionId) {
+    if (!host || !node || !props.active || host.phase !== 'ready' || !config || !entry || !resource || !session) {
       setStatus('Widget indisponible.');
       setApproval(null);
       return;
@@ -166,9 +167,20 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
       ...(props.instance.objectVersion !== undefined ? {objectVersion: props.instance.objectVersion} : {})};
     const isCurrent = () => !cancelled && props.active &&
       host.access.getSnapshot().phase === 'authenticated' &&
-      host.access.getSnapshot().session?.id === sessionId &&
+      host.access.getSnapshot().session?.id === session.id &&
       host.configuration === config;
-    const links = createHostOpenLinkGate({isCurrent, show: setLinkPrompt});
+    const linkScope: WidgetLinkScope = {sessionId: session.id, principalId: session.principalId,
+      audience: host.audience, contextId: host.contextId, conversationId: props.conversationId,
+      messageId: props.messageId, instanceId: props.instance.instanceId,
+      instanceRevision: props.instance.instanceRevision, instanceSignature,
+      moduleId: props.instance.moduleId,
+      widgetId: props.instance.widgetId, widgetVersion: props.instance.widgetVersion,
+      resourceUri: props.instance.resourceUri, resourceDigest: props.instance.resourceDigest,
+      catalogEpoch: config.epoch};
+    const linkGeneration = host.linkGeneration();
+    const links = createHostOpenLinkGate({isCurrent, show: prompt => {
+      linkPromptRef.current = prompt; setLinkPrompt(prompt);
+    }});
     linkGate.current = links;
     const callTool = async (params: CallToolRequest['params']): Promise<CallToolResult> => {
       if (!isCurrent()) return toolResult('rejected', 'widget_inactive');
@@ -359,9 +371,18 @@ function WidgetInstanceView(props: {instance: WidgetMessageInstanceV1; messageId
         bridge.current = mounted;
         setStatus(pendingRef.current ? 'Résultat incertain. Vérifiez avant de réessayer.' :
           approvalDraftRef.current ? 'Confirmation à vérifier…' : 'Widget prêt.');
+        const continued = host.takeLink(linkScope);
+        if (continued) {
+          setStatus('Ce widget demande l’ouverture d’un lien externe. Confirmez dans Creezio.');
+          void links.request(continued);
+        }
       } catch {if (!cancelled) setStatus('Widget indisponible.');}
     })();
-    return () => {cancelled = true;
+    return () => {
+      const prompt = linkPromptRef.current, snapshot = host.access.getSnapshot();
+      if (prompt && snapshot.phase === 'loading' && !snapshot.pending)
+        host.retainLink(linkScope, prompt.url, config, linkGeneration);
+      cancelled = true;
       links.dispose();if (linkGate.current === links) linkGate.current = null;
       const current = bridge.current; bridge.current = null;
       if (current) void current.dispose();};
