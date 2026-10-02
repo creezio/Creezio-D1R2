@@ -269,9 +269,13 @@ test('browser factory wires foreground lifecycle events to read-only refresh and
     count() { return [...this.listeners.values()].reduce((sum, group) => sum + group.size, 0); }
   }
   const windowTarget = new ObservedTarget(), documentTarget = new ObservedTarget();
+  class SyntheticIframe {}
   windowTarget.location = { origin }; documentTarget.visibilityState = 'visible';
+  documentTarget.focused = true; documentTarget.hasFocus = () => documentTarget.focused;
+  documentTarget.activeElement = null;
   const calls = [], saved = new Map(), replacements = {
     window: windowTarget, document: documentTarget, navigator: {}, BroadcastChannel: undefined,
+    HTMLIFrameElement: SyntheticIframe,
     fetch: async (url, options) => {
       calls.push({ url, options });
       return new Response(JSON.stringify({ error: { code: 'authentication_required' }, requestId: 'synthetic-foreground-read' }),
@@ -285,16 +289,43 @@ test('browser factory wires foreground lifecycle events to read-only refresh and
       Object.defineProperty(globalThis, name, { value, configurable: true, writable: true });
     }
     controller = createBrowserAccessController({ audience: 'app' });
-    assert.equal(calls.length, 0); assert.equal(windowTarget.count(), 2); assert.equal(documentTarget.count(), 1);
+    assert.equal(calls.length, 0); assert.equal(windowTarget.count(), 3); assert.equal(documentTarget.count(), 2);
+    documentTarget.activeElement = new SyntheticIframe();
+    windowTarget.dispatchEvent(new Event('blur'));
+    const internalPointer = new Event('pointerdown');
+    Object.defineProperty(internalPointer, 'isTrusted', {value: true});
+    documentTarget.dispatchEvent(internalPointer);
+    windowTarget.dispatchEvent(new Event('focus'));
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(calls.length, 0, 'A trusted iframe-to-host pointer transfer is not an external return');
+    windowTarget.dispatchEvent(new Event('blur'));
+    documentTarget.dispatchEvent(new Event('pointerdown'));
+    windowTarget.dispatchEvent(new Event('focus'));
+    await until(() => calls.length === 1 && controller.getSnapshot().phase === 'anonymous');
+    documentTarget.activeElement = null;
     for (const type of ['focus', 'pageshow']) {
       const count = calls.length; windowTarget.dispatchEvent(new Event(type));
       await until(() => calls.length === count + 1 && controller.getSnapshot().phase === 'anonymous');
     }
+    documentTarget.activeElement = new SyntheticIframe();
+    windowTarget.dispatchEvent(new Event('blur'));
+    documentTarget.dispatchEvent(internalPointer);
+    documentTarget.focused = false; // an actual external departure clears the internal-frame evidence
+    windowTarget.dispatchEvent(new Event('blur'));
+    documentTarget.focused = true;
+    windowTarget.dispatchEvent(new Event('focus'));
+    await until(() => calls.length === 4 && controller.getSnapshot().phase === 'anonymous');
+    windowTarget.dispatchEvent(new Event('blur'));
+    documentTarget.dispatchEvent(internalPointer);
+    windowTarget.dispatchEvent(new Event('pageshow'));
+    await until(() => calls.length === 5 && controller.getSnapshot().phase === 'anonymous');
+    windowTarget.dispatchEvent(new Event('focus')); // pageshow consumed the internal-focus evidence
+    await until(() => calls.length === 6 && controller.getSnapshot().phase === 'anonymous');
     documentTarget.visibilityState = 'hidden'; documentTarget.dispatchEvent(new Event('visibilitychange'));
     windowTarget.dispatchEvent(new Event('pageshow')); await new Promise(resolve => setImmediate(resolve));
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 6);
     documentTarget.visibilityState = 'visible'; documentTarget.dispatchEvent(new Event('visibilitychange'));
-    await until(() => calls.length === 3 && controller.getSnapshot().phase === 'anonymous');
+    await until(() => calls.length === 7 && controller.getSnapshot().phase === 'anonymous');
     for (const call of calls) {
       assert.equal(call.url, `${origin}/api/access/app/session`); assert.equal(call.options.method, 'GET');
     }
@@ -302,7 +333,7 @@ test('browser factory wires foreground lifecycle events to read-only refresh and
     assert.equal(windowTarget.count(), 0); assert.equal(documentTarget.count(), 0);
     windowTarget.dispatchEvent(new Event('focus')); windowTarget.dispatchEvent(new Event('pageshow'));
     documentTarget.dispatchEvent(new Event('visibilitychange')); await new Promise(resolve => setImmediate(resolve));
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 7);
   } finally {
     controller?.dispose();
     for (const [name, descriptor] of saved) {

@@ -1,5 +1,9 @@
 # Réalisation T-14 — Conversations natives
 
+## Correctif candidat — hydratation du brouillon sélectionné
+
+Après la lecture du titre, le panneau attend la lecture du brouillon D1 avant d’activer la saisie ou l’envoi. Si cette lecture tarde ou échoue, le contrôleur garde le brouillon non hydraté et refuse `draft.save` et `turn.start` sans inventer une révision 0. Le texte local reste attaché à son fil et reprend avec la révision obtenue lors d’une nouvelle lecture, y compris après un aller-retour entre conversations. Les messages et la reprise d’un tour mémorisé restent lisibles. Les tests ciblés du contrôleur (16/16) et du panneau (15/15) passent ; la recette navigateur après livraison reste à faire. Aucun fournisseur n’est appelé pour ce correctif.
+
 T-14 / US-14 / REQ-1401 et REQ-1402. PR #23 intégrée : candidat `efe476eb`, main `f435fd36`, arbre commun `d43e86e3`. Les 974 tests locaux et CI candidat/main (36309174628/36309958508) réussissent, sans échec, ignoré, annulé ou todo. Les trois revues indépendantes, les recettes navigateur et les contrôles de provenance sont conservés hors sources. La qualification hébergée et le fournisseur se poursuivent dans leurs lots.
 
 ## Module et interface

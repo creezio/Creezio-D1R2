@@ -1,5 +1,15 @@
 # Réalisation T16 — widgets des modules
 
+## Correctif candidat — confirmation du lien après interaction avec un widget
+
+Sur Core Cloudflare `7b606f5`, le retour de focus de l’iframe vers le lien proposé par l’hôte déclenchait une vérification de session. Celle-ci démontait le widget avant le clic et supprimait la confirmation. Le diagnostic réseau et le reproducteur Chromium utilisant le vrai contrôleur établissent cette cause ; aucun nouveau Checkout ni paiement n’a été créé. Le correctif distingue uniquement un transfert de pointeur utilisateur au sein du document resté visible et actif. Les vrais retours externes, changements de visibilité, reprises de page et invalidations de session conservent leur vérification.
+
+Les 17 tests d’accès et les 8 tests du pont passent, avec ouverture au pointeur, relecture sur retour externe et révocation vers une session anonyme vérifiées dans Chromium hors réseau. Le retour clavier par Tab continue de déclencher la relecture et de retirer la confirmation : ce chemin reste à corriger. Le correctif pointeur n’est pas encore livré ni qualifié sur le Worker distant. Reçus hors dépôt : `CREEZIO-T27-05-WIDGET-NAVIGATION-DIAGNOSIS-2026-10-02.json` et `CREEZIO-T27-05-ACCESS-FOCUS-PATCH-2026-10-02.json`.
+
+## Correctif candidat — brouillon protégé pendant la reprise du fil
+
+Le panneau commun n’active plus sa saisie ni l’envoi tant que `draft.read` n’a pas confirmé la révision du fil sélectionné. Une erreur de lecture laisse le texte local en mémoire sans sauvegarde ni démarrage de tour ; une nouvelle ouverture peut le reprendre avec la révision D1 courante. Les widgets et les autres fils ne reçoivent pas ce texte par défaut. Ce correctif UI et contrôleur ne change ni les contrats serveur, ni la disponibilité du fournisseur ; sa qualification navigateur après intégration reste distincte de la reprise du titre déjà vérifiée.
+
 ## Correctif intégré — reprise du fil sélectionné, 2 octobre 2026
 
 Sur Original, la recette navigateur a retrouvé le titre du fil après rechargement, mais pas son brouillon ni sa pièce jointe pendant 20 secondes ; une nouvelle sélection manuelle a relu les données conservées. Le contrôleur publiait le titre avant les lectures de messages et de brouillon. Une transition d’accès ou d’activité pouvait invalider ces lectures en gardant la sélection partielle, sans nouvelle tentative. Le correctif relit ce même fil sous la session, l’audience et le contexte courants lorsque l’accès redevient prêt ; une sélection manuelle plus récente garde la priorité. La liste des pièces jointes attend la fin de cette lecture. Aucune commande métier, aucun tour et aucun appel au fournisseur ne sont rejoués.

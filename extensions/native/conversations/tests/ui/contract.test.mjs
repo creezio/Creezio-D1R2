@@ -34,7 +34,7 @@ try {
 const noop = () => {};
 const props = {variant:'embedded',open:true,onOpenChange:noop,mode:'chat',onModeChange:noop,
   selectedId:'c1',conversations:[{id:'c1',title:'Test',mode:'chat',updatedAt:new Date().toISOString(),archivedAt:null}],
-  messages:[{id:'m1',role:'user',content:'Bonjour'}],draft:'Brouillon conservé',onDraftChange:noop,
+  messages:[{id:'m1',role:'user',content:'Bonjour'}],draft:'Brouillon conservé',draftReady:true,onDraftChange:noop,
   onCreate:noop,onSelect:noop,onArchive:noop,onRestore:noop,searchQuery:'',onSearchQueryChange:noop,
   showArchived:false,onShowArchivedChange:noop,hasMore:false,onLoadMore:noop,providerStatus:'no_provider'};
 
@@ -56,6 +56,14 @@ test('embedded conversation renders history, draft, and an explicit unavailable 
   assert.match(html,/Fournisseur IA non configuré/);
   assert.match(html,/<button[^>]*disabled=""[^>]*aria-label="Envoyer — fournisseur indisponible"/);
   assert.doesNotMatch(html,/aria-label="Ouvrir l(?:&#x27;|')assistant"/);
+});
+
+test('the composer stays disabled until the selected draft is loaded', () => {
+  const html=renderToStaticMarkup(React.createElement(ConversationPanel,{...props,draftReady:false,
+    providerStatus:'ready',modelOptions:[{id:'ready-model',label:'ready-model'}],
+    selectedModelId:'ready-model',onSend:noop}));
+  assert.match(html,/<input[^>]*disabled=""[^>]*aria-label="Brouillon de message"/);
+  assert.match(html,/<button[^>]*disabled=""[^>]*aria-label="Envoyer le message"/);
 });
 
 test('floating admin view starts from the assistant launcher without exposing thread content', () => {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.0 — T14/T16, lecture du brouillon avant saisie (correctif candidat)
+
+- Le panneau attend la lecture du brouillon du fil sélectionné avant d’activer la saisie et l’envoi. Une lecture refusée ou incomplète ne fabrique plus une révision 0 et ne peut plus écrire à la place d’un brouillon D1 existant.
+- Le texte local reste lié au fil et reprend après une relecture réussie avec la révision courante. Les tests ciblés couvrent lecture différée, refus, aller-retour entre fils et absence d’écriture ou de nouveau tour avant hydratation. Aucun schéma, droit, opération ou transport fournisseur ne change.
+
 ## 0.0.0 — T09, reprise du fil après rechargement (correctif candidat)
 
 - Si une transition d’accès ou d’activité interrompt la lecture après affichage du titre, le contrôleur relit le fil sélectionné sous la session et le contexte courants pour restaurer messages et brouillon. Une nouvelle sélection explicite garde la priorité ; aucune opération métier ni appel au fournisseur n’est rejoué.

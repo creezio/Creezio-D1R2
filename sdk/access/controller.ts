@@ -140,15 +140,40 @@ export function createBrowserAccessController(options: {audience: AccessAudience
     transport: createAccessClient({origin, audience: options.audience}), coordinator: createAccessCoordinator()});
   // Cookie changes/revocation may occur without a broadcast. Returning to a
   // document clears the displayed identity while the same-origin GET verifies it.
-  const resume = () => { if (document.visibilityState !== 'hidden') void controller.refresh(); };
-  const visible = () => { if (document.visibilityState === 'visible') void controller.refresh(); };
-  window.addEventListener('focus', resume);
+  // An iframe takes window focus away without leaving the document. Its next
+  // trusted pointerdown on the host returns focus before click; refreshing at
+  // that point would unmount the widget and cancel the user's host confirmation.
+  let iframeBlurredInsideDocument = false, hostPointerAt = -Infinity;
+  const resetTransfer = () => {iframeBlurredInsideDocument = false; hostPointerAt = -Infinity;};
+  const activeIframe = () => typeof HTMLIFrameElement !== 'undefined' &&
+    document.activeElement instanceof HTMLIFrameElement;
+  const blurred = () => {
+    iframeBlurredInsideDocument = document.visibilityState === 'visible' && document.hasFocus() && activeIframe();
+    hostPointerAt = -Infinity;
+  };
+  const hostPointer = (event: PointerEvent) => {
+    if (event.isTrusted && iframeBlurredInsideDocument && document.visibilityState === 'visible' &&
+      document.hasFocus() && activeIframe()) hostPointerAt = performance.now();
+  };
+  const focused = () => {
+    const internal = iframeBlurredInsideDocument && document.visibilityState === 'visible' &&
+      document.hasFocus() && performance.now() - hostPointerAt < 250;
+    resetTransfer();
+    if (!internal && document.visibilityState !== 'hidden') void controller.refresh();
+  };
+  const resume = () => {resetTransfer(); if (document.visibilityState !== 'hidden') void controller.refresh();};
+  const visible = () => {resetTransfer(); if (document.visibilityState === 'visible') void controller.refresh();};
+  window.addEventListener('blur', blurred);
+  document.addEventListener('pointerdown', hostPointer, true);
+  window.addEventListener('focus', focused);
   window.addEventListener('pageshow', resume);
   document.addEventListener('visibilitychange', visible);
   let disposed = false;
   return Object.freeze({...controller, dispose() {
     if (disposed) return; disposed = true;
-    window.removeEventListener('focus', resume);
+    window.removeEventListener('blur', blurred);
+    document.removeEventListener('pointerdown', hostPointer, true);
+    window.removeEventListener('focus', focused);
     window.removeEventListener('pageshow', resume);
     document.removeEventListener('visibilitychange', visible);
     controller.dispose(); // only reads are cancelled; an emitted POST keeps its lock

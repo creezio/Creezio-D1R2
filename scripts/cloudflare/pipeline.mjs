@@ -148,9 +148,14 @@ function updateStatusOf(record){
     finalUrl:record.finalUrl??null,
     registryStatus:record.stage==='delivered'?'effective'
       :phase==='delivery-unknown'?'unknown':'pending',
-    retryEligible:record.stage==='delivery-unknown'
-      &&record.target?.schemaVersion===1&&!!record.artifact&&!!record.schemaReceiptId
-      &&!validationRejected(record),
+    retryEligible:phase==='delivery-unknown'&&!!record.artifact
+      &&!validationRejected(record)
+      &&(record.target?.schemaVersion===1&&record.stage==='delivery-unknown'
+        &&!!record.schemaReceiptId
+        ||record.target?.schemaVersion===3&&cutoverPhase==='publishing'
+        &&record.nextTarget?.schemaVersion===3&&Array.isArray(record.nextTarget.resources)
+        &&record.cutover?.receipts?.length===1+record.nextTarget.resources.filter(
+          item=>item.status==='active').length),
     ...(diagnostic?{diagnostic}:{})});
 }
 function updateArtifactRoot(root,updateId){
@@ -1024,7 +1029,7 @@ export function createCloudflareDeliveryPipeline(options){
     await updateJournal.createActive(record);
     return {kind:'update',updateId,planDigest,summary};
   }
-  async function runRoutedCutover(record,selected,projection,registry,artifactRoot,request){
+  async function routedCutover(record,selected,projection,registry,artifactRoot,request){
     if(!record.nextTarget||record.nextTarget.schemaVersion!==3)
       fail('storage_inventory_changed',409);
     for(const resource of record.nextTarget.resources.filter(item=>item.status==='active')){
@@ -1050,10 +1055,16 @@ export function createCloudflareDeliveryPipeline(options){
       },
       async deliver(){
         await assertSandboxConfirmed(await updateJournal.load(record.updateId),selected);
+        let failure=null;
         await registry.publicationGate.publish(request,publicationKey(record),
-          ()=>publisher.deliver({transferId:record.updateId,artifact:record.artifact,
-            expectedPreviousVersionId:record.previousVersionId,
-            expectedPreviousDeploymentId:record.previousDeploymentId}));
+          async()=>{try{return await publisher.deliver({transferId:record.updateId,
+            artifact:record.artifact,expectedPreviousVersionId:record.previousVersionId,
+            expectedPreviousDeploymentId:record.previousDeploymentId});}
+          catch(error){failure=publicationFailure(error);throw error;}});
+        if(failure){
+          const latest=await updateJournal.load(record.updateId);
+          await saveUpdate(latest,{publicationFailure:failure});
+        }
       },
       async inspect(){
         try{
@@ -1083,18 +1094,29 @@ export function createCloudflareDeliveryPipeline(options){
             percentage:100,bindings:current.bindings};
         }catch{return null;}
       }};
-    const cutover=storageCutoverFactory({updateJournal,updateId:record.updateId,
+    return storageCutoverFactory({updateJournal,updateId:record.updateId,
       previousTarget:record.target,nextTarget:record.nextTarget,
       plan:projection.targetPlan,artifact:record.artifact,databaseFor,publication,
       sourceIdentity:()=>identity(config.root),
       ...(options.storageCutoverSchema?{schema:options.storageCutoverSchema}:{})});
+  }
+  async function runRoutedCutover(record,selected,projection,registry,artifactRoot,request){
+    const cutover=await routedCutover(record,selected,projection,registry,artifactRoot,request);
     const result=await cutover.advance();
     record=await updateJournal.load(record.updateId);
+    if(result.state!=='ready'&&record.publicationFailure
+      &&['attesting','opening','open'].includes(record.cutover?.phase)){
+      const gate=await registry.publicationJournal.get(publicationKey(record));
+      if(gate?.state==='synchronized'
+        &&exactDeclaration(gate.declaration,record.artifact,record.nextTarget.origin))
+        record=await saveUpdate(record,{publicationFailure:null});
+    }
     if(result.state==='ready'){
       const sandbox=await ensureSandbox(record,selected);
       if(!sandbox.ready)return updateStatusOf(record);
       const gate=await registry.publicationJournal.get(publicationKey(record));
-      record=await saveUpdate(record,{stage:'delivered',finalUrl:gate.declaration.url});
+      record=await saveUpdate(record,{stage:'delivered',finalUrl:gate.declaration.url,
+        publicationFailure:null});
     }
     return updateStatusOf(record);
   }
@@ -1249,9 +1271,76 @@ export function createCloudflareDeliveryPipeline(options){
       previousDeploymentId:record.previousDeploymentId,
       apiCode:10021}}));
   }
+  async function claimUpdateRetry(record,registry){
+    const existing=await registry.publicationJournal.get(publicationKey(record));
+    const prepared=gate=>gate?.state==='prepared'
+      &&gate.requestKey===publicationKey(record)
+      &&gate.request?.projectId===record.registryProjectId
+      &&gate.request?.installationId===record.registryInstallationId
+      &&gate.request?.target==='cloudflare'
+      &&sameArtifact(gate.request?.artifact,record.artifact);
+    if(!record.publicationAttemptKey&&!prepared(existing))fail('update_not_ready',409);
+    if(existing&&!prepared(existing))fail('update_in_progress',409);
+    const count=Number.isSafeInteger(record.publicationRetryCount)?record.publicationRetryCount:0;
+    if(!record.publicationAttemptKey||existing){
+      if(count>=3)fail('retry_limit',409);
+      const nextKey=`${record.updateId}.retry.${count+1}`;
+      if(await registry.publicationJournal.get(nextKey))fail('update_in_progress',409);
+      record=await saveUpdate(record,{publicationAttemptKey:nextKey,
+        publicationRetryCount:count+1});
+    }
+    return record;
+  }
+  async function retryRoutedUpdate(record){
+    if(updateStatusOf(record).phase!=='delivery-unknown'
+      ||record.cutover?.phase!=='publishing'||record.nextTarget?.schemaVersion!==3
+      ||!record.artifact||validationRejected(record))fail('update_not_ready',409);
+    const registry=await registryPorts();
+    if(registry.registryIdentity.projectId!==record.registryProjectId
+      ||registry.registryIdentity.installationId!==record.registryInstallationId)
+      fail('registry_changed',409);
+    const selected=await connected(record),projection=await updateProjectionFor(record);
+    const artifactRoot=updateArtifactRoot(config.root,record.updateId);
+    const request={projectId:record.registryProjectId,
+      installationId:record.registryInstallationId,target:'cloudflare',artifact:record.artifact};
+    const cutover=await routedCutover(record,selected,projection,registry,artifactRoot,request);
+    if(typeof cutover.assertRetryReady!=='function')fail('update_unavailable',503);
+    await cutover.assertRetryReady();
+    await assertPrevious(record,selected,registry);
+    const publisher=publisherFactory({target:record.nextTarget,token:selected.token,
+      controlPlane:selected.control,artifactRoot});
+    if(typeof publisher.verifyPreservedUpdate!=='function'
+      ||typeof publisher.deliverPreservedUpdate!=='function'
+      ||typeof selected.control.latestVersion!=='function')fail('update_unavailable',503);
+    publisher.verifyPreservedUpdate({transferId:record.updateId,artifact:record.artifact,
+      sourceFingerprint:record.sourceFingerprint});
+    if((await selected.control.latestVersion(record.workerName))?.id!==record.previousVersionId)
+      fail('delivery_unknown',409);
+    record=await claimUpdateRetry(record,registry);
+    const sandbox=await ensureSandbox(record,selected);
+    record=sandbox.record;
+    if(!sandbox.ready)return updateStatusOf(record);
+    let failure=null;
+    const outcome=await registry.publicationGate.publish(request,publicationKey(record),
+      async()=>{
+        await assertSandboxConfirmed(await updateJournal.load(record.updateId),selected);
+        try{
+          return await publisher.deliverPreservedUpdate({transferId:record.updateId,
+            artifact:record.artifact,sourceFingerprint:record.sourceFingerprint,
+            expectedPreviousVersionId:record.previousVersionId,
+            expectedPreviousDeploymentId:record.previousDeploymentId});
+        }catch(error){failure=publicationFailure(error);throw error;}});
+    if(failure)record=await saveUpdate(record,{publicationFailure:failure});
+    if(outcome.state==='synchronized'){
+      if(record.publicationFailure)record=await saveUpdate(record,{publicationFailure:null});
+      return runRoutedCutover(record,selected,projection,registry,artifactRoot,request);
+    }
+    return updateStatusOf(record);
+  }
   /** A new, explicit publication attempt of the preserved artifact after negative remote proof. */
   async function retryUpdate(input,context){
     let record=await updateRecordFor(input?.updateId,input?.planDigest,context);
+    if(record.target?.schemaVersion===3)return retryRoutedUpdate(record);
     if(record.stage!=='delivery-unknown'||record.target?.schemaVersion!==1
       ||!record.artifact||!record.schemaReceiptId||validationRejected(record))
       fail('update_not_ready',409);
@@ -1276,17 +1365,7 @@ export function createCloudflareDeliveryPipeline(options){
       sourceFingerprint:record.sourceFingerprint});
     if((await selected.control.latestVersion(record.workerName))?.id!==record.previousVersionId)
       fail('delivery_unknown',409);
-    const existing=await registry.publicationJournal.get(publicationKey(record));
-    if(!record.publicationAttemptKey&&existing?.state!=='prepared')fail('update_not_ready',409);
-    if(existing&&existing.state!=='prepared')fail('update_in_progress',409);
-    const count=Number.isSafeInteger(record.publicationRetryCount)?record.publicationRetryCount:0;
-    if(!record.publicationAttemptKey||existing){
-      if(count>=3)fail('retry_limit',409);
-      const nextKey=`${record.updateId}.retry.${count+1}`;
-      if(await registry.publicationJournal.get(nextKey))fail('update_in_progress',409);
-      record=await saveUpdate(record,{publicationAttemptKey:nextKey,
-        publicationRetryCount:count+1,publicationFailure:null});
-    }
+    record=await claimUpdateRetry(record,registry);
     const sandbox=await ensureSandbox(record,selected);
     record=sandbox.record;
     if(!sandbox.ready)return updateStatusOf(record);
@@ -1294,13 +1373,14 @@ export function createCloudflareDeliveryPipeline(options){
       installationId:record.registryInstallationId,target:'cloudflare',artifact:record.artifact};
     let failure=null;
     const outcome=await registry.publicationGate.publish(request,publicationKey(record),
-      async()=>{try{
+      async()=>{
         await assertSandboxConfirmed(await updateJournal.load(record.updateId),selected);
-        return await publisher.deliverPreservedUpdate({transferId:record.updateId,
-        artifact:record.artifact,sourceFingerprint:record.sourceFingerprint,
-        expectedPreviousVersionId:record.previousVersionId,
-        expectedPreviousDeploymentId:record.previousDeploymentId});}
-      catch(error){failure=publicationFailure(error);throw error;}});
+        try{
+          return await publisher.deliverPreservedUpdate({transferId:record.updateId,
+            artifact:record.artifact,sourceFingerprint:record.sourceFingerprint,
+            expectedPreviousVersionId:record.previousVersionId,
+            expectedPreviousDeploymentId:record.previousDeploymentId});
+        }catch(error){failure=publicationFailure(error);throw error;}});
     if(outcome.state==='synchronized')record=await saveUpdate(record,
       {stage:'delivered',finalUrl:outcome.record.declaration.url,publicationFailure:null});
     else if(failure)record=await saveUpdate(record,{publicationFailure:failure});
