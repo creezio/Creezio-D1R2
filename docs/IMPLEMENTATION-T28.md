@@ -1,5 +1,15 @@
 # T28 — Connecteur Meili : connexion, indexation et recherche
 
+## Index et recherche sur Original Sites v7 — 3 octobre 2026
+
+Original domix v7, construit depuis Core `8756f0082c0048e771afd4f487afd0f2844b3ed2` et publié depuis la source Site `f71cc236662ec04d2470f74d556d9fd7362a48e9`, utilise la connexion Meili externe déjà configurée. Le seul droit Catalogue manquant a été ajouté par CAS au propriétaire admin (époque 13→14), sans changer ses autres droits. Une fiche explicitement fictive a été créée puis publiée par les opérations natives, révision 2, prix 1 299 centimes EUR.
+
+Une seule reconstruction native depuis l'état `missing` a préparé, émis et réconcilié sa génération d'index. L'état final est `ready`, révision 6. La recherche retourne exactement cette fiche à 12,99 EUR, `stale=false`, sur une page, dans la génération issue de cette reconstruction. Aucun index d'une autre application n'est modifié. Le reçu de recherche confirme zéro POST métier pour cette lecture, puis logout 200 et session 401.
+
+Un seul tour OpenAI admin est ensuite arrivé à `succeeded`, mais aucun widget Meili n'est présent dans ses messages. Les interactions directes et le rechargement de ce widget ne sont donc **pas qualifiés** sur ce Site. Le diagnostic porte sur le même tour ; aucune seconde génération n'est déduite de ce résultat. Les erreurs antérieures du helper d'inventaire/lecture des brouillons ont été corrigées contre les routes administratives existantes, sans modification produit ni seconde création.
+
+Preuves hors dépôt : `CREEZIO-T28-ORIGINAL-V7-MEILI-SEARCH-20261002T225452277Z-b15c7f8c-1119-4faa-9d20-abce562c7156.json`, SHA-256 `9efcf5d2ae5116774d96bac899a6d65343283f64ce8ce1da137743d1d4100a3d` ; `CREEZIO-T28-ORIGINAL-V7-MEILI-TURN-20261002T225510738Z-417872da-8c87-4bf3-ac83-887297779cb3.json`. Les recettes Linux et Cloudflare ci-dessous gardent leur périmètre propre.
+
 ## Cycle fournisseur incrémental Cloudflare b9 — 2 octobre 2026
 
 Sur Worker Core b9, les tâches Meili 169, 170, 171 et 172 ont été réconciliées pour l'insertion, la modification, le retrait et la reconstruction d'un témoin Catalogue dédié. L'index final est `ready` révision 25 sous un nouvel UID ; la recherche finale rend uniquement le produit existant autorisé à 12,99 EUR, pas le témoin archivé, et les recherches anonymes refusent à 401. La suppression physique de l'ancien index n'a pas été invoquée ; son existence après reconstruction n'est pas observable directement par l'API publique Core. La recherche native `product.search` du Catalogue utilise D1 et fonctionne par contrat et tests locaux sans Meili ; aucune désactivation hébergée n'est revendiquée. Reçus hors dépôt : `CREEZIO-T28-B9-INCREMENTAL-FINAL-2026-10-02.json` (SHA-256 `AA590B8E7160916CE0A579EB98844F2E3E78807686F90A57BF2D37AF63F020BF`) et `CREEZIO-T28-NATIVE-SEARCH-WITHOUT-MEILI-REVIEW-2026-10-02.md`. Le widget Meili Original Sites et la recherche globale T05 restent distincts. Les étapes antérieures ci-dessous restent historiques.

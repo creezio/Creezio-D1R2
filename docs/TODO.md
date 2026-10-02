@@ -1,5 +1,17 @@
 # Backlog de réalisation
 
+## Point de progression — 3 octobre 2026, livraison PR #103
+
+Le correctif clavier de PR #103 est intégré sur main `8756f0082c0048e771afd4f487afd0f2844b3ed2`. La CI de main a réussi **1 524/1 524 tests, sans omission, et 33 commandes**. Cette source est livrée sur Linux, Original Sites et Core Cloudflare ; le code du SDK public et du fork Lab n'a pas été modifié par cette correction.
+
+- **Original Sites v7** : source Site `f71cc236662ec04d2470f74d556d9fd7362a48e9`, publication et registre confirmés, même propriétaire, mêmes données D1/R2. Les relectures API et navigateur conservent conversation, brouillon, réponse, fichier, témoins CRM et page/image/navigation. Aucune recette métier déjà acquise n'a été rejouée pour la publication.
+- **Linux et Core Cloudflare** : image Linux activée sur le même volume, schéma prêt sans ajout ; update Cloudflare `a076ff9e-9451-452c-97d4-828744700ad1` livré, registre synchronisé. Worker `b0583aa8-8639-435c-9f8e-e617969e158f`, déploiement `9e671964-0469-46de-b5e8-9c684a5696b8`, 103 modules et 74 assets vérifiés. Le contrôle après livraison conserve les témoins Original, Stripe et Meili et confirme les déconnexions.
+- **Conversations** : le diagnostic Linux V2 retrouve le fil non vide, la section widget et des réponses UI valides après rechargement. La visibilité finale de l'iframe n'est pas attestée par cette collecte ; la cause du vide intermittent observé auparavant reste inconnue. Aucun nouveau correctif produit n'est déduit de cette seule observation.
+- **Clavier du widget Stripe** : Tab depuis l'iframe, revalidation session/catalogue à 200, focus réel sur le lien puis Entrée et ouverture Stripe observés sur Core Cloudflare. Checkout TEST inchangé, aucun nouveau paiement, Checkout ou tour IA. Le reçu reste `stopped` sur l'assertion finale d'URL complète : destination sans fragment confirmée, égalité complète non attestée ; voir [T16](IMPLEMENTATION-T16.md). Le geste clavier est observé sans transformer ce reçu partiel en succès intégral.
+- **Meili sur Original Sites** : connexion externe, produit fictif unique publié, reconstruction native et recherche exacte à 12,99 EUR dans l'index prêt qualifiés. Le seul tour IA est terminé, mais ne contient aucun widget Meili ; diagnostic sur ce même tour, sans nouvel appel ni recette UI annoncée. Voir [T28](IMPLEMENTATION-T28.md).
+
+Ces preuves de livraison ne clôturent pas les lots exhaustifs. Le bilan des recettes T16/T28 ci-dessous précise leurs acquis propres. Les tests fournisseurs n8n, Resend/mail, Granola et Hermes restent reportés ; T17 reste en dernier, et T23/T24/T34/T35 ainsi que les reconstructions WinHub/TempoFlow attendent les validations utilisateur prévues. T39 attend toujours le test et le retour de l'utilisateur.
+
 ## Point de progression — 2 octobre 2026, après intégration de PR #102
 
 - **Opérateur Cloudflare** : PR #102 intégrée sur main `8f0936d`, même arbre que la candidate vérifiée à 1 523/1 523 tests et 33 commandes réussies. La CI après fusion est également qualifiée à 1 523/1 523 tests et 33 commandes réussies ; l'opérateur Linux est activé sur la même base et le même volume, avec les témoins applicatifs conservés. Le premier contrôle HTTP a dépassé son délai pendant le démarrage à froid ; une inspection et les relectures natives ultérieures ont confirmé le service, sans rejouer l'activation. Les applications Sites et Workers conservent leur version actuelle ; ce correctif concerne l'opérateur local de provisionnement.
