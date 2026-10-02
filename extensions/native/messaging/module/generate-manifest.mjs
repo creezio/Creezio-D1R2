@@ -90,7 +90,7 @@ const models=[
     field('from_addr','string',{constraints:S(320)}),field('to_addr','string',{constraints:S(2048)}),
     field('subject','string',{constraints:S(240,0)}),field('text_body','string',{constraints:S(16000,0)}),
     field('html_body','string',{constraints:S(32000,0)}),field('received_at','date-time'),
-    field('attachments','json'),field('snapshot_digest','string',
+    field('attachments','json'),field('deleted_at','date-time',{nullable:true}),field('snapshot_digest','string',
       {constraints:{minLength:64,maxLength:64}}),field('created_at','date-time')],
     [...common,'box_id','id'],[],[boxLink]),
   model('inbound_stage_receipt','Reçus de staging des pièces entrantes',[
@@ -116,7 +116,8 @@ const models=[
     field('payload_digest','string',{constraints:{minLength:64,maxLength:64}}),field('created_at','date-time')],
     [...common,'box_id','id'],[],[boxLink])
 ];
-for(const name of ['draft','draft_attachment'])models.find(x=>x.id===name).deletion.mode='hard';
+for(const name of ['draft','draft_attachment','message','message_attachment'])
+  models.find(x=>x.id===name).deletion.mode='hard';
 models.find(x=>x.id==='file_metadata').fields=models.find(x=>x.id==='file_metadata').fields
   .filter(x=>x.id!=='owner_id');
 
@@ -159,6 +160,10 @@ const messageOutput=schema('message-output',obj({message}));
 const messageUpdateInput=schema('message-update-input',obj({requestKey:str(),boxId:str(),messageId:str(),
   revision:num(1),folder:{type:'string',enum:['inbox','sent','outbox','archive','trash']},read:{type:'boolean'}},
   ['requestKey','boxId','messageId','revision']));
+const messageDeleteInput=schema('message-delete-input',obj({requestKey:str(),boxId:str(),messageId:str(),
+  revision:num(1)}));
+const messageDeleteOutput=schema('message-delete-output',obj({deleted:{type:'boolean'},
+  revision:nullable(num(1)),removed:num(0,13)}));
 const reconcileInput=schema('message-delivery-reconcile-input',obj({requestKey:str(),boxId:str(),
   messageId:str(),revision:num(1)}));
 const importInput=schema('message-inbound-import-input',obj({requestKey:str(),boxId:str(),emailId:str(128)}));
@@ -278,6 +283,9 @@ operation('message.preview.list','Aperçu des messages pour le chat','query',mes
 operation('message.read','Lire un message','query',messageReadInput,messageOutput,['box','message'],[],{exportName:'messageRead'});
 operation('message.update','Classer ou marquer un message','command',messageUpdateInput,messageOutput,
   ['box','message'],['message'],{exportName:'messageUpdate',concurrency:{mode:'object-version',versionField:'revision'}});
+operation('message.delete','Supprimer définitivement un message reçu dans la corbeille','command',
+  messageDeleteInput,messageDeleteOutput,['box','message','message_attachment','inbound_snapshot','send_snapshot'],
+  ['message','message_attachment','inbound_snapshot'],{exportName:'messageDelete'});
 operation('message.delivery.reconcile','Rapprocher un accusé Resend signé','command',reconcileInput,messageOutput,
   ['box','message'],['message'],{exportName:'messageDeliveryReconcile',eventStatus:true});
 operation('message.inbound.prepare','Figer un courriel reçu dans une boîte choisie','command',
@@ -404,7 +412,8 @@ m.contracts={schemas,models,files:[category],events:[],settings:[],search:[],per
     receipt:deliveryReceipt,requiresModules:['creezio.resend']}],
   mcp:{tools:operations.filter(op=>op.id!=='message.delivery.prepare').map(op=>({id:op.id,name:`messaging_${op.id.replaceAll('.','_')}`,
     operation:ref('operation',op.id),audiences:['admin','app'],auth:['oauth','api-token'],input:op.input,output:op.output,
-    annotations:{readOnly:op.kind==='query',destructive:op.id==='draft.delete',idempotent:op.kind==='query',openWorld:op.id==='message.send'},
+    annotations:{readOnly:op.kind==='query',destructive:['draft.delete','message.delete'].includes(op.id),
+      idempotent:op.kind==='query',openWorld:op.id==='message.send'},
     ...({
       'box.preview.list':'boxes','message.preview.list':'messages','message.read':'messages',
       'draft.preview.list':'drafts','draft.read':'drafts'}[op.id]

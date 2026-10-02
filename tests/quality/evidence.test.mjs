@@ -51,7 +51,10 @@ test('slow TAP diagnostic is bounded and distinguishes parent and child duration
 });
 
 test('audited parallel files are exact and all other required files stay serial', () => {
-  assert.equal(auditedParallelTests.length, 13);
+  assert.equal(auditedParallelTests.length, 16);
+  // Other identity files share the guarded D1 fixture and must stay serial.
+  assert.deepEqual(auditedParallelTests.filter(file => file.startsWith('tests/identity/')),
+    ['tests/identity/d1-impersonation.test.mjs']);
   assert.deepEqual(partitionRequiredTests(['a', 'b', 'c'], ['b']),
     { parallel: ['b'], serial: ['a', 'c'] });
   for (const [required, allowed] of [

@@ -371,6 +371,18 @@ export function MessagingView(props:RuntimeViewProps) {
         if(live.current.selectedId===found.id)setMessage(found);
       }
       if(issued.intent==='draft.delete'&&live.current.selectedId===issued.targetId)setSelectedId(null);
+      if(issued.intent==='message.delete'){
+        if(value?.deleted===true&&live.current.selectedId===issued.targetId){
+          setSelectedId(null);setMessage(null);setAttachments([]);
+        }else if(value?.deleted===false&&Number.isSafeInteger(value.revision)
+          &&live.current.selectedId===issued.targetId){
+          setMessage(old=>old&&old.id===issued.targetId?{...old,revision:Number(value.revision)}:old);
+          setSelectionRevision(number=>number+1);
+          setListRevision(number=>number+1);
+          setNotice('Suppression partielle confirmée. Relisez le message puis poursuivez la suppression.');
+          return;
+        }
+      }
       if(issued.intent==='box.create'){
         const created=value?.box as Box|undefined;
         await loadBoxes();if(!current())return;
@@ -507,6 +519,43 @@ export function MessagingView(props:RuntimeViewProps) {
       if(!scoped(boxId))return;
       if(result.kind!=='ok'||!result.value.deleted){setNotice(result.kind==='ok'?'Suppression non confirmée.':readableError(result.code));return;}
       setSelectedId(null);setDraft(null);void loadList();
+    }finally{finishBusy(busyToken);}
+  }
+  async function deleteMessage(){
+    const selected=message,selectedBox=boxId;
+    if(!selected||busy||!scoped(selectedBox)||folder!=='trash')return;
+    if(selected.direction!=='inbound'){
+      setNotice('L’historique d’envoi et ses accusés sont conservés.');return;
+    }
+    const same=()=>scoped(selectedBox)&&live.current.folder==='trash'
+      &&live.current.selectedId===selected.id;
+    let revision=selected.revision;
+    const busyToken=beginBusy();setNotice('Suppression en cours…');
+    try{
+      for(let step=0;step<4;step++){
+        if(!same())return;
+        const result=await executeMutation<{deleted:boolean;revision:number|null;removed:number}>(
+          'message.delete',{boxId:selectedBox,messageId:selected.id,revision},same,selected.id);
+        if(!same())return;
+        if(result.kind!=='ok'){
+          setNotice(result.kind==='unknown'
+            ?'Résultat de suppression incertain. Vérifiez la dernière modification avant de poursuivre.'
+            :readableError(result.code));return;
+        }
+        if(result.value.deleted){
+          setSelectedId(null);setMessage(null);setAttachments([]);setThread([]);
+          setListRevision(number=>number+1);setNotice('Message local supprimé ; pièces privées détachées.');return;
+        }
+        if(typeof result.value.revision!=='number'||!Number.isSafeInteger(result.value.revision)
+          ||result.value.revision<=revision
+          ||result.value.removed<1){setNotice('Progression invalide ; relisez le message.');return;}
+        revision=result.value.revision;
+        setMessage(old=>old&&old.id===selected.id?{...old,revision}:old);
+        setNotice(`Suppression en cours : ${step+1} lot(s) confirmé(s)…`);
+      }
+      setSelectionRevision(number=>number+1);
+      setListRevision(number=>number+1);
+      setNotice('Suppression partielle confirmée. Relisez le message puis poursuivez la suppression.');
     }finally{finishBusy(busyToken);}
   }
   async function unlinkFile(item:Attachment){if(!editor.id||busy||!scoped())return;const busyToken=beginBusy();
@@ -649,7 +698,7 @@ export function MessagingView(props:RuntimeViewProps) {
       <div role="separator" aria-orientation="vertical" onPointerDown={event=>beginResize(event,0)} className="w-1 cursor-col-resize bg-[#ebe4d8] hover:bg-sky-300"/>
       <div style={{width:`${widths[1]}%`}} className="min-w-0"><ListPanel folder={folder} messages={messages} drafts={drafts} selectedId={selectedId} query={query} onQuery={setQuery} unreadOnly={unreadOnly} onUnreadOnly={setUnreadOnly} onSelect={chooseItem} onRefresh={()=>void loadList()} loading={loading} hasMore={!!cursor} onMore={()=>void loadList(true)}/></div>
       <div role="separator" aria-orientation="vertical" onPointerDown={event=>beginResize(event,1)} className="w-1 cursor-col-resize bg-[#ebe4d8] hover:bg-sky-300"/>
-      <div className="min-w-0 flex-1"><ReaderPanel message={message} draft={draft} thread={thread} threadHasMore={!!threadCursor} threadLoading={threadLoading} onThreadMore={()=>void loadMoreThread()} onThreadSelect={chooseItem} attachments={attachments} loading={loading} busy={busy||!!pending} onReply={reply} onEdit={()=>draft&&openCompose(draftFrom(draft))} onDownload={item=>void downloadFile(item)} onUpdate={change=>void updateMessage(change)} onReconcile={()=>void reconcileDelivery()} onDeleteDraft={()=>void deleteDraft()}/></div>
+      <div className="min-w-0 flex-1"><ReaderPanel message={message} draft={draft} thread={thread} threadHasMore={!!threadCursor} threadLoading={threadLoading} onThreadMore={()=>void loadMoreThread()} onThreadSelect={chooseItem} attachments={attachments} loading={loading} busy={busy||!!pending} onReply={reply} onEdit={()=>draft&&openCompose(draftFrom(draft))} onDownload={item=>void downloadFile(item)} onUpdate={change=>void updateMessage(change)} onReconcile={()=>void reconcileDelivery()} onDeleteDraft={()=>void deleteDraft()} onDeleteMessage={()=>void deleteMessage()}/></div>
     </div>
     {newBox&&<div role="dialog" aria-modal="true" aria-label="Nouvelle boîte" className="absolute inset-0 z-30 flex items-center justify-center bg-black/35 p-4"><div className="w-full max-w-md space-y-3 rounded-xl bg-white p-5 shadow-xl">
       <div className="flex justify-between"><h2 className="font-semibold">Nouvelle boîte locale</h2><button type="button" onClick={()=>setNewBox(false)} aria-label="Fermer"><X size={18}/></button></div>

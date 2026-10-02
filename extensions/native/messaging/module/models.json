@@ -425,7 +425,7 @@
       }
     ],
     "deletion": {
-      "mode": "soft",
+      "mode": "hard",
       "requiresApproval": false
     },
     "public": false
@@ -1234,7 +1234,7 @@
       }
     ],
     "deletion": {
-      "mode": "soft",
+      "mode": "hard",
       "requiresApproval": false
     },
     "public": false
@@ -1410,6 +1410,13 @@
         "id": "attachments",
         "type": "json",
         "nullable": false,
+        "protected": false,
+        "computed": false
+      },
+      {
+        "id": "deleted_at",
+        "type": "date-time",
+        "nullable": true,
         "protected": false,
         "computed": false
       },

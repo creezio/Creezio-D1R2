@@ -221,6 +221,18 @@ test('Messaging commits one immutable snapshot and canonical outbox intent again
         boxId:box.id,emailId:'received-proof-zero'})).snapshot;
       assert.equal(importedStatus.imported,true);
       assert.equal(calls,1,'inbound GET must not issue a send POST');
+      const inboundSnapshotTable=schemas['creezio.messaging'].tables.inbound_snapshot;
+      await db.prepare(`DELETE FROM "${inboundSnapshotTable}" WHERE id=?`).bind(imported.id).run();
+      const legacyTrash=success(await invoke('message.update',{
+        requestKey:'received-legacy-trash',boxId:box.id,messageId:imported.id,
+        revision:imported.revision,folder:'trash'})).message;
+      const legacyDelete=await invoke('message.delete',{
+        requestKey:'received-legacy-delete-denied',boxId:box.id,
+        messageId:legacyTrash.id,revision:legacyTrash.revision});
+      assert.equal(legacyDelete.execution.errorCode,'conflict');
+      assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM "${messageTable}" WHERE id=?`)
+        .bind(imported.id).first()).n,1,'legacy row without snapshot cannot be removed');
+      let fiftyMessage=null,fiftyFile=null,fiftyInboundRefs=[];
       for(const count of [1,50]){
         const emailId=`received-proof-${count}`,beforeGets=inboundGets;
         receivedFixtures.set(emailId,{count});
@@ -257,12 +269,61 @@ test('Messaging commits one immutable snapshot and canonical outbox intent again
         assert.equal(listed.items.length,count);
         assert.equal(listed.nextCursor,null);
         assert.equal(new Set(listed.items.map(item=>item.fileId)).size,count);
+        if(count===50){
+          fiftyMessage=published;
+          fiftyFile=listed.items[0].fileId;
+          fiftyInboundRefs=listed.items.map(item=>item.reference);
+        }
         const replay=success(await invoke('message.inbound.import',{
           requestKey:`delivery-import-replay-${count}`,boxId:box.id,emailId})).message;
         assert.equal(replay.id,published.id);
         assert.equal(inboundGets,stageGets);
         assert.ok(stageGets-beforeGets>=1+2*count);
       }
+      const trashed=success(await invoke('message.update',{requestKey:'received-50-trash',
+        boxId:box.id,messageId:fiftyMessage.id,revision:fiftyMessage.revision,folder:'trash'})).message;
+      const staleDelete=await invoke('message.delete',{requestKey:'received-50-delete-stale',
+        boxId:box.id,messageId:trashed.id,revision:fiftyMessage.revision});
+      assert.equal(staleDelete.execution.state,'failed');
+      assert.equal(staleDelete.execution.errorCode,'conflict');
+      const firstDeleteInput={requestKey:'received-50-delete-1',boxId:box.id,
+        messageId:trashed.id,revision:trashed.revision};
+      const firstDelete=success(await invoke('message.delete',firstDeleteInput));
+      assert.deepEqual({...firstDelete},{deleted:false,revision:trashed.revision+1,removed:13});
+      const replayedDelete=success(await invoke('message.delete',firstDeleteInput));
+      assert.deepEqual({...replayedDelete},{...firstDelete},'same key must not remove a second batch');
+      const attachmentTable=schemas['creezio.messaging'].tables.message_attachment;
+      assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM "${attachmentTable}" WHERE message_id=?`)
+        .bind(trashed.id).first()).n,37);
+      let progress=firstDelete;
+      for(let step=2;step<=4;step++){
+        progress=success(await invoke('message.delete',{requestKey:`received-50-delete-${step}`,
+          boxId:box.id,messageId:trashed.id,revision:progress.revision}));
+        assert.equal(progress.removed,step===4?11:13);
+        assert.equal(progress.deleted,step===4);
+      }
+      assert.equal(progress.revision,null);
+      assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM "${attachmentTable}" WHERE message_id=?`)
+        .bind(trashed.id).first()).n,0);
+      assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM "${messageTable}" WHERE id=?`)
+        .bind(trashed.id).first()).n,0);
+      const deletedRead=await invoke('message.read',{boxId:box.id,messageId:trashed.id});
+      assert.equal(deletedRead.execution.errorCode,'not_found');
+      const tombstone=await db.prepare(`SELECT deleted_at,subject,text_body,html_body,attachments
+        FROM "${inboundSnapshotTable}" WHERE id=?`).bind(trashed.id).first();
+      assert.match(tombstone.deleted_at,/^\d{4}-\d\d-\d\dT/);
+      assert.deepEqual([tombstone.subject,tombstone.text_body,tombstone.html_body,
+        JSON.parse(tombstone.attachments)],['','','',[]]);
+      const beforeBlocked=inboundGets;
+      for(const operationId of ['message.inbound.status','message.inbound.import','message.inbound.prepare']){
+        const denied=await invoke(operationId,{boxId:box.id,emailId:'received-proof-50',
+          ...(operationId==='message.inbound.status'?{}:{requestKey:`deleted-${operationId}`})});
+        assert.equal(denied.execution.errorCode,'not_found',operationId);
+      }
+      assert.equal(inboundGets,beforeBlocked,'deleted snapshot must not re-read the provider');
+      const metadataTable=schemas['creezio.messaging'].tables.file_metadata;
+      assert.equal((await db.prepare(`SELECT state FROM "${metadataTable}" WHERE file_id=?`)
+        .bind(fiftyFile).first()).state,'available','private R2 file lifecycle remains separate');
       const secondBox=success(await invoke('box.create',{requestKey:'delivery-second-box',
         name:'Réception bis',address:'sender@example.invalid'})).box;
       const secondSnapshot=success(await invoke('message.inbound.prepare',{
@@ -284,7 +345,6 @@ test('Messaging commits one immutable snapshot and canonical outbox intent again
       assert.equal(secondLink.fileId,secondStage.fileId);
       assert.notEqual(secondLink.fileId,firstLink.fileId);
       const receiptTable=schemas['creezio.messaging'].tables.inbound_stage_receipt;
-      const attachmentTable=schemas['creezio.messaging'].tables.message_attachment;
       const prepareFixture=async(emailId,count)=>{
         receivedFixtures.set(emailId,{count});
         await db.prepare(`INSERT INTO "${eventTable}" (context_id,id,connection_id,event_type,email_id,
@@ -482,17 +542,8 @@ test('Messaging commits one immutable snapshot and canonical outbox intent again
       assert.equal(preserved.send_intent_id,null);
       let attachedLinked=success(await invoke('attachment.link',{requestKey:'delivery-link-attached',
         boxId:box.id,draftId:attachedDraft.id,revision:attachedSaved.revision,staged})).draft;
-      const stagedFiles=[staged];
-      for(let index=1;index<50;index++){
-        const nextLease=await data.authorize({kind:'session',token:admin.token},{contextId:'application',
-          audience:'admin',actors:['user'],requiredPermissionIds:['creezio.messaging:use'],
-          purpose:'operation'},{moduleId:'creezio.messaging'});
-        let next;
-        try{next=await createFileService({data,catalog,moduleId:'creezio.messaging',category,
-          bucket,ownerId}).stage(nextLease,{ownerId,intentId:`delivery-binary-${index}`,generation:'one',
-          filename:`preuve-${index}.bin`,contentType:'application/pdf',bytes:new Uint8Array([index])});}
-        finally{data.dispose(nextLease);}
-        stagedFiles.push(next);
+      const stagedFiles=[staged,...fiftyInboundRefs.slice(0,49)];
+      for(const [index,next] of fiftyInboundRefs.slice(0,49).entries()){
         attachedLinked=success(await invoke('attachment.link',{requestKey:`delivery-link-${index}`,
           boxId:box.id,draftId:attachedDraft.id,revision:attachedLinked.revision,staged:next})).draft;
       }
@@ -535,6 +586,19 @@ test('Messaging commits one immutable snapshot and canonical outbox intent again
         revision:failed.revision})).message;
       assert.equal(repeated.state,'failed');
       assert.equal(repeated.revision,failed.revision,'older late arrival cannot revise a terminal failure');
+      const outboundTrash=success(await invoke('message.update',{
+        requestKey:'delivery-outbound-trash',boxId:box.id,messageId:attachedSend.execution.id,
+        revision:repeated.revision,folder:'trash'})).message;
+      const outboundDelete=await invoke('message.delete',{
+        requestKey:'delivery-outbound-delete-denied',boxId:box.id,
+        messageId:outboundTrash.id,revision:outboundTrash.revision});
+      assert.equal(outboundDelete.execution.errorCode,'conflict');
+      assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM "${OPERATION_TABLES.outbox}"
+        WHERE execution_id=?`).bind(attachedSend.execution.id).first()).n,1);
+      assert.equal((await db.prepare(`SELECT COUNT(*) AS n FROM "${messageTable}"
+        WHERE id=?`).bind(attachedSend.execution.id).first()).n,1);
+      success(await invoke('message.update',{requestKey:'delivery-outbound-restore',
+        boxId:box.id,messageId:outboundTrash.id,revision:outboundTrash.revision,folder:'sent'}));
       const raceDraft=success(await invoke('draft.create',
         {requestKey:'delivery-draft-race',boxId:box.id})).draft;
       const raceLinked=success(await invoke('attachment.link',{requestKey:'delivery-link-race',
