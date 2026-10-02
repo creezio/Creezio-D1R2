@@ -383,6 +383,25 @@ test('routed validation refusal keeps diagnostic and disables retry',async()=>{
   assert.equal(f.uploadCount,1);
 });
 
+test('routed preflight outage retains the last upload diagnostic and retry key',async()=>{
+  const {f,prepared,unknown}=await routedUnknownFixture();
+  const preflight=f.options.registryClient.preflight;
+  let unavailable=true;
+  f.options.registryClient.preflight=async request=>{
+    if(unavailable){unavailable=false;throw new Error('registry unavailable');}
+    return preflight(request);
+  };
+  const pending=await f.pipeline.retryUpdate(prepared,context);
+  assert.equal(pending.phase,'delivery-unknown');
+  assert.deepEqual(pending.diagnostic,unknown.diagnostic);
+  assert.equal(f.updateJournal.records.get('update-one').publicationAttemptKey,'update-one.retry.1');
+  assert.equal(f.gateJournal.records.has('update-one.retry.1'),false);
+  assert.equal(f.uploadCount,1);
+  assert.equal((await f.pipeline.retryUpdate(prepared,context)).phase,'delivered');
+  assert.equal(f.updateJournal.records.get('update-one').publicationRetryCount,1);
+  assert.equal(f.uploadCount,2);
+});
+
 for(const [field,value] of [
   ['url','https://wrong.example/'],['publishedSha','f'.repeat(40)]])
   test(`routed update refuses a divergent previous declaration ${field} before fencing`,async()=>{
@@ -750,14 +769,17 @@ test('preflight failure leaves a durable retry key that can resume without alloc
   const f=fixture({failedUploadNoRemote:true});await f.configure();
   const prepared=await f.pipeline.prepareUpdate({},context);
   const input={updateId:prepared.updateId,planDigest:prepared.planDigest};
-  assert.equal((await f.pipeline.startUpdate(input,context)).phase,'delivery-unknown');
+  const unknown=await f.pipeline.startUpdate(input,context);
+  assert.equal(unknown.phase,'delivery-unknown');
   const preflight=f.options.registryClient.preflight;
   let failOnce=true;
   f.options.registryClient.preflight=async request=>{
     if(failOnce){failOnce=false;throw new Error('synthetic registry outage');}
     return preflight(request);
   };
-  assert.equal((await f.pipeline.retryUpdate(input,context)).phase,'delivery-unknown');
+  const pending=await f.pipeline.retryUpdate(input,context);
+  assert.equal(pending.phase,'delivery-unknown');
+  assert.deepEqual(pending.diagnostic,unknown.diagnostic);
   assert.equal(f.updateJournal.records.get('update-one').publicationAttemptKey,'update-one.retry.1');
   assert.equal(f.gateJournal.records.has('update-one.retry.1'),false);
   assert.equal(f.uploadCount,1);

@@ -1280,7 +1280,7 @@ export function createCloudflareDeliveryPipeline(options){
       const nextKey=`${record.updateId}.retry.${count+1}`;
       if(await registry.publicationJournal.get(nextKey))fail('update_in_progress',409);
       record=await saveUpdate(record,{publicationAttemptKey:nextKey,
-        publicationRetryCount:count+1,publicationFailure:null});
+        publicationRetryCount:count+1});
     }
     return record;
   }
