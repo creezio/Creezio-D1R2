@@ -27,6 +27,14 @@ Le contrôleur qualité sépare une liste explicite de tests indépendants du re
 
 Rendre un bilan des contrôles exécutés, échecs, éléments non vérifiés et artefacts identifiés. Une CI verte, une capture ou un healthcheck isolé n'est pas une recette produit complète. Nettoyer uniquement les temporaires créés devenus inutiles après vérification de leur usage.
 
+## Diagnostiquer un échec sans élargir la recette
+
+Rattacher chaque recette au critère existant qu'elle vérifie et réutiliser les preuves toujours applicables. Avant un nouvel essai, identifier l'information qui manque ; isoler le geste concerné au lieu de rejouer tout le parcours. Un échec répété sans information nouvelle appelle un diagnostic, pas une nouvelle campagne.
+
+Le helper conserve l'étape atteinte, une erreur exploitable expurgée et les observations pertinentes avant son nettoyage, sans cookies, jetons, corps privés ni URL sensible. Un nom générique comme `Error` ne suffit pas. La collecte doit rester bornée et ne pas empêcher déconnexion ou fermeture. Un timeout n'établit pas à lui seul un défaut du produit : distinguer cause prouvée, test incorrect, environnement et cause inconnue.
+
+Pour une interaction clavier dans un widget, observer le focus dans l'hôte et l'iframe ; l'envoi de Tab ne prouve pas que le focus en soit sorti. Utiliser un geste réel pour qualifier ce parcours, sans forcer le focus ni modifier le produit pour satisfaire un sélecteur non fondé. Une capture ou un appel API ne qualifie que ce qu'il observe.
+
 ## Finalisation d'une candidate avant push
 
 Après la dernière édition d'un fichier déclaré dans le manifeste d'un module, y compris document ou test, recenser toutes les compositions qui le sélectionnent, profils actifs et exemples distribués compris. Pour chaque profil affecté, exécuter `npm run modules:lock -- --composition <chemin-de-composition>` sans `--write` (par exemple `configuration/composition.json` ou `configuration/composition.sites.json`) : le contrôleur existant compare le verrou aux archives déterministes **runtime et validation**. Pour une source `package`, fournir `--validation-receipt moduleId=chemin` depuis l'inventaire et vérifier le reçu ; ne pas substituer un checkout. Si un verrou est invalide, examiner le diff source, régénérer uniquement ce profil avec les mêmes arguments et `--write`, relire les nœuds et empreintes des deux archives, puis refaire le contrôle en lecture seule sur tous les profils affectés. Toute nouvelle édition déclarée rend ce contrôle caduc. Réutiliser le cache d'archives ; aucun nouveau validateur, hook ou build global n'est requis pour ce point.

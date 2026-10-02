@@ -1,5 +1,17 @@
 # T20 — CRM natif
 
+## Relations par les sélecteurs et refus croisés — 2 octobre 2026
+
+Sur Original domix v6/Core `d7e117a`, les formulaires existants du contact et du prospect A ont effectué quatre mises à jour : retrait puis rétablissement de l'entreprise du contact, ajout puis retrait des deux liens du prospect. Les recherches et sélections des références ont été effectuées dans l'interface. Deux tentatives API de liaison vers B ont été refusées avec `not_found`, sans changement ; les quatre mutations autorisées et les deux refus ont chacun une intention conservée, sans rejeu.
+
+La lecture finale compare tous les champs métier au point de départ : entreprise A révision 7, contact A révision 6 toujours lié à cette entreprise, prospect A révision 6 sans lien. Les deux fiches B restent intégralement identiques (révisions 2/1). Journal final sans opération en attente, zéro écriture navigateur inattendue, logout 200/session 401 et navigateurs fermés. Reçu `CREEZIO-T20-ORIGINAL-RELATIONS-SUMMARY.json`, SHA-256 `63a1a227807a843342a44d93b4bf41230c3672703caa3d70eee6e8d372a7c212`, lié à huit reçus et à la capture finale. Cette nouvelle référence succède aux révisions 5/3/4 pour toute relecture future de ces témoins. Pagination, widgets et conflit concurrent restent distincts de cette recette.
+
+## Kanban et édition du prospect sur Original — 2 octobre 2026
+
+Sur Original domix v5/Core `252791f`, la recette utilise les quatre fiches A/B déjà présentes et crée un seul prospect explicitement fictif dans A. L'interface à cinq colonnes montre son déplacement de « À contacter » à « Contacté », l'édition d'une note temporaire et la restauration par formulaire de son étape, position et note initiales. Les quatre fiches entreprise/contact sont inchangées ; B reste isolé. Le prospect est conservé à la révision 4, sans lien entreprise/contact. Les lectures natives confirment les commandes et le contenu métier ; les sessions et navigateurs sont fermés.
+
+Le reçu `CREEZIO-T20-ORIGINAL-KANBAN-SUMMARY.json`, SHA-256 `3f7da202586c84e253a248d0e3c5e83f2082e8ee1bf8bfe17a10b8f541e34eda`, lie les phases et la capture finale. La relecture après publication d'Original v6/Core `d7e117a` confirme les mêmes cinq témoins. Ce cycle ne qualifie pas le conflit concurrent du kanban, les sélecteurs de relations, la pagination visible ou les six widgets liste/fiche ; leurs critères restent ouverts. Aucun export métier CRM n'est ajouté : REQ-2001 impose la frontière de droits lorsqu'une voie d'export existe.
+
 ## Deux contextes logiques sur Original Sites — 2 octobre 2026
 
 Sur Original avant la mise à jour PR #97 (source Site `be34e8d`, version 3), `t20-oct2-a` et `t20-oct2-b` utilisent le même couple D1/R2. Une entreprise et un contact ont été créés dans chaque contexte, soit quatre fiches ; chaque contact référence l'entreprise locale. La recherche retrouve chaque fiche dans son contexte et aucune fiche étrangère ; la lecture croisée et les deux relations entre contextes répondent `not_found`. L'UI a montré les fiches et leur relation en A et B, puis B après rechargement ; logout 200/session 401 est confirmé. Reçu hors dépôt : `CREEZIO-T20-OCT2-ORIGINAL-FINAL.json` (SHA-256 `52C51EE870550312E91F48D2040034694E979231A96C40BD7B18ECC29E257844`).

@@ -1,5 +1,13 @@
 # T21 — Pages et navigation
 
+## Image privée et sections publiées sur Original — 2 octobre 2026
+
+Sur la page fictive existante d'Original domix v5/Core `252791f`, un PNG privé de 202 octets a été envoyé une fois et lié au hero ainsi qu'à une section `features`. Le brouillon passe à la révision 8, la publication à 2. Avant publication, l'image est inaccessible anonymement ; après, le HTML public conserve le canonical et la navigation vide 4/2, la route d'image rend les octets exacts et l'ancienne révision répond 404. Le navigateur anonyme affiche les deux images complètes de 32 × 32 et les deux sections, puis se ferme.
+
+L'assertion initiale du helper comptait deux occurrences d'URL ; le préchargement React en ajoutait une troisième. La publication native avait réussi. Une lecture distincte de l'état, des balises `<img>` et de l'image confirme cette unique publication, sans la rejouer. Reçus hors dépôt : `CREEZIO-T21-OCT2-MEDIA-SECTIONS-FINAL.json` (SHA-256 `eee361c56b0b027b163acabaf9ef65141ff25ebf28df53d71c45f4af4318b493`) et `CREEZIO-T21-OCT2-MEDIA-SECTIONS-POSTPUBLISH-VERIFY.json`. La relecture après mise à jour d'Original v6/Core `d7e117a` retrouve ces états et le même PNG.
+
+Cette preuve complète navigation, aperçu, reset et SEO précédemment qualifiés. Les autres formats, les autres contextes, la révocation pendant une lecture et les widgets gardent leurs critères propres ; elle ne constitue pas une recette exhaustive du module.
+
 ## Navigation éditoriale publiée puis restaurée sur Original Sites v4 — 2 octobre 2026
 
 Sur le Site actuel PR #97 (source `3a1b34842d6f985b956c3e519336451f4c65ee71`), les droits Pages admin édition/lecture et app lecture ont été accordés au propriétaire existant par deux mutations CAS, sans retirer les autres droits (époques 5 → 7). Le snapshot initial comptait zéro page et des listes de navigation brouillon/publiée vides. Une seule page fictive `/recette-t21-navigation` a été créée et publiée publiquement, sans image ; le lien a été ajouté puis publié dans la navigation. L'API, le HTML public et le navigateur app ont montré la page et le lien. Les opérations officielles ont ensuite restauré exactement les deux listes de navigation vides ; le navigateur a constaté l'absence du lien. Les révisions natives ont avancé à 4 pour le brouillon et 2 pour la publication. La page témoin demeure publique. Toutes les sessions ont été fermées et contrôlées à 401 ; les deux captures navigateur sont conservées. Reçu hors dépôt : `CREEZIO-T21-OCT2-NAVIGATION-FINAL-2026-10-02.json`.
