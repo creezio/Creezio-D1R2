@@ -1,5 +1,12 @@
 # T20 — CRM natif
 
+## Deux contextes logiques sur Original Sites — 2 octobre 2026
+
+Sur Original avant la mise à jour PR #97 (source Site `be34e8d`, version 3), `t20-oct2-a` et `t20-oct2-b` utilisent le même couple D1/R2. Une entreprise et un contact ont été créés dans chaque contexte, soit quatre fiches ; chaque contact référence l'entreprise locale. La recherche retrouve chaque fiche dans son contexte et aucune fiche étrangère ; la lecture croisée et les deux relations entre contextes répondent `not_found`. L'UI a montré les fiches et leur relation en A et B, puis B après rechargement ; logout 200/session 401 est confirmé. Reçu hors dépôt : `CREEZIO-T20-OCT2-ORIGINAL-FINAL.json` (SHA-256 `52C51EE870550312E91F48D2040034694E979231A96C40BD7B18ECC29E257844`).
+
+Cette recette établit l'isolation logique CRM entre deux contextes actifs sur Sites. Elle n'exerce pas l'export CRM, ne crée pas de prospect et ne qualifie pas le routage T33 vers des D1/R2 physiques distincts. La recette v7/b9 à trois fiches décrite ensuite reste un témoin séparé.
+
+
 ## Recette ciblée Original Sites v7/Core b9 — 2 octobre 2026
 
 Trois fiches dédiées `T20-B9-C17FB5FDD40F` (entreprise, contact et prospect) ont été créées et recherchées par API native. Le contact référence l'entreprise ; le prospect référence l'entreprise et le contact, stade `a_contacter`. Les trois vues ont été observées en navigateur. Un premier contrôle navigateur s'est arrêté après cette observation, sans diagnostic précis ; un second a confirmé le prospect et ses liens avant/après rechargement, puis la déconnexion 200/session 401. Les recherches des trois types sous le contexte non attribué `t20-foreign` ont refusé à 403 sans sortie. L'ancien contact révision 3 et le ticket Support révision 4 sont préservés. Cette preuve ne couvre pas un refus entre deux contextes vivants ni les refus de relation/export. Reçus hors dépôt : `CREEZIO-T20-SITES-B9-CRM-FINAL-2026-10-02.json`, `CREEZIO-T20-SITES-B9-PLAYWRIGHT-UI-2026-10-02.json` et `CREEZIO-T20-SITES-B9-PLAYWRIGHT-RELOAD-2026-10-02.json`.
