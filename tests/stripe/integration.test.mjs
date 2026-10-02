@@ -40,7 +40,7 @@ const permissions=manifest.contracts.permissions.map(item=>({id:`${moduleId}:${i
 const catalog={schemaVersion:1,compositionDigest:digest,modules:[{moduleId,version:manifest.identity.version,
   enabled:true,permissions:manifest.contracts.permissions,models:manifest.contracts.models.map(model=>({
     modelId:model.id,table:generated.tables[model.id],model}))}]};
-const composition={modules:[{moduleId,enabled:true}],exposure:{admin:{moduleIds:[moduleId]},app:{moduleIds:[]}}};
+const composition={modules:[{moduleId,enabled:true}],exposure:{admin:{moduleIds:[moduleId]},app:{moduleIds:[moduleId]}}};
 function registry(){
   const ajv=addFormats(new Ajv2020({strict:true,allErrors:false,coerceTypes:false,removeAdditional:false}));
   const validators={},names=new Map();
@@ -87,10 +87,13 @@ test('Stripe connector commits pages and cancellation changes atomically in D1 w
       const before=good(await acl.readPolicy(admin.token)),policy=structuredClone(before.policy);
       policy.roles.push({id:'stripe-admin',inherits:[],permissionIds:[`${moduleId}:manage`,`${moduleId}:read`],
         permissionOverrides:[]},{id:'stripe-reader',inherits:[],permissionIds:[`${moduleId}:read`],
+        permissionOverrides:[]},{id:'stripe-buyer',inherits:[],
+        permissionIds:[`${moduleId}:purchase`,`${moduleId}:purchase.read`],
         permissionOverrides:[]},{id:'stripe-webhook',inherits:[],
         permissionIds:[`${moduleId}:read`,`${moduleId}:webhook.receive`],permissionOverrides:[]});
       policy.contexts.push({id:'other',status:'active'});
       for(const [principalId,audience,contextId,roleId] of [[owner.principalId,'admin','application','stripe-admin'],
+        [owner.principalId,'app','application','stripe-buyer'],
         [owner.principalId,'admin','other','stripe-reader'],[machine.id,'admin','application','stripe-webhook']]){
         if(!policy.memberships.some(item=>item.principalId===principalId&&item.audience===audience&&item.contextId===contextId))
           policy.memberships.push({principalId,audience,contextId,status:'active'});
@@ -118,6 +121,12 @@ test('Stripe connector commits pages and cancellation changes atomically in D1 w
             livemode:false,mode:form.get('mode'),status:'open',payment_status:'unpaid',
             url:`https://checkout.stripe.com/c/test_${checkoutCount}`,
             client_reference_id:form.get('client_reference_id')});
+        }
+        if(parsed.pathname.startsWith('/v1/checkout/sessions/cs_test_')&&init.method==='GET'){
+          const id=parsed.pathname.split('/').at(-1);
+          return Response.json({id,object:'checkout.session',livemode:false,
+            mode:'subscription',status:'open',payment_status:'unpaid',
+            url:`https://checkout.stripe.com/c/test_${id.slice(8)}`});
         }
         if(parsed.pathname==='/v1/subscriptions/sub_test'&&init.method==='POST'){
           subscriptionWrites++;
@@ -237,6 +246,9 @@ test('Stripe connector commits pages and cancellation changes atomically in D1 w
       const wire=path=>http.dispatch(new Request(origin+path,{headers:{authorization:`Bearer ${apiToken}`,
         'x-creezio-context':'application'}}),{profile:'sites',bindings:{DB:db}},
         {CREEZIO_APP_ORIGIN:origin},'stripe-http');
+      const appWire=path=>http.dispatch(new Request(origin+path,{headers:{
+        cookie:`__Host-creezio-app=${app.token}`,'x-creezio-context':'application'}}),
+      {profile:'sites',bindings:{DB:db}},{CREEZIO_APP_ORIGIN:origin},'stripe-app-http');
       const httpRead=await wire('/api/admin/stripe/customer/list?limit=25');
       assert.equal(httpRead.status,200,await httpRead.clone().text());
       assert.equal((await httpRead.json()).execution.output.items.length,3);
@@ -383,6 +395,72 @@ test('Stripe connector commits pages and cancellation changes atomically in D1 w
       assert.equal(savedCheckout.mode,'subscription');assert.equal(savedCheckout.livemode,0);
       const replayCheckout=await invoke('checkout.subscription.create',checkoutInput);
       assert.equal(replayCheckout.replayed,true);assert.equal(checkoutCount,1);
+      const productRun=success(await invoke('sync.start',{requestKey:'product-three-start',
+        collection:'products',runId:'product-three',revision:2})).state;
+      success(await invoke('sync.page',{requestKey:'product-three-page',collection:'products',
+        runId:'product-three',cursor:null,expectedRevision:productRun.revision,limit:8}));
+      const offerPriceRow=await db.prepare(`SELECT connection_id,product_id,active,livemode,
+        unit_amount_minor,currency FROM "${generated.tables.stripe_price}" WHERE context_id=? AND id=?`)
+        .bind('application','price_active').first();
+      const offerProductRow=await db.prepare(`SELECT connection_id,active,livemode FROM
+        "${generated.tables.stripe_product}" WHERE context_id=? AND id=?`)
+        .bind('application','prod_catalog').first();
+      assert.equal(offerPriceRow.connection_id,currentConnection.connection_id);
+      assert.equal(offerProductRow.connection_id,currentConnection.connection_id);
+      assert.equal(offerPriceRow.product_id,'prod_catalog');
+      assert.equal(offerPriceRow.unit_amount_minor,1299);
+      assert.equal(offerPriceRow.currency,'EUR');
+      assert.equal(offerPriceRow.active,1);assert.equal(offerProductRow.active,1);
+      assert.equal(offerPriceRow.livemode,0);assert.equal(offerProductRow.livemode,0);
+      const offerConfigRow=await db.prepare(`SELECT connection_id,revision,enabled FROM
+        "${generated.tables.connector_config}" WHERE context_id=? AND id=?`)
+        .bind('application','stripe.api.v1').first();
+      assert.equal(offerConfigRow.connection_id,currentConnection.connection_id);
+      assert.equal(offerConfigRow.revision,8);assert.equal(offerConfigRow.enabled,1);
+      const offer=success(await invoke('offer.set',{requestKey:'offer-create',
+        productId:'prod_catalog',priceId:'price_active',enabled:true,revision:0})).offer;
+      assert.equal(offer.mode,'subscription');assert.equal(offer.unitAmountMinor,1299);
+      assert.equal(success(await invoke('offer.list',{limit:8})).items[0].id,offer.id);
+      const appOptions={token:app.token,audience:'app'};
+      assert.equal(success(await invoke('app.offer.list',{limit:8},appOptions)).items[0].id,offer.id);
+      const appHttpOffers=await appWire('/api/app/stripe/offer/list?limit=8');
+      assert.equal(appHttpOffers.status,200,await appHttpOffers.clone().text());
+      assert.equal((await appHttpOffers.json()).execution.output.items[0].id,offer.id);
+      const offerIds=new Set([offer.id]);
+      for(let index=1;index<8;index++){
+        const extra=success(await invoke('offer.set',{requestKey:`offer-create-${index}`,
+          productId:'prod_catalog',priceId:'price_active',enabled:true,revision:0})).offer;
+        offerIds.add(extra.id);
+      }
+      assert.equal(offerIds.size,8);
+      const fullPage=success(await invoke('app.offer.list',{limit:8},appOptions));
+      assert.equal(fullPage.items.length,8,'a full app page stays within the operation read budget');
+      assert.deepEqual(new Set(fullPage.items.map(item=>item.id)),offerIds);
+      await failed(invoke('app.checkout.create',{requestKey:'app-invalid',offerId:offer.id,
+        priceId:'price_inactive'},appOptions),'invalid_input');
+      const appInput={requestKey:'app-buy-one',offerId:offer.id};
+      const appCheckout=success(await invoke('app.checkout.create',appInput,appOptions));
+      assert.equal(appCheckout.session.id,'cs_test_2');assert.equal(appCheckout.productId,'prod_catalog');
+      assert.equal(checkoutCount,2);
+      const appRow=await db.prepare(`SELECT owner_principal_id,offer_id,offer_revision,quantity
+        FROM "${generated.tables.stripe_checkout}" WHERE context_id=? AND id=?`)
+        .bind('application','cs_test_2').first();
+      assert.equal(appRow.owner_principal_id,owner.principalId);
+      assert.equal(appRow.offer_id,offer.id);assert.equal(appRow.offer_revision,1);
+      assert.equal(appRow.quantity,1);
+      assert.equal((await invoke('app.checkout.create',appInput,appOptions)).replayed,true);
+      assert.equal(checkoutCount,2);
+      assert.equal(success(await invoke('app.checkout.read',{sessionId:'cs_test_2'},appOptions))
+        .session.id,'cs_test_2');
+      const appHttpRead=await appWire('/api/app/stripe/checkout/read?session_id=cs_test_2');
+      assert.equal(appHttpRead.status,200,await appHttpRead.clone().text());
+      assert.equal((await appHttpRead.json()).execution.output.session.id,'cs_test_2');
+      await failed(invoke('app.checkout.read',{sessionId:'cs_test_1'},appOptions),'not_found');
+      const appHttpForeign=await appWire('/api/app/stripe/checkout/read?session_id=cs_test_1');
+      assert.equal(appHttpForeign.status,200);
+      assert.equal((await appHttpForeign.json()).execution.errorCode,'not_found');
+      await failed(invoke('app.checkout.create',{requestKey:'admin-cannot-buy',offerId:offer.id}),
+        'forbidden');
       rotateCheckout=()=>invoke('config.set',{requestKey:'disable-during-checkout',
         enabled:false,revision:checkoutReady.revision});
       rotateOnCheckout=true;
@@ -462,6 +540,22 @@ test('Stripe connector commits pages and cancellation changes atomically in D1 w
       assert.equal(response.status,204,'signed bridge must commit the event');
       assert.equal(await db.prepare(`SELECT count(*) AS n FROM "${generated.tables.stripe_event}" WHERE context_id=?`)
         .bind('application').first().then(row=>row.n),2);
+      const ownedBody=JSON.stringify({id:'evt_test_owned',object:'event',livemode:false,
+        type:'checkout.session.completed',data:{object:{id:'cs_test_2',object:'checkout.session',
+          mode:'subscription',status:'complete',payment_status:'paid',customer:'cus_app',
+          subscription:'sub_app'}}});
+      const ownedSignature=createHmac('sha256','whsec_synthetic_signing_secret_123456789')
+        .update(`${stamp}.${ownedBody}`).digest('hex');
+      const ownedResponse=await bridge.dispatch(new Request('https://app.example.test/api/webhooks/stripe',{
+        method:'POST',headers:{'content-type':'application/json',
+          'stripe-signature':`t=${stamp},v1=${ownedSignature}`},body:ownedBody}),binding);
+      assert.equal(ownedResponse.status,204);
+      const linked=await db.prepare(`SELECT owner_principal_id,customer_id,subscription_id,status,
+        payment_status FROM "${generated.tables.stripe_checkout}" WHERE context_id=? AND id=?`)
+        .bind('application','cs_test_2').first();
+      assert.equal(linked.owner_principal_id,owner.principalId);
+      assert.equal(linked.customer_id,'cus_app');assert.equal(linked.subscription_id,'sub_app');
+      assert.equal(linked.status,'complete');assert.equal(linked.payment_status,'paid');
       success(await invoke('config.key.webhook.revoke',{requestKey:'webhook-revoke',
         revision:serviced.revision}));
       const racedEvent=await engine.invoke({credential:{kind:'api-token',token:serviceToken},
@@ -469,6 +563,6 @@ test('Stripe connector commits pages and cancellation changes atomically in D1 w
         input:eventInput,webhookProof:raceProof}).catch(error=>error);
       assert.notEqual(racedEvent.execution?.state,'succeeded');
       assert.equal(await db.prepare(`SELECT count(*) AS n FROM "${generated.tables.stripe_event}" WHERE context_id=?`)
-        .bind('application').first().then(row=>row.n),2);
+        .bind('application').first().then(row=>row.n),3);
     }finally{if(mcpClient)await mcpClient.close();await runtime.dispose();}
   });

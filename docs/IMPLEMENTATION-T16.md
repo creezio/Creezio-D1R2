@@ -1,5 +1,9 @@
 # Réalisation T16 — widgets des modules
 
+## Raccord candidat T27 — ouverture de liens MCP Apps
+
+Le pont interne peut annoncer `openLinks` et recevoir `app.openLink` lorsque l'hôte fournit cette capacité. La demande reste liée à l'instance et à la session courantes ; seule une URL HTTPS bornée peut être proposée. Le panneau du chat présente la destination et demande un clic explicite avant ouverture, avec refus, expiration et abandon lors d'un changement de contexte. Le widget ne gagne aucun droit de popup ou de navigation dans son sandbox. Le bridge interne n'est pas un export du paquet public SDK 1.9 ; les contrats métier et les trois modes d'action restent inchangés. Tests, livraison et recette navigateur de ce raccord sont à qualifier avec [Stripe 0.5](IMPLEMENTATION-T27.md).
+
 T-16 / US-16, REQ-1601 à REQ-1607. Branche `core/t16-widgets` depuis main `42efa820`. Développement parallèle du catalogue/MCP, du moteur/D1 et du SDK/UI ; intégration, publication et recettes par l'orchestrateur. Cette fiche décrit le raccord en construction, sans annoncer une qualification acquise.
 
 Le module conserve ses opérations, modèles, écrans, dépendances et droits. Sa partie plugin expose ses outils et plusieurs widgets MCP Apps. Le chat Creezio reprend le panneau original ; il héberge les mêmes ressources HTML compilées que les clients MCP. Le workspace et le front montent le même provider public du SDK. Aucun catalogue HTML complet n'est embarqué dans le JavaScript public du front : une projection native filtre audience, contexte et permissions ; chaque ressource est relue sous les droits courants.

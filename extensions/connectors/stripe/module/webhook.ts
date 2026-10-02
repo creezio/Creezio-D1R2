@@ -16,6 +16,12 @@ export function stripeWebhookInput(event:Record<string,unknown>,eventId:string,b
     ?String(subject.status):null;
   const payment=session&&['paid','unpaid','no_payment_required'].includes(String(subject.payment_status))
     ?String(subject.payment_status):null;
+  const customerId=session&&typeof subject.customer==='string'&&subject.customer.startsWith('cus_')
+    &&subject.customer.length<=128?subject.customer:null;
+  const subscriptionId=session&&mode==='subscription'&&typeof subject.subscription==='string'
+    &&subject.subscription.startsWith('sub_')&&subject.subscription.length<=128
+    ?subject.subscription:null;
   return {requestKey:eventId,eventId,bodyDigest,type:event.type,objectId:subject.id,
-    livemode:false,sessionMode:mode,sessionStatus:status,paymentStatus:payment};
+    livemode:false,sessionMode:mode,sessionStatus:status,paymentStatus:payment,
+    customerId,subscriptionId};
 }

@@ -2,6 +2,7 @@ import {AppBridge, PostMessageTransport, type McpUiResourceCsp,
   type McpUiResourcePermissions} from '@modelcontextprotocol/ext-apps/app-bridge';
 import type {CallToolRequest, CallToolResult} from '@modelcontextprotocol/client';
 import type {WidgetInstanceRef} from './types.ts';
+import {normalizeWidgetOpenLink} from './host-open-link.ts';
 
 const encoder = new TextEncoder();
 const digestPattern = /^sha256-[a-f0-9]{64}$/;
@@ -28,6 +29,8 @@ export interface McpAppsBridgeOptions {
   proposeMessage?: (text: string) => Promise<boolean>;
   /** Replace the pending context for the next authorized turn. */
   replaceContext?: (content: unknown) => Promise<boolean>;
+  /** Ask the authenticated host to confirm and open one external HTTPS link. */
+  openLink?: (url: string, signal: AbortSignal) => Promise<boolean>;
 }
 
 export interface McpAppsBridge {
@@ -83,6 +86,7 @@ export async function createMcpAppsBridge(options: McpAppsBridgeOptions): Promis
   const hostCapabilities = {
     sandbox: {csp: options.csp, permissions: options.permissions},
     serverTools: {},
+    ...(options.openLink ? {openLinks: {}} : {}),
     ...(options.proposeMessage ? {message: {text: {}}} : {}),
     ...(options.replaceContext ? {updateModelContext: {text: {}}} : {}),
   };
@@ -116,6 +120,12 @@ export async function createMcpAppsBridge(options: McpAppsBridgeOptions): Promis
       // Never deliver that result to a stale widget instance.
       return active() ? result : missingTool('widget_tool_unavailable');
     } catch { return missingTool('outcome_unknown'); }
+  };
+  bridge.onopenlink = async (params, extra) => {
+    const url = normalizeWidgetOpenLink(params.url);
+    if (!active() || !initialized || !options.openLink || !url) return {isError: true};
+    try { return {isError: !await options.openLink(url, extra.mcpReq.signal) || !active()}; }
+    catch { return {isError: true}; }
   };
   bridge.onmessage = async params => {
     if (!active() || !initialized || !options.proposeMessage || params.role !== 'user' ||

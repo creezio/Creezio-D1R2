@@ -22,6 +22,12 @@ Les méthodes partagées sont documentées par [OpenAI : UI MCP Apps](https://de
 
 Un accusé de réception du pont confirme au plus l'acceptation de la requête correspondante. Il ne prouve ni que le modèle a répondu, ni qu'une opération métier a réussi. « Contexte préparé », « message transmis », « recherche effectuée » et « commande confirmée » sont des résultats différents dans l'interface et dans les journaux.
 
+### Navigation vers un service externe
+
+L'ouverture d'une page externe utilise la capacité MCP Apps `openLinks` et `app.openLink({url})` lorsqu'elle est annoncée par l'hôte. C'est une capacité de navigation, pas un quatrième mode d'action métier. Le widget ne suppose ni fenêtres surgissantes, ni dialogues natifs autorisés dans son iframe. Une confirmation propre au widget se rend dans son interface ; l'hôte décide séparément d'ouvrir le lien et peut le refuser. Sans cette capacité, le widget rend le lien lisible sans prétendre l'avoir ouvert.
+
+Le raccord natif Creezio en qualification borne les URL HTTPS et propose l'ouverture dans l'interface de l'hôte, sous la session et l'instance courantes. Il conserve le sandbox et requiert un clic explicite ; il ne télécharge pas l'URL côté serveur. Une navigation Stripe ne confirme pas un achat : le module relit ensuite la session par son opération authentifiée. L'état de réalisation et les recettes de ce raccord figurent dans [T16](IMPLEMENTATION-T16.md) et [T27](IMPLEMENTATION-T27.md).
+
 ## Choisir le mode selon la demande
 
 - **Données structurées et opération déterminée** : privilégier `direct` pour les interactions usuelles d'une application. Changer une quantité ne nécessite pas de demander au LLM de réinterpréter la quantité.

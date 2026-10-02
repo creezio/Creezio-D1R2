@@ -1,0 +1,7 @@
+# Offres et achats Stripe test dans l’app
+
+Les outils `stripe_app_offer_list`, `stripe_app_checkout_create` et `stripe_app_checkout_read` sont réservés à l’audience app et à ses permissions d’achat. Ils ne donnent aucun droit d’administration Stripe. `stripe_app_offer_list` présente seulement les offres test actives et valides pour le contexte courant ; leurs montants sont des entiers en unités mineures avec devise et période éventuelle.
+
+Créer un Checkout seulement après le choix et la confirmation explicites de l’utilisateur. Passer à `stripe_app_checkout_create` uniquement l’`offerId` issu de la liste autorisée et une clé de requête conservée par le journal de l’hôte. Ne jamais lancer cette commande au rendu d’un widget, lors d’un simple changement de contexte ou à partir d’un texte du chat non vérifié. Ne fournir ni prix libre, montant, devise, quantité, identifiant client ni URL dans l’entrée d’achat : le serveur les décide pour l’offre et le principal courants.
+
+Si la création a une issue inconnue, inspecter son statut par l’hôte avec la même clé ou son identifiant d’exécution ; ne pas réémettre la commande à l’aveugle. Après création ou retour de Checkout, utiliser `stripe_app_checkout_read` pour relire la session appartenant au même principal. Le paramètre `session_id`, `checkout=success` ou une page de retour ne prouvent ni paiement ni droit acquis. Décrire seulement le statut effectivement relu auprès du fournisseur ; un identifiant d’abonnement seul est une référence, pas une confirmation de paiement.

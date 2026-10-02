@@ -5,7 +5,10 @@ import {stripeConnectorDescriptor} from '../../module/storage.ts';
 import {projectStripePage} from '../../module/projection.ts';
 import {configSet,configKeySet,configKeyRevoke,syncStart,syncPage,syncState,connectionCheck,
   checkoutPaymentCreate,checkoutSubscriptionCreate,checkoutRead,subscriptionCancelSchedule,
-  subscriptionCancelSet} from '../../module/service.ts';
+  subscriptionCancelSet,offerSet,offerList,appOfferList,appCheckoutCreate,appCheckoutRead}
+  from '../../module/service.ts';
+import {eventReceive} from '../../module/service.ts';
+import {stripeWebhookInput} from '../../module/webhook.ts';
 
 const config={id:'stripe.api.v1',origin:'https://api.stripe.com',key_ref:'secret-reference',
   secret_version:1,connection_id:'connection-a',enabled:true,revision:3,updated_at:'2026-09-29T00:00:00.000Z'};
@@ -21,12 +24,14 @@ function harness({configuration=config,state=run,projection={},body={object:'lis
     planCreate(model,args){calls.push({create:model,args});const plan={plan:plans.length};plans.push(plan);return plan;},
     planPatch(model,args){calls.push({patch:model,args});const plan={plan:plans.length};plans.push(plan);return plan;},
     planGet(model,args){calls.push({guard:model,args});const plan={plan:plans.length};plans.push(plan);return plan;},
+    async list(model,args){calls.push({list:model,args});return {items:[],nextAfter:null};},
   },providerSecrets:{async preparePut(){return {plan:{secret:1},reference:'new-reference',version:1};},
     async prepareReplace(){return {plan:{secret:2},reference:'next-reference',version:2};},
     async prepareRevoke(){return {plan:{secret:3}};}},
   connector:{async request(request){calls.push({request});return {kind:'ok',status:200,body};},
     async mutate(request){calls.push({mutation:request});return {kind:'ok',status:200,body};}}};
   context.executionId='execution-test';
+  context.principalId='buyer-a';context.audience='app';
   return {context,calls,plans};
 }
 test('fixed Stripe outbound contract and admin deny-default permissions',()=>{
@@ -46,7 +51,10 @@ test('fixed Stripe outbound contract and admin deny-default permissions',()=>{
   assert.deepEqual(stripeConnectorDescriptor.resources[5].query.fixed,[{name:'active',value:'false'}]);
   assert.deepEqual(manifest.contracts.connectors,[stripeConnectorDescriptor]);
   assert.ok(manifest.contracts.permissions.every(row=>row.default==='deny'&&
-    JSON.stringify(row.audiences)==='["admin"]'&&row.context==='required'));
+    (JSON.stringify(row.audiences)==='["admin"]'||JSON.stringify(row.audiences)==='["app"]')
+    &&row.context==='required'));
+  assert.deepEqual(manifest.contracts.permissions.filter(row=>row.audiences[0]==='app')
+    .map(row=>row.id),['purchase','purchase.read']);
   const webhookPermission=manifest.contracts.permissions.find(row=>row.id==='webhook.receive');
   assert.deepEqual(webhookPermission?.actors,['machine']);
   assert.deepEqual(webhookPermission.resources.map(row=>row.id),
@@ -124,6 +132,13 @@ test('configuration and key rotation use revision CAS without exposing credentia
   assert.equal(result.output.config.hasKey,false);
   assert.equal(revoked.calls.find(row=>row.patch).args.values.connection_id,null);
   assert.equal(revoked.calls.find(row=>row.patch).args.compare.expected,3);
+  for(const path of ['//evil','/offers/../admin','/offers%2fadmin','/offers?x=1',
+    '/offers#x','/offers\\admin','https://evil.test/offers'])
+    await assert.rejects(configSet({requestKey:'bad-path',enabled:true,revision:3,
+      checkoutAppReturnPath:path},harness().context),{code:'invalid_input'});
+  const destination=await configSet({requestKey:'path-ok',enabled:true,revision:3,
+    checkoutAppReturnPath:'/shop/offers'},harness().context);
+  assert.equal(destination.output.config.checkoutAppReturnPath,'/shop/offers');
 });
 test('sync start and page create or patch with one run CAS and <=16 total plans',async()=>{
   const first=harness({state:null});
@@ -224,6 +239,108 @@ test('Checkout read stays within the saved session and subscription cancel uses 
   assert.equal(h.calls.find(call=>call.patch).args.compare.expected,3);
   await assert.rejects(subscriptionCancelSchedule({subscriptionId:'sub_123',revision:2},h.context),
     {code:'conflict'});
+});
+
+test('admin offer binds a projected test product and fixed price with CAS',async()=>{
+  const price={id:'price_fixed',connection_id:config.connection_id,product_id:'prod_fixed',
+    active:true,livemode:false,type:'one_time',billing_scheme:'per_unit',custom_amount:false,
+    usage_type:null,unit_amount_minor:1299,currency:'EUR',interval:null,interval_count:null};
+  const product={id:'prod_fixed',connection_id:config.connection_id,active:true,livemode:false,
+    name:'Offre témoin'};
+  const h=harness({projection:{price_fixed:price,prod_fixed:product}});
+  const result=await offerSet({requestKey:'offer-one',productId:'prod_fixed',priceId:'price_fixed',
+    enabled:true,revision:0},h.context);
+  assert.equal(result.output.offer.productId,'prod_fixed');
+  assert.equal(result.output.offer.unitAmountMinor,1299);
+  assert.equal(result.output.offer.mode,'payment');
+  assert.equal(result.output.offer.revision,1);
+  assert.deepEqual(h.calls.filter(row=>row.guard).map(row=>row.guard),
+    ['stripe_price','stripe_product','connector_config']);
+  assert.equal(h.calls.find(row=>row.create).create,'stripe_offer');
+  assert.equal(h.calls.filter(row=>row.mutation).length,0);
+  await assert.rejects(offerSet({requestKey:'bad-offer',productId:'prod_fixed',priceId:'price_fixed',
+    enabled:true,revision:0},harness({projection:{price_fixed:{...price,active:false},
+    prod_fixed:product}}).context),{code:'invalid_input'});
+});
+
+test('app offer listing and Checkout bind one offer, one principal and no client price fields',async()=>{
+  const configuration={...config,checkout_return_origin:'https://app.example.test'};
+  const price={id:'price_fixed',connection_id:config.connection_id,product_id:'prod_fixed',
+    active:true,livemode:false,type:'recurring',billing_scheme:'per_unit',custom_amount:false,
+    usage_type:'licensed',unit_amount_minor:1299,currency:'EUR',interval:'month',interval_count:1};
+  const product={id:'prod_fixed',connection_id:config.connection_id,active:true,livemode:false,
+    name:'Abonnement témoin'};
+  const offer={id:'offer_fixed',connection_id:config.connection_id,product_id:'prod_fixed',
+    price_id:'price_fixed',product_name:'Abonnement témoin',unit_amount_minor:1299,
+    currency:'EUR',interval:'month',interval_count:1,mode:'subscription',enabled:true,revision:4};
+  const body={id:'cs_test_app',object:'checkout.session',livemode:false,mode:'subscription',
+    status:'open',payment_status:'unpaid',url:'https://checkout.stripe.com/c/app',
+    client_reference_id:'execution-test'};
+  const h=harness({configuration,projection:{price_fixed:price,prod_fixed:product,
+    offer_fixed:offer},body});
+  h.context.data.list=async()=>({items:[offer],nextAfter:null});
+  const listed=await appOfferList({limit:8},h.context);
+  assert.equal(listed.output.items[0].id,'offer_fixed');
+  assert.equal(listed.output.items[0].unitAmountMinor,1299);
+  const admin=await offerList({limit:8},h.context);
+  assert.equal(admin.output.items[0].revision,4);
+  const created=await appCheckoutCreate({requestKey:'buy-one',offerId:'offer_fixed'},h.context);
+  assert.equal(created.output.subscriptionId,null);
+  assert.equal(created.output.session.id,'cs_test_app');
+  const sent=h.calls.find(row=>row.mutation).mutation;
+  assert.equal(sent.fields.priceId,'price_fixed');assert.equal(sent.fields.quantity,1);
+  assert.equal(sent.fields.successUrl,
+    'https://app.example.test/offers?checkout=success&session_id={CHECKOUT_SESSION_ID}');
+  assert.equal(Object.hasOwn(sent.fields,'customerId'),false);
+  assert.equal(h.calls.find(row=>row.create).args.values.owner_principal_id,'buyer-a');
+  assert.equal(h.calls.find(row=>row.create).args.values.offer_revision,4);
+  assert.deepEqual(h.calls.filter(row=>row.guard).map(row=>row.guard),
+    ['connector_config','stripe_offer','stripe_price','stripe_product']);
+  const foreign=harness({configuration,projection:{price_fixed:price,prod_fixed:product,
+    offer_fixed:{...offer,connection_id:'other'}},body});
+  await assert.rejects(appCheckoutCreate({requestKey:'buy-foreign',offerId:'offer_fixed'},
+    foreign.context),{code:'not_found'});
+  assert.equal(foreign.calls.filter(row=>row.mutation).length,0);
+});
+
+test('app Checkout read refuses unrelated or administrative sessions before provider GET',async()=>{
+  const configuration={...config,checkout_return_origin:'https://app.example.test'};
+  const local={id:'cs_test_app',connection_id:config.connection_id,mode:'subscription',
+    offer_id:'offer_fixed',product_id:'prod_fixed',owner_principal_id:'buyer-a',
+    subscription_id:null};
+  const body={id:'cs_test_app',object:'checkout.session',livemode:false,mode:'subscription',
+    status:'complete',payment_status:'paid',url:null,subscription:'sub_app'};
+  const owned=harness({configuration,projection:{cs_test_app:local},body});
+  assert.equal((await appCheckoutRead({sessionId:'cs_test_app'},owned.context))
+    .output.subscriptionId,'sub_app');
+  for(const row of [{...local,owner_principal_id:'buyer-b'},
+    {...local,owner_principal_id:null,offer_id:null},
+    {...local,connection_id:'old-generation'}]){
+    const h=harness({configuration,projection:{cs_test_app:row},body});
+    await assert.rejects(appCheckoutRead({sessionId:'cs_test_app'},h.context),{code:'not_found'});
+    assert.equal(h.calls.filter(call=>call.request).length,0);
+  }
+});
+
+test('signed Checkout event links only the owned session customer and subscription',async()=>{
+  const event={id:'evt_app',object:'event',livemode:false,type:'checkout.session.completed',
+    data:{object:{id:'cs_test_app',object:'checkout.session',mode:'subscription',
+      status:'complete',payment_status:'paid',customer:'cus_app',subscription:'sub_app'}}};
+  const input=stripeWebhookInput(event,'evt_app','a'.repeat(64));
+  assert.equal(input.customerId,'cus_app');assert.equal(input.subscriptionId,'sub_app');
+  const configuration={...config,webhook_key_ref:'whsec-ref'};
+  const owned={id:'cs_test_app',connection_id:config.connection_id,mode:'subscription',
+    livemode:false,status:'open',payment_status:'unpaid',revision:1,
+    owner_principal_id:'buyer-a',customer_id:null,subscription_id:null};
+  const h=harness({configuration,projection:{cs_test_app:owned}});
+  const result=await eventReceive(input,h.context);
+  assert.equal(result.output.checkoutUpdated,true);
+  assert.equal(h.calls.find(row=>row.patch==='stripe_checkout').args.values.customer_id,'cus_app');
+  assert.equal(h.calls.find(row=>row.patch==='stripe_checkout').args.values.subscription_id,'sub_app');
+  const admin=harness({configuration,projection:{cs_test_app:{...owned,owner_principal_id:null}}});
+  await eventReceive(input,admin.context);
+  assert.equal(Object.hasOwn(admin.calls.find(row=>row.patch==='stripe_checkout').args.values,
+    'subscription_id'),false);
 });
 test('subscription cancellation can be scheduled and withdrawn, preserving the old command',async()=>{
   const projected=cancel_at_period_end=>({id:'sub_123',connection_id:config.connection_id,

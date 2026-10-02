@@ -313,10 +313,10 @@ test('composed data and the immutable receipt survive a local D1 adapter restart
   } finally { await mf.dispose(); }
 });
 
-test('the four deployed model changes migrate old rows with their real table, index and FK definitions', async t => {
+test('deployed model changes migrate old rows with their real table, index and FK definitions', async t => {
   const mf = new Miniflare({ host: '127.0.0.1', port: 0, cf: false, modules: true,
     script: 'export default { fetch() { return new Response(null, {status:404}); } };',
-    compatibilityDate: '2026-05-15', d1Databases: ['STRIPE', 'MESSAGING', 'MESSAGING-INBOUND', 'SUPPORT'], d1Persist: false });
+    compatibilityDate: '2026-05-15', d1Databases: ['STRIPE', 'STRIPE-05', 'MESSAGING', 'MESSAGING-INBOUND', 'SUPPORT'], d1Persist: false });
   const cases = [
     { binding: 'STRIPE', moduleId: 'creezio.stripe', path: '../../extensions/connectors/stripe/module/models.json',
       added: { connector_config: ['checkout_return_origin', 'webhook_key_ref', 'webhook_secret_version',
@@ -362,6 +362,44 @@ test('the four deployed model changes migrate old rows with their real table, in
         assert.equal(physical.sql,
           (await database.prepare('SELECT sql FROM sqlite_schema WHERE name=?').bind(changed.name).first()).sql);
       }
+    });
+    await t.test('Stripe 0.4 rows survive the 0.5 offer table and nullable checkout fields', async () => {
+      const moduleId = 'creezio.stripe';
+      const current = json('../../extensions/connectors/stripe/module/models.json');
+      const checkoutFields = ['owner_principal_id', 'offer_id', 'offer_revision', 'product_id',
+        'customer_id', 'subscription_id'];
+      const prior = structuredClone(current).filter(item => item.id !== 'stripe_offer');
+      for (const item of prior) item.fields = item.fields.filter(field =>
+        item.id !== 'connector_config' || field.id !== 'checkout_app_return_path').filter(field =>
+        item.id !== 'stripe_checkout' || !checkoutFields.includes(field.id));
+      const oldPlan = planFor(prior, { moduleId }), nextPlan = planFor(current, { moduleId });
+      const database = await mf.getD1Database('STRIPE-05');
+      assert.equal((await apply(database, oldPlan)).ok, true);
+      const historical = new Map();
+      for (const id of ['connector_config', 'stripe_checkout']) {
+        await insertSample(database, oldPlan, moduleId, prior.find(item => item.id === id));
+        historical.set(id, await database.prepare(`SELECT * FROM "${table(oldPlan, id, moduleId)}" LIMIT 1`).first());
+      }
+      const before = await inspectManagedSchema(database);
+      const inspected = await inspectCompositionSchema(database, nextPlan);
+      assert.equal(inspected.state, 'additive');
+      assert.equal(inspected.columnAdditions.length, 2);
+      assert.equal(inspected.columnAdditions.reduce((n, item) => n + item.columns.length, 0), 7);
+      const offerTable = table(nextPlan, 'stripe_offer', moduleId);
+      assert.deepEqual(inspected.additions.map(item => item.name).sort(),
+        nextPlan.objects.filter(item => item.table === offerTable).map(item => item.name).sort());
+      assert.equal((await apply(database, nextPlan)).ok, true);
+      const after = await inspectManagedSchema(database);
+      assert.equal(after.receipt.sequence, before.receipt.sequence + 1);
+      assert.equal(after.receipt.previousId, before.receiptId);
+      assert.equal((await inspectCompositionSchema(database, nextPlan)).state, 'ready');
+      for (const [id, oldRow] of historical) {
+        const row = await database.prepare(`SELECT * FROM "${table(nextPlan, id, moduleId)}" LIMIT 1`).first();
+        for (const [name, value] of Object.entries(oldRow)) assert.equal(row[name], value);
+        for (const name of id === 'stripe_checkout' ? checkoutFields : ['checkout_app_return_path'])
+          assert.equal(row[name], null);
+      }
+      assert.equal((await database.prepare(`SELECT COUNT(*) AS n FROM "${offerTable}"`).first()).n, 0);
     });
     await t.test('deployed Messaging seven-model data survives its exact two inbound tables and indexes', async () => {
       const moduleId = 'creezio.messaging';

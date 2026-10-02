@@ -1,6 +1,10 @@
 # T25 — Catalogue métier commun
 
-## CSP des widgets sur Cloudflare — correctif candidat
+## Images des widgets Cloudflare — recette b9 du 2 octobre
+
+Le sandbox publié avec Core `b9a4562` affiche et décode les images Blob 32 × 32 dans `product-list` et `product-detail`, après rechargement du même tour existant. Cette lecture n'a créé aucun prompt, aucune reprise et aucune mutation de produit. Les actions directes avaient leur recette antérieure ; elles n'ont pas été répétées. La déconnexion répond 200 et la session suivante 401. Le reçu hors dépôt `CREEZIO-T25-CF-B9-WIDGET-IMAGES-2026-10-02.json` lie cette observation au Worker, au sandbox et à la preuve de conservation D1/R2. Le rendu Cloudflare précédemment ouvert est donc qualifié ; le widget Catalogue dans ChatGPT externe reste à exercer.
+
+## CSP des widgets sur Cloudflare — diagnostic antérieur
 
 Sur le Worker Core Cloudflare `eddf01a`, les actions directes Recherche et fiche répondent 200, mais le sandbox servi conserve `img-src 'self' data:` : le navigateur refuse les images Blob malgré la source du SDK qui autorise `blob:`. Le sandbox est resté à la version de la première publication parce que les mises à jour du Worker principal ne l'incluaient pas. Le correctif candidat T32 publie et vérifie ce second composant avec une lignée et un journal durables. La preuve d'affichage des images sur Cloudflare reste ouverte jusqu'à livraison et recette navigateur ; les images Sites v6 déjà qualifiées sont distinctes.
 

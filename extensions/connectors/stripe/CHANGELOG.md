@@ -1,5 +1,9 @@
 # Changelog Stripe
 
+## 0.5.0 — candidate d’achat d’offres Stripe en audience app
+
+Une offre administrée lie un produit et un prix Stripe projetés, actifs, fixes et TEST de la même génération. L’app découvre les offres éligibles et crée un Checkout avec `offerId` et `requestKey` seuls : prix, quantité unitaire, identité et retour sont choisis côté serveur. La session D1 porte le principal propriétaire, l’offre et sa révision ; la lecture app vérifie cette propriété avant le GET fournisseur. Le webhook signé rapproche le client et l’abonnement de cette seule session. Les Checkout et abonnements administratifs antérieurs ne deviennent pas lisibles par l’app. Le retour app utilise le chemin local administré `checkoutAppReturnPath`, par défaut `/offers`. Les droits `stripe.purchase` et `stripe.purchase.read` restent séparés de la gestion. Cette tranche ne fournit ni Catalogue/panier, ni mode live, ni mutation d’abonnement client ; les tests locaux ne valent pas recette Stripe fournisseur de 0.5.
+
 ## 0.4.0 — candidate de réversibilité de l’arrêt programmé
 
 Ajout non cassant de `subscription.cancel.set` (`cancelAtPeriodEnd` booléen) sur le POST Stripe déclaré, avec refus d’un état projeté identique, terminé, hors génération, live ou sans révision courante. L’état de retour est vérifié avant le CAS D1 ; le journal commun garde les issues inconnues sans nouveau POST. `subscription.cancel.schedule` demeure inchangé. UI/API/MCP admin sont raccordés au même contrat ; aucun tarif, quantité, abonnement déjà résilié, port app ou mode live n’est ajouté. Tests locaux seulement ; publication et recette fournisseur de cette version restent à qualifier. Voir [Stripe — arrêter ou retirer un arrêt programmé](https://docs.stripe.com/billing/subscriptions/cancel).
