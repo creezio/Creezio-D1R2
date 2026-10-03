@@ -356,6 +356,106 @@ test('client drive persists one confirmed assistant and never recreates an unkno
     assert.deepEqual(renderedMessages.map(item=>item.content.instances[0].widgetId),['card','picker']);
     assert.ok(renderedMessages.every(item=>item.content.instances[0].renderExecution.operationId==='draft.read'));
 
+    const largeConversation=await invoke('conversation.create',{requestKey:'create-large-widget-result',
+      mode:'chat',title:'large-widget-result'});
+    const largeConversationId=largeConversation.execution.output.conversation.id;
+    const largeDraft=await widgetInvoke('draft.save',{requestKey:'large-widget-draft',
+      conversationId:largeConversationId,text:'N'.repeat(10_000),revision:0});
+    assert.equal(largeDraft.execution.state,'succeeded');
+    assert.ok(Buffer.byteLength(JSON.stringify({output:largeDraft.execution.output}))>8_192);
+    const largeStart=await invoke('turn.start',{requestKey:'start-large-widget-result',
+      conversationId:largeConversationId,messageId:'user-large-widget-result',body:'Show the draft',
+      modelId:'model-a',revision:1,draftRevision:1});
+    assert.equal(largeStart.execution.state,'waiting');
+    const clearedDraft=await widgetInvoke('draft.read',{conversationId:largeConversationId});
+    assert.equal(clearedDraft.execution.state,'succeeded');
+    const restoredDraft=await widgetInvoke('draft.save',{requestKey:'restore-large-widget-draft',
+      conversationId:largeConversationId,text:'N'.repeat(10_000),
+      revision:clearedDraft.execution.output.revision});
+    assert.equal(restoredDraft.execution.state,'succeeded');
+    const largeRequest={...driveRequest,conversationId:largeConversationId,
+      turnId:largeStart.execution.output.turn.id};
+    const largeInputs=[];
+    const largeBridge=createTurnBridge({engine:widgetEngine,db,catalog,permissions,registry:reg,widgets,
+      toolCatalog:[widgetTools[0]],provider:{withTransport:async(_request,callback)=>callback({
+        async create(input){largeInputs.push(input);const index=largeInputs.length;
+          return {receipt:{responseId:`resp_large_${index}`,cursor:0},events:(async function*(){
+            if(index===1)yield {cursor:1,kind:'function_call',callId:'call_large_widget',
+              name:'witness_card_read',arguments:{conversationId:largeRequest.conversationId}};
+            else yield {cursor:1,kind:'text_delta',text:'Résultat dans la carte'};
+            yield {cursor:2,kind:'terminal',state:'succeeded'};
+          })()};},async *resume(){throw new Error('Unexpected resume');},
+        async status(){throw new Error('Unexpected status');}
+      },'model-a')}});
+    assert.equal((await largeBridge.drive(largeRequest)).turn.state,'running');
+    assert.equal((await largeBridge.drive(largeRequest)).turn.state,'succeeded');
+    const largeContinuation=largeInputs[1].inputItems.find(item=>item.type==='function_call_output');
+    assert.equal(JSON.parse(largeContinuation.output).output?.kind,'creezio.widget.large_result.v1',
+      largeContinuation.output);
+    const largeMessages=[];let largeCursor;
+    for(let page=0;page<5;page++){
+      const listed=await widgetInvoke('message.list',{conversationId:largeRequest.conversationId,limit:50,
+        ...(largeCursor?{cursor:largeCursor}:{})});
+      assert.equal(listed.execution.state,'succeeded');
+      largeMessages.push(...listed.execution.output.items);
+      largeCursor=listed.execution.output.nextCursor;
+      if(!largeCursor)break;
+    }
+    assert.equal(largeMessages.filter(item=>item.role==='tool').length,1);
+    assert.equal((await largeBridge.drive(largeRequest)).turn.state,'succeeded');
+    const reloadedLarge=[];let reloadCursor;
+    for(let page=0;page<5;page++){
+      const listed=await widgetInvoke('message.list',{conversationId:largeRequest.conversationId,limit:50,
+        ...(reloadCursor?{cursor:reloadCursor}:{})});
+      assert.equal(listed.execution.state,'succeeded');
+      reloadedLarge.push(...listed.execution.output.items);
+      reloadCursor=listed.execution.output.nextCursor;
+      if(!reloadCursor)break;
+    }
+    assert.equal(reloadedLarge.filter(item=>item.role==='tool').length,1);
+
+    const rejectedLarge=async(label,engineOverride,widgetsOverride,tool=widgetTools[0])=>{
+      const request=await newTurn(label);
+      const current=await widgetInvoke('draft.read',{conversationId:request.conversationId});
+      const saved=await widgetInvoke('draft.save',{requestKey:`save-${label}`,
+        conversationId:request.conversationId,text:'R'.repeat(10_000),
+        revision:current.execution.output.revision});
+      assert.equal(saved.execution.state,'succeeded');
+      const inputs=[];
+      const bridge=createTurnBridge({engine:engineOverride,db,catalog,permissions,registry:reg,
+        widgets:widgetsOverride,toolCatalog:[tool],
+        provider:{withTransport:async(_request,callback)=>callback({async create(input){
+          inputs.push(input);const index=inputs.length;
+          return {receipt:{responseId:`resp_${label}_${index}`,cursor:0},events:(async function*(){
+            if(index===1)yield {cursor:1,kind:'function_call',callId:`call_${label}`,
+              name:input.tools[0].name,arguments:{conversationId:request.conversationId}};
+            yield {cursor:2,kind:'terminal',state:'succeeded'};
+          })()};},async *resume(){throw new Error('Unexpected resume');},
+          async status(){throw new Error('Unexpected status');}},'model-a')}});
+      assert.equal((await bridge.drive(request)).turn.state,'running');
+      assert.equal((await bridge.drive(request)).turn.state,'succeeded');
+      const continued=inputs[1].inputItems.find(item=>item.type==='function_call_output');
+      assert.deepEqual(JSON.parse(continued.output),{error:'tool_output_too_large'});
+      const listed=await widgetInvoke('message.list',{conversationId:request.conversationId,limit:50});
+      assert.equal(listed.execution.output.items.filter(item=>item.role==='tool').length,0);
+    };
+    const badStatusEngine={...widgetEngine,
+      status:async input=>{
+        const status=await widgetEngine.status(input);
+        return {...status,output:{...status.output,text:`${status.output.text} changed`}};
+      }};
+    await rejectedLarge('large-digest-mismatch',badStatusEngine,widgets);
+    const revokedEngine={...widgetEngine,status:async()=>{throw new Error('access revoked');}};
+    await rejectedLarge('large-rights-revoked',revokedEngine,widgets);
+    await rejectedLarge('large-no-widget',widgetEngine,widgets,canonicalWidgetTool);
+    const retiredWidgets={...widgets,catalog:{...widgets.catalog,widgets:[...widgets.catalog.widgets]}};
+    const retiredEngine={...widgetEngine,invoke:async input=>{
+      const answer=await widgetEngine.invoke(input);
+      if(input.operationId==='draft.read')retiredWidgets.catalog.widgets=[];
+      return answer;
+    }};
+    await rejectedLarge('large-widget-retired',retiredEngine,retiredWidgets);
+
     const limitRequest=await newTurn('four-tool-limit');
     const limitInputs=[];
     const limitBridge=createTurnBridge({engine:widgetEngine,db,catalog,permissions,registry:reg,toolCatalog:widgetTools,

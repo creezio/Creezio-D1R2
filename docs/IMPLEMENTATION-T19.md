@@ -1,5 +1,9 @@
 # T19 — Support natif
 
+## Conservation après PR #107 — 3 octobre 2026
+
+Sur Original Sites v9 (Core `0c380302`, source Site `0d0ab53b`), la lecture native retrouve les deux tours existants et les cartes `ticket-list-admin`, `ticket-list-app` et `ticket-thread-app` ; `ticket-thread-admin` et ses lectures UI avaient déjà été qualifiés sur v7. Le ticket fictif reste résolu à la révision 4 avec deux messages identiques dans les audiences admin et app. La relecture API après publication confirme cette conservation, sans nouveau tour ni geste de modification ; les sessions sont fermées. Reçu de livraison hors dépôt : `CREEZIO-T27-T22-ORIGINAL-PR107-DELIVERY-FINAL.json` (SHA-256 `B37774A48F5845074D303A05CAC252AAD4DDAF28E7668FFEADDB33FCF64C496D`). Ces relectures ne répètent pas les quatre gestes UI et ne clôturent pas les relations Messaging réelles ni tout REQ-1901.
+
 ## Quatre widgets vérifiés sur Original domix v7 — 3 octobre 2026
 
 La recette complémentaire vérifie `ticket-list-admin`, `ticket-list-app` et `ticket-thread-app`, en plus de `ticket-thread-admin` déjà acquis ci-dessous. Les trois cartes sont rendues dans les iframes du chat natif ; leurs lectures directes et leur contenu après rechargement, sans nouvelle sélection du fil, sont confirmés. Le ticket témoin reste résolu à la révision 4 avec les deux mêmes messages. Les sessions sont déconnectées et les navigateurs fermés.

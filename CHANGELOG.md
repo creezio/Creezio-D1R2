@@ -1,5 +1,10 @@
 # Changelog
 
+## Grandes réponses des widgets — 3 octobre 2026
+
+- Le pont du chat conserve le widget d'une grande page CRM après relecture autorisée de l'exécution et vérification de son empreinte. Le modèle reçoit uniquement un marqueur court lorsque la carte est enregistrée ; les plafonds du contexte restent inchangés.
+- Sans widget admissible, le refus de résultat trop volumineux reste explicite. Les anciennes opérations en attente restent compatibles ; aucun schéma D1, contrat métier ni composant d'interface ne change. La recette hébergée reste distincte des tests locaux.
+
 ## Correctif candidat T16 — focus du lien après revalidation clavier
 
 - Un Tab avant quittant l'iframe vers la confirmation hôte déclenche toujours la relecture d'accès. Si la même proposition HTTPS revient après vérification de la session, du principal, du contexte, de l'instance et du catalogue, le focus revient sur sa nouvelle ancre ; Entrée reste nécessaire pour l'ouvrir.
