@@ -316,6 +316,7 @@ export function SupportWorkspaceView(props:WorkspaceViewProps){
       {loading?<p className="text-sm">Chargement…</p>:null}
       {!loading&&!tickets.length?<p className="rounded-md border p-4 text-sm text-muted-foreground">Aucun ticket.</p>:null}
       {tickets.map(row=><button key={row.id} type="button" onClick={()=>choose(row.id)}
+        data-creezio-analytics-id="support.ticket.open"
         className={`rounded-lg border bg-card p-3 text-left transition-colors hover:bg-accent ${selected?.id===row.id?'border-primary':''}`}>
         <div className="flex justify-between gap-2"><strong className="truncate text-sm">{row.subject}</strong>
           <span className={statusBadge(row.status)}>{statusLabel[row.status]}</span></div>

@@ -1,5 +1,9 @@
 # Changelog
 
+## Non publié — clic de sélection déclaré pour Analytics
+
+La sélection d’un ticket de la liste déclare `support.ticket.open` dans les vues app et admin si la politique Analytics autorise les clics. L’identifiant, le sujet et les messages du ticket ne sont pas envoyés dans cet événement. Le rendu et les opérations Support restent inchangés.
+
 ## Complément de source T19 — références contrôlées
 
 Le ticket conserve des identifiants opaques nullables de contact CRM et de message de Messagerie. La liaison vérifie le ticket, relit le fournisseur sous ses droits courants et compare la révision avant d'écrire ; le retrait reste possible sans fournisseur. Les deux intégrations sont facultatives, versionnées et sans installation automatique. L'interface affiche et relit les références après rechargement. Les quatre widgets refusent une réponse d'outil marquée en erreur. Le test D1 ciblé couvre les deux liaisons, le conflit, la révocation des droits fournisseurs et le retrait.

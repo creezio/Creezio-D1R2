@@ -1,5 +1,9 @@
 # Changelog
 
+## Non publié — clic d’ouverture déclaré pour Analytics
+
+L’ouverture d’une fiche de la grille déclare `crm.record.open` dans les vues workspace et front si la politique Analytics autorise les clics. L’identifiant et les données de la fiche ne sont pas envoyés dans cet événement ; la navigation et les opérations CRM restent inchangées.
+
 ## Complément de source T20 — consultation de contact
 
 Le port public `contact-lookup` v1 expose seulement `contact.search` et `contact.read` pour les consommateurs autorisés, sans modèle privé. Les six widgets ignorent un résultat marqué en erreur. Le contrat de lecture ne modifie ni les 21 opérations métier existantes ni le schéma D1 CRM.

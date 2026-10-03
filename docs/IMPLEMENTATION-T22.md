@@ -1,5 +1,11 @@
 # T22 — Analytics et diagnostics
 
+## Deux nouvelles déclarations de clic en source — candidat du 3 octobre 2026
+
+Les boutons de sélection d'un ticket Support et d'ouverture d'une fiche de la grille CRM déclarent respectivement `support.ticket.open` et `crm.record.open`, dans les vues workspace et front déjà existantes. Les valeurs sont des littéraux communs à toutes les lignes ; le collecteur `app/analytics/collection.ts` et la politique désactivée par défaut ne changent pas. Les tests locaux relient les deux attributs JSX aux routes déclarées des deux modules, vérifient zéro émission avec la collecte désactivée puis une émission par clic après activation, sous l'audience et le contexte demandés, avec seulement les champs bornés de l'événement. La grille CRM couvre les entreprises, contacts et prospects archivés ; le kanban Prospection ne porte pas cette déclaration.
+
+Cette qualification de source ne prouve pas encore les événements en navigateur hébergé ni leur lecture/export sur une cible publiée. Les autres actions des modules, les mesures de productivité et Work T17 restent hors de cette tranche.
+
 ## Export non vide sur Linux — 2 octobre 2026
 
 Sur Core `d7e117a`, la lecture native sous le compte administrateur du contexte `application` retrouve un événement existant dans une page complète. Les exports JSON et CSV contiennent chacun cette même ligne ; les périodes et la projection restent celles du module. Aucun événement, droit, politique de collecte ou purge n'a été créé pour cette recette. Accès anonyme 401, connexion 200, déconnexion 200 et session suivante 401. Reçu hors dépôt : `CREEZIO-T22-LINUX-EVENT-EXPORT-COOKIE-FIX-2026-10-02.json`.
