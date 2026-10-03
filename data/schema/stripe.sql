@@ -171,6 +171,7 @@ CREATE TABLE "cz_637265657a696f2e737472697065_7374726970655f73756273637269707469
   "id" TEXT NOT NULL CHECK ("id" IS NOT NULL AND (typeof("id") = 'text' AND instr("id", char(0)) = 0 AND length("id") >= 1 AND length("id") <= 128)),
   "interval" TEXT CHECK ("interval" IS NULL OR (typeof("interval") = 'text' AND instr("interval", char(0)) = 0 AND length("interval") >= 1 AND length("interval") <= 32)),
   "interval_count" INTEGER CHECK ("interval_count" IS NULL OR (typeof("interval_count") = 'integer' AND "interval_count" BETWEEN -9007199254740991 AND 9007199254740991 AND "interval_count" >= 1)),
+  "item_id" TEXT CHECK ("item_id" IS NULL OR (typeof("item_id") = 'text' AND instr("item_id", char(0)) = 0 AND length("item_id") >= 1 AND length("item_id") <= 128)),
   "livemode" INTEGER NOT NULL CHECK ("livemode" IS NOT NULL AND (typeof("livemode") = 'integer' AND "livemode" IN (0, 1))),
   "period_end_at" TEXT CHECK ("period_end_at" IS NULL OR (typeof("period_end_at") = 'text' AND length("period_end_at") = 24 AND strftime('%Y-%m-%dT%H:%M:%fZ', "period_end_at") IS NOT NULL AND strftime('%Y-%m-%dT%H:%M:%fZ', "period_end_at") = "period_end_at")),
   "price_id" TEXT CHECK ("price_id" IS NULL OR (typeof("price_id") = 'text' AND instr("price_id", char(0)) = 0 AND length("price_id") >= 1 AND length("price_id") <= 128)),

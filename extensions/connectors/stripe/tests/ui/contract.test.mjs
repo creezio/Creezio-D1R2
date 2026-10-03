@@ -4,7 +4,8 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import {manifest,read} from '../helpers.mjs';
 import {appPanelData,panelData,readAppPanel,readPanel,retainedSessionId,sessionVerified,scopeChange} from '../../ui/panel-state.ts';
 import {externalConfigurationChanged,latestConfig,mergeRuns,reconcileRuns,sameConfiguration,
-  offerPriceEligible,subscriptionLifecycleAction} from '../../ui/state.ts';
+  offerPriceEligible,subscriptionLifecycleAction,subscriptionPlanPrices,
+  mergeProjectedPage} from '../../ui/state.ts';
 import {formatStripeAmount,formatStripeFrequency} from '../../ui/money.ts';
 import {createCommandJournal,readPendingCommand} from '@creezio/sdk/operations/command-journal';
 
@@ -75,6 +76,37 @@ test('subscription lifecycle offers both test-mode directions only from a known 
   for(const status of ['trialing','past_due'])assert.ok(subscriptionLifecycleAction({...row,status}));
   for(const invalid of [{livemode:true},{status:'canceled'},{cancel_at_period_end:null},
     {revision:0},{revision:1.5},{id:''}])assert.equal(subscriptionLifecycleAction({...row,...invalid}),null);
+});
+test('plan picker requires a known item and only compatible projected prices',()=>{
+  const subscription={id:'sub_1',status:'active',livemode:false,cancel_at_period_end:false,
+    item_id:'si_1',price_id:'price_old',currency:'EUR',interval:'month',interval_count:1,
+    quantity:1,unit_amount_minor:100,revision:2};
+  const price={id:'price_new',active:true,livemode:false,type:'recurring',
+    billing_scheme:'per_unit',custom_amount:false,usage_type:'licensed',unit_amount_minor:200,
+    currency:'EUR',interval:'month',interval_count:1};
+  assert.deepEqual(subscriptionPlanPrices(subscription,[price,{...price,id:'price_year',interval:'year'},
+    {...price,id:'price_live',livemode:true}]),[price]);
+  assert.deepEqual(subscriptionPlanPrices({...subscription,item_id:null},[price]),[]);
+  assert.deepEqual(subscriptionPlanPrices({...subscription,cancel_at_period_end:true},[price]),[]);
+});
+test('a compatible price on the second local page remains selectable across billing tabs',()=>{
+  const subscription={id:'sub_1',status:'active',livemode:false,cancel_at_period_end:false,
+    item_id:'si_1',price_id:'price_old',currency:'EUR',interval:'month',interval_count:1,
+    quantity:1,unit_amount_minor:100,revision:2};
+  const price={id:'price_26',active:true,livemode:false,type:'recurring',
+    billing_scheme:'per_unit',custom_amount:false,usage_type:'licensed',unit_amount_minor:200,
+    currency:'EUR',interval:'month',interval_count:1};
+  const first=Array.from({length:25},(_,i)=>({...price,id:`price_${i}`,active:false}));
+  assert.deepEqual(subscriptionPlanPrices(subscription,first),[]);
+  const loaded=mergeProjectedPage(first,[price],true);
+  assert.equal(loaded.length,26);
+  assert.deepEqual(subscriptionPlanPrices(subscription,loaded),[price]);
+  assert.equal(mergeProjectedPage(loaded,[price],true).length,26);
+  const ui=read('ui/index.tsx');
+  assert.match(ui,/loadPage\('prices',generation\.current,pages\.prices!\.nextCursor,true\)/u);
+  assert.match(ui,/if\(next==='subscriptions'&&!pages\.prices\)void loadPage\('prices'/u);
+  assert.match(ui,/if\(next!=='prices'\|\|!pages\.prices\)void loadPage\(next as ListCollection/u);
+  assert.match(ui,/if\(id!=='prices'\|\|!pages\.prices\)void loadPage\(id,generation\.current\)/u);
 });
 test('an uncertain lifecycle command blocks its reverse until status resolves; each direction keeps its own CAS input',async()=>{
   const scope={sessionId:'session-a',audience:'admin',contextId:'application'};

@@ -31,6 +31,31 @@ export function subscriptionLifecycleAction(subscription:SubscriptionLifecycle){
       ?`Programmer l’arrêt de l’abonnement ${subscription.id} à la fin de la période ?`
       :`Retirer l’arrêt programmé de l’abonnement ${subscription.id} et maintenir son renouvellement ?`};
 }
+type PlanSubscription={id:string;status:string;livemode:boolean;cancel_at_period_end:boolean|null;
+  item_id:string|null;price_id:string|null;currency:string|null;interval:string|null;
+  interval_count:number|null;quantity:number|null;unit_amount_minor:number|null;revision:number};
+type PlanPrice={id:string;active:boolean;livemode:boolean;type:string;billing_scheme:string;
+  custom_amount:boolean;usage_type:string|null;unit_amount_minor:number|null;currency:string;
+  interval:string|null;interval_count:number|null};
+export function subscriptionPlanPrices(subscription:PlanSubscription,prices:readonly PlanPrice[]):PlanPrice[]{
+  if(subscription.livemode||subscription.status!=='active'||subscription.cancel_at_period_end!==false
+    ||!subscription.item_id?.startsWith('si_')||!subscription.price_id?.startsWith('price_')
+    ||!subscription.currency||!subscription.interval||!Number.isSafeInteger(subscription.interval_count)
+    ||!Number.isSafeInteger(subscription.quantity)||!Number.isSafeInteger(subscription.revision)
+    ||!Number.isSafeInteger(subscription.unit_amount_minor)||Number(subscription.unit_amount_minor)<1
+    ||subscription.revision<1)return [];
+  return prices.filter(price=>price.active&&!price.livemode&&price.type==='recurring'
+    &&price.billing_scheme==='per_unit'&&!price.custom_amount&&price.usage_type==='licensed'
+    &&Number.isSafeInteger(price.unit_amount_minor)&&Number(price.unit_amount_minor)>0
+    &&price.currency===subscription.currency&&price.interval===subscription.interval
+    &&price.interval_count===subscription.interval_count);
+}
+export function mergeProjectedPage<T extends {id:string}>(previous:readonly T[],incoming:readonly T[],
+  append:boolean):T[]{
+  if(!append)return [...incoming];
+  const seen=new Set(previous.map(row=>row.id));
+  return [...previous,...incoming.filter(row=>!seen.has(row.id))];
+}
 
 /** A late read cannot roll a confirmed command back to an older revision. */
 export function latestConfig(previous:Config|null,candidate:Config):Config{

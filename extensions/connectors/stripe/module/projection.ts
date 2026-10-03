@@ -46,7 +46,7 @@ function subscription(raw:Record<string,unknown>):Record<string,JsonValue>{
   if(typeof raw.livemode!=='boolean')return fail();
   const result:Record<string,JsonValue>={livemode:raw.livemode,
     customer_id:id(raw.customer,'cus_'),status:bounded(raw.status,64),currency:null,
-    price_id:null,unit_amount_minor:null,interval:null,interval_count:null,quantity:null,
+    item_id:null,price_id:null,unit_amount_minor:null,interval:null,interval_count:null,quantity:null,
     cancel_at_period_end:null,period_end_at:null};
   if(!result.status)return fail();
   if(raw.cancel_at_period_end!==undefined){
@@ -60,6 +60,7 @@ function subscription(raw:Record<string,unknown>):Record<string,JsonValue>{
     // A complex or incomplete price cannot be presented as one monthly charge.
     if(!items.has_more&&data.length===1){
       const item=object(data[0]),price=item.price===null?null:object(item.price);
+      result.item_id=id(item.id,'si_');
       if(price){
         result.price_id=id(price.id,'price_');
         if(price.unit_amount!==null&&price.unit_amount!==undefined)

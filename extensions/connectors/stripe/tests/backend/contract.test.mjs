@@ -5,7 +5,7 @@ import {stripeConnectorDescriptor} from '../../module/storage.ts';
 import {projectStripePage} from '../../module/projection.ts';
 import {configSet,configKeySet,configKeyRevoke,syncStart,syncPage,syncState,connectionCheck,
   checkoutPaymentCreate,checkoutSubscriptionCreate,checkoutRead,subscriptionCancelSchedule,
-  subscriptionCancelSet,offerSet,offerList,appOfferList,appCheckoutCreate,appCheckoutRead}
+  subscriptionCancelSet,subscriptionPlanSet,offerSet,offerList,appOfferList,appCheckoutCreate,appCheckoutRead}
   from '../../module/service.ts';
 import {eventReceive} from '../../module/service.ts';
 import {stripeWebhookInput} from '../../module/webhook.ts';
@@ -45,7 +45,8 @@ test('fixed Stripe outbound contract and admin deny-default permissions',()=>{
     ['checkout_payment_create','POST','/v1/checkout/sessions'],
     ['checkout_subscription_create','POST','/v1/checkout/sessions'],
     ['checkout_session','GET','/v1/checkout/sessions/{id}'],
-    ['subscription_schedule_cancel','POST','/v1/subscriptions/{id}']]);
+    ['subscription_schedule_cancel','POST','/v1/subscriptions/{id}'],
+    ['subscription_plan_set','POST','/v1/subscriptions/{id}']]);
   assert.deepEqual(stripeConnectorDescriptor.resources[1].query.fixed,[{name:'status',value:'all'}]);
   assert.deepEqual(stripeConnectorDescriptor.resources[4].query.fixed,[{name:'active',value:'true'}]);
   assert.deepEqual(stripeConnectorDescriptor.resources[5].query.fixed,[{name:'active',value:'false'}]);
@@ -109,6 +110,7 @@ test('subscription and invoice fields are bounded, absent money is never fabrica
     customer:'cus_1',status:'active',livemode:false,items:{data:[],has_more:false},
     metadata:{secret:'hidden'}}]},'subscriptions',8).rows[0].values;
   assert.equal(subscription.unit_amount_minor,null);assert.equal(subscription.currency,null);
+  assert.equal(subscription.item_id,null);
   const invoice=projectStripePage({object:'list',has_more:false,data:[{id:'in_1',object:'invoice',
     customer:'cus_1',status:'open',currency:'eur',amount_due:12345,livemode:false,
     lines:{data:[{description:'do-not-copy'}]}}]},'invoices',8).rows[0].values;
@@ -384,4 +386,47 @@ test('subscription cancellation rejects stale, foreign, live or unknown state be
     livemode:false,customer:'cus_123',status:'canceled',cancel_at_period_end:false}});
   await assert.rejects(subscriptionCancelSet(input,h.context),{code:'unknown'});
   assert.equal(h.calls.some(call=>call.patch),false);
+});
+test('plan change replaces the known item without proration and projects the confirmed response',async()=>{
+  const prior={id:'sub_123',connection_id:config.connection_id,livemode:false,
+    customer_id:'cus_123',status:'active',revision:3,cancel_at_period_end:false,
+    item_id:'si_123',price_id:'price_old',quantity:1,unit_amount_minor:100,
+    currency:'EUR',interval:'month',interval_count:1};
+  const price={id:'price_new',connection_id:config.connection_id,active:true,livemode:false,
+    type:'recurring',billing_scheme:'per_unit',custom_amount:false,usage_type:'licensed',
+    unit_amount_minor:200,interval:'month',interval_count:1,currency:'EUR'};
+  const response={id:'sub_123',object:'subscription',livemode:false,customer:'cus_123',
+    status:'active',cancel_at_period_end:false,pending_update:null,items:{has_more:false,data:[{
+      id:'si_123',quantity:2,price:{id:'price_new',unit_amount:200,currency:'eur',
+        recurring:{interval:'month',interval_count:1}}}]}};
+  const h=harness({projection:{sub_123:prior,price_new:price},body:response});
+  const result=await subscriptionPlanSet({subscriptionId:'sub_123',revision:3,priceId:'price_new',
+    quantity:2},h.context);
+  assert.deepEqual(result.output,{subscriptionId:'sub_123',itemId:'si_123',priceId:'price_new',
+    quantity:2,prorationBehavior:'none',livemode:false});
+  assert.deepEqual(h.calls.find(call=>call.mutation).mutation,{resource:'subscription_plan_set',
+    id:'sub_123',fields:{itemId:'si_123',priceId:'price_new',quantity:2},signal:h.context.signal});
+  assert.equal(h.calls.find(call=>call.patch).args.compare.expected,3);
+  assert.equal(h.calls.find(call=>call.patch).args.values.item_id,'si_123');
+  assert.equal(h.calls.find(call=>call.patch).args.values.unit_amount_minor,200);
+  assert.deepEqual(stripeConnectorDescriptor.resources.at(-1).body.fixed,[
+    {name:'proration_behavior',value:'none'},{name:'payment_behavior',value:'error_if_incomplete'}]);
+  for(const [change,code] of [[{revision:2},'conflict'],[{item_id:null},'invalid_input'],
+    [{status:'trialing'},'invalid_input'],[{cancel_at_period_end:true},'invalid_input'],
+    [{livemode:true},'invalid_input'],[{connection_id:'other'},'invalid_input'],
+    [{currency:'USD'},'invalid_input'],[{interval:'year'},'invalid_input'],
+    [{unit_amount_minor:0},'invalid_input'],
+    [{priceId:'price_old',quantity:1},'invalid_input']]){
+    const projection={...prior,...change,revision:prior.revision};
+    const input={subscriptionId:'sub_123',revision:change.revision??3,
+      priceId:change.priceId??'price_new',quantity:change.quantity??2};
+    const rejected=harness({projection:{sub_123:projection,price_new:price},body:response});
+    await assert.rejects(subscriptionPlanSet(input,rejected.context),{code});
+    assert.equal(rejected.calls.some(call=>call.mutation),false);
+  }
+  const mismatch=harness({projection:{sub_123:prior,price_new:price},body:{...response,
+    items:{has_more:false,data:[{...response.items.data[0],id:'si_other'}]}}});
+  await assert.rejects(subscriptionPlanSet({subscriptionId:'sub_123',revision:3,
+    priceId:'price_new',quantity:2},mismatch.context),{code:'unknown'});
+  assert.equal(mismatch.calls.some(call=>call.patch),false);
 });

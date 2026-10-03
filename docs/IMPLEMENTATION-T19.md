@@ -1,5 +1,13 @@
 # T19 — Support natif
 
+## Quatre widgets vérifiés sur Original domix v7 — 3 octobre 2026
+
+La recette complémentaire vérifie `ticket-list-admin`, `ticket-list-app` et `ticket-thread-app`, en plus de `ticket-thread-admin` déjà acquis ci-dessous. Les trois cartes sont rendues dans les iframes du chat natif ; leurs lectures directes et leur contenu après rechargement, sans nouvelle sélection du fil, sont confirmés. Le ticket témoin reste résolu à la révision 4 avec les deux mêmes messages. Les sessions sont déconnectées et les navigateurs fermés.
+
+Deux conversations et deux tours supplémentaires ont été créés, un par audience. Une lecture transitoirement non confirmée côté app a été suivie par l'inspection puis la continuation native du même tour, sans second démarrage. Le reçu conserve cette tentative interrompue ; sa cause réseau exacte n'est pas établie. Le résultat final est documenté hors dépôt dans `CREEZIO-T19-ORIGINAL-V7-SUPPORT-REMAINING-FINAL-2026-10-03.json`, SHA-256 `5154fb7bd386ac3fd5db978f4b4148e58a20d5bff176623c50ea246f7eff3796`.
+
+Ces preuves couvrent les quatre cartes liste/fil des deux audiences sur ce Site. Les actions de modification non exercées, le lien à un message Messaging réellement reçu, les fournisseurs reportés et la portée MCP externe restent distincts ; elles ne clôturent pas tout REQ-1901.
+
 ## Widget admin sur Original domix v7 — 3 octobre 2026
 
 Sur Original domix v7 (Core `8756f008`, source Site `f71cc236`), un seul tour admin a lu par `support_ticket_read_admin` le ticket fictif existant `a6a8a616-67c0-45f3-ac9a-fcb2d459c3f4`. Le tour et son résultat d'outil sont confirmés ; la carte native `ticket-thread-admin` montre le ticket résolu à la révision 4 et ses deux messages. Après sélection du même fil puis rechargement, le navigateur retrouve la carte dans l'iframe interne et relit les deux messages. Leurs empreintes et le contenu métier du ticket sont inchangés ; les sessions sont déconnectées et le navigateur fermé. Reçu hors dépôt : `CREEZIO-T19-ORIGINAL-V7-SUPPORT-WIDGET-FINAL-2026-10-03.json` (SHA-256 `0cc5f3b949ecc0f0cec491346b6691849ccaad5c349438e614729bad952a0025`).

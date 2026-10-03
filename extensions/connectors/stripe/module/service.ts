@@ -350,6 +350,50 @@ export async function subscriptionCancelSet(value:JsonValue,context:OperationCon
   if(typeof cancelAtPeriodEnd!=='boolean')throw new OperationError('invalid_input');
   return subscriptionCancellation(value,context,cancelAtPeriodEnd);
 }
+export async function subscriptionPlanSet(value:JsonValue,context:OperationContext){
+  const input=args(value),id=identifier(input.subscriptionId),priceId=identifier(input.priceId),
+    quantity=input.quantity,configuration=await config(context);
+  if(!id.startsWith('sub_')||!priceId.startsWith('price_')||!Number.isSafeInteger(quantity)
+    ||Number(quantity)<1||Number(quantity)>100||configuration?.enabled!==true
+    ||typeof configuration.key_ref!=='string'||typeof configuration.connection_id!=='string')
+    throw new OperationError('invalid_input');
+  const prior=await context.data.get('stripe_subscription',{key:{id}}) as Row|null;
+  if(!prior||prior.connection_id!==configuration.connection_id||prior.livemode!==false
+    ||prior.status!=='active'||prior.cancel_at_period_end!==false
+    ||typeof prior.item_id!=='string'||!prior.item_id.startsWith('si_')
+    ||typeof prior.price_id!=='string'||!prior.price_id.startsWith('price_')
+    ||!Number.isSafeInteger(prior.quantity)||Number(prior.quantity)<1
+    ||!Number.isSafeInteger(prior.unit_amount_minor)||Number(prior.unit_amount_minor)<1
+    ||typeof prior.currency!=='string'||typeof prior.interval!=='string'
+    ||!Number.isSafeInteger(prior.interval_count)||Number(prior.interval_count)<1)
+    throw new OperationError('invalid_input');
+  const revision=rev(input.revision,prior);
+  const price=await fixedPrice(context,priceId,'subscription',configuration);
+  if(price.currency!==prior.currency||price.interval!==prior.interval
+    ||price.interval_count!==prior.interval_count||price.usage_type!=='licensed'
+    ||(priceId===prior.price_id&&quantity===prior.quantity))
+    throw new OperationError('invalid_input');
+  const response=await mutation(context,{resource:'subscription_plan_set',id,
+    fields:{itemId:prior.item_id,priceId,quantity:Number(quantity)}});
+  let body:Record<string,unknown>;
+  let projected:ReturnType<typeof projectStripePage>['rows'][number];
+  try{body=supplier(response);
+    projected=projectStripePage({object:'list',data:[response],has_more:false},'subscriptions',1).rows[0];}
+  catch{throw new OperationError('unknown');}
+  if(projected.id!==id||projected.values.livemode!==false
+    ||projected.values.customer_id!==prior.customer_id||projected.values.status!=='active'
+    ||projected.values.cancel_at_period_end!==false||projected.values.item_id!==prior.item_id
+    ||projected.values.price_id!==priceId||projected.values.quantity!==quantity
+    ||projected.values.unit_amount_minor!==price.unit_amount_minor
+    ||projected.values.currency!==price.currency||projected.values.interval!==price.interval
+    ||projected.values.interval_count!==price.interval_count||body.pending_update)
+    throw new OperationError('unknown');
+  const plan=context.data.planPatch('stripe_subscription',{key:{id},
+    compare:{field:'revision',expected:revision},
+    values:{...projected.values,updated_at:now()}});
+  return {output:{subscriptionId:id,itemId:prior.item_id,priceId,quantity:Number(quantity),
+    prorationBehavior:'none',livemode:false},plans:[plan]};
+}
 export async function eventReceive(value:JsonValue,context:OperationContext){
   const input=args(value),eventId=identifier(input.eventId),objectId=identifier(input.objectId),
     digest=input.bodyDigest,type=input.type,configuration=await config(context);
@@ -602,7 +646,7 @@ export async function customerList(value:JsonValue,context:OperationContext){
 }
 export async function subscriptionList(value:JsonValue,context:OperationContext){
   return localPage(context,'stripe_subscription',value,
-    ['id','customer_id','status','currency','price_id','unit_amount_minor','interval',
+    ['id','customer_id','status','currency','item_id','price_id','unit_amount_minor','interval',
       'interval_count','quantity','cancel_at_period_end','period_end_at','livemode','revision','updated_at'],true);
 }
 export async function invoiceList(value:JsonValue,context:OperationContext){

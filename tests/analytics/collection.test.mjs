@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import ts from 'typescript';
 import {startAnalyticsCollection} from '../../app/analytics/collection.ts';
+import {createWorkspaceController} from '../../sdk/workspace/controller.ts';
 
 function actionIdsFromButtons(path){
   const source=readFileSync(new URL(path,import.meta.url),'utf8');
@@ -124,4 +125,65 @@ test('real workspace and front buttons opt in only with stable, policy-enabled I
       collector.dispose();assert.equal(listeners.size,0);
     }
   }finally{globalThis.Element=oldElement;}
+});
+
+test('panel state publication preserves the click before document bubbling',async()=>{
+  const originalElement=globalThis.Element;
+  class FakeElement{
+    constructor(id){this.id=id;}
+    closest(){return this;}
+    getAttribute(name){return name==='data-creezio-analytics-id'?this.id:null;}
+  }
+  globalThis.Element=FakeElement;
+  const listeners=new Map(),calls=[];
+  const target={addEventListener(name,fn,capture){listeners.set(name,{fn,capture});},
+    removeEventListener(name,fn,capture){assert.deepEqual(listeners.get(name),{fn,capture});
+      listeners.delete(name);},contains(){return true}};
+  const client={async invoke(input){calls.push(input);return {kind:'execution',
+    execution:{state:'succeeded',output:input.bindingId.endsWith('collection.effective')
+      ?{navigation:false,clicks:true}:{}}};}};
+  const session={id:'session-one',principalId:'owner-one',audience:'admin'};
+  const access={audience:'admin',getSnapshot:()=>({phase:'authenticated',pending:null,session}),
+    subscribe:()=>()=>{}};
+  const view={id:'creezio.support:admin',moduleId:'creezio.support',title:'Support',
+    route:'/admin/support',surfaces:['workspace'],audiences:['admin'],
+    panel:{identityFields:[],navigation:'sdk',retention:'preserve',inactiveEffects:'suspend'},
+    validateInput:()=>true,validateState:data=>typeof data?.ticketId==='string',component:()=>null};
+  const crm={...view,id:'creezio.crm:admin',moduleId:'creezio.crm',title:'CRM',
+    route:'/admin/crm'};
+  const projection={sessionId:session.id,principalId:session.principalId,audience:'admin',
+    contextId:'application',compositionDigest:`sha256-${'a'.repeat(64)}`,epoch:1,
+    viewIds:[view.id,crm.id],navigationIds:[]};
+  const entries=new Map(),storage={getItem:key=>entries.get(key)??null,
+    setItem:(key,value)=>entries.set(key,value),removeItem:key=>entries.delete(key),
+    get length(){return entries.size;},key:index=>[...entries.keys()][index]??null};
+  let collector=null,analyticsUrl=null;
+  try{
+    const controller=createWorkspaceController({access,views:[view,crm],contextId:'application',
+      projection,initialUrl:'/admin/support',storage,onLocationChange:url=>{
+        analyticsUrl=url;
+        if(collector){const selected=url==='/admin/crm'?crm:view;
+          collector.location({viewId:selected.id,route:selected.route});
+          void collector.refresh();}
+      }});
+    collector=startAnalyticsCollection({client,contextId:'application',audience:'admin',
+      surface:'workspace',target});
+    collector.location({viewId:view.id,route:view.route});await collector.refresh();
+    assert.equal(analyticsUrl,'/admin/support');
+    const listener=listeners.get('click'),supportClick={target:new FakeElement('support.ticket.open')};
+    if(listener.capture)listener.fn(supportClick);
+    assert.equal(controller.savePanelState({data:{ticketId:'existing-ticket'}}),true);
+    if(!listener.capture)listener.fn(supportClick);
+    assert.equal(calls.filter(call=>call.bindingId.endsWith('event.record')).length,1);
+    assert.equal(controller.visit('/admin/crm'),true);
+    listener.fn({target:new FakeElement('crm.record.open')});
+    assert.equal(calls.filter(call=>call.bindingId.endsWith('event.record')).length,1,
+      'a real route change immediately suspends collection until refresh');
+    await collector.refresh();
+    listener.fn({target:new FakeElement('crm.record.open')});
+    assert.deepEqual(calls.filter(call=>call.bindingId.endsWith('event.record'))
+      .map(call=>call.input.path),['/admin/support','/admin/crm']);
+    collector.dispose();controller.dispose();
+    assert.equal(listeners.size,0);
+  }finally{globalThis.Element=originalElement;}
 });

@@ -108,7 +108,7 @@ test('Stripe connector commits pages and cancellation changes atomically in D1 w
       const keyring=createVaultKeyring({activeKeyId:'stripe-test',keys:{'stripe-test':new Uint8Array(32).fill(23)}});
       const requests=[];
       let pauseCustomer=null,checkoutCount=0,rotateOnCheckout=false,rotateCheckout;
-      let subscriptionWrites=0,failNextSubscription=false;
+      let subscriptionWrites=0,failNextSubscription=false,planWrites=0,failNextPlan=false;
       const fetcher=async(url,init)=>{
         const parsed=new URL(url),credential=init.headers.get('Authorization');
         requests.push({url:String(url),method:init.method,redirect:init.redirect,credential,
@@ -135,6 +135,20 @@ test('Stripe connector commits pages and cancellation changes atomically in D1 w
           const cancel=new URLSearchParams(init.body).get('cancel_at_period_end');
           return Response.json({id:'sub_test',object:'subscription',livemode:false,
             customer:'cus_test',status:'active',cancel_at_period_end:cancel==='true'});
+        }
+        if(parsed.pathname==='/v1/subscriptions/sub_plan'&&init.method==='POST'){
+          planWrites++;
+          if(failNextPlan){failNextPlan=false;return Response.json({error:'uncertain'},{status:500});}
+          const form=new URLSearchParams(init.body);
+          assert.equal(form.get('proration_behavior'),'none');
+          assert.equal(form.get('payment_behavior'),'error_if_incomplete');
+          assert.equal(form.get('items[0][id]'),'si_plan');
+          assert.equal(form.get('items[0][price]'),'price_active');
+          return Response.json({id:'sub_plan',object:'subscription',livemode:false,
+            customer:'cus_test',status:'active',cancel_at_period_end:false,pending_update:null,
+            items:{has_more:false,data:[{id:'si_plan',quantity:Number(form.get('items[0][quantity]')),
+              price:{id:'price_active',unit_amount:1299,currency:'eur',
+                recurring:{interval:'month',interval_count:1}}}]}});
         }
         const account=credential==='Bearer synthetic-key-two'?'account-two':'account-one';
         if(parsed.pathname==='/v1/customers'){
@@ -385,6 +399,33 @@ test('Stripe connector commits pages and cancellation changes atomically in D1 w
         collection:'prices_active',runId:'price-three',revision:2})).state;
       success(await invoke('sync.page',{requestKey:'price-three-page',collection:'prices_active',
         runId:'price-three',cursor:null,expectedRevision:priceRun.revision,limit:8}));
+      await db.prepare(`INSERT INTO "${generated.tables.stripe_subscription}"
+        (context_id,id,connection_id,customer_id,status,cancel_at_period_end,item_id,price_id,
+          unit_amount_minor,currency,interval,interval_count,quantity,period_end_at,
+          livemode,revision,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .bind('application','sub_plan',currentConnection.connection_id,'cus_test','active',0,
+          'si_plan','price_old',100,'EUR','month',1,1,'2099-01-01T00:00:00.000Z',0,1,
+          new Date().toISOString()).run();
+      const planInput={requestKey:'plan-one',subscriptionId:'sub_plan',revision:1,
+        priceId:'price_active',quantity:2};
+      assert.equal(success(await invoke('subscription.plan.set',planInput)).prorationBehavior,'none');
+      assert.equal(planWrites,1);
+      const updatedPlan=await db.prepare(`SELECT item_id,price_id,quantity,revision FROM
+        "${generated.tables.stripe_subscription}" WHERE context_id=? AND id=?`)
+        .bind('application','sub_plan').first();
+      assert.deepEqual([updatedPlan.item_id,updatedPlan.price_id,updatedPlan.quantity,
+        updatedPlan.revision],['si_plan','price_active',2,2]);
+      assert.equal((await invoke('subscription.plan.set',planInput)).replayed,true);
+      assert.equal(planWrites,1);
+      await failed(invoke('subscription.plan.set',{...planInput,requestKey:'plan-stale'}),'conflict');
+      await failed(invoke('subscription.plan.set',{...planInput,requestKey:'plan-foreign'},
+        {contextId:'other'}),'forbidden');
+      failNextPlan=true;
+      const uncertainPlan={...planInput,requestKey:'plan-unknown',revision:2,quantity:3};
+      await failed(invoke('subscription.plan.set',uncertainPlan),'unknown');
+      assert.equal((await lookup('subscription.plan.set','plan-unknown'))?.state,'unknown');
+      assert.equal((await invoke('subscription.plan.set',uncertainPlan)).replayed,true);
+      assert.equal(planWrites,2);
       const checkoutInput={requestKey:'checkout-one',priceId:'price_active',quantity:1};
       const checkoutResult=await invoke('checkout.subscription.create',checkoutInput);
       assert.equal(checkoutResult.execution.state,'succeeded');
