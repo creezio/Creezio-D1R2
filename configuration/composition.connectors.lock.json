@@ -309,10 +309,10 @@
         }
       },
       "validation": {
-        "integrity": "sha256-ac212123ac900f56b213edfcf70acd2d4ef98491367d32592ca962b1b7876e5c",
+        "integrity": "sha256-87d2db04828fa8377c9f746948db31592ce26886e44fdfde5c6e31d8afea162c",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.analytics/validation-ac212123ac900f56b213edfcf70acd2d4ef98491367d32592ca962b1b7876e5c.tgz"
+          "path": ".creezio/module-artifacts/creezio.analytics/validation-87d2db04828fa8377c9f746948db31592ce26886e44fdfde5c6e31d8afea162c.tgz"
         }
       },
       "dependencies": [
