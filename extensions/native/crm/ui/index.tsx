@@ -265,7 +265,8 @@ export function CrmWorkspaceView(props:WorkspaceViewProps){
     {entity==='prospect'&&!archived?<ProspectKanban items={items as Prospect[]} loading={loading} selectedId={selected}
       onSelect={choose} onMove={(item,stage,position)=>void move(item,stage,position)}/>:
       <div className="grid gap-2 md:grid-cols-3">{items.map(item=><button key={item.id} type="button"
-        className="rounded-lg border bg-card p-3 text-left" onClick={()=>choose(item.id)}>
+        className="rounded-lg border bg-card p-3 text-left" onClick={()=>choose(item.id)}
+        data-creezio-analytics-id="crm.record.open">
         <strong className="block text-sm">{item.name}</strong>
         <span className="text-xs text-muted-foreground">{[item.city,item.email,item.phone].filter(Boolean).join(' · ')||'—'}</span>
       </button>)}</div>}

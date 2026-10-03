@@ -70,8 +70,12 @@ test('optional collection uses only declared routes and explicit stable IDs',asy
 test('real workspace and front buttons opt in only with stable, policy-enabled IDs',async()=>{
   const analyticsIds=actionIdsFromButtons('../../extensions/native/analytics/ui/index.tsx');
   const catalogIds=actionIdsFromButtons('../../extensions/common/catalog/ui/front.tsx');
+  const supportIds=actionIdsFromButtons('../../extensions/native/support/ui/index.tsx');
+  const crmIds=actionIdsFromButtons('../../extensions/native/crm/ui/index.tsx');
   assert.deepEqual(analyticsIds,['analytics.refresh']);
   assert.deepEqual(catalogIds,['catalog.product.open']);
+  assert.deepEqual(supportIds,['support.ticket.open']);
+  assert.deepEqual(crmIds,['crm.record.open']);
   const oldElement=globalThis.Element;
   class FakeElement{
     constructor(id){this.id=id;}
@@ -84,7 +88,13 @@ test('real workspace and front buttons opt in only with stable, policy-enabled I
       {id:analyticsIds[0],audience:'admin',surface:'workspace',
         route:declaredRoute('../../extensions/native/analytics/module/manifest.json','admin')},
       {id:catalogIds[0],audience:'app',surface:'front',
-        route:declaredRoute('../../extensions/common/catalog/module/manifest.json','front')}]){
+        route:declaredRoute('../../extensions/common/catalog/module/manifest.json','front')},
+      ...(['workspace','front']).map(viewId=>({id:supportIds[0],
+        audience:viewId==='workspace'?'admin':'app',surface:viewId,
+        route:declaredRoute('../../extensions/native/support/module/manifest.json',viewId)})),
+      ...(['workspace','front']).map(viewId=>({id:crmIds[0],
+        audience:viewId==='workspace'?'admin':'app',surface:viewId,
+        route:declaredRoute('../../extensions/native/crm/module/manifest.json',viewId)}))]){
       const listeners=new Map(),calls=[];
       const target={addEventListener(name,fn){listeners.set(name,fn);},
         removeEventListener(name){listeners.delete(name);},contains(){return true}};
@@ -93,7 +103,8 @@ test('real workspace and front buttons opt in only with stable, policy-enabled I
         return {kind:'execution',execution:{state:'succeeded',
           output:input.bindingId.endsWith('collection.effective')
             ?{navigation:false,clicks}: {}}};}};
-      const collector=startAnalyticsCollection({client,contextId:'application',
+      const contextId=`context-${scenario.id}-${scenario.audience}`;
+      const collector=startAnalyticsCollection({client,contextId,
         audience:scenario.audience,surface:scenario.surface,target});
       collector.location({viewId:`view:${scenario.surface}`,route:scenario.route});
       await collector.refresh();
@@ -104,6 +115,7 @@ test('real workspace and front buttons opt in only with stable, policy-enabled I
       const emitted=calls.filter(call=>call.bindingId.endsWith('event.record'));
       assert.equal(emitted.length,1);
       assert.equal(emitted[0].bindingId,`creezio.analytics:${scenario.audience}.event.record`);
+      assert.equal(emitted[0].contextId,contextId);
       assert.deepEqual({type:emitted[0].input.type,surface:emitted[0].input.surface,
         path:emitted[0].input.path,actionId:emitted[0].input.actionId},
       {type:'click',surface:scenario.surface,path:scenario.route,actionId:scenario.id});

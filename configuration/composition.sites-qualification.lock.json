@@ -223,10 +223,10 @@
       },
       "contractIntegrity": "sha256-fa2c2a04e34027f296f762bf4f8173a9bf9d74c97f650c3f63adf4ee233dbd67",
       "runtime": {
-        "integrity": "sha256-933c5ed65eae055c31dd729f6bca3473e75e3afb490adccb9074585ee8c861ac",
+        "integrity": "sha256-2603585dec47dc32e91a6bd8d760d1baca7133792fbdc661a7c3707fd67c96d9",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.crm/runtime-933c5ed65eae055c31dd729f6bca3473e75e3afb490adccb9074585ee8c861ac.tgz"
+          "path": ".creezio/module-artifacts/creezio.crm/runtime-2603585dec47dc32e91a6bd8d760d1baca7133792fbdc661a7c3707fd67c96d9.tgz"
         }
       },
       "validation": {
@@ -254,10 +254,10 @@
       },
       "contractIntegrity": "sha256-51ffc8e4b86f8a6a9a50863502862750a2a9a4966303e51ac6384ff9fe230a19",
       "runtime": {
-        "integrity": "sha256-c04ec3dcdfecc9052357fe38008977a823a44b716dce409094535e071bdec100",
+        "integrity": "sha256-d77dd863dbe095f66ac5565e74e3e4551cd947d24c296046856d3e27ad5704c4",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.support/runtime-c04ec3dcdfecc9052357fe38008977a823a44b716dce409094535e071bdec100.tgz"
+          "path": ".creezio/module-artifacts/creezio.support/runtime-d77dd863dbe095f66ac5565e74e3e4551cd947d24c296046856d3e27ad5704c4.tgz"
         }
       },
       "validation": {
@@ -324,17 +324,17 @@
       },
       "contractIntegrity": "sha256-e582a12936a3a0f24f0530f4b6ca47cbd4e71c5a6f7fb0ef5f70d7702287be7c",
       "runtime": {
-        "integrity": "sha256-d8d363297d8022890c1f21eb414a26270930d4136ce2733a15ffbcfd2e9a2c60",
+        "integrity": "sha256-8608f5bb37c18f53fe4c73426a17bb06d82d81e5954d5f4a5754fe4df0c50499",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.analytics/runtime-d8d363297d8022890c1f21eb414a26270930d4136ce2733a15ffbcfd2e9a2c60.tgz"
+          "path": ".creezio/module-artifacts/creezio.analytics/runtime-8608f5bb37c18f53fe4c73426a17bb06d82d81e5954d5f4a5754fe4df0c50499.tgz"
         }
       },
       "validation": {
-        "integrity": "sha256-2a02c1ff924c90ffae726cbaf8855d7314a751bb074c2e1a86a0b7bdeac48c14",
+        "integrity": "sha256-ac212123ac900f56b213edfcf70acd2d4ef98491367d32592ca962b1b7876e5c",
         "location": {
           "kind": "local",
-          "path": ".creezio/module-artifacts/creezio.analytics/validation-2a02c1ff924c90ffae726cbaf8855d7314a751bb074c2e1a86a0b7bdeac48c14.tgz"
+          "path": ".creezio/module-artifacts/creezio.analytics/validation-ac212123ac900f56b213edfcf70acd2d4ef98491367d32592ca962b1b7876e5c.tgz"
         }
       },
       "dependencies": [

@@ -1,5 +1,9 @@
 # Changelog
 
+## Non publié — sélection Support et CRM déclarée
+
+Les boutons de liste Support et de grille CRM déclarent `support.ticket.open` et `crm.record.open` dans les vues workspace et front. Le collecteur et sa politique restent inchangés ; aucun contenu ni identifiant de fiche ou de ticket n’entre dans l’événement. Les tests client vérifient les routes déclarées et les deux audiences. La recette hébergée reste ouverte.
+
 ## Non publié — deux actions de clic explicites
 
 Le bouton Actualiser du workspace Analytique porte `analytics.refresh` et la carte produit du front Catalogue porte `catalog.product.open`. Ces identifiants statiques alimentent la collecte de clics déjà désactivée par défaut ; aucun produit, texte de composant ou argument n'entre dans `actionId`. Le test client vérifie les attributs JSX des deux boutons puis le refus à politique désactivée et l'émission après activation. Recette navigateur hébergée encore ouverte.
