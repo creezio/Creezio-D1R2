@@ -62,6 +62,21 @@ test('historical list stays read-only without direct host tools',async()=>{
   assert.match(elements.get('status').textContent,/lecture seule/);
 });
 
+test('a complete dense page renders before a deliberate cursor read replaces it',async()=>{
+  const {elements,app,calls,responses}=setup();await mountCrmWidget('company','list');
+  const full={items:Array.from({length:25},(_,i)=>({...item(`dense-${i}`),notes:'N'.repeat(3000)})),
+    nextCursor:'next-dense-page'};
+  assert.ok(Buffer.byteLength(JSON.stringify(full))>8_192);
+  app().emit('toolinput',{arguments:{limit:25}});
+  app().emit('toolresult',render(full));
+  assert.equal(elements.get('results').children.length,25);
+  assert.equal(elements.get('more').disabled,false);
+  responses.push(()=>Promise.resolve(action({items:[item('last')],nextCursor:null})));
+  elements.get('more').click();await tick();
+  assert.deepEqual(calls[0],{name:'crm_company_list',arguments:{limit:25,cursor:'next-dense-page'}});
+  assert.deepEqual(names(elements.get('results')),['Entreprise last']);
+});
+
 test('list/search actions are deliberate, page by original query and cursor, and reject a refusal',async()=>{
   const {elements,app,calls,responses}=setup();
   await mountCrmWidget('company','list');

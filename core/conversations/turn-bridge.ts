@@ -165,7 +165,8 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
   };
   type Usage={inputTokens:number;outputTokens:number};
   type ToolRender={widget:{moduleId:string;widgetId:string;version:string;resourceDigest:string};
-    execution:{moduleId:string;operationId:string;operationDigest:`sha256-${string}`;executionId:string}};
+    execution:{moduleId:string;operationId:string;operationDigest:`sha256-${string}`;executionId:string};
+    oversizedOutputDigest?:`sha256-${string}`};
   type PendingTool={callId:string;name:string;arguments:JsonValue;result:JsonValue;usage?:Usage;render?:ToolRender};
   const pendingTool=(delivery:OperationDelivery):PendingTool|null=>{
     const value=delivery.receipt as Record<string,JsonValue>|null;
@@ -182,7 +183,9 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
         &&typeof widget.widgetId==='string'&&typeof widget.version==='string'
         &&typeof widget.resourceDigest==='string'&&typeof execution.moduleId==='string'
         &&typeof execution.operationId==='string'&&typeof execution.operationDigest==='string'
-        &&typeof execution.executionId==='string')
+        &&typeof execution.executionId==='string'
+        &&(render.oversizedOutputDigest===undefined||typeof render.oversizedOutputDigest==='string'
+          &&/^sha256-[0-9a-f]{64}$/u.test(render.oversizedOutputDigest)))
       &&(usage===undefined||usage&&typeof usage==='object'&&!Array.isArray(usage)
         &&Number.isSafeInteger(usage.inputTokens)&&Number(usage.inputTokens)>=0
         &&Number.isSafeInteger(usage.outputTokens)&&Number(usage.outputTokens)>=0)
@@ -214,7 +217,13 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
     if(new TextEncoder().encode(args).length>4_096)return null;
     let {result,render}=await invokeTool(request,call.name,call.arguments);
     if(new TextEncoder().encode(JSON.stringify(result)).length>8_192){
-      result={error:'tool_output_too_large'};render=undefined;
+      if(render&&result&&typeof result==='object'&&!Array.isArray(result)
+        &&Object.hasOwn(result,'output')){
+        const digest=await operationDigest((result as Record<string,JsonValue>).output);
+        render={...render,oversizedOutputDigest:digest as `sha256-${string}`};
+      }
+      else render=undefined;
+      result={error:'tool_output_too_large'};
     }
     const tool:PendingTool={callId:call.callId,name:call.name,arguments:call.arguments,result,
       ...(usage?{usage}:{}),...(render?{render}:{})};
@@ -239,10 +248,48 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
     const turn=await readTurn(lease,request);
     if(!turn)throw new OperationError('not_found');
     if(turn.state==='cancel_requested')throw new OperationError('conflict');
+    let result=tool.result,content:JsonValue|null=null;
+    if(tool.render&&options.widgets&&tool.result&&typeof tool.result==='object'&&!Array.isArray(tool.result)
+      &&(Object.hasOwn(tool.result,'output')||tool.render.oversizedOutputDigest)){
+      const {widget,execution}=tool.render;
+      const selected=options.widgets.catalog.widgets.find(item=>item.moduleId===widget.moduleId
+        &&item.widgetId===widget.widgetId&&item.version===widget.version
+        &&item.resourceDigest===widget.resourceDigest&&item.audiences.includes(request.audience));
+      const validator=selected&&options.widgets.validators.get(widgetKey(selected));
+      const smallOutput=(tool.result as Record<string,JsonValue>).output;
+      let status=null;
+      try{status=selected&&validator&&(tool.render.oversizedOutputDigest||validator.input(smallOutput))
+        ?await engine.status({credential:request.credential,moduleId:execution.moduleId,
+          operationId:execution.operationId,contextId:request.contextId,audience:request.audience,
+          executionId:execution.executionId}):null;}
+      catch(error){
+        if(!tool.render.oversizedOutputDigest)throw error;
+        // A revoked or unavailable read cannot promise a historical widget.
+      }
+      const output=tool.render.oversizedOutputDigest?status?.output
+        :smallOutput;
+      if(status?.state==='succeeded'&&status.operationVersion===execution.operationDigest
+        &&status.inputHash===await operationDigest(tool.arguments)
+        &&output!==undefined
+        &&validator?.input(output)
+        &&await operationDigest(status.output)===(tool.render.oversizedOutputDigest
+          ??await operationDigest(output))){
+        try{
+          const widgetPort=createWidgetOperationPort({...options.widgets,audience:request.audience,
+            authorize(entry){if(entry.permissions.length)data.requirePermissions(lease,entry.permissions);},
+            authorizeRender(render){try{return options.registry.resolve(render.moduleId,render.operationId)
+              .contractDigest===render.operationDigest;}catch{return false;}}});
+          content=widgetPort.createSnapshot([{moduleId:widget.moduleId,widgetId:widget.widgetId,
+            widgetVersion:widget.version,state:{},renderExecution:execution}]) as unknown as JsonValue;
+          if(tool.render.oversizedOutputDigest)result={output:{kind:'creezio.widget.large_result.v1',
+            availableInWidget:true}};
+        }catch{/* A revoked or retired widget leaves the read result as text only. */}
+      }
+    }
     const nextId=crypto.randomUUID();
     const inputItems:JsonValue[]=[...prior,
       {type:'function_call',call_id:tool.callId,name:tool.name,arguments:JSON.stringify(tool.arguments)},
-      {type:'function_call_output',call_id:tool.callId,output:JSON.stringify(tool.result)}];
+      {type:'function_call_output',call_id:tool.callId,output:JSON.stringify(result)}];
     if(new TextEncoder().encode(JSON.stringify(inputItems)).length>24_000){
       await change(lease,request,delivery,claim,{cursor:(receipt(delivery)?.cursor??0)+1,
         kind:'failed',payload:{code:'tool_context_too_large'}},
@@ -255,35 +302,11 @@ export function createTurnBridge(options:{readonly db:IdentityDatabase;readonly 
       values:{state:'running',error_code:null,updated_at:time,last_sequence:sequence}}),
       p.planCreate('event',{values:{...scope(lease),conversation_id:request.conversationId,
         turn_id:request.turnId,sequence,kind:'tool_result',
-        payload:{callId:tool.callId,state:Object.hasOwn(tool.result as object,'output')?'succeeded':'rejected',
+        payload:{callId:tool.callId,state:Object.hasOwn(result as object,'output')?'succeeded':'rejected',
           body:await eventBody(lease,request),...(tool.usage?{usage:tool.usage}:{})},created_at:time}})];
-    if(tool.render&&options.widgets&&tool.result&&typeof tool.result==='object'&&!Array.isArray(tool.result)
-      &&Object.hasOwn(tool.result,'output')){
-      const {widget,execution}=tool.render;
-      const selected=options.widgets.catalog.widgets.find(item=>item.moduleId===widget.moduleId
-        &&item.widgetId===widget.widgetId&&item.version===widget.version
-        &&item.resourceDigest===widget.resourceDigest&&item.audiences.includes(request.audience));
-      const validator=selected&&options.widgets.validators.get(widgetKey(selected));
-      const status=selected&&validator?.input((tool.result as Record<string,JsonValue>).output)
-        ?await engine.status({credential:request.credential,moduleId:execution.moduleId,
-          operationId:execution.operationId,contextId:request.contextId,audience:request.audience,
-          executionId:execution.executionId}):null;
-      if(status?.state==='succeeded'&&status.operationVersion===execution.operationDigest
-        &&status.inputHash===await operationDigest(tool.arguments)
-        &&await operationDigest(status.output)===await operationDigest((tool.result as Record<string,JsonValue>).output)){
-        try{
-          const widgetPort=createWidgetOperationPort({...options.widgets,audience:request.audience,
-            authorize(entry){if(entry.permissions.length)data.requirePermissions(lease,entry.permissions);},
-            authorizeRender(render){try{return options.registry.resolve(render.moduleId,render.operationId)
-              .contractDigest===render.operationDigest;}catch{return false;}}});
-          const content=widgetPort.createSnapshot([{moduleId:widget.moduleId,widgetId:widget.widgetId,
-            widgetVersion:widget.version,state:{},renderExecution:execution}]);
-          plans.push(p.planCreate('message',{values:{...scope(lease),conversation_id:request.conversationId,
-            id:crypto.randomUUID(),role:'tool',body:'Widget interactif',content:content as unknown as JsonValue,
-            created_at:time,revision:1}}));
-        }catch{/* A revoked or retired widget leaves the read result as text only. */}
-      }
-    }
+    if(content)plans.push(p.planCreate('message',{values:{...scope(lease),conversation_id:request.conversationId,
+      id:crypto.randomUUID(),role:'tool',body:'Widget interactif',content,
+      created_at:time,revision:1}}));
     await store.appendDelivery(lease,claim,{plans,intent:{id:nextId,provider:PROVIDER,
       providerIdempotencyKey:`${request.turnId}:${step+1}:${tool.callId}`,
       payload:{conversationId:request.conversationId,turnId:request.turnId,modelId,step:step+1,inputItems}}});

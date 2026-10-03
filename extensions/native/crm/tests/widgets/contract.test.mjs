@@ -54,6 +54,7 @@ test('complete MCP render envelope accounts for escaped text plus structured pag
   const result=envelope(input,widget);
   const bytes=Buffer.byteLength(JSON.stringify(result));
   const inputBytes=Buffer.byteLength(JSON.stringify(input));
+  assert.ok(inputBytes>8_192,'a valid CRM page exceeds the internal chat tool-result limit');
   assert.ok(inputBytes>=130000&&inputBytes<=180000,`source page near CRM response budget: ${inputBytes}`);
   assert.ok(bytes>180000,`complete envelope should exceed source page: ${bytes}`);
   assert.ok(bytes<declaration.transport.maxPayloadBytes,`declared MCP transport must fit: ${bytes}`);
