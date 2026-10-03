@@ -4,7 +4,7 @@ import {stripeConnectorDescriptor} from './storage.ts';
 
 const root=new URL('../',import.meta.url);
 const template=JSON.parse(readFileSync(new URL('module/manifest.json',root),'utf8'));
-const id='creezio.stripe',connectorId='stripe.api.v1',version='0.5.0',sourceRevision='t27-stripe-app-offer-checkout-v1';
+const id='creezio.stripe',connectorId='stripe.api.v1',version='0.6.0',sourceRevision='t27-stripe-subscription-plan-set-v1';
 const ref=(kind,name)=>({moduleId:id,kind,id:name});
 const str=(max=128,min=1)=>({type:'string',minLength:min,maxLength:max});
 const integer=(min=0,max=Number.MAX_SAFE_INTEGER)=>({type:'integer',minimum:min,maximum:max});
@@ -70,6 +70,7 @@ model('stripe_subscription','Abonnement Stripe projeté',[idField,
   field('customer_id','string',{constraints:{minLength:1,maxLength:128}}),
   field('status','string',{constraints:{minLength:1,maxLength:64}}),
   field('currency','string',{nullable:true,constraints:{minLength:3,maxLength:3}}),
+  field('item_id','string',{nullable:true,constraints:{minLength:1,maxLength:128}}),
   field('price_id','string',{nullable:true,constraints:{minLength:1,maxLength:128}}),
   field('unit_amount_minor','integer',{nullable:true}),
   field('interval','string',{nullable:true,constraints:{minLength:1,maxLength:32}}),
@@ -176,7 +177,7 @@ const pageOutput=schema('sync-page-output',obj({state:runView,processed:integer(
 const listInput=schema('local-list-input',obj({limit:integer(1,25),cursor:stripeId},['limit']));
 const customer=obj({id:stripeId,name:nullable(str(160,0)),livemode:{type:'boolean'},updated_at:str(64)});
 const subscription=obj({id:stripeId,customer_id:stripeId,status:str(64),currency:nullable(str(3)),
-  price_id:nullable(stripeId),unit_amount_minor:{...nullable({type:'integer'}),description:
+  item_id:nullable(stripeId),price_id:nullable(stripeId),unit_amount_minor:{...nullable({type:'integer'}),description:
     'Raw Stripe minor-unit amount. Interpret with currency and Stripe rules; it is not always major units divided by 100.'},
   interval:nullable(str(32)),
   interval_count:nullable(integer(1)),quantity:nullable(integer(0)),period_end_at:nullable(str(64)),
@@ -227,6 +228,11 @@ const cancelSetInput=schema('subscription-cancel-set-input',obj({requestKey,subs
   revision:integer(1),cancelAtPeriodEnd:{type:'boolean'}}));
 const cancelSetOutput=schema('subscription-cancel-set-output',obj({subscriptionId:stripeId,
   cancelAtPeriodEnd:{type:'boolean'},livemode:{const:false}}));
+const planSetInput=schema('subscription-plan-set-input',obj({requestKey,subscriptionId:stripeId,
+  revision:integer(1),priceId:stripeId,quantity:integer(1,100)}));
+const planSetOutput=schema('subscription-plan-set-output',obj({subscriptionId:stripeId,
+  itemId:stripeId,priceId:stripeId,quantity:integer(1,100),prorationBehavior:{const:'none'},
+  livemode:{const:false}}));
 const eventInput=schema('stripe-event-input',obj({requestKey,eventId:stripeId,bodyDigest:str(64,64),
   type:str(128),objectId:stripeId,livemode:{const:false},sessionMode:nullable({type:'string',enum:['payment','subscription']}),
   sessionStatus:nullable(str(32)),paymentStatus:nullable(str(32)),customerId:nullable(stripeId),
@@ -348,6 +354,9 @@ operation('subscription.cancel.schedule','Programmer l’arrêt d’un abonnemen
 operation('subscription.cancel.set','Programmer ou retirer l’arrêt d’un abonnement test','command',cancelSetInput,
   cancelSetOutput,'manage',['connector_config','connector_secret','stripe_subscription'],['stripe_subscription'],
   {exportName:'subscriptionCancelSet',remote:true,cas:true,maxItems:12});
+operation('subscription.plan.set','Modifier prix et quantité d’un abonnement test','command',planSetInput,
+  planSetOutput,'manage',['connector_config','connector_secret','stripe_subscription','stripe_price'],
+  ['stripe_subscription'],{exportName:'subscriptionPlanSet',remote:true,cas:true,maxItems:14});
 operation('event.receive','Enregistrer un événement Stripe signé','command',eventInput,eventOutput,
   'webhook.receive',['connector_config','stripe_event','stripe_checkout'],['stripe_event','stripe_checkout'],
   {exportName:'eventReceive',maxItems:12});
@@ -471,7 +480,7 @@ m.contracts={schemas,models,files:[],events:[],connectors:[structuredClone(strip
       ref('operation','product.list'),ref('operation','price.list'),
       ref('operation','checkout.payment.create'),ref('operation','checkout.subscription.create'),
       ref('operation','checkout.read'),ref('operation','subscription.cancel.schedule'),
-      ref('operation','subscription.cancel.set'),
+      ref('operation','subscription.cancel.set'),ref('operation','subscription.plan.set'),
       ref('operation','event.list')],
       resources:['sync-status-ui'],integrity:skillIntegrity},
     {id:'stripe-purchase',path:appSkillPath,audiences:['app'],

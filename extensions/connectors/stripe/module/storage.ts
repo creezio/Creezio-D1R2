@@ -70,6 +70,15 @@ const descriptor=Object.freeze({
       body:Object.freeze({encoding:'form' as const,fields:Object.freeze([
         {name:'cancelAtPeriodEnd',wireName:'cancel_at_period_end',kind:'boolean' as const,
           required:true,maxBytes:5}])})}),
+    Object.freeze({id:'subscription_plan_set',method:'POST' as const,
+      path:'/v1/subscriptions/{id}',params:Object.freeze(['id'] as const),
+      idempotencyHeader:'Idempotency-Key',successStatuses:Object.freeze([200]),
+      body:Object.freeze({encoding:'form' as const,
+        fixed:Object.freeze([{name:'proration_behavior',value:'none'},
+          {name:'payment_behavior',value:'error_if_incomplete'}]),fields:Object.freeze([
+          {name:'itemId',wireName:'items[0][id]',kind:'string' as const,required:true,maxBytes:128},
+          {name:'priceId',wireName:'items[0][price]',kind:'string' as const,required:true,maxBytes:128},
+          {name:'quantity',wireName:'items[0][quantity]',kind:'integer' as const,required:true,maxBytes:8}])})}),
   ])
 });
 export const stripeConnectorDescriptor:ConnectorDescriptor=descriptor;

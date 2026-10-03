@@ -10,6 +10,7 @@ test('Stripe admin and app operations have distinct API/MCP audiences and authen
     'connection.check','offer.set','offer.list','app.offer.list','app.checkout.create',
     'app.checkout.read','checkout.payment.create',
     'checkout.subscription.create','checkout.read','subscription.cancel.schedule','subscription.cancel.set',
+    'subscription.plan.set',
     'event.receive','event.list',
     'sync.state','sync.start','sync.page',
     'customer.list','subscription.list','invoice.list','product.list','price.list']);
@@ -46,7 +47,7 @@ test('GET projections and commands have matching auth, pagination and no arbitra
   assert.equal(schema.properties.limit.maximum,8);
   assert.ok(!JSON.stringify(manifest.contracts.api).includes('apiKey'));
   for(const id of ['checkout.payment.create','checkout.subscription.create',
-    'subscription.cancel.schedule','subscription.cancel.set']){
+    'subscription.cancel.schedule','subscription.cancel.set','subscription.plan.set']){
     const row=operation(id);
     assert.equal(row.kind,'command');assert.equal(row.idempotency.mode,'required');
     assert.deepEqual(row.effects.providers,['stripe.api.v1']);
@@ -69,6 +70,15 @@ test('GET projections and commands have matching auth, pagination and no arbitra
     '/api/admin/stripe/subscription/cancel/set');
   assert.equal(manifest.contracts.mcp.tools.find(row=>row.operation.id===cancellation.id).name,
     'stripe_subscription_cancel_set');
+  const plan=operation('subscription.plan.set');
+  assert.deepEqual(plan.permissions.map(row=>row.id),['manage']);
+  assert.equal(plan.concurrency.mode,'object-version');
+  assert.deepEqual(manifest.contracts.schemas.find(row=>row.id===plan.input.schemaId).schema.required,
+    ['requestKey','subscriptionId','revision','priceId','quantity']);
+  assert.equal(manifest.contracts.api.find(row=>row.operation.id===plan.id).path,
+    '/api/admin/stripe/subscription/plan/set');
+  assert.equal(manifest.contracts.mcp.tools.find(row=>row.operation.id===plan.id).name,
+    'stripe_subscription_plan_set');
   assert.deepEqual(manifest.contracts.widgets[0].actions.map(row=>row.target.operation.id),['sync.state']);
   for(const [id,path,name] of [
     ['app.offer.list','/api/app/stripe/offer/list','stripe_app_offer_list'],

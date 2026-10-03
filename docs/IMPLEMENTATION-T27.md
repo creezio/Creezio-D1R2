@@ -1,5 +1,11 @@
 # T27 — Connecteur Stripe
 
+## Candidate 0.6.0 — prix et quantité d’un abonnement TEST
+
+Une commande administrative `subscription.plan.set` remplace le prix et la quantité (1–100) de l’unique item d’un abonnement Stripe TEST actif et projeté. Le prix cible doit être fixe, récurrent, licencié, actif et projeté dans la même génération de connexion, devise et périodicité. Le service impose droit `stripe.manage`, contexte, révision CAS et clé de demande via le journal existant. Le POST fixe `proration_behavior=none` et `payment_behavior=error_if_incomplete` ; la réponse fournisseur doit confirmer l’item, le prix, la quantité et le mode TEST avant projection. Une issue ambiguë reste inconnue et se rapproche par la même clé sans second POST. La page Facturation originale expose la sélection du prix et de la quantité, avec confirmation de l’absence de prorata demandé. [Mise à jour d’abonnement Stripe](https://docs.stripe.com/api/subscriptions/update) · [Changement de prix](https://docs.stripe.com/billing/subscriptions/change-price).
+
+Le champ `item_id` est nullable dans le modèle existant pour conserver les lignes historiques. Une projection ancienne sans item exige le parcours natif `sync.page` avant cette mutation ; aucun GET caché ou effet rejoué ne comble ce manque. Cette candidate refuse les abonnements multi-items, l’arrêt programmé, les changements d’intervalle ou de devise, les prix mesurés, l’audience app et le mode live. Les tests de code n’attestent ni recette fournisseur ni publication. Les variantes restantes et REQ-2701 restent ouvertes.
+
 ## Tranche 0.5.0 — offres et achat dans l'application
 
 Un administrateur peut proposer une offre liée à un produit et un prix Stripe TEST déjà projetés et actifs. Le front dynamique expose ces offres dans `/offers` ; le même contrat fournit les outils MCP app et les widgets `offers` et `checkout-status`. Ces contributions s'ajoutent à l'écran Facturation et à ses outils administratifs, qui restent distincts. Une offre est autonome : cette tranche ne demande pas le module Catalogue et ne prétend pas fournir une commande ou un panier métier.

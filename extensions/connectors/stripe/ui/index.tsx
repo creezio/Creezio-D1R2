@@ -7,13 +7,13 @@ import {createCommandJournal,readPendingCommand,type PendingCommand} from '@cree
 import {panelData,readPanel,retainedSessionId,scopeChange,sessionVerified,
   type StripeScope,type StripeTab} from './panel-state.ts';
 import {externalConfigurationChanged,latestConfig,mergeRuns,reconcileRuns,sameConfiguration,
-  offerPriceEligible,subscriptionLifecycleAction,
+  offerPriceEligible,subscriptionLifecycleAction,subscriptionPlanPrices,mergeProjectedPage,
   type Collection,type Config,type Run} from './state.ts';
 import {formatStripeAmount,formatStripeFrequency} from './money.ts';
 import {Badge,Button,Card} from '@creezio/sdk/ui';
 
 type Customer={id:string;name:string|null;livemode:boolean};
-type Subscription={id:string;customer_id:string;status:string;currency:string|null;price_id:string|null;
+type Subscription={id:string;customer_id:string;status:string;currency:string|null;item_id:string|null;price_id:string|null;
   unit_amount_minor:number|null;interval:string|null;interval_count:number|null;quantity:number|null;
   period_end_at:string|null;cancel_at_period_end:boolean|null;revision:number;livemode:boolean};
 type CheckoutSession={id:string;url:string|null;mode:'payment'|'subscription';status:string;
@@ -33,7 +33,7 @@ type ListCollection='customers'|'subscriptions'|'invoices'|'products'|'prices';
 type Page={items:(Customer|Subscription|Invoice|Product|Price)[];nextCursor:string|null};
 const collections:Collection[]=['customers','subscriptions','invoices','products','prices_active','prices_inactive'];
 const listCollections:ListCollection[]=['customers','subscriptions','invoices','products','prices'];
-const overviewCollections:ListCollection[]=['customers','subscriptions','invoices'];
+const overviewCollections:ListCollection[]=['customers','subscriptions','invoices','prices'];
 const titles:Record<Collection|string,string>={customers:'Clients',subscriptions:'Abonnements',invoices:'Factures',
   products:'Produits',prices:'Prix',offers:'Offres',prices_active:'Prix actifs',prices_inactive:'Prix inactifs',checkout:'Checkout'};
 const SUB_STATUT_LABEL:Record<string,string>={active:'Actif',trialing:'Essai',past_due:'Impayé',
@@ -79,6 +79,7 @@ export function StripeAdminView(props:WorkspaceViewProps){
   const [checkoutOrigin,setCheckoutOrigin]=useState(''),[checkoutPriceId,setCheckoutPriceId]=useState('');
   const [checkoutAppReturnPath,setCheckoutAppReturnPath]=useState('/offers');
   const [checkoutQuantity,setCheckoutQuantity]=useState(1),[checkoutCustomerId,setCheckoutCustomerId]=useState('');
+  const [planDraft,setPlanDraft]=useState<{subscriptionId:string;priceId:string;quantity:number}|null>(null);
   const [checkoutSession,setCheckoutSession]=useState<CheckoutSession|null>(null),
     [lookupSessionId,setLookupSessionId]=useState('');
   const [events,setEvents]=useState<StripeEvent[]>([]),[eventCursor,setEventCursor]=useState<string|null>(null);
@@ -149,7 +150,9 @@ export function StripeAdminView(props:WorkspaceViewProps){
     if(next&&next.revision>=configVersion.current){
       if(rotated){invalidateLists();setPages({});
         if(tabRef.current==='overview')for(const id of overviewCollections)void loadPage(id,token);
-        else if(listCollections.includes(tabRef.current as ListCollection))void loadPage(tabRef.current as ListCollection,token);}
+        else if(listCollections.includes(tabRef.current as ListCollection)){
+          void loadPage(tabRef.current as ListCollection,token);
+          if(tabRef.current==='subscriptions')void loadPage('prices',token);}}
       configVersion.current=next.revision;
       setConfig(old=>latestConfig(old,next));if(enableRevision===null)setEnabled(next.enabled);
       if(tabRef.current!=='settings'){
@@ -165,8 +168,7 @@ export function StripeAdminView(props:WorkspaceViewProps){
     if(value&&Array.isArray(value.items)){
       const rows=value.items as Page['items'];
       setPages(previous=>({
-      ...previous,[collection]:{items:append?[...(previous[collection]?.items??[]),
-        ...rows.filter(row=>!(previous[collection]?.items??[]).some(old=>old.id===row.id))]:rows,
+      ...previous,[collection]:{items:mergeProjectedPage(previous[collection]?.items??[],rows,append),
         nextCursor:value.nextCursor as string|null}}));
     }
     setLoading(old=>({...old,[collection]:false}));
@@ -199,7 +201,7 @@ export function StripeAdminView(props:WorkspaceViewProps){
     if(transition.purge){overviewSerial.current++;configVersion.current=0;
       setTab('overview');tabRef.current='overview';setConfig(null);setApiKey('');setWebhookSecret('');
       setWebhookServiceToken('');
-      setCheckoutOrigin('');setCheckoutPriceId('');setCheckoutCustomerId('');
+      setCheckoutOrigin('');setCheckoutPriceId('');setCheckoutCustomerId('');setPlanDraft(null);
       setCheckoutAppReturnPath('/offers');
       setCheckoutSession(null);setLookupSessionId('');
       setEvents([]);setEventCursor(null);
@@ -222,21 +224,28 @@ export function StripeAdminView(props:WorkspaceViewProps){
     setPending(journal.current.pending);
     const token=generation.current;
     void loadOverview(token);
-    if(tabRef.current==='overview')for(const id of overviewCollections)void loadPage(id,token);
+    if(tabRef.current==='overview')for(const id of overviewCollections)
+      if(id!=='prices'||transition.purge||!pages.prices)void loadPage(id,token);
     if(tabRef.current==='overview')void loadEvents(token);
-    else if(listCollections.includes(tabRef.current as ListCollection))void loadPage(tabRef.current as ListCollection,token);
+    else if(listCollections.includes(tabRef.current as ListCollection)){
+      void loadPage(tabRef.current as ListCollection,token);
+      if(tabRef.current==='subscriptions'&&(transition.purge||!pages.prices))void loadPage('prices',token);}
     else if(tabRef.current==='offers'){
-      void loadOffers(token);void loadPage('products',token);void loadPage('prices',token);}
+      void loadOffers(token);void loadPage('products',token);
+      if(transition.purge||!pages.prices)void loadPage('prices',token);}
   },[active,sessionId,access.phase,access.pending,props.client,props.access,props.audience,props.contextId,props.panelId]);
   const changeTab=(next:StripeTab)=>{
     setTab(next);tabRef.current=next;
     if(journal.current)persist(journal.current.pending,generation.current);
-    if(next==='overview')for(const id of overviewCollections)void loadPage(id,generation.current);
+    if(next==='overview')for(const id of overviewCollections)
+      if(id!=='prices'||!pages.prices)void loadPage(id,generation.current);
     if(next==='overview')void loadEvents(generation.current);
-    else if(listCollections.includes(next as ListCollection))void loadPage(next as ListCollection,generation.current);
+    else if(listCollections.includes(next as ListCollection)){
+      if(next!=='prices'||!pages.prices)void loadPage(next as ListCollection,generation.current);
+      if(next==='subscriptions'&&!pages.prices)void loadPage('prices',generation.current);}
     else if(next==='offers'){
       void loadOffers(generation.current);void loadPage('products',generation.current);
-      void loadPage('prices',generation.current);}
+      if(!pages.prices)void loadPage('prices',generation.current);}
   };
   const mutate=async(operation:string,input:Record<string,unknown>)=>{
     const controller=journal.current,token=generation.current;
@@ -257,7 +266,8 @@ export function StripeAdminView(props:WorkspaceViewProps){
         if(operation.startsWith('config.key.')){setApiKey('');setWebhookSecret('');
           setWebhookServiceToken('');}}
       if(value.session)setCheckoutSession(value.session as CheckoutSession);
-      if(operation==='subscription.cancel.set'||operation==='subscription.cancel.schedule')
+      if(operation==='subscription.cancel.set'||operation==='subscription.cancel.schedule'
+        ||operation==='subscription.plan.set')
         refreshSubscriptions(token);
       if(operation==='offer.set')void loadOffers(token);
       if(operation.startsWith('config.key.')){invalidateLists();setRuns([]);setPages({});}
@@ -285,7 +295,8 @@ export function StripeAdminView(props:WorkspaceViewProps){
       setCheckoutAppReturnPath(next.checkoutAppReturnPath??'/offers');
       setApiKey('');setWebhookSecret('');setWebhookServiceToken('');}
     if(value?.session)setCheckoutSession(value.session as CheckoutSession);
-    if((pending.intent==='subscription.cancel.set'||pending.intent==='subscription.cancel.schedule')&&value)
+    if((pending.intent==='subscription.cancel.set'||pending.intent==='subscription.cancel.schedule'
+      ||pending.intent==='subscription.plan.set')&&value)
       refreshSubscriptions(token);
     if(pending.intent==='offer.set'&&value)void loadOffers(token);
     if(pending.intent?.startsWith('config.key.')&&value){invalidateLists();setRuns([]);setPages({});}
@@ -357,10 +368,33 @@ export function StripeAdminView(props:WorkspaceViewProps){
           <th className="py-2">Prochaine échéance</th></tr></thead><tbody>
           {rows.map(({customer,subscription},index)=>{
             const lifecycle=subscription?subscriptionLifecycleAction(subscription):null;
+            const compatible=subscription?subscriptionPlanPrices(subscription,prices):[];
             return <tr key={`${customer?.id??subscription?.customer_id}-${subscription?.id??index}`}
             className="border-b last:border-0"><td className="py-2 pr-3"><div className="font-medium">{customer?.name||customer?.id||subscription?.customer_id}</div>
               <div className="text-xs text-muted-foreground">{customer?.id??'—'}</div></td>
-            <td className="py-2 pr-3">{subscription?.price_id??'—'}</td>
+            <td className="py-2 pr-3">{subscription?.price_id??'—'}
+              {subscription&&compatible.length?<div className="mt-1">
+                {planDraft?.subscriptionId===subscription.id?<div className="flex flex-col gap-1">
+                  <select aria-label={`Nouveau prix de ${subscription.id}`} className="rounded border bg-background p-1"
+                    value={planDraft.priceId} onChange={event=>setPlanDraft({...planDraft,priceId:event.target.value})}>
+                    {compatible.map(price=><option key={price.id} value={price.id}>{price.id} — {formatStripeAmount(price.unit_amount_minor,price.currency)}</option>)}
+                  </select>
+                  <input aria-label={`Quantité de ${subscription.id}`} type="number" min={1} max={100}
+                    className="w-24 rounded border bg-background p-1" value={planDraft.quantity}
+                    onChange={event=>setPlanDraft({...planDraft,quantity:Number(event.target.value)})}/>
+                  <div className="flex gap-1"><Button size="sm" type="button" disabled={busy||!!pending||
+                    !Number.isSafeInteger(planDraft.quantity)||planDraft.quantity<1||planDraft.quantity>100||
+                    !compatible.some(price=>price.id===planDraft.priceId)||
+                    (planDraft.priceId===subscription.price_id&&planDraft.quantity===subscription.quantity)}
+                    onClick={()=>{if(window.confirm(`Modifier ${subscription.id} sans prorata, avec ${planDraft.quantity} unité(s) au prix ${planDraft.priceId} ?`))
+                      void mutate('subscription.plan.set',{subscriptionId:subscription.id,revision:subscription.revision,
+                        priceId:planDraft.priceId,quantity:planDraft.quantity});}}>Confirmer</Button>
+                    <Button size="sm" variant="outline" type="button" onClick={()=>setPlanDraft(null)}>Fermer</Button></div>
+                </div>:<Button size="sm" variant="outline" type="button" disabled={busy||!!pending}
+                  onClick={()=>setPlanDraft({subscriptionId:subscription.id,
+                    priceId:compatible.some(price=>price.id===subscription.price_id)?subscription.price_id!:compatible[0].id,
+                    quantity:subscription.quantity??1})}>Modifier le plan</Button>}
+              </div>:null}</td>
             <td className="py-2 pr-3">{subscription?formatStripeAmount(subscription.unit_amount_minor,subscription.currency):'—'}</td>
             <td className="py-2 pr-3"><Badge variant={subVariant(subscription?.status??null)}>
               {subscription?.status?SUB_STATUT_LABEL[subscription.status]||subscription.status:'Sans abonnement'}</Badge>
@@ -371,9 +405,17 @@ export function StripeAdminView(props:WorkspaceViewProps){
                     if(window.confirm(lifecycle.confirmation))void mutate(lifecycle.operation,lifecycle.input);
                   }}>{lifecycle.label}</Button>:null}</td>
             <td className="py-2">{date(subscription?.period_end_at)}</td></tr>})}</tbody></table></div>}
-      <div className="mt-3 flex gap-2">{(['customers','subscriptions'] as const).map(id=>pages[id]?.nextCursor?
+      <div className="mt-3 flex flex-wrap gap-2">{(['customers','subscriptions'] as const).map(id=>pages[id]?.nextCursor?
         <Button key={id} size="sm" variant="outline" type="button" disabled={loading[id]}
           onClick={()=>void loadPage(id,generation.current,pages[id]!.nextCursor,true)}>Suite {titles[id].toLowerCase()}</Button>:null)}</div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {pages.prices?.nextCursor?<Button size="sm" variant="outline" type="button" disabled={loading.prices}
+          onClick={()=>void loadPage('prices',generation.current,pages.prices!.nextCursor,true)}>Suite prix</Button>:null}
+        <Button size="sm" variant="outline" type="button" disabled={loading.prices}
+          onClick={()=>void loadPage('prices',generation.current)}>Actualiser les prix</Button>
+      </div>
+      {subscriptions.some(row=>row.item_id===null)?<p className="mt-2 text-xs text-muted-foreground">
+        Un abonnement sans item identifié doit être resynchronisé avant la modification de son plan.</p>:null}
       <p className="mt-2 text-xs text-muted-foreground">Les listes restent partielles tant que les parcours Stripe ne sont pas terminés.</p>
     </Card>:null}
     {showInvoices?<Card className="p-4"><div className="mb-3 flex items-center justify-between gap-2">

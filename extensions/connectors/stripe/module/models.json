@@ -753,6 +753,17 @@
         }
       },
       {
+        "id": "item_id",
+        "type": "string",
+        "nullable": true,
+        "protected": false,
+        "computed": false,
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      {
         "id": "price_id",
         "type": "string",
         "nullable": true,

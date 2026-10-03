@@ -5,11 +5,11 @@
     "title": "Connecteur Stripe",
     "publisher": "creezio",
     "origin": "https://github.com/creezio/Creezio-D1R2",
-    "version": "0.5.0",
+    "version": "0.6.0",
     "source": {
       "kind": "snapshot",
-      "revision": "t27-stripe-app-offer-checkout-v1",
-      "integrity": "sha256-013c0efdde4f63c391886666a249d6d3d6e1fe816be402c1afdc6480e39bdeea"
+      "revision": "t27-stripe-subscription-plan-set-v1",
+      "integrity": "sha256-0696b6f75181f40924b29432b52dc6cf5368fab1124102e5d82b41e5c3a817c3"
     },
     "license": {
       "expression": "NOASSERTION",
@@ -807,6 +807,18 @@
                       }
                     ]
                   },
+                  "item_id": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "price_id": {
                     "anyOf": [
                       {
@@ -907,6 +919,7 @@
                   "customer_id",
                   "status",
                   "currency",
+                  "item_id",
                   "price_id",
                   "unit_amount_minor",
                   "interval",
@@ -2055,6 +2068,90 @@
           "required": [
             "subscriptionId",
             "cancelAtPeriodEnd",
+            "livemode"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "subscription-plan-set-input",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "subscriptionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "priceId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "quantity": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          "required": [
+            "requestKey",
+            "subscriptionId",
+            "revision",
+            "priceId",
+            "quantity"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "subscription-plan-set-output",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "subscriptionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "itemId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "priceId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "quantity": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "prorationBehavior": {
+              "const": "none"
+            },
+            "livemode": {
+              "const": false
+            }
+          },
+          "required": [
+            "subscriptionId",
+            "itemId",
+            "priceId",
+            "quantity",
+            "prorationBehavior",
             "livemode"
           ],
           "additionalProperties": false
@@ -3214,6 +3311,17 @@
             "constraints": {
               "minLength": 3,
               "maxLength": 3
+            }
+          },
+          {
+            "id": "item_id",
+            "type": "string",
+            "nullable": true,
+            "protected": false,
+            "computed": false,
+            "constraints": {
+              "minLength": 1,
+              "maxLength": 128
             }
           },
           {
@@ -4762,6 +4870,54 @@
                   "kind": "boolean",
                   "required": true,
                   "maxBytes": 5
+                }
+              ]
+            }
+          },
+          {
+            "id": "subscription_plan_set",
+            "method": "POST",
+            "path": "/v1/subscriptions/{id}",
+            "params": [
+              "id"
+            ],
+            "idempotencyHeader": "Idempotency-Key",
+            "successStatuses": [
+              200
+            ],
+            "body": {
+              "encoding": "form",
+              "fixed": [
+                {
+                  "name": "proration_behavior",
+                  "value": "none"
+                },
+                {
+                  "name": "payment_behavior",
+                  "value": "error_if_incomplete"
+                }
+              ],
+              "fields": [
+                {
+                  "name": "itemId",
+                  "wireName": "items[0][id]",
+                  "kind": "string",
+                  "required": true,
+                  "maxBytes": 128
+                },
+                {
+                  "name": "priceId",
+                  "wireName": "items[0][price]",
+                  "kind": "string",
+                  "required": true,
+                  "maxBytes": 128
+                },
+                {
+                  "name": "quantity",
+                  "wireName": "items[0][quantity]",
+                  "kind": "integer",
+                  "required": true,
+                  "maxBytes": 8
                 }
               ]
             }
@@ -7672,6 +7828,150 @@
         "public": false
       },
       {
+        "id": "subscription.plan.set",
+        "title": "Modifier prix et quantité d’un abonnement test",
+        "kind": "command",
+        "input": {
+          "schemaId": "subscription-plan-set-input"
+        },
+        "output": {
+          "schemaId": "subscription-plan-set-output"
+        },
+        "permissions": [
+          {
+            "moduleId": "creezio.stripe",
+            "kind": "permission",
+            "id": "manage"
+          }
+        ],
+        "audiences": [
+          "admin"
+        ],
+        "actors": [
+          "user",
+          "delegated-user",
+          "machine"
+        ],
+        "context": "required",
+        "handler": {
+          "path": "module/operations.ts",
+          "export": "subscriptionPlanSet"
+        },
+        "effects": {
+          "reads": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_config"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "connector_secret"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_subscription"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_price"
+            }
+          ],
+          "writes": [
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "model",
+              "id": "stripe_subscription"
+            }
+          ],
+          "emits": [],
+          "calls": [],
+          "providers": [
+            "stripe.api.v1"
+          ]
+        },
+        "errors": [
+          {
+            "code": "invalid_input",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unauthorized",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "forbidden",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "not_found",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "conflict",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "rate_limited",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unsupported",
+            "retryable": false,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unavailable",
+            "retryable": true,
+            "outcome": "rejected"
+          },
+          {
+            "code": "unknown",
+            "retryable": true,
+            "outcome": "unknown"
+          }
+        ],
+        "pagination": {
+          "mode": "none"
+        },
+        "idempotency": {
+          "mode": "required",
+          "keyField": "requestKey",
+          "scope": "actor-context-operation",
+          "retentionSeconds": 86400
+        },
+        "approval": {
+          "mode": "none"
+        },
+        "concurrency": {
+          "mode": "object-version",
+          "versionField": "revision"
+        },
+        "execution": {
+          "maxDurationMs": 15000,
+          "maxItems": 14,
+          "resumable": false
+        },
+        "audit": {
+          "required": true,
+          "redactFields": [
+            "apiKey",
+            "webhookSecret",
+            "serviceToken"
+          ]
+        },
+        "public": false
+      },
+      {
         "id": "event.receive",
         "title": "Enregistrer un événement Stripe signé",
         "kind": "command",
@@ -9580,6 +9880,33 @@
         }
       },
       {
+        "id": "admin.subscription.plan.set",
+        "method": "POST",
+        "path": "/api/admin/stripe/subscription/plan/set",
+        "operation": {
+          "moduleId": "creezio.stripe",
+          "kind": "operation",
+          "id": "subscription.plan.set"
+        },
+        "audience": "admin",
+        "auth": [
+          "session",
+          "oauth",
+          "api-token"
+        ],
+        "parameters": [],
+        "input": {
+          "schemaId": "subscription-plan-set-input"
+        },
+        "output": {
+          "schemaId": "subscription-plan-set-output"
+        },
+        "rateLimit": {
+          "requests": 30,
+          "windowSeconds": 60
+        }
+      },
+      {
         "id": "admin.event.list",
         "method": "GET",
         "path": "/api/admin/stripe/event/list",
@@ -10506,6 +10833,35 @@
           "textFallback": true
         },
         {
+          "id": "subscription.plan.set",
+          "name": "stripe_subscription_plan_set",
+          "operation": {
+            "moduleId": "creezio.stripe",
+            "kind": "operation",
+            "id": "subscription.plan.set"
+          },
+          "audiences": [
+            "admin"
+          ],
+          "auth": [
+            "oauth",
+            "api-token"
+          ],
+          "input": {
+            "schemaId": "subscription-plan-set-input"
+          },
+          "output": {
+            "schemaId": "subscription-plan-set-output"
+          },
+          "annotations": {
+            "readOnly": false,
+            "destructive": false,
+            "idempotent": false,
+            "openWorld": true
+          },
+          "textFallback": true
+        },
+        {
           "id": "event.list",
           "name": "stripe_event_list",
           "operation": {
@@ -10943,13 +11299,18 @@
             {
               "moduleId": "creezio.stripe",
               "kind": "operation",
+              "id": "subscription.plan.set"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
               "id": "event.list"
             }
           ],
           "resources": [
             "sync-status-ui"
           ],
-          "integrity": "sha256-6847a3d15d7626afe12767285efde9735b31355bd4874fb2dd34298e49dc56da"
+          "integrity": "sha256-175c65bd2bfe4e575571eb326b9d2e9c8bf7002386ac2c7a569afaea03755717"
         },
         {
           "id": "stripe-purchase",
@@ -11082,6 +11443,11 @@
               "moduleId": "creezio.stripe",
               "kind": "operation",
               "id": "subscription.cancel.set"
+            },
+            {
+              "moduleId": "creezio.stripe",
+              "kind": "operation",
+              "id": "subscription.plan.set"
             },
             {
               "moduleId": "creezio.stripe",
@@ -11516,8 +11882,8 @@
       }
     },
     "versionBinding": {
-      "moduleVersion": "0.5.0",
-      "sourceRevision": "t27-stripe-app-offer-checkout-v1"
+      "moduleVersion": "0.6.0",
+      "sourceRevision": "t27-stripe-subscription-plan-set-v1"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -11651,8 +12017,8 @@
     },
     "validationBinding": {
       "moduleId": "creezio.stripe",
-      "moduleVersion": "0.5.0",
-      "sourceRevision": "t27-stripe-app-offer-checkout-v1"
+      "moduleVersion": "0.6.0",
+      "sourceRevision": "t27-stripe-subscription-plan-set-v1"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",
