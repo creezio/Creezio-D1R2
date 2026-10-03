@@ -7,7 +7,7 @@ import {fileURLToPath} from 'node:url';
 import {sourceIdentity,sameSourceIdentity} from '../quality/evidence.mjs';
 import {inspectSitesMetadata} from './artifacts.mjs';
 import {planSitesExport} from './export.mjs';
-import {contractIntegrity} from '../../sdk/contracts/validate.mjs';
+import {canonicalJson,contractIntegrity} from '../../sdk/contracts/validate.mjs';
 
 const here=fileURLToPath(new URL('../../',import.meta.url));
 const nativeComposition='configuration/composition.sites.json';
@@ -60,6 +60,36 @@ function boundedJson(file,max=4*1024*1024){
   const name=externalFile(file),stat=lstatSync(name);
   if(stat.size>max)throw new Error('Sites source evidence exceeds its bound.');
   return JSON.parse(readFileSync(name,'utf8'));
+}
+function hostingJson(file){
+  const name=externalFile(file),stat=lstatSync(name);
+  if(stat.size>4096)throw new Error('Sites hosting descriptor exceeds its bound.');
+  const text=readFileSync(name,'utf8'),value=JSON.parse(text),keys=new Set();
+  let depth=0;
+  for(let index=0;index<text.length;){
+    const character=text[index];
+    if(character==='"'){
+      const start=index++;
+      while(index<text.length){
+        if(text[index]==='\\'){index+=2;continue;}
+        if(text[index++]==='"')break;
+      }
+      if(depth===1){
+        let next=index;
+        while(/\s/.test(text[next]??''))next++;
+        if(text[next]===':'){
+          const key=JSON.parse(text.slice(start,index));
+          if(keys.has(key))throw new Error('Sites hosting descriptor has duplicate keys.');
+          keys.add(key);
+        }
+      }
+      continue;
+    }
+    if(character==='{')depth++;
+    else if(character==='}')depth--;
+    index++;
+  }
+  return value;
 }
 function git(root,...args){
   return execFileSync('git',['-C',root,...args],{encoding:'utf8',windowsHide:true,
@@ -179,8 +209,16 @@ function planned({applicationRoot=here,siteRoot,stageRoot,compositionPath=native
   }
   for(const name of previousNames)if(!present.includes(name))
     throw new Error('Previous Sites source inventory is no longer tracked.');
-  if(!present.includes('.openai/hosting.json')||
-    measured(stage,'.openai/hosting.json').sha256!==desired.get('.openai/hosting.json').sha256)
+  const hostingPath='.openai/hosting.json';
+  if(!present.includes(hostingPath))
+    throw new Error('Sites staging belongs to another project or hosting manifest.');
+  const stagedHosting=measured(stage,hostingPath),targetHosting=desired.get(hostingPath);
+  const sameHostingBytes=stagedHosting.sha256===targetHosting.sha256&&
+    stagedHosting.bytes===targetHosting.bytes;
+  const stagedDescriptor=hostingJson(safe(stage,hostingPath));
+  const targetDescriptor=hostingJson(safe(site,hostingPath));
+  // Sites can reserialize its descriptor; only an identical JSON object is accepted.
+  if(!sameHostingBytes&&canonicalJson(stagedDescriptor)!==canonicalJson(targetDescriptor))
     throw new Error('Sites staging belongs to another project or hosting manifest.');
   if(previous&&!present.includes('sites-source-provenance.json'))
     throw new Error('Previous Sites provenance is not tracked.');
@@ -222,7 +260,8 @@ export function prepareSitesSource(plan,planFile,receiptFile){
   if(planPath===receiptPath||existsSync(receiptPath))throw new Error('Sites source receipt already exists.');
   if(canonical(boundedJson(planPath))!==canonical(plan))throw new Error('Durable Sites source plan differs.');
   verifyPlan(plan);
-  const files=plan.files.filter(file=>file.path!=='.openai/hosting.json');
+  // Replace an equivalent older serialization with the exact built descriptor.
+  const files=plan.files;
   const packageBytes=selection({...sourceIdentity(plan.core),root:plan.core},plan.site,
     plan.projectId,plan.compositionDigest,plan.compositionPath??nativeComposition).packageBytes;
   for(const file of files){
