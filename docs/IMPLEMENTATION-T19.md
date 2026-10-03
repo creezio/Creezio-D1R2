@@ -1,5 +1,11 @@
 # T19 — Support natif
 
+## Widget admin sur Original domix v7 — 3 octobre 2026
+
+Sur Original domix v7 (Core `8756f008`, source Site `f71cc236`), un seul tour admin a lu par `support_ticket_read_admin` le ticket fictif existant `a6a8a616-67c0-45f3-ac9a-fcb2d459c3f4`. Le tour et son résultat d'outil sont confirmés ; la carte native `ticket-thread-admin` montre le ticket résolu à la révision 4 et ses deux messages. Après sélection du même fil puis rechargement, le navigateur retrouve la carte dans l'iframe interne et relit les deux messages. Leurs empreintes et le contenu métier du ticket sont inchangés ; les sessions sont déconnectées et le navigateur fermé. Reçu hors dépôt : `CREEZIO-T19-ORIGINAL-V7-SUPPORT-WIDGET-FINAL-2026-10-03.json` (SHA-256 `0cc5f3b949ecc0f0cec491346b6691849ccaad5c349438e614729bad952a0025`).
+
+Cette preuve qualifie un widget **admin** sur ce Site, y compris le clic de lecture des messages et la comparaison de leurs deux empreintes. Elle ne qualifie ni les autres cartes Support, ni les actions de modification ou autres boutons de la carte, ni le lien du ticket à un vrai message Messaging ou un fournisseur d'envoi.
+
 ## Cycle natif sur Original Sites du compte actuel — 2 octobre 2026
 
 Sur Original Sites PR #97 v4 (source Site `3a1b34842d6f985b956c3e519336451f4c65ee71`), les droits du propriétaire existant ont été étendus par politique native et CAS : `creezio.support:use`/`manage` en admin, `use` seul en app, époques 7 → 8 → 9 ; les autres droits et rôles sont conservés. L'inventaire courant était vide dans les deux audiences. Un seul ticket explicitement fictif (`a6a8a616-67c0-45f3-ac9a-fcb2d459c3f4`) a été créé côté app, pris en charge, répondu puis résolu côté admin, aux révisions 1 à 4. Admin et app relisent deux mêmes messages ; la fiche app masque l'attribution et son cookie reçoit 401 sur la route admin. Le front app affiche le ticket, l'état résolu et les deux messages. Déconnexions et sessions 401 sont confirmées, navigateur fermé. Reçu hors dépôt : `CREEZIO-T19-OCT2-SUPPORT-FINAL-2026-10-02.json`.
