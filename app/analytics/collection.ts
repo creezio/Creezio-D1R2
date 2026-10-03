@@ -32,7 +32,7 @@ export function startAnalyticsCollection(input:{client:CollectionClient;contextI
     const id=element.getAttribute('data-creezio-analytics-id');
     if(id&&stableId.test(id))emit('click',id);
   };
-  input.target.addEventListener('click',click);
+  input.target.addEventListener('click',click,true);
   return Object.freeze({
     async refresh(){
       if(!live)return;
@@ -50,6 +50,6 @@ export function startAnalyticsCollection(input:{client:CollectionClient;contextI
     },
     location(value:AnalyticsRoute|null){route=safe(value)?value:null;
       generation++;policy={navigation:false,clicks:false};if(!route)lastPage='';},
-    dispose(){live=false;generation++;input.target.removeEventListener('click',click);},
+    dispose(){live=false;generation++;input.target.removeEventListener('click',click,true);},
   });
 }

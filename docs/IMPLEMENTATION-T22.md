@@ -1,10 +1,14 @@
 # T22 — Analytics et diagnostics
 
-## Deux nouvelles déclarations de clic en source — candidat du 3 octobre 2026
+## Deux nouvelles déclarations de clic livrées — 3 octobre 2026
 
 Les boutons de sélection d'un ticket Support et d'ouverture d'une fiche de la grille CRM déclarent respectivement `support.ticket.open` et `crm.record.open`, dans les vues workspace et front déjà existantes. Les valeurs sont des littéraux communs à toutes les lignes ; le collecteur `app/analytics/collection.ts` et la politique désactivée par défaut ne changent pas. Les tests locaux relient les deux attributs JSX aux routes déclarées des deux modules, vérifient zéro émission avec la collecte désactivée puis une émission par clic après activation, sous l'audience et le contexte demandés, avec seulement les champs bornés de l'événement. La grille CRM couvre les entreprises, contacts et prospects archivés ; le kanban Prospection ne porte pas cette déclaration.
 
-Cette qualification de source ne prouve pas encore les événements en navigateur hébergé ni leur lecture/export sur une cible publiée. Les autres actions des modules, les mesures de productivité et Work T17 restent hors de cette tranche.
+PR #106 est intégrée sur main `6939e4d570a56f1fe51e9c2e22d6a9ee3d7e5e40`, avec CI candidate et main à 1 527/1 527 tests et 33 commandes réussies. Cette source est publiée sur Linux, Core Cloudflare et Original Sites v8 (`b84cee8a7d493218856791fb2c2b52d163caf35e`). Les lectures après livraison conservent les données, conversations et fichiers ; le registre est synchronisé. Reçus hors dépôt : `CREEZIO-PR106-T22-CORE-DELIVERY-FINAL-2026-10-03.json` et `CREEZIO-T22-ORIGINAL-PR106-DELIVERY-FINAL.json`.
+
+La recette hébergée reste ouverte : après configuration native du seul compte témoin et activation explicite de la collecte, le premier clic Support n'a produit aucun POST Analytics observé avant expiration de l'attente. Aucun POST n'a été bloqué par le harnais, CRM n'a pas été tenté. La collecte a été restaurée désactivée à la révision 3, les sessions déconnectées et le navigateur fermé. Le reçu `CREEZIO-T22-SUPPORT-CRM-DOMIX-V8-PR106-2026-10-03.json` conserve cet arrêt ; aucun second geste n'est déduit de cette preuve.
+
+Le défaut est ensuite reproduit localement avec le vrai contrôleur du workspace et le collecteur : la sauvegarde du panneau publie son état avant que le clic ne remonte jusqu'au document, ce qui désactive temporairement la collecte. Le correctif candidat enregistre le clic en phase capture, avant cette sauvegarde, et retire le même listener à la fermeture. La suspension immédiate lors d'un véritable changement de route reste conservée. Les tests Analytics (3/3) et persistance workspace (10/10), ainsi qu'un vrai `page.click` Chromium, confirment l'ordre et l'absence de régression ciblée (`CREEZIO-T22-CLICK-ORDER-PLAYWRIGHT-LOCAL.json` hors dépôt). Aucun changement du host, du SDK ou des handlers métier. Ce correctif n'est pas encore qualifié sur l'application hébergée. Les autres actions des modules, les mesures de productivité et Work T17 restent hors de cette tranche.
 
 ## Export non vide sur Linux — 2 octobre 2026
 
