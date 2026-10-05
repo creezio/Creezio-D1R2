@@ -1,5 +1,11 @@
 # Réalisation T30 — SDK distribué et starter de module
 
+## Starter public 0.1.2/0.1.3 — recette T11 isolée du 5 octobre 2026
+
+La recette v6 a utilisé les archives publiques exactes du Starter pour installer 0.1.2, mettre à jour 0.1.3, désactiver puis réactiver le module dans un projet local sur D1/R2 Miniflare isolés. Le même enregistrement D1 et le même fichier R2 sont conservés ; les contributions générées UI/API/MCP/widgets disparaissent puis réapparaissent. Les refus de rétrogradation, d'origine divergente, de dépendance obligatoire désactivée, de plan périmé et de confirmation prématurée sont constatés. Le reçu hors dépôt `outputs/T11-REAL-PACKAGE-CYCLE-PASSED-V6-2026-10-05.json` a le SHA-256 `4469035bd8bd4d550b49e83678afaa25f1ebda1042b7455c4a330f51aa7261cc`.
+
+Le conteneur Linux jetable sans réseau a exécuté `npm ci --offline --ignore-scripts` (399 paquets), puis `npm ls --depth=0` a confirmé `@creezio/purchase-requests@0.1.3`. Son reçu `outputs/T11-LINUX-NPM-CI-2026-10-05.json` a le SHA-256 `0c5d3de073db2ad0fe7c3e29d7864940d37a1de2b306dd852cf54f44cb41b90b`. Cette preuve n'atteste ni déploiement, ni rendu UI hébergé, ni clôture exhaustive de T11 ; les intégrations facultatives disposent du contrôle statique séparé décrit dans T11, tandis que le retrait avec droits résiduels reste à qualifier. Aucune nouvelle archive ou release n'a été publiée par cette recette.
+
 ## SDK 1.9.0 public depuis Core main `9ce856c` — 1er octobre 2026
 
 Le tag `sdk-v1.9.0` vise `9ce856cb1cbb2f9fa576c5fae0f7b4be09488cb9` (arbre `59bf248ef823980e2ff243d811f7edd663e427f4`). L'archive qualifiée sur Linux est SHA-256 `b10cc8ca47bad85d3f22124e0b3da214cea15610330fc650a8c107cba189eb2a`, 88 108 octets et 93 entrées. Les douze modules consommateurs ont clos 72 suites : 68 réussies et quatre non applicables, 296 tests. Le helper a vérifié l'asset `602546338`, la release `400682948` et le téléchargement public après publication. Le SDK distribue les ports utilisés par la source qualifiée ; il ne publie ni application ni fournisseur et n'est pas adopté implicitement par Lab, Starter ou un Site.
