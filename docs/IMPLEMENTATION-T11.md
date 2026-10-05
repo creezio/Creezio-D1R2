@@ -8,6 +8,8 @@ Les corrections en cours ne constituent pas encore une livraison : les recettes 
 
 La validation finale doit relier les archives exactes à une installation et une mise à jour effectives, vérifier les contributions UI/API/MCP/widgets après désactivation et réactivation, exercer les dépendances facultatives absentes/inactives/actives et les refus de version, origine, contrat public, retrait obligatoire et plan périmé. Les tests de trois éditeurs fictifs restent des preuves de contrat, distinctes des paquets métier distribués et des données conservées dans une application hébergée.
 
+La désactivation d'un module encore installé conserve ses définitions de permissions : les rôles existants ne doivent pas rendre les autres modules inutilisables en référençant un droit désormais inconnu. Le compilateur retire toujours ses contributions exécutables. Les droits ne sont ni supprimés ni élargis. Ce comportement ne qualifie pas le retrait complet d'un module avec des attributions résiduelles.
+
 PR #20 intégrée : candidat `76674c55556e23e919938161c40ed8dee7aa2254`, main `037c0a0be4062c8249fb4ea3277c112dd2fb9765`, arbre identique `0da0b71bc1b5c71e39c0894943f88124e94ebb9f`. 908/908 tests locaux, CI candidat 36299996090 et main 36300347412, types/build/Workerd courants, trois revues indépendantes sur le candidat. Recette navigateur complète sur c2da7ae, delta final vérifié pour fiches/titres/dépendances ; comportements idempotence inchangés, périmètres consignés dans les preuves. Aucune qualification Sites/ChatGPT prétendue.
 
 Tranche `core/t11-module-lifecycle`, depuis `f52a17b9` (PR #19, 866 tests), intégrée par PR #20. Le [backlog](TODO.md#T-11) conserve l'état global et les raccords restants ; les exigences [1101 à 1106](EXIGENCES.md#REQ-1101) sont inchangées.

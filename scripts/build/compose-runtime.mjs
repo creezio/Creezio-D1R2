@@ -324,6 +324,15 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
       codeFile(root, item, descriptor.entrypoints.publicPage.imageIds);
       moduleFile(root, item, descriptor.entrypoints.publicPage.stylesheet, {exported:true});
     }
+    // Installed permission IDs remain known while their module or a guarded use is inactive.
+    for (const permission of descriptor.contracts.permissions) {
+      const id = `${selection.moduleId}:${permission.id}`;
+      permissionTitles[id] = permission.title;
+      // These two definitions are owned and checked by the native resolver.
+      if (id === 'creezio.access:manage' || id === 'creezio.access:impersonate') continue;
+      permissions.push({ id, audiences: permission.audiences,
+        actors: permission.actors.filter(actor => !['anonymous', 'signed-webhook'].includes(actor)) });
+    }
     if (!selection.enabled) continue;
     const moduleIntegrity = lock.modules.find(node => node.moduleId === selection.moduleId)?.runtime.integrity;
     if (!/^sha256-[a-f0-9]{64}$/.test(moduleIntegrity ?? ''))
@@ -365,15 +374,6 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     for (const stylesheet of descriptor.contracts.ui.styles) {
       const file = moduleFile(root, item, stylesheet, {exported: true});
       clientImports.push(`import ${JSON.stringify(importSpecifier(output, file))};`);
-    }
-    for (const [index, permission] of descriptor.contracts.permissions.entries()) {
-      if (!active(selection.moduleId, `/contracts/permissions/${index}`)) continue;
-      const id = `${selection.moduleId}:${permission.id}`;
-      permissionTitles[id] = permission.title;
-      // These two definitions are owned and checked by the native resolver.
-      if (id === 'creezio.access:manage' || id === 'creezio.access:impersonate') continue;
-      permissions.push({ id, audiences: permission.audiences,
-        actors: permission.actors.filter(actor => !['anonymous', 'signed-webhook'].includes(actor)) });
     }
     for (const entry of operationPlan.catalog.modules.find(module => module.moduleId === selection.moduleId).operations) {
       if (!entry.active) continue;

@@ -346,13 +346,38 @@ test('disabled modules are validated but contribute no imports, routes or views'
   const f = fixture(t); f.composition.modules[0].enabled = false; f.composition.exposure.app.moduleIds = []; f.save();
   const result = await composeRuntime({ root: f.root });
   assert.equal(result.moduleCount, 0); assert.equal(result.viewCount, 0);
-  assert.doesNotMatch(readFileSync(generated(f.root, 'server.ts'), 'utf8'), /operations\.ts/);
+  const server=readFileSync(generated(f.root, 'server.ts'), 'utf8');
+  assert.doesNotMatch(server, /operations\.ts/);
+  assert.match(server, /"id":"example\.witness:inspect"/,
+    'An installed disabled module keeps its permission definition for existing grants.');
+  assert.match(server, /"example\.witness:inspect":"Protected witness inspection"/);
   assert.doesNotMatch(readFileSync(generated(f.root, 'operations.ts'), 'utf8'), /import \{ read_(?:status|protected) as /);
   const registry = await import(pathToFileURL(generated(f.root, 'operations.ts')).href);
   assert.deepEqual(Object.keys(registry.operationHandlers), []);
   assert.equal(registry.operationCatalog.modules[0].enabled, false);
   assert.ok(registry.operationCatalog.modules[0].operations.every(operation => !operation.active));
   assert.equal(Object.keys(registry.operationValidators).length, f.module.contracts.schemas.length);
+});
+
+test('a guarded-off operation keeps its declared permission without an active contribution', async t => {
+  const f=fixture(t), permission=structuredClone(f.module.contracts.permissions[0]);
+  permission.id='conditional';permission.title='Conditional witness inspection';
+  f.module.contracts.permissions.push(permission);
+  f.module.dependencies.push({moduleId:'example.optional',origin:'https://example.invalid/optional',
+    versionRange:'^1.0.0',optional:true,contracts:[],whenAbsent:'disable-contributions',
+    whenIncompatible:'block',autoInstall:false});
+  f.composition.modules[0].integrations.push({moduleId:'example.optional',enabled:false});
+  const guarded=structuredClone(f.module.contracts.operations.find(operation=>operation.id==='protected'));
+  guarded.id='guarded';guarded.requiresModules=['example.optional'];
+  guarded.permissions=[{moduleId:'example.witness',kind:'permission',id:'conditional'}];
+  f.module.contracts.operations.push(guarded);f.save();
+  await composeRuntime({root:f.root});
+  const server=readFileSync(generated(f.root,'server.ts'),'utf8');
+  assert.match(server,/"id":"example\.witness:conditional"/);
+  assert.match(server,/"example\.witness:conditional":"Conditional witness inspection"/);
+  const registry=await import(pathToFileURL(generated(f.root,'operations.ts')).href);
+  assert.equal(registry.operationCatalog.modules[0].operations.find(item=>item.operation.id==='guarded').active,false);
+  assert.equal(Object.hasOwn(registry.operationHandlers,'example.witness:guarded'),false);
 });
 
 test('operations without HTTP routes still export static handlers and deeply immutable metadata', async t => {
