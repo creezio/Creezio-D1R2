@@ -131,6 +131,7 @@ const cases = [
     value.composition.host.capabilities = value.composition.host.capabilities.filter(capability => capability !== 'files.r2.shared');
   }, 'host.capability'],
   ['SDK outside every selected module compatibility range', value => { value.composition.sdk.version = '2.0.0'; }, 'dependency.compatibility'],
+  ['core outside every selected module compatibility range', value => { value.composition.sdk.coreVersion = '2.0.0'; }, 'dependency.compatibility'],
 ];
 for (const [name, change, expected] of cases) test(`refuses ${name}`, () => {
   const value = commerce();
@@ -224,6 +225,24 @@ test('mutual optional declarations become a dependency cycle only when both inte
   value.composition.modules[0].integrations[0].enabled = true;
   accepted(validate(refresh(value)));
   value.composition.modules[1].integrations[0].enabled = true;
+  refused(validate(refresh(value)), 'dependency.cycle');
+});
+
+test('disabled modules may retain selected integrations without an effective dependency cycle', () => {
+  const cart = namedModule('merchant.cart', 'merchant');
+  const catalogue = namedModule('creezio.catalogue', 'creezio');
+  dependsOn(cart, catalogue, { optional: true, usesOperation: false });
+  dependsOn(catalogue, cart, { optional: true, usesOperation: false });
+  const value = compositionCase([cart, catalogue]);
+  for (const selection of value.composition.modules) {
+    selection.enabled = false;
+    selection.integrations[0].enabled = true;
+  }
+  value.composition.exposure.admin.moduleIds = [];
+  value.composition.exposure.app.moduleIds = [];
+  accepted(validate(refresh(value)));
+  value.composition.modules[0].enabled = true;
+  value.composition.modules[1].enabled = true;
   refused(validate(refresh(value)), 'dependency.cycle');
 });
 

@@ -95,6 +95,7 @@ export function compileOperationSchemas(input) {
     }\n${name}.errors = null;\n`).join('');
     const result = buildSync({ absWorkingDir: repository, bundle: true, write: false, metafile: true,
       platform: 'browser', format: 'esm', target: 'es2022', legalComments: 'none', sourcemap: false,
+      minifyWhitespace: true,
       logLevel: 'silent', stdin: { contents: standalone, resolveDir: repository, sourcefile: 'operation-validators.mjs', loader: 'js' } });
     // Only pinned pure AJV helpers are allowed. Never include its compiler, a module source,
     // Node shim or an unresolved runtime import in a production validator bundle.

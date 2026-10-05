@@ -103,6 +103,36 @@ test('add requires an explicit audience decision and keeps automatic dependencie
     .diagnostics[0].code,'plan.invalid_choices');
 });
 
+test('plan refuses two module IDs assigned to the same installed package path',()=>{
+  const first=namedModule('shop.first','shop'),second=namedModule('shop.second','shop');
+  const proposed=compositionCase([first,second]);
+  const shared={kind:'package',name:'@shop/shared'};
+  const candidates=proposed.modules.map((module,index)=>candidate(module,
+    {...proposed.composition.modules[index],source:shared},proposed.lock.modules[index]));
+  const inventory={schemaVersion:1,candidates,
+    digest:contractIntegrity({schemaVersion:1,candidates})};
+  const empty=compositionCase([]),current={...empty,descriptors:[],revision:0};
+  const base={revision:0,compositionDigest:contractIntegrity(empty.composition),
+    lockDigest:contractIntegrity(empty.lock),inventoryDigest:inventory.digest};
+  const add=entry=>({kind:'add',moduleId:entry.moduleId,candidateKey:entry.candidateKey,audiences:[]});
+  const firstOnly=solveModulePlan(current,{schemaVersion:1,base,actions:[add(candidates[0])]},inventory);
+  assert.equal(firstOnly.summary.status,'ready',JSON.stringify(firstOnly.diagnostics));
+  const both=solveModulePlan(current,{schemaVersion:1,base,
+    actions:candidates.map(add)},inventory);
+  assert.equal(both.next,null);
+  assert.ok(both.diagnostics.some(item=>item.code==='composition.package-source'));
+  const selected=compositionCase([first]);
+  selected.composition.modules[0].source=shared;
+  selected.lock.compositionIntegrity=contractIntegrity(selected.composition);
+  const selectedCurrent={...selected,descriptors:[first],revision:0};
+  const selectedBase={revision:0,compositionDigest:contractIntegrity(selected.composition),
+    lockDigest:contractIntegrity(selected.lock),inventoryDigest:inventory.digest};
+  const colliding=solveModulePlan(selectedCurrent,{schemaVersion:1,base:selectedBase,
+    actions:[add(candidates[1])]},inventory);
+  assert.equal(colliding.next,null);
+  assert.ok(colliding.diagnostics.some(item=>item.code==='composition.package-source'));
+});
+
 test('enable restores exactly its chosen audiences',()=>{
   const {current,inventory,choices,cart}=fixture();
   const disabled=structuredClone(current);

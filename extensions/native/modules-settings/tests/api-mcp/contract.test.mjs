@@ -56,3 +56,19 @@ test('catalogue transports preserve the full canonical title including supplemen
     validators.forEach((validate,index)=>assert.equal(validate(values[index]),[...title].length<=4000));
   }
 });
+
+test('plan handoff is a bounded admin read projection without raw package metadata',()=>{
+  const operation=manifest.contracts.operations.find(item=>item.id==='plans.read');
+  assert.deepEqual(operation.permissions,[{moduleId:'creezio.modules-settings',kind:'permission',id:'manage'}]);
+  assert.deepEqual(operation.audiences,['admin']);
+  assert.equal(operation.kind,'query');
+  const ajv=new Ajv2020({strict:true});addFormats(ajv);
+  const schema=manifest.contracts.schemas.find(item=>item.id==='plans-read-output').schema;
+  const handoff=schema.properties.handoff.anyOf.find(item=>item.type==='object');
+  assert.equal(handoff.additionalProperties,false);
+  assert.deepEqual(handoff.properties.status,{const:'accepted_pending_publication'});
+  assert.equal(handoff.properties.choices.additionalProperties,false);
+  assert.equal(handoff.properties.choices.properties.actions.items.additionalProperties,false);
+  assert.equal(handoff.properties.choices.properties.actions.items.properties.descriptor,undefined);
+  assert.equal(ajv.compile(schema)({}),false,'a plan read must include its verified record and handoff state');
+});

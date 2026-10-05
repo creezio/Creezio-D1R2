@@ -99,13 +99,18 @@ const exactKeys=(value,keys)=>value&&typeof value==='object'&&!Array.isArray(val
   &&Object.keys(value).length===keys.length&&keys.every(key=>Object.hasOwn(value,key));
 
 export function externalPackageCandidate(root,item,composition,lock,allowedOrigins) {
-  if(!exactKeys(item,['moduleId','packageName','version','runtime','validation','receipt'])
+  if(!item||typeof item!=='object'||Array.isArray(item)
+    ||!['moduleId','packageName','version','runtime','validation','receipt'].every(key=>Object.hasOwn(item,key))
+    ||Object.keys(item).some(key=>!['moduleId','origin','packageName','version','runtime','validation','receipt'].includes(key))
     || ![item.runtime,item.validation,item.receipt].every(value=>exactKeys(value,['path','integrity'])))
     fail('inventory.external-package','External package declaration is malformed.');
   const selection=composition.modules.find(value=>value.moduleId===item.moduleId);
   const currentNode=lock.modules.find(value=>value.moduleId===item.moduleId);
-  if(!selection||selection.source?.kind!=='package'||selection.source.name!==item.packageName||!currentNode)
-    fail('inventory.external-package','External package must update one selected package.');
+  if(selection&&(selection.source?.kind!=='package'||selection.source.name!==item.packageName||!currentNode)
+    ||!selection&&currentNode
+    ||!selection&&(typeof item.origin!=='string'||!allowedOrigins.includes(item.origin))
+    ||selection&&item.origin!==undefined&&item.origin!==currentNode.origin)
+    fail('inventory.external-package','External package identity or selected source differs.');
   const paths=[item.runtime.path,item.validation.path,item.receipt.path];
   if(new Set(paths).size!==3||paths.some(value=>!safePackagePath(value)
     ||!value.startsWith('.creezio/packages/')))
@@ -115,7 +120,8 @@ export function externalPackageCandidate(root,item,composition,lock,allowedOrigi
     if(statSync(file).size>limit)fail('inventory.external-package','External package exceeds its byte bound.');
     return readFileSync(file);
   });
-  return verifyCandidatePackageReceipt({currentNode,packageName:item.packageName,version:item.version,
+  return verifyCandidatePackageReceipt({currentNode,expectedModuleId:item.moduleId,
+    expectedOrigin:item.origin??currentNode?.origin,packageName:item.packageName,version:item.version,
     allowedOrigins,runtimeBytes:bytes[0],validationBytes:bytes[1],receiptBytes:bytes[2],
     expected:{runtime:item.runtime.integrity,validation:item.validation.integrity,
       receipt:item.receipt.integrity}});
@@ -253,6 +259,34 @@ export function loadRuntimeComposition({ root = process.cwd(), compositionPath =
   return { root, compositionFile, lockFile, composition, lock, located, result };
 }
 
+/** Compile the same closed host inventory used by the runtime and local lifecycle tooling. */
+export function loadModuleHostInventory({root,composition,lock,located,
+  inventoryPath='configuration/module-inventory.json',writeCache=true,allowUncached=false}) {
+  const config = loadJson(confined(root, inventoryPath), {root});
+  if (config.schemaVersion !== 1 || !Array.isArray(config.allowedOrigins) || !Array.isArray(config.available)
+    || Object.keys(config).some(key => !['schemaVersion', 'allowedOrigins', 'available','validationReceipts','externalPackages'].includes(key))
+    || (config.externalPackages!==undefined&&(!Array.isArray(config.externalPackages)
+      ||config.externalPackages.length>16))
+    || (config.validationReceipts!==undefined&&(!config.validationReceipts
+      || Array.isArray(config.validationReceipts)||typeof config.validationReceipts!=='object'
+      || Object.entries(config.validationReceipts).some(([moduleId,receipt])=>
+        !/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(moduleId)||!safePackagePath(receipt)
+        ||!composition.modules.some(selection=>selection.moduleId===moduleId)))))
+    fail('inventory.configuration', 'An explicit, bounded module inventory configuration is required.');
+  const candidates = composition.modules.map(selection => ({source: selection.source,
+    lockNode: lock.modules.find(node => node.moduleId === selection.moduleId),
+    ...(config.validationReceipts?.[selection.moduleId]
+      ?{validationReceipt:config.validationReceipts[selection.moduleId]}:{})})).concat(config.available);
+  const {inventory:installedInventory,currentInstalledDocuments}=compileModuleInventoryWithDocuments({root,candidates,
+    selectedCount:composition.modules.length,allowedOrigins:config.allowedOrigins,
+    writeCache,allowUncached});
+  const inventory=mergeExternalPackageCandidates({root,composition,lock,installedInventory,
+    externalPackages:config.externalPackages??[],allowedOrigins:config.allowedOrigins});
+  currentModuleCandidateKeys(composition,lock,inventory);
+  return captureHostInventory({current:{composition,lock,descriptors:located.map(item=>item.descriptor)},
+    inventory,currentInstalledDocuments},contractIntegrity(composition));
+}
+
 export async function composeRuntime({ root = process.cwd(), compositionPath = 'configuration/composition.json', lockPath,
   inventoryPath = 'configuration/module-inventory.json', outputDir = '.creezio/generated' } = {}) {
   const loaded = loadRuntimeComposition({ root, compositionPath, lockPath });
@@ -289,6 +323,15 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
       codeFile(root, item, descriptor.entrypoints.publicPage.renderer);
       codeFile(root, item, descriptor.entrypoints.publicPage.imageIds);
       moduleFile(root, item, descriptor.entrypoints.publicPage.stylesheet, {exported:true});
+    }
+    // Installed permission IDs remain known while their module or a guarded use is inactive.
+    for (const permission of descriptor.contracts.permissions) {
+      const id = `${selection.moduleId}:${permission.id}`;
+      permissionTitles[id] = permission.title;
+      // These two definitions are owned and checked by the native resolver.
+      if (id === 'creezio.access:manage' || id === 'creezio.access:impersonate') continue;
+      permissions.push({ id, audiences: permission.audiences,
+        actors: permission.actors.filter(actor => !['anonymous', 'signed-webhook'].includes(actor)) });
     }
     if (!selection.enabled) continue;
     const moduleIntegrity = lock.modules.find(node => node.moduleId === selection.moduleId)?.runtime.integrity;
@@ -331,15 +374,6 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
     for (const stylesheet of descriptor.contracts.ui.styles) {
       const file = moduleFile(root, item, stylesheet, {exported: true});
       clientImports.push(`import ${JSON.stringify(importSpecifier(output, file))};`);
-    }
-    for (const [index, permission] of descriptor.contracts.permissions.entries()) {
-      if (!active(selection.moduleId, `/contracts/permissions/${index}`)) continue;
-      const id = `${selection.moduleId}:${permission.id}`;
-      permissionTitles[id] = permission.title;
-      // These two definitions are owned and checked by the native resolver.
-      if (id === 'creezio.access:manage' || id === 'creezio.access:impersonate') continue;
-      permissions.push({ id, audiences: permission.audiences,
-        actors: permission.actors.filter(actor => !['anonymous', 'signed-webhook'].includes(actor)) });
     }
     for (const entry of operationPlan.catalog.modules.find(module => module.moduleId === selection.moduleId).operations) {
       if (!entry.active) continue;
@@ -484,28 +518,7 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
   })};
   let runtimeInventory;
   if (composition.modules.some(selection => selection.moduleId === 'creezio.modules-settings' && selection.enabled)) {
-    const config = loadJson(confined(root, inventoryPath), {root});
-    if (config.schemaVersion !== 1 || !Array.isArray(config.allowedOrigins) || !Array.isArray(config.available)
-      || Object.keys(config).some(key => !['schemaVersion', 'allowedOrigins', 'available','validationReceipts','externalPackages'].includes(key))
-      || (config.externalPackages!==undefined&&(!Array.isArray(config.externalPackages)
-        ||config.externalPackages.length>16))
-      || (config.validationReceipts!==undefined&&(!config.validationReceipts
-        || Array.isArray(config.validationReceipts)||typeof config.validationReceipts!=='object'
-        || Object.entries(config.validationReceipts).some(([moduleId,receipt])=>
-          !/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(moduleId)||!safePackagePath(receipt)
-          ||!composition.modules.some(selection=>selection.moduleId===moduleId)))))
-      fail('inventory.configuration', 'An explicit, bounded module inventory configuration is required.');
-    const candidates = composition.modules.map(selection => ({source: selection.source,
-      lockNode: lock.modules.find(node => node.moduleId === selection.moduleId),
-      ...(config.validationReceipts?.[selection.moduleId]
-        ?{validationReceipt:config.validationReceipts[selection.moduleId]}:{})})).concat(config.available);
-    const {inventory:installedInventory,currentInstalledDocuments}=compileModuleInventoryWithDocuments({root, candidates,
-      selectedCount:composition.modules.length,allowedOrigins: config.allowedOrigins});
-    const inventory=mergeExternalPackageCandidates({root,composition,lock,installedInventory,
-      externalPackages:config.externalPackages??[],allowedOrigins:config.allowedOrigins});
-    currentModuleCandidateKeys(composition,lock,inventory);
-    runtimeInventory = captureHostInventory({current: {composition, lock, descriptors: located.map(item => item.descriptor)},
-      inventory,currentInstalledDocuments}, compositionDigest);
+    runtimeInventory = loadModuleHostInventory({root,composition,lock,located,inventoryPath});
   }
   // This host-owned transport is not a module CRUD operation or an implicit
   // public contribution. Each audience requires both selection and exposure.

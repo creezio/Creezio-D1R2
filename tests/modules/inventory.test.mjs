@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,readdirSync,existsSync,unlinkSync,rmdirSync,lstatSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,readdirSync,existsSync,unlinkSync,rmdirSync,lstatSync,statSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {tmpdir} from 'node:os';
@@ -106,6 +106,25 @@ test('Node inventory binds an available module to exact runtime and validation b
   f.files.add(path.join(f.root,...newer.validation.path.split('/')));
   assert.notEqual(newer.runtime.path,f.node.runtime.location.path);
   assert.deepEqual(readFileSync(f.runtimePath),before,'new candidate bytes keep the old version intact');
+});
+
+test('inspection computes absent cache paths without writing and preserves strict cache checks',t=>{
+  const f=localModule(t),validationPath=path.join(f.root,...f.node.validation.location.path.split('/'));
+  const input={root:f.root,allowedOrigins:[f.descriptor.identity.origin],
+    candidates:[{source:f.source,lockNode:f.node}],writeCache:false};
+  const before=statSync(f.runtimePath).mtimeMs;
+  assert.equal(compileModuleInventory(input).candidates.length,1);
+  assert.equal(statSync(f.runtimePath).mtimeMs,before);
+  const original=readFileSync(f.runtimePath);
+  writeFileSync(f.runtimePath,'corrupt');
+  assert.throws(()=>compileModuleInventory({...input,allowUncached:true}),{code:'cache_corrupt'});
+  writeFileSync(f.runtimePath,original);
+  unlinkSync(f.runtimePath);
+  unlinkSync(validationPath);
+  assert.throws(()=>compileModuleInventory(input),{code:'cache_missing'});
+  const inspected=compileModuleInventory({...input,allowUncached:true});
+  assert.equal(inspected.candidates[0].lockNode.runtime.location.path,f.node.runtime.location.path);
+  assert.equal(readdirSync(path.dirname(f.runtimePath)).length,0);
 });
 
 test('workspace archive packer refuses CRLF without normalizing source bytes',t=>{

@@ -91,7 +91,7 @@ function readDeclared(directory,names,root) {
     return {path:name,bytes};
   });
 }
-function cacheArchive(root,moduleId,kind,bytes,cacheRoot,writeCache) {
+function cacheArchive(root,moduleId,kind,bytes,cacheRoot,writeCache,allowUncached) {
   const directory=confined(root,path.join(cacheRoot,moduleId),{directory:true,missing:true});
   if (writeCache) mkdirSync(directory,{recursive:true});
   if (existsSync(directory)) confined(root,directory,{directory:true});
@@ -101,7 +101,10 @@ function cacheArchive(root,moduleId,kind,bytes,cacheRoot,writeCache) {
     if (sha(readFileSync(destination))!==integrity) fail('cache_corrupt');
     return {integrity,path:path.relative(root,destination).replaceAll('\\','/')};
   }
-  if (!writeCache) fail('cache_missing');
+  if (!writeCache) {
+    if (!allowUncached) fail('cache_missing');
+    return {integrity,path:path.relative(root,destination).replaceAll('\\','/')};
+  }
   const temporary=confined(root,`${destination}.tmp-${process.pid}`,{missing:true});
   try {writeFileSync(temporary,bytes,{flag:'wx'});renameSync(temporary,destination);}
   finally {if(existsSync(temporary))unlinkSync(temporary);}
@@ -110,7 +113,7 @@ function cacheArchive(root,moduleId,kind,bytes,cacheRoot,writeCache) {
 /** Node-only source packer. It never transforms line endings or executes module code. */
 export function packModuleArtifacts({root,moduleDirectory,moduleId,descriptor,
   cacheDir='.creezio/module-artifacts',expected=null,writeCache=true,captureRuntimeFiles=[],
-  detachedValidation=null,cacheDetachedValidation=false}) {
+  detachedValidation=null,cacheDetachedValidation=false,allowUncached=false}) {
   const absoluteRoot=path.resolve(root),directory=confined(absoluteRoot,moduleDirectory,{directory:true});
   if (typeof moduleId!=='string'||!/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(moduleId)
     || descriptor?.identity?.id!==moduleId||!safePackagePath(cacheDir)) fail('descriptor');
@@ -135,9 +138,9 @@ export function packModuleArtifacts({root,moduleDirectory,moduleId,descriptor,
     if(statSync(source).size>64*1024*1024)fail('validation_artifact');
     const bytes=readFileSync(source);
     if(sha(bytes)!==detachedValidation.integrity)fail('validation_artifact');
-    detachedArtifact=cacheArchive(absoluteRoot,moduleId,'validation',bytes,cacheRoot,writeCache);
+    detachedArtifact=cacheArchive(absoluteRoot,moduleId,'validation',bytes,cacheRoot,writeCache,allowUncached);
   }
-  return Object.freeze({runtime:cacheArchive(absoluteRoot,moduleId,'runtime',runtime,cacheRoot,writeCache),
-    validation:detachedArtifact??cacheArchive(absoluteRoot,moduleId,'validation',validation,cacheRoot,writeCache),
+  return Object.freeze({runtime:cacheArchive(absoluteRoot,moduleId,'runtime',runtime,cacheRoot,writeCache,allowUncached),
+    validation:detachedArtifact??cacheArchive(absoluteRoot,moduleId,'validation',validation,cacheRoot,writeCache,allowUncached),
     capturedRuntimeFiles:Object.freeze(capturedRuntimeFiles)});
 }

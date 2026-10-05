@@ -189,6 +189,8 @@ test('modules settings operation commits head, plan, journal and execution in re
       const read=await invoke('plans.read',{planId:accepted.execution.output.planId});
       assert.equal(read.execution.state,'succeeded',JSON.stringify(read.execution));
       assert.equal(read.execution.output.status,'accepted_pending_publication');
+      assert.deepEqual(JSON.parse(JSON.stringify(read.execution.output.handoff.choices)),intent);
+      assert.equal(read.execution.output.handoff.planDigest,preview.execution.output.planDigest);
       const journal=await invoke('journal.list',{limit:50});
       assert.equal(journal.execution.state,'succeeded',JSON.stringify(journal.execution));
       assert.deepEqual(journal.execution.output.items.map(item=>item.revision),[1]);
@@ -231,6 +233,7 @@ test('modules settings operation commits head, plan, journal and execution in re
       assert.equal((await publishedInvoke('plans.confirm-publication',confirmation)).replayed,true);
       const effective=await publishedInvoke('plans.read',{planId:accepted.execution.output.planId});
       assert.equal(effective.execution.output.status,'effective');
+      assert.equal(effective.execution.output.handoff,null);
       assert.deepEqual(effective.execution.output.events.map(event=>event.eventKind),
         ['plan-accepted','plan-effective']);
       await db.prepare(`UPDATE ${table('plan-outcomes')} SET target_lock_digest = ? WHERE revision = 2`)
@@ -280,6 +283,7 @@ test('modules settings operation commits head, plan, journal and execution in re
       assert.equal((await publishedInvoke('plans.cancel-pending',cancellation)).replayed,true);
       const cancelledRead=await publishedInvoke('plans.read',{planId:second.execution.output.planId});
       assert.equal(cancelledRead.execution.output.status,'cancelled');
+      assert.equal(cancelledRead.execution.output.handoff,null);
       assert.equal(cancelledRead.execution.output.events[1].reason,
         'La cible précédente ne correspond plus au déploiement.');
       const journalAfter=await publishedInvoke('journal.list',{limit:50});
