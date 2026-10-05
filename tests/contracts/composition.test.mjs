@@ -131,6 +131,7 @@ const cases = [
     value.composition.host.capabilities = value.composition.host.capabilities.filter(capability => capability !== 'files.r2.shared');
   }, 'host.capability'],
   ['SDK outside every selected module compatibility range', value => { value.composition.sdk.version = '2.0.0'; }, 'dependency.compatibility'],
+  ['core outside every selected module compatibility range', value => { value.composition.sdk.coreVersion = '2.0.0'; }, 'dependency.compatibility'],
 ];
 for (const [name, change, expected] of cases) test(`refuses ${name}`, () => {
   const value = commerce();

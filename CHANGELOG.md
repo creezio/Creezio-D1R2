@@ -7,6 +7,7 @@
 - L'inventaire admet la première installation d'un paquet externe avec identité et origine explicites, archives vérifiées et origine autorisée. Une mise à jour conserve cette identité et exige une version supérieure.
 - Les compositions refusent les collisions de noms npm entre modules. Les cycles sont évalués sur les modules actifs ; une intégration facultative absente conserve le comportement autonome de son module.
 - Désactiver un module installé conserve les définitions de ses droits pour les rôles existants, sans réactiver ses opérations ni ses interfaces. Cela évite qu'un droit devenu inconnu bloque aussi l'administration des autres modules.
+- Les validateurs statiques sont compactés à la compilation sans modifier leurs règles ni relever leur plafond. Le refus d'une version incompatible du cœur possède désormais son propre test, en complément des refus de SDK et de dépendances.
 
 ## Grandes réponses des widgets — 3 octobre 2026
 
