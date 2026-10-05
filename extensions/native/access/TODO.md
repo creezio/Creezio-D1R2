@@ -1,5 +1,7 @@
 # État access
 
+- T11 complément en qualification : références historiques de permissions retirées, maintien des autres autorisations, refus des nouvelles attributions explicites et matrice en lecture seule. Les preuves CI et du retrait sur application hôte sont suivies avec T11.
+
 Fondations, installation et trois écrans Access originaux intégrés par PR #18 ; main `a2f6081f`, 837 contrôles locaux/CI. Tranche active T-10 : OAuth natif et exposition MCP des opérations communes, en qualification locale.
 
 - Matrice des rôles, comptes avec rôles/contextes/audiences conservés, journal détaillé paginé : port depuis le Creezio original intégré.

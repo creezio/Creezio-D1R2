@@ -37,6 +37,10 @@ function diagnostic(value: unknown): value is ModuleDiagnostic {
     && (value.moduleId === null || id(value.moduleId)) && text(value.message, 4096)
     && value.message.length > 0;
 }
+function retiredPermission(value: unknown): boolean {
+  return row(value) && id(value.moduleId) && id(value.permissionId)
+    && text(value.origin,2048) && value.origin.startsWith('https://');
+}
 function item(value: unknown): value is ModuleCatalogItem {
   return row(value) && id(value.moduleId) && catalogTitle(value.title) && text(value.description, 4096)
     && nonempty(value.origin) && text(value.version, 128) && value.version.length > 0
@@ -79,6 +83,7 @@ function preview(value: unknown): value is ModulePlanPreview {
     && digest(value.targetLockDigest) && array(value.actions, 256) && value.actions.every(planAction)
     && array(value.diagnostics, 128) && value.diagnostics.every(diagnostic)
     && integer(value.disabledContributionCount)
+    && array(value.retiredPermissions,256) && value.retiredPermissions.every(retiredPermission)
     && typeof value.requiresPublication === 'boolean' && typeof value.baselineChanged === 'boolean';
 }
 function acceptance(value: unknown): value is ModulePlanAcceptance {
@@ -94,6 +99,8 @@ function summary(value: unknown): boolean {
     && array(value.changes, 32) && value.changes.every(change => row(change) && id(change.moduleId) && id(change.action))
     && array(value.dependencyOrder, 1000) && value.dependencyOrder.every(id)
     && integer(value.disabledContributionCount) && integer(value.diagnosticCount)
+    && (value.retiredPermissions===undefined || array(value.retiredPermissions,256)
+      && value.retiredPermissions.every(retiredPermission))
     && typeof value.detailsPaged === 'boolean';
 }
 function acceptedPlan(value: unknown): value is ModuleAcceptedPlan {

@@ -124,6 +124,10 @@ function PlanRecord({value, controller, disabled, onChanged}: {value: ModulePlan
           ? 'Plan annulé' : 'Publication en attente'}</Badge>
       <ul className="list-inside list-disc">{value.plan.summary.changes.map((change, index) =>
         <li key={`${change.moduleId}:${index}`}><code>{change.moduleId}</code> · {change.action}</li>)}</ul>
+      {!!value.plan.summary.retiredPermissions?.length && <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+        Droits retirés par ce plan : {value.plan.summary.retiredPermissions.map(item=>
+          `${item.moduleId}:${item.permissionId} (${item.origin})`).join(', ')}.
+      </div>}
       {value.status === 'accepted_pending_publication' && <div className="space-y-2 border-t border-slate-200 pt-3">
         {value.handoff && <details className="rounded-md border border-slate-200 p-3 text-sm">
           <summary className="cursor-pointer font-medium">Appliquer le plan</summary>

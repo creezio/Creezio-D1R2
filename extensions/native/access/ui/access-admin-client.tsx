@@ -103,7 +103,8 @@ function GroupRows({group, roles, disabled, effective, overridden, onToggle, onR
         <div className="font-mono text-[11px] text-slate-400">{permission.id}</div></td>
       {roles.map(role => {
         const on = effective(role.id, permission.id), changed = overridden(role.id, permission.id);
-        return <td key={role.id} className="px-2 py-1.5 text-center"><span className="relative inline-flex items-center">
+        return <td key={role.id} className="px-2 py-1.5 text-center">{permission.retired ?
+          <span className="text-xs text-slate-500">Retiré · historique</span> : <span className="relative inline-flex items-center">
           <button type="button" disabled={disabled || role.locked} onClick={() => onToggle(role.id, permission.id)}
             title={on ? 'Autorisé — cliquer pour refuser' : 'Refusé — cliquer pour autoriser'}
             data-creezio-aid={`access-cell-${role.id}-${permission.id}`}
@@ -115,7 +116,7 @@ function GroupRows({group, roles, disabled, effective, overridden, onToggle, onR
           {changed && <button type="button" disabled={disabled} onClick={() => onReset(role.id, permission.id)}
             title="Revenir au défaut du rôle" className="absolute -right-5 text-amber-500 hover:text-amber-600">
             <RotateCcw className="h-3 w-3" /></button>}
-        </span></td>;
+        </span>}</td>;
       })}</tr>)}
   </>;
 }

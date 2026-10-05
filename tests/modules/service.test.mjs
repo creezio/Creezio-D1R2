@@ -98,6 +98,24 @@ test('module service derives catalog base from host and commits first plan as on
     'a cancelled plan cannot be exported as an actionable handoff');
 });
 
+test('removal preview and accepted journal disclose each retired permission before publication',async()=>{
+  const {context,intent}=fixture();
+  const descriptor=context.hostInventory.current.descriptors[0];
+  const removal={...intent,actions:[{kind:'remove',moduleId:descriptor.identity.id}]};
+  const preview=(await plansPreview({intent:removal},context)).output;
+  const expected=descriptor.contracts.permissions.map(permission=>({
+    moduleId:descriptor.identity.id,origin:descriptor.identity.origin,permissionId:permission.id}))
+    .sort((a,b)=>a.permissionId.localeCompare(b.permissionId));
+  assert.deepEqual(preview.retiredPermissions,expected);
+  const validatePreview=addFormats(new Ajv2020({strict:true})).compile(
+    manifest.contracts.schemas.find(item=>item.id==='plans-preview-output').schema);
+  assert.equal(validatePreview(preview),true,JSON.stringify(validatePreview.errors));
+  const accepted=await plansAccept({requestKey:'00000000-0000-4000-8000-000000000011',
+    expectedRevision:0,expectedPlanDigest:preview.planDigest,intent:removal},context);
+  assert.deepEqual(JSON.parse(accepted.plans.find(plan=>plan.model==='plans').input.values.summary_json)
+    .retiredPermissions,expected);
+});
+
 test('catalog separates available archives from Worker code and hides the exact current candidate',async()=>{
   const {context,hostInventory}=fixture();
   const selected=hostInventory.current.composition.modules[0];

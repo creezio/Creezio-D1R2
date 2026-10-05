@@ -2,6 +2,8 @@
 
 ## 0.0.0 — travail non publié
 
+T11 : les droits retirés par un plan de modules restent connus comme références historiques inactives. Les rôles, exceptions et jetons existants continuent de fonctionner pour leurs autres droits ; une opération exigeant un droit retiré est refusée. La matrice conserve ces références en lecture seule et le serveur interdit l'ajout explicite de tels droits. Aucune purge des comptes ou des attributions existantes.
+
 Raccord natif borné des identités machine pour les webhooks : création/statut, lecture de métadonnées et révocation par API/MCP administrateur humain ; émission d'un jeton API uniquement par HTTP administrateur sous session. Le client génère le jeton, le serveur ne persiste que son empreinte et ne le renvoie jamais dans une exécution. Les plans de stockage, l'audit et les reçus sont atomiques ; aucun membership ou rôle n'est attribué lors de la création. La recette hébergée et l'interface complète des comptes restent ouvertes.
 
 Admission explicite des contextes par `policy.apply-delta` pour les ressources T33 : droits d'administration, epoch et audit existants conservés. Un contexte nouveau ne reçoit aucun membre ni rôle implicite ; les doublons et les modifications concurrentes sont refusés. Qualification D1 et HTTP OAuth locale ; recette multiressources hébergée encore ouverte.

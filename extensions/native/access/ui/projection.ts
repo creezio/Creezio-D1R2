@@ -9,7 +9,7 @@ export type AccessPolicyView = AccessAdminPolicyRead;
 export interface MatrixRole { readonly id: string; readonly label: string; readonly locked: boolean;
   readonly defaults: readonly string[]; readonly effective: readonly string[] }
 export interface MatrixGroup { readonly id: string; readonly label: string;
-  readonly permissions: readonly { readonly id: string; readonly label: string }[] }
+  readonly permissions: readonly { readonly id: string; readonly label: string; readonly retired: boolean }[] }
 export interface MatrixOverride { readonly role: string; readonly permission: string; readonly effect: 'allow' | 'deny' }
 export interface MatrixView { readonly epoch: number; readonly roles: readonly MatrixRole[];
   readonly groups: readonly MatrixGroup[]; readonly overrides: readonly MatrixOverride[] }
@@ -54,11 +54,12 @@ export function roleDecisions(view: AccessPolicyView) {
 
 export function matrixFromPolicy(view: AccessPolicyView): MatrixView {
   const decisions = roleDecisions(view);
-  const groups = new Map<string, { id: string; label: string; permissions: { id: string; label: string }[] }>();
+  const groups = new Map<string, { id: string; label: string; permissions: { id: string; label: string; retired: boolean }[] }>();
   for (const permission of view.permissions) {
     const moduleId = permission.moduleId;
     const group = groups.get(moduleId) ?? { id: moduleId, label: moduleId, permissions: [] };
-    group.permissions.push({ id: permission.id, label: permission.title });
+    group.permissions.push({ id: permission.id, label: permission.title,
+      retired: permission.audiences.length===0 && permission.actors.length===0 });
     groups.set(moduleId, group);
   }
   for (const group of groups.values()) group.permissions.sort((a, b) => a.id.localeCompare(b.id));

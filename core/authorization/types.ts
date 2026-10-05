@@ -9,6 +9,8 @@ export interface PermissionDefinition {
   readonly id: PermissionId;
   readonly audiences: readonly AuthorizationAudience[];
   readonly actors: readonly AuthorizationActor[];
+  /** Exact historical right from a removed module; never authorizes an operation. */
+  readonly retired?: true;
 }
 
 export interface RoleDefinition {

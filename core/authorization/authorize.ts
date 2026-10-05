@@ -81,8 +81,12 @@ function snapshotShape(value: unknown): value is AuthorizationSnapshot {
       && credential.actorPrincipalId !== credential.subjectId && Array.isArray(credential.contextIds) && credential.contextIds.length === 1
       && Array.isArray(credential.audiences) && credential.audiences.length === 1
       && Array.isArray(credential.permissionIds) && credential.permissionIds.length >= 1 && credential.permissionIds.length <= 64))
-    && list(value.permissions, AUTHORIZATION_LIMITS.permissions, item => shape(item, ['id', 'audiences', 'actors'])
-      && permissionId(item.id) && audiences(item.audiences, true) && actors(item.actors))
+    && list(value.permissions, AUTHORIZATION_LIMITS.permissions, item =>
+      (shape(item, ['id', 'audiences', 'actors'])
+        && permissionId(item.id) && audiences(item.audiences, true) && actors(item.actors))
+      || (shape(item, ['id', 'audiences', 'actors', 'retired']) && item.retired === true
+        && permissionId(item.id) && Array.isArray(item.audiences) && item.audiences.length === 0
+        && Array.isArray(item.actors) && item.actors.length === 0))
     && list(value.roles, AUTHORIZATION_LIMITS.roles, item => shape(item, ['id', 'inherits', 'permissionIds', 'permissionOverrides'])
       && id(item.id) && uniqueList(item.inherits, AUTHORIZATION_LIMITS.roles, id) && permissions(item.permissionIds)
       && list(item.permissionOverrides, AUTHORIZATION_LIMITS.overrides, override => shape(override, ['permissionId', 'effect'])
@@ -210,6 +214,7 @@ export function authorize(snapshot: unknown, target: unknown, nowMs: number): Au
   for (const required of target.requiredPermissionIds) {
     const definition = catalog.get(required);
     if (!definition) return decision('permission_unknown');
+    if (definition.retired) return decision('permission_denied');
     if (!definition.audiences.includes(target.audience)) return decision('audience_denied');
     if (!definition.actors.includes(effectiveActor)) return decision('actor_denied');
     if (denied.has(required) || !granted.has(required)) return decision('permission_denied');

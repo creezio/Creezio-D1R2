@@ -6,17 +6,22 @@ import {existsSync,lstatSync,mkdirSync,readFileSync,readdirSync,renameSync,rmdir
   unlinkSync,writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {gunzipSync} from 'node:zlib';
 import semver from 'semver';
 import {loadModuleHostInventory,loadRuntimeComposition} from '../build/compose-runtime.mjs';
 import {readVerifiedCandidatePackageArchives} from './package-receipt.mjs';
 import {deterministicModuleArchive} from './archives.mjs';
-import {modulePlanDigest,solveModulePlan} from '../../sdk/modules/solver.mjs';
+import {modulePlanDigest,reconcileRetiredModules,solveModulePlan} from '../../sdk/modules/solver.mjs';
 import {contractIntegrity,validateComposition} from '../../sdk/contracts/validate.mjs';
+import {safePackagePath} from '../../sdk/contracts/references.mjs';
 
-const usage='Usage: node scripts/modules/apply.mjs --plan HANDOFF.json --composition configuration/composition.json [--sync-profile configuration/composition.NAME.json]... [--write]\n';
+const usage='Usage: node scripts/modules/apply.mjs --plan HANDOFF.json --composition configuration/composition.json [--sync-profile configuration/composition.NAME.json]... [--npm-archives APPROVED.json] [--write]\n';
 const DIGEST=/^sha256-[a-f0-9]{64}$/;
 const ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const PACKAGE=/^(?:@[a-z0-9._-]+\/)?[a-z0-9][a-z0-9._-]*$/;
+const SRI=/^sha512-[A-Za-z0-9+/]{86}==$/;
+const LIFECYCLE=new Set(['preinstall','install','postinstall','prepare','prepublish',
+  'prepublishOnly','prepack','postpack']);
 const within=(base,target)=>target===base||target.startsWith(`${base}${path.sep}`);
 const fail=(code,message)=>{const error=new Error(message);error.code=code;throw error;};
 const sha=bytes=>`sha256-${createHash('sha256').update(bytes).digest('hex')}`;
@@ -35,7 +40,7 @@ function flags(argv){
         ||result.syncProfiles.length>=32)fail('arguments',usage.trim());
       result.syncProfiles.push(value);continue;
     }
-    if(!['--plan','--composition'].includes(key)||result[key]||!argv[index+1]
+    if(!['--plan','--composition','--npm-archives'].includes(key)||result[key]||!argv[index+1]
       ||argv[index+1].startsWith('--'))fail('arguments',usage.trim());
     result[key]=argv[++index];
   }
@@ -65,6 +70,127 @@ function json(root,relative,max=4*1024*1024){
 }
 function exactObject(value,keys){return value&&typeof value==='object'&&!Array.isArray(value)
   &&Object.keys(value).length===keys.length&&keys.every(key=>Object.hasOwn(value,key));}
+
+export function inspectApprovedNpmArchive(bytes,{maxInflatedBytes=64*1024*1024,
+  captureFiles=false}={}){
+  if(bytes.length>64*1024*1024)fail('npm_archive','npm archive exceeds its byte bound.');
+  if(!Number.isSafeInteger(maxInflatedBytes)||maxInflatedBytes<512
+    ||maxInflatedBytes>64*1024*1024||typeof captureFiles!=='boolean')
+    fail('npm_archive','Invalid npm archive inspection bound.');
+  let tar;try{tar=gunzipSync(bytes,{maxOutputLength:maxInflatedBytes});}
+  catch{fail('npm_archive','npm archive is not a bounded gzip tarball.');}
+  let manifest=null,offset=0,count=0,ended=false,extendedPath=null;
+  const files=[];let hasBindingGyp=false;
+  const seen=new Set();
+  while(offset+512<=tar.length){
+    const header=tar.subarray(offset,offset+512);
+    if(header.every(byte=>byte===0)){
+      if(tar.subarray(offset).some(byte=>byte!==0))fail('npm_archive','npm archive has a trailer.');
+      ended=true;break;
+    }
+    const expected=parseInt(header.subarray(148,156).toString('ascii').replace(/\0.*$/,'').trim(),8);
+    const copy=Buffer.from(header);copy.fill(32,148,156);
+    const size=parseInt(header.subarray(124,136).toString('ascii').replace(/\0.*$/,'').trim(),8);
+    if(!Number.isSafeInteger(expected)||expected!==copy.reduce((sum,byte)=>sum+byte,0)
+      ||!Number.isSafeInteger(size)||size<0||offset+512+size>tar.length)
+      fail('npm_archive','npm archive header is invalid.');
+    const type=String.fromCharCode(header[156]);
+    if(type==='x'){
+      const pax=tar.subarray(offset+512,offset+512+size).toString('utf8');
+      const record=pax.match(/^([0-9]+) path=([^\n]+)\n$/);
+      if(extendedPath!==null||!record||Number(record[1])!==size||++count>4096)
+        fail('npm_archive','npm archive PAX path is invalid.');
+      extendedPath=record[1];
+      offset+=512+Math.ceil(size/512)*512;
+      continue;
+    }
+    const raw=header.subarray(0,100).toString('utf8').replace(/\0.*$/,'');
+    const prefix=header.subarray(345,500).toString('utf8').replace(/\0.*$/,'');
+    const name=extendedPath??(prefix?`${prefix}/${raw}`:raw);
+    extendedPath=null;
+    if(type!=='0'&&type!=='\0'&&type!=='5')fail('npm_archive','npm archive contains a link or unsupported entry.');
+    const normalized=type==='5'&&name.endsWith('/')?name.slice(0,-1):name;
+    if(normalized!=='package'&&!normalized.startsWith('package/')
+      ||!safePackagePath(normalized)||seen.has(normalized)
+      ||normalized.split('/').some(part=>/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(part)
+        ||/[. ]$/.test(part))
+      ||normalized.startsWith('package/node_modules/'))
+      fail('npm_archive','npm archive has an unsafe or duplicate path.');
+    seen.add(normalized);
+    if(normalized==='package/package.json'){
+      if(type==='5'||size>128*1024)fail('npm_archive','npm package manifest is invalid.');
+      try{manifest=JSON.parse(tar.subarray(offset+512,offset+512+size).toString('utf8'));}
+      catch{fail('npm_archive','npm package manifest is not JSON.');}
+    }
+    if(type!=='5'){
+      if(normalized==='package')fail('npm_archive','npm archive package root is a file.');
+      const relative=normalized.slice('package/'.length);
+      if(relative==='binding.gyp')hasBindingGyp=true;
+      if(captureFiles)files.push({path:relative,
+        bytes:Buffer.from(tar.subarray(offset+512,offset+512+size))});
+    }
+    if(++count>4096)fail('npm_archive','npm archive has too many entries.');
+    offset+=512+Math.ceil(size/512)*512;
+  }
+  if(!ended||extendedPath!==null||!manifest||typeof manifest!=='object'||Array.isArray(manifest))
+    fail('npm_archive','npm archive has no valid manifest or ending.');
+  return {manifest,files,hasBindingGyp,inflatedBytes:tar.length};
+}
+function hasLifecycle(manifest,files=[],hasBindingGyp=false){
+  const scripts=manifest.scripts??{};
+  if(!scripts||typeof scripts!=='object'||Array.isArray(scripts))return true;
+  return Object.keys(scripts).some(name=>LIFECYCLE.has(name))
+    ||manifest.gypfile===true||hasBindingGyp
+    ||files.some(item=>item.path==='binding.gyp');
+}
+function hasBundledDependencies(manifest){
+  return ['bundleDependencies','bundledDependencies'].some(field=>{
+    const value=manifest[field];
+    return value!==undefined&&value!==false&&(!Array.isArray(value)||value.length>0);
+  });
+}
+
+export function readApprovedNpmArchives(root,relative,
+  {maxTotalInflatedBytes=256*1024*1024}={}){
+  if(!Number.isSafeInteger(maxTotalInflatedBytes)||maxTotalInflatedBytes<1024
+    ||maxTotalInflatedBytes>256*1024*1024)
+    fail('npm_approval','Invalid aggregate npm archive bound.');
+  if(!relative)return {digest:null,archives:[]};
+  const file=checked(root,relative);
+  if(statSync(file).size>128*1024)fail('npm_approval','npm approval exceeds its byte bound.');
+  const bytes=readFileSync(file),value=JSON.parse(bytes.toString('utf8'));
+  if(!exactObject(value,['schemaVersion','archives'])||value.schemaVersion!==1
+    ||!Array.isArray(value.archives)||value.archives.length>64)
+    fail('npm_approval','Expected an exact npm archive approval.');
+  const names=new Set(),paths=new Set();let totalBytes=0,totalInflated=0;
+  const archives=value.archives.map(item=>{
+    if(!exactObject(item,['name','version','path','integrity'])||!PACKAGE.test(item.name)
+      ||!semver.valid(item.version)||!SRI.test(item.integrity)
+      ||typeof item.path!=='string'||!item.path.startsWith('.creezio/packages/')
+      ||!item.path.endsWith('.tgz')||!safePackagePath(item.path)
+      ||names.has(item.name)||paths.has(item.path))
+      fail('npm_approval','npm archive approval entry is invalid or duplicated.');
+    names.add(item.name);paths.add(item.path);
+    const archiveFile=checked(root,item.path);
+    const size=statSync(archiveFile).size;
+    totalBytes+=size;
+    if(size>64*1024*1024||totalBytes>128*1024*1024)
+      fail('npm_approval','npm archive exceeds its byte bound.');
+    const archiveBytes=readFileSync(archiveFile);
+    if(npmIntegrity(archiveBytes)!==item.integrity)
+      fail('npm_approval',`npm archive integrity differs: ${item.name}.`);
+    const {manifest,hasBindingGyp,inflatedBytes}=inspectApprovedNpmArchive(archiveBytes);
+    totalInflated+=inflatedBytes;
+    if(totalInflated>maxTotalInflatedBytes)
+      fail('npm_approval','Approved npm archives exceed the aggregate inflated byte bound.');
+    if(manifest.name!==item.name||manifest.version!==item.version
+      ||hasLifecycle(manifest,[],hasBindingGyp)
+      ||hasBundledDependencies(manifest))
+      fail('npm_approval',`npm archive identity, scripts or bundled dependencies refused: ${item.name}.`);
+    return {...item,manifest,inflatedBytes};
+  });
+  return {digest:sha(bytes),archives};
+}
 function handoff(value){
   const keys=['schemaVersion','status','planId','revision','planDigest','inventoryDigest',
     'baseCompositionDigest','baseLockDigest','targetCompositionDigest','targetLockDigest',
@@ -209,6 +335,12 @@ function companionProfiles(root,currentFile,changes,syncProfiles,solved){
       node.dependencies=descriptor.dependencies.filter(dep=>versions.has(dep.moduleId))
         .map(dep=>({moduleId:dep.moduleId,version:versions.get(dep.moduleId)}));
     }
+    try{
+      const retired=reconcileRetiredModules(loaded.lock,
+        loaded.located.map(item=>item.descriptor),[...descriptors.values()]);
+      if(retired.length||Object.hasOwn(nextLock,'retiredModules'))nextLock.retiredModules=retired;
+    }catch(error){fail('profile_incompatible',
+      `Companion retirement history is incompatible: ${relative}: ${error.message}`);}
     nextLock.compositionIntegrity=contractIntegrity(nextComposition);
     const validation=validateComposition(nextComposition,{lock:nextLock,modules:[...descriptors.values()]});
     if(validation.errors.length)fail('profile_incompatible',
@@ -287,11 +419,17 @@ function assertUnlinkedTree(root,target){
     else if(!entry.isFile())fail('package_type',`Unexpected installed package entry: ${child}`);
   }
 }
-export function resolveOfflineNpmLock(root,stage,packageJson,currentLock,changedNames=[]){
+export function resolveOfflineNpmLock(root,stage,packageJson,currentLock,changedNames=[],approved=[]){
   const mini=checked(root,path.join(stage,'npm-root'),
     {missing:true,directory:true});
   emptyDirectory(root,mini);
   const staged=structuredClone(packageJson);
+  staged.dependencies??={};
+  for(const item of approved){
+    if(Object.hasOwn(staged.dependencies,item.name)||Object.hasOwn(currentLock.packages,packagePath(item.name)))
+      fail('npm_approval',`Approved npm archive collides with existing package: ${item.name}.`);
+    staged.dependencies[item.name]=`file:${item.path}`;
+  }
   for(const [name,spec] of Object.entries(staged.dependencies??{})){
     if(typeof spec!=='string'||!spec.startsWith('file:'))continue;
     const relative=spec.slice(5);
@@ -318,7 +456,8 @@ export function resolveOfflineNpmLock(root,stage,packageJson,currentLock,changed
   if(result.error||result.status!==0)fail('npm_lock',`Offline npm lock generation failed: ${(result.stderr||result.error?.message||'').slice(0,2000)}`);
   const lock=JSON.parse(readFileSync(path.join(mini,'package-lock.json'),'utf8'));
   if(lock.lockfileVersion!==3||!lock.packages?.[''])fail('npm_lock','npm did not produce a v3 lock.');
-  for(const [name,spec] of Object.entries(packageJson.dependencies??{})){
+  for(const [name,spec] of Object.entries({...packageJson.dependencies,
+    ...Object.fromEntries(approved.map(item=>[item.name,`file:${item.path}`]))})){
     if(typeof spec==='string'&&spec.startsWith('file:')){
       const entry=lock.packages[packagePath(name)];
       if(!entry||entry.integrity!==npmIntegrity(readFileSync(checked(root,spec.slice(5)))))
@@ -327,7 +466,7 @@ export function resolveOfflineNpmLock(root,stage,packageJson,currentLock,changed
     }
   }
   lock.packages[''].dependencies=structuredClone(packageJson.dependencies);
-  const changed=new Set(changedNames.map(packagePath));
+  const changed=new Set([...changedNames,...approved.map(item=>item.name)].map(packagePath));
   for(const key of Object.keys(lock.packages)){
     if(key!==''&&!changed.has(key)&&!Object.hasOwn(currentLock.packages,key))
       fail('npm_lock',`npm introduced an unapproved lock node: ${key}`);
@@ -345,9 +484,44 @@ export function resolveOfflineNpmLock(root,stage,packageJson,currentLock,changed
       finalLock.packages[key]=lock.packages[key];
     }else delete finalLock.packages[key];
   }
+  for(const item of approved){
+    const key=packagePath(item.name),entry=lock.packages[key];
+    if(!entry||entry.version!==item.version||entry.integrity!==item.integrity
+      ||entry.resolved!==`file:${item.path}`)
+      fail('npm_lock',`Approved npm lock entry differs: ${item.name}.`);
+    finalLock.packages[key]=entry;
+  }
   return finalLock;
 }
-function updates(root,context,changes,stage){
+function requiredNpmArchives(changes,priorNpmLock,approved){
+  const byName=new Map(approved.map(item=>[item.name,item]));
+  const used=new Set(),visited=new Set();
+  const inspect=(owner,manifest)=>{
+    for(const field of ['dependencies','optionalDependencies','peerDependencies']){
+      const dependencies=manifest[field]??{};
+      if(!dependencies||typeof dependencies!=='object'||Array.isArray(dependencies))
+        fail('package_dependency',`Malformed ${field} in ${owner}.`);
+      for(const [name,range] of Object.entries(dependencies)){
+        if(!PACKAGE.test(name)||typeof range!=='string'||!semver.validRange(range))
+          fail('package_dependency',`Invalid npm dependency ${owner} -> ${name}.`);
+        const existing=priorNpmLock.packages[packagePath(name)];
+        const version=existing?.link?priorNpmLock.packages[existing.resolved]?.version:existing?.version;
+        if(semver.valid(version)&&semver.satisfies(version,range))continue;
+        if(existing)fail('package_dependency',`Existing npm version cannot change: ${owner} -> ${name}@${range}.`);
+        const item=byName.get(name);
+        if(!item||!semver.satisfies(item.version,range))
+          fail('package_dependency',`Approved npm archive missing or incompatible: ${owner} -> ${name}@${range}.`);
+        used.add(name);
+        if(!visited.has(name)){visited.add(name);inspect(name,item.manifest);}
+      }
+    }
+  };
+  for(const change of changes.filter(item=>item.kind==='install'))inspect(change.name,change.verified.manifest);
+  if(used.size!==approved.length)
+    fail('npm_approval','An approved npm archive is not required by the selected module graph.');
+  return approved;
+}
+function updates(root,context,changes,stage,approvals){
   const config=json(root,'configuration/module-inventory.json');
   const packageJson=json(root,'package.json');
   const priorNpmLock=json(root,'package-lock.json',16*1024*1024);
@@ -375,21 +549,14 @@ function updates(root,context,changes,stage){
     if(change.kind==='remove')continue;
     const verified=verifyPackageBytes(root,change,config);
     change.verified=verified;
+    if(hasLifecycle(verified.manifest,verified.runtimeFiles))
+      fail('package_dependency',`npm lifecycle scripts refused: ${change.name}.`);
     const runtime=deterministicModuleArchive(verified.runtimeFiles);
     if(sha(runtime)!==change.candidate.lockNode.runtime.integrity)
       fail('candidate_archive','Canonical runtime archive differs from target lock.');
     change.artifacts=[{relative:change.candidate.lockNode.runtime.location.path,bytes:runtime},
       {relative:change.candidate.lockNode.validation.location.path,bytes:verified.validationBytes}];
-    for(const field of ['dependencies','optionalDependencies','peerDependencies']){
-      for(const [dependency,range] of Object.entries(verified.manifest[field]??{})){
-        const entry=priorNpmLock.packages[packagePath(dependency)];
-        const version=entry?.link?priorNpmLock.packages[entry.resolved]?.version:entry?.version;
-        if(typeof range!=='string'||!semver.validRange(range)||!semver.valid(version)
-          ||!semver.satisfies(version,range))
-          fail('package_dependency',`Existing npm lock does not satisfy ${change.name} -> ${dependency}@${range}.`);
-      }
-    }
-    if((verified.manifest.bundleDependencies??verified.manifest.bundledDependencies??[]).length)
+    if(hasBundledDependencies(verified.manifest))
       fail('package_dependency',`Bundled dependencies need separate qualification: ${change.name}.`);
     packageJson.dependencies[change.name]=`file:${verified.declaration.runtime.path}`;
     config.validationReceipts??={};
@@ -397,6 +564,7 @@ function updates(root,context,changes,stage){
     config.externalPackages=config.externalPackages.filter(item=>item.moduleId!==change.moduleId
       ||!semver.valid(item.version)||semver.gt(item.version,change.candidate.version));
   }
+  requiredNpmArchives(changes,priorNpmLock,approvals.archives);
   for(const change of changes.filter(item=>item.kind==='remove')){
     if(newPackages.has(change.name))continue;
     if(oldPackages.get(change.name)!==change.moduleId)fail('package_collision','Package ownership changed.');
@@ -409,7 +577,7 @@ function updates(root,context,changes,stage){
     delete config.validationReceipts;
   if(config.externalPackages&&config.externalPackages.length===0)delete config.externalPackages;
   const npmLock=changes.length?resolveOfflineNpmLock(root,stage,packageJson,priorNpmLock,
-    changes.map(item=>item.name)):priorNpmLock;
+    changes.map(item=>item.name),approvals.archives):priorNpmLock;
   for(const change of changes.filter(item=>item.kind==='install')){
     if(npmLock.packages[packagePath(change.name)]?.version!==change.candidate.version)
       fail('npm_lock',`npm package version differs for ${change.name}.`);
@@ -425,7 +593,7 @@ function updates(root,context,changes,stage){
   for(const [relative,value] of jsonTargets)replacements.push({relative,bytes:Buffer.from(serial(value))});
   return replacements;
 }
-function stageOperations(root,context,changes,stage,replacements){
+function stageOperations(root,context,changes,stage,replacements,approvals){
   const operations=[];
   for(const [index,item] of replacements.entries()){
     const staged=path.join(stage,'new',`json-${index}`);
@@ -454,6 +622,24 @@ function stageOperations(root,context,changes,stage,replacements){
     }else if(!changes.some(other=>other.kind==='install'&&other.name===change.name))
       operations.push({relative:dest,staged:null,backup:path.join(stage,'old',`package-${index}`),type:'directory'});
   }
+  for(const [index,item] of approvals.archives.entries()){
+    const dest=packagePath(item.name);
+    if(existsSync(checked(root,dest,{missing:true,directory:true})))
+      fail('npm_approval',`Approved npm package already exists: ${item.name}.`);
+    const archiveBytes=readFileSync(checked(root,item.path));
+    if(npmIntegrity(archiveBytes)!==item.integrity)
+      fail('npm_approval',`Approved npm archive changed during staging: ${item.name}.`);
+    const {files,manifest,inflatedBytes,hasBindingGyp}=inspectApprovedNpmArchive(archiveBytes,
+      {captureFiles:true});
+    if(inflatedBytes!==item.inflatedBytes||manifest.name!==item.name
+      ||manifest.version!==item.version||hasLifecycle(manifest,files,hasBindingGyp)
+      ||hasBundledDependencies(manifest))
+      fail('npm_approval',`Approved npm archive changed during staging: ${item.name}.`);
+    const base=path.join(stage,'new',`npm-${index}`);
+    emptyDirectory(root,base);
+    for(const file of files)writeExclusive(root,path.join(base,file.path),file.bytes);
+    operations.push({relative:dest,staged:base,backup:null,type:'directory'});
+  }
   // Artifacts and packages precede the composition switch; JSON snapshots complete the transaction.
   const compositionRelative=path.relative(root,context.loaded.compositionFile);
   const lockRelative=path.relative(root,context.loaded.lockFile);
@@ -467,9 +653,10 @@ function stageOperations(root,context,changes,stage,replacements){
     ...operations.filter(item=>lockPaths.has(item.relative)),
     ...operations.filter(item=>compositionPaths.has(item.relative))];
 }
-function commit(root,context,operations,stage){
+function commit(root,context,operations,stage,approvals){
   const journal={schemaVersion:1,status:'applying',planId:context.plan.planId,
-    planDigest:context.plan.planDigest,operations:operations.map(item=>({relative:item.relative,
+    planDigest:context.plan.planDigest,npmArchivesDigest:approvals.digest,
+    operations:operations.map(item=>({relative:item.relative,
       backup:item.backup,staged:item.staged,type:item.type}))};
   const journalPath=checked(root,path.join(stage,'journal.json'),{missing:true});
   writeExclusive(root,journalPath,serial(journal));
@@ -529,11 +716,13 @@ function commit(root,context,operations,stage){
     throw error;
   }
 }
-export function applyModulePlan({root=process.cwd(),planPath,compositionPath,syncProfiles=[],write=false}){
+export function applyModulePlan({root=process.cwd(),planPath,compositionPath,
+  syncProfiles=[],npmArchivesPath,write=false}){
   root=path.resolve(root);
   const flagsValue={'--plan':planPath,'--composition':compositionPath};
   const context=preflight(root,flagsValue);
   const changes=packageChanges(context);
+  const approvals=readApprovedNpmArchives(root,npmArchivesPath);
   context.companions=companionProfiles(root,context.loaded.compositionFile,changes,
     syncProfiles,context.solved);
   const profiles=[{path:path.relative(root,context.loaded.compositionFile).replaceAll('\\','/'),
@@ -547,6 +736,8 @@ export function applyModulePlan({root=process.cwd(),planPath,compositionPath,syn
     targetCompositionDigest:context.plan.targetCompositionDigest,
     targetLockDigest:context.plan.targetLockDigest,
     installability:changes.length?'not_checked':'not_applicable',
+    npmArchivesDigest:approvals.digest,
+    npmArchives:approvals.archives.map(({name,version,path,integrity})=>({name,version,path,integrity})),
     profiles,
     packages:changes.map(({kind,moduleId,name})=>({kind,moduleId,name})),
     changes:context.solved.summary.changes};
@@ -558,13 +749,15 @@ export function applyModulePlan({root=process.cwd(),planPath,compositionPath,syn
   if(existsSync(checked(root,stage,{missing:true,directory:true})))
     fail('incomplete_apply',`Inspect existing apply journal: ${stage}`);
   writeExclusive(root,active,serial({schemaVersion:1,planId:context.plan.planId,
-    planDigest:context.plan.planDigest,pid:process.pid}));
+    planDigest:context.plan.planDigest,npmArchivesDigest:approvals.digest,pid:process.pid}));
   let committed=false;
   try{
     emptyDirectory(root,stage);
-    const replacements=updates(root,context,changes,stage);
-    const operations=stageOperations(root,context,changes,stage,replacements);
+    const replacements=updates(root,context,changes,stage,approvals);
+    const operations=stageOperations(root,context,changes,stage,replacements,approvals);
     preflight(root,flagsValue);
+    if(readApprovedNpmArchives(root,npmArchivesPath).digest!==approvals.digest)
+      fail('npm_approval','npm archive approval changed during apply.');
     assertCompanionBases(root,context.companions);
     const fresh=companionProfiles(root,context.loaded.compositionFile,changes,
       syncProfiles,context.solved);
@@ -575,14 +768,17 @@ export function applyModulePlan({root=process.cwd(),planPath,compositionPath,syn
         baseCompositionDigest:item.baseCompositionDigest,baseLockDigest:item.baseLockDigest,
         targetCompositionDigest:item.targetCompositionDigest,targetLockDigest:item.targetLockDigest}))))
       fail('profile_stale','Companion profiles changed during apply.');
-    commit(root,context,operations,stage);
+    commit(root,context,operations,stage,approvals);
     committed=true;
     cleanupTree(root,stage);
     unlinkSync(checked(root,active));
     return {status:'applied_locally',planId:context.plan.planId,
       targetCompositionDigest:context.plan.targetCompositionDigest,
       targetLockDigest:context.plan.targetLockDigest,
-      packages:changes.map(({kind,moduleId,name})=>({kind,moduleId,name})),profiles};
+      packages:changes.map(({kind,moduleId,name})=>({kind,moduleId,name})),
+      npmArchivesDigest:approvals.digest,
+      npmArchives:approvals.archives.map(({name,version,path,integrity})=>({name,version,path,integrity})),
+      profiles};
   }catch(error){
     if(!committed&&existsSync(checked(root,stage,{missing:true,directory:true}))){
       const journalFile=checked(root,path.join(stage,'journal.json'),{missing:true});
@@ -600,6 +796,7 @@ export function runModuleApplyCli(argv,{cwd=process.cwd(),stdout=process.stdout,
     if(!options){stdout.write(usage);return 0;}
     stdout.write(`${JSON.stringify(applyModulePlan({root:cwd,planPath:options['--plan'],
       compositionPath:options['--composition'],syncProfiles:options.syncProfiles,
+      npmArchivesPath:options['--npm-archives'],
       write:!!options.write}))}\n`);
     return 0;
   }catch(error){stderr.write(`${error.code??'apply_error'}: ${error.message}\n`);return 1;}

@@ -112,6 +112,12 @@ export function PlanPreviewCard({plan, onAccept, disabled, baselineAcknowledged,
       {plan.disabledContributionCount > 0 && <p role="status" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
         {plan.disabledContributionCount} contribution(s) seront désactivées par ce plan. Vérifiez les modules dépendants et les intégrations facultatives avant d’accepter.
       </p>}
+      {plan.retiredPermissions.length > 0 && <div role="status" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+        <strong>Droits qui deviendront inactifs</strong>
+        <ul className="mt-1 list-inside list-disc">{plan.retiredPermissions.map(item =>
+          <li key={`${item.moduleId}:${item.permissionId}`}><code>{item.moduleId}:{item.permissionId}</code> · {item.origin}</li>)}</ul>
+        <p className="mt-1">Les attributions existantes restent dans l’historique et ne pourront plus autoriser une opération.</p>
+      </div>}
       <p className="text-xs text-slate-500">Composition cible : <code>{shortDigest(plan.targetCompositionDigest)}</code><br />
         Verrou cible : <code>{shortDigest(plan.targetLockDigest)}</code></p>
       {plan.baselineChanged && <label className="block rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">

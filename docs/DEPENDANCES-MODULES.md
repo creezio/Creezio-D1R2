@@ -1,5 +1,7 @@
 # Dépendances entre modules
 
+Le parcours opérateur utilise [l'admission d'archives vérifiées](MODULES-ADMISSION-OPERATEUR.md) puis [l'application d'un plan accepté](MODULES-APPLY-OPERATEUR.md). Les dépendances de modules restent distinctes des bibliothèques npm : ces dernières demandent des archives explicitement approuvées si elles ne sont pas déjà compatibles dans le verrou. Le retrait d'un module conserve dans le verrou les droits historiques inactifs et leur origine, sans supprimer les données ni rendre invalides les autres droits des comptes. Cette histoire doit survivre au renouvellement du verrou et à la synchronisation des profils.
+
 Contrat commun aux modules natifs, communs, propres à une application et tiers. Un module peut dépendre d'un module de toute autre origine ; être livré avec Creezio ne dispense pas de déclarer cette relation. Une dépendance n'est ni une copie du module fournisseur ni un nouveau service à héberger. Ce contrat complète le [standard module](STANDARD-MODULE.md) et sa [distribution](EXTENSIONS-THEMES-ECOSYSTEME.md).
 
 ## Exemple et distinction des responsabilités

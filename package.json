@@ -45,6 +45,7 @@
     "registry:operator": "node scripts/registry/operator.mjs",
     "data:modules": "node scripts/data/prepare-modules-settings.mjs --write",
     "modules:lock": "node scripts/modules/lock.mjs",
+    "modules:admit": "node scripts/modules/admit.mjs",
     "modules:apply": "node scripts/modules/apply.mjs",
     "test:modules": "node --test --test-concurrency=1 tests/modules/*.test.mjs",
     "data:conversations": "node scripts/data/prepare-native-module.mjs conversations --write",

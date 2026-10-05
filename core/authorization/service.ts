@@ -1,6 +1,6 @@
 import { authorize, copyAuthorizationTarget } from './authorize.ts';
 import { createD1AuthorizationStore } from './d1-store.ts';
-import { exactRecord, parseAccessPolicy,
+import { addsRetiredPermissionReferences, exactRecord, parseAccessPolicy,
   policySnapshot, validPolicyCatalog } from './policy.ts';
 import type { AccessPolicy } from './policy.ts';
 import type { AuthorizationDecision, AuthorizationTarget, PermissionDefinition } from './types.ts';
@@ -48,6 +48,7 @@ export function createAuthorizationService(db: IdentityDatabase, options: {
       if (!authorize(current.snapshot, MANAGEMENT, current.nowMs).allowed)
         return fail('forbidden');
       if (current.epoch !== expectedEpoch) return fail('conflict');
+      if (addsRetiredPermissionReferences(current.policy,policy,permissions)) return fail('invalid_input');
       const principals = new Set(current.principals.map(p => p.id));
       if (policy.memberships.some(m => !principals.has(m.principalId))
         || current.policy.contexts.some(c => !policy.contexts.some(next => next.id === c.id))) return fail('invalid_input');
@@ -95,6 +96,7 @@ export function createAuthorizationService(db: IdentityDatabase, options: {
       if (current.epoch !== input.expectedEpoch) return fail('conflict');
       const policy = applyAccessPolicyChanges(current.policy, changes);
       if (!policy || !validPolicyCatalog(policy, permissions)) return fail('invalid_input');
+      if (addsRetiredPermissionReferences(current.policy,policy,permissions)) return fail('invalid_input');
       const principals = new Set(current.principals.map(p => p.id));
       if (policy.memberships.some(m => !principals.has(m.principalId))) return fail('invalid_input');
       if (!authorize(current.snapshotFor(policy), MANAGEMENT, current.nowMs).allowed)

@@ -88,6 +88,8 @@ function buildLock(root,composition,allowedOrigins,writeCache,receipts=new Map()
     || allowedOrigins.some(origin=>typeof origin!=='string'||!origin.startsWith('https://')))
     throw new Error('Composition or allowed origins are invalid.');
   const modules=[],descriptors=[],ids=new Set();
+  if(existingLock?.modules?.some(node=>!composition.modules.some(item=>item.moduleId===node.moduleId)))
+    throw new Error('Module removal requires an accepted T11 plan with retired permission history.');
   for (const selection of composition.modules) {
     if (ids.has(selection.moduleId)) throw new Error(`Duplicate module: ${selection.moduleId}`);
     ids.add(selection.moduleId);
@@ -124,7 +126,9 @@ function buildLock(root,composition,allowedOrigins,writeCache,receipts=new Map()
       .map(dep=>({moduleId:dep.moduleId,version:versions.get(dep.moduleId)}));
   const lock={schemaVersion:'1.0.0',applicationId:composition.application.id,
     sdkVersion:composition.sdk.version,coreVersion:composition.sdk.coreVersion,
-    policy:structuredClone(composition.sdk.policy),compositionIntegrity:contractIntegrity(composition),modules};
+    policy:structuredClone(composition.sdk.policy),compositionIntegrity:contractIntegrity(composition),modules,
+    ...(existingLock?.retiredModules!==undefined
+      ?{retiredModules:structuredClone(existingLock.retiredModules)}:{})};
   const validation=validateComposition(composition,{lock,modules:descriptors});
   if (validation.errors.length) throw new Error(`Composition refused: ${validation.errors[0].code} ${validation.errors[0].path}`);
   return lock;
