@@ -1,6 +1,6 @@
-# @creezio/sdk 1.9.1 source candidate
+# @creezio/sdk 1.9.1
 
-This package is the public authoring surface for Creezio modules. SDK 1.9.1 is a source candidate, not a published release. SDK 1.9.0 is available as a verified GitHub Release, built from main `9ce856cb1cbb2f9fa576c5fae0f7b4be09488cb9` and qualified against twelve consuming modules. Official archive availability, source revision and integrity are recorded in [GitHub Releases](https://github.com/creezio/Creezio-D1R2/releases). Published archives remain immutable; consumers retain their verified archive until an explicit update.
+This package is the public authoring surface for Creezio modules. This source tree declares SDK 1.9.1; a version in source does not by itself establish archive publication. Official archive availability, source revision and integrity are recorded in [GitHub Releases](https://github.com/creezio/Creezio-D1R2/releases). The preceding SDK 1.9.0 archive was built from main `9ce856cb1cbb2f9fa576c5fae0f7b4be09488cb9` and qualified against twelve consuming modules. Published archives remain immutable; consumers retain their verified archive until an explicit update.
 
 SDK 1.8 adds an atomic file-link snapshot port for declared operations, read-only analytics collection flags and the Resend signed-webhook scheme. File-link snapshots remain private and commit with the business change and delivery intent; the port exposes neither SQL nor a credential. Collection flags come from the installation authority under current access and storage guards, including when business data uses an isolated database. They do not grant an analytics read or enable collection automatically. The delivery transport also exposes an explicit update retry; the operator determines eligibility after verifying the preserved artifact, schema receipt and remote versions.
 
@@ -16,7 +16,7 @@ SDK 1.9 also adds optional `DeliveryTransport.rejectUpdate` for an explicitly ve
 
 SDK 1.9.0 exports the pure Delivery controllers and view models through `delivery/controller`, `delivery/view-model`, `delivery/update-controller`, `delivery/update-view-model` and `delivery/types`. Delivery modules use these package subpaths so their runtime and validation archives do not depend on repository source paths.
 
-The 1.9.1 source candidate updates composition validation: different module IDs cannot share one npm package source, and disabled modules do not participate in effective dependency ordering. The already published 1.9.0 archive remains immutable.
+SDK 1.9.1 updates composition validation: different module IDs cannot share one npm package source, and disabled modules do not participate in effective dependency ordering. The already published 1.9.0 archive remains immutable.
 
 Earlier versions introduced the private widget image contract and `widgetCalls` binding (1.5), fixed canonical JSON command field validation (1.4.1), extended fixed GET connector resources (1.4), added linked file reads (1.3), and introduced the connector type and command journal subpaths (1.2). See [files/README.md](files/README.md) and [operations/README.md](operations/README.md). Modules import only declared package subpaths and declare the SDK version they require.
 
