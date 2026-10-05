@@ -1,5 +1,9 @@
 # Réalisation T30 — SDK distribué et starter de module
 
+## SDK 1.10.0 — candidat après PR #111
+
+La source intégrée sur main `008bc6c121e2af4ce1eb02b8d324fb4b4d4eca72` prépare le schéma de verrou `retiredModules` et sa validation par le sous-chemin public existant `@creezio/sdk/contracts/node`. Les permissions retirées conservent module, origine et identifiants à titre historique sans donner d’accès. Le rapprochement du solveur demeure interne au socle. La version source, les compositions et leurs verrous seront qualifiés sur le main exact ; ni cette préparation ni la PR fonctionnelle ne prouvent une archive SDK 1.10.0 publiée. Les archives antérieures gardent leurs identités et empreintes.
+
 ## Starter public 0.1.2/0.1.3 — recette T11 isolée du 5 octobre 2026
 
 La recette v6 a utilisé les archives publiques exactes du Starter pour installer 0.1.2, mettre à jour 0.1.3, désactiver puis réactiver le module dans un projet local sur D1/R2 Miniflare isolés. Le même enregistrement D1 et le même fichier R2 sont conservés ; les contributions générées UI/API/MCP/widgets disparaissent puis réapparaissent. Les refus de rétrogradation, d'origine divergente, de dépendance obligatoire désactivée, de plan périmé et de confirmation prématurée sont constatés. Le reçu hors dépôt `outputs/T11-REAL-PACKAGE-CYCLE-PASSED-V6-2026-10-05.json` a le SHA-256 `4469035bd8bd4d550b49e83678afaa25f1ebda1042b7455c4a330f51aa7261cc`.

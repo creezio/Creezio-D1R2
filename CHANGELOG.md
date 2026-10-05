@@ -2,6 +2,7 @@
 
 ## Cycle des extensions — candidat du 5 octobre 2026
 
+- SDK 1.10.0 est préparé comme candidat de distribution pour le verrou `retiredModules` et sa validation publique `contracts/node`. Les droits retirés restent des références historiques inactives ; aucun nouvel export auteur pour le solveur ni publication de paquet ne découle de ce changement de source.
 - `modules:admit` vérifie et admet les trois archives d'un module externe dans l'inventaire local, avec aperçu puis écriture explicite. L'admission seule ne l'installe pas dans l'application.
 - `modules:apply --npm-archives` permet d'approuver les bibliothèques nécessaires par nom, version et intégrité, puis de construire leur verrou hors ligne sans scripts d'installation. Les versions sans rapport avec le plan sont préservées.
 - Le verrou conserve l'origine et les droits retirés d'un module désinstallé ou mis à jour. Ces droits restent consultables mais n'autorisent aucune action et ne peuvent recevoir de nouvelles attributions. Le gestionnaire expose leur impact avant acceptation et dans son journal.
