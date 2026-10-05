@@ -41,6 +41,33 @@ test('typed module client uses declared T06 bindings and validates output',async
     'a missing lock digest cannot silently become an intent base');
 });
 
+test('plan reads remain compatible with older servers and reject a malformed handoff',async()=>{
+  const summary={status:'ready',changes:[],dependencyOrder:[],disabledContributionCount:0,
+    diagnosticCount:0,detailsPaged:false};
+  const plan={id:'plan-1',revision:1,planDigest:hash,inventoryDigest:hash,
+    baseCompositionDigest:hash,baseLockDigest:hash,targetCompositionDigest:hash,targetLockDigest:hash,
+    summary,acceptedByPrincipalId:'owner',acceptedAtMs:1,requiresPublication:true};
+  const legacy={plan,events:[{revision:1,planId:plan.id,planDigest:hash,actorPrincipalId:'owner',
+    baseCompositionDigest:hash,targetCompositionDigest:hash,occurredAtMs:1,eventKind:'plan-accepted'}],
+    status:'accepted_pending_publication',matchesRuntimeTarget:false};
+  const handoff={schemaVersion:1,status:'accepted_pending_publication',planId:plan.id,revision:1,
+    planDigest:hash,inventoryDigest:hash,baseCompositionDigest:hash,baseLockDigest:hash,
+    targetCompositionDigest:hash,targetLockDigest:hash,summaryDigest:hash,summary,
+    choices:{schemaVersion:1,base:{revision:0,compositionDigest:hash,lockDigest:hash,inventoryDigest:hash},
+      actions:[{kind:'disable',moduleId:'vendor.module'}]}};
+  let response=legacy;
+  const client=createModuleSettingsClient({audience:'admin',origin:'https://example.invalid',
+    async invoke(request){assert.equal(request.bindingId,MODULE_SETTINGS_BINDINGS.plansRead);return succeeded(response);},
+    async status(){throw new Error('unused');}});
+  assert.equal((await client.read(plan.id)).ok,true,'old Core has no handoff but journal remains readable');
+  response={...legacy,handoff};
+  assert.equal((await client.read(plan.id)).ok,true);
+  response={...legacy,handoff:{...handoff,baseCompositionDigest:'sha256-'+'b'.repeat(64)}};
+  assert.deepEqual(await client.read(plan.id),{ok:false,error:'invalid_response'});
+  response={...legacy,handoff:null};
+  assert.deepEqual(await client.read(plan.id),{ok:false,error:'invalid_response'});
+});
+
 function installedDocuments(content='\uFEFF'+'é😀'.repeat(5000)) {
   const common={moduleId:'module.one',origin:'https://example.invalid/module',version:'1.0.0',
     sourceRevision:'revision-1',runtimeIntegrity:hash,visibility:'public',

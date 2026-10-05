@@ -227,6 +227,24 @@ test('mutual optional declarations become a dependency cycle only when both inte
   refused(validate(refresh(value)), 'dependency.cycle');
 });
 
+test('disabled modules may retain selected integrations without an effective dependency cycle', () => {
+  const cart = namedModule('merchant.cart', 'merchant');
+  const catalogue = namedModule('creezio.catalogue', 'creezio');
+  dependsOn(cart, catalogue, { optional: true, usesOperation: false });
+  dependsOn(catalogue, cart, { optional: true, usesOperation: false });
+  const value = compositionCase([cart, catalogue]);
+  for (const selection of value.composition.modules) {
+    selection.enabled = false;
+    selection.integrations[0].enabled = true;
+  }
+  value.composition.exposure.admin.moduleIds = [];
+  value.composition.exposure.app.moduleIds = [];
+  accepted(validate(refresh(value)));
+  value.composition.modules[0].enabled = true;
+  value.composition.modules[1].enabled = true;
+  refused(validate(refresh(value)), 'dependency.cycle');
+});
+
 test('an optional direct action can be inactive while its widget retains autonomous message and context actions', () => {
   const cart = namedModule('merchant.cart', 'merchant');
   const catalogue = namedModule('creezio.catalogue', 'creezio');

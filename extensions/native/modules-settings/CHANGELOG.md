@@ -4,6 +4,8 @@
 
 Confirmation de publication par les deux empreintes runtime, annulation motivée d'un plan en attente et événement privé durable. L'historique reste lisible après un changement ultérieur du verrou. Le modèle `plan-outcomes` s'ajoute aux tables existantes ; aucune ligne antérieure n'est réécrite. Une nouvelle baseline différente doit être montrée et reconnue avant acceptation.
 
+La lecture d'un plan encore en attente expose une transmission JSON versionnée des choix et empreintes déjà vérifiés. La fiche Product Hub permet de la télécharger pour la commande opérateur `modules:apply` ; les plans clos n'exposent plus cette transmission. Aucune publication n'est déclenchée depuis l'interface.
+
 ## Non publié — statut des réglages fournisseur
 
 Le Product Hub ne déduit plus « Configuration manquante / Indisponible » d'un réglage fournisseur obligatoire absent de la composition. Son état reste non vérifié tant qu'aucun état runtime autorisé n'est fourni ; les réglages ordinaires obligatoires absents restent signalés comme manquants.

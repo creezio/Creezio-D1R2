@@ -105,14 +105,18 @@ function requiredBuildExports(descriptor) {
   return paths;
 }
 
-/** Read a future package from supplied bytes while the current version stays installed. No writes. */
-export function verifyCandidatePackageReceipt({currentNode,packageName,version,allowedOrigins,
+/** Read a new or future package from supplied bytes. No writes or module execution. */
+export function verifyCandidatePackageReceipt({currentNode,expectedModuleId,expectedOrigin,
+  packageName,version,allowedOrigins,
   runtimeBytes,validationBytes,receiptBytes,expected}) {
   const digest=/^sha256-[a-f0-9]{64}$/;
-  if(!currentNode||typeof packageName!=='string'
+  const updating=currentNode!==undefined&&currentNode!==null;
+  if(typeof packageName!=='string'
     ||!/^(?:@[a-z0-9._-]+\/)?[a-z0-9][a-z0-9._-]*$/.test(packageName)
-    ||!semver.valid(version)||!semver.valid(currentNode.version)
-    ||!semver.gt(version,currentNode.version)
+    ||!semver.valid(version)
+    ||(updating&&(!semver.valid(currentNode.version)||!semver.gt(version,currentNode.version)))
+    ||(!updating&&(typeof expectedModuleId!=='string'||!expectedModuleId
+      ||typeof expectedOrigin!=='string'||!expectedOrigin))
     ||!Array.isArray(allowedOrigins)||!expected
     ||![expected.runtime,expected.validation,expected.receipt].every(item=>digest.test(item))
     ||![runtimeBytes,validationBytes,receiptBytes].every(item=>item instanceof Uint8Array)
@@ -132,8 +136,10 @@ export function verifyCandidatePackageReceipt({currentNode,packageName,version,a
   catch{fail('candidate_manifest');}
   if(validateModule(descriptor).errors.length)fail('candidate_descriptor');
   if(pkg?.name!==packageName||pkg.version!==version
-    ||descriptor.identity.id!==currentNode.moduleId
-    ||descriptor.identity.origin!==currentNode.origin
+    ||descriptor.identity.id!==(updating?currentNode.moduleId:expectedModuleId)
+    ||descriptor.identity.origin!==(updating?currentNode.origin:expectedOrigin)
+    ||(expectedModuleId!==undefined&&descriptor.identity.id!==expectedModuleId)
+    ||(expectedOrigin!==undefined&&descriptor.identity.origin!==expectedOrigin)
     ||descriptor.identity.version!==version
     ||!allowedOrigins.includes(descriptor.identity.origin))fail('candidate_identity');
   if(receipt.module.id!==descriptor.identity.id||receipt.module.origin!==descriptor.identity.origin
@@ -145,7 +151,7 @@ export function verifyCandidatePackageReceipt({currentNode,packageName,version,a
     ||receipt.validation.integrity!==expected.validation
     ||receipt.runtime.location.kind!=='local'||receipt.validation.location.kind!=='local'
     ||receipt.runtime.location.path===receipt.validation.location.path
-    ||receipt.validation.location.path===currentNode.validation?.location?.path)
+    ||(updating&&receipt.validation.location.path===currentNode.validation?.location?.path))
     fail('candidate_receipt');
   exact(entries,descriptor.packaging.runtime.files.map(name=>`package/${name}`));
   exact(validationEntries,descriptor.packaging.validation.files);
@@ -170,6 +176,17 @@ export function verifyCandidatePackageReceipt({currentNode,packageName,version,a
     runtime:centralIntegrity,validation:expected.validation});
   return Object.freeze({candidateKey,moduleId:lockNode.moduleId,origin:lockNode.origin,
     version,source,descriptor,lockNode});
+}
+
+/** Return archive contents only after the complete detached receipt preflight succeeds. */
+export function readVerifiedCandidatePackageArchives(args) {
+  const candidate=verifyCandidatePackageReceipt(args);
+  const runtimeFiles=tarEntries(Buffer.from(args.runtimeBytes)).map(entry=>Object.freeze({
+    path:entry.path.slice('package/'.length),bytes:entry.bytes}));
+  const validationFiles=tarEntries(Buffer.from(args.validationBytes)).map(entry=>Object.freeze({
+    path:entry.path,bytes:entry.bytes}));
+  return Object.freeze({candidate,runtimeFiles:Object.freeze(runtimeFiles),
+    validationFiles:Object.freeze(validationFiles)});
 }
 
 /** Verify both independently acquired tarballs against one explicit, local receipt and installed package. */

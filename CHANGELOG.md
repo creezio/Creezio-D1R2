@@ -1,5 +1,12 @@
 # Changelog
 
+## Cycle des extensions — candidat du 5 octobre 2026
+
+- Le gestionnaire exporte les choix et empreintes du plan accepté depuis le journal Product Hub. Le plan reste en attente tant que le runtime publié ne correspond pas à sa cible.
+- La commande `modules:apply` recalcule ce plan puis applique les paquets, l'inventaire et la composition au checkout sous journal avec retour arrière en cas d'échec. Les dépendances npm existantes restent verrouillées ; aucune publication ni modification D1 n'est déclenchée par cette commande.
+- L'inventaire admet la première installation d'un paquet externe avec identité et origine explicites, archives vérifiées et origine autorisée. Une mise à jour conserve cette identité et exige une version supérieure.
+- Les compositions refusent les collisions de noms npm entre modules. Les cycles sont évalués sur les modules actifs ; une intégration facultative absente conserve le comportement autonome de son module.
+
 ## Grandes réponses des widgets — 3 octobre 2026
 
 - Le pont du chat conserve le widget d'une grande page CRM après relecture autorisée de l'exécution et vérification de son empreinte. Le modèle reçoit uniquement un marqueur court lorsque la carte est enregistrée ; les plafonds du contexte restent inchangés.

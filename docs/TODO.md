@@ -1,5 +1,9 @@
 # Backlog de réalisation
 
+## Priorité active — cycle des extensions, 5 octobre 2026
+
+Le parcours T11 est complété pour appliquer un plan accepté au projet : première installation d'un paquet externe vérifié, mise à jour individuelle et désactivation, puis publication et confirmation du runtime. Le moteur et l'export Product Hub sont prêts pour intégration ; la commande opérateur et la recette avec les archives publiques du Starter 0.1.2/0.1.3 restent en cours. Les dépendances facultatives et les refus d'incompatibilité font partie de cette même recette. Voir [T11](IMPLEMENTATION-T11.md). Aucun statut de livraison ni clôture exhaustive n'est déduit de cette préparation.
+
 ## Point de progression — 3 octobre 2026, livraison PR #107
 
 - **CRM — correctif préparé** : les grandes pages conformes peuvent conserver leur widget sans dépasser la limite du contexte modèle. Relecture autorisée et empreinte vérifiées, refus maintenu sans carte admissible ; tests ciblés et revue passés. CI complète et recette hébergée restent distinctes. Voir [T20](IMPLEMENTATION-T20.md).

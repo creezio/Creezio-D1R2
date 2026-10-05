@@ -1,5 +1,13 @@
 # T-11 — Modules et dépendances
 
+## Cycle des paquets externes — travail du 5 octobre 2026
+
+La demande porte sur l'installation, la mise à jour individuelle, la désactivation/réactivation, les intégrations facultatives et le refus des incompatibilités. La branche `core/t11-extension-lifecycle` complète l'admission d'une première archive externe et la transmission d'un plan accepté vers l'opérateur local. Le solveur et l'interface Product Hub restent communs aux modules natifs et aux paquets externes.
+
+Les corrections en cours ne constituent pas encore une livraison : les recettes doivent distinguer le plan accepté, son application exacte au projet, la publication et sa confirmation par le runtime. Les fichiers et données des modules retirés restent conservés. Les versions hors du périmètre accepté ne changent pas. Le parcours Sites passe par GPT pour publier ; le back-office ne publie pas lui-même le Site.
+
+La validation finale doit relier les archives exactes à une installation et une mise à jour effectives, vérifier les contributions UI/API/MCP/widgets après désactivation et réactivation, exercer les dépendances facultatives absentes/inactives/actives et les refus de version, origine, contrat public, retrait obligatoire et plan périmé. Les tests de trois éditeurs fictifs restent des preuves de contrat, distinctes des paquets métier distribués et des données conservées dans une application hébergée.
+
 PR #20 intégrée : candidat `76674c55556e23e919938161c40ed8dee7aa2254`, main `037c0a0be4062c8249fb4ea3277c112dd2fb9765`, arbre identique `0da0b71bc1b5c71e39c0894943f88124e94ebb9f`. 908/908 tests locaux, CI candidat 36299996090 et main 36300347412, types/build/Workerd courants, trois revues indépendantes sur le candidat. Recette navigateur complète sur c2da7ae, delta final vérifié pour fiches/titres/dépendances ; comportements idempotence inchangés, périmètres consignés dans les preuves. Aucune qualification Sites/ChatGPT prétendue.
 
 Tranche `core/t11-module-lifecycle`, depuis `f52a17b9` (PR #19, 866 tests), intégrée par PR #20. Le [backlog](TODO.md#T-11) conserve l'état global et les raccords restants ; les exigences [1101 à 1106](EXIGENCES.md#REQ-1101) sont inchangées.

@@ -1477,13 +1477,310 @@
             },
             "matchesRuntimeTarget": {
               "type": "boolean"
+            },
+            "handoff": {
+              "anyOf": [
+                {
+              "type": "object",
+              "properties": {
+                "schemaVersion": {
+                  "const": 1
+                },
+                "status": {
+                  "const": "accepted_pending_publication"
+                },
+                "planId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "planDigest": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 71,
+                  "pattern": "^sha256-[a-f0-9]{64}$"
+                },
+                "inventoryDigest": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 71,
+                  "pattern": "^sha256-[a-f0-9]{64}$"
+                },
+                "baseCompositionDigest": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 71,
+                  "pattern": "^sha256-[a-f0-9]{64}$"
+                },
+                "baseLockDigest": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 71,
+                  "pattern": "^sha256-[a-f0-9]{64}$"
+                },
+                "targetCompositionDigest": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 71,
+                  "pattern": "^sha256-[a-f0-9]{64}$"
+                },
+                "targetLockDigest": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 71,
+                  "pattern": "^sha256-[a-f0-9]{64}$"
+                },
+                "choices": {
+                  "type": "object",
+                  "properties": {
+                    "schemaVersion": {
+                      "const": 1
+                    },
+                    "base": {
+                      "type": "object",
+                      "properties": {
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "compositionDigest": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 71,
+                          "pattern": "^sha256-[a-f0-9]{64}$"
+                        },
+                        "lockDigest": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 71,
+                          "pattern": "^sha256-[a-f0-9]{64}$"
+                        },
+                        "inventoryDigest": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 71,
+                          "pattern": "^sha256-[a-f0-9]{64}$"
+                        }
+                      },
+                      "required": [
+                        "revision",
+                        "compositionDigest",
+                        "lockDigest",
+                        "inventoryDigest"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "actions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "add",
+                              "update",
+                              "enable",
+                              "disable",
+                              "remove",
+                              "configure",
+                              "integration"
+                            ]
+                          },
+                          "moduleId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          },
+                          "candidateKey": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          },
+                          "dependencyId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          },
+                          "settingId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          },
+                          "valueRef": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "audiences": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "admin",
+                                "app"
+                              ]
+                            },
+                            "maxItems": 2,
+                            "uniqueItems": true
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "moduleId"
+                        ],
+                        "additionalProperties": false,
+                        "allOf": [
+                          {
+                            "if": {
+                              "properties": {
+                                "kind": {
+                                  "enum": [
+                                    "add",
+                                    "enable"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "kind"
+                              ]
+                            },
+                            "then": {
+                              "properties": {
+                                "audiences": {}
+                              },
+                              "required": [
+                                "audiences"
+                              ]
+                            },
+                            "else": {
+                              "properties": {
+                                "audiences": false
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      "maxItems": 32
+                    }
+                  },
+                  "required": [
+                    "schemaVersion",
+                    "base",
+                    "actions"
+                  ],
+                  "additionalProperties": false
+                },
+                "summary": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ready",
+                        "blocked"
+                      ]
+                    },
+                    "changes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "moduleId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          },
+                          "action": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          }
+                        },
+                        "required": [
+                          "moduleId",
+                          "action"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "maxItems": 256
+                    },
+                    "dependencyOrder": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "maxItems": 256
+                    },
+                    "disabledContributionCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "diagnosticCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "detailsPaged": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "changes",
+                    "dependencyOrder",
+                    "disabledContributionCount",
+                    "diagnosticCount",
+                    "detailsPaged"
+                  ],
+                  "additionalProperties": false
+                },
+                "summaryDigest": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 71,
+                  "pattern": "^sha256-[a-f0-9]{64}$"
+                }
+              },
+              "required": [
+                "schemaVersion",
+                "status",
+                "planId",
+                "revision",
+                "planDigest",
+                "inventoryDigest",
+                "baseCompositionDigest",
+                "baseLockDigest",
+                "targetCompositionDigest",
+                "targetLockDigest",
+                "choices",
+                "summary",
+                "summaryDigest"
+              ],
+              "additionalProperties": false
+            },
+                {"type": "null"}
+              ]
             }
           },
           "required": [
             "plan",
             "events",
             "status",
-            "matchesRuntimeTarget"
+            "matchesRuntimeTarget",
+            "handoff"
           ],
           "additionalProperties": false
         }

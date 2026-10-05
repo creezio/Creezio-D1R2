@@ -10,7 +10,8 @@ import {deterministicModuleArchive} from '../../scripts/modules/archives.mjs';
 import {externalPackageCandidate,mergeExternalPackageCandidates} from '../../scripts/build/compose-runtime.mjs';
 import {solveModulePlan} from '../../sdk/modules/solver.mjs';
 import {temporaryDirectory} from '../quality/temporary.mjs';
-import {verifyCandidatePackageReceipt,verifyPackageReceipt,PackageReceiptError}
+import {verifyCandidatePackageReceipt,readVerifiedCandidatePackageArchives,
+  verifyPackageReceipt,PackageReceiptError}
   from '../../scripts/modules/package-receipt.mjs';
 
 const sha=bytes=>`sha256-${createHash('sha256').update(bytes).digest('hex')}`;
@@ -182,7 +183,35 @@ test('an external candidate is previewed beside the unchanged selected version',
   assert.equal(plan.next.lock.modules[0].version,'1.0.1');
   assert.equal(plan.next.composition.modules[0].source.name,packageName);
   assert.deepEqual(current,before);
+  const first=compositionCase([]);
+  const incoming={...external,origin:updated.identity.origin};
+  const firstCandidate=externalPackageCandidate(externalRoot,incoming,first.composition,first.lock,
+    [updated.identity.origin]);
+  assert.deepEqual(firstCandidate,candidate);
+  const firstInventory=mergeExternalPackageCandidates({root:externalRoot,
+    composition:first.composition,lock:first.lock,installedInventory:{candidates:[]},
+    externalPackages:[incoming],allowedOrigins:[updated.identity.origin]});
+  const firstCurrent={...first,descriptors:[],revision:0};
+  const firstPlan=solveModulePlan(firstCurrent,{schemaVersion:1,base:{revision:0,
+    compositionDigest:contractIntegrity(first.composition),lockDigest:contractIntegrity(first.lock),
+    inventoryDigest:firstInventory.digest},actions:[{kind:'add',moduleId:updated.identity.id,
+    candidateKey:firstCandidate.candidateKey,audiences:['admin']}]},firstInventory);
+  assert.equal(firstPlan.summary.status,'ready',JSON.stringify(firstPlan.diagnostics));
+  assert.equal(firstPlan.next.composition.modules[0].source.name,packageName);
+  assert.equal(firstPlan.next.lock.modules[0].version,'1.0.1');
+  assert.deepEqual(firstCurrent,{...first,descriptors:[],revision:0});
+  const extracted=readVerifiedCandidatePackageArchives({...input,currentNode:undefined,
+    expectedModuleId:updated.identity.id,expectedOrigin:updated.identity.origin});
+  assert.equal(extracted.candidate.candidateKey,firstCandidate.candidateKey);
+  assert.ok(extracted.runtimeFiles.some(item=>item.path==='module/manifest.json'));
+  assert.ok(extracted.validationFiles.length>0);
+  for(const invalid of [{...external},{...incoming,moduleId:'other.module'},
+    {...incoming,origin:'https://example.invalid/other'}])
+    assert.throws(()=>externalPackageCandidate(externalRoot,invalid,first.composition,first.lock,
+      [updated.identity.origin]));
   assert.throws(()=>verifyCandidatePackageReceipt({...input,version:'1.0.0'}),
+    error=>error instanceof PackageReceiptError&&error.code==='candidate_input');
+  assert.throws(()=>verifyCandidatePackageReceipt({...input,version:'0.9.0'}),
     error=>error instanceof PackageReceiptError&&error.code==='candidate_input');
   assert.throws(()=>verifyCandidatePackageReceipt({...input,allowedOrigins:[]}),
     error=>error instanceof PackageReceiptError&&error.code==='candidate_identity');

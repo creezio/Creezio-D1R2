@@ -82,11 +82,21 @@ function PendingNotice({controller, snapshot, onResolved}: {controller: ModuleSe
     {feedback && <p className="mt-2">{feedback}</p>}
   </div>;
 }
-function AcceptedNotice({value}: {value: ModulePlanAcceptance | null}) {
+function AcceptedNotice({value, onOpen}: {value: ModulePlanAcceptance | null; onOpen: (planId: string) => void}) {
   return value && <div role="status" className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
     <strong>Plan accepté, publication en attente.</strong> Révision {value.revision} · référence <code>{value.planId}</code>.
     La livraison en cours reste la référence jusqu’à la construction et la publication vérifiées.
+    <Button size="sm" variant="outline" className="ml-2" onClick={() => onOpen(value.planId)}>
+      Préparer la transmission</Button>
   </div>;
+}
+function downloadPlanHandoff(value: NonNullable<ModulePlanRead['handoff']>) {
+  const url = URL.createObjectURL(new Blob([`${JSON.stringify(value, null, 2)}\n`],
+    {type: 'application/json'}));
+  const link = document.createElement('a');
+  link.href = url; link.download = `creezio-module-plan-${value.planId}.json`;
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 function PlanRecord({value, controller, disabled, onChanged}: {value: ModulePlanRead | null;
   controller: ModuleSettingsController | null; disabled: boolean; onChanged: () => void}) {
@@ -115,6 +125,26 @@ function PlanRecord({value, controller, disabled, onChanged}: {value: ModulePlan
       <ul className="list-inside list-disc">{value.plan.summary.changes.map((change, index) =>
         <li key={`${change.moduleId}:${index}`}><code>{change.moduleId}</code> · {change.action}</li>)}</ul>
       {value.status === 'accepted_pending_publication' && <div className="space-y-2 border-t border-slate-200 pt-3">
+        {value.handoff && <details className="rounded-md border border-slate-200 p-3 text-sm">
+          <summary className="cursor-pointer font-medium">Appliquer le plan</summary>
+          <div className="mt-3 space-y-2">
+          <p>Exportez le plan vérifié, puis utilisez-le dans le checkout de cette application.
+            La commande prépare la composition cible ; la publication suit le canal autorisé pour Docker,
+            Cloudflare ou le même Site GPT.</p>
+          <Button size="sm" variant="outline" disabled={busy || disabled}
+            onClick={() => downloadPlanHandoff(value.handoff!)}>Télécharger le plan JSON</Button>
+          <p className="font-mono text-xs break-all">Composition cible : {value.handoff.targetCompositionDigest}<br />
+            Verrou cible : {value.handoff.targetLockDigest}</p>
+          <p className="text-xs">Dans le checkout applicatif, prévisualiser :
+            <code className="block break-all">npm run modules:apply -- --plan &lt;fichier.json&gt; --composition &lt;composition.json&gt;</code>
+            Puis appliquer après contrôle :
+            <code className="block break-all">npm run modules:apply -- --plan &lt;fichier.json&gt; --composition &lt;composition.json&gt; --write</code>
+          </p>
+          <p className="text-xs">Après construction et publication, relisez ce plan puis confirmez seulement si
+            la composition et le verrou de la livraison correspondent à ces cibles. Sur Sites, la mise à jour
+            passe par la publication autorisée du même Site ; cette interface ne publie pas elle-même.</p>
+          </div>
+        </details>}
         <p>{value.matchesRuntimeTarget
           ? 'La livraison courante correspond exactement à la composition et au verrou cibles. Confirmez sa publication pour clore ce plan.'
           : 'La livraison courante diffère de la cible. Vous pouvez annuler explicitement ce plan avec un motif conservé dans le journal.'}</p>
@@ -309,7 +339,7 @@ export function ModulesListView(props: RuntimeViewProps) {
     <PendingNotice controller={controller} snapshot={snapshot} onResolved={value => {
       if (value.status === 'accepted_pending_publication') setAccepted(value);
       void journal.refresh();}} />
-    <AcceptedNotice value={accepted} />
+    <AcceptedNotice value={accepted} onOpen={planId => {setTab('journal'); void journal.open(planId);}} />
     {error && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     <Tabs value={tab} onValueChange={setTab}><TabsList><TabsTrigger value="catalogue">Catalogue</TabsTrigger>
       <TabsTrigger value="journal">Journal</TabsTrigger></TabsList>
@@ -455,7 +485,7 @@ export function ModuleDetailView(props: RuntimeViewProps) {
     <PendingNotice controller={controller} snapshot={snapshot} onResolved={value => {
       if (value.status === 'accepted_pending_publication') setAccepted(value);
       void journal.refresh();}} />
-    <AcceptedNotice value={accepted} />
+    <AcceptedNotice value={accepted} onOpen={planId => {setTab('journal'); void journal.open(planId);}} />
     {error && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     {loading && !detail && <p className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Chargement…</p>}
     {detail && <Tabs value={tab} onValueChange={setTab}><TabsList className="h-auto max-w-full flex-wrap">

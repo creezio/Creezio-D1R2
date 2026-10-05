@@ -319,7 +319,8 @@ export async function plansAccept(input: JsonValue, context: OperationContext): 
   return {output, plans: [headPlan, context.data.planCreate('plans', {values: planValues}),
     context.data.planCreate('journal', {values: journalValues})]};
 }
-function acceptedPlan(record: DataRecord): ModuleAcceptedPlan {
+function acceptedPlan(record: DataRecord): ModuleAcceptedPlan &
+  {choices: ModuleChoiceV1; summaryDigest: string} {
   try {
     if (typeof record.summary_json !== 'string' || bytes(record.summary_json) > 8192
       || typeof record.choices_json !== 'string' || bytes(record.choices_json) > 8192)
@@ -345,6 +346,7 @@ function acceptedPlan(record: DataRecord): ModuleAcceptedPlan {
       inventoryDigest: record.inventory_digest, baseCompositionDigest: record.base_composition_digest,
       baseLockDigest: record.base_lock_digest, targetCompositionDigest: record.target_composition_digest,
       targetLockDigest: record.target_lock_digest, summary: summary as unknown as ModuleAcceptedPlan['summary'],
+      choices: choices as unknown as ModuleChoiceV1, summaryDigest: record.summary_digest,
       acceptedByPrincipalId: record.accepted_by_principal_id, acceptedAtMs: record.accepted_at_ms,
       requiresPublication: record.requires_publication};
   } catch { throw new OperationError('unavailable'); }
@@ -437,7 +439,8 @@ export async function plansRead(input: JsonValue, context: OperationContext): Pr
   if (!id(planId)) throw new OperationError('invalid_input');
   const stored = await context.data.get('plans', {key: {id: planId}});
   if (!stored) throw new OperationError('not_found');
-  const plan = acceptedPlan(stored), entry = await context.data.get('journal', {key: {revision: plan.revision}});
+  const storedPlan = acceptedPlan(stored), {choices, summaryDigest, ...plan} = storedPlan;
+  const entry = await context.data.get('journal', {key: {revision: plan.revision}});
   if (!entry) throw new OperationError('unavailable');
   if (entry.plan_id !== plan.id || entry.plan_digest !== plan.planDigest
     || entry.target_composition_digest !== plan.targetCompositionDigest)
@@ -452,10 +455,16 @@ export async function plansRead(input: JsonValue, context: OperationContext): Pr
   const inventory = host(context);
   const matchesRuntimeTarget = plan.targetCompositionDigest === actualDigest(inventory.current.composition)
     && plan.targetLockDigest === actualDigest(inventory.current.lock);
+  const status = outcome?.eventKind === 'plan-effective' ? 'effective'
+    : outcome?.eventKind === 'plan-cancelled' ? 'cancelled' : 'accepted_pending_publication';
   const output: ModulePlanRead = {plan, events: outcome ? [journalEntry(entry), outcome] : [journalEntry(entry)],
-    status: outcome?.eventKind === 'plan-effective' ? 'effective'
-      : outcome?.eventKind === 'plan-cancelled' ? 'cancelled' : 'accepted_pending_publication',
-    matchesRuntimeTarget};
+    status, matchesRuntimeTarget,
+    handoff: status === 'accepted_pending_publication' ? {
+      schemaVersion: 1, status, planId: plan.id, revision: plan.revision,
+      planDigest: plan.planDigest, inventoryDigest: plan.inventoryDigest,
+      baseCompositionDigest: plan.baseCompositionDigest, baseLockDigest: plan.baseLockDigest,
+      targetCompositionDigest: plan.targetCompositionDigest, targetLockDigest: plan.targetLockDigest,
+      choices, summary: plan.summary, summaryDigest} : null};
   return {output};
 }
 export async function journalList(input: JsonValue, context: OperationContext): Promise<OperationHandlerResult> {

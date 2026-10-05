@@ -10,3 +10,4 @@ Ne fermer une ligne qu’avec les preuves du candidat correspondant.
 
 - T16 en cours : widget `module-detail` lecture seule sur `catalog.detail`, ressource MCP Apps compilée et suite `widgets` requise ; recette multi-module et hôtes externes par l'orchestrateur.
 - Cycle durable des plans en revue : confirmation native sur les deux digests, annulation motivée et résultat historisé dans une table privée additive. La recette de migration des plans antérieurs, ainsi que l'intégration Sites/Docker/Cloudflare, doivent être qualifiées sur le SHA final avant de déclarer le cycle livré.
+- Transmission opérateur candidate : export JSON du plan accepté encore en attente depuis la lecture administrative, commande `modules:apply` prévisualisée puis appliquée explicitement, et confirmation séparée après publication. Tests ciblés service/client/contrat requis ; recette de bout en bout par hébergement encore ouverte.

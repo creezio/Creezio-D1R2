@@ -1,5 +1,7 @@
 # Repères du dépôt
 
+`scripts/modules/apply.mjs` applique localement le plan de modules accepté et exporté par `plans.read`. `tests/modules/apply.test.mjs` couvre les verrous npm hors ligne, les plans périmés et l'application au checkout. Le parcours et la récupération après interruption sont décrits dans [le guide opérateur](docs/MODULES-APPLY-OPERATEUR.md) ; la publication et sa confirmation restent des étapes distinctes.
+
 `sdk/widgets/mcp-apps-bridge.ts` raccorde les capacités MCP Apps de l'hôte interne. Le panneau natif `extensions/native/conversations/ui/widget-message.tsx` prend en charge les demandes d'ouverture de lien ; `sdk/widgets/provider.tsx` borne leur courte conservation en mémoire pendant une relecture d'accès, et `tests/widgets/host-link-continuity.test.mjs` vérifie identité, catalogue, fermeture et révocation. Le sandbox conserve ses permissions. Ce bridge et ce provider internes ne sont pas des exports du paquet public SDK ; voir [T16](docs/IMPLEMENTATION-T16.md).
 
 Le parcours d'achat Stripe utilise les opérations du même `extensions/connectors/stripe/module/service.ts`. `ui/front.tsx` expose la vue dynamique des offres ; `ui/widgets/offers.ts`, `checkout-status.ts` et `commerce.ts` portent les interfaces conversationnelles partagées avec MCP app. Le manifeste distingue les droits administratifs et les achats app. `tests/stripe/integration.test.mjs` vérifie leur raccord D1 et les refus entre principaux ; `data/schema/stripe.sql` reste généré centralement. Voir [T27](docs/IMPLEMENTATION-T27.md) pour les preuves et limites.

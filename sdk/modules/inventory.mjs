@@ -48,7 +48,8 @@ const ordered=(left,right)=>left.moduleId.localeCompare(right.moduleId)
   || left.version.localeCompare(right.version)||left.candidateKey.localeCompare(right.candidateKey);
 
 /** Node/build only. Every entry comes from an already present source and real cached artifact bytes. */
-function compile({root,candidates,allowedOrigins,cacheDir='.creezio/module-artifacts',selectedCount=0}) {
+function compile({root,candidates,allowedOrigins,cacheDir='.creezio/module-artifacts',selectedCount=0,
+  writeCache=true,allowUncached=false}) {
   if (typeof root!=='string'||!Array.isArray(candidates)||candidates.length>1000
     || !Array.isArray(allowedOrigins)||allowedOrigins.some(origin=>typeof origin!=='string')
     || !Number.isSafeInteger(selectedCount)||selectedCount<0||selectedCount>candidates.length) fail('input');
@@ -88,6 +89,7 @@ function compile({root,candidates,allowedOrigins,cacheDir='.creezio/module-artif
     if(item.source.kind==='package'&&node.validation?.location?.kind==='local'
       &&node.validation.location.path.startsWith('.creezio/packages/')&&!detachedValidation)fail('receipt_missing',moduleId);
     const artifact=packModuleArtifacts({root:absoluteRoot,moduleDirectory:directory,moduleId,descriptor,cacheDir,
+      writeCache,allowUncached,
       expected:{runtime:node.runtime?.integrity,validation:node.validation?.integrity},
       detachedValidation,cacheDetachedValidation,
       captureRuntimeFiles:index<selectedCount?kinds.map(kind=>installed[kind].path):[]});

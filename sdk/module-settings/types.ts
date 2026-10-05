@@ -99,6 +99,22 @@ export interface ModuleAcceptedPlan {
   readonly acceptedAtMs: number;
   readonly requiresPublication: boolean;
 }
+/** Verified, read-only handoff for applying one still-pending plan in an operator checkout. */
+export interface ModulePlanHandoffV1 {
+  readonly schemaVersion: 1;
+  readonly status: 'accepted_pending_publication';
+  readonly planId: string;
+  readonly revision: number;
+  readonly planDigest: string;
+  readonly inventoryDigest: string;
+  readonly baseCompositionDigest: string;
+  readonly baseLockDigest: string;
+  readonly targetCompositionDigest: string;
+  readonly targetLockDigest: string;
+  readonly choices: ModuleChoiceV1;
+  readonly summary: ModulePlanSummaryV1;
+  readonly summaryDigest: string;
+}
 export interface ModuleJournalEntry {
   readonly revision: number;
   readonly planId: string;
@@ -117,6 +133,8 @@ export interface ModulePlanRead {
   readonly events: readonly ModuleJournalEntry[];
   readonly status: 'accepted_pending_publication' | 'effective' | 'cancelled';
   readonly matchesRuntimeTarget: boolean;
+  /** Absent when reading a plan from a server predating the handoff contract. */
+  readonly handoff?: ModulePlanHandoffV1 | null;
 }
 export interface ModuleJournalPage {
   readonly items: readonly ModuleJournalEntry[];

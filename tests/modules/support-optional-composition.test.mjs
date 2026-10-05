@@ -41,3 +41,44 @@ test('explicit optional integrations expose Support links only with the consumed
   const refused=validateComposition(value,{modules,lock:lockFor(value,modules)});
   assert.ok(refused.errors.some(error=>error.code==='dependency.contract'||error.code==='ref.private'));
 });
+
+test('disabling an optional provider removes only its Support contributions and preserves explicit choices',()=>{
+  const {value,modules}=composition(true);
+  const support=modules.find(item=>item.identity.id==='creezio.support');
+  const selected=value.modules.find(item=>item.moduleId==='creezio.support');
+  const choices=structuredClone(selected.integrations);
+  const crm=value.modules.find(item=>item.moduleId==='creezio.crm');
+  const exposure=structuredClone(value.exposure);
+  crm.enabled=false;
+  for(const audience of ['admin','app'])value.exposure[audience].moduleIds=
+    value.exposure[audience].moduleIds.filter(id=>id!==crm.moduleId);
+  const inactive=validateComposition(value,{modules,lock:lockFor(value,modules)});
+  assert.deepEqual(inactive.errors,[]);
+  const disabled=new Set(inactive.metrics.disabledContributions
+    .filter(item=>item.moduleId==='creezio.support').map(item=>item.path));
+  support.contracts.operations.forEach((operation,index)=>{
+    assert.equal(disabled.has(`/contracts/operations/${index}`),
+      Boolean(operation.requiresModules?.includes('creezio.crm')),operation.id);
+  });
+  assert.deepEqual(selected.integrations,choices);
+  assert.equal(inactive.metrics.disabledContributions.some(item=>
+    item.moduleId==='creezio.support'&&item.path.startsWith('/contracts/ui/views/')),false);
+  crm.enabled=true;
+  value.exposure=exposure;
+  const restored=validateComposition(value,{modules,lock:lockFor(value,modules)});
+  assert.deepEqual(restored.errors,[]);
+  assert.equal(restored.metrics.disabledContributions.some(item=>item.moduleId==='creezio.support'),false);
+});
+
+test('an installed optional provider stays disconnected until its integration is explicitly enabled',()=>{
+  const {value,modules}=composition(true);
+  value.modules.find(item=>item.moduleId==='creezio.support').integrations
+    .forEach(item=>{item.enabled=false;});
+  const result=validateComposition(value,{modules,lock:lockFor(value,modules)});
+  assert.deepEqual(result.errors,[]);
+  const disabled=new Set(result.metrics.disabledContributions
+    .filter(item=>item.moduleId==='creezio.support').map(item=>item.path));
+  modules.find(item=>item.identity.id==='creezio.support').contracts.operations.forEach((operation,index)=>{
+    assert.equal(disabled.has(`/contracts/operations/${index}`),Boolean(operation.requiresModules?.length),operation.id);
+  });
+});
