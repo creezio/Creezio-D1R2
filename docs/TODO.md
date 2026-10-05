@@ -305,7 +305,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-08](#T-08) | P1 | Registre minimal et identité de publication | [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | Registre publié et utilisé ; parcours email et autres raccords ouverts |
 | [T-09](#T-09) | P1 | Première tranche sur Sites | [T-07](#T-07), [T-08](#T-08) | Original domix v6/Core d7 et Lab v2 publiés ; connexion ChatGPT domix et compléments hébergés ouverts |
 | [T-10](#T-10) | P2 | MCP, OAuth et accès machine | [T-06](#T-06) ; recette Sites : [T-09](#T-09) | API/MCP admin et app livrés et qualifiés sur témoins ; autres refus et approbations ouverts, compléments OAuth reportés |
-| [T-11](#T-11) | P3 | SDK et cycle de vie des modules | [T-02](#T-02), [T-06](#T-06), [T-10](#T-10) | Cycle et dépendances livrés ; adoptions ciblées vérifiées, autres recettes ouvertes |
+| [T-11](#T-11) | P3 | SDK et cycle de vie des modules | [T-02](#T-02), [T-06](#T-06), [T-10](#T-10) | Vérifié — cycle des extensions livré sur Linux, Cloudflare et GPT Sites ; validation utilisateur T39 distincte |
 | [T-12](#T-12) | P3 | Documentation vivante des modules | [T-11](#T-11) | Vérifié |
 | [T-13](#T-13) | P4 | Fronts, thèmes et headless | [T-07](#T-07), [T-11](#T-11) | Deux thèmes et headless livrés ; autres interactions et profils ouverts |
 | [T-14](#T-14) | P4 | Conversations et progression persistante | [T-06](#T-06), [T-07](#T-07), [T-11](#T-11) | Chat natif livré ; restauration qualifiée sur Original v6, reload du témoin Meili Linux encore non qualifié |
