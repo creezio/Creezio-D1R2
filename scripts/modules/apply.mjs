@@ -11,8 +11,9 @@ import {loadModuleHostInventory,loadRuntimeComposition} from '../build/compose-r
 import {readVerifiedCandidatePackageArchives} from './package-receipt.mjs';
 import {deterministicModuleArchive} from './archives.mjs';
 import {modulePlanDigest,solveModulePlan} from '../../sdk/modules/solver.mjs';
+import {contractIntegrity,validateComposition} from '../../sdk/contracts/validate.mjs';
 
-const usage='Usage: node scripts/modules/apply.mjs --plan HANDOFF.json --composition configuration/composition.json [--write]\n';
+const usage='Usage: node scripts/modules/apply.mjs --plan HANDOFF.json --composition configuration/composition.json [--sync-profile configuration/composition.NAME.json]... [--write]\n';
 const DIGEST=/^sha256-[a-f0-9]{64}$/;
 const ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const PACKAGE=/^(?:@[a-z0-9._-]+\/)?[a-z0-9][a-z0-9._-]*$/;
@@ -24,10 +25,16 @@ const serial=value=>`${JSON.stringify(value,null,2)}\n`;
 
 function flags(argv){
   if(argv.length===1&&argv[0]==='--help')return null;
-  const result={};
+  const result={syncProfiles:[]};
   for(let index=0;index<argv.length;index++){
     const key=argv[index];
     if(key==='--write'){if(result.write)fail('arguments',usage.trim());result.write=true;continue;}
+    if(key==='--sync-profile'){
+      const value=argv[++index];
+      if(!value||value.startsWith('--')||result.syncProfiles.includes(value)
+        ||result.syncProfiles.length>=32)fail('arguments',usage.trim());
+      result.syncProfiles.push(value);continue;
+    }
     if(!['--plan','--composition'].includes(key)||result[key]||!argv[index+1]
       ||argv[index+1].startsWith('--'))fail('arguments',usage.trim());
     result[key]=argv[++index];
@@ -132,9 +139,21 @@ function packageChanges({loaded,host,solved}){
     fail('package_collision','Multiple module changes affect one npm package.');
   return changes;
 }
-function assertNoOtherProfileUse(root,currentFile,changes){
-  const names=new Set(changes.map(item=>item.name));
+function companionProfiles(root,currentFile,changes,syncProfiles,solved){
+  if(!Array.isArray(syncProfiles)||syncProfiles.length>32
+    ||syncProfiles.some(item=>typeof item!=='string'))fail('profile_arguments','Invalid sync profiles.');
+  if(!changes.length){if(syncProfiles.length)fail('profile_unused','No package change to synchronize.');
+    return [];}
+  const names=new Set(changes.map(item=>item.name)), requested=new Set();
+  for(const profile of syncProfiles){
+    const relative=profile.replaceAll('\\','/');
+    if(!/^configuration\/composition(?:\.[a-z0-9._-]+)?\.json$/.test(relative)
+      ||relative.endsWith('.lock.json')||requested.has(relative)
+      ||checked(root,relative)===currentFile)fail('profile_arguments',`Invalid sync profile: ${profile}`);
+    requested.add(relative);
+  }
   const configuration=checked(root,'configuration',{directory:true});
+  const companions=[];
   for(const entry of readdirSync(configuration,{withFileTypes:true})){
     if(!/^composition(?:\.[a-z0-9._-]+)?\.json$/.test(entry.name)
       ||entry.name.endsWith('.lock.json'))continue;
@@ -143,9 +162,72 @@ function assertNoOtherProfileUse(root,currentFile,changes){
     const relative=`configuration/${entry.name}`;
     if(checked(root,relative)===currentFile)continue;
     const profile=json(root,relative);
-    if(profile.modules?.some(selection=>selection.source?.kind==='package'
-      &&names.has(selection.source.name)))
-      fail('shared_package',`Another composition profile uses a changed package: ${relative}`);
+    if(!Array.isArray(profile.modules))fail('profile_invalid',`Invalid composition profile: ${relative}`);
+    const affected=profile.modules.filter(selection=>selection.source?.kind==='package'
+      &&names.has(selection.source.name));
+    if(!affected.length){if(requested.has(relative))fail('profile_unused',`Profile does not use a changed package: ${relative}`);
+      continue;}
+    if(!requested.has(relative))fail('shared_package',`Another composition profile uses a changed package: ${relative}`);
+    const loaded=loadRuntimeComposition({root,compositionPath:relative});
+    const nextComposition=structuredClone(loaded.composition);
+    const nextLock=structuredClone(loaded.lock);
+    const descriptors=new Map(loaded.located.map(item=>[item.descriptor.identity.id,item.descriptor]));
+    const affectedIds=new Set(affected.map(item=>item.moduleId));
+    for(const selection of nextComposition.modules.filter(item=>item.source?.kind==='package'
+      &&names.has(item.source.name))){
+      const change=changes.find(item=>item.name===selection.source.name);
+      if(!change||selection.moduleId!==change.moduleId)fail('profile_identity',`Package owner differs: ${relative}`);
+      const oldNode=nextLock.modules.find(item=>item.moduleId===selection.moduleId);
+      const target=solved.next.composition.modules.find(item=>item.moduleId===selection.moduleId);
+      if(!oldNode||!descriptors.has(selection.moduleId)
+        ||descriptors.get(selection.moduleId).identity.origin!==oldNode.origin)
+        fail('profile_identity',`Package identity differs: ${relative}`);
+      if(change.kind==='remove'){
+        if(target)fail('profile_identity',`Package source switch requires a separate plan: ${relative}`);
+        nextComposition.modules=nextComposition.modules.filter(item=>item.moduleId!==selection.moduleId);
+        nextLock.modules=nextLock.modules.filter(item=>item.moduleId!==selection.moduleId);
+        for(const audience of ['admin','app'])nextComposition.exposure[audience].moduleIds=
+          nextComposition.exposure[audience].moduleIds.filter(id=>id!==selection.moduleId);
+        descriptors.delete(selection.moduleId);
+      }else{
+        if(!target||target.source.kind!=='package'||target.source.name!==selection.source.name
+          ||oldNode.origin!==change.candidate.origin||selection.source.kind!=='package')
+          fail('profile_identity',`Target identity differs: ${relative}`);
+        if(semver.gt(oldNode.version,change.candidate.version))
+          fail('profile_downgrade',`Companion profile would downgrade: ${relative}`);
+        selection.versionRange=target.versionRange;
+        const targetNode=structuredClone(change.candidate.lockNode);
+        nextLock.modules.splice(nextLock.modules.findIndex(item=>item.moduleId===selection.moduleId),1,targetNode);
+        descriptors.set(selection.moduleId,change.candidate.descriptor);
+      }
+    }
+    const versions=new Map(nextLock.modules.map(item=>[item.moduleId,item.version]));
+    for(const node of nextLock.modules){
+      if(!affectedIds.has(node.moduleId)
+        &&!node.dependencies.some(edge=>affectedIds.has(edge.moduleId)))continue;
+      const descriptor=descriptors.get(node.moduleId);
+      node.dependencies=descriptor.dependencies.filter(dep=>versions.has(dep.moduleId))
+        .map(dep=>({moduleId:dep.moduleId,version:versions.get(dep.moduleId)}));
+    }
+    nextLock.compositionIntegrity=contractIntegrity(nextComposition);
+    const validation=validateComposition(nextComposition,{lock:nextLock,modules:[...descriptors.values()]});
+    if(validation.errors.length)fail('profile_incompatible',
+      `Companion profile ${relative} is incompatible: ${validation.errors[0].code}`);
+    companions.push({relative,lockRelative:path.relative(root,loaded.lockFile).replaceAll('\\','/'),
+      appId:loaded.composition.application.id,composition:nextComposition,lock:nextLock,
+      baseCompositionDigest:modulePlanDigest(loaded.composition),baseLockDigest:modulePlanDigest(loaded.lock),
+      targetCompositionDigest:modulePlanDigest(nextComposition),targetLockDigest:modulePlanDigest(nextLock),
+      baseCompositionBytes:sha(readFileSync(loaded.compositionFile)),
+      baseLockBytes:sha(readFileSync(loaded.lockFile))});
+  }
+  if(companions.length!==requested.size)fail('profile_arguments','A sync profile was not found.');
+  return companions;
+}
+function assertCompanionBases(root,companions){
+  for(const profile of companions){
+    if(sha(readFileSync(checked(root,profile.relative)))!==profile.baseCompositionBytes
+      ||sha(readFileSync(checked(root,profile.lockRelative)))!==profile.baseLockBytes)
+      fail('profile_stale',`Companion profile changed during apply: ${profile.relative}`);
   }
 }
 function verifyPackageBytes(root,change,config){
@@ -335,6 +417,8 @@ function updates(root,context,changes,stage){
   const jsonTargets=[
     [path.relative(root,context.loaded.compositionFile),context.solved.next.composition],
     [path.relative(root,context.loaded.lockFile),context.solved.next.lock],
+    ...context.companions.flatMap(profile=>[[profile.relative,profile.composition],
+      [profile.lockRelative,profile.lock]]),
   ];
   if(changes.length)jsonTargets.push(['package.json',packageJson],['package-lock.json',npmLock],
     ['configuration/module-inventory.json',config]);
@@ -373,13 +457,15 @@ function stageOperations(root,context,changes,stage,replacements){
   // Artifacts and packages precede the composition switch; JSON snapshots complete the transaction.
   const compositionRelative=path.relative(root,context.loaded.compositionFile);
   const lockRelative=path.relative(root,context.loaded.lockFile);
+  const compositionPaths=new Set([compositionRelative,...context.companions.map(item=>item.relative)]);
+  const lockPaths=new Set([lockRelative,...context.companions.map(item=>item.lockRelative)]);
   return [...operations.filter(item=>item.relative.startsWith('.creezio/module-artifacts/')),
     ...operations.filter(item=>item.relative.startsWith('node_modules/')),
     ...operations.filter(item=>!item.relative.startsWith('.creezio/module-artifacts/')
       &&!item.relative.startsWith('node_modules/')
-      &&item.relative!==compositionRelative&&item.relative!==lockRelative),
-    ...operations.filter(item=>item.relative===lockRelative),
-    ...operations.filter(item=>item.relative===compositionRelative)];
+      &&!compositionPaths.has(item.relative)&&!lockPaths.has(item.relative)),
+    ...operations.filter(item=>lockPaths.has(item.relative)),
+    ...operations.filter(item=>compositionPaths.has(item.relative))];
 }
 function commit(root,context,operations,stage){
   const journal={schemaVersion:1,status:'applying',planId:context.plan.planId,
@@ -407,6 +493,12 @@ function commit(root,context,operations,stage){
     if(modulePlanDigest(loaded.composition)!==context.plan.targetCompositionDigest
       ||modulePlanDigest(loaded.lock)!==context.plan.targetLockDigest||!host.inventory)
       fail('postvalidation','Applied checkout does not match the accepted target.');
+    for(const profile of context.companions){
+      const current=loadRuntimeComposition({root,compositionPath:profile.relative});
+      if(modulePlanDigest(current.composition)!==profile.targetCompositionDigest
+        ||modulePlanDigest(current.lock)!==profile.targetLockDigest)
+        fail('postvalidation',`Applied companion differs from target: ${profile.relative}`);
+    }
     journal.status='validated';
     writeFileSync(journalPath,serial(journal));
   }catch(error){
@@ -424,6 +516,12 @@ function commit(root,context,operations,stage){
       if(modulePlanDigest(restored.composition)!==context.plan.baseCompositionDigest
         ||modulePlanDigest(restored.lock)!==context.plan.baseLockDigest)
         fail('rollback_mismatch','Restored checkout differs from its original composition and lock.');
+      for(const profile of context.companions){
+        const current=loadRuntimeComposition({root,compositionPath:profile.relative});
+        if(modulePlanDigest(current.composition)!==profile.baseCompositionDigest
+          ||modulePlanDigest(current.lock)!==profile.baseLockDigest)
+          fail('rollback_mismatch',`Restored companion differs from base: ${profile.relative}`);
+      }
     }catch(cause){rollbackError=cause;}
     if(rollbackError){journal.status='rollback_failed';writeFileSync(journalPath,serial(journal));
       fail('rollback_failed',`Apply failed; backup retained at ${stage}: ${rollbackError.message}`);}
@@ -431,18 +529,27 @@ function commit(root,context,operations,stage){
     throw error;
   }
 }
-export function applyModulePlan({root=process.cwd(),planPath,compositionPath,write=false}){
+export function applyModulePlan({root=process.cwd(),planPath,compositionPath,syncProfiles=[],write=false}){
   root=path.resolve(root);
   const flagsValue={'--plan':planPath,'--composition':compositionPath};
   const context=preflight(root,flagsValue);
   const changes=packageChanges(context);
+  context.companions=companionProfiles(root,context.loaded.compositionFile,changes,
+    syncProfiles,context.solved);
+  const profiles=[{path:path.relative(root,context.loaded.compositionFile).replaceAll('\\','/'),
+    appId:context.loaded.composition.application.id,
+    baseCompositionDigest:context.plan.baseCompositionDigest,baseLockDigest:context.plan.baseLockDigest,
+    targetCompositionDigest:context.plan.targetCompositionDigest,targetLockDigest:context.plan.targetLockDigest},
+    ...context.companions.map(({relative,appId,baseCompositionDigest,baseLockDigest,
+      targetCompositionDigest,targetLockDigest})=>({path:relative,appId,baseCompositionDigest,
+      baseLockDigest,targetCompositionDigest,targetLockDigest}))];
   if(!write)return {status:'plan_revalidated',planId:context.plan.planId,
     targetCompositionDigest:context.plan.targetCompositionDigest,
     targetLockDigest:context.plan.targetLockDigest,
     installability:changes.length?'not_checked':'not_applicable',
+    profiles,
     packages:changes.map(({kind,moduleId,name})=>({kind,moduleId,name})),
     changes:context.solved.summary.changes};
-  if(changes.length)assertNoOtherProfileUse(root,context.loaded.compositionFile,changes);
   const stageRoot='.creezio/module-apply';
   const stage=path.join(stageRoot,context.plan.planDigest.slice(7));
   const active=path.join(stageRoot,'active.json');
@@ -458,6 +565,16 @@ export function applyModulePlan({root=process.cwd(),planPath,compositionPath,wri
     const replacements=updates(root,context,changes,stage);
     const operations=stageOperations(root,context,changes,stage,replacements);
     preflight(root,flagsValue);
+    assertCompanionBases(root,context.companions);
+    const fresh=companionProfiles(root,context.loaded.compositionFile,changes,
+      syncProfiles,context.solved);
+    if(modulePlanDigest(fresh.map(item=>({path:item.relative,
+      baseCompositionDigest:item.baseCompositionDigest,baseLockDigest:item.baseLockDigest,
+      targetCompositionDigest:item.targetCompositionDigest,targetLockDigest:item.targetLockDigest})))
+      !==modulePlanDigest(context.companions.map(item=>({path:item.relative,
+        baseCompositionDigest:item.baseCompositionDigest,baseLockDigest:item.baseLockDigest,
+        targetCompositionDigest:item.targetCompositionDigest,targetLockDigest:item.targetLockDigest}))))
+      fail('profile_stale','Companion profiles changed during apply.');
     commit(root,context,operations,stage);
     committed=true;
     cleanupTree(root,stage);
@@ -465,7 +582,7 @@ export function applyModulePlan({root=process.cwd(),planPath,compositionPath,wri
     return {status:'applied_locally',planId:context.plan.planId,
       targetCompositionDigest:context.plan.targetCompositionDigest,
       targetLockDigest:context.plan.targetLockDigest,
-      packages:changes.map(({kind,moduleId,name})=>({kind,moduleId,name}))};
+      packages:changes.map(({kind,moduleId,name})=>({kind,moduleId,name})),profiles};
   }catch(error){
     if(!committed&&existsSync(checked(root,stage,{missing:true,directory:true}))){
       const journalFile=checked(root,path.join(stage,'journal.json'),{missing:true});
@@ -482,7 +599,8 @@ export function runModuleApplyCli(argv,{cwd=process.cwd(),stdout=process.stdout,
     const options=flags(argv);
     if(!options){stdout.write(usage);return 0;}
     stdout.write(`${JSON.stringify(applyModulePlan({root:cwd,planPath:options['--plan'],
-      compositionPath:options['--composition'],write:!!options.write}))}\n`);
+      compositionPath:options['--composition'],syncProfiles:options.syncProfiles,
+      write:!!options.write}))}\n`);
     return 0;
   }catch(error){stderr.write(`${error.code??'apply_error'}: ${error.message}\n`);return 1;}
 }
