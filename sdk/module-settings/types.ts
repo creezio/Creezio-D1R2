@@ -1,4 +1,5 @@
-import type {CompiledModuleInventoryV1, ModuleActionKind, ModuleChoiceV1, ModulePlanSummaryV1} from '../modules/types.ts';
+import type {CompiledModuleInventoryV1, ModuleActionKind, ModuleChoiceV1, ModulePlanSummaryV1,
+  ModuleRetiredPermissionV1} from '../modules/types.ts';
 import type {InstalledModuleDocument, InstalledModuleDocumentMetadata} from '../modules/documents.ts';
 
 export type ModuleIntent = ModuleChoiceV1;
@@ -70,6 +71,7 @@ export interface ModulePlanPreview {
   readonly actions: readonly ModulePlanAction[];
   readonly diagnostics: readonly ModuleDiagnostic[];
   readonly disabledContributionCount: number;
+  readonly retiredPermissions: readonly ModuleRetiredPermissionV1[];
   readonly requiresPublication: boolean;
   readonly baselineChanged: boolean;
 }

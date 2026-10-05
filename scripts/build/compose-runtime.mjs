@@ -429,6 +429,15 @@ export async function composeRuntime({ root = process.cwd(), compositionPath = '
           && (audience==='app'||slot.surfaces.includes('workspace')))});
     }
   }
+  // Removed modules keep exact historical ACL references known but unusable.
+  // The verified lock, including these entries, is part of the accepted plan digest.
+  for (const retired of lock.retiredModules??[]) {
+    for (const permissionId of retired.permissionIds) {
+      const id=`${retired.moduleId}:${permissionId}`;
+      permissions.push({id,audiences:[],actors:[],retired:true});
+      permissionTitles[id]=`${id} (retiré)`;
+    }
+  }
   const compositionDigest = contractIntegrity(composition);
   // A provider receives the exact input contracts, never schemas reconstructed from UI labels.
   // Runtime discovery still checks operation exposure, effects and the caller's current rights.

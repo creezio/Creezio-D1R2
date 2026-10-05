@@ -1,5 +1,17 @@
 # T-11 — Modules et dépendances
 
+## Clôture du cycle — travaux complémentaires
+
+Le cycle complet ajoute trois parcours au lot de la PR #109 : l'admission opérateur d'un paquet encore inconnu, l'approbation explicite de nouvelles bibliothèques npm et le retrait d'un module dont les droits restent référencés. Ces travaux ne changent ni les écrans Product Hub d'origine, ni les frontières entre module, widget et service externe.
+
+`npm run modules:admit` vérifie les trois fichiers runtime/validation/reçu, leurs empreintes et l'origine autorisée, puis présente l'ajout au catalogue sans activer le module. `--write` inscrit uniquement la candidate dans l'inventaire. Le build suivant rend cette candidate visible dans le gestionnaire ; l'installation conserve son plan accepté et la publication propre à l'hôte. Voir [admission opérateur](MODULES-ADMISSION-OPERATEUR.md).
+
+Les nouvelles bibliothèques npm sont approuvées séparément par l'opérateur avec `modules:apply --npm-archives <fichier>`. Le manifeste du paquet n'autorise pas à lui seul une installation réseau. La résolution utilise les archives vérifiées, hors ligne et sans scripts de cycle de vie ; les versions hors du périmètre accepté restent conservées. Les refus et la restauration du checkout font partie du même parcours d'application.
+
+Le verrou de composition conserve les droits retirés avec leur module et leur origine. Le catalogue les reconnaît uniquement comme références historiques inactives : un rôle, un override ou un jeton existant ne bloque pas les autres modules, mais aucun de ces droits ne permet une opération ni une nouvelle attribution. Une autre origine ne peut pas reprendre l'identité retirée. Les données applicatives et les attributions historiques sont conservées ; aucun effacement D1 n'accompagne le retrait.
+
+La validation finale distingue les tests du code, le cycle opérateur avec de vraies archives, l'exécution des intégrations facultatives et les recettes d'applications publiées. Les reçus de déploiement et de recette doivent porter les révisions effectivement livrées ; les preuves isolées ci-dessous ne les remplacent pas.
+
 ## Cycle des paquets externes — travail du 5 octobre 2026
 
 La demande porte sur l'installation, la mise à jour individuelle, la désactivation/réactivation, les intégrations facultatives et le refus des incompatibilités. La PR #109, intégrée dans `1fd789fbf23fdfdd0aaf23cb295b286da18d89a6`, complète l'admission d'une première archive externe et la transmission d'un plan accepté vers l'opérateur local. Les CI du candidat et de main ont chacune réussi 1 543 tests et 33 commandes. Le solveur et l'interface Product Hub restent communs aux modules natifs et aux paquets externes. La release SDK 1.9.1 prépare la distribution de ces contrats ; sa publication et les livraisons applicatives sont vérifiées séparément.

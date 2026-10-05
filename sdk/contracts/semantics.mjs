@@ -564,6 +564,27 @@ export function checkComposition(composition, modules, lock, report) {
   unique(composition.modules,'/modules',report,item => item.moduleId);
   unique(modules,'/descriptors',report,item => item.identity.id);
   unique(lock.modules,'/lock/modules',report,item => item.moduleId);
+  const retired=lock.retiredModules??[];
+  if (!Array.isArray(retired)) report('lock.retired','/lock/retiredModules','Retired module permissions must be a bounded list.');
+  else {
+    unique(retired,'/lock/retiredModules',report,item=>item.moduleId);
+    let permissionCount=0;
+    for(const [index,item] of retired.entries()){
+      if(!item || !Array.isArray(item.permissionIds)){
+        report('lock.retired',`/lock/retiredModules/${index}`,'Retired permission IDs are malformed.');
+        continue;
+      }
+      unique(item.permissionIds,`/lock/retiredModules/${index}/permissionIds`,report,id=>id);
+      permissionCount+=item.permissionIds.length;
+      const active=descriptors.get(item.moduleId);
+      if(active && (active.identity.origin!==item.origin
+        || item.permissionIds.some(id=>active.contracts.permissions.some(permission=>permission.id===id))))
+        report('lock.retired',`/lock/retiredModules/${index}`,
+          'A retired module must keep its original origin and cannot retire an active permission.');
+    }
+    if(permissionCount+modules.reduce((count,module)=>count+module.contracts.permissions.length,0)>1000)
+      report('lock.retired','/lock/retiredModules','Active and retired permissions exceed the authorization catalog limit.');
+  }
   const packageOwners=new Map();
   for(const [index,selection] of composition.modules.entries()){
     if(selection.source.kind!=='package')continue;

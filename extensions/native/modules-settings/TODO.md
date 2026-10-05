@@ -1,5 +1,7 @@
 # Réalisation
 
+- Complément T11 en qualification : admission CLI des nouveaux paquets, approbation des bibliothèques npm transitives, droits retirés dans l'aperçu/le verrou et conservation des autorisations restantes. Clôture après les contrôles du candidat final et le parcours effectif sur application publiée, distinct des reçus isolés antérieurs.
+
 - Intégré PR #20, contrôles locaux et CI réussis : catalogue, résolution et acceptation de plans via opérations communes ; trois modèles propres et six suites.
 - Intégré PR #20, contrôles locaux et CI réussis : liste/fiche Creezio et navigation SDK, graphe de dépendances et état de publication explicite.
 - Recettes locales exécutées : archives et verrou, intégration hôte, courses D1, API/MCP OAuth et reprise navigateur après réponse perdue. Candidat 76674c5 / main 037c0a0, 908 tests sans échec ni omission ; recettes navigateur et limites liées aux artefacts dans les preuves T11.

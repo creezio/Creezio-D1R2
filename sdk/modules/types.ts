@@ -58,12 +58,19 @@ export interface ModulePlanChangeV1 {
   readonly action: string;
 }
 
+export interface ModuleRetiredPermissionV1 {
+  readonly moduleId: string;
+  readonly origin: string;
+  readonly permissionId: string;
+}
+
 /** Compact, persistent projection; at most 8 KiB of canonical UTF-8 JSON. */
 export interface ModulePlanSummaryV1 {
   readonly status: 'ready' | 'blocked';
   readonly changes: readonly ModulePlanChangeV1[];
   readonly dependencyOrder: readonly string[];
   readonly disabledContributionCount: number;
+  readonly retiredPermissions?: readonly ModuleRetiredPermissionV1[];
   readonly diagnosticCount: number;
   readonly detailsPaged: boolean;
 }

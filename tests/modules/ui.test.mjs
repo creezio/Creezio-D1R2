@@ -136,6 +136,7 @@ test('plan states publication requirement and refuses an action on blocking diag
     baseCompositionDigest: 'sha256-' + 'b'.repeat(64), baseLockDigest: 'sha256-' + 'e'.repeat(64),
     baselineChanged:false,targetCompositionDigest: 'sha256-' + 'c'.repeat(64),
     targetLockDigest: 'sha256-' + 'd'.repeat(64), requiresPublication: true, disabledContributionCount: 0,
+    retiredPermissions: [],
     actions: [{kind: 'update', moduleId: 'atelier.panier', fromVersion: '2.0.0', toVersion: '2.1.0', requiresPublication: true}],
     diagnostics: [{code: 'dependency_conflict', severity: 'error', moduleId: 'atelier.panier', message: 'Catalogue incompatible'}]};
   const blocked = preview({plan, onAccept() {}, disabled: false});
@@ -154,6 +155,11 @@ test('plan states publication requirement and refuses an action on blocking diag
   const sideEffects = preview({plan: {...plan, disabledContributionCount: 3}, onAccept() {}, disabled: false});
   assert.match(sideEffects, /3 contribution\(s\) seront désactivées/);
   assert.match(sideEffects, /intégrations facultatives/);
+  const retired=preview({plan:{...plan,retiredPermissions:[{moduleId:'atelier.panier',
+    origin:'https://example.invalid/atelier/panier',permissionId:'approve'}]},onAccept(){},disabled:false});
+  assert.match(retired,/Droits qui deviendront inactifs/);
+  assert.match(retired,/atelier.panier:approve/);
+  assert.match(retired,/https:\/\/example.invalid\/atelier\/panier/);
   const added = {...plan.actions[0], kind: 'add', fromVersion: null, audiences: ['admin', 'app']};
   const exposure = preview({plan: {...plan, actions: [added]}, onAccept() {}, disabled: false});
   assert.match(exposure, /Interface prévue : Administrateur et utilisateurs/);

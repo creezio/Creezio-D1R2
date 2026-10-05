@@ -47,6 +47,16 @@ test('matrix and account projection preserve inheritance, role denial and multi-
   assert.equal(principalScope(policy, 'person', 'application', 'app').assignmentIds.length, 0);
 });
 
+test('retired rights remain visible as history but leave every account scope',()=>{
+  const historical=structuredClone(policy);
+  historical.permissions.push({id:'old.module:read',moduleId:'old.module',title:'old.module:read (retiré)',
+    audiences:[],actors:[]});
+  historical.policy.roles[0].permissionIds.push('old.module:read');
+  const matrix=matrixFromPolicy(historical);
+  assert.equal(matrix.groups.find(group=>group.id==='old.module').permissions[0].retired,true);
+  assert.ok(!principalScope(historical,'person','application','admin').effective.includes('old.module:read'));
+});
+
 test('draft comparison keeps reset-to-inherited changes', () => {
   const initial = new Map([[rolePermissionKey('ab', 'alpha:read'), 'deny']]);
   assert.deepEqual(changedEffects(initial, new Map()),

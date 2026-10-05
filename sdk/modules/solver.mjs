@@ -57,17 +57,18 @@ function captureChoices(value) {
 /** Same canonical digest used by T02 locks and the persistent T11 plan fields. */
 export const modulePlanDigest = value => contractIntegrity(value);
 
-function compactSummary(status, changes, dependencyOrder, disabledContributionCount, diagnosticCount) {
+function compactSummary(status, changes, dependencyOrder, disabledContributionCount, diagnosticCount, retiredPermissions=[]) {
   if (changes.length>256 || dependencyOrder.length>256) return null;
-  const summary={status,changes,dependencyOrder,disabledContributionCount,diagnosticCount,
+  if(retiredPermissions.length>256)return null;
+  const summary={status,changes,dependencyOrder,disabledContributionCount,retiredPermissions,diagnosticCount,
     detailsPaged:false};
   if (encoder.encode(canonicalJson(summary)).byteLength>MODULE_PLAN_LIMITS.summaryBytes) return null;
   return Object.freeze({...summary,changes:Object.freeze([...changes]),
     dependencyOrder:Object.freeze([...dependencyOrder])});
 }
-function result(base, inventoryDigest, choicesDigest, next, metrics, diagnostics, changes) {
+function result(base, inventoryDigest, choicesDigest, next, metrics, diagnostics, changes, retiredPermissions=[]) {
   let summary=compactSummary(next?'ready':'blocked',changes,metrics.dependencyOrder??[],
-    metrics.disabledContributions?.length??0,diagnostics.length);
+    metrics.disabledContributions?.length??0,diagnostics.length,retiredPermissions);
   if (!summary) {
     next=null;
     diagnostics=[...diagnostics,diagnostic('plan.summary_limit','/summary',
@@ -113,6 +114,34 @@ function selection(candidate, previous=null) {
   return {moduleId:candidate.moduleId,origin:candidate.origin,versionRange:candidate.version,
     source:candidate.source,enabled:previous?.enabled??true,
     configuration:previous?.configuration??[],integrations:optional};
+}
+
+/** Preserve exact historical rights across a removal or update, bound to the first origin. */
+export function reconcileRetiredModules(previousLock, previousDescriptors, nextDescriptors) {
+  const retired=new Map((previousLock.retiredModules??[]).map(item=>[item.moduleId,
+    {moduleId:item.moduleId,origin:item.origin,permissionIds:new Set(item.permissionIds)}]));
+  const next=new Map(nextDescriptors.map(item=>[item.identity.id,item]));
+  for(const before of previousDescriptors){
+    const moduleId=before.identity.id,after=next.get(moduleId);
+    const existing=retired.get(moduleId);
+    if((after&&after.identity.origin!==before.identity.origin)
+      ||(existing&&existing.origin!==before.identity.origin))throw new Error('transition.origin');
+    const active=new Set(after?.contracts.permissions.map(item=>item.id)??[]);
+    const lost=before.contracts.permissions.filter(item=>!active.has(item.id)).map(item=>item.id);
+    if(!after||lost.length){
+      const entry=existing??{moduleId,origin:before.identity.origin,permissionIds:new Set()};
+      for(const id of lost)entry.permissionIds.add(id);
+      retired.set(moduleId,entry);
+    }
+  }
+  for(const after of nextDescriptors){
+    const entry=retired.get(after.identity.id);
+    if(!entry)continue;
+    if(entry.origin!==after.identity.origin)throw new Error('transition.origin');
+    for(const permission of after.contracts.permissions)entry.permissionIds.delete(permission.id);
+  }
+  return [...retired.values()].map(item=>({moduleId:item.moduleId,origin:item.origin,
+    permissionIds:[...item.permissionIds].sort()})).sort((a,b)=>a.moduleId.localeCompare(b.moduleId));
 }
 function transitionDiagnostics(before,next) {
   const diagnostics=[],oldSelection=new Map(before.composition.modules.map(item=>[item.moduleId,item]));
@@ -238,6 +267,14 @@ export function solveModulePlan(current, suppliedChoices, inventory) {
     return {...node,dependencies:descriptor.dependencies.filter(dep=>selected.has(dep.moduleId))
       .map(dep=>({moduleId:dep.moduleId,version:descriptors.get(dep.moduleId).identity.version}))};
   });
+  try {
+    const history=reconcileRetiredModules(current.lock,current.descriptors,
+      [...descriptors.values()].filter(item=>selected.has(item.identity.id)));
+    if(history.length||current.lock.retiredModules!==undefined)lock.retiredModules=history;
+  } catch {
+    return refusal('transition.origin','/next/lock/retiredModules',
+      'A retired module identity cannot be adopted from another origin.');
+  }
   lock.compositionIntegrity=contractIntegrity(composition);
   const diagnostics=[];
   let metrics={};
@@ -246,7 +283,12 @@ export function solveModulePlan(current, suppliedChoices, inventory) {
   }); } catch { diagnostics.push(diagnostic('plan.invalid_state','/next','Candidate contracts are invalid.')); }
   if (diagnostics.length===0) diagnostics.push(...transitionDiagnostics(current,{composition,lock}));
   if (diagnostics.length) return result(choices.base,inventory.digest,choicesDigest,null,metrics,diagnostics,changes);
-  return result(choices.base,inventory.digest,choicesDigest,{composition,lock},metrics,diagnostics,changes);
+  const before=new Set((current.lock.retiredModules??[]).flatMap(item=>item.permissionIds
+    .map(id=>`${item.moduleId}:${id}`)));
+  const newlyRetired=(lock.retiredModules??[]).flatMap(item=>item.permissionIds
+    .filter(id=>!before.has(`${item.moduleId}:${id}`))
+    .map(permissionId=>({moduleId:item.moduleId,origin:item.origin,permissionId})));
+  return result(choices.base,inventory.digest,choicesDigest,{composition,lock},metrics,diagnostics,changes,newlyRetired);
 }
 
 /** Re-solve against current state before a guarded commit; a stored summary grants no authority. */

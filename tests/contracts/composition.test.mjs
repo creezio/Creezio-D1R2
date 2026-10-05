@@ -16,6 +16,21 @@ function commerce() {
 const validate = value => validateComposition(value.composition, { modules: value.modules, lock: value.lock });
 const refresh = value => { value.lock = lockFor(value.composition, value.modules); return value; };
 
+test('lock binds retired rights to their original module origin without overlapping active definitions',()=>{
+  const value=compositionCase([namedModule('merchant.cart','merchant')]);
+  value.lock.retiredModules=[{moduleId:'vendor.removed',origin:'https://example.invalid/vendor/removed',
+    permissionIds:['read']}];
+  accepted(validate(value));
+  value.lock.retiredModules.push(structuredClone(value.lock.retiredModules[0]));
+  refused(validate(value),'duplicate.id');
+  value.lock.retiredModules.pop();
+  value.lock.retiredModules[0]={moduleId:value.modules[0].identity.id,
+    origin:value.modules[0].identity.origin,permissionIds:[value.modules[0].contracts.permissions[0].id]};
+  refused(validate(value),'lock.retired');
+  value.lock.retiredModules[0].origin='https://example.invalid/foreign/cart';
+  refused(validate(value),'lock.retired');
+});
+
 test('valid selected descriptors can exceed the single-document node budget together', () => {
   const value=compositionCase(Array.from({length:12},(_,index)=>
     namedModule(`vendor.descriptor-${index+1}`,'vendor')));

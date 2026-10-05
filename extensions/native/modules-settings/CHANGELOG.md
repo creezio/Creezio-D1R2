@@ -1,5 +1,9 @@
 # Changelog
 
+## Non publié — retrait et paquets externes complets
+
+L'aperçu du plan présente les droits qui deviendront inactifs après retrait ou mise à jour. Le verrou conserve leur identité et leur origine, ainsi que leur empreinte dans le plan et sa confirmation. Le retrait conserve les données et les autres droits des comptes existants. L'admission opérateur d'un nouveau paquet et l'approbation des bibliothèques npm complètent le parcours catalogue → plan → application locale → publication → confirmation, avec les mêmes écrans Product Hub.
+
 ## Non publié — cycle durable des plans
 
 Confirmation de publication par les deux empreintes runtime, annulation motivée d'un plan en attente et événement privé durable. L'historique reste lisible après un changement ultérieur du verrou. Le modèle `plan-outcomes` s'ajoute aux tables existantes ; aucune ligne antérieure n'est réécrite. Une nouvelle baseline différente doit être montrée et reconnue avant acceptation.

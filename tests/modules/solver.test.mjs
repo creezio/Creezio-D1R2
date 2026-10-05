@@ -85,6 +85,33 @@ test('disable and remove clear published exposure while retaining the selected v
   }
 });
 
+test('removal records exact retired rights and only the same origin can restore their definitions',()=>{
+  const {current,inventory,choices,cart}=fixture();
+  const removed=solveModulePlan(current,{...choices,actions:[{kind:'remove',moduleId:cart.identity.id}]},inventory);
+  assert.equal(removed.summary.status,'ready',JSON.stringify(removed.diagnostics));
+  assert.deepEqual(removed.next.lock.retiredModules,[{moduleId:cart.identity.id,origin:cart.identity.origin,
+    permissionIds:cart.contracts.permissions.map(item=>item.id).sort()}]);
+  const nextCurrent={composition:removed.next.composition,lock:removed.next.lock,
+    descriptors:[],revision:4};
+  const base={revision:4,compositionDigest:contractIntegrity(nextCurrent.composition),
+    lockDigest:contractIntegrity(nextCurrent.lock),inventoryDigest:inventory.digest};
+  const same=inventory.candidates.find(item=>item.moduleId===cart.identity.id);
+  const restored=solveModulePlan(nextCurrent,{schemaVersion:1,base,actions:[{kind:'add',moduleId:cart.identity.id,
+    candidateKey:same.candidateKey,audiences:['admin']}]},inventory);
+  assert.equal(restored.summary.status,'ready',JSON.stringify(restored.diagnostics));
+  assert.deepEqual(restored.next.lock.retiredModules,[{moduleId:cart.identity.id,origin:cart.identity.origin,
+    permissionIds:[]}]);
+  const foreign=namedModule(cart.identity.id,'other-publisher');
+  const foreignCase=compositionCase([foreign]);
+  const foreignCandidate=candidate(foreign,foreignCase.composition.modules[0],foreignCase.lock.modules[0]);
+  const foreignInventory={schemaVersion:1,candidates:[foreignCandidate],
+    digest:contractIntegrity({schemaVersion:1,candidates:[foreignCandidate]})};
+  const refused=solveModulePlan(nextCurrent,{schemaVersion:1,base:{...base,inventoryDigest:foreignInventory.digest},
+    actions:[{kind:'add',moduleId:cart.identity.id,candidateKey:foreignCandidate.candidateKey,audiences:[]}]},foreignInventory);
+  assert.equal(refused.next,null);
+  assert.equal(refused.diagnostics[0].code,'transition.origin');
+});
+
 test('add requires an explicit audience decision and keeps automatic dependencies headless',()=>{
   const {current,inventory,choices,stock}=fixture();
   const candidateKey=inventory.candidates.find(item=>item.moduleId===stock.identity.id).candidateKey;

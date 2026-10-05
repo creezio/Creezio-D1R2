@@ -223,6 +223,35 @@ test('local lock command writes verified bytes once and check mode refuses stale
   assert.equal(readFileSync(path.join(f.root,'composition.lock.json'),'utf8'),locked);
 });
 
+test('modules:lock preserves retired rights and refuses an unplanned module removal',t=>{
+  const f=localModule(t),composition=fixture('valid-composition');
+  f.write(path.join(f.root,'composition.json'),`${JSON.stringify(composition)}\n`);
+  const priorLock=fixture('valid-composition-lock');
+  priorLock.modules=[];
+  f.write(path.join(f.root,'composition.lock.json'),`${JSON.stringify(priorLock)}\n`);
+  f.write(path.join(f.root,'module-inventory.json'),JSON.stringify({schemaVersion:1,
+    allowedOrigins:[f.descriptor.identity.origin],available:[]}));
+  const args=['--root',f.root,'--composition','composition.json','--lock','composition.lock.json',
+    '--inventory','module-inventory.json'];
+  let errors='';
+  const io={stdout:{write:()=>{}},stderr:{write:value=>{errors+=value;}}};
+  assert.equal(runModuleLockCli([...args,'--write'],io),0,errors);
+  const lockPath=path.join(f.root,'composition.lock.json');
+  const lock=JSON.parse(readFileSync(lockPath,'utf8'));
+  lock.retiredModules=[{moduleId:'old.module',origin:'https://example.invalid/old/module',permissionIds:['read']}];
+  writeFileSync(lockPath,`${JSON.stringify(lock)}\n`);
+  errors='';
+  assert.equal(runModuleLockCli([...args,'--write'],io),0,errors);
+  assert.deepEqual(JSON.parse(readFileSync(lockPath,'utf8')).retiredModules,lock.retiredModules);
+  composition.modules=[];
+  for(const audience of ['admin','app'])composition.exposure[audience].moduleIds=[];
+  writeFileSync(path.join(f.root,'composition.json'),`${JSON.stringify(composition)}\n`);
+  errors='';
+  assert.equal(runModuleLockCli([...args,'--write'],io),1);
+  assert.match(errors,/Module removal requires an accepted T11 plan/);
+  assert.deepEqual(JSON.parse(readFileSync(lockPath,'utf8')).retiredModules,lock.retiredModules);
+});
+
 test('a selected package keeps its legacy receipt lock until canonical validation is explicitly chosen',t=>{
   const f=localModule(t),moduleId=f.descriptor.identity.id,packageName='@creezio/tasks';
   const packageDirectory=path.join(f.root,'node_modules','@creezio','tasks');

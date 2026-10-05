@@ -129,6 +129,25 @@ export function validPolicyCatalog(policy: AccessPolicy, permissions: readonly P
   return decision.allowed && policy.overrides.every(o => known.has(o.permissionId));
 }
 
+/** Existing retired references remain auditable; an ACL edit cannot create new ones. */
+export function addsRetiredPermissionReferences(before: AccessPolicy, after: AccessPolicy,
+  permissions: readonly PermissionDefinition[]): boolean {
+  const retired=new Set(permissions.filter(item=>item.retired).map(item=>item.id));
+  if(!retired.size)return false;
+  const roleGrants=new Set(before.roles.flatMap(role=>role.permissionIds
+    .map(permissionId=>JSON.stringify([role.id,permissionId]))));
+  const roleOverrides=new Set(before.roles.flatMap(role=>role.permissionOverrides
+    .map(item=>JSON.stringify([role.id,item.permissionId,item.effect]))));
+  const overrides=new Set(before.overrides.map(item=>JSON.stringify([
+    item.principalId,item.contextId,item.audience,item.permissionId,item.effect])));
+  return after.roles.some(role=>role.permissionIds.some(id=>retired.has(id)
+      && !roleGrants.has(JSON.stringify([role.id,id])))
+    ||role.permissionOverrides.some(item=>retired.has(item.permissionId)
+      && !roleOverrides.has(JSON.stringify([role.id,item.permissionId,item.effect]))))
+    ||after.overrides.some(item=>retired.has(item.permissionId)
+      && !overrides.has(JSON.stringify([item.principalId,item.contextId,item.audience,item.permissionId,item.effect])));
+}
+
 /** Session grants are bounded by the requested audience and its active membership pair. */
 export function policySnapshot(policy: AccessPolicy, permissions: readonly PermissionDefinition[],
   session: {id: string; principalId: string; audience: AuthorizationAudience; expiresAtMs: number}): AuthorizationSnapshot {

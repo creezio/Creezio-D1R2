@@ -260,7 +260,8 @@ function projection(plan: ModulePlanV1, inventory: ModuleSettingsHostInventory,
     targetCompositionDigest: plan.nextCompositionDigest ?? plan.base.compositionDigest,
     targetLockDigest: plan.nextLockDigest ?? plan.base.lockDigest,
     actions: actions(plan, inventory, intent), diagnostics: diagnostics(plan),
-    disabledContributionCount: plan.summary.disabledContributionCount, requiresPublication,
+    disabledContributionCount: plan.summary.disabledContributionCount,
+    retiredPermissions: plan.summary.retiredPermissions??[], requiresPublication,
     baselineChanged: false};
 }
 export async function plansPreview(input: JsonValue, context: OperationContext): Promise<OperationHandlerResult> {

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ACCESS_PERMISSION, ACCESS_POLICY_LIMITS, parseAccessPolicy, validPolicyCatalog, policySnapshot } from '../../core/authorization/policy.ts';
+import { ACCESS_PERMISSION, ACCESS_POLICY_LIMITS, addsRetiredPermissionReferences, parseAccessPolicy, validPolicyCatalog, policySnapshot } from '../../core/authorization/policy.ts';
 import { authorize } from '../../core/authorization/authorize.ts';
 import { createAuthorizationService } from '../../core/authorization/service.ts';
 import { issueOpaqueToken } from '../../core/identity/tokens.ts';
@@ -75,6 +75,27 @@ test('semantic catalog validation rejects unknown grants, conflicting definition
   assert.equal(validPolicyCatalog(policy(), [...permissions, ACCESS_PERMISSION]), false);
 });
 
+test('historical retired grants keep Access policy valid without becoming active permissions',()=>{
+  const retired='example.removed:read',historical=policy();
+  historical.roles[1].permissionIds.push(retired);
+  historical.roles[1].permissionOverrides.push({permissionId:retired,effect:'allow'});
+  historical.overrides.push({principalId:'user-1',contextId:'team',audience:'app',permissionId:retired,effect:'allow'});
+  const parsed=parseAccessPolicy(historical);
+  const catalog=[...permissions,{id:retired,audiences:[],actors:[],retired:true}];
+  assert.ok(parsed);
+  assert.equal(validPolicyCatalog(parsed,catalog),true);
+  assert.equal(authorize(policySnapshot(parsed,catalog,{...session,audience:'app'}),
+    {contextId:'team',audience:'app',actors:['user'],requiredPermissionIds:[READ],purpose:'operation'},0).allowed,true);
+  assert.equal(validPolicyCatalog(parsed,permissions),false);
+  assert.equal(addsRetiredPermissionReferences(parsed,parsed,catalog),false);
+  const newRole=structuredClone(parsed);
+  newRole.roles.push({id:'new-reader',inherits:[],permissionIds:[retired],permissionOverrides:[]});
+  assert.equal(addsRetiredPermissionReferences(parsed,newRole,catalog),true);
+  const lifted=structuredClone(parsed);
+  lifted.roles[1].permissionOverrides[0].effect='deny';
+  assert.equal(addsRetiredPermissionReferences(parsed,lifted,catalog),true);
+});
+
 test('membership is a context and audience pair, with no cross product or inactive fallback', () => {
   const p = policy();
   const snapshot = policySnapshot(p, permissions, session);
@@ -121,6 +142,29 @@ test('the expected policy epoch is captured before awaiting the server snapshot'
   const service = createAuthorizationService(db, {permissions: permissions.slice(1)});
   assert.deepEqual(await service.replacePolicy(token.token, input), {ok: false, error: 'conflict'});
   assert.equal(batches, 1);
+});
+
+test('Access rejects a newly granted retired right while keeping a historical grant in D1',async()=>{
+  const retired='old.module:read',p=policy();
+  p.roles[1].permissionIds.push(retired);
+  const result=rows=>({success:true,results:rows,meta:{changes:0}});
+  const rows=[
+    result([{...session,displayName:'Synthetic actor',authVersion:1,createdAtMs:0,epoch:2,nowMs:1000}]),
+    result([{id:'user-1',kind:'human',status:'active',humanStatus:'active'}]),
+    result(p.contexts),result(p.roles.map(role=>({id:role.id}))),result([]),
+    result(p.roles.flatMap(role=>role.permissionIds.map(permissionId=>({roleId:role.id,permissionId})))),
+    result([]),result(p.memberships),result(p.assignments),result([]),
+  ];
+  let batches=0;
+  const db={prepare(){return {bind(){return {};}};},async batch(){batches++;return rows;}};
+  const token=await issueOpaqueToken('session');
+  const service=createAuthorizationService(db,{permissions:[permissions[1],
+    {id:retired,audiences:[],actors:[],retired:true}]});
+  const next=structuredClone(p);
+  next.roles[0].permissionIds.push(retired);
+  assert.deepEqual(await service.replacePolicy(token.token,{expectedEpoch:2,policy:next}),
+    {ok:false,error:'invalid_input'});
+  assert.equal(batches,1,'a new retired grant must not start a policy commit');
 });
 
 test('service rejects malformed policy requests and replacement of built-in authority without touching D1', async () => {

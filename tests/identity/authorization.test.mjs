@@ -41,6 +41,19 @@ test('a fresh native session uses only exact current grants and returns an immut
   assert.ok(Object.isFrozen(authorize(state, policy, NOW)));
 });
 
+test('a retired module right preserves historical ACL references but can never authorize an operation', () => {
+  const state=snapshot(), retired='example.retired:write';
+  state.permissions.push({id:retired,audiences:[],actors:[],retired:true});
+  state.roles[0].permissionIds.push(retired);
+  state.roles[0].permissionOverrides.push({permissionId:retired,effect:'allow'});
+  state.overrides.push({permissionId:retired,contextId:'workspace-a',audiences:['app'],effect:'allow'});
+  state.credential.permissionIds.push(retired);
+  expect('allowed',state);
+  expect('permission_denied',state,target({requiredPermissionIds:[retired]}));
+  state.roles[0].permissionIds.push('example.missing:write');
+  expect('permission_unknown',state);
+});
+
 test('all required permissions must be granted; role inheritance and diamond graphs are deterministic', () => {
   const state = snapshot(); state.assignments[0].roleId = 'editor';
   state.roles.push({ id: 'double-reader', inherits: ['reader'], permissionIds: [], permissionOverrides: [] },

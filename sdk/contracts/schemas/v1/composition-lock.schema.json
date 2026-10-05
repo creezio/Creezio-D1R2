@@ -180,6 +180,25 @@
       },
       "minItems": 0,
       "maxItems": 1000
+    },
+    "retiredModules": {
+      "type": "array",
+      "maxItems": 1000,
+      "description": "Historical module origins and permissions retained after removal or a contract update. Entries never authorize operations.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "moduleId": { "$ref": "urn:creezio:contracts:v1:common#/$defs/id" },
+          "origin": { "$ref": "urn:creezio:contracts:v1:common#/$defs/httpsUri" },
+          "permissionIds": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": { "$ref": "urn:creezio:contracts:v1:common#/$defs/id" }
+          }
+        },
+        "required": ["moduleId", "origin", "permissionIds"],
+        "additionalProperties": false
+      }
     }
   },
   "required": [

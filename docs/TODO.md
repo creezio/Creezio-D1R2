@@ -2,6 +2,8 @@
 
 ## Priorité active — cycle des extensions, 5 octobre 2026
 
+La clôture en cours ajoute l'admission opérateur d'une archive externe, l'approbation explicite des archives npm nécessaires et le retrait sûr des droits historiques. L'aperçu et le journal affichent les droits retirés ; leur présence dans un rôle ne bloque plus les autres modules et ne permet aucune opération retirée. Les recettes complémentaires portent sur les dépendances facultatives avec les opérations réelles, le cycle complet depuis le gestionnaire hébergé et les publications Linux, Cloudflare et Sites. Ces développements ne sont pas encore une preuve de livraison ; les reçus finaux restent nécessaires.
+
 Le parcours T11 applique un plan accepté au projet. La recette v6 sur D1/R2 Miniflare isolés a vérifié les archives publiques Starter 0.1.2/0.1.3 : installation, mise à jour individuelle, désactivation et réactivation, conservation du même enregistrement D1 et fichier R2, retrait puis retour des contributions générées UI/API/MCP/widgets. Les refus de rétrogradation, d'origine divergente, de dépendance obligatoire désactivée, de plan périmé et de confirmation prématurée sont constatés. Le conteneur Linux jetable a passé `npm ci --offline --ignore-scripts` (399 paquets), puis `npm ls --depth=0` a confirmé 0.1.3. Le chargeur externe a aussi passé les quatre états facultatifs avec les fichiers réels de Support/CRM/Messaging sous enveloppes npm locales. Livraison d'application, runtime UI hébergé et retrait avec droits résiduels gardent leurs recettes ; T11 n'est pas clos de façon exhaustive. Voir [T11](IMPLEMENTATION-T11.md).
 
 ## Point de progression — 3 octobre 2026, livraison PR #107

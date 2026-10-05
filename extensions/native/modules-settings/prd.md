@@ -1,5 +1,7 @@
 # PRD — Modules et configuration
 
+Le cycle couvre également un module externe encore inconnu du checkout : ses archives vérifiées entrent explicitement dans l'inventaire opérateur avant apparition dans le catalogue. Une installation ou une mise à jour conserve les dépendances et versions hors périmètre ; les nouvelles bibliothèques npm ont leur approbation d'archives distincte. L'aperçu d'un retrait ou d'une mise à jour présente les droits devenant inactifs. Le résultat publié doit conserver les données et les autres autorisations malgré les rôles, exceptions et jetons qui référencent encore ces droits. Une origine différente ne peut pas adopter cette identité historique.
+
 ## Besoin
 
 T-11, US-11, REQ-1101 à REQ-1106 : composer une application à partir de modules natifs, communs, métier ou tiers, avec graphe exact, contrats publics et changements explicites. L’administrateur voit ce qui est disponible, présent, actif, configuré et en attente de publication.
