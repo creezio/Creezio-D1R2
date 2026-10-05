@@ -2,7 +2,7 @@
 
 ## Priorité active — cycle des extensions, 5 octobre 2026
 
-Le parcours T11 est complété pour appliquer un plan accepté au projet : première installation d'un paquet externe vérifié, mise à jour individuelle et désactivation, puis publication et confirmation du runtime. Le moteur et l'export Product Hub sont prêts pour intégration ; la commande opérateur et la recette avec les archives publiques du Starter 0.1.2/0.1.3 restent en cours. Les dépendances facultatives et les refus d'incompatibilité font partie de cette même recette. Voir [T11](IMPLEMENTATION-T11.md). Aucun statut de livraison ni clôture exhaustive n'est déduit de cette préparation.
+Le parcours T11 applique un plan accepté au projet. La recette v6 sur D1/R2 Miniflare isolés a vérifié les archives publiques Starter 0.1.2/0.1.3 : installation, mise à jour individuelle, désactivation et réactivation, conservation du même enregistrement D1 et fichier R2, retrait puis retour des contributions générées UI/API/MCP/widgets. Les refus de rétrogradation, d'origine divergente, de dépendance obligatoire désactivée, de plan périmé et de confirmation prématurée sont constatés. Le conteneur Linux jetable a passé `npm ci --offline --ignore-scripts` (399 paquets), puis `npm ls --depth=0` a confirmé 0.1.3. Livraison d'application, runtime UI hébergé, intégrations facultatives et retrait avec droits résiduels gardent leurs recettes ; T11 n'est pas clos de façon exhaustive. Voir [T11](IMPLEMENTATION-T11.md).
 
 ## Point de progression — 3 octobre 2026, livraison PR #107
 
@@ -249,7 +249,7 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-08 — Registre central | Registre publié ; propriétaire vérifié, projet Lab et installations Sites/Cloudflare créés ; jetons chiffrés ; publication Sites Lab synchronisée | Parcours email et autres raccords | Sites et Cloudflare Lab déclarés |
 | T-09 — Sites | Compte domix : Original v7 depuis Core `8756f008`/Site `f71cc236`, Lab v3 depuis Lab `7b49358`/Site `6944265`, registres synchronisés ; témoins D1/R2 conservés | Connexion ChatGPT domix et critères hébergés restants ; anciennes issues inconnues préservées | Original v7 et Lab v3 publiés ; autres recettes distinguées |
 | T-10 — MCP/OAuth | Catalogues admin/app distincts ; admin ChatGPT qualifié historiquement ; MCP app Lab 0.1.2 connecté, carte/liste et modes direct/contexte/message exercés | Approbations et parcours de refus hébergés ; limite du picker documentée en T40 | Recette MCP app réalisée dans ce périmètre |
-| T-11 — Modules | Catalogue, dépendances, plans D1, UI originale et adoption 0.1.2 ; cycle durable intégré ; anciens plans clôturés honnêtement | Autres recettes du cycle de modules | Tranche ciblée intégrée et qualifiée |
+| T-11 — Modules | Catalogue, dépendances, plans D1 et UI originale ; cycle public 0.1.2→0.1.3→désactivation→réactivation qualifié sur Linux isolé | Livraison et runtime UI, intégrations facultatives, retrait avec droits résiduels et autres recettes | Tranche ciblée qualifiée ; T11 ouvert |
 | T-12 — Documentation | PR #21 : README/PRD/changelog exacts, UI/API/MCP et recettes locales/CI, 923 tests | Recettes hébergées transversales ; édition des PRD de travail en T-23 | Documents installés vérifiés localement |
 | T-13 — Fronts et thèmes | PR #22 : deux thèmes, projection native app, headless et CI ; front Lab ChatGPT-like et vues du module 0.1.2 conservés sur Site B version 5 | Autres profils et interactions de thèmes/fronts | Tranche locale et Site B qualifiée dans ce périmètre |
 | T-14 — Conversations | Chat original, historique, brouillons D1, fichiers R2 ; PR #97 publiée sur Original, réponse/brouillon/fichier restaurés après reload sans resélection | Autres parcours et profils, dont le fil Meili Linux vide après reload malgré sa persistance | Correction Original qualifiée ; diagnostic distinct du reload Meili Linux |
@@ -459,6 +459,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 - Besoin : [US-11](USER-STORIES.md#US-11). Acceptation : [REQ-1101](EXIGENCES.md#REQ-1101), [REQ-1102](EXIGENCES.md#REQ-1102), [REQ-1103](EXIGENCES.md#REQ-1103), [REQ-1104](EXIGENCES.md#REQ-1104), [REQ-1105](EXIGENCES.md#REQ-1105), [REQ-1106](EXIGENCES.md#REQ-1106).
 - Validation : implémenter puis exécuter les recettes liées, sur **local et app hôte** ; inclure les cas négatifs et les contrôles communs appropriés.
 - Preuves : candidat `76674c5`, main `037c0a0b`, arbre `0da0b71b`, CI 36299996090/36300347412 ; 908/908 sans omission, build/types/Workerd et trois revues indépendantes. Recettes navigateur et limites décrites dans IMPLEMENTATION-T11, preuves T11 conservées hors source.
+- Recette publique v6 isolée : `outputs/T11-REAL-PACKAGE-CYCLE-PASSED-V6-2026-10-05.json` (SHA-256 `4469035bd8bd4d550b49e83678afaa25f1ebda1042b7455c4a330f51aa7261cc`) et `outputs/T11-LINUX-NPM-CI-2026-10-05.json` (SHA-256 `0c5d3de073db2ad0fe7c3e29d7864940d37a1de2b306dd852cf54f44cb41b90b`). Preuve D1/R2 et npm isolée, sans déploiement ni clôture exhaustive.
 
 <a id="T-12"></a>
 ## T-12 — Documentation vivante des modules
