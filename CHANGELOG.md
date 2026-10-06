@@ -4,7 +4,7 @@
 
 - Le volet mobile du thème ChatGPT-like reçoit le focus à l'ouverture, retient la navigation clavier et rend le contenu couvert inactif. Sa fermeture et le retour au mode bureau replacent le focus sans déplacer le défilement.
 - Le workspace, ses comptes et ses vues autorisées restent ceux du socle. L'accueil épinglé reste une vue apportée par la composition ; cette évolution n'ajoute pas de dashboard métier.
-- Les recettes distinguent les audiences admin/app, les deux fiches d'un même module, les thèmes et le client headless avec ses scopes propres. Les publications et preuves hébergées sont suivies dans les états T07/T13.
+- Les états de qualification distinguent les audiences admin/app, les deux fiches d'un même module, les thèmes et le client headless avec ses scopes propres. Les publications et preuves hébergées sont suivies dans les états T07/T13.
 
 ## Registre — vérification email et raccordement de publication, 6 octobre 2026
 
