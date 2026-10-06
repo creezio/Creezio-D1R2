@@ -2,7 +2,7 @@
 
 ## Reprise du lot — 6 octobre 2026
 
-La reprise demandée porte sur le provisionnement, les refus et les reprises de la même application avec ses stockages distincts, sans module métier alternatif ni instance applicative supplémentaire. Le retry routé de PR #99 est intégré dans `main` ; sa qualification Cloudflare reste à terminer sur la cible T33 existante. Les trois couples physiques et les témoins antérieurs sont conservés.
+La reprise demandée porte sur le provisionnement, les refus et les reprises de la même application avec ses stockages distincts, sans module métier alternatif ni instance applicative supplémentaire. Le retry routé de PR #99 et la correction du workspace de PR #118 sont livrés sur la cible T33 existante, depuis `f80808abfbf337076632eb4bb9cd1ac6c672c310`. Les trois couples physiques et les témoins antérieurs sont conservés. La dernière correction de présentation du refus et de déconnexion reste à livrer et à qualifier avant clôture.
 
 Le contrôle du workspace a reproduit un défaut : le refus confirmé de la projection d'un contexte effaçait aussi les onglets sauvegardés des autres contextes du même utilisateur. La purge est désormais limitée à la clé du contexte refusé. La déconnexion et le changement de session conservent leur purge générale. Le test restaure B après le refus de A et vérifie séparément la déconnexion ; il complète les contrôles serveur d'isolation, sans les remplacer.
 
@@ -10,7 +10,25 @@ Les tests de provisionnement couvrent également un arrêt après le reçu D1 ma
 
 Le relevé Cloudflare du 6 octobre confirme 418 bases D1, sept buckets R2 et les abonnements Workers Paid/R2 Paid. Les [limites D1](https://developers.cloudflare.com/d1/platform/limits/) et [R2](https://developers.cloudflare.com/r2/platform/limits/) publiées permettent cette topologie ; elles ne garantissent pas l'acceptation d'une future allocation ni l'absence d'un plafond personnalisé. Les refus fournisseur et les résultats incertains suivent le journal décrit ci-dessous. Aucun test ne remplit artificiellement le compte pour provoquer un quota dépassé. Reçu de lecture seule : `CREEZIO-T33-CAPACITY-READ-2026-10-06.json`, SHA-256 `061fb58e93f66bd31049bcbcce5d7859c1ee3a97f7f1dcec536f30f17559a1d4`.
 
-Cette correction et ses tests ne constituent pas encore la recette de la nouvelle source déployée. La qualification conserve séparément source, CI, livraison Linux/Cloudflare, reprise native et lecture finale des témoins.
+### Qualification Linux et Cloudflare du 6 octobre
+
+Les CI candidate et main de PR #118 passent 1 588 tests et 33 commandes, sans échec ni omission (runs `37474509628` et `37477017757`). L'image Linux `sha256:d372f5e2bb0e2f8b94fa395b310869674fdae2475908c5e93d63cdd69f6299a7` conserve le volume et l'UUID de stockage `07e3a3c5-8f8c-4de1-a574-16cad5aaca42`. L'adoption native applique les deux colonnes nullables attendues à chacun des trois schémas ; aucune nouvelle table ni aucun nouvel index, aucune réinitialisation ou réimportation.
+
+La mise à jour Cloudflare `6a2f7a11-15dd-4ab3-9388-ee9af7d224bc` est terminale `delivered`, cutover ouvert et registre synchronisé. Son artefact `sha256-90ffb88a26259e322ed49a44edfa03b6abf536b20c5bdc9d44e8c18c0869341f` est servi par la version Worker `e8514ab8-116c-446c-82be-dc1d791bafec`, déploiement `a8ca4d0b-b96d-49e2-bed5-cb857ca9a659`, à 100 %. Les six bindings, les trois D1 prêts et les trois buckets privés sont vérifiés, avec leurs identités physiques antérieures.
+
+La recette interrompt une seule fois le processus avant l'upload du Worker : il s'agit d'une interruption contrôlée, pas d'un accusé fournisseur réellement perdu. Après inspection de la même mise à jour incertaine, l'unique retry natif conserve l'artefact, le plan, les ressources et l'identifiant de mise à jour ; `publicationRetryCount=1`. Des réponses de suivi HTTP ont expiré : les observations suivantes lisent le même journal et ne réémettent pas les commandes. L'accusé terminal de la réconciliation intermédiaire n'a pas été observé ; sa récupération en lecture seule est conservée comme telle. L'accusé terminal du retry, puis une observation indépendante, confirment la livraison. L'injection temporaire est retirée ; le conteneur utilise l'image normale.
+
+Les lectures applicatives Linux et Cloudflare confirment B actif, son brouillon et son fichier de 64 octets conservés par empreinte, A désactivé avec opérations métier refusées à 403, puis logout 200 et lecture de session 401. La projection workspace de A refuse à 401 selon son contrat ; elle ne doit pas être confondue avec ces routes métier. Dans le navigateur, B est restauré après le refus de A et après rechargement, sans droit OpenAI ni mutation métier. Ce dernier parcours a révélé deux défauts de présentation : l'alerte était partiellement recouverte par la barre latérale et la déconnexion disparaissait faute de projection autorisée. Leur correctif maintient le compte natif et sa déconnexion, sans exposer les vues métier, et place l'alerte dans la zone de contenu existante du shell Creezio. La recette déployée de ce correctif reste ouverte.
+
+Preuves hors dépôt :
+
+- `CREEZIO-T33-PR118-MAIN-CI-2026-10-06.json`, SHA-256 `3408f1329a60eb6a84f7f635ecf809a824dda366f174f01b00de4c64ccd3c257`.
+- `CREEZIO-T33-OCT6-FINAL-OBSERVE-6a2f7a11-15dd-4ab3-9388-ee9af7d224bc-17771a37-4cce-4dbb-a888-83a82f843d8c.json`, SHA-256 `7b76c8203608547892c70264cd8aebe9ce01fb4b2652056a0f14ff69c230f543`.
+- `CREEZIO-T33-OCT6-UPDATE-f80808abfbf337076632eb4bb9cd1ac6c672c310-RETRIED.json`, SHA-256 `458d9ee44630b80a9e8df6c3f84a098a2878ba190b0b178b65d7fd843ba9ab2f`.
+- `CREEZIO-T33-OCT6-CF-NATIVE-FINAL-9a294c45-5df7-43b6-9d0f-9432c564a1d5.json`, SHA-256 `2d70231a2c5817a53669d987658a9f42f8b29732c0150abad27b8cf21b470582`.
+- `CREEZIO-T33-OCT6-CF-UI-READ-682ec420-6b74-496d-8689-71fb4f0a49f7.json`, SHA-256 `0d51924c2b832f31cf2f3806c578876e94ff1e3509fca3db332e478dda73b184` : restauration B vérifiée ; logout par repli natif 200/session 401, navigateur fermé ; bouton de déconnexion non qualifié. La première tentative interrompue conserve sa limite distincte : navigateur arrêté, révocation de sa session serveur non confirmée ; aucune révocation globale n'est effectuée.
+
+Les cas négatifs de provisionnement fournisseur restent testés avec des réponses simulées ; cette livraison réelle ne prétend pas avoir épuisé un quota Cloudflare. Sites conserve son profil partagé et sa capacité d'isolation indisponible ; aucune republication Sites n'est requise par ce lot.
 
 ## Refus fournisseur pendant le provisionnement T32/T33 — 2 octobre 2026
 
@@ -18,7 +36,8 @@ Une réponse Cloudflare 4xx structurée avec `success:false` et des codes numér
 
 Ce refus n'est **pas** classé « quota épuisé » : aucun code de quota de création D1/R2 suffisamment établi n'est utilisé. Le provisionneur ne mesure ni la capacité restante du compte ni les quotas personnalisés. Une D1 créée avant un refus R2 reste une allocation partielle identifiée par son journal, à traiter par une décision opérateur distincte ; elle n'est pas supprimée automatiquement. Les tests utilisent des réponses fournisseur simulées et ne prouvent aucun refus quota réel.
 
-## État réel du 2 octobre 2026 — installation T33 isolée
+<a id="état-réel-du-2-octobre-2026--installation-t33-isolée"></a>
+## Historique — état du 2 octobre 2026, installation T33 isolée
 
 L'installation T33 utilise le même volume Linux, l'UUID de stockage et les trois couples D1/R2 déjà inscrits ; T32 demeure séparé. Après la livraison intermédiaire du Core `7b606f579d3a813742cde48c375ec0ebb7e43d8d`, l'image issue de `main` `6921f5debd4a07801bbe2d87744a0555a08954db` (arbre `5e7bb465e969d94d1cb5997283d8091cb67fbc33`) a été activée sur ce volume. Le plan SQL a été appliqué par la commande native sur le principal et les deux cibles, avec zéro nouvelle table, colonne ou index ; aucun SQL manuel, transfert de données ou réinitialisation n'a été nécessaire.
 
@@ -28,11 +47,12 @@ L'ACK de l'upload initial était incertain : la version distante est restée l'a
 
 La recette authentifiée API relit A désactivé (brouillon et fichier refusés en 403), B actif (conversation, brouillon et 64 octets de fichier identiques), puis la déconnexion 200 et la session 401. Le navigateur retrouve le brouillon B initialement **et après rechargement**, sans commande métier ni appel OpenAI. Les reçus hors dépôt sont `CREEZIO-T33-OCT2-MAIN-CF-NATIVE-READ-2026-10-02.json` (SHA-256 `0f7e728ebc0a8933a90616fb0f9b7a3e505794b695eaf848e4a058e32ac7c48e`) et `CREEZIO-T33-OCT2-MAIN-CF-PLAYWRIGHT-B-RELOAD-2026-10-02.json` (SHA-256 `a85315ba1e5d3980d8207f70b03856c738f2f608580476940b201dae0fe88a7b`). Deux réponses 500 transitoires pendant ce rechargement, sur la lecture de configuration OpenAI et la liste Conversations, sont conservées séparément dans `CREEZIO-T33-OCT2-MAIN-RELOAD-500-OBSERVATION-2026-10-02.json` (SHA-256 `197fa0a26fb98b565a6edcd923158b76be9d48fccd0a7a4c5b45bd3cb7cb4d8d`) ; les lectures suivantes ont répondu 200 et B est resté conforme. Leurs causes ne sont pas établies par cette recette.
 
-## Correctif produit candidat — retry de publication routée
+<a id="correctif-produit-candidat--retry-de-publication-routée"></a>
+## Historique — qualification du retry de publication routée, PR #99
 
 La tranche de reprise routée de la PR #99, revue sur `ed918b599c464480d75f343f0b14b7b7386fade1` depuis `main` `6921f5d`, ajoute au pipeline natif le diagnostic de publication borné pour le cutover routé. Un retry explicite conserve le même update et le même artefact, utilise le journal, `publicationRetryCount` et une nouvelle clé de gate. Il exige la source et le plan inchangés, l'artefact construit préservé, l'ancien déploiement et la dernière version distants, le gate précédent préparé, les routes fermées et les reçus SQL exacts des trois D1. Une réconciliation en phase `publishing` inspecte seulement l'upload incertain. Un échec de sandbox ou de prévol avant nouvel upload conserve le dernier diagnostic ; il n'est effacé qu'après confirmation de publication. Les tests ciblés pipeline, cutover et HTTP opérateur passent 67/67, et la revue indépendante est favorable sur ce SHA. Cette tranche seule a passé la CI `37028270338` (1 507/1 507). La combinaison `eabec29` intègre ensuite `main` `93d2f1f` et la protection du brouillon ; ses onze verrous, ses documents, les 39 tests de schéma/composition et TypeScript sont vérifiés sous Linux dans `CREEZIO-PR99-COMBINED-LINUX-QUAL-EABEC29-2026-10-02.json`. Ces contrôles locaux ne remplacent pas la CI de la candidate finale. La PR reste en brouillon et ce mécanisme n’est pas encore livré.
 
-Les sections historiques ci-dessous décrivent leurs dates et sources propres ; leurs mentions d'une topologie Cloudflare non encore publiée ne décrivent plus l'état T33 ci-dessus.
+La PR #99 est depuis intégrée par `252791f` ; le statut de brouillon ci-dessus décrit uniquement sa phase candidate du 2 octobre. Les sections historiques ci-dessous gardent leurs dates et sources propres ; leurs mentions d'une topologie Cloudflare non encore publiée ne décrivent plus l'état courant présenté en tête de cette fiche.
 
 <a id="livraison-cloudflare-multi-couple-et-lecture-bornee--2-octobre-2026"></a>
 ## Livraison intermédiaire Cloudflare multi-couple — 2 octobre 2026
@@ -75,7 +95,7 @@ La recette Linux isolée du 1er octobre passe les cinq tests d'installation avec
 Le 1er octobre, après intégration de PR #85 et qualification de main `1dce54d`, le propriétaire T33 réel est installé par le chemin natif `schema_ready` avec `createSchema:false`. L'inspection suivante confirme `initialized`, le reçu primaire inchangé et les deux cibles prêtes avec leurs reçus distincts. Le volume, son UUID et les données sont conservés ; aucun SQL manuel ni réinitialisation. Le reçu hors dépôt `CREEZIO-T33-LINUX-OWNER-INSTALLED-1DCE54D-2026-10-01.json` fixe cette preuve.
 
 La recette HTTP a ensuite identifié une différence entre les ports configurés du second projet Docker et les destinations fixes des proxys du lanceur. Aucun droit ni témoin métier n'a encore été créé sur A/B. Leur correction et la recette authentifiée restent séparées de l'installation réussie ; les trois couples Cloudflare, leur transfert et les refus entre contextes restent à qualifier.
-Critère : [REQ-3301](EXIGENCES.md#REQ-3301). Cette fiche décrit le contrat intégré jusqu'à PR #81 et la tranche de recette isolée encore ouverte, sans déclarer REQ-3301 terminée.
+Critère : [REQ-3301](EXIGENCES.md#REQ-3301). Les sections suivantes conservent les étapes de réalisation et leurs limites à leur date ; l'état courant et les preuves de clôture figurent en tête de cette fiche.
 
 ## Contrat de la tranche 1
 
