@@ -1,5 +1,11 @@
 # Changelog
 
+## Stockages isolés — qualification Linux et Cloudflare, 6 octobre 2026
+
+- T33 est qualifié sur la source `c8844f0` : provisionnement, refus et reprise avec un seul applicatif et trois couples D1/R2 conservés, dont deux isolés.
+- Le rejet natif d'une publication réellement refusée réouvre les accès vérifiés ; la mise à jour suivante est livrée sur Linux et Cloudflare, sans réimportation des données ni retry de ce nouvel envoi.
+- API, MCP et navigateur vérifient les refus, le retour au contexte autorisé, la persistance du brouillon, le fichier conservé et la déconnexion depuis un contexte refusé. Les preuves et leurs limites sont consignées dans [T33](docs/IMPLEMENTATION-T33.md).
+
 ## Stockages isolés — refus de publication et démarrage, 6 octobre 2026
 
 - Le catalogue MCP et ses widgets sont validés une seule fois au premier appel MCP, pour retirer cette initialisation lourde du démarrage du Worker. Les vérifications du catalogue, les limites et les autorisations propres à chaque requête sont conservées.

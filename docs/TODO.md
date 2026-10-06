@@ -1,8 +1,8 @@
 # Backlog de réalisation
 
-## Reprise — données isolées hors Sites, 6 octobre 2026
+## Terminé — données isolées hors Sites, 6 octobre 2026
 
-Le mandat T33 porte sur la clôture du provisionnement, des refus et des reprises sur l'installation isolée existante. PR #118 est livrée sur Linux et Cloudflare, source `f80808a` : trois couples conservés, retry natif unique livré et registre synchronisé, B restauré après refus de A et rechargement. PR #119 corrige l'alerte recouverte et la déconnexion masquée ; sa source `68da06d` est vérifiée par CI et servie sur Linux. Cloudflare a refusé son unique upload pour dépassement CPU au démarrage ; l'ancien Worker et les données restent conservés, le cutover attend sa reprise. Le diagnostic de démarrage, la clôture sûre du refus routé, la nouvelle livraison et la recette navigateur finale restent nécessaires. Les preuves du provisionnement et de la reprise précédente restent acquises. Voir [T33](IMPLEMENTATION-T33.md). Aucun autre lot différé n'est repris.
+T33 / REQ-3301 est qualifié sur Linux et Cloudflare, source runtime `c8844f0` (PR #120). Les CI candidate et main passent 1 593 tests et 33 commandes. Le refus réel de publication a été clos par le rejet natif, puis les accès A/B ont été relus avant une nouvelle mise à jour normale livrée, sans retry. Les trois couples D1/R2, les données et les fichiers sont conservés ; registre synchronisé. Les recettes finales API, MCP et navigateur confirment le refus de A, la restauration de B après retour et rechargement, l'alerte lisible, la déconnexion disponible et la purge de l'état sauvegardé. Les refus de provisionnement simulés et une déconnexion technique locale dont l'issue reste inconnue sont distingués des preuves réussies dans [T33](IMPLEMENTATION-T33.md). Aucun autre lot différé ni validation T39 n'est clôturé par cette livraison.
 
 ## Livraison — workspace, thèmes et headless, 6 octobre 2026
 
@@ -339,7 +339,7 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-27](#T-27) | P5 | Connecteur Stripe | [T-11](#T-11), [T-16](#T-16) | 0.4 et cycle réversible TEST qualifiés ; 0.5 livré, offre et Checkout app open/unpaid qualifiés ; compléments ouverts |
 | [T-28](#T-28) | P5 | Connecteur Meili | [T-05](#T-05), [T-11](#T-11) | Index/recherche réels Linux/Sites/Cloudflare ; widget Linux qualifié, tour Original sans widget ni cause attribuée, reload Linux et compléments ouverts |
 | [T-29](#T-29) | P5 | Autres connecteurs et frontières externes | [T-11](#T-11), [T-16](#T-16), [T-18](#T-18), [T-23](#T-23) | Connecteurs externes intégrés ; recettes réelles Resend/Granola/Hermes reportées, raccords restants ouverts |
-| [T-33](#T-33) | P6 | Stockages distincts hors Sites | [T-32](#T-32) | Provisionnement/reprise livrés sur f80808a, trois couples conservés ; correction de l'affichage du refus et de la déconnexion à livrer |
+| [T-33](#T-33) | P6 | Stockages distincts hors Sites | [T-32](#T-32) | Terminé — provisionnement, refus et reprise qualifiés ; Linux/Cloudflare c8844f0, trois couples conservés, recettes API/MCP/navigateur réussies |
 | [T-34](#T-34) | P6 | Éditions, politiques et activation | [T-08](#T-08), [T-11](#T-11), [T-27](#T-27) | À faire — accord explicite futur préalable |
 | [T-35](#T-35) | P6 | Accompagnement avec accès consenti | [T-23](#T-23), [T-34](#T-34) | À faire — accord explicite futur préalable |
 
@@ -751,13 +751,13 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 - Installation des profils larges intégrée par PR #85 : propriétaire T33 installé, trois D1 conservés ; l'update Cloudflare multi-couple Core `7b606f5` est livré avec trois schémas prêts. Les étapes de correction des ports et de lignée décrites plus bas restent historiques ; voir [le contrat et ses preuves](IMPLEMENTATION-T33.md#livraison-cloudflare-multi-couple-et-lecture-bornee--2-octobre-2026).
 
 
-- Lot : **P6** ; état : **en cours — provisionnement et reprise qualifiés sur f80808a ; dernière correction de présentation du refus et de déconnexion à livrer et vérifier** ; responsabilités : intégration Git/livraison, installation/revue locale, configuration persistée et recette réelle traitées par des responsables distincts.
+- Lot : **P6** ; état : **terminé — REQ-3301 qualifié sur Linux et Cloudflare, limites des preuves conservées** ; responsabilités : intégration Git/livraison, installation/revue locale, configuration persistée et recette réelle traitées par des responsables distincts.
 - Dépendances : [T-32](#T-32).
 - Travail/livrables : Résolveur de ressources autorisées, provisionnement/bindings et qualification des quotas.
 - PR #79 à #81 intègrent le routage, l'autorité cible, l'installation et le cutover. L'ancien état `unproven` post-RBAC sur Linux 8d et la première tentative Cloudflare b9 restent historiques. L'update native `10c2705d-e5f8-49ea-ae15-0f5737841e98` de Core `7b606f5` est livrée sur les trois couples conservés ; voir [T33](IMPLEMENTATION-T33.md#livraison-cloudflare-multi-couple-et-lecture-bornee--2-octobre-2026).
 - Besoin : [US-33](USER-STORIES.md#US-33). Acceptation : [REQ-3301](EXIGENCES.md#REQ-3301).
 - Validation : implémenter puis exécuter les recettes liées, sur **local puis Cloudflare direct** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : CI candidate/main PR #118, 1 588 tests/33 commandes ; Linux et Worker `f80808a` livrés, trois schémas D1 `ready` et ressources physiques inchangées, registre synchronisé. Une interruption contrôlée avant upload puis un retry natif unique de la même mise à jour et du même artefact aboutissent à `delivered`. API B conservé/A refusé ; UI B restauré après A et rechargement sans OpenAI. La déconnexion depuis le refus est corrigée en candidat, encore à qualifier en UI déployée. Les preuves, limites fournisseur et tentatives interrompues sont détaillées dans [T33](IMPLEMENTATION-T33.md).
+- Preuves : CI candidate/main PR #120, 1 593 tests/33 commandes ; Linux et Cloudflare `c8844f0` livrés, trois schémas D1 `ready`, ressources et témoins inchangés, registre synchronisé. Le retry natif antérieur reste acquis ; le refus réel suivant est clos par `update/reject` avec réouverture vérifiée, puis une nouvelle publication normale réussit. API A403/B conservé, MCP anonyme401, navigateur A401 avec alerte/logout disponibles, B restauré après A et rechargement, logout200/session401 et purge du snapshot B. Les preuves de provisionnement et de quotas, les refus simulés et la limite distincte de nettoyage d'une session technique locale figurent dans [T33](IMPLEMENTATION-T33.md).
 
 <a id="T-34"></a>
 ## T-34 — Éditions, politiques et activation
