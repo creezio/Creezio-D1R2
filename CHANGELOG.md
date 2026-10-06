@@ -1,5 +1,10 @@
 # Changelog
 
+## Stockages isolés — refus de publication et démarrage, 6 octobre 2026
+
+- Le catalogue MCP et ses widgets sont validés une seule fois au premier appel MCP, pour retirer cette initialisation lourde du démarrage du Worker. Les vérifications du catalogue, les limites et les autorisations propres à chaque requête sont conservées.
+- Après un refus Cloudflare confirmé, `update/reject` peut réouvrir les contextes dont le plan et les ressources sont inchangés, puis clore le journal. Il conserve les reçus et le sandbox déjà confirmé ; une interruption reste reprenable, sans second upload implicite. Les différences de plan, de ressources ou de déploiement empêchent cette clôture. La livraison reste suivie dans [T33](docs/IMPLEMENTATION-T33.md).
+
 ## Stockages isolés — accès refusé dans le workspace, 6 octobre 2026
 
 - Le compte natif et sa déconnexion restent accessibles lorsque le contexte demandé refuse la projection du workspace ; aucune vue métier n'est exposée par ce maintien du compte.

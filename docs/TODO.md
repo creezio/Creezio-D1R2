@@ -2,7 +2,7 @@
 
 ## Reprise — données isolées hors Sites, 6 octobre 2026
 
-Le mandat T33 porte sur la clôture du provisionnement, des refus et des reprises sur l'installation isolée existante. PR #118 est livrée sur Linux et Cloudflare, source `f80808a` : trois couples conservés, retry natif unique livré et registre synchronisé, B restauré après refus de A et rechargement. La dernière recette corrige deux défauts de présentation du refus : alerte sous la barre latérale et déconnexion native masquée. Leur livraison et leur recette restent nécessaires à la clôture ; les preuves du provisionnement et de la reprise restent acquises. Voir [T33](IMPLEMENTATION-T33.md). Aucun autre lot différé n'est repris.
+Le mandat T33 porte sur la clôture du provisionnement, des refus et des reprises sur l'installation isolée existante. PR #118 est livrée sur Linux et Cloudflare, source `f80808a` : trois couples conservés, retry natif unique livré et registre synchronisé, B restauré après refus de A et rechargement. PR #119 corrige l'alerte recouverte et la déconnexion masquée ; sa source `68da06d` est vérifiée par CI et servie sur Linux. Cloudflare a refusé son unique upload pour dépassement CPU au démarrage ; l'ancien Worker et les données restent conservés, le cutover attend sa reprise. Le diagnostic de démarrage, la clôture sûre du refus routé, la nouvelle livraison et la recette navigateur finale restent nécessaires. Les preuves du provisionnement et de la reprise précédente restent acquises. Voir [T33](IMPLEMENTATION-T33.md). Aucun autre lot différé n'est repris.
 
 ## Livraison — workspace, thèmes et headless, 6 octobre 2026
 

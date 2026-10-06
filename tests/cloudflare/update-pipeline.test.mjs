@@ -62,8 +62,12 @@ function fixture({unknownUpload=false,failedUploadNoRemote=false,rejectedUploadN
   lostSchemaReplyOnce=false,routedTarget=false,cutoverFactory=null}={}){
   const events=[],planJournal=journal('transferId'),updateJournal=journal('updateId'),
     gateJournal=publicationJournal(),sandboxJournal=journal('transferId');
+  const initialArtifact=routedTarget?{...originalArtifact,compositionDigest}:originalArtifact;
   const initial={schemaVersion:1,revision:1,transferId:'transfer-one',owner:context.principalId,
-    stage:'delivered',accountId,workerName,tokenId,target:routedTarget?routed:target,artifact:originalArtifact,
+    stage:'delivered',accountId,workerName,tokenId,target:routedTarget?routed:target,
+    artifact:initialArtifact,
+    ...(routedTarget?{targetPlanDigest:`sha256-${'8'.repeat(64)}`,
+      targetCompositionDigest:compositionDigest}:{}),
     registryProjectId:'project-one',registryInstallationId:'installation-one'};
   planJournal.records.set(initial.transferId,initial);
   const initialSandbox={transferId:initial.transferId,workerName:`${workerName}-widgets`,
@@ -117,7 +121,7 @@ function fixture({unknownUpload=false,failedUploadNoRemote=false,rejectedUploadN
   };
   gateJournal.records.set(initial.transferId,{state:'synchronized',declaration:{
     deploymentId:'deployment-original',url:new URL(initial.target.origin).href,
-    publishedSha:originalArtifact.sourceSha,artifact:originalArtifact}});
+    publishedSha:originalArtifact.sourceSha,artifact:initialArtifact}});
   const deployed=cloudflareWorkerConfiguration(initial.target);
   const installedBindings=[...deployed.d1_databases.map(item=>({name:item.binding,type:'d1',
     id:item.database_id})),...deployed.r2_buckets.map(item=>({name:item.binding,
@@ -318,6 +322,14 @@ async function routedUnknownFixture({rejected=false}={}){
       if(!proofReady)throw Object.assign(new Error('fences changed'),{code:'retry_not_ready'});
       return true;
     },
+    async rejectPreserved(){
+      if(!proofReady)throw Object.assign(new Error('schema or route changed'),
+        {code:'rejection_not_ready'});
+      const old=await input.updateJournal.load('update-one');
+      await input.updateJournal.compareAndSave(old,{...old,revision:old.revision+1,
+        cutover:{...old.cutover,phase:'rejected'}});
+      return true;
+    },
     async advance(){
       const old=await input.updateJournal.load('update-one');
       if(!old.cutover){
@@ -382,6 +394,150 @@ test('routed validation refusal keeps diagnostic and disables retry',async()=>{
   await assert.rejects(f.pipeline.retryUpdate(prepared,context),{code:'update_not_ready'});
   assert.equal(f.uploadCount,1);
 });
+
+test('routed 10021 rejection proves the old head and leaves a new update available',async()=>{
+  const {f,prepared}=await routedUnknownFixture({rejected:true});
+  const before=f.events.filter(item=>item==='latest-version').length;
+  const rejected=await f.pipeline.rejectUpdate(prepared,context);
+  assert.equal(rejected.phase,'rejected');
+  assert.equal(rejected.registryStatus,'pending');
+  assert.equal(rejected.retryEligible,false);
+  assert.equal(f.events.filter(item=>item==='latest-version').length-before,2);
+  assert.ok(f.events.includes('preserved-artifact'));
+  assert.equal(f.updateJournal.records.get('update-one').stage,'rejected');
+  assert.equal(f.updateJournal.records.get('update-one').cutover.phase,'rejected');
+  assert.equal(f.updateJournal.records.get('update-one').rejectionProof.previousVersionId,
+    originalVersion);
+  assert.equal(f.gateJournal.records.get('update-one').state,'prepared');
+  assert.equal(f.current.deploymentId,'deployment-original');
+  assert.equal(f.uploadCount,1);assert.equal(f.schemaEffects,0);
+  assert.equal((await f.pipeline.statusUpdate(prepared.updateId,context)).phase,'rejected');
+  assert.equal((await f.pipeline.reconcileUpdate(prepared,context)).phase,'rejected');
+  assert.equal((await f.pipeline.rejectUpdate(prepared,context)).phase,'rejected');
+  await assert.rejects(f.pipeline.retryUpdate(prepared,context),{code:'update_not_ready'});
+  assert.equal((await f.pipeline.inspectUpdate(context)).activeUpdateId,null);
+  assert.equal((await f.pipeline.prepareUpdate({},context)).updateId,'update-two');
+  assert.equal(f.uploadCount,1);assert.equal(f.schemaEffects,0);
+});
+
+test('routed rejection refuses changed or unproved predecessor without another upload',async()=>{
+  for(const changed of ['version','deployment','gate','artifact','schema','plan','inventory','unknown']){
+    const {f,prepared,setProofReady}=await routedUnknownFixture({rejected:true});
+    if(changed==='version')f.control.latestVersion=async()=>({id:updatedVersion});
+    if(changed==='deployment')f.current.deploymentId='deployment-foreign';
+    if(changed==='gate')f.gateJournal.records.set('update-one',
+      {...f.gateJournal.records.get('update-one'),state:'delivered'});
+    if(changed==='artifact'){
+      const gate=f.gateJournal.records.get('update-one');
+      f.gateJournal.records.set('update-one',{...gate,request:{...gate.request,
+        artifact:{...gate.request.artifact,artifactDigest:`sha256-${'f'.repeat(64)}`}}});
+    }
+    if(changed==='schema')setProofReady(false);
+    if(changed==='plan')f.options.planJournal.records.get('transfer-one')
+      .targetPlanDigest=`sha256-${'f'.repeat(64)}`;
+    if(changed==='inventory')f.updateJournal.records.get('update-one')
+      .nextTarget={...routed,resources:[]};
+    if(changed==='unknown'){
+      const old=f.updateJournal.records.get('update-one');
+      f.updateJournal.records.set('update-one',{...old,
+        publicationFailure:{phase:'unknown',reason:'unavailable',exitCode:null,apiCodes:[]}});
+    }
+    await assert.rejects(f.pipeline.rejectUpdate(prepared,context));
+    assert.equal(f.updateJournal.records.get('update-one').stage,'sandbox-ready',changed);
+    assert.equal(f.gateJournal.records.has('update-one.retry.1'),false);
+    assert.equal(f.uploadCount,1);assert.equal(f.schemaEffects,0);
+  }
+});
+
+test('real routed 10021 rejection reopens the old route and permits a following cutover',
+  {timeout:60000},async()=>{
+    const f=fixture({routedTarget:true,rejectedUploadNoRemote:true});
+    const local=await createStorageFixture();
+    const runtime=new Miniflare({host:'127.0.0.1',port:0,cf:false,modules:true,
+      script:'export default {fetch(){return new Response(null,{status:404})}}',
+      compatibilityDate:'2026-05-15',d1Databases:{TARGET:'update-rejection-target'},
+      d1Persist:false,telemetry:{enabled:false},logRequests:false,
+      log:new Log(LogLevel.NONE)});
+    try{
+      const primary=local.db,targetDb=await runtime.getD1Database('TARGET');
+      const ddl=describeD1Schema(STORAGE_AUTHORITY_MODULE_ID,STORAGE_AUTHORITY_MODELS);
+      for(const db of [primary,targetDb])
+        await db.batch(ddl.statements.map(sql=>db.prepare(sql)));
+      const epoch=(await primary.prepare(`SELECT epoch FROM
+        "${ACCESS_TABLES.authorization_state}" WHERE id='application'`).first()).epoch;
+      const route=`"${STORAGE_AUTHORITY_TABLES.storage_routes}"`;
+      await targetDb.prepare(`INSERT INTO ${route}
+        (id,installation_id,slot,generation,state,mutation_id,source_epoch,updated_at_ms)
+        VALUES ('tenant-a',?,1,1,'active',NULL,?,0)`)
+        .bind(routed.storageInstallationId,epoch).run();
+      f.options.d1Factory=({databaseId:id})=>({databaseId:id,
+        metadata:async()=>({uuid:id})});
+      f.options.d1BindingFactory=client=>client.databaseId===databaseId
+        ?primary:targetDb;
+      const plan=f.options.project().targetPlan;
+      f.options.storageCutoverSchema={
+        async inspect(){return {state:'ready'};},
+        async apply(){assert.fail('same-plan rejection must not run DDL');},
+        async managed(db){return {ok:true,
+          receiptId:`sha256-${(db===primary?'1':'2').repeat(64)}`,
+          receipt:{...plan}};}};
+      const rejectedPublisher=f.options.publisherFactory;
+      f.options.publisherFactory=input=>({...rejectedPublisher(input),
+        async inspect(){return null;}});
+      const pipeline=createCloudflareDeliveryPipeline(f.options);
+      await pipeline.configure({target:{accountId,workerName},
+        credentials:{apiToken:token}},context);
+      const first=await pipeline.prepareUpdate({},context);
+      assert.equal((await pipeline.startUpdate(first,context)).phase,'delivery-unknown');
+      assert.equal((await targetDb.prepare(`SELECT state FROM ${route}`).first()).state,'deny');
+      assert.equal(f.gateJournal.records.get('update-one')?.state,'prepared');
+      const latest=f.control.latestVersion;
+      let checks=0;
+      f.control.latestVersion=async()=>++checks===2?{id:updatedVersion}:latest();
+      await assert.rejects(pipeline.rejectUpdate(first,context),{code:'delivery_unknown'});
+      assert.equal(f.updateJournal.records.get('update-one').stage,'sandbox-ready');
+      assert.equal(f.updateJournal.records.get('update-one').cutover.phase,'rejected');
+      assert.equal((await targetDb.prepare(`SELECT state FROM ${route}`).first()).state,
+        'active');
+      assert.equal(f.uploadCount,1);
+      f.control.latestVersion=latest;
+      assert.equal((await pipeline.rejectUpdate(first,context)).phase,'rejected');
+      const restored=await targetDb.prepare(`SELECT state,generation FROM ${route}`).first();
+      assert.equal(restored.state,'active');assert.equal(restored.generation,2);
+      assert.deepEqual(f.options.planJournal.records.get('transfer-one').sandboxHeadRejection,
+        {updateId:'update-one',planDigest:first.planDigest});
+      assert.equal(f.current.deploymentId,'deployment-original');
+      assert.equal(f.gateJournal.records.get('update-one').state,'prepared');
+      assert.equal(f.uploadCount,1);assert.equal(f.schemaEffects,0);
+      const originalBuild=f.options.buildUpdateTarget;
+      f.options.buildUpdateTarget=async input=>input.updateId==='update-two'
+        ?artifact:originalBuild(input);
+      const originalPublisher=f.options.publisherFactory;
+      let nextUploads=0;
+      const nextReceipt={deploymentId:'deployment-second',url:origin,
+        publishedSha:sourceSha,artifact};
+      f.options.publisherFactory=input=>input.artifactRoot.includes(
+        `${path.sep}update-two${path.sep}`)?{
+        async deliver(){nextUploads++;f.current.deploymentId=nextReceipt.deploymentId;
+          f.current.versionId=updatedVersion;f.current.tag='cz-update-two';
+          f.current.message=`Creezio ${artifact.artifactDigest} ${artifact.sourceSha}`;
+          return nextReceipt;},
+        async inspect(){return nextReceipt;},
+        async inspectCurrent(){return {deploymentId:f.current.deploymentId,
+          versionId:f.current.versionId,bindings:f.current.bindings};}}
+        :originalPublisher(input);
+      const resumed=createCloudflareDeliveryPipeline(f.options);
+      await resumed.configure({target:{accountId,workerName},
+        credentials:{apiToken:token}},context);
+      const second=await resumed.prepareUpdate({},context);
+      assert.equal(second.updateId,'update-two');
+      assert.equal((await resumed.startUpdate(second,context)).phase,'delivered');
+      assert.equal(nextUploads,1);
+      assert.equal((await targetDb.prepare(`SELECT state FROM ${route}`).first()).state,
+        'active');
+      assert.equal(f.schemaEffects,0);
+    }finally{await runtime.dispose();await local.dispose();}
+  });
 
 test('routed preflight outage retains the last upload diagnostic and retry key',async()=>{
   const {f,prepared,unknown}=await routedUnknownFixture();
