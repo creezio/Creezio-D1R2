@@ -48,7 +48,12 @@ test('registry deployment configuration is explicit, credential-free and indepen
     CLOUDFLARE_API_TOKEN: 'not-written'};
   const config = registryConfiguration(env);
   assert.equal(config.d1_databases[0].binding, 'DB'); assert.equal(config.vars.REGISTRY_ORIGIN, env.CREEZIO_REGISTRY_ORIGIN);
+  assert.equal(config.services, undefined);
   assert.equal(JSON.stringify(config).includes(env.CLOUDFLARE_API_TOKEN), false);
+  const withDelivery = registryConfiguration({...env,
+    CREEZIO_REGISTRY_EMAIL_DELIVERY_WORKER_NAME: 'creezio-registry-email'});
+  assert.deepEqual(withDelivery.services, [{binding: 'EMAIL_DELIVERY', service: 'creezio-registry-email'}]);
+  assert.throws(() => registryConfiguration({...env, CREEZIO_REGISTRY_EMAIL_DELIVERY_WORKER_NAME: '../other'}));
   for (const origin of ['http://registry.example.invalid', 'https://registry.example.invalid/', 'https://u:p@registry.example.invalid'])
     assert.throws(() => registryConfiguration({...env, CREEZIO_REGISTRY_ORIGIN: origin}));
   assert.throws(() => registryConfiguration({...env, CREEZIO_REGISTRY_DATABASE_ID: ''}));

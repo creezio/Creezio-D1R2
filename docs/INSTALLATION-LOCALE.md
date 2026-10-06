@@ -2,6 +2,8 @@
 
 Ce parcours initialise explicitement une installation locale neuve. Il fonctionne hors ligne, sans compte Cloudflare ni fournisseur externe. Le développement local reste distinct de la publication officielle et de son enregistrement Creezio.
 
+Avant la première publication, ouvrir le [registre Creezio](https://creezio-registry.fidusia.workers.dev), vérifier son identité par GitHub ou email, puis télécharger le jeton de l'installation Cloudflare. `npm run registry:connect -- --file <fichier-téléchargé> --origin https://creezio-registry.fidusia.workers.dev --target cloudflare` vérifie et raccorde ce fichier au publisher local ; les secrets restent hors du dépôt. Le [guide du registre](../services/registry/README.md#raccorder-le-jeton-téléchargé) décrit refus, rotation et emplacement privé. Cette inscription est proposée après installation, mais n'est pas nécessaire pour développer localement.
+
 Avec Node 24, installer les dépendances verrouillées par `npm ci --ignore-scripts`, puis exécuter `npm run sdk:build` dans un checkout neuf avant `dev`, `build` ou `start`. Le Dockerfile officiel effectue déjà cette préparation. Ensuite :
 
 1. Arrêter le serveur local de cette installation.

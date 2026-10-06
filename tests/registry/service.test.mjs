@@ -175,6 +175,26 @@ test('browser reads recheck session and project owner inside the final query', a
   } finally {await f.close();}
 });
 
+test('installation bearer identifies only its own active installation', async () => {
+  const f = await fixture();
+  try {
+    const owner = await bootstrapRegistry(f.db, {maintainerEmail: 'owner@example.invalid', serviceId: 'registry-primary'});
+    const project = await f.send('/v1/projects', 'POST',
+      {name: 'Connected', origin: 'https://source.example.invalid/'}, f.ownerHeaders(owner.ownerToken));
+    const install = await f.send('/v1/installations', 'POST',
+      {projectId: project.body.projectId, target: 'cloudflare'}, f.ownerHeaders(owner.ownerToken));
+    const route = '/v1/installations/me', bearer = {authorization: `Bearer ${install.body.token}`};
+    assert.equal((await f.send(route)).response.status, 401);
+    assert.equal((await f.send(route, 'GET', undefined, {authorization: 'Bearer invalid'})).response.status, 401);
+    assert.equal((await f.send(route, 'GET', undefined, f.ownerHeaders(owner.ownerToken))).response.status, 401);
+    assert.deepEqual((await f.send(route, 'GET', undefined, bearer)).body,
+      {projectId: project.body.projectId, installationId: install.body.installationId, target: 'cloudflare'});
+    await f.db.prepare('UPDATE registry_installations SET revoked_at_ms=? WHERE id=?')
+      .bind(Date.now(), install.body.installationId).run();
+    assert.equal((await f.send(route, 'GET', undefined, bearer)).response.status, 401);
+  } finally {await f.close();}
+});
+
 test('publication requires verified owner and installation token; declaration is exact and idempotent', async () => {
   const f = await fixture();
   try {
@@ -347,6 +367,12 @@ test('email verification needs configured delivery and a one-use delivered code'
     const challenge = await failed.db.prepare('SELECT consumed_at_ms FROM registry_email_challenges').first();
     assert.ok(challenge.consumed_at_ms, 'failed delivery cannot be verified or used for unlimited free attempts');
   } finally {await failed.close();}
+  const unconfirmed = await fixture({EMAIL_DELIVERY: {async fetch() {return new Response(null, {status: 200});}}});
+  try {
+    assert.equal((await unconfirmed.send('/v1/owners/email/start', 'POST', {email: 'a@example.invalid'},
+      {origin, 'x-creezio-request': '1'})).response.status, 503,
+    'only the delivery Worker confirmation status can admit a code');
+  } finally {await unconfirmed.close();}
   let delivery;
   const f = await fixture({EMAIL_DELIVERY: {async fetch(request) {delivery = await request.json(); return new Response(null, {status: 204});}}});
   try {
@@ -363,6 +389,40 @@ test('email verification needs configured delivery and a one-use delivered code'
     assert.match(good.response.headers.get('set-cookie'), /HttpOnly; SameSite=Lax/);
     assert.equal((await f.send('/v1/owners/email/verify', 'POST', {challengeId: begin.body.challengeId, code: delivery.code},
       {origin, 'x-creezio-request': '1'})).response.status, 403);
+  } finally {await f.close();}
+});
+
+test('email verification writes attempts only for an active challenge and enforces expiry and five guesses', async () => {
+  let now = Date.now(), delivered;
+  const f = await fixture({EMAIL_DELIVERY: {async fetch(request) {
+    delivered = await request.json(); return new Response(null, {status: 204});
+  }}});
+  const service = createRegistryService(f.environment, {now: () => now});
+  const headers = {origin, 'x-creezio-request': '1', 'content-type': 'application/json'};
+  const verify = (actor, challengeId, code) => actor.fetch(new Request(`${origin}/v1/owners/email/verify`, {
+    method: 'POST', headers, body: JSON.stringify({challengeId, code}),
+  }));
+  const start = () => service.fetch(new Request(`${origin}/v1/owners/email/start`, {
+    method: 'POST', headers, body: JSON.stringify({email: 'owner@example.invalid'}),
+  }));
+  try {
+    const noWrites = createRegistryService({...f.environment, DB: interceptRun(f.db,
+      'UPDATE registry_email_challenges', () => {throw new Error('absent IDs must not write');})}, {now: () => now});
+    assert.equal((await verify(noWrites, crypto.randomUUID(), '00000000')).status, 403);
+    const first = await start(); assert.equal(first.status, 202);
+    const firstId = (await first.json()).challengeId;
+    now += 600_001;
+    assert.equal((await verify(service, firstId, delivered.code)).status, 403);
+    assert.equal((await f.db.prepare('SELECT attempts FROM registry_email_challenges WHERE id=?')
+      .bind(firstId).first()).attempts, 0);
+    const second = await start(); assert.equal(second.status, 202);
+    const secondId = (await second.json()).challengeId;
+    const wrong = delivered.code === '00000000' ? '00000001' : '00000000';
+    for (let index = 0; index < 5; index++) assert.equal((await verify(service, secondId, wrong)).status, 403);
+    assert.equal((await verify(service, secondId, delivered.code)).status, 403);
+    assert.equal((await f.db.prepare('SELECT attempts FROM registry_email_challenges WHERE id=?')
+      .bind(secondId).first()).attempts, 5);
+    assert.equal((await f.db.prepare('SELECT count(*) AS n FROM registry_owner_sessions').first()).n, 0);
   } finally {await f.close();}
 });
 

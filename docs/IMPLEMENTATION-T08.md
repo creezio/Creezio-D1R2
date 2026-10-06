@@ -1,5 +1,17 @@
 # Registre central et contrôle de publication — T-08
 
+## Complément du 6 octobre 2026
+
+Le parcours email, sa déconnexion serveur, l'historique privé des déclarations et le raccord du fichier téléchargé aux publishers sont implémentés. La recette fournisseur et le déploiement de cette tranche restent à confirmer ; les paragraphes suivants conservent la chronologie des preuves antérieures. Les raccords Sites et Cloudflare de l'original et de Lab ont déjà été exécutés lors de la clôture T11 : ils ne constituent plus un chantier manquant.
+
+L'envoi utilise un Worker privé séparé appelant Resend par API, sans D1 ni URL publique. Le registre attend sa confirmation explicite ; un fournisseur absent ou en erreur ne crée pas d'identité vérifiée. Le code à usage unique est borné à dix minutes et cinq essais. Une réponse de vérification perdue est rapprochée par lecture de la session, sans nouvelle soumission automatique. La déconnexion révoque cette session sans toucher aux jetons d'installation.
+
+Chaque propriétaire voit les publications déclarées de ses installations, avec date, URL, dépôt éventuel, versions et SHA. Cette lecture vérifie les droits actuels et limite le résultat à cent déclarations en signalant une troncature. Elle ne prétend pas sonder continuellement l'application. `registry:connect` vérifie en lecture seule le jeton téléchargé et sa cible avant d'écrire la configuration privée du publisher. Le contexte Sites utilise le même client, la même gate et un journal durable ; un refus précède la publication et une déclaration perdue est reprise sans rappeler le publisher. Le parcours Docker local reste hors ligne.
+
+Ces changements complètent REQ-0801 à REQ-0803 et US-08, sans modifier le schéma D1, les droits premium ou les comptes utilisateurs des applications. Les tests ciblés couvrent le Worker d'envoi assemblé, le service D1, l'interface, l'import de jeton et le contexte Sites. La preuve réelle doit distinguer l'acceptation Resend de la réception et saisie du code depuis la boîte du propriétaire.
+
+## Historique
+
 PR #17 intégrée : candidat `b581cd2f`, main `a8e2a969`, même arbre `bbd4d36b`. Les 809 contrôles locaux et CI candidat/main (36290765380/36290972553) réussissent. La recette réelle publie une seule fois le Worker registre, masque volontairement la réponse à sa déclaration déjà enregistrée, puis reprend cette déclaration dans un nouveau processus sans rappeler le publisher. Le bundle envoyé et celui relu sur Cloudflare ont la même empreinte ; les réponses compressées sont acceptées avec une borne sur leur corps décodé. Cette preuve concerne le registre, pas encore la publication du CMS complet.
 
 Tranche sur `core/t08-publication-foundations`, après le main `56eb0159` qualifié par 779 tests locaux et CI. Elle construit [T-08](TODO.md#T-08) et [REQ-0801 à REQ-0803](EXIGENCES.md#REQ-0801). Les recettes locales couvrent le protocole client/service, D1, les refus, les gardes fraîches après révocation/transfert, la reprise du journal et le bundle Worker séparé. Le 27 septembre, un D1 Cloudflare dédié a reçu le schéma et le bootstrap mainteneur ; le service HTTPS réel répond à sa route de santé et enregistre projets/installations. La qualification de la publication contrôlée conserve son reçu et ses empreintes hors du commit source. L'identification publique GitHub/email reste non qualifiée sans configuration fournisseur effective.
