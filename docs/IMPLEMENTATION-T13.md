@@ -22,9 +22,9 @@ Cette recette headless précède la livraison du correctif de présentation. Ent
 
 La relecture indépendante du témoin antérieur T11 sur Lab Sites v6 confirme la fiche et sa pièce jointe avant et après rechargement, puis le téléchargement R2 d'empreinte identique (`CREEZIO-T0713-SITES-UI-LAB-WITNESS-d7b9b2c3-f48a-4647-97cb-6aa2479978b2.json`, hors dépôt). Les cinq lectures sont `succeeded`, sans écriture métier ; déconnexion 200, session 401 et navigateur fermé. Les premières lectures de recette arrêtées restent conservées : leur seul HTTP 200 et leur diagnostic incomplet ne prouvaient pas le résultat métier.
 
-`## Présentation facultative, backend commun
+## Présentation facultative, backend commun
 
-composition.front` conserve ses trois modes : workspace seul, thème ou headless. Les thèmes sont des modules soumis aux mêmes contrats, dépendances, archives, documentation et six suites que les autres extensions. `ui.themes` déclare les exports et emplacements supportés. Le compilateur résout le module/version/thème exact ; aucun téléchargement de JavaScript au runtime.
+`composition.front` conserve ses trois modes : workspace seul, thème ou headless. Les thèmes sont des modules soumis aux mêmes contrats, dépendances, archives, documentation et six suites que les autres extensions. `ui.themes` déclare les exports et emplacements supportés. Le compilateur résout le module/version/thème exact ; aucun téléchargement de JavaScript au runtime.
 
 Les modules actifs exposés à `app` déclarent vues, routes, navigation et slots. Le build produit un registre front distinct ; seuls les éléments autorisés sont transmis au rendu. Les routes paramétrées et leurs entrées utilisent le même parseur et les mêmes validateurs que le workspace. Une contribution de slot doit accepter une entrée vide et une identité sans paramètres ; un thème qui ne supporte pas son emplacement est refusé.
 
