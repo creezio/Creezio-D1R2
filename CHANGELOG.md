@@ -2,6 +2,8 @@
 
 ## Registre — vérification email et raccordement de publication, 6 octobre 2026
 
+- PR #114 publiée après CI candidate/main : 1 582 tests sans omission. La recette email réelle confirme connexion persistante, import idempotent, refus après révocation et déconnexion ; T-08 est clôturé dans son périmètre.
+
 - Le propriétaire peut recevoir et vérifier un code email, fermer sa session et consulter les déclarations de ses installations depuis la page du registre.
 - Un Worker privé transmet les codes à Resend ; sa clé reste un secret serveur et aucun schéma D1 existant n'est remplacé.
 - `registry:connect` valide le fichier de jeton téléchargé et le raccorde au publisher choisi, sans ressaisie du secret ni inscription requise en développement local.
