@@ -182,7 +182,10 @@ Tout ajout structurel met ce repère à jour. Chaque module construit fournit en
 - [sdk/registry](sdk/registry/) : protocole public partagé, sans serveur embarqué.
 - [services/registry](services/registry/) : service central à déployer séparément, page propriétaire et lectures bornées du candidat web ; [état T-08](docs/IMPLEMENTATION-T08.md).
 - [core/registry](core/registry/) : client serveur et contrôle de publication, distincts du runtime métier.
-- [scripts/registry](scripts/registry/) : build indépendant, configuration sans secret et opérateur explicite du D1 dédié.
+- [scripts/registry](scripts/registry/) : builds indépendants du registre et de son transport email privé, configuration sans secret, opérateur explicite du D1 dédié et import vérifié du jeton d'installation (`connect.mjs`).
+- [services/registry/email-delivery.ts](services/registry/email-delivery.ts) : transport privé Resend avec clé serveur, envoi borné et idempotence par défi.
+- [services/registry/deployments.ts](services/registry/deployments.ts) : lecture cloisonnée et bornée des déclarations pour le propriétaire.
+- [scripts/sites/registry.mjs](scripts/sites/registry.mjs) : contexte du gate Sites consommant l'installation privée enregistrée.
 - [tests/registry](tests/registry/) et [tests/local](tests/local/) : protocoles et refus du registre, callback GitHub dans le Worker compilé, journal de reprise et adaptateur Docker ; suites obligatoires dans le contrôle global.
 - [adapters/docker](adapters/docker/) : démarrage local persistant ; [état T-31](docs/IMPLEMENTATION-T31.md).
 

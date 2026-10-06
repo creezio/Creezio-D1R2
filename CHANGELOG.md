@@ -1,5 +1,12 @@
 # Changelog
 
+## Registre — vérification email et raccordement de publication, 6 octobre 2026
+
+- Le propriétaire peut recevoir et vérifier un code email, fermer sa session et consulter les déclarations de ses installations depuis la page du registre.
+- Un Worker privé transmet les codes à Resend ; sa clé reste un secret serveur et aucun schéma D1 existant n'est remplacé.
+- `registry:connect` valide le fichier de jeton téléchargé et le raccorde au publisher choisi, sans ressaisie du secret ni inscription requise en développement local.
+- Les preuves de publication restent distinctes des déclarations stockées. Les publications Sites/Cloudflare déjà synchronisées ne sont pas rejouées pour cette évolution du service central.
+
 ## Cycle des extensions — candidat du 5 octobre 2026
 
 - SDK 1.10.0 est préparé comme candidat de distribution pour le verrou `retiredModules` et sa validation publique `contracts/node`. Les droits retirés restent des références historiques inactives ; aucun nouvel export auteur pour le solveur ni publication de paquet ne découle de ce changement de source.

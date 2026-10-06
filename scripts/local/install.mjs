@@ -370,6 +370,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   } else {
     try {
       const result = await runLocalInstallation({ mode: args[0] });
+      if (args[0] === 'install' && result.ok) {
+        console.log('Développement local prêt, sans inscription obligatoire. Avant publication : https://creezio-registry.fidusia.workers.dev');
+        console.log('Connectez-vous au registre par GitHub ou email, créez votre projet et son installation, puis téléchargez son jeton.');
+        console.log('Raccord local : npm run registry:connect -- --file <fichier-téléchargé> --origin https://creezio-registry.fidusia.workers.dev --target cloudflare');
+      }
       console.log(JSON.stringify(result)); process.exitCode = result.ok ? 0 : 1;
     } catch { console.error('Local installation unavailable. No secret or database diagnostic is printed.'); process.exitCode = 1; }
   }

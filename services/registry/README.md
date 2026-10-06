@@ -16,7 +16,31 @@ L'opérateur authentifié peut créer le projet puis son installation avec le co
 
 Le parcours navigateur du registre est servi par ce Worker à `/`, sur la même origine HTTPS que l'API. Le propriétaire vérifié y retrouve ses projets, puis les installations d'un projet ; une liste est bornée à 100 entrées et signale explicitement si l'inventaire est incomplet. Le navigateur conserve le cookie `HttpOnly` sans l'exposer au script. Les POST de création réutilisent l'origine exacte et l'en-tête CSRF ; le jeton rendu une fois par création ou rotation est proposé au téléchargement en mémoire, sans stockage navigateur ni affichage. Après une réponse perdue, l'écran relit les identifiants avant/après et bloque les cas absents ou ambigus : il ne rejoue jamais un POST et ne fait pas de rotation automatique. Une rotation volontaire invalide l'ancien jeton. La page ne remplace pas le contrôle de publication de l'application.
 
-Pour l'inscription publique, configurer `GITHUB_CLIENT_ID` et le secret Worker `GITHUB_CLIENT_SECRET`, avec le callback `${REGISTRY_ORIGIN}/v1/owners/github/callback`, ou un binding `EMAIL_DELIVERY` vers un transport explicitement configuré. Sans fournisseur, le parcours correspondant répond `configuration_unavailable` ; aucun propriétaire n'est vérifié artificiellement. Ces paramètres ne donnent aucun accès d'assistance au code des apps.
+Pour l'inscription publique, configurer `GITHUB_CLIENT_ID` et le secret Worker `GITHUB_CLIENT_SECRET`, avec le callback `${REGISTRY_ORIGIN}/v1/owners/github/callback`, ou le transport email ci-dessous. Sans fournisseur, le parcours correspondant répond `configuration_unavailable` ; aucun propriétaire n'est vérifié artificiellement. Ces paramètres ne donnent aucun accès d'assistance au code des apps.
+
+## Vérification par email
+
+La page du registre propose GitHub ou un code email à huit chiffres, valable dix minutes et utilisable une seule fois. Les demandes sont limitées par adresse et globalement ; cinq essais au maximum sont permis pour un défi. L'envoi d'un nouveau code reste explicite. Si la réponse de vérification est perdue, l'écran relit la session sans rejouer automatiquement le code. La déconnexion révoque la session côté serveur et efface son cookie ; elle ne révoque pas les jetons des installations.
+
+Le transport `services/registry/email-delivery.ts` est un petit Worker privé consommant l'API Resend, pas une instance du service tiers. Il n'expose aucune URL publique ; seul le binding `EMAIL_DELIVERY` du registre l'appelle. Il ne possède pas de D1 et ne stocke ni code ni adresse. Le code n'est conservé dans le D1 du registre que sous forme d'empreinte. Les erreurs du fournisseur ne sont pas renvoyées au navigateur.
+
+Configurer un domaine expéditeur vérifié chez Resend avant l'envoi réel. Définir `CREEZIO_REGISTRY_EMAIL_DELIVERY_WORKER_NAME` et `CREEZIO_REGISTRY_EMAIL_FROM` en plus du compte et du nom du registre. `npm run registry:email:build` puis `npm run registry:email:configure` préparent `.quality/registry/email-delivery.mjs` et `.creezio/registry/email-delivery-wrangler.json`. Publier cette configuration avec Wrangler, puis ajouter `RESEND_API_KEY` comme secret de ce Worker par saisie sécurisée ou stdin ; ne pas placer la clé dans les arguments, les sources ou le JSON de configuration. Le Worker refuse tout envoi tant que cette configuration manque.
+
+Régénérer ensuite la configuration du registre avec `npm run registry:configure` : elle déclare le service binding vers le Worker d'envoi. Publier le registre en conservant le D1, les secrets GitHub et l'origine (`--keep-vars` pour les variables déjà déployées). Ne pas réinitialiser le D1 existant. Chaque demande utilise l'identifiant du défi comme clé d'idempotence Resend ; une erreur ou une réponse perdue n'entraîne aucun nouvel envoi automatique. Une acceptation par Resend ne prouve pas à elle seule la réception : la recette réelle exige de recevoir puis saisir le code depuis la boîte autorisée.
+
+Le propriétaire peut consulter les déclarations de chaque installation : URL, dépôt éventuel, versions, SHA publié et date. Les lectures restent privées, limitées à cent déclarations avec indicateur d'historique incomplet. Il s'agit des déclarations authentifiées des publishers, pas d'une sonde permanente ni d'une preuve indépendante de la version actuellement servie. Les publications en attente de synchronisation restent visibles dans le journal du publisher ; le registre ne peut pas connaître une déclaration qui ne lui est pas parvenue.
+
+## Raccorder le jeton téléchargé
+
+Après connexion, créer ou sélectionner le projet, créer l'installation de la bonne cible et télécharger son fichier de jeton. Depuis la racine de l'application :
+
+```bash
+npm run registry:connect -- --file /chemin/prive/creezio-installation.json --origin https://registre.example.com --target cloudflare
+```
+
+L'origine de confiance est fournie explicitement ; elle n'est pas lue dans le fichier téléchargé. La commande vérifie le jeton en lecture seule via `GET /v1/installations/me`, compare projet, installation et cible, puis écrit les quatre champs attendus par le publisher dans `.wrangler/delivery/registry.json`. Un refus réseau, une révocation, un changement de cible ou d'identité n'écrit rien. Un fichier identique est réutilisé ; une autre connexion nécessite `--replace-existing`, notamment après rotation volontaire du jeton. Les secrets ne sont ni affichés ni transmis à l'application cliente. Les fichiers restent privés et ignorés par Git ; après vérification, conserver le téléchargement dans le coffre de l'opérateur ou le retirer explicitement.
+
+Avec `--target sites`, la connexion est enregistrée dans `.creezio/registry/installation.json`, pour le contexte de publication de `scripts/sites/registry.mjs`. Ce parcours ne publie pas un Site depuis le back-office : le publisher reste exécuté par GPT et reçoit son autorisation avant la livraison, puis déclare le reçu du fournisseur. Le développement local ne lit pas ces fichiers et reste utilisable hors ligne.
 
 Le callback GitHub renvoie toujours le JSON existant aux clients API. Pour une navigation de navigateur avec `Accept: text/html`, il pose le même cookie et redirige vers `/` sans placer de secret dans l'URL. L'URL source d'un projet est une URL HTTPS canonique, par exemple celle de son dépôt ; le registre ne stocke pas de données métier ni de clé fournisseur.
 

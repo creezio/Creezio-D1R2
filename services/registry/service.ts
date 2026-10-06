@@ -3,6 +3,7 @@ import {declaration, email, exact, id, installation, preflight, project} from '.
 import type {RegistryDeclarationRequest, RegistryPreflightRequest} from './types.ts';
 import {AccessHttpError, HTTP_POLICY, readAccessJson} from '../../core/identity/http-policy.ts';
 import {registryPage, registryScript} from './web-ui.ts';
+import {readOwnerDeployments} from './deployments.ts';
 
 export interface RegistryEnvironment {
   readonly DB: D1Database;
@@ -194,7 +195,7 @@ async function sendEmail(binding: NonNullable<RegistryEnvironment['EMAIL_DELIVER
     const response = await Promise.race([binding.fetch(new Request('https://registry-email-delivery.invalid/verification', {
       method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(payload), signal: controller.signal,
     })), deadline]);
-    return response.ok;
+    return response.status === 204;
   } catch {return false;}
   finally {clearTimeout(timer); controller.abort();}
 }
@@ -217,6 +218,22 @@ export function createRegistryService(env: RegistryEnvironment, options: {now?: 
         if (!actor) refuse('authentication_required', 401);
         return json({ownerId: actor.id});
       }
+      if (request.method === 'GET' && path === '/v1/installations/me') {
+        const actor = await installationActor(db, request);
+        if (!actor) refuse('authentication_required', 401);
+        return json({projectId: actor.project_id, installationId: actor.id, target: actor.target});
+      }
+      if (request.method === 'POST' && path === '/v1/owners/logout') {
+        csrf(request, origin);
+        if (!await emptyBody(request)) refuse('invalid_input', 400);
+        const token = headerCookie(request, ownerCookie);
+        const hash = await digestCredential(token, 'owner');
+        if (hash) {
+          await db.prepare(`UPDATE registry_owner_sessions SET revoked_at_ms=?
+            WHERE digest=? AND revoked_at_ms IS NULL`).bind(now, hash).run();
+        }
+        return json({status: 'signed_out'}, 200, {'set-cookie': cookie(ownerCookie, '', 0)});
+      }
       if (request.method === 'GET' && path === '/v1/projects') {
         const actor = await owner(db, request, now);
         if (!actor) refuse('authentication_required', 401);
@@ -230,6 +247,15 @@ export function createRegistryService(env: RegistryEnvironment, options: {now?: 
         return json({projects: rows.results.slice(0, 100).map(row => ({
           projectId: row.id, name: row.name, origin: row.origin, createdAt: iso(row.created_at_ms),
         })), complete: rows.results.length <= 100, limit: 100});
+      }
+      const deploymentsRead = /^\/v1\/installations\/([A-Za-z0-9._:-]+)\/deployments$/.exec(path);
+      if (request.method === 'GET' && deploymentsRead) {
+        const actor = await owner(db, request, now);
+        if (!actor) refuse('authentication_required', 401);
+        if (!id(deploymentsRead[1])) refuse('invalid_input', 400);
+        const result = await readOwnerDeployments(db, actor, deploymentsRead[1], now);
+        if (!result) refuse('not_found', 404);
+        return json(result);
       }
       const installationsRead = /^\/v1\/projects\/([A-Za-z0-9._:-]+)\/installations$/.exec(path);
       if (request.method === 'GET' && installationsRead) {
@@ -287,14 +313,21 @@ export function createRegistryService(env: RegistryEnvironment, options: {now?: 
         if (!exact(value, ['challengeId','code']) || !id(value.challengeId) || typeof value.code !== 'string'
           || !/^[0-9]{8}$/.test(value.code)) refuse('invalid_input', 400);
         const codeDigest = await digest(`creezio:registry:email:v1:${value.challengeId}:${value.code}`);
+        const existing = await db.prepare(`SELECT code_digest,expires_at_ms,attempts,consumed_at_ms
+          FROM registry_email_challenges WHERE id=?`).bind(value.challengeId)
+          .first<{code_digest: string; expires_at_ms: number; attempts: number; consumed_at_ms: number | null}>();
+        if (!existing || existing.expires_at_ms <= now || existing.consumed_at_ms !== null
+          || existing.attempts >= 5) refuse('forbidden', 403);
+        if (existing.code_digest !== codeDigest) {
+          await db.prepare(`UPDATE registry_email_challenges SET attempts=attempts+1
+            WHERE id=? AND expires_at_ms>? AND consumed_at_ms IS NULL AND attempts<5`)
+            .bind(value.challengeId, now).run();
+          refuse('forbidden', 403);
+        }
         const result = await db.prepare(`UPDATE registry_email_challenges SET consumed_at_ms=?,attempts=attempts+1
           WHERE id=? AND code_digest=? AND expires_at_ms>? AND consumed_at_ms IS NULL AND attempts<5`)
           .bind(now, value.challengeId, codeDigest, now).run();
-        if (result.meta.changes !== 1) {
-          await db.prepare('UPDATE registry_email_challenges SET attempts=attempts+1 WHERE id=? AND consumed_at_ms IS NULL AND attempts<5')
-            .bind(value.challengeId).run();
-          refuse('forbidden', 403);
-        }
+        if (result.meta.changes !== 1) refuse('forbidden', 403);
         const challenge = await db.prepare('SELECT email FROM registry_email_challenges WHERE id=?').bind(value.challengeId).first<{email: string}>();
         if (!challenge) refuse('service_unavailable', 503);
         const ownerId = await ownerFor(db, 'email', challenge.email, challenge.email, now);

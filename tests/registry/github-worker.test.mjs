@@ -52,6 +52,21 @@ test('Worker accepts zero-byte token actions and refuses payloads without weaken
       {method: 'POST', headers: auth});
     assert.equal(revoke.status, 200);
     assert.equal(await version(), 4);
+    const logoutUrl = `${origin}/v1/owners/logout`;
+    assert.equal((await runtime.dispatchFetch(logoutUrl, {method: 'POST', headers: {
+      cookie: auth.cookie, 'x-creezio-request': '1'}})).status, 403);
+    assert.equal((await runtime.dispatchFetch(logoutUrl, {method: 'POST', headers: auth,
+      body: '{}'})).status, 400);
+    assert.equal((await runtime.dispatchFetch(`${origin}/v1/owners/me`, {headers: {cookie: auth.cookie}})).status, 200);
+    const logout = await runtime.dispatchFetch(logoutUrl, {method: 'POST', headers: auth});
+    assert.equal(logout.status, 200);
+    assert.deepEqual(await logout.json(), {status: 'signed_out'});
+    assert.match(logout.headers.get('set-cookie'), /__Host-creezio-registry-owner=;.*Max-Age=0/);
+    assert.equal((await runtime.dispatchFetch(`${origin}/v1/owners/me`, {headers: {cookie: auth.cookie}})).status, 401);
+    const replay = await runtime.dispatchFetch(logoutUrl, {method: 'POST', headers: auth, body: ''});
+    assert.equal(replay.status, 200);
+    assert.equal((await db.prepare('SELECT count(*) AS n FROM registry_owner_sessions WHERE revoked_at_ms IS NOT NULL')
+      .first()).n, 1);
   } finally {await runtime.dispose();}
 });
 
