@@ -5,7 +5,8 @@
 - Le volet mobile du thème ChatGPT-like reçoit le focus à l'ouverture, retient la navigation clavier et rend le contenu couvert inactif. Sa fermeture et le retour au mode bureau replacent le focus sans déplacer le défilement.
 - Un emplacement de front sans contribution autorisée ne crée plus de colonne ou de cadre vide dans le thème.
 - Le workspace, ses comptes et ses vues autorisées restent ceux du socle. L'accueil épinglé reste une vue apportée par la composition ; cette évolution n'ajoute pas de dashboard métier.
-- Les états de qualification distinguent les audiences admin/app, les deux fiches d'un même module, les thèmes et le client headless avec ses scopes propres. Les publications et preuves hébergées sont suivies dans les états T07/T13.
+- Core PR #116 et Lab PR #19 sont livrés sur Sites, Linux et Cloudflare. Les recettes vérifient les audiences admin/app, les deux fiches d'un même module, la conservation du brouillon entre les thèmes standard et ChatGPT-like, le clavier mobile et le client headless avec ses scopes propres. Les sources, preuves et limites de qualification sont détaillées dans les états T07/T13.
+- Le test de révocation d'un connecteur attend le démarrage effectif du transport avec un délai borné ; il conserve le contrôle de refus de la réponse et ne dépend plus d'un nombre fixe de tours de boucle sur le runner CI.
 
 ## Registre — vérification email et raccordement de publication, 6 octobre 2026
 

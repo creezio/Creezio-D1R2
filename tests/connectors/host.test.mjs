@@ -207,15 +207,26 @@ test('remote auth and redirects are sanitized, and a revoked local grant hides e
   const redirected=await fixture(async()=>Response.redirect('https://other.example.invalid',302));
   assert.deepEqual(await redirected.port().request({resource:'workflows'}),
     {kind:'error',code:'remote_error',status:302});
+  let signalStart;
+  const fetchStarted=new Promise(resolve=>{signalStart=resolve;});
   let release;
-  const delayed=await fixture(()=>new Promise(resolve=>{release=resolve;}));
+  const responsePending=new Promise(resolve=>{release=resolve;});
+  const delayed=await fixture(()=>{signalStart();return responsePending;});
   const running=delayed.port().request({resource:'workflows'});
-  for(let attempt=0;attempt<20&&!release;attempt++)await new Promise(resolve=>setImmediate(resolve));
-  assert.equal(typeof release,'function','the remote request must start before revocation');
-  delayed.state.revoked=true;
-  release(new Response(JSON.stringify({data:[{id:'secret-workflow'}]}),
-    {status:200,headers:{'content-type':'application/json'}}));
-  assert.deepEqual(await running,{kind:'error',code:'access_denied'});
+  let timeout;
+  try{
+    await Promise.race([fetchStarted,new Promise((_,reject)=>{
+      timeout=setTimeout(()=>reject(new Error('the remote request must start before revocation')),10_000);
+    })]);
+    assert.equal(typeof release,'function','the remote request must start before revocation');
+    delayed.state.revoked=true;
+    release(new Response(JSON.stringify({data:[{id:'secret-workflow'}]}),
+      {status:200,headers:{'content-type':'application/json'}}));
+    assert.deepEqual(await running,{kind:'error',code:'access_denied'});
+  }finally{
+    clearTimeout(timeout);
+    release(new Response('{}',{headers:{'content-type':'application/json'}}));
+  }
 });
 
 test('a retained connector port cannot issue a request after its operation closes',async()=>{

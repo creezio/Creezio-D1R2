@@ -1,8 +1,8 @@
 # Backlog de réalisation
 
-## Priorité active — workspace, thèmes et headless, 6 octobre 2026
+## Livraison — workspace, thèmes et headless, 6 octobre 2026
 
-T07/T13 sont en qualification finale, sans réouverture de T08 ou T11. Les deux Sites courants passent les refus anonymes et entre audiences admin/app. La recette Lab vérifie deux fiches réelles, brouillons indépendants après reload, sous-vues inactives, ordre/verrou des onglets, scroll, clavier et purge après déconnexion. Le thème ChatGPT-like 0.0.1 corrige son focus mobile et passe la recette DOM Chrome locale ainsi que ses six suites de module. Restent l'intégration et la livraison de ce correctif, la bascule hébergée des thèmes et la recette headless distante. Voir [T07](IMPLEMENTATION-T07.md) et [T13](IMPLEMENTATION-T13.md) ; aucune clôture de ces lots n'est déduite du seul succès local.
+T07/T13 sont vérifiés et livrés dans le périmètre de leurs exigences. Core PR #116/main `97d5c84` et Lab PR #19/main `01af24f` passent respectivement 1 582 et 1 568 tests et sont livrés sur Linux, Cloudflare et Sites. Les deux Sites courants passent les refus anonymes et entre audiences admin/app. Lab vérifie deux fiches réelles, brouillons après reload, sous-vues inactives, ordre/verrou, scroll, clavier et purge à la déconnexion. Le passage ChatGPT-like → standard v5 → ChatGPT-like v6 conserve compte, droits, marque, fiche et brouillon ; le volet mobile passe la recette clavier. Sur Original, le client headless crée une seule fiche CRM malgré une réponse perdue, puis retrouve son exécution sans renvoi. Les jetons de test sont révoqués et le compte machine désactivé. Voir [T07](IMPLEMENTATION-T07.md) et [T13](IMPLEMENTATION-T13.md) pour les sources et reçus : les scénarios query-only/portails non exposés par Lab restent rattachés à leurs preuves locales. Les autres modules, T39 et les lots différés gardent leurs propres critères ; T08/T11 ne sont pas rouverts.
 
 ## Livraison finale du cycle des extensions, 6 octobre 2026
 
@@ -251,13 +251,13 @@ Le statut global d'un lot couvre tous ses critères, parfois plusieurs étapes d
 | T-04 — Comptes et droits | Comptes, sessions, rôles, tokens machine, impersonation, connexion/installation et écrans Access originaux locaux | Autres parcours d'administration, remise des liens, OAuth et recettes hébergées | Fondations livrées ; compléments reportés |
 | T-05 — Données | Compilation SQL centrale, accès D1 protégé, fichiers R2 et coffre | Explorateur, recherche, export/restauration, évolutions de modèles restantes et recettes hébergées | Fondations livrées ; compléments reportés |
 | T-06 — Opérations | Registre/exécuteur intégrés PR #15 ; bindings HTTP et suivi par clé PR #16 | Événements, approbations, interopérations et autres transports | Fondations livrées ; compléments reportés |
-| T-07 — Workspace | Composants originaux adaptés ; panneaux observés sur A/B et vues métier sur B, avec conservation ciblée après mise à jour Lab | Autres modules et comportements workspace non exercés sur Sites | Tranche locale et Sites A/B qualifiée dans ce périmètre |
+| T-07 — Workspace | Composants originaux, navigation/panneaux, états, clavier et accès qualifiés ; deux fiches réelles Lab et purge à la déconnexion | Aucun dans REQ-0701/0702/0703 ; recettes propres aux autres modules distinctes | Vérifié et livré — local, Sites, Linux et Cloudflare |
 | T-08 — Registre central | GitHub et publishers Sites/Cloudflare qualifiés ; email réel, déconnexion, historique privé et import/révocation du jeton qualifiés | Aucun dans le périmètre T-08 | PR #114 publiée, CI 1 582/1 582 et recette email réelle du 6 octobre |
 | T-09 — Sites | Compte domix : Original v7 depuis Core `8756f008`/Site `f71cc236`, Lab v3 depuis Lab `7b49358`/Site `6944265`, registres synchronisés ; témoins D1/R2 conservés | Connexion ChatGPT domix et critères hébergés restants ; anciennes issues inconnues préservées | Original v7 et Lab v3 publiés ; autres recettes distinguées |
 | T-10 — MCP/OAuth | Catalogues admin/app distincts ; admin ChatGPT qualifié historiquement ; MCP app Lab 0.1.2 connecté, carte/liste et modes direct/contexte/message exercés | Approbations et parcours de refus hébergés ; limite du picker documentée en T40 | Recette MCP app réalisée dans ce périmètre |
 | T-11 — Modules | Catalogue, dépendances, plans D1 et UI originale ; cycle public 0.1.2→0.1.3 avec installation, mise à jour ciblée, désactivation, réactivation et retrait depuis l'UI hébergée ; quatre états facultatifs, D1/R2 et droits résiduels conservés ; Starter 0.1.4 livré sur Lab Linux, Sites et Cloudflare | Validation utilisateur T39 et recettes des autres lots distinctes | Cycle T11 vérifié sur les cibles prévues |
 | T-12 — Documentation | PR #21 : README/PRD/changelog exacts, UI/API/MCP et recettes locales/CI, 923 tests | Recettes hébergées transversales ; édition des PRD de travail en T-23 | Documents installés vérifiés localement |
-| T-13 — Fronts et thèmes | PR #22 : deux thèmes, projection native app, headless et CI ; front Lab ChatGPT-like et vues du module 0.1.2 conservés sur Site B version 5 | Autres profils et interactions de thèmes/fronts | Tranche locale et Site B qualifiée dans ce périmètre |
+| T-13 — Fronts et thèmes | Workspace facultatif, deux thèmes, composition dynamique et headless ; bascule Sites avec même compte/brouillon, mobile et scopes qualifiés | Aucun dans REQ-1301/1302 ; validation utilisateur T39 distincte | Vérifié et livré — Original v4 et Lab v6 sur Sites, Linux et Cloudflare |
 | T-14 — Conversations | Chat original, historique, brouillons D1, fichiers R2 ; PR #97 publiée sur Original, réponse/brouillon/fichier restaurés après reload sans resélection | Autres parcours et profils, dont le fil Meili Linux vide après reload malgré sa persistance | Correction Original qualifiée ; diagnostic distinct du reload Meili Linux |
 | T-15 — OpenAI | PR #24 intégrée ; réponses réelles locales/Sites A/B, front/workspace ; reprise et arrêt locaux ; témoin Site A post-correction | Autres modèles, fournisseurs et voix non exercés | Première tranche locale et Sites qualifiée |
 | T-16 — Widgets | Trois modes exercés historiquement dans Linux Lab et ChatGPT ; PR #97 restaure le fil Original après reload ; focus clavier, Entrée et ouverture Stripe observés sur Core Cloudflare | Égalité de l’URL complète du lien non attestée, connexion ChatGPT domix, interactions et approbations restantes | Geste clavier observé ; recette finale du lien partielle |
@@ -305,13 +305,13 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 | [T-04](#T-04) | P2 | Identités, comptes et droits | [T-03](#T-03) | Fondations livrées ; compléments généraux reportés, à expliquer avant reprise |
 | [T-05](#T-05) | P2 | Données, fichiers, recherche et coffre | [T-03](#T-03), [T-04](#T-04) | Fondations livrées ; compléments généraux reportés, à expliquer avant reprise |
 | [T-06](#T-06) | P2 | Opérations, événements et exécutions bornées | [T-04](#T-04), [T-05](#T-05) | Fondations livrées ; compléments généraux reportés, à expliquer avant reprise |
-| [T-07](#T-07) | P1 | Workspace et conservation des onglets | [T-03](#T-03), [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | Workspace original livré ; conservation qualifiée sur les témoins Sites, autres comportements à vérifier |
+| [T-07](#T-07) | P1 | Workspace et conservation des onglets | [T-03](#T-03), [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | Vérifié et livré — comportements, états et accès ; preuves locales et Sites distinguées |
 | [T-08](#T-08) | P1 | Registre minimal et identité de publication | [T-04](#T-04), [T-05](#T-05), [T-06](#T-06) | Terminé — registre publié, propriétaire email réel vérifié, raccords et refus qualifiés |
 | [T-09](#T-09) | P1 | Première tranche sur Sites | [T-07](#T-07), [T-08](#T-08) | Original domix v6/Core d7 et Lab v2 publiés ; connexion ChatGPT domix et compléments hébergés ouverts |
 | [T-10](#T-10) | P2 | MCP, OAuth et accès machine | [T-06](#T-06) ; recette Sites : [T-09](#T-09) | API/MCP admin et app livrés et qualifiés sur témoins ; autres refus et approbations ouverts, compléments OAuth reportés |
 | [T-11](#T-11) | P3 | SDK et cycle de vie des modules | [T-02](#T-02), [T-06](#T-06), [T-10](#T-10) | Vérifié — cycle des extensions livré sur Linux, Cloudflare et GPT Sites ; validation utilisateur T39 distincte |
 | [T-12](#T-12) | P3 | Documentation vivante des modules | [T-11](#T-11) | Vérifié |
-| [T-13](#T-13) | P4 | Fronts, thèmes et headless | [T-07](#T-07), [T-11](#T-11) | Deux thèmes et headless livrés ; autres interactions et profils ouverts |
+| [T-13](#T-13) | P4 | Fronts, thèmes et headless | [T-07](#T-07), [T-11](#T-11) | Vérifié et livré — deux thèmes sur Sites, mobile et client headless distant |
 | [T-14](#T-14) | P4 | Conversations et progression persistante | [T-06](#T-06), [T-07](#T-07), [T-11](#T-11) | Chat natif livré ; restauration qualifiée sur Original v6, reload du témoin Meili Linux encore non qualifié |
 | [T-15](#T-15) | P4 | Module OpenAI et contrat fournisseur | [T-14](#T-14) | En cours — première tranche qualifiée, compléments différés |
 | [T-16](#T-16) | P4 | Widgets et plugins conversationnels compatibles GPT | [T-10](#T-10), [T-13](#T-13), [T-15](#T-15) | Widgets livrés ; trois modes qualifiés sur témoins, continuité clavier du lien en correction ciblée |
@@ -409,13 +409,13 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-07"></a>
 ## T-07 — Workspace et conservation des onglets
 
-- Lot : **P1** ; état : **en cours** ; responsable : Codex, avec travaux parallèles d'interface, de SDK et d'API sur une branche commune.
+- Lot : **P1** ; état : **vérifié et livré** ; responsable : Codex et agents de qualification ; clôture REQ-0701/0702/0703 le 6 octobre 2026.
 - Dépendances : [T-03](#T-03), [T-04](#T-04), [T-05](#T-05), [T-06](#T-06).
-- Travail/livrables : SDK de panneaux, navigation et autorisation de vues ; restauration bornée en session sous projection fraîche ; adaptation des composants du Creezio original dans `admin/workspace/` et hôte par audience. Une recette navigateur locale couvre deux fiches, leurs brouillons et la reprise d’une réponse perdue. L’intégration finale et les parcours produit/hébergés restent à qualifier.
+- Travail/livrables : SDK de panneaux, navigation et autorisation de vues ; restauration bornée en session sous projection fraîche ; adaptation des composants du Creezio original dans `admin/workspace/` et hôte par audience. Les recettes locales et Sites couvrent les comportements du socle ; les parcours propres aux autres modules restent suivis dans leurs lots.
 - Tranche intégrée : [implémentation T-07](IMPLEMENTATION-T07.md), PR #16, main `56eb0159`, 779 tests et recette navigateur locale. Les composants originaux repris sont raccordés au SDK ; la parité du produit entier nécessite encore ses modules et ses parcours.
 - Besoin : [US-07](USER-STORIES.md#US-07). Acceptation : [REQ-0701](EXIGENCES.md#REQ-0701), [REQ-0702](EXIGENCES.md#REQ-0702), [REQ-0703](EXIGENCES.md#REQ-0703).
 - Validation : implémenter puis exécuter les recettes liées, sur **navigateur local, puis Sites** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : tests locaux ciblés décrits dans [l'état T-07](IMPLEMENTATION-T07.md). Recette locale de deux fiches et premiers 779 contrôles réussis ; candidat final, revue, CI et profils hébergés suivis séparément avant qualification globale.
+- Preuves : [état T-07](IMPLEMENTATION-T07.md), recettes locales conservées et exercice de deux fiches Lab du 6 octobre ; Core #116/main `97d5c84`, CI candidate/main 1 582/1 582, Lab #19/main `01af24f`, CI candidate/main 1 568/1 568. Original Sites v4 et Lab Sites v6 livrés avec registre synchronisé ; relectures Linux/Cloudflare et témoins conservés. Query-only, historique et portails absents du métier Lab restent prouvés localement, sans recette Sites inventée.
 
 <a id="T-08"></a>
 ## T-08 — Registre minimal et identité de publication
@@ -482,13 +482,13 @@ Les droits de distribution sont vérifiés **avant chaque première publication 
 <a id="T-13"></a>
 ## T-13 — Fronts, thèmes et headless
 
-- Lot : **P4** ; état : **en cours** ; responsable : Codex et trois chats Sol ; PR #22 intégrée, qualification locale disponible ; recette Sites restante.
+- Lot : **P4** ; état : **vérifié et livré** ; responsable : Codex et agents de qualification ; clôture REQ-1301/1302 le 6 octobre 2026.
 - Dépendances : [T-07](#T-07), [T-11](#T-11).
 - Réalisation : [périmètre T13](IMPLEMENTATION-T13.md), réemploi Certivan V5 et primitives Creezio ; comptes/permissions communs, aucun second backend.
 - Travail/livrables : Thèmes standard/ChatGPT-like, moteur de composition, composants et client headless ; personnalisation dans application/.
 - Besoin : [US-13](USER-STORIES.md#US-13). Acceptation : [REQ-1301](EXIGENCES.md#REQ-1301), [REQ-1302](EXIGENCES.md#REQ-1302).
 - Validation : implémenter puis exécuter les recettes liées, sur **navigateur et Site** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : PR #22, candidat `b950fba3`, main `d12ab795`, 953/953 local et CI ; recette navigateur des deux thèmes et reprise de mutation vérifiées. Sites reste non qualifié.
+- Preuves : socle PR #22 et recettes locales inchangées ; Core #116/main `97d5c84`, Lab #19/main `01af24f`, CI candidate/main qualifiées. Lab Sites v5 standard puis v6 ChatGPT-like : même compte, vues/droits, fiche, brouillon, marque et intégrité du module ; clavier mobile et déconnexion vérifiés. Original Sites : client headless autorisé et refus de contexte/admin/jeton invalide ; réponse perdue réconciliée sans deuxième création. Reçus et limites exactes dans [l'état T13](IMPLEMENTATION-T13.md).
 
 <a id="T-14"></a>
 ## T-14 — Conversations et progression persistante
