@@ -421,7 +421,9 @@ export function createWorkspaceController(options: {access: AccessController; vi
     },
     revokeProjection() {
       if (disposed) return;
-      forgetStorage(storage, key, projection?.sessionId, projection?.principalId);
+      // A refusal can be limited to this context; other authorized contexts
+      // keep their own restored panes until logout or a session change.
+      forgetStorage(storage, key);
       projection = null; projectionCurrent = false; purge();
     },
     open(key, input = {}, opts) {

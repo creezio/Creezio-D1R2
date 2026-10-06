@@ -1,5 +1,11 @@
 # Changelog
 
+## Stockages isolés — reprise et refus par contexte, 6 octobre 2026
+
+- Un contexte refusé ne supprime plus les onglets sauvegardés des autres contextes autorisés du même utilisateur. La purge complète reste appliquée à la déconnexion ou au changement de session.
+- Les tests complètent la reprise entre création D1 et R2, la réapparition tardive d'une ressource après refus fournisseur et la limite des seize slots distincts. Les créations ne sont pas rejouées après un résultat incertain.
+- Les contrats API, modèles de données, rôles et interfaces sont inchangés. La qualification de la cible Linux/Cloudflare isolée est suivie dans [T33](docs/IMPLEMENTATION-T33.md).
+
 ## Workspace et fronts — qualification T07/T13, 6 octobre 2026
 
 - Le volet mobile du thème ChatGPT-like reçoit le focus à l'ouverture, retient la navigation clavier et rend le contenu couvert inactif. Sa fermeture et le retour au mode bureau replacent le focus sans déplacer le défilement.

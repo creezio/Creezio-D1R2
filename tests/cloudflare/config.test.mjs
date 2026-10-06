@@ -61,3 +61,23 @@ test('version 3 target carries a stable physical installation UUID into the rout
   assertCloudflareBuiltConfiguration(worker,extended);
   assert.throws(()=>validateCloudflareTarget({...extended,storageInstallationId:'foreign'}));
 });
+
+test('routed target accepts sixteen distinct slots and refuses a seventeenth',()=>{
+  const resources=Array.from({length:16},(_,index)=>{
+    const slot=index+1;
+    return {contextId:`tenant-${slot}`,slot,status:'active',databaseName:`tenant-${slot}-db`,
+      databaseId:`22222222-2222-4222-8222-${String(slot).padStart(12,'0')}`,
+      bucketName:`tenant-${slot}-files`};
+  });
+  const extended={...target,schemaVersion:3,
+    storageInstallationId:'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',resources};
+  const worker=cloudflareWorkerConfiguration(extended);
+  assert.equal(worker.d1_databases.length,17);
+  assert.equal(worker.r2_buckets.length,17);
+  assert.equal(worker.d1_databases.at(-1).binding,'DB_RESOURCE_16');
+  assert.equal(worker.r2_buckets.at(-1).binding,'BUCKET_RESOURCE_16');
+  assertCloudflareBuiltConfiguration(worker,extended);
+  assert.throws(()=>validateCloudflareTarget({...extended,resources:[...resources,
+    {...resources[0],contextId:'tenant-17',slot:17,databaseName:'tenant-17-db',
+      databaseId:'22222222-2222-4222-8222-000000000017',bucketName:'tenant-17-files'}]}));
+});

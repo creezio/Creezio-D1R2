@@ -100,6 +100,27 @@ test('lost R2 response keeps its created D1 and bucket candidate uncertain', asy
   assert.equal(f.calls.filter(item => item.startsWith('POST:')).length,2);
 });
 
+test('restart after the D1 receipt resumes R2 without another D1 creation', async () => {
+  const f = fixture();
+  const save = f.journal.compareAndSave;
+  let interrupted = false;
+  f.journal.compareAndSave = async (before, after) => {
+    if (after.stage === 'r2-intent' && !interrupted) {
+      interrupted = true;
+      throw new Error('journal temporarily unavailable');
+    }
+    return save(before, after);
+  };
+  await assert.rejects(createCloudflareProvisioner(f).provision(plan),
+    /journal temporarily unavailable/);
+  assert.equal(f.current().stage, 'd1-created');
+  assert.equal(f.current().databaseId, databaseId);
+  const resumed = await createCloudflareProvisioner(f).provision(plan);
+  assert.equal(resumed.state, 'ready');
+  assert.equal(f.calls.filter(item => item.startsWith('POST:d1:')).length, 1);
+  assert.equal(f.calls.filter(item => item.startsWith('POST:r2:')).length, 1);
+});
+
 for (const resource of ['d1', 'r2']) {
   test(`explicit ${resource.toUpperCase()} provider refusal is journaled without a second POST`, async () => {
     const f = fixture({refused: resource}), provisioner = createCloudflareProvisioner(f);
@@ -125,6 +146,17 @@ for (const resource of ['d1', 'r2']) {
     assert.equal(f.current().refusal, undefined);
     const second = await provisioner.provision(plan);
     assert.equal(second.state, 'unknown');
+    assert.equal(f.calls.filter(item => item === `POST:${resource}:${resource}-intent`).length, 1);
+  });
+
+  test(`${resource.toUpperCase()} appearing after a recorded refusal becomes unknown without replay`, async () => {
+    const f = fixture({refused: resource}), provisioner = createCloudflareProvisioner(f);
+    assert.equal((await provisioner.provision(plan)).state, 'refused');
+    if (resource === 'd1') f.control.findD1 = async () => ({name: plan.databaseName, id: databaseId});
+    else f.control.bucket = async () => ({name: plan.bucketName, private: true});
+    const observed = await createCloudflareProvisioner(f).provision(plan);
+    assert.equal(observed.state, 'unknown');
+    assert.equal(observed.resource, resource);
     assert.equal(f.calls.filter(item => item === `POST:${resource}:${resource}-intent`).length, 1);
   });
 }

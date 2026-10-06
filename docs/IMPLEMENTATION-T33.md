@@ -1,5 +1,17 @@
 # T-33 — Stockages distincts hors Sites
 
+## Reprise du lot — 6 octobre 2026
+
+La reprise demandée porte sur le provisionnement, les refus et les reprises de la même application avec ses stockages distincts, sans module métier alternatif ni instance applicative supplémentaire. Le retry routé de PR #99 est intégré dans `main` ; sa qualification Cloudflare reste à terminer sur la cible T33 existante. Les trois couples physiques et les témoins antérieurs sont conservés.
+
+Le contrôle du workspace a reproduit un défaut : le refus confirmé de la projection d'un contexte effaçait aussi les onglets sauvegardés des autres contextes du même utilisateur. La purge est désormais limitée à la clé du contexte refusé. La déconnexion et le changement de session conservent leur purge générale. Le test restaure B après le refus de A et vérifie séparément la déconnexion ; il complète les contrôles serveur d'isolation, sans les remplacer.
+
+Les tests de provisionnement couvrent également un arrêt après le reçu D1 mais avant l'intention R2 : la reprise crée R2 sans recréer D1. Si une ressource apparaît après un refus fournisseur enregistré, le résultat redevient `unknown`, sans nouvelle création. La configuration accepte les seize slots distincts prévus par le résolveur, en plus du couple principal, et refuse un dix-septième slot avant publication.
+
+Le relevé Cloudflare du 6 octobre confirme 418 bases D1, sept buckets R2 et les abonnements Workers Paid/R2 Paid. Les [limites D1](https://developers.cloudflare.com/d1/platform/limits/) et [R2](https://developers.cloudflare.com/r2/platform/limits/) publiées permettent cette topologie ; elles ne garantissent pas l'acceptation d'une future allocation ni l'absence d'un plafond personnalisé. Les refus fournisseur et les résultats incertains suivent le journal décrit ci-dessous. Aucun test ne remplit artificiellement le compte pour provoquer un quota dépassé. Reçu de lecture seule : `CREEZIO-T33-CAPACITY-READ-2026-10-06.json`, SHA-256 `061fb58e93f66bd31049bcbcce5d7859c1ee3a97f7f1dcec536f30f17559a1d4`.
+
+Cette correction et ses tests ne constituent pas encore la recette de la nouvelle source déployée. La qualification conserve séparément source, CI, livraison Linux/Cloudflare, reprise native et lecture finale des témoins.
+
 ## Refus fournisseur pendant le provisionnement T32/T33 — 2 octobre 2026
 
 Une réponse Cloudflare 4xx structurée avec `success:false` et des codes numériques d'erreur est conservée comme refus fournisseur **seulement si** la lecture suivante confirme l'absence de la D1 ou du bucket demandé. Le journal garde l'intention, le statut HTTP, les codes numériques non secrets et, lors d'un refus R2, l'identité de la D1 déjà créée. L'opérateur reçoit `provision_d1_refused` ou `provision_r2_refused` (409) ; aucune autre création, publication, affectation de binding, suppression ou bascule vers Sites n'est déclenchée. Une réponse perdue, un 408/429/5xx, une enveloppe non reconnue, une inspection en échec ou l'apparition d'une ressource restent `provision_unknown` et interdisent également un second POST implicite. Une reprise ultérieure relit les ressources : si une ressource apparaît après un refus initial, le résultat redevient inconnu.

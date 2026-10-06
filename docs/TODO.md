@@ -1,5 +1,9 @@
 # Backlog de réalisation
 
+## Reprise — données isolées hors Sites, 6 octobre 2026
+
+Le mandat T33 porte sur la clôture du provisionnement, des refus et des reprises sur l'installation isolée existante. Le retry routé de PR #99 est intégré. L'audit ajoute les cas de reprise D1→R2, de ressource apparue après refus et de limite des slots. Il corrige la purge du workspace : refuser A doit préserver les onglets sauvegardés de B. La cible Linux/Cloudflare conserve ses trois couples ; la recette de la nouvelle source et le retry natif restent à qualifier avant clôture. Voir [T33](IMPLEMENTATION-T33.md). Aucun autre lot différé n'est repris.
+
 ## Livraison — workspace, thèmes et headless, 6 octobre 2026
 
 T07/T13 sont vérifiés et livrés dans le périmètre de leurs exigences. Core PR #116/main `97d5c84` et Lab PR #19/main `01af24f` passent respectivement 1 582 et 1 568 tests et sont livrés sur Linux, Cloudflare et Sites. Les deux Sites courants passent les refus anonymes et entre audiences admin/app. Lab vérifie deux fiches réelles, brouillons après reload, sous-vues inactives, ordre/verrou, scroll, clavier et purge à la déconnexion. Le passage ChatGPT-like → standard v5 → ChatGPT-like v6 conserve compte, droits, marque, fiche et brouillon ; le volet mobile passe la recette clavier. Sur Original, le client headless crée une seule fiche CRM malgré une réponse perdue, puis retrouve son exécution sans renvoi. Les jetons de test sont révoqués et le compte machine désactivé. Voir [T07](IMPLEMENTATION-T07.md) et [T13](IMPLEMENTATION-T13.md) pour les sources et reçus : les scénarios query-only/portails non exposés par Lab restent rattachés à leurs preuves locales. Les autres modules, T39 et les lots différés gardent leurs propres critères ; T08/T11 ne sont pas rouverts.
@@ -747,13 +751,13 @@ La partie API/MCP du connecteur n8n peut avancer avant T-24 ; son raccord aux r�
 - Installation des profils larges intégrée par PR #85 : propriétaire T33 installé, trois D1 conservés ; l'update Cloudflare multi-couple Core `7b606f5` est livré avec trois schémas prêts. Les étapes de correction des ports et de lignée décrites plus bas restent historiques ; voir [le contrat et ses preuves](IMPLEMENTATION-T33.md#livraison-cloudflare-multi-couple-et-lecture-bornee--2-octobre-2026).
 
 
-- Lot : **P6** ; état : **en cours — trois D1/R2 Cloudflare livrés et prêts, B conservé et A refusé ; UI B initiale qualifiée, rechargement après PR #97 et critères exhaustifs ouverts** ; responsabilités : intégration Git/livraison, installation/revue locale, configuration persistée et recette réelle traitées par des responsables distincts.
+- Lot : **P6** ; état : **en cours — trois D1/R2 livrés, A refusé et B conservé après rechargement sur 6921f5d ; correction de la purge intercontextes et recette native du retry à livrer** ; responsabilités : intégration Git/livraison, installation/revue locale, configuration persistée et recette réelle traitées par des responsables distincts.
 - Dépendances : [T-32](#T-32).
 - Travail/livrables : Résolveur de ressources autorisées, provisionnement/bindings et qualification des quotas.
 - PR #79 à #81 intègrent le routage, l'autorité cible, l'installation et le cutover. L'ancien état `unproven` post-RBAC sur Linux 8d et la première tentative Cloudflare b9 restent historiques. L'update native `10c2705d-e5f8-49ea-ae15-0f5737841e98` de Core `7b606f5` est livrée sur les trois couples conservés ; voir [T33](IMPLEMENTATION-T33.md#livraison-cloudflare-multi-couple-et-lecture-bornee--2-octobre-2026).
 - Besoin : [US-33](USER-STORIES.md#US-33). Acceptation : [REQ-3301](EXIGENCES.md#REQ-3301).
 - Validation : implémenter puis exécuter les recettes liées, sur **local puis Cloudflare direct** ; inclure les cas négatifs et les contrôles communs appropriés.
-- Preuves : trois schémas D1 `ready` et ressources physiques inchangées, Worker exact à 100 %, registre synchronisé ; API B conservé/A refusé et UI B à l'affichage initial sans OpenAI. Le correctif PR #97 est intégré mais non livré sur T33 ; rechargement, quotas et portée exhaustive restent ouverts.
+- Preuves : trois schémas D1 `ready` et ressources physiques inchangées, Worker `6921f5d` exact à 100 %, registre synchronisé ; API B conservé/A refusé et UI B après rechargement sans OpenAI. Le retry routé de PR #99 est intégré ; la recette native de reprise et celle de la correction du 6 octobre restent ouvertes. Les limites fournisseur et la portée des refus sont précisées dans [T33](IMPLEMENTATION-T33.md).
 
 <a id="T-34"></a>
 ## T-34 — Éditions, politiques et activation
