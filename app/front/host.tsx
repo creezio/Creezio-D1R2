@@ -227,7 +227,7 @@ function BoundFront({access, initialUrl}: {access: AccessController; initialUrl?
 
   const renderSlot = (slotName: string): ReactNode => {
     if (!frontTheme?.slots.includes(slotName)) return null;
-    return frontSlots.filter(slot => slot.slot === slotName && slot.surfaces.includes('front')
+    const content = frontSlots.filter(slot => slot.slot === slotName && slot.surfaces.includes('front')
       && slot.audiences.includes('app')).map(slot => {
       const view = appViews.find(item => item.id === slot.viewId);
       if (!view) return null;
@@ -248,7 +248,8 @@ function BoundFront({access, initialUrl}: {access: AccessController; initialUrl?
       return <ProtectedSlot key={slot.id} slotName={slotName} slotId={slot.id} view={view}
         access={access} projection={projection} client={client} visible={currentSlot}
         revocationVersion={revocationVersion} navigate={navigate} visit={visit} />;
-    });
+    }).filter(node => node !== null);
+    return content.length ? content : null;
   };
 
   const Theme = FrontCustomTheme ?? frontTheme?.component;

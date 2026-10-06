@@ -14,4 +14,4 @@ Une application Creezio peut choisir une présentation à navigation latérale p
 
 ## Hors périmètre
 
-Conversation, historique, recherche de messages, compositeur, dictée, moteur LLM, widgets et données Certivan. Ils attendent les modules T14/T15.
+Conversation, historique, recherche de messages, compositeur, dictée, moteur LLM, widgets et données Certivan. Ces fonctions relèvent des modules dédiés et ne sont pas intégrées au thème.

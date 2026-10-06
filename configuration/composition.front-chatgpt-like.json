@@ -55,7 +55,7 @@
     {
       "moduleId": "creezio.theme-chatgpt",
       "origin": "https://github.com/creezio/Creezio-D1R2",
-      "versionRange": "^0.0.0",
+      "versionRange": "^0.0.1",
       "source": {
         "kind": "workspace",
         "path": "themes/chatgpt-like"
