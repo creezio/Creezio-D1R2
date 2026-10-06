@@ -1,5 +1,11 @@
 # Changelog
 
+## Stockages isolés — accès refusé dans le workspace, 6 octobre 2026
+
+- Le compte natif et sa déconnexion restent accessibles lorsque le contexte demandé refuse la projection du workspace ; aucune vue métier n'est exposée par ce maintien du compte.
+- Le message de refus et son bouton Réessayer apparaissent dans le contenu du shell Creezio, au lieu d'être recouverts par sa barre latérale.
+- La livraison précédente `f80808a` a qualifié sur Linux et Cloudflare la conservation des trois couples, le retry natif unique et la restauration du contexte B. La recette déployée de ces deux corrections d'interface reste suivie dans [T33](docs/IMPLEMENTATION-T33.md).
+
 ## Stockages isolés — reprise et refus par contexte, 6 octobre 2026
 
 - Un contexte refusé ne supprime plus les onglets sauvegardés des autres contextes autorisés du même utilisateur. La purge complète reste appliquée à la déconnexion ou au changement de session.

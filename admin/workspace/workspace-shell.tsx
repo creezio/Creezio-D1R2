@@ -87,7 +87,7 @@ function CreezioShellContent({controller,snapshot,authorized,items,children,acco
     style={{'--assistant-chrome-right': `${rightChromePx}px`} as CSSProperties}
     data-creezio-workspace="original-shell" data-creezio-assistant-chrome={rightChromePx > 0 ? 'panel' : 'fab-overlay'}>
     <Sidebar collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebarCollapsed}
-      mobileOpen={navOpen} onMobileClose={closeNav} account={authorized ? account : null} onLogout={onLogout}
+      mobileOpen={navOpen} onMobileClose={closeNav} account={account} onLogout={onLogout}
       activeItemId={activeItem?.id} primaryItems={items.filter(item => !deliveryItem(item)).map(item => destination(item))}
       adminItems={items.filter(deliveryItem).map(item => destination(item, CloudUpload))}
       renderAccountActions={() => <button type="button" onClick={onRefreshAccess}

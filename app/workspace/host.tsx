@@ -165,7 +165,9 @@ function BoundWorkspace({access}: {access: AccessController}) {
       back:()=>allowed&&shell.controller.back(),forward:()=>allowed&&shell.controller.forward(),
       readPanelState:()=>null,savePanelState:()=>false,
     };
-    return <CreezioShell {...shell} account={state.session ? {displayName: state.session.displayName} : null}
+    return <CreezioShell {...shell} children={error ? <div role="alert" className="p-4">Impossible de vérifier l’accès aux vues.
+      <button type="button" onClick={() => setAttempt(value => value + 1)}>Réessayer</button></div> : shell.children}
+      account={authenticated && state.session ? {displayName: state.session.displayName} : null}
       deliveryTransport={access.audience==='admin'&&access.origin.startsWith('http://127.0.0.1:')?deliveryTransport:null}
       assistantScopeKey={assistantSession.current ? `${assistantSession.current}:${access.audience}:${contextId}` : 'anonymous'}
       assistant={Assistant && assistantView?.validateInput(input) ? <div hidden={!allowed} inert={!allowed}>
@@ -185,8 +187,7 @@ function BoundWorkspace({access}: {access: AccessController}) {
       return binding ? `${binding.contributorModuleId}:${binding.id}` : null;
     }}>
     {!authenticated && <section className="workspace-host-access"><NativeAccessPanel audience={access.audience} controller={access} /></section>}
-    {!contextId ? <p role="alert">Le contexte demandé est invalide.</p> : error ? <div role="alert">Impossible de vérifier l’accès aux vues.
-      <button type="button" onClick={() => setAttempt(value => value + 1)}>Réessayer</button></div> : null}
+    {!contextId ? <p role="alert">Le contexte demandé est invalide.</p> : null}
     <div hidden={!authenticated} inert={!authenticated}>
     <Workspace access={access} projection={projection} views={views} navigation={workspaceNavigation} client={client} contextId={contextId}
       revocationVersion={revocationVersion}

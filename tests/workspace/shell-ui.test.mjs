@@ -22,6 +22,23 @@ async function loadShellModule(name) {
 const {WorkspaceTabBar} = await loadShellModule('workspace-tab-bar');
 const {DestinationSearchDialog, filterDestinations} = await loadShellModule('destination-search');
 const {toolbarKey} = await loadShellModule('page-toolbar-context');
+const {CreezioShell} = await loadShellModule('workspace-shell');
+
+test('a denied workspace keeps native logout and shows its refusal inside the shell without business navigation', () => {
+  const base={controller:{},snapshot:{tabs:[],activeTabId:null},authorized:false,items:[],
+    children:createElement('div',{role:'alert'},'Impossible de vérifier l’accès aux vues.'),
+    onLogout(){},onRefreshAccess(){}};
+  const html=renderToStaticMarkup(createElement(CreezioShell,{...base,account:{displayName:'Qualification T33'}}));
+  assert.match(html,/aria-label="Déconnexion"/);
+  const main=html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/)?.[1];
+  assert.ok(main,'the shell must render its normal content area');
+  assert.match(main,/role="alert"[^>]*>Impossible de vérifier l’accès aux vues/);
+  assert.match(html,/<nav aria-label="Navigation principale"[^>]*><\/nav>/);
+  assert.match(html,/<dialog[^>]*aria-label="Rechercher une vue"[^>]*style="display:none"/);
+  assert.doesNotMatch(html,/>Conversations<|data-tab-locked="true"/);
+  const anonymous=renderToStaticMarkup(createElement(CreezioShell,{...base,account:null}));
+  assert.doesNotMatch(anonymous,/aria-label="Déconnexion"/);
+});
 
 test('original shell tabs keep pinned and locked controls while showing an authorized page', () => {
   const html = renderToStaticMarkup(createElement(WorkspaceTabBar, {
