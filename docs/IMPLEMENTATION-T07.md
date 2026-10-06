@@ -1,5 +1,15 @@
 # Workspace et conservation des onglets — T-07
 
+## Reprise de qualification du 6 octobre 2026
+
+Le profil Original et le profil Lab du compte Sites courant sont accessibles et réutilisés. Le contrôle initial vérifie la connexion native, les projections et les refus entre audiences : un cookie `admin` n'ouvre pas le front `app`, et réciproquement ; une projection anonyme refuse 401 et un contexte mal formé refuse 400. La déconnexion est confirmée par une nouvelle lecture de session refusée. Ces lectures ne remplacent pas la recette des panneaux métier.
+
+L'accueil épinglé reste fourni par `homeViewId`, uniquement si la projection autorise cette vue. Le kit original fournissait le mécanisme `/dashboard`, dont le contenu dépendait de l'application. Les compositions Original et Lab actuelles ne déclarent pas de vue `:home` ou `:dashboard` : l'absence de panneau initial sans lien direct n'introduit pas un dashboard inventé. Les tests du contrôleur et la recette locale du 27 septembre qualifient ouverture, unicité, première position et refus de fermeture de l'accueil déclaré.
+
+La recette hébergée du 6 octobre sur Lab vérifie deux vraies fiches du module Demandes d'achat : lien direct à froid, panneaux distincts, brouillons indépendants, sous-vue inactive `inert`, verrouillage/déverrouillage, déplacement d'onglet, conservation du scroll, restauration des deux brouillons au rechargement, flèche clavier avec focus et purge des onglets/états à la déconnexion. Une seule fiche synthétique a été créée ; l'exercice UI n'envoie aucune écriture métier. Reçu hors dépôt : `CREEZIO-T0713-WORKSPACE-LAB-EXERCISE-451d6836-d215-46c5-8a2a-7abeafc209d3.json`.
+
+Le contrat de détail de ce module accepte uniquement `id` et ne propose pas de portail : les scénarios query-only, historique par panneau, transition interrompue et portail restent attestés par les tests et la recette locale T07, sans être présentés comme des parcours de ces fiches hébergées. Les mécanismes et contrats concernés sont inchangés ; les sections suivantes conservent la provenance des preuves historiques.
+
 ## Aperçu de rétention Analytics — correctif intégré et vérifié sur Original Sites v5
 
 Sur Original Sites v4, `admin.retention.preview` renvoyait 403 `forbidden` au compte ayant `analytics:read` sans `manage-retention`, alors que session et projection restaient 200. Le garde ne ferme plus les autres onglets pour ce refus facultatif ; il est intégré par la PR #90 sur main `be89116`, avec CI candidate et main réussies (1 472/1 472 tests chacune). Sur Original Sites v5 lié à ce Core, l'alerte de droit `analytics.purge` apparaît dans Rétention, tandis que Support, Conversations et Analytique restent ouverts, le chat accessible, la session active et les deux clics antérieurs visibles (`CREEZIO-T22-ORIGINAL-RETENTION-LOCAL-BE89116.json` hors dépôt). Les commandes de configuration/purge, les refus 401 et ceux du suivi d'opération conservent leurs contrôles. Aucun droit, collecte, politique ou purge n'a été ajouté.

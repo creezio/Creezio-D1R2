@@ -1,6 +1,10 @@
 # Backlog de réalisation
 
-## Priorité active — livraison finale du cycle des extensions, 6 octobre 2026
+## Priorité active — workspace, thèmes et headless, 6 octobre 2026
+
+T07/T13 sont en qualification finale, sans réouverture de T08 ou T11. Les deux Sites courants passent les refus anonymes et entre audiences admin/app. La recette Lab vérifie deux fiches réelles, brouillons indépendants après reload, sous-vues inactives, ordre/verrou des onglets, scroll, clavier et purge après déconnexion. Le thème ChatGPT-like 0.0.1 corrige son focus mobile et passe la recette DOM Chrome locale ainsi que ses six suites de module. Restent l'intégration et la livraison de ce correctif, la bascule hébergée des thèmes et la recette headless distante. Voir [T07](IMPLEMENTATION-T07.md) et [T13](IMPLEMENTATION-T13.md) ; aucune clôture de ces lots n'est déduite du seul succès local.
+
+## Livraison finale du cycle des extensions, 6 octobre 2026
 
 Les PR #111 et #112 sont intégrées sur main `93d0215631933a20a3e5a930d5567bc74cb6b38b` : CI 1 560 tests et 33 commandes, SDK 1.10.0 public. Admission opérateur, approbation hors ligne des archives npm et retrait sûr des droits historiques sont dans cette source. L'aperçu et le journal affichent les droits retirés ; leur présence dans un rôle ne bloque pas les autres modules et n'autorise aucune opération retirée.
 

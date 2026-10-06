@@ -1,5 +1,13 @@
 # Réalisation T-13 — Fronts, thèmes et headless
 
+## Qualification complémentaire du 6 octobre 2026
+
+Les deux Sites du compte courant sont disponibles ; les mentions d'attente d'accès ci-dessous décrivent la recette historique du 27 septembre. Original et Lab utilisent le même hôte de front et leurs propres comptes natifs. Les lectures hébergées confirment les projections et refus d'audience, sans élargissement de droits.
+
+Le thème ChatGPT-like 0.0.1 corrige le parcours clavier mobile : focus dans le volet ouvert, contenu couvert inactif, boucle Tab, fermeture par Échap et retour de focus sans défilement. Le passage au mode bureau ferme ce volet. Les primitives et le dessin existants sont conservés ; aucun composant métier ou changement de données ne sont nécessaires.
+
+La recette du client headless emploie les bindings CRM compilés et un compte machine avec le seul scope app autorisé. Elle est distincte de l'interface thémée et ne nécessite ni identité GPT ni cookie admin. Les preuves de tests, de publication et de recette distante restent distinguées ; une compilation ou une réponse HTTP sans résultat métier ne constitue pas une validation du parcours.
+
 T-13 / US-13 / REQ-1301 et REQ-1302. Branche `core/t13-front-themes`, base main PR #21 `20d48fda` qualifiée avec 923 tests. PR #22 intégrée, main `d12ab795` et candidat `b950fba3` de même arbre. 953 tests réussis en local et CI (candidat 36304940073, main 36305223665). Les recettes navigateur des deux thèmes, conservation des brouillons, écriture inconnue réconciliée sans rejeu et révocation sont qualifiées localement. Aucune recette Sites ou parité complète du CMS n'est revendiquée.
 
 ## Présentation facultative, backend commun

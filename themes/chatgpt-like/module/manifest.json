@@ -5,10 +5,10 @@
     "title": "Creezio ChatGPT-like front theme",
     "publisher": "creezio",
     "origin": "https://github.com/creezio/Creezio-D1R2",
-    "version": "0.0.0",
+    "version": "0.0.1",
     "source": {
       "kind": "snapshot",
-      "revision": "t13-chatgpt-theme-v1",
+      "revision": "t0713-chatgpt-theme-v2",
       "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000"
     },
     "license": {
@@ -131,8 +131,8 @@
       }
     },
     "versionBinding": {
-      "moduleVersion": "0.0.0",
-      "sourceRevision": "t13-chatgpt-theme-v1"
+      "moduleVersion": "0.0.1",
+      "sourceRevision": "t0713-chatgpt-theme-v2"
     },
     "localRevisions": {
       "installedVersionDistinct": true,
@@ -254,8 +254,8 @@
     },
     "validationBinding": {
       "moduleId": "creezio.theme-chatgpt",
-      "moduleVersion": "0.0.0",
-      "sourceRevision": "t13-chatgpt-theme-v1"
+      "moduleVersion": "0.0.1",
+      "sourceRevision": "t0713-chatgpt-theme-v2"
     },
     "noRuntimeTests": true,
     "installation": "build-and-publish",
