@@ -140,9 +140,11 @@ function statusOf(record,checkpoint=null){
 function updateStatusOf(record){
   const cutoverPhase=record.target?.schemaVersion===3?record.cutover?.phase:null;
   const phase=record.stage==='delivered'?'delivered'
+    :record.stage==='rejected'?'rejected'
     :['fencing','schema-applying'].includes(cutoverPhase)?'schema-applying'
     :cutoverPhase==='schema-ready'?'schema-ready'
-    :['publishing','attesting','opening','open'].includes(cutoverPhase)?'delivery-unknown'
+    :['publishing','attesting','opening','open','rejecting','rejected'].includes(cutoverPhase)
+      ?'delivery-unknown'
     :record.stage==='sandbox-publishing'?'delivery-unknown'
     :record.stage==='sandbox-ready'?'schema-ready':record.stage;
   const failure=record.publicationFailure;
@@ -660,14 +662,23 @@ export function createCloudflareDeliveryPipeline(options){
         ||prior.target?.origin!==record.target.origin
         ||prior.target?.widgetSandboxOrigin!==record.target.widgetSandboxOrigin
         ||!sameArtifact(prior.artifact,expectedArtifact))fail('sandbox_lineage_changed',409);
-      if(initial||updated.sandboxReceipt){
-        const transferId=updated?.sandboxReceipt?.transferId??publicationId;
-        if((updated&&transferId!==publicationId)||
-          updated?.sandboxReceipt&&!exactSandboxReceipt(updated.sandboxReceipt,record,transferId))
+      if(initial||updated?.sandboxReceipt||prior.sandboxHead){
+        if(prior.sandboxHead){
+          const proof=prior.sandboxHeadRejection;
+          const rejected=proof?.updateId?await updateJournal.load(proof.updateId):null;
+          if(rejected?.stage!=='rejected'||rejected.planDigest!==proof.planDigest
+            ||rejected.previousPublicationId!==publicationId
+            ||!same(rejected.sandboxReceipt,prior.sandboxHead))
+            fail('sandbox_lineage_changed',409);
+        }
+        const expected=prior.sandboxHead??updated?.sandboxReceipt;
+        const transferId=expected?.transferId??publicationId;
+        if((updated&&!prior.sandboxHead&&transferId!==publicationId)||
+          expected&&!exactSandboxReceipt(expected,record,transferId))
           fail('sandbox_lineage_changed',409);
         const inspected=await port.inspectSandbox({transferId});
         if(inspected?.state!=='confirmed'||!exactSandboxReceipt(inspected.receipt,record,transferId)
-          ||updated?.sandboxReceipt&&!same(inspected.receipt,updated.sandboxReceipt))
+          ||expected&&!same(inspected.receipt,expected))
           fail('sandbox_unknown',409);
         return inspected.receipt;
       }
@@ -1243,10 +1254,15 @@ export function createCloudflareDeliveryPipeline(options){
   }
   /** Explicitly close a rejected upload only after proving the old Worker is still the head. */
   async function rejectUpdate(input,context){
-    const record=await updateRecordFor(input?.updateId,input?.planDigest,context);
+    let record=await updateRecordFor(input?.updateId,input?.planDigest,context);
     if(record.stage==='rejected')return updateStatusOf(record);
-    if(record.stage!=='delivery-unknown'||record.target?.schemaVersion!==1
-      ||!validationRejected(record))fail('update_not_ready',409);
+    const routed=record.target?.schemaVersion===3;
+    if(!validationRejected(record)||!validArtifact(record.artifact,record)
+      ||(routed?(!['sandbox-ready','delivery-unknown'].includes(record.stage)
+        ||!['publishing','rejecting','rejected'].includes(record.cutover?.phase)
+        ||record.nextTarget?.schemaVersion!==3)
+        :record.stage!=='delivery-unknown'||record.target?.schemaVersion!==1))
+      fail('update_not_ready',409);
     const registry=await registryPorts();
     if(registry.registryIdentity.projectId!==record.registryProjectId
       ||registry.registryIdentity.installationId!==record.registryInstallationId)
@@ -1260,8 +1276,40 @@ export function createCloudflareDeliveryPipeline(options){
     if(!preparedGate(await registry.publicationJournal.get(publicationKey(record))))
       fail('delivery_unknown',409);
     const selected=await connected(record);
-    await assertPrevious(record,selected,registry);
-    if((await selected.control.latestVersion(record.workerName))?.id!==record.previousVersionId)
+    const previous=await assertPrevious(record,selected,registry);
+    if(routed){
+      if(!same(record.target,record.nextTarget)
+        ||!SHA.test(previous.prior.targetPlanDigest??'')
+        ||previous.prior.targetPlanDigest!==record.targetPlanDigest
+        ||previous.prior.targetCompositionDigest!==record.targetCompositionDigest
+        ||record.previousArtifact?.compositionDigest!==record.artifact.compositionDigest)
+        fail('rejection_not_ready',409);
+      const projection=await updateProjectionFor(record);
+      const artifactRoot=updateArtifactRoot(config.root,record.updateId);
+      const request={projectId:record.registryProjectId,
+        installationId:record.registryInstallationId,target:'cloudflare',artifact:record.artifact};
+      const cutover=await routedCutover(record,selected,projection,registry,artifactRoot,request);
+      if(typeof cutover.rejectPreserved!=='function')fail('update_unavailable',503);
+      const publisher=publisherFactory({target:record.nextTarget,token:selected.token,
+        controlPlane:selected.control,artifactRoot});
+      if(typeof publisher.verifyPreservedUpdate!=='function')fail('update_unavailable',503);
+      publisher.verifyPreservedUpdate({transferId:record.updateId,artifact:record.artifact,
+        sourceFingerprint:record.sourceFingerprint});
+      if((await selected.control.latestVersion(record.workerName))?.id!==record.previousVersionId)
+        fail('delivery_unknown',409);
+      await cutover.rejectPreserved();
+      record=await updateRecordFor(input?.updateId,input?.planDigest,context);
+      if(record.cutover?.phase!=='rejected')fail('rejection_not_ready',409);
+      await assertSandboxConfirmed(record,selected);
+      const prior=await assertPrevious(record,selected,registry);
+      const journal=await planJournal.load(prior.publicationId)?planJournal:updateJournal;
+      const sandboxHeadRejection={updateId:record.updateId,planDigest:record.planDigest};
+      if(!same(prior.prior.sandboxHead,record.sandboxReceipt)
+        ||!same(prior.prior.sandboxHeadRejection,sandboxHeadRejection))
+        await journal.compareAndSave(prior.prior,{...prior.prior,revision:prior.prior.revision+1,
+          sandboxHead:record.sandboxReceipt,sandboxHeadRejection});
+    }
+    if(!routed&&(await selected.control.latestVersion(record.workerName))?.id!==record.previousVersionId)
       fail('delivery_unknown',409);
     // Recheck directly before the local CAS. Cloudflare has no cross-system transaction.
     await assertPrevious(record,selected,registry);

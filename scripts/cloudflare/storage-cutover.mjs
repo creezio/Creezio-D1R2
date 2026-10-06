@@ -249,7 +249,61 @@ export function createStorageCompositionCutover({updateJournal,updateId,previous
     }
     return inspectFinalRoutes();
   }
-  return Object.freeze({async assertRetryReady(){
+  return Object.freeze({async rejectPreserved(){
+    sourceDb=await database(next.databaseId);
+    let record=await load();
+    if(!same(previous,next)
+      ||record.previousArtifact?.compositionDigest!==artifact.compositionDigest
+      ||!['publishing','rejecting','rejected'].includes(record.cutover?.phase)
+      ||record.cutover.receipts?.length!==1+newActive.length)
+      fail('rejection_not_ready');
+    for(const entry of all){
+      const saved=record.cutover.generations?.find(item=>item.resourceKey===key(entry.resource));
+      if(!Number.isSafeInteger(saved?.generation)||saved.generation<1)fail('cutover_changed');
+      entry.generation=saved.generation;
+      const existing=await readStorageMutation(sourceDb,command(entry).mutationId);
+      if(existing&&existing.generation!==entry.generation)fail('cutover_changed');
+    }
+    if(!await exactPrevious(record)||!same(await verifySchema(),record.cutover.receipts))
+      fail('rejection_not_ready');
+    if(record.cutover.phase==='publishing'){
+      if(!await inspectFences())fail('rejection_not_ready');
+      record=await save(record,{phase:'rejecting',rejection:{
+        mode:'preserve-previous',previousDeploymentId:record.previousDeploymentId,
+        previousVersionId:record.previousVersionId}});
+    }else if(record.cutover.rejection?.mode!=='preserve-previous'
+      ||record.cutover.rejection.previousDeploymentId!==record.previousDeploymentId
+      ||record.cutover.rejection.previousVersionId!==record.previousVersionId)
+      fail('cutover_changed');
+    const epoch=await sourceEpoch();
+    for(const entry of all){
+      if(!await exactPrevious(record)||!same(await verifySchema(),record.cutover.receipts))
+        fail('rejection_not_ready');
+      const input=command(entry),{row}=await targetRoute(entry);
+      if(row?.mutationId!==input.mutationId
+        ||row.generation!==input.expectedGeneration+1
+        ||!['deny','active'].includes(row.state))fail('route_changed');
+      let state=await inspectStorageRevocation(sourceDb,input);
+      if(row.state==='active'&&!['source-confirmed','open'].includes(state))
+        fail('route_changed');
+      if(state==='fenced')state=await markStorageSourceAttempted(sourceDb,input);
+      if(state==='source-attempted')state=await confirmStorageSource(sourceDb,input,
+        async()=>Boolean(await exactPrevious(record)
+          &&same(await verifySchema(),record.cutover.receipts)));
+      if(!['source-confirmed','open'].includes(state))fail('rejection_not_ready');
+      await reopenStorageRoute(sourceDb,(await targetRoute(entry)).db,input,epoch);
+      if(!await inspectStorageRouteOpen((await targetRoute(entry)).db,input,epoch))
+        fail('route_changed');
+    }
+    if(!await exactPrevious(record)||!same(await verifySchema(),record.cutover.receipts))
+      fail('rejection_not_ready');
+    for(const entry of all){
+      const {db}=await targetRoute(entry);
+      if(!await inspectStorageRouteOpen(db,command(entry),epoch))fail('route_changed');
+    }
+    if(record.cutover.phase!=='rejected')record=await save(record,{phase:'rejected'});
+    return true;
+  },async assertRetryReady(){
     sourceDb=await database(next.databaseId);
     const record=await load();
     if(record.cutover?.phase!=='publishing'||!same(record.nextTarget,next)

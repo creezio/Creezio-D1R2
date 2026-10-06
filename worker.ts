@@ -21,7 +21,10 @@ import { resolveAccessHttpConfiguration } from './core/identity/http-policy';
 
 const registry = createOperationRegistry({catalog: operationCatalog, validators: operationValidators, handlers: operationHandlers});
 const analyticsCompiled=modules.some(module=>module.id==='creezio.analytics');
-const mcpTransportFactory = createMcpHttpTransportFactory(mcpCatalog, registry);
+// Validate the large static widget catalog once, on the first MCP request.
+// Keep this work out of the provider's isolate startup budget; request identities
+// and permission checks remain fresh in each transport created below.
+let mcpTransportFactory: ReturnType<typeof createMcpHttpTransportFactory> | undefined;
 const declaredHttp = createDeclaredHttpDispatcher({registry, dataCatalog, fileCatalog, permissions, bindings: httpBindings,
   workspaceCatalog, workspaceNavigationCatalog, frontCatalog, runtimeInventory, toolCatalog, widgetCatalog, widgetValidators, connectors,
   search:searchProjections,deliveries:deliveryMappings,webhooks:{mappings:webhookMappings,contextId:frontContextId},
@@ -36,6 +39,7 @@ const mcpHttp = {async dispatch(request: Request, resolved: Parameters<typeof di
   const configuration = resolveAccessHttpConfiguration(rawEnvironment, resolved.profile);
   if (!configuration) return Response.json({error:{code:'runtime_unavailable'},requestId},{status:503,
     headers:{'cache-control':'no-store','x-content-type-options':'nosniff','x-creezio-request-id':requestId}});
+  mcpTransportFactory ??= createMcpHttpTransportFactory(mcpCatalog, registry);
   const host=createRuntimeOperationHost({catalog:dataCatalog,registry,permissions,runtimeInventory,httpBindings,
     workspaceCatalog,workspaceNavigationCatalog,
     connectors,search:searchProjections,deliveries:deliveryMappings,fileCatalog,

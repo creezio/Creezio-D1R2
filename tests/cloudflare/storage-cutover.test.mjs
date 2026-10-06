@@ -123,6 +123,54 @@ test('isolated cutover fences old routes, receipts each new D1, and opens only d
   }finally{await f.dispose();}
 });
 
+test('same-plan rejection resumes two route reopenings after a partial read failure',
+  {timeout:60000},async()=>{
+    const f=await fixture();
+    try{
+      f.options.nextTarget=previous;
+      f.journal.record.nextTarget=previous;
+      f.journal.record.previousArtifact={...previousArtifact,
+        compositionDigest:plan.compositionDigest};
+      f.setOldProof({...f.oldProof,artifact:f.journal.record.previousArtifact});
+      f.schema.inspect=async()=>({state:'ready'});
+      f.schema.apply=async()=>assert.fail('same-plan rejection runs no DDL');
+      f.schema.managed=async db=>({ok:true,
+        receiptId:digest(db===f.source?'a':db===f.a?'b':'c'),receipt:{...plan}});
+      f.publication.deliver=async()=>{throw new Error('Cloudflare 10021');};
+      assert.deepEqual(await f.cutover().advance(),{state:'pending',phase:'publishing'});
+      for(const db of [f.a,f.b])
+        assert.equal((await db.prepare(`SELECT state FROM ${routes}`).first()).state,'deny');
+      const databaseFor=f.options.databaseFor;
+      let interrupt=true;
+      f.options.databaseFor=async id=>{
+        if(id===ids[1]&&interrupt
+          &&(await f.a.prepare(`SELECT state FROM ${routes}`).first()).state==='active'){
+          interrupt=false;throw new Error('target read unavailable after first reopening');
+        }
+        return databaseFor(id);
+      };
+      await assert.rejects(f.cutover().rejectPreserved(),
+        /target read unavailable after first reopening/);
+      assert.equal(f.journal.record.cutover.phase,'rejecting');
+      assert.deepEqual((await f.a.prepare(`SELECT state,generation FROM ${routes}`).first()),
+        {state:'active',generation:2});
+      assert.deepEqual((await f.b.prepare(`SELECT state,generation FROM ${routes}`).first()),
+        {state:'deny',generation:2});
+      f.setOldProof({...f.oldProof,versionId:'foreign-version'});
+      await assert.rejects(f.cutover().rejectPreserved(),{code:'rejection_not_ready'});
+      assert.equal((await f.b.prepare(`SELECT state FROM ${routes}`).first()).state,'deny');
+      f.setOldProof({...f.oldProof,versionId:'version-previous'});
+      assert.equal(await f.cutover().rejectPreserved(),true);
+      assert.equal(await f.cutover().rejectPreserved(),true);
+      assert.equal(f.journal.record.cutover.phase,'rejected');
+      for(const db of [f.a,f.b])
+        assert.deepEqual((await db.prepare(`SELECT state,generation FROM ${routes}`).first()),
+          {state:'active',generation:2});
+      assert.equal(f.deliveries,0);
+      assert.equal(f.applies.size,0);
+    }finally{await f.dispose();}
+  });
+
 test('old deployment must have exact bindings before the first fence',
   {timeout:60000},async()=>{
   const f=await fixture();
