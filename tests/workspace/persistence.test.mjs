@@ -125,10 +125,27 @@ test('a confirmed refusal of T33 context A cannot erase or restore context B aft
   assert.equal(reloaded.getSnapshot().tabs.some(tab=>tab.location.input.id==='b-witness'),true);
   assert.equal(reloaded.getSnapshot().tabs.some(tab=>tab.location.input.id==='a-only'),false);
   assert.equal(storage.getItem(aKey),null);
+  reloaded.dispose();
+  assert.ok(storage.getItem(bKey),'B snapshot remains after its controller unmounts');
   identity.set({phase:'authenticated',session,pending:'logout'});
-  assert.equal(reloaded.getSnapshot().tabs.length,0);
+  assert.equal(storage.getItem(bKey),null,'A retains the identity needed to purge B on logout');
+  a.dispose();
+});
+
+test('logout from a denied T33 deep link purges an unmounted B snapshot', () => {
+  const storage=memoryStorage(),identity=access(),bContext='t33-context-b';
+  const bKey=`${WORKSPACE_STORAGE_KEY}:admin:${bContext}`;
+  const b=createWorkspaceController({access:identity,views,contextId:bContext,storage,
+    homeViewId:'module:home',projection:projection({contextId:bContext})});
+  assert.equal(b.open('module:record',{id:'b-witness'}),true);
+  b.dispose();
+  assert.ok(storage.getItem(bKey));
+  const denied=createWorkspaceController({access:identity,views,contextId:'t33-context-a',storage,
+    homeViewId:'module:home'});
+  assert.equal(denied.getSnapshot().tabs.length,0);
+  identity.set({phase:'authenticated',session,pending:'logout'});
   assert.equal(storage.getItem(bKey),null);
-  reloaded.dispose();a.dispose();
+  denied.dispose();
 });
 
 test('panel state is explicit and limited to small presentation fields', () => {

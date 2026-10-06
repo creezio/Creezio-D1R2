@@ -309,6 +309,7 @@ export function createWorkspaceController(options: {access: AccessController; vi
   const surface = options.surface ?? 'workspace';
   const storage = options.storage, key = storageKey(access.audience, contextId, surface);
   let projection: WorkspaceProjection | null = null;
+  let lastVerifiedIdentity: {sessionId: string; principalId: string} | null = null;
   let projectionCurrent = false;
   let snapshot: WorkspaceSnapshot = Object.freeze({tabs: Object.freeze([]), activeTabId: null});
   let disposed = false;
@@ -319,6 +320,8 @@ export function createWorkspaceController(options: {access: AccessController; vi
     return state.phase === 'authenticated' && state.pending === null && state.session
       && state.session.audience === access.audience ? state.session : null;
   };
+  const initialSession = verified();
+  if (initialSession) lastVerifiedIdentity = {sessionId: initialSession.id, principalId: initialSession.principalId};
   const allowed = () => new Set(projection?.viewIds ?? []);
   const available = () => projectionCurrent && !!projection && !!verified();
   const publish = (tabs: readonly WorkspaceTab[], activeTabId: string | null) => {
@@ -330,6 +333,11 @@ export function createWorkspaceController(options: {access: AccessController; vi
     return persisted;
   };
   const purge = () => { if (snapshot.tabs.length || snapshot.activeTabId) publish([], null); };
+  const forgetSessionStorage = () => {
+    const identity = projection ?? lastVerifiedIdentity;
+    forgetStorage(storage, key, identity?.sessionId, identity?.principalId);
+    lastVerifiedIdentity = null;
+  };
   const viewFor = (key: string) => views.find(view => viewKey(view) === key
     && view.surfaces.includes(surface) && view.audiences.includes(access.audience));
   const openLocation = (location: WorkspaceLocation, opts: {newTab?: boolean; replace?: boolean} = {}) => {
@@ -361,18 +369,21 @@ export function createWorkspaceController(options: {access: AccessController; vi
   const unsubscribe = access.subscribe(() => {
     const state = access.getSnapshot();
     if (state.pending || state.phase === 'anonymous') {
-      forgetStorage(storage, key, projection?.sessionId, projection?.principalId);
+      forgetSessionStorage();
       projection = null; projectionCurrent = false; purge(); return;
     }
     if (state.phase === 'loading' || state.phase === 'unavailable') {
       projectionCurrent = false; return;
     }
     const session = verified();
-    if (!session || projection && (projection.sessionId !== session.id
-      || projection.principalId !== session.principalId)) {
-      forgetStorage(storage, key, projection?.sessionId, projection?.principalId);
+    const previous = projection ?? lastVerifiedIdentity;
+    if (!session || previous && (previous.sessionId !== session.id
+      || previous.principalId !== session.principalId)) {
+      forgetSessionStorage();
       projection = null; projectionCurrent = false; purge();
     }
+    if (session && !lastVerifiedIdentity)
+      lastVerifiedIdentity = {sessionId: session.id, principalId: session.principalId};
   });
   const controller: WorkspaceController = {
     getSnapshot: () => snapshot,
@@ -396,6 +407,7 @@ export function createWorkspaceController(options: {access: AccessController; vi
         || projection.contextId !== next.contextId || projection.compositionDigest !== next.compositionDigest;
       const restored = changed ? restoreTabs(storage, key, next, views, options.homeViewId, surface) : null;
       projection = next;
+      lastVerifiedIdentity = {sessionId: next.sessionId, principalId: next.principalId};
       projectionCurrent = true;
       if (changed) {
         purge();
